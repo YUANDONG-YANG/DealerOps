@@ -88,14 +88,16 @@ public class TenantFilter extends OncePerRequestFilter {
           return;
         }
         Long dealerId = rows.size() == 1 ? rows.get(0).getDealerId() : null;
-        if (!meGet && dealerId == null) {
-          upsertAppUser(tid, oid, displayName, role, null, false);
-          TenantContext.set(new CurrentUser(oid, tid, role, null));
+        upsertAppUser(tid, oid, displayName, role, dealerId, false);
+        TenantContext.set(new CurrentUser(oid, tid, role, dealerId));
+        if (path.startsWith("/api/v1/admin")) {
           write(res, ErrorCode.FORBIDDEN, "Forbidden");
           return;
         }
-        upsertAppUser(tid, oid, displayName, role, dealerId, false);
-        TenantContext.set(new CurrentUser(oid, tid, role, dealerId));
+        if (!meGet && dealerId == null) {
+          write(res, ErrorCode.FORBIDDEN, "Forbidden");
+          return;
+        }
         chain.doFilter(req, res);
         return;
       }
@@ -129,9 +131,9 @@ public class TenantFilter extends OncePerRequestFilter {
             user.setRole(AppRole.DEALER_USER);
           }
           user.setActive(true);
-          if (admin) {
+          if (admin || dealerId == null) {
             user.setDealerId(null);
-          } else if (dealerId != null && (user.getDealerId() == null || !dealerId.equals(user.getDealerId()))) {
+          } else if (!dealerId.equals(user.getDealerId())) {
             user.setDealerId(dealerId);
           }
           appUserRepository.save(user);

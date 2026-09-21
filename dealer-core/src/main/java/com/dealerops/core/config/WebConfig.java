@@ -2,6 +2,6 @@ package com.dealerops.core.config;
 
 import org.springframework.context.annotation.Configuration;
 
-/** CORS 由 Gateway 负责；core 不对浏览器开放。 */
+/** CORS is owned by Gateway; core is not browser-facing. */
 @Configuration
 public class WebConfig {}

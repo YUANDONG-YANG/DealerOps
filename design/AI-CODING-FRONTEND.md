@@ -5,7 +5,7 @@
 3. Browser HTTP **only hits** `import.meta.env.VITE_GATEWAY_URL` (local `http://localhost:8080`), path prefix `/api/v1`. Ban axios pointing at 8081/8082. Ban requests to `/internal/v1/**`.
 4. Routes are only six pages: `/login` `/admin` `/dms` `/crm` `/ads` `/assistant`. No seventh business route; ban `/audit` `/tickets` `/leads` `/dashboard` / buyer pages.
 5. Admin: **one route** `/admin` + in-page dual tabs (Dealerships | Members). Ban `/admin/members`. This course UI **does not** Edit a dealership (even though 14 has `GET/PATCH /admin/dealers/{id}`).
-6. Assistant model down but still HTTP 200: explanation area is the fixed English **`Smart summary unavailable`** (follow [12](12-Frontend-UI-Conventions.md); do not use the Chinese “智能说明暂不可用” from [10](10-Web-AI-Assistant.md)). Whole-page failure: `Could not ask assistant`.
+6. Assistant model down but still HTTP 200: explanation area is the fixed English **`Smart summary unavailable`** (follow [12](12-Frontend-UI-Conventions.md); do not use the Chinese assistant-failure sentence from [10](10-Web-AI-Assistant.md)). Whole-page failure: `Could not ask assistant`.
 7. Unlisted features are not built: work orders, leads, consumer/buyer site, standalone Audit page, KPI home, password login, dealership switcher, external ad publish.
 8. UI is all English. Error body `{code,message}`. Failures are not empty tables. Optimistic-lock writes carry `version`; `409 VERSION_CONFLICT` → `Refresh and retry`. Ignore client `dealerId`.
 9. **Implementation order locked:** FE-T01 shell → FE-T02 guards → FE-T03 MSAL/HTTP → FE-T04 layout four states → FE-T05 Login → FE-T06 Admin → FE-T07 DMS → FE-T08 CRM → FE-T09 Ads → FE-T10 Assistant → FE-T11 against 16.
@@ -332,7 +332,7 @@ Staff hitting the URLs above: backend **403** `FORBIDDEN`; the frontend guard sh
   - Render at most **5** `AssistantCard`s (truncate even if the backend sends more). Card: title `label` + link into a normal page. Cards **ban** phone / email / homeAddress.
   - `summaryAvailable===false` or `summary===null` (still HTTP 200): explanation area fixed **`Smart summary unavailable`**, **still render cards**.
   - Whole-page network/5xx: `Could not ask assistant`. `400` `VALIDATION` (empty question): in-page hint, do not emit empty cards.
-- **Ban:** Chinese “智能说明暂不可用”; changing data on a card; Admin entering this page; browser hitting `/internal/v1/assistant`.
+- **Ban:** the Chinese assistant-failure sentence from document 10; changing data on a card; Admin entering this page; browser hitting `/internal/v1/assistant`.
 - **Acceptance:** 16 **FE-10**, **FE-06**, frontend behavior of **BE-12** (≤5 cards, read-only, Admin 403).
 
 ### Wiring table · Assistant `/assistant`

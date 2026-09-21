@@ -30,7 +30,7 @@ public class ComplianceCheckEntity {
   private int contentVersion;
 
   @Column(name = "rule_findings", nullable = false, columnDefinition = "JSON")
-  private String ruleFindings;
+  private String ruleFindingsJson;
 
   @Enumerated(EnumType.STRING)
   @Column(name = "ai_status", nullable = false, length = 24)
@@ -75,12 +75,12 @@ public class ComplianceCheckEntity {
     this.contentVersion = contentVersion;
   }
 
-  public String getRuleFindings() {
-    return ruleFindings;
+  public String getRuleFindingsJson() {
+    return ruleFindingsJson;
   }
 
-  public void setRuleFindings(String ruleFindings) {
-    this.ruleFindings = ruleFindings;
+  public void setRuleFindingsJson(String ruleFindingsJson) {
+    this.ruleFindingsJson = ruleFindingsJson;
   }
 
   public AiStatus getAiStatus() {

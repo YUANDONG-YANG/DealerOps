@@ -1,40 +1,40 @@
-# AI 编码规格：后端（可编译、按契约接线）
+# AI coding spec: backend (compilable, wired to the contract)
 
-你是编码 AI。只实现本文编号任务（BE-Txx）。不要读废止的 `01`–`06`，不要实现工单/线索/密码登录/Service Bus/第五 auth 仓。
-契约冲突：HTTP JSON / 路径 / 错误码以 `design/14-Backend-API-Contract.md` 为准；数据列 / 租户 / membership / 空草稿 / SOLD / Gateway 行为以 `design/15-Data-Auth-and-Gateway.md` 为准。`18`/`19` 只定文件位置，不另造契约。
-栈钉死：Java 21、Spring Boot 3.3.5、四仓独立（`dealer-core` / `dealer-gateway` / `ai-service` / `dealer-web`；`dealer-platform` 只放 env/compose，不跑业务）。禁止 monorepo 合并、禁止 core 21 + ai-service 17。
-浏览器只打 Gateway `http://localhost:8080` 前缀 `/api/v1/**`。core 只听 `8081`，ai-service 只听 `8082`，两者不对浏览器配 CORS，不对外 Ingress。
-忽略客户端 body/query/header 里的 `dealerId`（含 `X-Dealer-Id`）。跨店或本店无此 id → **404** `NOT_FOUND`（不 403）。店员无 `membership.active=1` 调业务接口 → **403** `FORBIDDEN`（不是 401/404）。`GET /me` 仍 200 且 `dealerId=null`。
-角色仅 JWT `roles[]`：`Platform.Admin`、`Dealer.User`。Admin 与店员同时出现 → Admin 赢。Admin 打 `/vehicles` `/customers` `/listings/**` `/audit` `/assistant` → 403，响应体无 vin/成本/客户字段。
-未在本文列出的功能 = 不做。禁止 `ddl-auto=update`。禁止改 `V1__init.sql`、禁止改 `13`–`19`、BRIEF、README。禁止对外暴露库 `com.gateway` 或 `/api/ai/**`。
-分页信封 `{items,page,size,total}`，`page` 从 0，`size` 默认 10 且封顶 10。错误体 `{code,message}`；`400 VALIDATION` 可带 `fieldErrors`。JSON camelCase，金额 JSON number，日期 `YYYY-MM-DD`，时间戳 ISO-8601 UTC。
-实现序对齐 BRIEF §11：空仓能启动 → Flyway/实体 → Gateway 路由 → JWT + `/me` → Admin → vehicle → customer/挂解绑 → listing+规则（不调 AI）→ ai-service 适配器 → checks → ready/export → assistant。未完成前序不要跳做后序。
+You are the coding AI. Implement only the numbered tasks in this document (BE-Txx). Do not read withdrawn `01`–`06`. Do not implement work orders / leads / password login / Service Bus / a fifth auth repo.
+Contract conflicts: HTTP JSON / paths / error codes follow `design/14-Backend-API-Contract.md`; data columns / tenant / membership / empty draft / SOLD / Gateway behavior follow `design/15-Data-Auth-and-Gateway.md`. `18`/`19` only fix file locations; they do not invent another contract.
+Stack pinned: Java 21, Spring Boot 3.3.5, four independent repos (`dealer-core` / `dealer-gateway` / `ai-service` / `dealer-web`; `dealer-platform` holds env/compose only and does not run business). Ban merging into a monorepo. Ban core 21 + ai-service 17.
+The browser only hits Gateway `http://localhost:8080` prefix `/api/v1/**`. core listens only on `8081`, ai-service only on `8082`; neither configures browser CORS or public Ingress.
+Ignore `dealerId` in the client body/query/header (including `X-Dealer-Id`). Cross-store or this store has no such id → **404** `NOT_FOUND` (not 403). Staff without `membership.active=1` calling a business API → **403** `FORBIDDEN` (not 401/404). `GET /me` is still 200 with `dealerId=null`.
+Roles come only from JWT `roles[]`: `Platform.Admin`, `Dealer.User`. If Admin and staff appear together → Admin wins. Admin hitting `/vehicles` `/customers` `/listings/**` `/audit` `/assistant` → 403; response body has no vin/cost/customer fields.
+Features not listed here = do not build. Ban `ddl-auto=update`. Ban changing `V1__init.sql`, `13`–`19`, BRIEF, README. Ban exposing library `com.gateway` or `/api/ai/**` publicly.
+Pagination envelope `{items,page,size,total}`, `page` from 0, `size` defaults to 10 and caps at 10. Error body `{code,message}`; `400 VALIDATION` may include `fieldErrors`. JSON camelCase, money as JSON number, dates `YYYY-MM-DD`, timestamps ISO-8601 UTC.
+Implementation order aligns with BRIEF §11: empty repo starts → Flyway/entities → Gateway routes → JWT + `/me` → Admin → vehicle → customer/link-unlink → listing+rules (no AI) → ai-service adapter → checks → ready/export → assistant. Do not skip ahead before prior steps are done.
 
 ---
 
-## 全局钉死（所有任务共用）
+## Global pins (shared by every task)
 
-### 版本
+### Versions
 
-| 项 | 值 |
+| Item | Value |
 |---|---|
 | Java | `21` |
 | Spring Boot | `3.3.5` |
-| Spring Cloud（仅 gateway） | `2023.0.4` |
-| Flyway | 跟 Boot BOM（`flyway-core` + `flyway-mysql`） |
-| MySQL 驱动 | `com.mysql:mysql-connector-j`（跟 BOM） |
-| ai-manager | 本机开发：`com.aimanager:aimanager:1.0.0-SNAPSHOT`（commit `c07e1f2afe5dd692c20f3567ad3a42a90d31a87a`，先 `mvn install`）。发布：同 commit 打的**非 SNAPSHOT** 不可变版本。CI stub，不打付费端点。 |
-| JPA `ddl-auto` | `validate`（本地空库靠 Flyway 建表；禁止 `update`/`create`） |
+| Spring Cloud (gateway only) | `2023.0.4` |
+| Flyway | Follow Boot BOM (`flyway-core` + `flyway-mysql`) |
+| MySQL driver | `com.mysql:mysql-connector-j` (follow BOM) |
+| ai-manager | Local development: `com.aimanager:aimanager:1.0.0-SNAPSHOT` (commit `c07e1f2afe5dd692c20f3567ad3a42a90d31a87a`, `mvn install` first). Release: the **non-SNAPSHOT** immutable version built from the same commit. CI stub; do not hit paid endpoints. |
+| JPA `ddl-auto` | `validate` (local empty DB relies on Flyway to create tables; ban `update`/`create`) |
 
-### 包名（不要改）
+### Package names (do not change)
 
-| 仓 | 根包 |
+| Repo | Root package |
 |---|---|
 | dealer-core | `com.dealerops.core` |
 | dealer-gateway | `ca.sait.dealerops.gateway` |
 | ai-service | `ca.sait.dealerops.aiservice` |
 
-### 错误码枚举（只这些，不要第 13 个业务码）
+### Error-code enum (these only; do not add a 15th business code)
 
 ```java
 public enum ErrorCode {
@@ -55,27 +55,27 @@ public enum ErrorCode {
 }
 ```
 
-### 分页 / 错误 Java 记录（core 共用）
+### Pagination / error Java records (shared in core)
 
 ```java
 public record PageResponse<T>(java.util.List<T> items, int page, int size, long total) {}
 public record ErrorBody(String code, String message, java.util.Map<String, String> fieldErrors) {}
-// fieldErrors 仅 VALIDATION 使用；其他错误该字段为 null，序列化时 NON_NULL
+// fieldErrors is VALIDATION-only; other errors leave this field null; serialize NON_NULL
 ```
 
-`size` 处理：`int size = requested <= 0 ? 10 : Math.min(requested, 10);`
+`size` handling: `int size = requested <= 0 ? 10 : Math.min(requested, 10);`
 
 ---
 
-### BE-T01 三仓 `pom.xml` 依赖清单
-- 仓：dealer-core | dealer-gateway | ai-service
-- 新建/改文件：
+### BE-T01 Three-repo `pom.xml` dependency list
+- Repo: dealer-core | dealer-gateway | ai-service
+- Create/change files:
   - `dealer-core/pom.xml`
   - `dealer-gateway/pom.xml`
   - `ai-service/pom.xml`
-- 必须包含：（类名、方法签名、注解、配置键）
+- Must include: (class names, method signatures, annotations, config keys)
 
-三仓共同：
+Shared by all three repos:
 
 ```xml
 <properties>
@@ -88,34 +88,34 @@ public record ErrorBody(String code, String message, java.util.Map<String, Strin
 </parent>
 ```
 
-`maven-compiler-plugin`：`release=21`。打包用 `spring-boot-maven-plugin`。
+`maven-compiler-plugin`: `release=21`. Package with `spring-boot-maven-plugin`.
 
-**dealer-core 必须依赖（有则保留，无则加；不要加没列的业务 starter）：**
+**dealer-core required dependencies (keep if present, add if missing; do not add unlisted business starters):**
 
-| artifact | 用途 |
+| artifact | Purpose |
 |---|---|
 | `spring-boot-starter-web` | HTTP `/api/v1/**` |
 | `spring-boot-starter-validation` | Bean Validation |
 | `spring-boot-starter-data-jpa` | Entity |
-| `spring-boot-starter-oauth2-resource-server` | 验 Entra JWT |
-| `org.flywaydb:flyway-core` | 迁移 |
-| `org.flywaydb:flyway-mysql` | MySQL 方言（Flyway 10+ 必需） |
-| `com.mysql:mysql-connector-j` | 驱动 |
-| `org.springframework.boot:spring-boot-starter-webflux` | 仅给 `WebClient` 出站 Gateway（不要另起 Netty 业务端口） |
+| `spring-boot-starter-oauth2-resource-server` | Verify Entra JWT |
+| `org.flywaydb:flyway-core` | Migrations |
+| `org.flywaydb:flyway-mysql` | MySQL dialect (required for Flyway 10+) |
+| `com.mysql:mysql-connector-j` | Driver |
+| `org.springframework.boot:spring-boot-starter-webflux` | `WebClient` outbound to Gateway only (do not start another Netty business port) |
 | `spring-boot-starter-test` | test scope |
 
-core **禁止**依赖：`spring-cloud-starter-gateway`、`com.aimanager:aimanager`、任何密码/session starter。
+core **must not** depend on: `spring-cloud-starter-gateway`, `com.aimanager:aimanager`, any password/session starter.
 
-**dealer-gateway 必须依赖：**
+**dealer-gateway required dependencies:**
 
-| artifact | 用途 |
+| artifact | Purpose |
 |---|---|
-| `org.springframework.cloud:spring-cloud-starter-gateway` | 路由 |
-| `spring-boot-starter-oauth2-resource-server` | 验用户 JWT |
-| `spring-boot-starter-validation` | 配置校验（可有） |
+| `org.springframework.cloud:spring-cloud-starter-gateway` | Routing |
+| `spring-boot-starter-oauth2-resource-server` | Verify user JWT |
+| `spring-boot-starter-validation` | Config validation (optional) |
 | `spring-boot-starter-test` | test |
 
-BOM：
+BOM:
 
 ```xml
 <dependencyManagement>
@@ -131,21 +131,21 @@ BOM：
 </dependencyManagement>
 ```
 
-gateway **禁止**依赖：`spring-boot-starter-data-jpa`、`flyway-*`、`mysql-connector-j`、`aimanager`、`spring-boot-starter-web`（Gateway 用 WebFlux；不要同时拉 MVC）。
+gateway **must not** depend on: `spring-boot-starter-data-jpa`, `flyway-*`, `mysql-connector-j`, `aimanager`, `spring-boot-starter-web` (Gateway uses WebFlux; do not also pull MVC).
 
-**ai-service 必须依赖：**
+**ai-service required dependencies:**
 
-| artifact | 用途 |
+| artifact | Purpose |
 |---|---|
 | `spring-boot-starter-web` | `/internal/v1/**` |
-| `spring-boot-starter-validation` | body 校验 |
-| `spring-boot-starter-webflux` | 自管 15s 超时的 HttpClient（若只用 JDK HttpClient 可省略，默认用 Webflux） |
-| `com.aimanager:aimanager` | `1.0.0-SNAPSHOT` 或已打的不可变版 |
+| `spring-boot-starter-validation` | body validation |
+| `spring-boot-starter-webflux` | Self-managed 15s-timeout HttpClient (omit if using JDK HttpClient only; default is Webflux) |
+| `com.aimanager:aimanager` | `1.0.0-SNAPSHOT` or the published immutable version |
 | `spring-boot-starter-test` | test |
 
-ai-service **禁止**依赖：`spring-boot-starter-data-jpa`、`flyway-*`、`mysql-connector-j`、`spring-cloud-starter-gateway`、`oauth2-resource-server`（内部头鉴权，不验用户 JWT）。
+ai-service **must not** depend on: `spring-boot-starter-data-jpa`, `flyway-*`, `mysql-connector-j`, `spring-cloud-starter-gateway`, `oauth2-resource-server` (internal-header auth; do not verify user JWT).
 
-`aimanager` 仓库（本机可先 `mvn install`，CI 用 stub 模块时仍保留此坐标但 profile `stub` 排除）：
+`aimanager` repository (local may `mvn install` first; when CI uses a stub module keep this coordinate but exclude it in profile `stub`):
 
 ```xml
 <repository>
@@ -154,23 +154,23 @@ ai-service **禁止**依赖：`spring-boot-starter-data-jpa`、`flyway-*`、`mys
 </repository>
 ```
 
-- 禁止：三仓混用 Java 17/21；gateway 拉 JPA；core 嵌 `aimanager`；ai-service 拉 Flyway；把 `com.gateway` 当 Spring 扫描包。
-- 验收：
-  1. `rg "java.version" dealer-core/pom.xml dealer-gateway/pom.xml ai-service/pom.xml` 三处都是 `21`。
-  2. `rg "spring-boot-starter-parent" */pom.xml` 版本都是 `3.3.5`。
-  3. `rg "flyway-core|mysql-connector-j|oauth2-resource-server" dealer-gateway/pom.xml ai-service/pom.xml` 无 Flyway/MySQL；gateway 无 JPA；ai-service 无 oauth2-resource-server。
-  4. `rg "spring-cloud-starter-gateway" dealer-gateway/pom.xml` 有；`rg "spring-cloud-starter-gateway" dealer-core/pom.xml ai-service/pom.xml` 无。
-  5. 本机 `JAVA_HOME` 指向 21 后：`mvn -q -f dealer-core/pom.xml -DskipTests compile`、gateway、ai-service 各自 exit 0（ai-service 在 SNAPSHOT 未安装时允许先空适配器 + optional 依赖，但坐标必须写上）。
+- Ban: mixing Java 17/21 across the three repos; gateway pulling JPA; core embedding `aimanager`; ai-service pulling Flyway; treating `com.gateway` as a Spring scan package.
+- Acceptance:
+  1. `rg "java.version" dealer-core/pom.xml dealer-gateway/pom.xml ai-service/pom.xml` is `21` in all three.
+  2. `rg "spring-boot-starter-parent" */pom.xml` versions are all `3.3.5`.
+  3. `rg "flyway-core|mysql-connector-j|oauth2-resource-server" dealer-gateway/pom.xml ai-service/pom.xml` has no Flyway/MySQL; gateway has no JPA; ai-service has no oauth2-resource-server.
+  4. `rg "spring-cloud-starter-gateway" dealer-gateway/pom.xml` present; `rg "spring-cloud-starter-gateway" dealer-core/pom.xml ai-service/pom.xml` absent.
+  5. After local `JAVA_HOME` points at 21: `mvn -q -f dealer-core/pom.xml -DskipTests compile`, gateway, and ai-service each exit 0 (ai-service may start with an empty adapter + optional dependency if SNAPSHOT is not installed, but the coordinate must be written).
 
 ---
 
-### BE-T02 dealer-core 空仓能启动
-- 仓：dealer-core
-- 新建/改文件：
+### BE-T02 dealer-core empty repo can start
+- Repo: dealer-core
+- Create/change files:
   - `dealer-core/src/main/java/com/dealerops/core/DealerCoreApplication.java`
   - `dealer-core/src/main/resources/application.yml`
   - `dealer-core/Dockerfile`
-- 必须包含：
+- Must include:
 
 ```java
 @SpringBootApplication
@@ -179,7 +179,7 @@ public class DealerCoreApplication {
 }
 ```
 
-`application.yml` 写死：
+`application.yml` pinned:
 
 ```yaml
 server:
@@ -212,25 +212,25 @@ dealerops:
   ai-timeout-ms: 15000
 ```
 
-**不要**写 `spring.web.cors` / `allowedOrigins: http://localhost:5173`。
-`Dockerfile`：`EXPOSE 8081`；`ENTRYPOINT` 跑 fat jar。
+**Do not** write `spring.web.cors` / `allowedOrigins: http://localhost:5173`.
+`Dockerfile`: `EXPOSE 8081`; `ENTRYPOINT` runs the fat jar.
 
-- 禁止：监听 8080；配浏览器 CORS；`ddl-auto=update`；实现 `/internal/v1/**`；改 `V1__init.sql`。
-- 验收：
-  1. `rg "ddl-auto" dealer-core/src/main/resources/application.yml` 只有 `validate`。
-  2. `rg "allowedOrigins|localhost:5173" dealer-core` 无。
-  3. MySQL `dealer_core` 已起（compose 仅库）时：`mvn -f dealer-core/pom.xml spring-boot:run` 日志含 `Tomcat started on port 8081`。
-  4. `curl -s -o NUL -w "%{http_code}" http://127.0.0.1:8081/api/v1/me` → `401`（未配 Security 前可先 403/401，完成本任务+T08 后必须 401）。
+- Ban: listening on 8080; browser CORS; `ddl-auto=update`; implementing `/internal/v1/**`; changing `V1__init.sql`.
+- Acceptance:
+  1. `rg "ddl-auto" dealer-core/src/main/resources/application.yml` is only `validate`.
+  2. `rg "allowedOrigins|localhost:5173" dealer-core` none.
+  3. When MySQL `dealer_core` is up (compose database only): `mvn -f dealer-core/pom.xml spring-boot:run` logs contain `Tomcat started on port 8081`.
+  4. `curl -s -o NUL -w "%{http_code}" http://127.0.0.1:8081/api/v1/me` → `401` (before Security is configured 403/401 is allowed; after this task + T08 it must be 401).
 
 ---
 
-### BE-T03 dealer-gateway 可复制路由 YAML
-- 仓：dealer-gateway
-- 新建/改文件：
+### BE-T03 dealer-gateway copy-paste route YAML
+- Repo: dealer-gateway
+- Create/change files:
   - `dealer-gateway/src/main/java/ca/sait/dealerops/gateway/GatewayApplication.java`
   - `dealer-gateway/src/main/resources/application.yaml`
   - `dealer-gateway/Dockerfile`
-- 必须包含：
+- Must include:
 
 ```java
 @SpringBootApplication
@@ -239,7 +239,7 @@ public class GatewayApplication {
 }
 ```
 
-**整文件复制** `application.yaml`（端口 8080 / 上游 8081 / 8082、内部头名、CORS origin 钉死）：
+**Copy the entire** `application.yaml` (port 8080 / upstream 8081 / 8082, internal header name, CORS origin pinned):
 
 ```yaml
 server:
@@ -294,29 +294,29 @@ dealerops:
   internal-token: ${INTERNAL_TOKEN:dealer-internal-dev-only}
 ```
 
-本机未进 compose 时 `CORE_URL`/`AI_URL` 默认 `127.0.0.1`（上表）。进 compose 时环境覆盖为 `http://host.docker.internal:8081` / `8082`（与 `env.example` 一致）。
-`Dockerfile`：`EXPOSE 8080`。
+When not in compose, `CORE_URL`/`AI_URL` default to `127.0.0.1` (table above). In compose, override to `http://host.docker.internal:8081` / `8082` (same as `env.example`).
+`Dockerfile`: `EXPOSE 8080`.
 
-- 禁止：把 `/api/v1/**` 转到 ai-service；`Access-Control-Allow-Headers` 列出 `X-Dealer-Internal`；连 MySQL；签发 JWT；包名 `com.gateway`。
-- 验收：
-  1. `rg "Path=/api/v1" dealer-gateway/src/main/resources/application.yaml` 且同行块 `uri` 含 `CORE_URL` 或 `8081`。
-  2. `rg "Path=/internal/v1" dealer-gateway/src/main/resources/application.yaml` 且含 `X-Dealer-Internal`。
-  3. `rg "allowedOrigins" -A2 dealer-gateway/src/main/resources/application.yaml` 含 `http://localhost:5173`。
-  4. `rg "X-Dealer-Internal" dealer-gateway/src/main/resources/application.yaml` 的 CORS `allowedHeaders` 段不含该头。
-  5. gateway 启动后：`curl -s -o NUL -w "%{http_code}" http://localhost:8080/internal/v1/ad-check` → `404`（无内部头）。
-  6. `curl -s -o NUL -w "%{http_code}" http://localhost:8080/no-such` → `404`。
+- Ban: routing `/api/v1/**` to ai-service; listing `X-Dealer-Internal` in `Access-Control-Allow-Headers`; connecting MySQL; issuing JWT; package name `com.gateway`.
+- Acceptance:
+  1. `rg "Path=/api/v1" dealer-gateway/src/main/resources/application.yaml` and the same block `uri` contains `CORE_URL` or `8081`.
+  2. `rg "Path=/internal/v1" dealer-gateway/src/main/resources/application.yaml` and contains `X-Dealer-Internal`.
+  3. `rg "allowedOrigins" -A2 dealer-gateway/src/main/resources/application.yaml` contains `http://localhost:5173`.
+  4. `rg "X-Dealer-Internal" dealer-gateway/src/main/resources/application.yaml` CORS `allowedHeaders` section does not contain that header.
+  5. After gateway starts: `curl -s -o NUL -w "%{http_code}" http://localhost:8080/internal/v1/ad-check` → `404` (no internal header).
+  6. `curl -s -o NUL -w "%{http_code}" http://localhost:8080/no-such` → `404`.
 
 ---
 
-### BE-T04 ai-service 空仓 + 15s 超时写法
-- 仓：ai-service
-- 新建/改文件：
+### BE-T04 ai-service empty repo + 15s timeout pattern
+- Repo: ai-service
+- Create/change files:
   - `ai-service/src/main/java/ca/sait/dealerops/aiservice/AiServiceApplication.java`
   - `ai-service/src/main/resources/application.yaml`
   - `ai-service/src/main/java/ca/sait/dealerops/aiservice/config/AiTimeoutConfig.java`
   - `ai-service/src/main/java/ca/sait/dealerops/aiservice/config/InternalGuardFilter.java`
   - `ai-service/Dockerfile`
-- 必须包含：
+- Must include:
 
 ```java
 @SpringBootApplication(scanBasePackages = "ca.sait.dealerops.aiservice")
@@ -325,7 +325,7 @@ public class AiServiceApplication {
 }
 ```
 
-`application.yaml`：
+`application.yaml`:
 
 ```yaml
 server:
@@ -345,7 +345,7 @@ aimanager:
   gateway-model: ${AIMANAGER_GATEWAY_MODEL:}
 ```
 
-超时必须自做（库 `WebClient.blockOptional()` 无 15s 保证）。`AiTimeoutConfig` 钉死：
+Timeout must be self-implemented (library `WebClient.blockOptional()` has no 15s guarantee). `AiTimeoutConfig` pinned:
 
 ```java
 @Configuration
@@ -364,57 +364,57 @@ public class AiTimeoutConfig {
 }
 ```
 
-适配器调用模型时再用 `java.util.concurrent.CompletableFuture` + `orTimeout(15000, MILLISECONDS)` 包一层，总上限 **15000ms**。限流队列默认关（不要启 ai-manager 队列）。
+When the adapter calls the model, wrap again with `java.util.concurrent.CompletableFuture` + `orTimeout(15000, MILLISECONDS)`; total cap **15000ms**. Rate-limit queue off by default (do not start the ai-manager queue).
 
-`InternalGuardFilter`：实现 `OncePerRequestFilter`；若 path 以 `/internal/v1/` 开头且头 `X-Dealer-Internal` ≠ `dealerops.internal-token` → `response.setStatus(404)` 并 return。无 CORS 配置。
+`InternalGuardFilter`: implement `OncePerRequestFilter`; if path starts with `/internal/v1/` and header `X-Dealer-Internal` ≠ `dealerops.internal-token` → `response.setStatus(404)` and return. No CORS config.
 
-- 禁止：扫描 `com.gateway`、`com.manager` 以外的库 Web 包；启动 `AIApplication`；暴露 `/api/ai/request` `/chat` `/credentials` `/runtime`；配 `5173` CORS；连库；Flyway。
-- 验收：
-  1. `rg "scanBasePackages" ai-service/src/main/java` 不含 `com.gateway`。
-  2. `rg "timeout-ms: 15000" ai-service/src/main/resources/application.yaml`。
-  3. `rg "orTimeout|timeout-ms|responseTimeout" ai-service/src/main/java` 存在 15000 或 `timeoutMs`。
-  4. 启动后 `curl -s -o NUL -w "%{http_code}" http://127.0.0.1:8082/internal/v1/ad-check` → `404`。
-  5. `rg "localhost:5173" ai-service` 无。
+- Ban: scanning `com.gateway` or library web packages other than `com.manager`; starting `AIApplication`; exposing `/api/ai/request` `/chat` `/credentials` `/runtime`; configuring `5173` CORS; connecting a database; Flyway.
+- Acceptance:
+  1. `rg "scanBasePackages" ai-service/src/main/java` does not contain `com.gateway`.
+  2. `rg "timeout-ms: 15000" ai-service/src/main/resources/application.yaml`.
+  3. `rg "orTimeout|timeout-ms|responseTimeout" ai-service/src/main/java` has 15000 or `timeoutMs`.
+  4. After start `curl -s -o NUL -w "%{http_code}" http://127.0.0.1:8082/internal/v1/ad-check` → `404`.
+  5. `rg "localhost:5173" ai-service` none.
 
 ---
 
-### BE-T05 环境变量表（从 env.example 抄全 + 本地缺省）
-- 仓：dealer-platform
-- 新建/改文件：无（**不要改** `dealer-platform/env.example`）。各仓 `application.yml` / `application.yaml` 按本表读。编码 AI 把缺的 `INTERNAL_TOKEN`、`GATEWAY_BASE_URL` 写进各仓 yaml 默认值，不回写 env.example。
-- 必须包含：按下表注入。空单元格的「本地默认」必须用。
+### BE-T05 Environment-variable table (copy all from env.example + local defaults)
+- Repo: dealer-platform
+- Create/change files: none (**do not change** `dealer-platform/env.example`). Each repo `application.yml` / `application.yaml` reads this table. The coding AI writes missing `INTERNAL_TOKEN` and `GATEWAY_BASE_URL` as yaml defaults in each repo; do not write them back into env.example.
+- Must include: inject per the table. Empty “local default” cells must still use the listed default.
 
-| 变量 | 给谁 | 本地默认（写死） |
+| Variable | Who | Local default (pinned) |
 |---|---|---|
-| `VITE_ENTRA_TENANT_ID` | web（本规格不实现 web） | 空串 `""`（Sprint 2 再填） |
-| `VITE_ENTRA_CLIENT_ID` | web | 空串 `""` |
+| `VITE_ENTRA_TENANT_ID` | web (this spec does not implement web) | empty string `""` (fill in Sprint 2) |
+| `VITE_ENTRA_CLIENT_ID` | web | empty string `""` |
 | `VITE_ENTRA_API_SCOPE` | web | `api://dealer-api/access_as_user` |
 | `VITE_GATEWAY_URL` | web | `http://localhost:8080` |
 | `GATEWAY_PORT` | gateway | `8080` |
-| `CORE_URL` | gateway | compose：`http://host.docker.internal:8081`；本机直接跑：`http://127.0.0.1:8081`（yaml 默认后者） |
-| `AI_URL` | gateway | compose：`http://host.docker.internal:8082`；本机：`http://127.0.0.1:8082` |
+| `CORE_URL` | gateway | compose: `http://host.docker.internal:8081`; host process: `http://127.0.0.1:8081` (yaml default is the latter) |
+| `AI_URL` | gateway | compose: `http://host.docker.internal:8082`; host: `http://127.0.0.1:8082` |
 | `CORE_PORT` | core | `8081` |
 | `MYSQL_URL` | core | `jdbc:mysql://localhost:3306/dealer_core?useSSL=false&allowPublicKeyRetrieval=true` |
 | `MYSQL_USER` | core | `dealer` |
 | `MYSQL_PASSWORD` | core | `dealer_dev_only` |
 | `AI_PORT` | ai-service | `8082` |
-| `AIMANAGER_API_KEY` | **仅** ai-service | 空串；空则首次模型调用立即失败，不挂满 15s |
+| `AIMANAGER_API_KEY` | **ai-service only** | empty string; if empty the first model call fails immediately and does not wait 15s |
 | `AIMANAGER_GATEWAY_PROVIDER` | ai-service | `openai` |
-| `AIMANAGER_GATEWAY_MODEL` | ai-service | 空串；联调真模型时必须填部署名 |
+| `AIMANAGER_GATEWAY_MODEL` | ai-service | empty string; must be the deployment name when hitting a real model |
 | `ENTRA_ISSUER` | gateway + core | `https://login.microsoftonline.com/<tenant-id>/v2.0` |
 | `ENTRA_AUDIENCE` | gateway + core | `api://dealer-api` |
-| `INTERNAL_TOKEN` | gateway + core 出站 + ai-service | `dealer-internal-dev-only`（env.example 未列；yaml 默认此值。web **不读**） |
-| `GATEWAY_BASE_URL` | core 出站 | `http://localhost:8080` |
+| `INTERNAL_TOKEN` | gateway + core outbound + ai-service | `dealer-internal-dev-only` (not listed in env.example; yaml default is this value. web **does not read** it) |
+| `GATEWAY_BASE_URL` | core outbound | `http://localhost:8080` |
 
-谁不读：web 不读 `AIMANAGER_*` / `MYSQL_*` / `INTERNAL_TOKEN`；gateway/core 不读 `AIMANAGER_API_KEY`；ai-service 不读 `MYSQL_*`。
+Who does not read: web does not read `AIMANAGER_*` / `MYSQL_*` / `INTERNAL_TOKEN`; gateway/core do not read `AIMANAGER_API_KEY`; ai-service does not read `MYSQL_*`.
 
-- 禁止：把真实 Key 写进 Git；core 读 `AIMANAGER_API_KEY`；改 `env.example`。
-- 验收：`rg "AIMANAGER_API_KEY" dealer-core dealer-gateway` 无业务读取；`rg "INTERNAL_TOKEN|internal-token" dealer-core dealer-gateway ai-service` 三仓都有默认 `dealer-internal-dev-only`。
+- Ban: committing a real key to Git; core reading `AIMANAGER_API_KEY`; changing `env.example`.
+- Acceptance: `rg "AIMANAGER_API_KEY" dealer-core dealer-gateway` has no business read; `rg "INTERNAL_TOKEN|internal-token" dealer-core dealer-gateway ai-service` all three repos default to `dealer-internal-dev-only`.
 
 ---
 
-### BE-T06 core 完整包路径 + Entity 对齐 V1（逐列）
-- 仓：dealer-core
-- 新建/改文件：（完整路径）
+### BE-T06 core full package paths + Entity aligned to V1 (column by column)
+- Repo: dealer-core
+- Create/change files: (full paths)
 
 ```
 dealer-core/src/main/java/com/dealerops/core/DealerCoreApplication.java
@@ -474,71 +474,71 @@ dealer-core/src/main/java/com/dealerops/core/integration/AiGatewayClient.java
 dealer-core/src/main/java/com/dealerops/core/integration/InternalHeaders.java
 ```
 
-DTO 放各域 `dto/` 子包，类名见后续任务。本任务先把 Entity + Repository + 枚举编过。
+DTOs go in each domain `dto/` subpackage; class names appear in later tasks. This task first compiles Entity + Repository + enums.
 
-枚举（`@Enumerated(EnumType.STRING)`，库内存字符串与下表完全一致）：
+Enums (`@Enumerated(EnumType.STRING)`; stored strings match the table exactly):
 
-| 枚举 | Java 名 | DB 值 |
+| Enum | Java names | DB values |
 |---|---|---|
-| `AppRole` | `PLATFORM_ADMIN`, `DEALER_USER` | 用 `@JsonValue`/`AttributeConverter` 存 **`Platform.Admin`** / **`Dealer.User`**（带点，与 JWT 一致） |
+| `AppRole` | `PLATFORM_ADMIN`, `DEALER_USER` | Use `@JsonValue`/`AttributeConverter` to store **`Platform.Admin`** / **`Dealer.User`** (with the dot, matching JWT) |
 | `VehicleStatus` | `IN_STOCK`, `SOLD` | `IN_STOCK` `SOLD` |
-| `VehicleSource` | `TRADE_IN`, `AUCTION`, `PRIVATE_PURCHASE`, `OTHER` | 同名 |
-| `ConditionCode` | `CERTIFIED`, `AS_IS`, `UNFIT`, `IRREPARABLE` | 同名 |
-| `AdKind` | `CASH`, `FINANCE`, `LEASE` | 同名 |
-| `AdMedium` | `ONLINE`, `RADIO_TV_BILLBOARD` | 同名 |
-| `ListingStatus` | `DRAFT`, `READY` | 同名 |
-| `AiStatus` | `SKIPPED`, `SUCCESS`, `FAILED`, `UNAVAILABLE` | 同名 |
-| `Recommendation` | `BLOCKED`, `NEEDS_AI`, `PASSED`, `UNAVAILABLE` | 同名 |
-| `EntityType` | `VEHICLE`, `CUSTOMER`, `CUSTOMER_VEHICLE`, `LISTING`, `DEALER`, `MEMBERSHIP` | 同名 |
-| `AuditAction` | `CREATE`, `UPDATE`, `SELL`, `LINK`, `UNLINK` | 同名 |
+| `VehicleSource` | `TRADE_IN`, `AUCTION`, `PRIVATE_PURCHASE`, `OTHER` | same names |
+| `ConditionCode` | `CERTIFIED`, `AS_IS`, `UNFIT`, `IRREPARABLE` | same names |
+| `AdKind` | `CASH`, `FINANCE`, `LEASE` | same names |
+| `AdMedium` | `ONLINE`, `RADIO_TV_BILLBOARD` | same names |
+| `ListingStatus` | `DRAFT`, `READY` | same names |
+| `AiStatus` | `SKIPPED`, `SUCCESS`, `FAILED`, `UNAVAILABLE` | same names |
+| `Recommendation` | `BLOCKED`, `NEEDS_AI`, `PASSED`, `UNAVAILABLE` | same names |
+| `EntityType` | `VEHICLE`, `CUSTOMER`, `CUSTOMER_VEHICLE`, `LISTING`, `DEALER`, `MEMBERSHIP` | same names |
+| `AuditAction` | `CREATE`, `UPDATE`, `SELL`, `LINK`, `UNLINK` | same names |
 
-**逐列 Entity（列名 = V1，不多列）。** 全部 `@Table(name="...")`。`@Version` 用在有 `version` 的表。时间：`created_at`/`updated_at`/`linked_at` 用 `@CreationTimestamp`/`@UpdateTimestamp` 或 `Instant`；`added_on`/`sold_on` 用 `LocalDate`。金额 `BigDecimal`。`listing.last_check_id` **不要** `@ManyToOne`。
+**Column-by-column Entity (column names = V1; no extra columns).** All `@Table(name="...")`. `@Version` on tables that have `version`. Times: `created_at`/`updated_at`/`linked_at` use `@CreationTimestamp`/`@UpdateTimestamp` or `Instant`; `added_on`/`sold_on` use `LocalDate`. Money `BigDecimal`. `listing.last_check_id` **must not** be `@ManyToOne`.
 
-`DealerEntity` ↔ `dealer`：
+`DealerEntity` ↔ `dealer`:
 
-| 列 | Java 字段 | 注解 |
+| Column | Java field | Annotations |
 |---|---|---|
 | `id` | `Long id` | `@Id @GeneratedValue(IDENTITY)` |
 | `legal_name` | `String legalName` | `@Column(name="legal_name", nullable=false, length=200)` |
 | `contact_phone` | `String contactPhone` | `nullable=false, length=40` |
 | `contact_email` | `String contactEmail` | `nullable=false, length=120` |
 | `contact_address` | `String contactAddress` | `nullable=false, length=300` |
-| `active` | `boolean active` | `nullable=false` 默认 true |
+| `active` | `boolean active` | `nullable=false` default true |
 | `version` | `int version` | `@Version` |
 | `created_at` | `Instant createdAt` | `nullable=false` |
 | `updated_at` | `Instant updatedAt` | `nullable=false` |
 
-`AppUserEntity` ↔ `app_user`：
+`AppUserEntity` ↔ `app_user`:
 
-| 列 | Java 字段 |
+| Column | Java field |
 |---|---|
 | `id` | `Long id` |
 | `entra_tenant_id` | `String entraTenantId` length 64 NOT NULL |
 | `entra_oid` | `String entraOid` length 64 NOT NULL |
 | `display_name` | `String displayName` length 120 NOT NULL |
 | `role` | `AppRole role` VARCHAR(32) NOT NULL |
-| `dealer_id` | `Long dealerId` **可空**（Admin 必须 null；**不是**租户权威） |
-| `active` | `boolean active` 默认 true |
+| `dealer_id` | `Long dealerId` **nullable** (Admin must be null; **not** tenant authority) |
+| `active` | `boolean active` default true |
 | `created_at` | `Instant createdAt` |
 
-无 `version` 列。UK：`(entraTenantId, entraOid)`。
+No `version` column. UK: `(entraTenantId, entraOid)`.
 
-`MembershipEntity` ↔ `membership`：
+`MembershipEntity` ↔ `membership`:
 
-| 列 | Java 字段 |
+| Column | Java field |
 |---|---|
 | `id` | `Long id` |
 | `dealer_id` | `Long dealerId` NOT NULL |
 | `entra_oid` | `String entraOid` NOT NULL |
-| `active` | `boolean active` 默认 true |
-| `created_by` | `String createdBy` NOT NULL（绑人者 JWT `oid`） |
+| `active` | `boolean active` default true |
+| `created_by` | `String createdBy` NOT NULL (binder JWT `oid`) |
 | `created_at` | `Instant createdAt` |
 
-UK：`(dealerId, entraOid)`。
+UK: `(dealerId, entraOid)`.
 
-`VehicleEntity` ↔ `vehicle`：
+`VehicleEntity` ↔ `vehicle`:
 
-| 列 | Java 字段 |
+| Column | Java field |
 |---|---|
 | `id` | `Long id` |
 | `dealer_id` | `Long dealerId` NOT NULL |
@@ -550,20 +550,20 @@ UK：`(dealerId, entraOid)`。
 | `purchase_cost` | `BigDecimal purchaseCost` NOT NULL |
 | `added_on` | `LocalDate addedOn` NOT NULL |
 | `condition_code` | `ConditionCode conditionCode` NOT NULL |
-| `repair_cost` | `BigDecimal repairCost` 可空 |
-| `carfax_url` | `String carfaxUrl` length 500 可空 |
-| `sold_on` | `LocalDate soldOn` 可空 |
-| `sold_price` | `BigDecimal soldPrice` 可空 |
+| `repair_cost` | `BigDecimal repairCost` nullable |
+| `carfax_url` | `String carfaxUrl` length 500 nullable |
+| `sold_on` | `LocalDate soldOn` nullable |
+| `sold_price` | `BigDecimal soldPrice` nullable |
 | `status` | `VehicleStatus status` NOT NULL |
 | `version` | `int version` `@Version` |
 | `created_at` | `Instant createdAt` |
 | `updated_at` | `Instant updatedAt` |
 
-UK：`(dealerId, vin)`。
+UK: `(dealerId, vin)`.
 
-`CustomerEntity` ↔ `customer`：
+`CustomerEntity` ↔ `customer`:
 
-| 列 | Java 字段 |
+| Column | Java field |
 |---|---|
 | `id` | `Long id` |
 | `dealer_id` | `Long dealerId` NOT NULL |
@@ -575,9 +575,9 @@ UK：`(dealerId, vin)`。
 | `created_at` | `Instant createdAt` |
 | `updated_at` | `Instant updatedAt` |
 
-`CustomerVehicleEntity` ↔ `customer_vehicle`（**无 version**）：
+`CustomerVehicleEntity` ↔ `customer_vehicle` (**no version**):
 
-| 列 | Java 字段 |
+| Column | Java field |
 |---|---|
 | `id` | `Long id` |
 | `dealer_id` | `Long dealerId` NOT NULL |
@@ -585,56 +585,56 @@ UK：`(dealerId, vin)`。
 | `vehicle_id` | `Long vehicleId` NOT NULL |
 | `linked_at` | `Instant linkedAt` NOT NULL |
 
-UK：`vehicleId` 全局唯一。
+UK: `vehicleId` globally unique.
 
-`ListingEntity` ↔ `listing`：`title`/`body` Java 非空 `String`，默认 `""`，禁止 `Optional`。
+`ListingEntity` ↔ `listing`: `title`/`body` Java non-null `String`, default `""`, ban `Optional`.
 
-| 列 | Java 字段 |
+| Column | Java field |
 |---|---|
 | `id` | `Long id` |
 | `dealer_id` | `Long dealerId` NOT NULL |
 | `vehicle_id` | `Long vehicleId` NOT NULL |
-| `title` | `String title` length 200 NOT NULL 默认 `""` |
-| `body` | `String body` `@Column(columnDefinition="TEXT")` NOT NULL 默认 `""` |
+| `title` | `String title` length 200 NOT NULL default `""` |
+| `body` | `String body` `@Column(columnDefinition="TEXT")` NOT NULL default `""` |
 | `ad_kind` | `AdKind adKind` NOT NULL |
 | `medium` | `AdMedium medium` NOT NULL |
 | `status` | `ListingStatus status` NOT NULL |
-| `content_version` | `int contentVersion` 默认 1 |
-| `last_check_id` | `Long lastCheckId` 可空，无 FK 映射 |
+| `content_version` | `int contentVersion` default 1 |
+| `last_check_id` | `Long lastCheckId` nullable, no FK mapping |
 | `version` | `int version` `@Version` |
 | `created_at` | `Instant createdAt` |
 | `updated_at` | `Instant updatedAt` |
 
-UK：`vehicleId`。
+UK: `vehicleId`.
 
-`ComplianceCheckEntity` ↔ `compliance_check`：
+`ComplianceCheckEntity` ↔ `compliance_check`:
 
-| 列 | Java 字段 |
+| Column | Java field |
 |---|---|
 | `id` | `Long id` |
 | `dealer_id` | `Long dealerId` NOT NULL |
 | `listing_id` | `Long listingId` NOT NULL |
 | `content_version` | `int contentVersion` NOT NULL |
-| `rule_findings` | `String ruleFindingsJson` 或 `JsonNode`，`columnDefinition="JSON"` NOT NULL |
+| `rule_findings` | `String ruleFindingsJson` or `JsonNode`, `columnDefinition="JSON"` NOT NULL |
 | `ai_status` | `AiStatus aiStatus` NOT NULL |
-| `ai_notes` | JSON 可空 |
+| `ai_notes` | JSON nullable |
 | `recommendation` | `Recommendation recommendation` NOT NULL |
 | `created_at` | `Instant createdAt` |
 
-`AuditEventEntity` ↔ `audit_event`：
+`AuditEventEntity` ↔ `audit_event`:
 
-| 列 | Java 字段 |
+| Column | Java field |
 |---|---|
 | `id` | `Long id` |
-| `dealer_id` | `Long dealerId` **可空** |
+| `dealer_id` | `Long dealerId` **nullable** |
 | `actor_oid` | `String actorOid` NOT NULL |
 | `entity_type` | `String entityType` NOT NULL |
 | `entity_id` | `long entityId` NOT NULL |
 | `action` | `String action` NOT NULL |
-| `field_summary` | JSON 可空 |
+| `field_summary` | JSON nullable |
 | `created_at` | `Instant createdAt` |
 
-Repository 接口：`JpaRepository<实体, Long>`，名字上表已列。必须方法：
+Repository interfaces: `JpaRepository<Entity, Long>`; names already listed above. Required methods:
 
 ```java
 public interface MembershipRepository extends JpaRepository<MembershipEntity, Long> {
@@ -659,26 +659,26 @@ public interface CustomerVehicleRepository extends JpaRepository<CustomerVehicle
 }
 ```
 
-`JacksonConfig`：`ObjectMapper` 默认 camelCase；`JavaTimeModule`；日期 `yyyy-MM-dd`；`WRITE_DATES_AS_TIMESTAMPS=false`。
-`WebConfig`：空，或明确不注册 CORS。
+`JacksonConfig`: `ObjectMapper` default camelCase; `JavaTimeModule`; dates `yyyy-MM-dd`; `WRITE_DATES_AS_TIMESTAMPS=false`.
+`WebConfig`: empty, or explicitly do not register CORS.
 
-- 禁止：多列（mileage/APR/password）；`ticket/` `lead/` `bus/` `password/`；`@ManyToOne` 到 `lastCheck`；改 SQL；`WHERE vehicle.dealer_id = app_user.dealer_id`。
-- 验收：
-  1. 空库 `mvn -f dealer-core/pom.xml spring-boot:run` 日志 `Successfully applied 1 migration` 且表 9 张。
-  2. `rg "ddl-auto:\\s*update" dealer-core` 无。
-  3. `rg "@Column\\(name" dealer-core/src/main/java/com/dealerops/core` 覆盖上表所有 snake 列名。
-  4. `rg "class Ticket|class Lead|password_hash" dealer-core` 无。
-  5. Flyway 文件仍只有 `V1__init.sql`（`ls dealer-core/src/main/resources/db/migration`）。
+- Ban: extra columns (mileage/APR/password); `ticket/` `lead/` `bus/` `password/`; `@ManyToOne` to `lastCheck`; changing SQL; `WHERE vehicle.dealer_id = app_user.dealer_id`.
+- Acceptance:
+  1. Empty DB `mvn -f dealer-core/pom.xml spring-boot:run` logs `Successfully applied 1 migration` and 9 tables.
+  2. `rg "ddl-auto:\\s*update" dealer-core` none.
+  3. `rg "@Column\\(name" dealer-core/src/main/java/com/dealerops/core` covers every snake column name in the tables above.
+  4. `rg "class Ticket|class Lead|password_hash" dealer-core` none.
+  5. Flyway still has only `V1__init.sql` (`ls dealer-core/src/main/resources/db/migration`).
 
 ---
 
-### BE-T07 异常映射
-- 仓：dealer-core
-- 新建/改文件：
+### BE-T07 Exception mapping
+- Repo: dealer-core
+- Create/change files:
   - `dealer-core/src/main/java/com/dealerops/core/common/exception/ErrorCode.java`
   - `dealer-core/src/main/java/com/dealerops/core/common/exception/ApiException.java`
   - `dealer-core/src/main/java/com/dealerops/core/common/exception/ApiExceptionHandler.java`
-- 必须包含：
+- Must include:
 
 ```java
 public class ApiException extends RuntimeException {
@@ -696,36 +696,36 @@ public class ApiExceptionHandler {
 }
 ```
 
-`handleValid` → HTTP 400，`code=VALIDATION`，`fieldErrors` 为字段→消息。唯一键 `uk_vehicle_vin` → `VIN_DUP`；`uk_cv_vehicle` → `VEHICLE_ALREADY_LINKED`；`uk_membership` 已 active → `DUP_MEMBER`。禁止堆栈/SQL 出站。
+`handleValid` → HTTP 400, `code=VALIDATION`, `fieldErrors` field→message. Unique key `uk_vehicle_vin` → `VIN_DUP`; `uk_cv_vehicle` → `VEHICLE_ALREADY_LINKED`; `uk_membership` already active → `DUP_MEMBER`. Ban sending stack/SQL outbound.
 
-- 禁止：发明新业务 `code`；把 `DataIntegrityViolation` 原文回浏览器。
-- 验收：`rg "enum ErrorCode" -A20 dealer-core/src/main/java/com/dealerops/core/common/exception/ErrorCode.java` 含本文 14 个码且无第 15 个业务码。`rg "printStackTrace|e.getMessage\\(\\)" dealer-core/src/main/java/com/dealerops/core/common/exception/ApiExceptionHandler.java` 不把 SQL 写入 `ErrorBody.message`。
+- Ban: inventing new business `code`; returning `DataIntegrityViolation` text to the browser.
+- Acceptance: `rg "enum ErrorCode" -A20 dealer-core/src/main/java/com/dealerops/core/common/exception/ErrorCode.java` contains this document’s 14 codes and no 15th business code. `rg "printStackTrace|e.getMessage\\(\\)" dealer-core/src/main/java/com/dealerops/core/common/exception/ApiExceptionHandler.java` does not write SQL into `ErrorBody.message`.
 
 ---
 
-### BE-T08 TenantFilter / Security 链（JWT claim + membership）
-- 仓：dealer-core
-- 新建/改文件：
+### BE-T08 TenantFilter / Security chain (JWT claim + membership)
+- Repo: dealer-core
+- Create/change files:
   - `dealer-core/src/main/java/com/dealerops/core/config/SecurityConfig.java`
   - `dealer-core/src/main/java/com/dealerops/core/security/JwtRoleMapper.java`
   - `dealer-core/src/main/java/com/dealerops/core/security/CurrentUser.java`
   - `dealer-core/src/main/java/com/dealerops/core/common/tenant/TenantContext.java`
   - `dealer-core/src/main/java/com/dealerops/core/common/tenant/TenantFilter.java`
   - `dealer-core/src/main/java/com/dealerops/core/common/tenant/TenantGuard.java`
-- 必须包含：
+- Must include:
 
-JWT claim 名（只认这些）：
+JWT claim names (recognize only these):
 
-| Claim | 用法 |
+| Claim | Use |
 |---|---|
-| `iss` | 必须 = `ENTRA_ISSUER` |
-| `aud` | = `ENTRA_AUDIENCE`（`api://dealer-api` 或 API GUID） |
+| `iss` | Must = `ENTRA_ISSUER` |
+| `aud` | = `ENTRA_AUDIENCE` (`api://dealer-api` or API GUID) |
 | `oid` | → `app_user.entra_oid` / `membership.entra_oid` |
 | `tid` | → `app_user.entra_tenant_id` |
-| `name` 或 `preferred_username` | 回写 `display_name`（有则更新） |
-| `roles` | **RBAC 唯一来源**（数组） |
-| `scp` / `scope` | 只证明 `access_as_user`，**不是**角色 |
-| `groups` | **忽略** |
+| `name` or `preferred_username` | write back `display_name` (update if present) |
+| `roles` | **sole RBAC source** (array) |
+| `scp` / `scope` | only proves `access_as_user`, **not** a role |
+| `groups` | **ignore** |
 
 ```java
 public final class JwtRoleMapper {
@@ -760,7 +760,7 @@ public final class TenantGuard {
 }
 ```
 
-`SecurityConfig`：
+`SecurityConfig`:
 
 ```java
 @Configuration
@@ -781,46 +781,46 @@ public class SecurityConfig {
 }
 ```
 
-`TenantFilter` 解析 membership（顺序写死）：
+`TenantFilter` resolves membership (order pinned):
 
 ```
-1. 无 Authentication 或非 Jwt → 交给 Security（401）
-2. role = JwtRoleMapper.mapRole(jwt)；null 且 path 不是 GET /api/v1/me → 403 FORBIDDEN
-3. upsert app_user by (tid, oid)；displayName 可更新；授权以当次 JWT 为准，库 role 不能抬权
-4. 若 role == Platform.Admin：
-     app_user.dealer_id 必须写成 NULL（若非空则自愈置空）
+1. No Authentication or not Jwt → leave to Security (401)
+2. role = JwtRoleMapper.mapRole(jwt); null and path is not GET /api/v1/me → 403 FORBIDDEN
+3. upsert app_user by (tid, oid); displayName may update; authorization follows this JWT; DB role cannot elevate
+4. If role == Platform.Admin:
+     app_user.dealer_id must be written NULL (self-heal to null if not empty)
      TenantContext = (oid,tid,ADMIN,null)
-     若 path 匹配 /api/v1/vehicles** /customers** /listings** /assistant** 或 GET /audit → 403 FORBIDDEN（body 仅 {code,message}）
-     放行 /api/v1/admin/** 与 GET /api/v1/me
-5. 若 role == Dealer.User：
+     If path matches /api/v1/vehicles** /customers** /listings** /assistant** or GET /audit → 403 FORBIDDEN (body only {code,message})
+     Allow /api/v1/admin/** and GET /api/v1/me
+5. If role == Dealer.User:
      rows = membershipRepo.findByEntraOidAndActiveTrue(oid)
-     rows.size>=2 → 500（配置错误，不继续业务）
-     path 是 GET /api/v1/me：0 条也放行，tenantDealerId=null
-     其他 /api/v1/**：0 条 → 403 FORBIDDEN
-     1 条：tenantDealerId = row.dealerId；若 app_user.dealer_id 不一致则回写（自愈，不 500）
-6. 忽略 req.getParameter("dealerId")、JSON 里的 dealerId、Header X-Dealer-Id
+     rows.size>=2 → 500 (configuration error; do not continue business)
+     path is GET /api/v1/me: allow even with 0 rows, tenantDealerId=null
+     other /api/v1/**: 0 rows → 403 FORBIDDEN
+     1 row: tenantDealerId = row.dealerId; if app_user.dealer_id differs, write back (self-heal, not 500)
+6. Ignore req.getParameter("dealerId"), dealerId in JSON, Header X-Dealer-Id
 7. finally TenantContext.clear()
 ```
 
-`TenantGuard.assertSameDealer`：`resourceDealerId == null || !resourceDealerId.equals(tenantDealerId)` → 抛 `NOT_FOUND`。不要 403。
+`TenantGuard.assertSameDealer`: `resourceDealerId == null || !resourceDealerId.equals(tenantDealerId)` → throw `NOT_FOUND`. Do not 403.
 
-- 禁止：用 `app_user.dealer_id` 做 `WHERE` 隔离；客户端 `dealerId` 覆盖租户；跨店 403；第五 auth 仓。
-- 验收：
-  1. `rg "getClaimAsStringList\\(\"roles\"\\)" dealer-core`。
-  2. `rg "\"oid\"|getSubject|getClaimAsString\\(\"oid\"\\)" dealer-core/src/main/java/com/dealerops/core`。
-  3. `rg "findByEntraOidAndActiveTrue" dealer-core`。
-  4. `rg "groups" dealer-core/src/main/java/com/dealerops/core/security/JwtRoleMapper.java` 无用 groups 授权。
-  5. 无 JWT：`curl -s http://127.0.0.1:8081/api/v1/vehicles` → JSON `{"code":"UNAUTHORIZED",...}` HTTP 401（经 Gateway 同样 401）。
+- Ban: using `app_user.dealer_id` for `WHERE` isolation; client `dealerId` overriding tenant; cross-store 403; a fifth auth repo.
+- Acceptance:
+  1. `rg "getClaimAsStringList\\(\"roles\"\\)" dealer-core`.
+  2. `rg "\"oid\"|getSubject|getClaimAsString\\(\"oid\"\\)" dealer-core/src/main/java/com/dealerops/core`.
+  3. `rg "findByEntraOidAndActiveTrue" dealer-core`.
+  4. `rg "groups" dealer-core/src/main/java/com/dealerops/core/security/JwtRoleMapper.java` does not authorize with groups.
+  5. No JWT: `curl -s http://127.0.0.1:8081/api/v1/vehicles` → JSON `{"code":"UNAUTHORIZED",...}` HTTP 401 (same 401 via Gateway).
 
 ---
 
 ### BE-T09 `GET /api/v1/me`
-- 仓：dealer-core
-- 新建/改文件：
+- Repo: dealer-core
+- Create/change files:
   - `dealer-core/src/main/java/com/dealerops/core/security/MeController.java`
   - `dealer-core/src/main/java/com/dealerops/core/security/MeService.java`
   - `dealer-core/src/main/java/com/dealerops/core/security/dto/MeResponse.java`
-- 必须包含：
+- Must include:
 
 ```java
 @RestController
@@ -832,26 +832,26 @@ public class MeController {
 public record MeResponse(String entraOid, String displayName, String role, Long dealerId, String dealerLegalName) {}
 ```
 
-`role` JSON 必须是 `Platform.Admin` 或 `Dealer.User`。Admin：`dealerId=null`，`dealerLegalName=null`。店员无 membership：仍 200，后两项 null。有 membership：`dealerId` 来自 membership（与 `app_user` 不一致则以 membership 为准并回写），`dealerLegalName` = 该店 `legalName`。
+`role` JSON must be `Platform.Admin` or `Dealer.User`. Admin: `dealerId=null`, `dealerLegalName=null`. Staff with no membership: still 200, last two null. With membership: `dealerId` comes from membership (if it disagrees with `app_user`, membership wins and write back), `dealerLegalName` = that store’s `legalName`.
 
-| 方法 | HTTP | path | 错误码 |
+| Method | HTTP | path | Error codes |
 |---|---|---|---|
 | `me()` | GET | `/api/v1/me` | `UNAUTHORIZED` 401 |
 
-- 禁止：要求 membership 才 200；Admin 填 dealerId。
-- 验收：`rg "@GetMapping\\(\"/me\"\\)" dealer-core`。带店员 JWT 无 membership：`curl -H "Authorization: Bearer $T" http://localhost:8080/api/v1/me` → 200 且 `dealerId` JSON `null`。无 token → 401。
+- Ban: requiring membership for 200; Admin filling dealerId.
+- Acceptance: `rg "@GetMapping\\(\"/me\"\\)" dealer-core`. Staff JWT with no membership: `curl -H "Authorization: Bearer $T" http://localhost:8080/api/v1/me` → 200 and `dealerId` JSON `null`. No token → 401.
 
 ---
 
-### BE-T10 Admin 店 CRUD
-- 仓：dealer-core
-- 新建/改文件：
+### BE-T10 Admin dealership CRUD
+- Repo: dealer-core
+- Create/change files:
   - `dealer-core/src/main/java/com/dealerops/core/dealer/AdminDealerController.java`
   - `dealer-core/src/main/java/com/dealerops/core/dealer/DealerAdminService.java`
   - `dealer-core/src/main/java/com/dealerops/core/dealer/dto/DealerResponse.java`
   - `dealer-core/src/main/java/com/dealerops/core/dealer/dto/CreateDealerRequest.java`
   - `dealer-core/src/main/java/com/dealerops/core/dealer/dto/PatchDealerRequest.java`
-- 必须包含：
+- Must include:
 
 ```java
 @RestController
@@ -878,28 +878,28 @@ public record PatchDealerRequest(
     @NotBlank String contactEmail, @NotBlank String contactAddress, @NotNull Boolean active) {}
 ```
 
-`staffCount` = `membershipRepository.countByDealerIdAndActiveTrue(id)`。忽略 body.`id` / `dealerId`。无 DELETE 店。店员打这些 URL → Filter/方法上 `403 FORBIDDEN`。
+`staffCount` = `membershipRepository.countByDealerIdAndActiveTrue(id)`. Ignore body.`id` / `dealerId`. No DELETE dealership. Staff hitting these URLs → Filter/method `403 FORBIDDEN`.
 
-| 方法 | HTTP | path | 错误码 |
+| Method | HTTP | path | Error codes |
 |---|---|---|---|
-| `list` | GET | `/api/v1/admin/dealers` | 401；403 FORBIDDEN |
-| `create` | POST | `/api/v1/admin/dealers` | 400 VALIDATION；403 |
-| `get` | GET | `/api/v1/admin/dealers/{id}` | 404 NOT_FOUND；403 |
-| `patch` | PATCH | `/api/v1/admin/dealers/{id}` | 400；404；409 VERSION_CONFLICT；403 |
+| `list` | GET | `/api/v1/admin/dealers` | 401; 403 FORBIDDEN |
+| `create` | POST | `/api/v1/admin/dealers` | 400 VALIDATION; 403 |
+| `get` | GET | `/api/v1/admin/dealers/{id}` | 404 NOT_FOUND; 403 |
+| `patch` | PATCH | `/api/v1/admin/dealers/{id}` | 400; 404; 409 VERSION_CONFLICT; 403 |
 
-- 禁止：`DELETE /admin/dealers/{id}`；Admin 响应里带车辆。
-- 验收：`rg "DeleteMapping" dealer-core/src/main/java/com/dealerops/core/dealer/AdminDealerController.java` 无删店。`curl` Admin POST 缺 `legalName` → 400 `VALIDATION`。店员 JWT GET `/api/v1/admin/dealers` → 403。
+- Ban: `DELETE /admin/dealers/{id}`; Admin responses carrying vehicles.
+- Acceptance: `rg "DeleteMapping" dealer-core/src/main/java/com/dealerops/core/dealer/AdminDealerController.java` has no delete-dealership. `curl` Admin POST missing `legalName` → 400 `VALIDATION`. Staff JWT GET `/api/v1/admin/dealers` → 403.
 
 ---
 
 ### BE-T11 Admin membership
-- 仓：dealer-core
-- 新建/改文件：
+- Repo: dealer-core
+- Create/change files:
   - `dealer-core/src/main/java/com/dealerops/core/dealer/AdminMemberController.java`
   - `dealer-core/src/main/java/com/dealerops/core/dealer/MembershipService.java`
   - `dealer-core/src/main/java/com/dealerops/core/dealer/dto/MemberResponse.java`
   - `dealer-core/src/main/java/com/dealerops/core/dealer/dto/CreateMemberRequest.java`
-- 必须包含：
+- Must include:
 
 ```java
 @RestController
@@ -920,31 +920,31 @@ public record MemberResponse(String entraOid, String displayName, String role, b
 public record CreateMemberRequest(@NotBlank String entraOid, @NotBlank String displayName) {}
 ```
 
-绑人：写/更新 `app_user`（`role=Dealer.User`，`dealer_id=该店`）+ `membership`。该店已有 **active** → `409 DUP_MEMBER`。该 oid **另一店**仍 active → `409 DUP_MEMBER`。已解绑同行再绑：`active=1` 复活，不 INSERT 第二行。不编造 email。不删 Entra。
+Bind: write/update `app_user` (`role=Dealer.User`, `dealer_id=this store`) + `membership`. This store already **active** → `409 DUP_MEMBER`. This oid still active at **another store** → `409 DUP_MEMBER`. Re-bind after unbind: reactivate `active=1`, do not INSERT a second row. Do not invent email. Do not delete Entra.
 
-解绑：`membership.active=0`；`app_user.dealer_id=NULL`；**不改** `app_user.role`；不删 `app_user`。审计 `entityType=MEMBERSHIP`。
+Unbind: `membership.active=0`; `app_user.dealer_id=NULL`; **do not change** `app_user.role`; do not delete `app_user`. Audit `entityType=MEMBERSHIP`.
 
-| 方法 | HTTP | path | 错误码 |
+| Method | HTTP | path | Error codes |
 |---|---|---|---|
-| `list` | GET | `/api/v1/admin/dealers/{id}/members` | 404 店不存在；403 |
-| `add` | POST | 同上 | 400 VALIDATION；404；409 DUP_MEMBER；403 |
-| `remove` | DELETE | `/api/v1/admin/dealers/{id}/members/{entraOid}` | 404 无绑定；403；204 无 body |
+| `list` | GET | `/api/v1/admin/dealers/{id}/members` | 404 store missing; 403 |
+| `add` | POST | same | 400 VALIDATION; 404; 409 DUP_MEMBER; 403 |
+| `remove` | DELETE | `/api/v1/admin/dealers/{id}/members/{entraOid}` | 404 no binding; 403; 204 no body |
 
-- 禁止：删 Entra；解绑时改 `role`；切店器；一人两行 `active=1`。
-- 验收：同一 oid 连续 POST 两次 → 第二次 409 `DUP_MEMBER`。DELETE → 204。该店员再 GET `/api/v1/vehicles` → 403。`GET /me` → 200 `dealerId=null`。
+- Ban: deleting Entra; changing `role` on unbind; a dealership switcher; two `active=1` rows for one person.
+- Acceptance: same oid POST twice in a row → second 409 `DUP_MEMBER`. DELETE → 204. That staff GET `/api/v1/vehicles` → 403. `GET /me` → 200 `dealerId=null`.
 
 ---
 
-### BE-T12 车辆 Controller（DMS）
-- 仓：dealer-core
-- 新建/改文件：
+### BE-T12 Vehicle Controller (DMS)
+- Repo: dealer-core
+- Create/change files:
   - `dealer-core/src/main/java/com/dealerops/core/vehicle/VehicleController.java`
   - `dealer-core/src/main/java/com/dealerops/core/vehicle/VehicleService.java`
   - `dealer-core/src/main/java/com/dealerops/core/vehicle/dto/VehicleResponse.java`
   - `dealer-core/src/main/java/com/dealerops/core/vehicle/dto/CreateVehicleRequest.java`
   - `dealer-core/src/main/java/com/dealerops/core/vehicle/dto/PatchVehicleRequest.java`
   - `dealer-core/src/main/java/com/dealerops/core/vehicle/dto/SellVehicleRequest.java`
-- 必须包含：
+- Must include:
 
 ```java
 @RestController
@@ -982,9 +982,9 @@ public record PatchVehicleRequest(
 public record SellVehicleRequest(@NotNull LocalDate soldOn, @NotNull BigDecimal soldPrice, @NotNull Integer version) {}
 ```
 
-服务端 POST：忽略 `dealerId`/`status`/`soldOn`/`soldPrice`；`status=IN_STOCK`；`sold*` 必须 NULL。`dealerId=tenantDealerId`。本店 VIN 重复 → `400 VIN_DUP`。列表默认 `createdAt` 倒序。`condition` query = `conditionCode`。
+Server POST: ignore `dealerId`/`status`/`soldOn`/`soldPrice`; `status=IN_STOCK`; `sold*` must be NULL. `dealerId=tenantDealerId`. Same-store VIN duplicate → `400 VIN_DUP`. List default `createdAt` descending. `condition` query = `conditionCode`.
 
-已售锁 / 出售（翻译成代码）：
+Sold lock / sell (translate into code):
 
 ```
 function patchVehicle(id, body):
@@ -999,7 +999,7 @@ function patchVehicle(id, body):
   apply whitelist fields (never status/soldOn/soldPrice/dealerId)
   if oldCondition != v.conditionCode:
     listing = findByVehicleId; if present: listing.contentVersion++; listing.status=DRAFT
-    // 不清空 last_check_id
+    // do not clear last_check_id
   audit VEHICLE/UPDATE
   return v
 
@@ -1010,28 +1010,28 @@ function sell(id, body):
   if body.version != v.version: 409 VERSION_CONFLICT
   if v.status == SOLD: 409 SOLD_LOCKED
   v.status=SOLD; v.soldOn=body.soldOn; v.soldPrice=body.soldPrice
-  // 不删 customer_vehicle
+  // do not delete customer_vehicle
   audit VEHICLE/SELL
 ```
 
-| 方法 | HTTP | path | 错误码 |
+| Method | HTTP | path | Error codes |
 |---|---|---|---|
-| `list` | GET | `/api/v1/vehicles` | 401；403 |
-| `create` | POST | `/api/v1/vehicles` | 400 VALIDATION / VIN_DUP；403 |
-| `get` | GET | `/api/v1/vehicles/{id}` | 404；403 |
-| `patch` | PATCH | `/api/v1/vehicles/{id}` | 404；409 SOLD_LOCKED / VERSION_CONFLICT；400 VIN_DUP / VALIDATION |
-| `sell` | POST | `/api/v1/vehicles/{id}/sell` | 400 SOLD_PAIR_REQUIRED；409 SOLD_LOCKED / VERSION_CONFLICT；404 |
+| `list` | GET | `/api/v1/vehicles` | 401; 403 |
+| `create` | POST | `/api/v1/vehicles` | 400 VALIDATION / VIN_DUP; 403 |
+| `get` | GET | `/api/v1/vehicles/{id}` | 404; 403 |
+| `patch` | PATCH | `/api/v1/vehicles/{id}` | 404; 409 SOLD_LOCKED / VERSION_CONFLICT; 400 VIN_DUP / VALIDATION |
+| `sell` | POST | `/api/v1/vehicles/{id}/sell` | 400 SOLD_PAIR_REQUIRED; 409 SOLD_LOCKED / VERSION_CONFLICT; 404 |
 
-审计：`VEHICLE` + `CREATE`/`UPDATE`/`SELL`。`fieldSummary` 不含客户 PII。
+Audit: `VEHICLE` + `CREATE`/`UPDATE`/`SELL`. `fieldSummary` has no customer PII.
 
-- 禁止：PATCH 改 `status`/`sold*`；用采购成本当广告标价；Admin 200 带 vin。
-- 验收：`rg "@PostMapping\\(\"/\\{id\\}/sell\"\\)" dealer-core`。同店双 POST 同 VIN → 400 `VIN_DUP`。已售 PATCH `make` → 409 `SOLD_LOCKED`。卖车后 CRM 关联仍在（DB `customer_vehicle` 行还在）。
+- Ban: PATCH changing `status`/`sold*`; using purchase cost as advertised price; Admin 200 carrying vin.
+- Acceptance: `rg "@PostMapping\\(\"/\\{id\\}/sell\"\\)" dealer-core`. Same-store double POST same VIN → 400 `VIN_DUP`. Sold PATCH `make` → 409 `SOLD_LOCKED`. After sell the CRM link remains (DB `customer_vehicle` row still there).
 
 ---
 
-### BE-T13 客户 Controller（CRM）
-- 仓：dealer-core
-- 新建/改文件：
+### BE-T13 Customer Controller (CRM)
+- Repo: dealer-core
+- Create/change files:
   - `dealer-core/src/main/java/com/dealerops/core/customer/CustomerController.java`
   - `dealer-core/src/main/java/com/dealerops/core/customer/CustomerService.java`
   - `dealer-core/src/main/java/com/dealerops/core/customer/dto/CustomerListItem.java`
@@ -1040,7 +1040,7 @@ function sell(id, body):
   - `dealer-core/src/main/java/com/dealerops/core/customer/dto/PatchCustomerRequest.java`
   - `dealer-core/src/main/java/com/dealerops/core/customer/dto/LinkedVehicleBrief.java`
   - `dealer-core/src/main/java/com/dealerops/core/customer/dto/LinkedVehicleItem.java`
-- 必须包含：
+- Must include:
 
 ```java
 @RestController
@@ -1072,26 +1072,26 @@ public record PatchCustomerRequest(@NotNull Integer version, @NotBlank String na
     @NotBlank String email, @NotBlank String phone, @NotBlank String homeAddress) {}
 ```
 
-列表 `linkedVehicle`：多车取最近 `linkedAt`；未挂 `null`。详情 `linkedVehicles` 全数组。忽略 `dealerId`。PATCH 审计 `CUSTOMER`/`UPDATE`，`fieldSummary` **不得**含电话/邮箱/住址全文（只 `{"contactFieldsChanged":true}` 或字段名布尔）。
+List `linkedVehicle`: if many vehicles take the latest `linkedAt`; none linked `null`. Detail `linkedVehicles` is the full array. Ignore `dealerId`. PATCH audit `CUSTOMER`/`UPDATE`; `fieldSummary` **must not** contain full phone/email/address (only `{"contactFieldsChanged":true}` or field-name booleans).
 
-| 方法 | HTTP | path | 错误码 |
+| Method | HTTP | path | Error codes |
 |---|---|---|---|
-| `list` | GET | `/api/v1/customers` | 401；403 |
-| `create` | POST | `/api/v1/customers` | 400 VALIDATION；403 |
-| `get` | GET | `/api/v1/customers/{id}` | 404；403 |
-| `patch` | PATCH | `/api/v1/customers/{id}` | 404；409 VERSION_CONFLICT；400；403 |
+| `list` | GET | `/api/v1/customers` | 401; 403 |
+| `create` | POST | `/api/v1/customers` | 400 VALIDATION; 403 |
+| `get` | GET | `/api/v1/customers/{id}` | 404; 403 |
+| `patch` | PATCH | `/api/v1/customers/{id}` | 404; 409 VERSION_CONFLICT; 400; 403 |
 
-- 禁止：`fieldSummary` 写号码/邮箱/地址全文。
-- 验收：`rg "homeAddress|email|phone" dealer-core/src/main/java/com/dealerops/core/audit` 写入 JSON 时不得 `put("phone", customer.getPhone())`。跨店 GET 客户 → 404。
+- Ban: writing full number/email/address into `fieldSummary`.
+- Acceptance: `rg "homeAddress|email|phone" dealer-core/src/main/java/com/dealerops/core/audit` must not `put("phone", customer.getPhone())` when writing JSON. Cross-store GET customer → 404.
 
 ---
 
-### BE-T14 挂车 PUT + 解绑 DELETE + SOLD 锁
-- 仓：dealer-core
-- 新建/改文件：
+### BE-T14 Link vehicle PUT + unlink DELETE + SOLD lock
+- Repo: dealer-core
+- Create/change files:
   - `dealer-core/src/main/java/com/dealerops/core/customer/CustomerVehicleController.java`
   - `dealer-core/src/main/java/com/dealerops/core/customer/dto/LinkResponse.java`
-- 必须包含：
+- Must include:
 
 ```java
 @RestController
@@ -1106,16 +1106,16 @@ public class CustomerVehicleController {
 public record LinkResponse(Long id, Long customerId, Long vehicleId, Instant linkedAt) {}
 ```
 
-无 body（有则忽略）。无乐观锁。
+No body (ignore if present). No optimistic lock.
 
-伪代码（必须按此翻译）：
+Pseudocode (must translate as-is):
 
 ```
 function link(customerId, vehicleId):
   c = findCustomer(customerId)
   v = findVehicle(vehicleId)
   if c==null or v==null: 404
-  if c.dealerId != tenantDealerId or v.dealerId != tenantDealerId: 404   // 跨店不走 400
+  if c.dealerId != tenantDealerId or v.dealerId != tenantDealerId: 404   // cross-store is not 400
   if c.dealerId != v.dealerId: 400 WRONG_DEALER_OR_SOLD
   if v.status != IN_STOCK: 400 WRONG_DEALER_OR_SOLD
   if existsByVehicleId(vehicleId): 409 VEHICLE_ALREADY_LINKED
@@ -1130,31 +1130,31 @@ function unlink(customerId, vehicleId):
   row = findByCustomerIdAndVehicleId(...)
   if row==null: 404
   if v.status == SOLD: 409 SOLD_LOCKED
-  hardDelete(row)            // V1 无软删列
-  // 不改 vehicle.status
+  hardDelete(row)            // V1 has no soft-delete column
+  // do not change vehicle.status
   audit CUSTOMER_VEHICLE/UNLINK entityId=row.id fieldSummary={customerId,vehicleId}
   return 204
 ```
 
-| 方法 | HTTP | path | 错误码 |
+| Method | HTTP | path | Error codes |
 |---|---|---|---|
-| `link` | PUT | `/api/v1/customers/{id}/vehicles/{vehicleId}` | 404；400 WRONG_DEALER_OR_SOLD；409 VEHICLE_ALREADY_LINKED；403 |
-| `unlink` | DELETE | 同上 | 204；404；409 SOLD_LOCKED；403 |
+| `link` | PUT | `/api/v1/customers/{id}/vehicles/{vehicleId}` | 404; 400 WRONG_DEALER_OR_SOLD; 409 VEHICLE_ALREADY_LINKED; 403 |
+| `unlink` | DELETE | same | 204; 404; 409 SOLD_LOCKED; 403 |
 
-- 禁止：用 PUT 当解绑；已售 DELETE 成功；软删列。
-- 验收：`rg "@DeleteMapping" dealer-core/src/main/java/com/dealerops/core/customer/CustomerVehicleController.java`。已售车 PUT → 400 `WRONG_DEALER_OR_SOLD`。已售车 DELETE → 409 `SOLD_LOCKED`。在库 DELETE → 204 且 `SELECT * FROM customer_vehicle WHERE vehicle_id=?` 空。
+- Ban: using PUT as unlink; DELETE succeeding on a sold vehicle; a soft-delete column.
+- Acceptance: `rg "@DeleteMapping" dealer-core/src/main/java/com/dealerops/core/customer/CustomerVehicleController.java`. Sold vehicle PUT → 400 `WRONG_DEALER_OR_SOLD`. Sold vehicle DELETE → 409 `SOLD_LOCKED`. In-stock DELETE → 204 and `SELECT * FROM customer_vehicle WHERE vehicle_id=?` empty.
 
 ---
 
-### BE-T15 Listing 空草稿 GET/PATCH
-- 仓：dealer-core
-- 新建/改文件：
+### BE-T15 Listing empty-draft GET/PATCH
+- Repo: dealer-core
+- Create/change files:
   - `dealer-core/src/main/java/com/dealerops/core/listing/ListingController.java`
   - `dealer-core/src/main/java/com/dealerops/core/listing/ListingService.java`
   - `dealer-core/src/main/java/com/dealerops/core/listing/dto/ListingResponse.java`
   - `dealer-core/src/main/java/com/dealerops/core/listing/dto/PatchListingRequest.java`
   - `dealer-core/src/main/java/com/dealerops/core/compliance/CheckStatusMapper.java`
-- 必须包含：
+- Must include:
 
 ```java
 @RestController
@@ -1175,9 +1175,9 @@ public record ListingResponse(Long id, Long vehicleId, String title, String body
     String checkStatus, int version) {}
 ```
 
-`CheckResponse` 见 T16。`checkStatus` 五态字符串：`BLOCKED|NEEDS_AI|PASSED|STALE|AI_UNAVAILABLE`。
+`CheckResponse` is in T16. `checkStatus` five-state string: `BLOCKED|NEEDS_AI|PASSED|STALE|AI_UNAVAILABLE`.
 
-空草稿伪代码：
+Empty-draft pseudocode:
 
 ```
 function getListing(vehicleId):
@@ -1187,8 +1187,8 @@ function getListing(vehicleId):
     return virtual { id:null, vehicleId, title:"", body:"", adKind:CASH, medium:ONLINE,
                      status:DRAFT, contentVersion:1, lastCheckId:null, lastCheck:null,
                      checkStatus:NEEDS_AI, version:0 }
-    // 禁止 INSERT
-  last = loadCheck(row.lastCheckId) // 缺失/listingId 或 dealerId 不匹配 → 当无检查
+    // ban INSERT
+  last = loadCheck(row.lastCheckId) // missing / listingId or dealerId mismatch → treat as no check
   return toDto(row, last)
 
 function patchListing(vehicleId, body):
@@ -1200,40 +1200,40 @@ function patchListing(vehicleId, body):
   row = findByVehicle
   if row==null:
     if body.version!=null && body.version!=0: 409 VERSION_CONFLICT
-    INSERT title,body 用 '' 满足 NOT NULL；status=DRAFT; contentVersion=1; lastCheckId=null
+    INSERT title,body use '' to satisfy NOT NULL; status=DRAFT; contentVersion=1; lastCheckId=null
   else:
     if body.version==null or body.version!=row.version: 409 VERSION_CONFLICT
     row.title=title; row.body=text; row.adKind=kind; row.medium=med
     row.contentVersion++; row.status=DRAFT
-    // 不清空 last_check_id
+    // do not clear last_check_id
   return getListing(vehicleId)
 ```
 
-客户端 **不得** PATCH `lastCheckId`（记录里不要该字段）。
+The client **must not** PATCH `lastCheckId` (do not put that field on the record).
 
-| 方法 | HTTP | path | 错误码 |
+| Method | HTTP | path | Error codes |
 |---|---|---|---|
-| `getByVehicle` | GET | `/api/v1/vehicles/{id}/listing` | 404；403 |
-| `patchByVehicle` | PATCH | 同上 | 404；409 VERSION_CONFLICT；400 VALIDATION |
-| `ready` | POST | `/api/v1/listings/{id}/ready` | 见 T17 |
-| `export` | POST | `/api/v1/listings/{id}/exports` | 见 T17 |
+| `getByVehicle` | GET | `/api/v1/vehicles/{id}/listing` | 404; 403 |
+| `patchByVehicle` | PATCH | same | 404; 409 VERSION_CONFLICT; 400 VALIDATION |
+| `ready` | POST | `/api/v1/listings/{id}/ready` | see T17 |
+| `export` | POST | `/api/v1/listings/{id}/exports` | see T17 |
 
-- 禁止：GET 无行时 INSERT；JDBC `null` 进 `title`/`body`；改 V1 可空。
-- 验收：对新车 GET listing → `id` JSON `null` 且 `SELECT COUNT(*) FROM listing WHERE vehicle_id=?` = 0。首次 PATCH 不带 title → DB `title=''`。`rg "lastCheckId" dealer-core/src/main/java/com/dealerops/core/listing/dto/PatchListingRequest.java` 无该字段。
+- Ban: INSERT on GET with no row; JDBC `null` into `title`/`body`; making V1 nullable.
+- Acceptance: GET listing on a new vehicle → `id` JSON `null` and `SELECT COUNT(*) FROM listing WHERE vehicle_id=?` = 0. First PATCH without title → DB `title=''`. `rg "lastCheckId" dealer-core/src/main/java/com/dealerops/core/listing/dto/PatchListingRequest.java` has no such field.
 
 ---
 
-### BE-T16 检查 + OMVIC + Blocked 不调 AI
-- 仓：dealer-core
-- 新建/改文件：
+### BE-T16 Check + OMVIC + Blocked skips AI
+- Repo: dealer-core
+- Create/change files:
   - `dealer-core/src/main/java/com/dealerops/core/compliance/ComplianceCheckController.java`
   - `dealer-core/src/main/java/com/dealerops/core/compliance/ComplianceCheckService.java`
   - `dealer-core/src/main/java/com/dealerops/core/compliance/OmvicRuleEngine.java`
   - `dealer-core/src/main/java/com/dealerops/core/compliance/dto/CheckResponse.java`
   - `dealer-core/src/main/java/com/dealerops/core/compliance/dto/RuleFinding.java`
   - `dealer-core/src/main/java/com/dealerops/core/compliance/dto/AiNote.java`
-  - `dealer-core/src/main/java/com/dealerops/core/listing/dto/VersionBody.java`（若 T15 未建）
-- 必须包含：
+  - `dealer-core/src/main/java/com/dealerops/core/listing/dto/VersionBody.java` (if T15 did not create it)
+- Must include:
 
 ```java
 @RestController
@@ -1253,9 +1253,9 @@ public class OmvicRuleEngine {
 }
 ```
 
-`severity`：`BLOCK` | `REVIEW`。`OmvicRuleEngine` **原样实现 15 §6**（空草稿硬拦、PRICE、店名联系、车况、FINANCE APR、LEASE…）。不用采购成本当标价。无 APR 列：只扫正文。
+`severity`: `BLOCK` | `REVIEW`. `OmvicRuleEngine` **implements 15 §6 as-is** (empty-draft hard block, PRICE, dealership name/contacts, condition, FINANCE APR, LEASE…). Do not use purchase cost as advertised price. No APR column: scan copy only.
 
-Blocked / AI 失败伪代码：
+Blocked / AI-failure pseudocode:
 
 ```
 function postCheck(listingId, version):
@@ -1265,56 +1265,56 @@ function postCheck(listingId, version):
   omvic = OmvicRuleEngine.run(listing, vehicle, dealer)
 
   if omvic.hardBlocked:
-    // 禁止调用 AiGatewayClient
+    // ban calling AiGatewayClient
     check = INSERT compliance_check(
       dealerId, listingId, listing.contentVersion,
       ruleFindings=omvic.findings, aiStatus=SKIPPED, aiNotes=null,
       recommendation=BLOCKED)
-    listing.lastCheckId = check.id   // 同一事务
-    return 200 toDto(check)          // Blocked 不是 4xx
+    listing.lastCheckId = check.id   // same transaction
+    return 200 toDto(check)          // Blocked is not 4xx
 
   try:
     notes = AiGatewayClient.adCheck(toPublic(listing), toVehiclePublic(vehicle), toDealerPublic(dealer))
-    // vehiclePublic 无 purchaseCost/repairCost/soldPrice
+    // vehiclePublic has no purchaseCost/repairCost/soldPrice
     check = INSERT(..., aiStatus=SUCCESS, aiNotes=notes, recommendation=PASSED)
     listing.lastCheckId = check.id
     return 200 toDto(check)
-  catch AiCallFailed:   // 超时 / 5xx / 约定失败体
+  catch AiCallFailed:   // timeout / 5xx / agreed failure body
     check = INSERT(..., aiStatus=UNAVAILABLE, aiNotes=null, recommendation=UNAVAILABLE)
     listing.lastCheckId = check.id
-    throw ApiException(AI_UNAVAILABLE, "AI check failed.")   // HTTP 502；行已写
+    throw ApiException(AI_UNAVAILABLE, "AI check failed.")   // HTTP 502; row already written
 ```
 
-`CheckStatusMapper.derive(listing, lastCheck)`：
+`CheckStatusMapper.derive(listing, lastCheck)`:
 
 ```
 if lastCheck==null: return NEEDS_AI
 if lastCheck.contentVersion != listing.contentVersion:
   if lastCheck.recommendation == PASSED: return STALE
-  return NEEDS_AI          // 曾 BLOCKED/UNAVAILABLE 后改稿：不是 Stale
+  return NEEDS_AI          // after BLOCKED/UNAVAILABLE then edit: not Stale
 if lastCheck.recommendation == BLOCKED: return BLOCKED
 if lastCheck.recommendation == PASSED: return PASSED
 if lastCheck.recommendation == UNAVAILABLE: return AI_UNAVAILABLE
 return NEEDS_AI
 ```
 
-| 方法 | HTTP | path | 错误码 |
+| Method | HTTP | path | Error codes |
 |---|---|---|---|
-| `check` | POST | `/api/v1/listings/{id}/checks` | 200（含 BLOCKED）；502 AI_UNAVAILABLE；409 VERSION_CONFLICT；404；403 |
+| `check` | POST | `/api/v1/listings/{id}/checks` | 200 (including BLOCKED); 502 AI_UNAVAILABLE; 409 VERSION_CONFLICT; 404; 403 |
 
-- 禁止：硬缺时 HTTP 调 `/internal/v1/ad-check`；Blocked 用 4xx；AI 失败当 Pass；规则引擎放进 ai-service。
-- 验收：
-  1. 空 title+body 的 listing POST checks → 200，`recommendation=BLOCKED`，`aiStatus=SKIPPED`。
-  2. 同时抓包 / WireMock：`/internal/v1/ad-check` **0 次**。
-  3. `rg "adCheck\\(" dealer-core/src/main/java/com/dealerops/core/compliance/ComplianceCheckService.java` 仅在 `hardBlocked==false` 分支。
-  4. 断 ai-service 后对无硬缺广告 POST checks → 502 `AI_UNAVAILABLE` 且 `SELECT recommendation FROM compliance_check ORDER BY id DESC LIMIT 1` = `UNAVAILABLE`。
+- Ban: HTTP to `/internal/v1/ad-check` on a hard miss; Blocked as 4xx; AI failure as Pass; putting the rule engine in ai-service.
+- Acceptance:
+  1. listing with empty title+body POST checks → 200, `recommendation=BLOCKED`, `aiStatus=SKIPPED`.
+  2. Packet capture / WireMock at the same time: `/internal/v1/ad-check` **0 times**.
+  3. `rg "adCheck\\(" dealer-core/src/main/java/com/dealerops/core/compliance/ComplianceCheckService.java` only on the `hardBlocked==false` branch.
+  4. After disconnecting ai-service, POST checks on an ad with no hard miss → 502 `AI_UNAVAILABLE` and `SELECT recommendation FROM compliance_check ORDER BY id DESC LIMIT 1` = `UNAVAILABLE`.
 
 ---
 
 ### BE-T17 Ready + Export
-- 仓：dealer-core
-- 新建/改文件：`ListingController` / `ListingService`（T15 已列路径）
-- 必须包含：
+- Repo: dealer-core
+- Create/change files: `ListingController` / `ListingService` (paths already listed in T15)
+- Must include:
 
 ```java
 @PostMapping("/api/v1/listings/{id}/ready")
@@ -1343,27 +1343,27 @@ function export(...):
         + vehicle.modelYear/make/model/vin/conditionCode/source
         + listing.title + listing.body
         + last.createdAt
-  // 无 purchaseCost/repairCost/soldPrice；无客户
+  // no purchaseCost/repairCost/soldPrice; no customer
   return 200 Content-Type: text/plain; charset=UTF-8
 ```
 
-| 方法 | HTTP | path | 错误码 |
+| Method | HTTP | path | Error codes |
 |---|---|---|---|
-| `ready` | POST | `/api/v1/listings/{id}/ready` | 409 CHECK_STALE / NOT_PASSED / VERSION_CONFLICT；404；403 |
-| `export` | POST | `/api/v1/listings/{id}/exports` | 同上 |
+| `ready` | POST | `/api/v1/listings/{id}/ready` | 409 CHECK_STALE / NOT_PASSED / VERSION_CONFLICT; 404; 403 |
+| `export` | POST | `/api/v1/listings/{id}/exports` | same |
 
-- 禁止：Blocked/Needs AI/UNAVAILABLE 变 READY；TXT 写成本或客户。
-- 验收：`curl -D- -X POST .../exports` 响应头含 `text/plain`。无检查 POST ready → 409 `NOT_PASSED`。改 title 后再 ready → 409 `CHECK_STALE`。`rg "purchaseCost|soldPrice|homeAddress" dealer-core/src/main/java/com/dealerops/core/listing/ListingService.java` 的 export 方法无这些字段。
+- Ban: Blocked/Needs AI/UNAVAILABLE becoming READY; writing cost or customer into TXT.
+- Acceptance: `curl -D- -X POST .../exports` response headers contain `text/plain`. POST ready with no check → 409 `NOT_PASSED`. After changing title, ready → 409 `CHECK_STALE`. `rg "purchaseCost|soldPrice|homeAddress" dealer-core/src/main/java/com/dealerops/core/listing/ListingService.java` export method has none of those fields.
 
 ---
 
-### BE-T18 审计 GET
-- 仓：dealer-core
-- 新建/改文件：
+### BE-T18 Audit GET
+- Repo: dealer-core
+- Create/change files:
   - `dealer-core/src/main/java/com/dealerops/core/audit/AuditController.java`
   - `dealer-core/src/main/java/com/dealerops/core/audit/AuditService.java`
   - `dealer-core/src/main/java/com/dealerops/core/audit/dto/AuditItem.java`
-- 必须包含：
+- Must include:
 
 ```java
 @RestController
@@ -1380,34 +1380,34 @@ public record AuditItem(Long id, String entityType, Long entityId, String action
     java.util.Map<String, Object> fieldSummary, String actorOid, Instant createdAt) {}
 ```
 
-`entityType`+`entityId` **必填**，缺 → `400 VALIDATION`。店员只本店；实体不在本店 → 404。店员查 `DEALER`/`MEMBERSHIP` → 403。Admin 查 `VEHICLE`/`CUSTOMER`/`CUSTOMER_VEHICLE`/`LISTING` → 403，无 `fieldSummary` 业务内容。本课 Admin 无审计页：Admin 打本接口 **统一 403**。
+`entityType`+`entityId` are **required**; missing → `400 VALIDATION`. Staff only this store; entity not in this store → 404. Staff querying `DEALER`/`MEMBERSHIP` → 403. Admin querying `VEHICLE`/`CUSTOMER`/`CUSTOMER_VEHICLE`/`LISTING` → 403, no `fieldSummary` business content. This course has no Admin audit page: Admin hitting this API is **always 403**.
 
-写路径（被 Vehicle/Customer/Membership 调用）：
+Write path (called by Vehicle/Customer/Membership):
 
 ```java
 public void record(String entityType, long entityId, String action, Long dealerId,
     String actorOid, java.util.Map<String, Object> fieldSummary) {}
 ```
 
-| 方法 | HTTP | path | 错误码 |
+| Method | HTTP | path | Error codes |
 |---|---|---|---|
-| `list` | GET | `/api/v1/audit` | 400 VALIDATION；403；404 |
+| `list` | GET | `/api/v1/audit` | 400 VALIDATION; 403; 404 |
 
-- 禁止：摘要写电话/邮箱/住址全文。
-- 验收：`rg "@RequestParam String entityType" dealer-core/src/main/java/com/dealerops/core/audit/AuditController.java`。店员查他店 entityId → 404。`rg "put\\(\"phone\"" dealer-core` 无。
+- Ban: summaries writing full phone/email/address.
+- Acceptance: `rg "@RequestParam String entityType" dealer-core/src/main/java/com/dealerops/core/audit/AuditController.java`. Staff querying another store’s entityId → 404. `rg "put\\(\"phone\"" dealer-core` none.
 
 ---
 
-### BE-T19 助手 core `POST /assistant/ask`
-- 仓：dealer-core
-- 新建/改文件：
+### BE-T19 Assistant core `POST /assistant/ask`
+- Repo: dealer-core
+- Create/change files:
   - `dealer-core/src/main/java/com/dealerops/core/assistant/AssistantController.java`
   - `dealer-core/src/main/java/com/dealerops/core/assistant/AssistantService.java`
   - `dealer-core/src/main/java/com/dealerops/core/assistant/AssistantResourceQuery.java`
   - `dealer-core/src/main/java/com/dealerops/core/assistant/dto/AskRequest.java`
   - `dealer-core/src/main/java/com/dealerops/core/assistant/dto/AskResponse.java`
   - `dealer-core/src/main/java/com/dealerops/core/assistant/dto/ResourceCard.java`
-- 必须包含：
+- Must include:
 
 ```java
 @RestController
@@ -1421,28 +1421,28 @@ public record ResourceCard(String kind, Long id, String label, String status, Lo
 public record AskResponse(String summary, boolean summaryAvailable, java.util.List<ResourceCard> cards) {}
 ```
 
-`kind`：`VEHICLE`|`CUSTOMER`|`LISTING`。卡上无电话/邮箱/住址。`AssistantResourceQuery.load(tenantDealerId, text)` 最多 5 条本店资源。Admin → 403。不写 `vehicle`/`customer`/`listing`/`compliance_check`。内存保留最多 3 句已过滤文本（`ConcurrentHashMap<oid, Deque<String>>`），**不落业务表**。
+`kind`: `VEHICLE`|`CUSTOMER`|`LISTING`. Cards have no phone/email/address. `AssistantResourceQuery.load(tenantDealerId, text)` at most 5 this-store resources. Admin → 403. Do not write `vehicle`/`customer`/`listing`/`compliance_check`. Keep at most 3 filtered sentences in memory (`ConcurrentHashMap<oid, Deque<String>>`); **do not persist to a business table**.
 
-模型挂：仍 **200**，`summary=null`，`summaryAvailable=false`，`cards`=检索列表。不要 502（502 只给广告检查）。
+Model down: still **200**, `summary=null`, `summaryAvailable=false`, `cards`=retrieval list. Do not 502 (502 is only for ad check).
 
-| 方法 | HTTP | path | 错误码 |
+| Method | HTTP | path | Error codes |
 |---|---|---|---|
-| `ask` | POST | `/api/v1/assistant/ask` | 400 VALIDATION（空 text）；403；401 |
+| `ask` | POST | `/api/v1/assistant/ask` | 400 VALIDATION (empty text); 403; 401 |
 
-- 禁止：写业务表；卡上 PII；乱编 id 进 cards（必须落在本次检索集）。
-- 验收：`rg "save\\(|persist\\(" dealer-core/src/main/java/com/dealerops/core/assistant` 无。空 `{"text":""}` → 400。Admin POST → 403。停 ai-service 后店员 POST → 200 且 `summaryAvailable=false`。
+- Ban: writing business tables; PII on cards; inventing ids into cards (must fall in this retrieval set).
+- Acceptance: `rg "save\\(|persist\\(" dealer-core/src/main/java/com/dealerops/core/assistant` none. Empty `{"text":""}` → 400. Admin POST → 403. After stopping ai-service, staff POST → 200 and `summaryAvailable=false`.
 
 ---
 
-### BE-T20 core `AiGatewayClient`（经 Gateway，≤15s）
-- 仓：dealer-core
-- 新建/改文件：
+### BE-T20 core `AiGatewayClient` (via Gateway, ≤15s)
+- Repo: dealer-core
+- Create/change files:
   - `dealer-core/src/main/java/com/dealerops/core/integration/AiGatewayClient.java`
   - `dealer-core/src/main/java/com/dealerops/core/integration/InternalHeaders.java`
   - `dealer-core/src/main/java/com/dealerops/core/config/AiClientConfig.java`
   - `dealer-core/src/main/java/com/dealerops/core/integration/dto/AdCheckInternalRequest.java`
   - `dealer-core/src/main/java/com/dealerops/core/integration/dto/AssistantInternalRequest.java`
-- 必须包含：
+- Must include:
 
 ```java
 public final class InternalHeaders {
@@ -1475,22 +1475,22 @@ public record ResourceRef(String kind, Long id, String label, String status) {}
 public record AssistantInternalRequest(String question, java.util.List<ResourceRef> resources) {}
 ```
 
-`adCheck`：`POST {base}/internal/v1/ad-check`，头 `X-Dealer-Internal: ${INTERNAL_TOKEN}`，**不要**转发用户 `Authorization`。4xx/5xx/超时 → 抛 `AiCallFailed`（检查路径由 T16 变 502）。
-`assistant`：`POST {base}/internal/v1/assistant`，同样头；失败抛 `AiCallFailed`（T19 吞掉变 200）。
+`adCheck`: `POST {base}/internal/v1/ad-check`, header `X-Dealer-Internal: ${INTERNAL_TOKEN}`, **do not** forward the user `Authorization`. 4xx/5xx/timeout → throw `AiCallFailed` (check path becomes 502 via T16).
+`assistant`: `POST {base}/internal/v1/assistant`, same header; failure throws `AiCallFailed` (T19 swallows it into 200).
 
-Base URL **必须是 Gateway**（默认 `http://localhost:8080`），禁止产品路径直连 `8082`。
+Base URL **must be Gateway** (default `http://localhost:8080`); ban a product path that calls `8082` directly.
 
-- 禁止：core 持有 `AIMANAGER_API_KEY`；嵌 ai-manager JAR；把用户 JWT 带给 AI。
-- 验收：`rg "8082" dealer-core/src/main/resources dealer-core/src/main/java/com/dealerops/core/integration` 无产品 base。`rg "X-Dealer-Internal" dealer-core`。`rg "AIMANAGER" dealer-core` 无。WireMock 断言出站 URL path=`/internal/v1/ad-check` 且有内部头、无 `Authorization`。
+- Ban: core holding `AIMANAGER_API_KEY`; embedding the ai-manager JAR; sending the user JWT to AI.
+- Acceptance: `rg "8082" dealer-core/src/main/resources dealer-core/src/main/java/com/dealerops/core/integration` has no product base. `rg "X-Dealer-Internal" dealer-core`. `rg "AIMANAGER" dealer-core` none. WireMock asserts outbound URL path=`/internal/v1/ad-check` with the internal header and no `Authorization`.
 
 ---
 
 ### BE-T21 Gateway JWT + InternalRouteFilter
-- 仓：dealer-gateway
-- 新建/改文件：
+- Repo: dealer-gateway
+- Create/change files:
   - `dealer-gateway/src/main/java/ca/sait/dealerops/gateway/config/SecurityConfig.java`
   - `dealer-gateway/src/main/java/ca/sait/dealerops/gateway/filter/InternalRouteFilter.java`
-- 必须包含：
+- Must include:
 
 ```java
 @Configuration
@@ -1503,29 +1503,29 @@ public class SecurityConfig {
     http.authorizeExchange(a -> a
         .pathMatchers(HttpMethod.OPTIONS, "/**").permitAll()
         .pathMatchers("/api/v1/**").authenticated()
-        .pathMatchers("/internal/v1/**").permitAll()  // 由 Header 谓词 + 404 兜底，不要 401
+        .pathMatchers("/internal/v1/**").permitAll()  // Header predicate + 404 fallback; do not 401
         .anyExchange().denyAll());
     return http.build();
   }
 }
 ```
 
-`InternalRouteFilter`：若 path 以 `/internal/v1/` 开头且头不等于 `INTERNAL_TOKEN` → `setComplete` 状态 **404**（不要 401）。无头走不进 `ai-service-internal` 路由，yaml 已 404；此类再挡一层直连误配。
+`InternalRouteFilter`: if path starts with `/internal/v1/` and the header is not `INTERNAL_TOKEN` → `setComplete` status **404** (not 401). Without a header the request never enters the `ai-service-internal` route; yaml already 404s; this is a second layer against a misconfigured direct call.
 
-Gateway **转发** `/api/v1/**` 的 `Authorization`。无法映射角色：对 `/api/v1/**` → **401**（无 `roles` 含两枚之一）。映射函数与 T08 相同（Admin 赢）。Gateway 不签发令牌。
+Gateway **forwards** `Authorization` on `/api/v1/**`. Unmappable role: `/api/v1/**` → **401** (no `roles` containing one of the two). Mapping function is the same as T08 (Admin wins). Gateway does not issue tokens.
 
-- 禁止：第五 auth 仓；cookie 会话；CORS 暴露内部头。
-- 验收：
-  1. `curl http://localhost:8080/api/v1/me` → 401。
-  2. `curl http://localhost:8080/internal/v1/ad-check` → 404。
-  3. `curl -H "X-Dealer-Internal: dealer-internal-dev-only" -H "Content-Type: application/json" -d "{}" http://localhost:8080/internal/v1/ad-check` 在 ai-service 已起时到达 8082（非 401）。
-  4. 浏览器预检 OPTIONS `/api/v1/vehicles` 来自 `http://localhost:5173` → ACAO 含该 origin；`Access-Control-Allow-Headers` 不含 `X-Dealer-Internal`。
+- Ban: a fifth auth repo; cookie sessions; CORS exposing the internal header.
+- Acceptance:
+  1. `curl http://localhost:8080/api/v1/me` → 401.
+  2. `curl http://localhost:8080/internal/v1/ad-check` → 404.
+  3. `curl -H "X-Dealer-Internal: dealer-internal-dev-only" -H "Content-Type: application/json" -d "{}" http://localhost:8080/internal/v1/ad-check` reaches 8082 when ai-service is up (not 401).
+  4. Browser preflight OPTIONS `/api/v1/vehicles` from `http://localhost:5173` → ACAO includes that origin; `Access-Control-Allow-Headers` does not include `X-Dealer-Internal`.
 
 ---
 
-### BE-T22 ai-service 两个内部 POST + 失败体（让 core 变 502）
-- 仓：ai-service
-- 新建/改文件：
+### BE-T22 ai-service two internal POSTs + failure body (so core becomes 502)
+- Repo: ai-service
+- Create/change files:
   - `ai-service/src/main/java/ca/sait/dealerops/aiservice/adapter/adcheck/AdCheckController.java`
   - `ai-service/src/main/java/ca/sait/dealerops/aiservice/adapter/adcheck/AdCheckAdapter.java`
   - `ai-service/src/main/java/ca/sait/dealerops/aiservice/adapter/assistant/AssistantController.java`
@@ -1534,7 +1534,7 @@ Gateway **转发** `/api/v1/**` 的 `Authorization`。无法映射角色：对 `
   - `ai-service/src/main/java/ca/sait/dealerops/aiservice/support/ModelFailureException.java`
   - `ai-service/src/main/java/ca/sait/dealerops/aiservice/support/AiFailureBody.java`
   - `ai-service/src/main/java/ca/sait/dealerops/aiservice/config/AiExceptionHandler.java`
-- 必须包含：
+- Must include:
 
 ```java
 @RestController
@@ -1553,10 +1553,10 @@ public record AdCheckOkResponse(java.util.List<AiNote> aiNotes, boolean success)
 public record AssistantOkResponse(String text, boolean success) {}
 public record AiNote(String message) {}
 public record AiFailureBody(boolean failed, String reason) {}
-// reason 仅: TIMEOUT | NO_KEY | MODEL_ERROR
+// reason only: TIMEOUT | NO_KEY | MODEL_ERROR
 ```
 
-请求记录字段（与 14 §11 对齐，可与 core 同形状）：
+Request-record fields (aligned with 14 §11; may share shape with core):
 
 ```java
 public record AdCheckInternalRequest(ListingIn listing, VehiclePublic vehiclePublic, DealerPublic dealerPublic) {}
@@ -1567,24 +1567,24 @@ public record AssistantInternalRequest(String question, java.util.List<ResourceI
 public record ResourceIn(String kind, Long id, String label, String status) {}
 ```
 
-`AdCheckAdapter.run(req)`：
+`AdCheckAdapter.run(req)`:
 
 ```
-if blank(AIMANAGER_API_KEY): throw ModelFailureException(NO_KEY)   // 立即，不满 15s
+if blank(AIMANAGER_API_KEY): throw ModelFailureException(NO_KEY)   // immediately, do not wait 15s
 id = UUID
 try:
   AiManager mgr = AiManagerFactory.create()
-  mgr.startConversation(id, system)   // system=复核说明，不是 15 硬规则
-  AIResponse r = 带 15s orTimeout 的 mgr.request(userJson)
+  mgr.startConversation(id, system)   // system=review notes, not the 15 hard rules
+  AIResponse r = mgr.request(userJson) with 15s orTimeout
   if !r.isSuccess(): throw MODEL_ERROR
-  return notes from content   // 元素至少 {message}
+  return notes from content   // elements at least {message}
 finally:
   mgr.closeConversation(id)
 ```
 
-只用 `com.manager.AiManager` 的 `request(String)`、`startConversation(id, systemMessage)`、`closeConversation`。
+Use only `com.manager.AiManager` `request(String)`, `startConversation(id, systemMessage)`, `closeConversation`.
 
-`AiExceptionHandler`：**统一失败合同**（core 按此映射）：
+`AiExceptionHandler`: **unified failure contract** (core maps from this):
 
 ```
 HTTP 503
@@ -1592,55 +1592,55 @@ Content-Type: application/json
 {"failed":true,"reason":"TIMEOUT"|"NO_KEY"|"MODEL_ERROR"}
 ```
 
-core `AiGatewayClient`：HTTP ≥500 或超时或 `failed==true` → `AiCallFailed`。检查路径 → 落库 UNAVAILABLE + 对外 **502 `AI_UNAVAILABLE`**。助手路径 → 对外仍 200。
+core `AiGatewayClient`: HTTP ≥500 or timeout or `failed==true` → `AiCallFailed`. Check path → persist UNAVAILABLE + public **502 `AI_UNAVAILABLE`**. Assistant path → public still 200.
 
-ai-service **不要**自己写 `compliance_check`，不要对浏览器回五态，不要返回假 Passed。
+ai-service **must not** write `compliance_check` itself, must not return the five states to the browser, must not return a fake Passed.
 
-| 方法 | HTTP | path | 成功体 | 失败 |
+| Method | HTTP | path | Success body | Failure |
 |---|---|---|---|---|
-| `adCheck` | POST | `/internal/v1/ad-check` | 200 `{aiNotes,success:true}` | 503 `{failed,reason}`；无内部头 404 |
-| `assistant` | POST | `/internal/v1/assistant` | 200 `{text,success:true}` | 同上 503 |
+| `adCheck` | POST | `/internal/v1/ad-check` | 200 `{aiNotes,success:true}` | 503 `{failed,reason}`; no internal header 404 |
+| `assistant` | POST | `/internal/v1/assistant` | 200 `{text,success:true}` | same 503 |
 
-- 禁止：扫描 `com.gateway`；暴露 `/api/ai/**`；规则引擎；业务表；200 空 notes 冒充成功。
-- 验收：
-  1. `rg "com.gateway" ai-service/src/main/java` 无。
-  2. `rg "@PostMapping\\(\"/ad-check\"\\)" ai-service` 与 `@PostMapping(\"/assistant\")`。
-  3. `AIMANAGER_API_KEY=` 启动后：`curl -H "X-Dealer-Internal: dealer-internal-dev-only" -H "Content-Type: application/json" -d "{\"listing\":{\"title\":\"t\",\"body\":\"b\",\"adKind\":\"CASH\",\"medium\":\"ONLINE\"},\"vehiclePublic\":{\"modelYear\":2020,\"make\":\"T\",\"model\":\"C\",\"vin\":\"1\",\"conditionCode\":\"AS_IS\",\"source\":\"AUCTION\"},\"dealerPublic\":{\"legalName\":\"X\",\"contactPhone\":\"1\",\"contactEmail\":\"a@b.c\",\"contactAddress\":\"z\"}}" http://127.0.0.1:8082/internal/v1/ad-check` → **503** 且 body 含 `"failed":true` `"NO_KEY"`（1 秒内返回）。
-  4. 无头同一 URL → 404。
-  5. core 对无硬缺 listing POST `/api/v1/listings/{id}/checks` 此时 → **502** `AI_UNAVAILABLE` 且检查行已写。
+- Ban: scanning `com.gateway`; exposing `/api/ai/**`; rule engine; business tables; 200 empty notes pretending success.
+- Acceptance:
+  1. `rg "com.gateway" ai-service/src/main/java` none.
+  2. `rg "@PostMapping\\(\"/ad-check\"\\)" ai-service` and `@PostMapping("/assistant")`.
+  3. After start with `AIMANAGER_API_KEY=`: `curl -H "X-Dealer-Internal: dealer-internal-dev-only" -H "Content-Type: application/json" -d "{\"listing\":{\"title\":\"t\",\"body\":\"b\",\"adKind\":\"CASH\",\"medium\":\"ONLINE\"},\"vehiclePublic\":{\"modelYear\":2020,\"make\":\"T\",\"model\":\"C\",\"vin\":\"1\",\"conditionCode\":\"AS_IS\",\"source\":\"AUCTION\"},\"dealerPublic\":{\"legalName\":\"X\",\"contactPhone\":\"1\",\"contactEmail\":\"a@b.c\",\"contactAddress\":\"z\"}}" http://127.0.0.1:8082/internal/v1/ad-check` → **503** and body contains `"failed":true` `"NO_KEY"` (returns within 1 second).
+  4. Same URL with no header → 404.
+  5. core POST `/api/v1/listings/{id}/checks` on a listing with no hard miss at this point → **502** `AI_UNAVAILABLE` and the check row is written.
 
 ---
 
-### BE-T23 实现顺序（对齐 BRIEF §11，禁止跳步）
-- 仓：dealer-core | dealer-gateway | ai-service | dealer-platform
-- 新建/改文件：无新文件。编码 AI 按下列序号开 PR；未完成「完成标准」不得开始下一号。
-- 必须包含：对照表（BRIEF # → 本文任务）：
+### BE-T23 Implementation order (align BRIEF §11; do not skip)
+- Repo: dealer-core | dealer-gateway | ai-service | dealer-platform
+- Create/change files: no new files. The coding AI opens PRs in the sequence below; do not start the next number until the "done when" bar is met.
+- Must include: mapping table (BRIEF # → this document's tasks):
 
-| 序 | BRIEF | 仓 | 做哪些 BE-T | 完成标准（可判定） |
+| Seq | BRIEF | Repo | Which BE-T | Done when (decidable) |
 |---|---|---|---|---|
-| 1 | BRIEF-1 | 本机 | （环境） | `java -version` 含 `21` |
-| 2 | BRIEF-2 | 三 Java 仓 | T01 T02 T03 T04 | 三仓 `mvn -DskipTests compile` exit 0；core 8081 / gw 8080 / ai 8082 能起来（core 无库时允许 datasource 失败，先把主类编过） |
-| 3 | BRIEF-3 | core | T06 T07 | Flyway 一库 9 表；`ddl-auto=validate` |
-| 4 | BRIEF-4 | gateway | T03 T21 T05 | `curl :8080/internal/v1/ad-check` → 404；CORS 仅 5173 |
-| 5 | BRIEF-5 | gateway+core | T08 T09 | 无 token 401；`GET /me` 200；body `dealerId` 不能改租户 |
-| 6 | BRIEF-6 | core | T10 T11 | 两店两员可插库；店员打 admin → 403 |
-| 7 | BRIEF-7 | core | T12 T18 | VIN 唯一；已售锁；出售成对；有 `audit_event` |
-| 8 | BRIEF-8 | core | T13 T14 T18 | 跨店 404；一车一客 409；已售解绑 409；在库 204 |
-| 9 | BRIEF-9 | core | T15 T16（仅 Omvic，Client 可 stub 抛失败） | 缺价 / FINANCE 缺 APR → 200 BLOCKED；**零**内部 AI 调用 |
-| 10 | BRIEF-10 | ai-service | T04 T22 | 不暴露 `com.gateway`；缺 Key → 503；CI stub |
-| 11 | BRIEF-11 | core+ai | T16 T20 T22 | 经 Gateway checks；失败 502+已落库；改车况 → STALE |
-| 12 | BRIEF-12 | core | T17 | 非 Passed/Stale → 409；export `text/plain` |
-| 13 | BRIEF-13 | core+ai | T19 T20 T22 | ≤5 卡；乱 id 丢弃；模型挂 200 `summaryAvailable=false` |
-| — | BRIEF-14 | web | **不做**（本文不管前端） | — |
-| — | BRIEF-15 | platform | T05 只读 env | **不要改** env.example / Bicep / SQL |
+| 1 | BRIEF-1 | local machine | (environment) | `java -version` contains `21` |
+| 2 | BRIEF-2 | three Java repos | T01 T02 T03 T04 | three repos `mvn -DskipTests compile` exit 0; core 8081 / gw 8080 / ai 8082 can start (core without a DB may fail datasource; compile the main class first) |
+| 3 | BRIEF-3 | core | T06 T07 | Flyway one DB 9 tables; `ddl-auto=validate` |
+| 4 | BRIEF-4 | gateway | T03 T21 T05 | `curl :8080/internal/v1/ad-check` → 404; CORS only 5173 |
+| 5 | BRIEF-5 | gateway+core | T08 T09 | no token 401; `GET /me` 200; body `dealerId` cannot change tenant |
+| 6 | BRIEF-6 | core | T10 T11 | two stores two staff can be inserted; staff hitting admin → 403 |
+| 7 | BRIEF-7 | core | T12 T18 | VIN unique; sold lock; sale as a pair; `audit_event` exists |
+| 8 | BRIEF-8 | core | T13 T14 T18 | cross-store 404; one vehicle one customer 409; sold unlink 409; in-stock 204 |
+| 9 | BRIEF-9 | core | T15 T16 (Omvic only; Client may stub-throw failure) | missing price / FINANCE missing APR → 200 BLOCKED; **zero** internal AI calls |
+| 10 | BRIEF-10 | ai-service | T04 T22 | do not expose `com.gateway`; missing Key → 503; CI stub |
+| 11 | BRIEF-11 | core+ai | T16 T20 T22 | checks via Gateway; failure 502+already persisted; condition change → STALE |
+| 12 | BRIEF-12 | core | T17 | not Passed/Stale → 409; export `text/plain` |
+| 13 | BRIEF-13 | core+ai | T19 T20 T22 | ≤5 cards; invented ids discarded; model down 200 `summaryAvailable=false` |
+| — | BRIEF-14 | web | **do not** (this document does not cover frontend) | — |
+| — | BRIEF-15 | platform | T05 read-only env | **do not change** env.example / Bicep / SQL |
 
-本地联调进程序：MySQL:3306 → core:8081 → ai-service:8082 → gateway:8080。产品 curl 一律打 `http://localhost:8080`。
+Local integration start order: MySQL:3306 → core:8081 → ai-service:8082 → gateway:8080. Product curls always hit `http://localhost:8080`.
 
-- 禁止：先做 assistant 再做 `/me`；先写规则进 ai-service；先做云 Bicep 再空仓启动；做 BRIEF-14 前端。
-- 验收：提交说明或 PR 标题含 `BE-Txx`。`rg "BRIEF-14|dealer-web" ` 若出现在本次后端提交中则失败。git diff 不含 `design/13`–`19`、`IMPLEMENTATION-BRIEF.md`、`V1__init.sql`、`README`。
+- Ban: doing assistant before `/me`; putting rules into ai-service first; doing cloud Bicep before an empty repo starts; doing BRIEF-14 frontend.
+- Acceptance: commit message or PR title contains `BE-Txx`. `rg "BRIEF-14|dealer-web" ` in this backend commit fails. git diff does not include `design/13`–`19`, `IMPLEMENTATION-BRIEF.md`, `V1__init.sql`, `README`.
 
 ---
 
-## 不做清单（再钉一次）
+## Do-not list (pinned again)
 
-工单、线索、密码表、CSRF cookie 会话、Service Bus/outbox、第五 `dealer-auth` 仓、买家 `/public/**`、KPI、APR/延保列、`ddl-auto=update`、改 V1、对外 8081/8082 CORS、把 `com.gateway` 当 API、core 直连 8082 当产品路径、Admin 读写车辆/客户/广告。
+Work orders, leads, password tables, CSRF cookie sessions, Service Bus/outbox, a fifth `dealer-auth` repo, buyer `/public/**`, KPI, APR/warranty columns, `ddl-auto=update`, changing V1, public 8081/8082 CORS, treating `com.gateway` as an API, core calling 8082 as a product path, Admin reading or writing vehicles/customers/ads.

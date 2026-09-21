@@ -5,9 +5,13 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 @RestControllerAdvice
 public class ApiExceptionHandler {
@@ -26,7 +30,31 @@ public class ApiExceptionHandler {
         .getFieldErrors()
         .forEach(err -> fieldErrors.putIfAbsent(err.getField(), err.getDefaultMessage()));
     return ResponseEntity.status(ErrorCode.VALIDATION.getHttpStatus())
-        .body(new ErrorBody(ErrorCode.VALIDATION.name(), "Validation failed", fieldErrors));
+        .body(new ErrorBody(ErrorCode.VALIDATION.name(), "Request is invalid.", fieldErrors));
+  }
+
+  @ExceptionHandler({
+    MissingServletRequestParameterException.class,
+    MethodArgumentTypeMismatchException.class,
+    HttpMessageNotReadableException.class
+  })
+  public ResponseEntity<ErrorBody> handleBadRequest(Exception ex) {
+    Map<String, String> fieldErrors = new LinkedHashMap<>();
+    if (ex instanceof MissingServletRequestParameterException missing) {
+      fieldErrors.put(missing.getParameterName(), "must not be blank");
+    }
+    return ResponseEntity.status(ErrorCode.VALIDATION.getHttpStatus())
+        .body(
+            new ErrorBody(
+                ErrorCode.VALIDATION.name(),
+                "Request is invalid.",
+                fieldErrors.isEmpty() ? null : fieldErrors));
+  }
+
+  @ExceptionHandler(ObjectOptimisticLockingFailureException.class)
+  public ResponseEntity<ErrorBody> handleOptimistic(ObjectOptimisticLockingFailureException ex) {
+    return ResponseEntity.status(ErrorCode.VERSION_CONFLICT.getHttpStatus())
+        .body(new ErrorBody(ErrorCode.VERSION_CONFLICT.name(), "Version conflict.", null));
   }
 
   @ExceptionHandler(DataIntegrityViolationException.class)
@@ -36,7 +64,7 @@ public class ApiExceptionHandler {
     String message = "Duplicate or invalid data";
     if (constraint.contains("uk_vehicle_vin")) {
       code = ErrorCode.VIN_DUP;
-      message = "VIN already exists for this dealer";
+      message = "VIN already exists in this dealership.";
     } else if (constraint.contains("uk_cv_vehicle")) {
       code = ErrorCode.VEHICLE_ALREADY_LINKED;
       message = "Vehicle is already linked";
