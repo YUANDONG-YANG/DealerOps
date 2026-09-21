@@ -1,26 +1,26 @@
-# OMVIC 合规参考（无代码可抄）
+# OMVIC compliance reference (no code to copy)
 
-## 调研结论
+## Research conclusion
 
-- GitHub / 公开课设里 **没有**「现成的 OMVIC 刊登检查器」可 fork。
-- **规则看官网**，由本课自写固定规则 + AI 复核（见设计 `00` / `09`，历史稿 `05` 不作为编码范围）。
-- **Pierre** 是 OMVIC 面向公众的**聊天机器人**，用来问答购车/经销商常识，**不是**广告清单引擎，不要接进本课、不要当合规 API。
+- GitHub / public course projects have **no** ready-made OMVIC listing checker to fork.
+- **Read the official site for rules.** This course writes its own fixed rules plus AI review (see design `00` / `09`; historical draft `05` is not coding scope).
+- **Pierre** is OMVIC's public **chatbot** for buyer/dealer FAQ. It is **not** an ad-checklist engine. Do not wire it into this course. Do not treat it as a compliance API.
 
-系统输出只能是「规则命中 + 人工复核建议」，**不能**在 UI 写 OMVIC approved / certified。
+System output may only be "rule hits + human-review suggestions". The UI **must not** say OMVIC approved / certified.
 
-## 必须打开的官网
+## Official pages you must open
 
 - [OMVIC Advertising Guideline](https://www.omvic.ca/selling/dealer-guidelines-and-resources/advertising-guideline/)
-- 价格披露相关：[All-in Price Advertising](https://www.omvic.ca/buying/your-rights/all-in-price-advertising/)
+- Price-disclosure related: [All-in Price Advertising](https://www.omvic.ca/buying/your-rights/all-in-price-advertising/)
 
-查询日期以设计文档为准（约 2026-09-09）。官网修订后以官网为准，更新规则版本并使旧检查 stale。
+The lookup date follows the design docs (about 2026-09-09). After the official site revises, the official site wins. Bump the rule version and stale old checks.
 
-## 对编码的含义
+## Meaning for coding
 
-| 可做 | 不可做 |
+| Do | Do not |
 |------|--------|
-| 读指引后实现**本课自己的**固定规则与文案模板 | 抄别人的「合规评分」或宣称合法认证 |
-| 清单随广告类型变化；总状态仅 Blocked / Needs AI review / Passed / Stale / AI unavailable | 把 Pierre、外部注册查询、OCR、融资租赁检查当范围 |
-| AI 失败不得显示 Pass；仅 Passed 且非 Stale 才能 Export TXT | 在仓库里寻找 OMVIC SDK / 检查器依赖 |
+| After reading the guidance, implement **this course's own** fixed rules and copy templates | Copy someone else's "compliance score" or claim legal certification |
+| Checklist changes with ad type; overall status is only Blocked / Needs AI review / Passed / Stale / AI unavailable | Treat Pierre, external registry lookups, OCR, or finance/lease checks as scope |
+| AI failure must not show Pass; Export TXT only when Passed and not Stale | Hunt the repo for an OMVIC SDK / checker dependency |
 
-规则细节、字段、状态机以 `DealerOS-Design` 有效文档为准，本文件只锁定：**无第三方检查代码可复用**。
+Rule details, fields, and the state machine follow the effective `design/` docs. This file only locks: **no third-party checker code is reusable**.

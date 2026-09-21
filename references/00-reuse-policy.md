@@ -1,43 +1,43 @@
-# 复用政策：抄交互，不 fork
+# Reuse policy: copy interaction, do not fork
 
-## 结论
+## Conclusion
 
-网上能搜到大量经销商 / DMS / CRM 课设。对照本课（Java + Vue 3 + Element Plus + Entra，四仓库，六页面）后：**没有一份能整仓当底座**。  
-允许对照页面节奏；禁止把别人的领域模型、登录、买家站或脚手架直接拉进本课仓库。
+The web has many dealership / DMS / CRM course projects. Against this course (Java + Vue 3 + Element Plus + Entra, four repos, six pages): **none of them can be a whole-repo base**.  
+You may compare page rhythm. Do not pull someone else's domain model, login, buyer site, or scaffold into this course's repos.
 
-## 本课边界（编码不得扩大）
+## Course boundary (coding must not expand this)
 
-| 项 | 本课 |
+| Item | This course |
 |----|------|
-| 仓库 | `dealer-web` / `dealer-gateway` / `dealer-core` / `ai-service`（外加平台仓） |
-| 前端 | Vue 3 + Element Plus + MSAL.js；英文界面 |
-| 身份 | Entra JWT + 本地 membership；**不自建密码登录** |
-| 角色 | `Platform.Admin`、`Dealer.User` |
-| 页面 | Login, Admin, DMS, CRM, Ad compliance, Assistant |
-| AI | 进程内复用私有 `ai-manager` JAR，见 [03-ai-manager.md](03-ai-manager.md) |
-| 合规 | 自写固定规则 + AI 复核；OMVIC **没有现成检查器可抄**，见 [02-omvic.md](02-omvic.md) |
+| Repos | `dealer-web` / `dealer-gateway` / `dealer-core` / `ai-service` (plus the platform repo) |
+| Frontend | Vue 3 + Element Plus + MSAL.js; English UI |
+| Identity | Entra JWT + local membership; **no home-grown password login** |
+| Roles | `Platform.Admin`, `Dealer.User` |
+| Pages | Login, Admin, DMS, CRM, Ad compliance, Assistant |
+| AI | In-process reuse of the private `ai-manager` JAR; see [03-ai-manager.md](03-ai-manager.md) |
+| Compliance | Write our own fixed rules + AI review; OMVIC **has no ready-made checker to copy**; see [02-omvic.md](02-omvic.md) |
 
-## 可以抄
+## You may copy
 
-- 列表：筛选一行、表格、状态 Tag、操作列文字链、分页约 10 条。
-- 表单：抽屉 / Dialog、枚举 Select、出售二次确认。
-- 空 / 加载 / 错误三种状态；失败不当空表。
-- Admin 店表、库存表的**信息密度**（列少、操作少）。
-- Element Plus 官方组件用法（Table、Drawer、Result、Empty）。`vue-element-plus-admin` 只看 Demo，不当脚手架。
+- Lists: one filter row, table, status Tag, text-link action column, about 10 rows per page.
+- Forms: drawer / Dialog, enum Select, sell confirm.
+- Empty / loading / error states. Failures must not look like an empty table.
+- **Information density** of Admin dealership tables and inventory tables (few columns, few actions).
+- Official Element Plus usage (Table, Drawer, Result, Empty). Use `vue-element-plus-admin` as a Demo only, not as scaffolding.
 
-## 明确禁止抄
+## Explicitly forbidden
 
-- **买家站 / marketplace / 公开商城**
-- **KPI / 图表墙 / 仪表盘首页**
-- **线索、漏斗、试驾、工单、服务单**
-- **自建用户名密码、本地 JWT、邮箱验证、找回密码**
-- **暗色玻璃拟态**、炫酷暗色仪表盘皮肤
-- 整仓 fork、通用 CRUD 生成器、Odoo 模块、C++ 控制台、与本课栈无关的 MERN 整包
-- 把参考项目的 `com.gateway` / 买家 API / 密码过滤器拷进本课
+- **Buyer site / marketplace / public storefront**
+- **KPI / chart wall / dashboard home**
+- **Leads, funnels, test drives, work orders, service tickets**
+- **Home-grown username/password, local JWT, email verification, password reset**
+- **Dark glassmorphism** and flashy dark dashboard skins
+- Whole-repo forks, generic CRUD generators, Odoo modules, C++ consoles, MERN packs unrelated to this stack
+- Copying a reference project's `com.gateway` / buyer APIs / password filters into this course
 
-## 对后续 AI 的硬约束
+## Hard constraints for later AI work
 
-1. 先读本文件和 `DealerOS-Design` 有效文档，再改代码。
-2. 参考仓有额外功能 → 记在 [01-github-repos.md](01-github-repos.md)，**不自动实现**。
-3. 字段只按 `00-Current-Development-Design.md`，不因参考仓多字段就加 mileage/颜色/多价格。
-4. 不推荐、不执行「以某某 GitHub 仓为 template clone」。
+1. Read this file and the effective `design/` docs before changing code.
+2. Extra features in a reference repo → record them in [01-github-repos.md](01-github-repos.md). **Do not auto-implement them.**
+3. Fields follow `design/00-Current-Development-Design.md` only. Do not add mileage/color/extra prices just because a reference repo has more fields.
+4. Do not recommend or run "clone repo X as a template".

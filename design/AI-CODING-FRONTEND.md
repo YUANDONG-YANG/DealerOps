@@ -1,279 +1,279 @@
-# AI 编码规格 · dealer-web（前端）
+# AI coding spec · dealer-web (frontend)
 
-1. 读者：另一个编码 AI。遵守本文即可新建 `dealer-web` 并按 [14](14-Backend-API-Contract.md) 接线；字段/枚举/DTO 以手册第 3 节与 14 为准，本文不另定列。
-2. 栈钉死：Vue 3 + Vite + Element Plus + Vue Router + Pinia + `@azure/msal-browser` + axios。无 Nuxt、无图表库、无通用 CRUD 生成器。
-3. 浏览器 HTTP **只打** `import.meta.env.VITE_GATEWAY_URL`（本地 `http://localhost:8080`），路径前缀 `/api/v1`。禁止 axios 指向 8081/8082，禁止请求 `/internal/v1/**`。
-4. 路由仅六页：`/login` `/admin` `/dms` `/crm` `/ads` `/assistant`。无第七条业务路由；禁止 `/audit` `/tickets` `/leads` `/dashboard` / 买家页。
-5. Admin：**一个路由** `/admin` + 页内双 Tab（Dealerships | Members）。禁止 `/admin/members`。本课 UI **不做** Edit 店（14 虽有 `GET/PATCH /admin/dealers/{id}`）。
-6. 助手模型挂但仍 HTTP 200：说明区固定英文 **`Smart summary unavailable`**（以 [12](12-Frontend-UI-Conventions.md) 为准，不用 [10](10-Web-AI-Assistant.md) 的「智能说明暂不可用」）。整页失败：`Could not ask assistant`。
-7. 未列功能不做：工单、线索、C 端/买家站、独立 Audit 页、KPI 首页、密码登录、切店器、外部广告发布。
-8. 界面全英文。错误体 `{code,message}`。失败不当空表。乐观锁写带 `version`，`409 VERSION_CONFLICT` → `Refresh and retry`。忽略客户端 `dealerId`。
-9. **实现顺序锁定：** FE-T01 壳 → FE-T02 守卫 → FE-T03 MSAL/HTTP → FE-T04 布局四态 → FE-T05 Login → FE-T06 Admin → FE-T07 DMS → FE-T08 CRM → FE-T09 Ads → FE-T10 Assistant → FE-T11 对照 16。
-10. 验收只引用 [16](16-Acceptance-and-Test.md) 的 `FE-01`～`FE-10`、`CL-1`～`CL-6`（及课堂会碰到的 `BE-*` 前端表现）。不要发明 path / 错误码 / 第五种以外的广告总状态。
+1. Reader: another coding AI. Follow this document to create `dealer-web` and wire it to [14](14-Backend-API-Contract.md); fields/enums/DTOs follow handbook section 3 and 14. This document does not define extra columns.
+2. Stack pinned: Vue 3 + Vite + Element Plus + Vue Router + Pinia + `@azure/msal-browser` + axios. No Nuxt, no chart library, no generic CRUD generator.
+3. Browser HTTP **only hits** `import.meta.env.VITE_GATEWAY_URL` (local `http://localhost:8080`), path prefix `/api/v1`. Ban axios pointing at 8081/8082. Ban requests to `/internal/v1/**`.
+4. Routes are only six pages: `/login` `/admin` `/dms` `/crm` `/ads` `/assistant`. No seventh business route; ban `/audit` `/tickets` `/leads` `/dashboard` / buyer pages.
+5. Admin: **one route** `/admin` + in-page dual tabs (Dealerships | Members). Ban `/admin/members`. This course UI **does not** Edit a dealership (even though 14 has `GET/PATCH /admin/dealers/{id}`).
+6. Assistant model down but still HTTP 200: explanation area is the fixed English **`Smart summary unavailable`** (follow [12](12-Frontend-UI-Conventions.md); do not use the Chinese “智能说明暂不可用” from [10](10-Web-AI-Assistant.md)). Whole-page failure: `Could not ask assistant`.
+7. Unlisted features are not built: work orders, leads, consumer/buyer site, standalone Audit page, KPI home, password login, dealership switcher, external ad publish.
+8. UI is all English. Error body `{code,message}`. Failures are not empty tables. Optimistic-lock writes carry `version`; `409 VERSION_CONFLICT` → `Refresh and retry`. Ignore client `dealerId`.
+9. **Implementation order locked:** FE-T01 shell → FE-T02 guards → FE-T03 MSAL/HTTP → FE-T04 layout four states → FE-T05 Login → FE-T06 Admin → FE-T07 DMS → FE-T08 CRM → FE-T09 Ads → FE-T10 Assistant → FE-T11 against 16.
+10. Acceptance cites only [16](16-Acceptance-and-Test.md) `FE-01`–`FE-10`, `CL-1`–`CL-6` (and classroom `BE-*` frontend behavior). Do not invent paths / error codes / an ad overall status outside the five.
 
-权威冲突：课程 PPT > 规格字段 > BRIEF / 00 > 15 / **14（HTTP）** > 13 > 12 > 本文。本文是拆文件任务，不是业务实现。
+Authority conflicts: course PPT > specification fields > BRIEF / 00 > 15 / **14 (HTTP)** > 13 > 12 > this document. This document splits files into tasks; it is not a business implementation.
 
 ---
 
-## 实现顺序（必须按此提交）
+## Implementation order (must submit in this order)
 
-| 序 | 任务 | 完成才能开始下一件 |
+| Seq | Task | Done before starting the next |
 |---|---|---|
-| 1 | FE-T01 脚手架 | `npm run dev` 起 Vite :5173 |
-| 2 | FE-T02 路由表+守卫 | 未登录进业务 path 必到 `/login` |
-| 3 | FE-T03 MSAL+axios | 每个请求只打 8080 且带 Bearer |
-| 4 | FE-T04 壳+四态组件 | `AppLayout`/`PageState` 可挂空页 |
-| 5 | FE-T05 Login | `Sign in with Microsoft` + `GET /me` 分流 |
-| 6 | FE-T06 Admin | 双 Tab 全接线；无业务菜单 |
-| 7 | FE-T07 DMS | 列表/增改/出售/审计抽屉 |
-| 8 | FE-T08 CRM | 列表/增改/挂车/**Unlink 二次确认** |
-| 9 | FE-T09 Ads | 五态；Ready/导出仅 Passed 非 Stale |
-| 10 | FE-T10 Assistant | 输入框、≤5 卡、失败文案 |
-| 11 | FE-T11 对照 16 | FE-01～FE-10 + CL 脚本手测打勾 |
+| 1 | FE-T01 scaffold | `npm run dev` starts Vite :5173 |
+| 2 | FE-T02 route table + guards | Unauthenticated business path must go to `/login` |
+| 3 | FE-T03 MSAL+axios | Every request hits 8080 only and carries Bearer |
+| 4 | FE-T04 shell + four-state components | `AppLayout`/`PageState` can mount empty pages |
+| 5 | FE-T05 Login | `Sign in with Microsoft` + `GET /me` routing |
+| 6 | FE-T06 Admin | Dual tabs fully wired; no business menu |
+| 7 | FE-T07 DMS | List/create-update/sell/audit drawer |
+| 8 | FE-T08 CRM | List/create-update/link/**Unlink second confirmation** |
+| 9 | FE-T09 Ads | Five states; Ready/export only Passed not Stale |
+| 10 | FE-T10 Assistant | Input, ≤5 cards, failure copy |
+| 11 | FE-T11 against 16 | FE-01–FE-10 + CL scripts hand-tested and checked |
 
 ---
 
-## 可复制路由表（FE-T02 原样写入 `src/router/index.ts`）
+## Copy-paste route table (FE-T02 write as-is into `src/router/index.ts`)
 
-| path | name | 组件文件 | `meta` | 登录后落地 |
+| path | name | Component file | `meta` | Post-login landing |
 |---|---|---|---|---|
 | `/login` | `login` | `src/views/LoginView.vue` | `{ public: true }` | — |
-| `/admin` | `admin` | `src/views/AdminView.vue` | `{ roles: ['Platform.Admin'] }` | Admin 默认页 |
-| `/dms` | `dms` | `src/views/DmsView.vue` | `{ roles: ['Dealer.User'] }` | 店员默认页 |
+| `/admin` | `admin` | `src/views/AdminView.vue` | `{ roles: ['Platform.Admin'] }` | Admin default page |
+| `/dms` | `dms` | `src/views/DmsView.vue` | `{ roles: ['Dealer.User'] }` | Staff default page |
 | `/crm` | `crm` | `src/views/CrmView.vue` | `{ roles: ['Dealer.User'] }` | — |
-| `/ads` | `ads` | `src/views/AdsView.vue` | `{ roles: ['Dealer.User'] }` | 页标题 **Ad compliance** |
+| `/ads` | `ads` | `src/views/AdsView.vue` | `{ roles: ['Dealer.User'] }` | Page title **Ad compliance** |
 | `/assistant` | `assistant` | `src/views/AssistantView.vue` | `{ roles: ['Dealer.User'] }` | — |
 
-- `/` 与未知 path：已登录按 `role` → `/admin` 或 `/dms`；未登录 → `/login`。不要 404 营销页。
-- 可选深链：`/dms?vehicleId=`、`/crm?customerId=`、`/ads?vehicleId=`（助手卡跳转）。**禁止**把 `dealerId` 放进路由当权威。
-- 菜单与守卫同一套：Admin **只渲染** Admin；店员 **只渲染** DMS / CRM / Ad compliance / Assistant。
+- `/` and unknown paths: if signed in, by `role` → `/admin` or `/dms`; if not signed in → `/login`. No 404 marketing page.
+- Optional deep links: `/dms?vehicleId=`, `/crm?customerId=`, `/ads?vehicleId=` (assistant card jumps). **Ban** putting `dealerId` on the route as authority.
+- Menu and guards share one set: Admin **renders only** Admin; staff **renders only** DMS / CRM / Ad compliance / Assistant.
 
-`beforeEach` 顺序（13 §3，禁止改序）：
+`beforeEach` order (13 §3; do not reorder):
 
-1. 未登录（MSAL 无账号）且非 `meta.public` → `/login`，记下 `redirect`。
-2. 已登录且在 `/login` → `GET /api/v1/me` 后按角色去 `/admin` 或 `/dms`。
-3. `Platform.Admin` 访问 `/dms` `/crm` `/ads` `/assistant` → 拦回 `/admin`，不渲染业务表。`Dealer.User` 访问 `/admin` → 拦回 `/dms`。
-4. `GET /me` 失败 401 → 清会话，回 `/login`。
-5. `role` 不在 `Platform.Admin` | `Dealer.User`，或 `/me` 显示无店且手册有 `active=false` → 留无业务壳，顶栏 `Sign out`，正文走 forbidden 态。不要猜第三种角色。
+1. Not signed in (MSAL has no account) and not `meta.public` → `/login`, remember `redirect`.
+2. Signed in and on `/login` → after `GET /api/v1/me` go to `/admin` or `/dms` by role.
+3. `Platform.Admin` visiting `/dms` `/crm` `/ads` `/assistant` → send back to `/admin`; do not render business tables. `Dealer.User` visiting `/admin` → send back to `/dms`.
+4. `GET /me` fails 401 → clear session, return `/login`.
+5. `role` is not `Platform.Admin` | `Dealer.User`, or `/me` shows no dealership and the handbook has `active=false` → stay on a no-business shell, top bar `Sign out`, body uses the forbidden state. Do not invent a third role.
 
 ---
 
-## FE-T01 · Vite 脚手架与目录树
+## FE-T01 · Vite scaffold and directory tree
 
-- **仓：** `dealer-web`（工作区尚无此仓：在仓库根旁新建，或按组约定的 monorepo 子目录；**不要**写进 `design/`）。
-- **文件：**
+- **Repo:** `dealer-web` (if this workspace does not have it yet: create it beside the repo root, or as the agreed monorepo subdirectory; **do not** write it into `design/`).
+- **Files:**
   - `dealer-web/package.json`
-  - `dealer-web/vite.config.ts`（dev server **5173**）
-  - `dealer-web/.env.example`（只抄 `dealer-platform/env.example` 前端四项，见下）
+  - `dealer-web/vite.config.ts` (dev server **5173**)
+  - `dealer-web/.env.example` (copy only the four frontend items from `dealer-platform/env.example`, see below)
   - `dealer-web/src/main.ts`
   - `dealer-web/src/App.vue`
-  - 空壳占位（本任务可先空组件）：`src/router/index.ts`、`src/auth/msal.ts`、`src/api/http.ts`、`src/api/me.ts`、`src/api/admin.ts`、`src/api/vehicles.ts`、`src/api/customers.ts`、`src/api/listings.ts`、`src/api/audit.ts`、`src/api/assistant.ts`、`src/stores/session.ts`、`src/layouts/AppLayout.vue`、`src/components/AppMenu.vue`、`src/components/DataTable.vue`、`src/components/FormDrawer.vue`、`src/components/ConfirmDialog.vue`、`src/components/PageState.vue`、`src/components/AdWorkspace.vue`、`src/components/AssistantCard.vue`、`src/views/LoginView.vue`、`src/views/AdminView.vue`、`src/views/DmsView.vue`、`src/views/CrmView.vue`、`src/views/AdsView.vue`、`src/views/AssistantView.vue`
-- **必须包含：**
-  - 依赖：`vue` `vue-router` `pinia` `element-plus` `axios` `@azure/msal-browser`；`vite` `@vitejs/plugin-vue`。
-  - 目录必须存在：`src/views` `src/api` `src/stores` `src/auth` `src/layouts`（另有 `src/router` `src/components`）。
-  - `.env.example` 四键，值与 `dealer-platform/env.example` 一致：
+  - Empty placeholders (this task may start with empty components): `src/router/index.ts`, `src/auth/msal.ts`, `src/api/http.ts`, `src/api/me.ts`, `src/api/admin.ts`, `src/api/vehicles.ts`, `src/api/customers.ts`, `src/api/listings.ts`, `src/api/audit.ts`, `src/api/assistant.ts`, `src/stores/session.ts`, `src/layouts/AppLayout.vue`, `src/components/AppMenu.vue`, `src/components/DataTable.vue`, `src/components/FormDrawer.vue`, `src/components/ConfirmDialog.vue`, `src/components/PageState.vue`, `src/components/AdWorkspace.vue`, `src/components/AssistantCard.vue`, `src/views/LoginView.vue`, `src/views/AdminView.vue`, `src/views/DmsView.vue`, `src/views/CrmView.vue`, `src/views/AdsView.vue`, `src/views/AssistantView.vue`
+- **Must include:**
+  - Dependencies: `vue` `vue-router` `pinia` `element-plus` `axios` `@azure/msal-browser`; `vite` `@vitejs/plugin-vue`.
+  - Directories that must exist: `src/views` `src/api` `src/stores` `src/auth` `src/layouts` (also `src/router` `src/components`).
+  - `.env.example` four keys, values matching `dealer-platform/env.example`:
 
-    | 键 | 本地默认 |
+    | Key | Local default |
     |---|---|
-    | `VITE_ENTRA_TENANT_ID` | 空（复制后填） |
-    | `VITE_ENTRA_CLIENT_ID` | 空 |
+    | `VITE_ENTRA_TENANT_ID` | empty (fill after copy) |
+    | `VITE_ENTRA_CLIENT_ID` | empty |
     | `VITE_ENTRA_API_SCOPE` | `api://dealer-api/access_as_user` |
     | `VITE_GATEWAY_URL` | `http://localhost:8080` |
 
-  - `stores` **只**留 `session.ts`（账号、`role`、店展示名）。列表状态放各 View。
-- **禁止：** Nuxt；再拆 `AuditView` / tickets / leads / dashboard；`.env` 提交真实 tenant/client；在 `design/` 写 Vue 源码。
-- **验收：** `npm install && npm run dev` 监听 `http://localhost:5173`。目录树与上表文件一一对应。无第七业务 View。
+  - `stores` keeps **only** `session.ts` (account, `role`, dealership display name). List state lives in each View.
+- **Ban:** Nuxt; extra `AuditView` / tickets / leads / dashboard; committing a real tenant/client in `.env`; writing Vue source into `design/`.
+- **Acceptance:** `npm install && npm run dev` listens on `http://localhost:5173`. Directory tree matches the file list above one-for-one. No seventh business View.
 
 ---
 
-## FE-T02 · 路由表与守卫
+## FE-T02 · Route table and guards
 
-- **仓：** `dealer-web`
-- **文件：** `src/router/index.ts`（唯一 `beforeEach`）；`src/stores/session.ts`（读 `role`）；六个 `src/views/*.vue` 必须已被路由引用。
-- **必须包含：** 上文「可复制路由表」六条 + `/` 与未知 path 分流。守卫五步原样实现。菜单组件稍后 T04 必须读同一 `meta.roles`，不得另写一套权限。
-- **禁止：** 注册 `/audit` `/tickets` `/leads` `/dashboard` `/admin/members`；用藏按钮代替守卫；404 营销页。
-- **验收：** 对照 16 **FE-01～FE-06**：未登录打开 `/dms` → `/login`；Staff 打开 `/admin` → `/dms`；Admin 打开 `/dms` `/crm` `/ads` `/assistant` → `/admin` 且不渲染业务表。
-
----
-
-## FE-T03 · MSAL + axios（只打 8080）
-
-- **仓：** `dealer-web`
-- **文件：** `src/auth/msal.ts`；`src/api/http.ts`；`src/main.ts`（启动时 `handleRedirectPromise`）；`src/stores/session.ts`。
-- **必须包含：**
-  - `PublicClientApplication`。authority = `https://login.microsoftonline.com/${VITE_ENTRA_TENANT_ID}`。`clientId` = `VITE_ENTRA_CLIENT_ID`。
-  - **PKCE：** 保持 SPA / `@azure/msal-browser` 默认 PKCE。禁止 confidential client、禁止 client secret。
-  - **Redirect URI（开发）：** 源 `http://localhost:5173`。`redirectUri` 与 `postLogoutRedirectUri` 都指向同源 **`/login`**（完整 URL：`http://localhost:5173/login`）。登录主路径：`loginRedirect`（不要 popup）。`loginRequest.scopes` / `acquireTokenSilent` **只用** `VITE_ENTRA_API_SCOPE`（默认 `api://dealer-api/access_as_user`）。
-  - `api/http.ts`：`baseURL = import.meta.env.VITE_GATEWAY_URL`。请求 path 写 `/api/v1/...`。
-  - 请求拦截器：`acquireTokenSilent({ scopes: [VITE_ENTRA_API_SCOPE], account })`，失败再 `acquireTokenRedirect`；头 `Authorization: Bearer <accessToken>`。
-  - 响应：401 → 清会话回 `/login`。403/404/409/400/502 → 抛给页内 `PageState` 或 `ElMessage`，**不当空表**。
-  - 禁止把 `dealerId` 放进 query/body/header 当租户开关。
-- **禁止：** 密码框；axios 指向 `8081`/`8082`；浏览器打 `/internal/v1/ad-check` 或 `/internal/v1/assistant`；第二套 API 根。
-- **验收：** 网络面板每个 XHR 的 host 是 Gateway（本地 **8080**）。无 token 的请求不得发出（登录页除外）。Entra 回调落在 `http://localhost:5173`。对照 16 **FE-01**（仅 Microsoft 按钮）。
+- **Repo:** `dealer-web`
+- **Files:** `src/router/index.ts` (the only `beforeEach`); `src/stores/session.ts` (read `role`); the six `src/views/*.vue` files must already be referenced by the router.
+- **Must include:** the six “copy-paste route table” rows above + `/` and unknown-path routing. Implement the five guard steps as-is. The later T04 menu component must read the same `meta.roles`; do not write a second permission set.
+- **Ban:** registering `/audit` `/tickets` `/leads` `/dashboard` `/admin/members`; hiding buttons instead of guarding; a 404 marketing page.
+- **Acceptance:** against 16 **FE-01–FE-06**: unauthenticated open `/dms` → `/login`; Staff open `/admin` → `/dms`; Admin open `/dms` `/crm` `/ads` `/assistant` → `/admin` and do not render business tables.
 
 ---
 
-## FE-T04 · 布局、共享组件、四态文案
+## FE-T03 · MSAL + axios (8080 only)
 
-- **仓：** `dealer-web`
-- **文件：** `src/layouts/AppLayout.vue`；`src/components/AppMenu.vue`；`src/components/DataTable.vue`；`src/components/FormDrawer.vue`；`src/components/ConfirmDialog.vue`；`src/components/PageState.vue`；`src/App.vue`。
-- **必须包含：**
-  - `AppLayout`：左菜单 + 顶栏（店员店名 = `/me.dealerLegalName`，空则 `Dealership`；Admin 固定 `Platform Admin`；角色；`Sign out`）+ `router-view`。
-  - `AppMenu`：Admin 仅一项 `Admin`。店员四项：`DMS` · `CRM` · `Ad compliance` · `Assistant`。
-  - `DataTable`：Element Table + 每页 **10** + 操作列最多 **3** 个文字链 + 状态 Tag；`status=SOLD` 行变淡。分页：query `page` 从 **0**，信封 `{items,page,size,total}`（14）。
-  - `FormDrawer`：新增/编辑；枚举 `el-select`，提交枚举原值，展示可读空格标签。
-  - `ConfirmDialog`：供 Sell、Unbind staff、**Unlink** 二次确认。
-  - `PageState`：四槽 **loading / empty / error / forbidden**。六页文案必须用下表（13 §10），禁止自写近义句。
-- **禁止：** KPI 条、多店切换、图标海、价格滑条、行内万用编辑器、向导多步。
-- **验收：** 16 **FE-09** 文案可逐页套上。菜单与 FE-01～FE-06 一致。
+- **Repo:** `dealer-web`
+- **Files:** `src/auth/msal.ts`; `src/api/http.ts`; `src/main.ts` (`handleRedirectPromise` at startup); `src/stores/session.ts`.
+- **Must include:**
+  - `PublicClientApplication`. authority = `https://login.microsoftonline.com/${VITE_ENTRA_TENANT_ID}`. `clientId` = `VITE_ENTRA_CLIENT_ID`.
+  - **PKCE:** keep SPA / `@azure/msal-browser` default PKCE. Ban confidential client, ban client secret.
+  - **Redirect URI (dev):** origin `http://localhost:5173`. `redirectUri` and `postLogoutRedirectUri` both point at same-origin **`/login`** (full URL: `http://localhost:5173/login`). Primary login path: `loginRedirect` (not popup). `loginRequest.scopes` / `acquireTokenSilent` **only** use `VITE_ENTRA_API_SCOPE` (default `api://dealer-api/access_as_user`).
+  - `api/http.ts`: `baseURL = import.meta.env.VITE_GATEWAY_URL`. Request paths written as `/api/v1/...`.
+  - Request interceptor: `acquireTokenSilent({ scopes: [VITE_ENTRA_API_SCOPE], account })`, then `acquireTokenRedirect` on failure; header `Authorization: Bearer <accessToken>`.
+  - Response: 401 → clear session, return `/login`. 403/404/409/400/502 → throw to in-page `PageState` or `ElMessage`, **not an empty table**.
+  - Ban putting `dealerId` in query/body/header as a tenant switch.
+- **Ban:** password box; axios pointing at `8081`/`8082`; browser hitting `/internal/v1/ad-check` or `/internal/v1/assistant`; a second API root.
+- **Acceptance:** network panel: every XHR host is Gateway (local **8080**). Requests without a token must not be sent (except the login page). Entra callback lands on `http://localhost:5173`. Against 16 **FE-01** (Microsoft button only).
 
-### 六页四态（复制进 `PageState` 调用处）
+---
 
-| 页 | loading | empty | error | 403 / 无权限 |
+## FE-T04 · Layout, shared components, four-state copy
+
+- **Repo:** `dealer-web`
+- **Files:** `src/layouts/AppLayout.vue`; `src/components/AppMenu.vue`; `src/components/DataTable.vue`; `src/components/FormDrawer.vue`; `src/components/ConfirmDialog.vue`; `src/components/PageState.vue`; `src/App.vue`.
+- **Must include:**
+  - `AppLayout`: left menu + top bar (staff dealership name = `/me.dealerLegalName`, else `Dealership`; Admin fixed `Platform Admin`; role; `Sign out`) + `router-view`.
+  - `AppMenu`: Admin has only `Admin`. Staff four items: `DMS` · `CRM` · `Ad compliance` · `Assistant`.
+  - `DataTable`: Element Table + **10** per page + actions column at most **3** text links + status Tag; fade rows with `status=SOLD`. Pagination: query `page` from **0**, envelope `{items,page,size,total}` (14).
+  - `FormDrawer`: create/edit; enums as `el-select`, submit raw enum values, display readable space-separated labels.
+  - `ConfirmDialog`: used for Sell, Unbind staff, and **Unlink** second confirmation.
+  - `PageState`: four slots **loading / empty / error / forbidden**. All six pages must use the table below (13 §10); do not invent near-synonyms.
+- **Ban:** KPI bars, multi-store switcher, icon seas, price sliders, inline universal editors, multi-step wizards.
+- **Acceptance:** 16 **FE-09** copy can be applied page by page. Menu matches FE-01–FE-06.
+
+### Six-page four states (copy into `PageState` call sites)
+
+| Page | loading | empty | error | 403 / no access |
 |---|---|---|---|---|
-| Login | `Signing you in…` | （无列表；只登录卡） | `Sign-in failed. Try again.` | 已登录错角色不停本页，守卫分流 |
+| Login | `Signing you in…` | (no list; login card only) | `Sign-in failed. Try again.` | Signed-in wrong role does not stay here; guard routes away |
 | Admin | `Loading dealerships…` | `No dealerships yet.` | `Could not load dealerships.` | `You do not have access to Admin.` |
 | DMS | `Loading vehicles…` | `No vehicles match.` | `Could not load vehicles.` | `You do not have access to DMS.` |
 | CRM | `Loading customers…` | `No customers match.` | `Could not load customers.` | `You do not have access to CRM.` |
 | Ads | `Loading listing…` | `Select a vehicle to start.` / `No vehicles to advertise.` | `Could not load listing.` | `You do not have access to Ad compliance.` |
 | Assistant | `Asking…` | `Ask a question about this dealership.` | `Could not ask assistant.` | `You do not have access to Assistant.` |
 
-店员已登录但无有效 membership：业务 API **403** `FORBIDDEN`（14 §1.3）；`GET /me` 仍 200 且 `dealerId=null`。页内走 error/forbidden，不当空表。
+Staff signed in but without a valid membership: business APIs **403** `FORBIDDEN` (14 §1.3); `GET /me` still 200 with `dealerId=null`. Pages use error/forbidden, not an empty table.
 
 ---
 
-## FE-T05 · Login 接线表
+## FE-T05 · Login wiring table
 
-- **仓：** `dealer-web`
-- **文件：** `src/views/LoginView.vue`（居中单卡，无侧栏）；`src/api/me.ts`；`src/stores/session.ts`；`src/auth/msal.ts`。
-- **必须包含：** 仅一颗按钮 `Sign in with Microsoft`。无 Forgot password。无用户名密码。
-- **禁止：** 密码登录、第三按钮。
-- **验收：** 16 **FE-01**、**CL-1** 步骤 1、**CL-2** 步骤 1。
+- **Repo:** `dealer-web`
+- **Files:** `src/views/LoginView.vue` (centered single card, no sidebar); `src/api/me.ts`; `src/stores/session.ts`; `src/auth/msal.ts`.
+- **Must include:** only one button `Sign in with Microsoft`. No Forgot password. No username/password.
+- **Ban:** password login, a third button.
+- **Acceptance:** 16 **FE-01**, **CL-1** step 1, **CL-2** step 1.
 
-### 接线表 · Login `/login`
+### Wiring table · Login `/login`
 
-| 控件 / 时机 | method + path | 成功 | 失败 HTTP / code → 英文 |
+| Control / timing | method + path | Success | Failure HTTP / code → English |
 |---|---|---|---|
-| `Sign in with Microsoft` | 无业务 API；`loginRedirect` | redirect 回 `/login` | MSAL 失败 → `Sign-in failed. Try again.` |
-| redirect 完成后 | `GET /api/v1/me` | Pinia 写 `role` `dealerId` `dealerLegalName` `displayName` `entraOid`。`Platform.Admin`→`/admin`；`Dealer.User`→`/dms`（或守卫记下的 `redirect`，但仍受角色表约束） | `401` → `Sign in required` 并回登录；其他 → `Could not load profile` |
-| 进任何受护页 | `GET /api/v1/me`（若会话无 role） | 同上 | 同上 |
+| `Sign in with Microsoft` | no business API; `loginRedirect` | redirect back to `/login` | MSAL failure → `Sign-in failed. Try again.` |
+| After redirect completes | `GET /api/v1/me` | Pinia writes `role` `dealerId` `dealerLegalName` `displayName` `entraOid`. `Platform.Admin`→`/admin`; `Dealer.User`→`/dms` (or the guard-remembered `redirect`, still constrained by the role table) | `401` → `Sign in required` and return to login; other → `Could not load profile` |
+| Entering any guarded page | `GET /api/v1/me` (if session has no role) | Same | Same |
 
-`/me` 响应形状（14 §2）：`{ entraOid, displayName, role, dealerId, dealerLegalName }`。Admin 后两项为 `null`。
+`/me` response shape (14 §2): `{ entraOid, displayName, role, dealerId, dealerLegalName }`. Admin last two fields are `null`.
 
 ---
 
-## FE-T06 · Admin（单页双 Tab）
+## FE-T06 · Admin (single page, dual tabs)
 
-- **仓：** `dealer-web`
-- **文件：** `src/views/AdminView.vue`；`src/api/admin.ts`；复用 `DataTable` `FormDrawer` `ConfirmDialog` `PageState`。
-- **必须包含：**
-  - 路由只有 `/admin`。页内 `el-tabs`：`Dealerships` | `Members`。
-  - **Dealerships 列（12）：** Name, Contact, Staff count, Actions。筛：店名一行。主按钮右上 `New dealership`。
-    - Name ← `legalName`。Contact ← `contactPhone` / `contactEmail` 拼一行即可。Staff count ← `staffCount`（无值显示 `—`）。
-  - **Members 列（12）：** Entra ID / email, Dealership, Status, Actions。筛：员工邮箱（API **无 email 列**：`q` 打在 `displayName`/`entraOid` 上，14 §3.5）。
-  - Members 数据：**禁止**发明 `GET /admin/members`。算法：`GET /api/v1/admin/dealers` 后对 `items[]` 每家 `GET /api/v1/admin/dealers/{id}/members`，前端摊平，带上店 `legalName`。
-  - 行内 `Staff`：抽屉只显示该店成员；`Bind staff` / `Unbind` 都在抽屉。Members Tab 的 `Unbind` 打同一条 DELETE。
-  - `New dealership` 抽屉四字段：`legalName` `contactPhone` `contactEmail` `contactAddress`（全非空）。
-  - `Bind staff` 体：`{ entraOid, displayName }`。
-- **禁止：** 第二条 Admin 子路由；Edit 店按钮（不调用 `PATCH /admin/dealers/{id}`）；车辆 Tab；发邮件建 Entra 账号；菜单出现 DMS/CRM/Ads/Assistant。
-- **验收：** 16 **FE-07**、**CL-1**、**CL-3**（地址栏改 `/dms` 被拦回）。
+- **Repo:** `dealer-web`
+- **Files:** `src/views/AdminView.vue`; `src/api/admin.ts`; reuse `DataTable` `FormDrawer` `ConfirmDialog` `PageState`.
+- **Must include:**
+  - Only route `/admin`. In-page `el-tabs`: `Dealerships` | `Members`.
+  - **Dealerships columns (12):** Name, Contact, Staff count, Actions. Filter: dealership name, one row. Primary button top-right `New dealership`.
+    - Name ← `legalName`. Contact ← `contactPhone` / `contactEmail` on one line. Staff count ← `staffCount` (show `—` if missing).
+  - **Members columns (12):** Entra ID / email, Dealership, Status, Actions. Filter: staff email (API **has no email column**: send `q` against `displayName`/`entraOid`, 14 §3.5).
+  - Members data: **ban** inventing `GET /admin/members`. Algorithm: `GET /api/v1/admin/dealers` then for each `items[]` `GET /api/v1/admin/dealers/{id}/members`, flatten on the frontend, attach store `legalName`.
+  - Row `Staff`: drawer shows only that store’s members; `Bind staff` / `Unbind` both live in the drawer. Members tab `Unbind` hits the same DELETE.
+  - `New dealership` drawer four fields: `legalName` `contactPhone` `contactEmail` `contactAddress` (all required).
+  - `Bind staff` body: `{ entraOid, displayName }`.
+- **Ban:** a second Admin child route; Edit dealership button (do not call `PATCH /admin/dealers/{id}`); vehicles tab; creating Entra accounts by email; DMS/CRM/Ads/Assistant appearing in the menu.
+- **Acceptance:** 16 **FE-07**, **CL-1**, **CL-3** (changing the address bar to `/dms` is blocked back).
 
-### 接线表 · Admin `/admin`
+### Wiring table · Admin `/admin`
 
-| 控件 | method + path | 成功刷新 | 失败 HTTP / code → 英文 |
+| Control | method + path | Refresh on success | Failure HTTP / code → English |
 |---|---|---|---|
-| 进入 / Search / Reset（店 Tab） | `GET /api/v1/admin/dealers?q=&page=&size=` | 店表 | `403` `FORBIDDEN` → `You cannot open Admin` / `You do not have access to Admin.`；其他 → `Could not load dealerships.` |
-| `New dealership` 提交 | `POST /api/v1/admin/dealers` → **201** | 店表；切到 Dealerships | `400` `VALIDATION` → `Check required contact fields` |
-| 打开 Staff 抽屉 | `GET /api/v1/admin/dealers/{id}/members?page=&size=&q=` | 抽屉表 | `404` `NOT_FOUND` → `Dealership not found` |
-| `Bind staff` 提交 | `POST /api/v1/admin/dealers/{id}/members` → **201** | 该店成员 + 店表 `staffCount` | `400` `VALIDATION` → `Check Entra ID`；`409` `DUP_MEMBER` → `Staff already bound` |
-| `Unbind`（`ConfirmDialog` 后） | `DELETE /api/v1/admin/dealers/{id}/members/{entraOid}` → **204** 无 body | 同上 | `404` → `Member not found` |
-| Members Tab 加载 | 上表两次 GET 组合摊平 | 成员表 | 同店表 / 成员 GET |
+| Enter / Search / Reset (dealership tab) | `GET /api/v1/admin/dealers?q=&page=&size=` | Dealership table | `403` `FORBIDDEN` → `You cannot open Admin` / `You do not have access to Admin.`; other → `Could not load dealerships.` |
+| `New dealership` submit | `POST /api/v1/admin/dealers` → **201** | Dealership table; switch to Dealerships | `400` `VALIDATION` → `Check required contact fields` |
+| Open Staff drawer | `GET /api/v1/admin/dealers/{id}/members?page=&size=&q=` | Drawer table | `404` `NOT_FOUND` → `Dealership not found` |
+| `Bind staff` submit | `POST /api/v1/admin/dealers/{id}/members` → **201** | That store’s members + dealership table `staffCount` | `400` `VALIDATION` → `Check Entra ID`; `409` `DUP_MEMBER` → `Staff already bound` |
+| `Unbind` (after `ConfirmDialog`) | `DELETE /api/v1/admin/dealers/{id}/members/{entraOid}` → **204** no body | Same | `404` → `Member not found` |
+| Members tab load | Combination of the two GETs above, flattened | Member table | Same as dealership / member GET |
 
-店员打以上 URL：后端 **403** `FORBIDDEN`；前端守卫应已拦，不渲染表。
+Staff hitting the URLs above: backend **403** `FORBIDDEN`; the frontend guard should already block and not render the table.
 
 ---
 
 ## FE-T07 · DMS
 
-- **仓：** `dealer-web`
-- **文件：** `src/views/DmsView.vue`；`src/api/vehicles.ts`；`src/api/audit.ts`；出售小窗可内嵌本 View。
-- **必须包含：**
-  - 列（12）：Year Make Model, VIN, Source, Condition, Cost, Status, Actions。
-    - Year Make Model ← `modelYear` `make` `model`。Source ← `source`。Condition ← `conditionCode`。Cost ← `purchaseCost`。Status Tag ← `status`。
-  - 筛一行：`q`（VIN/Make/Model）、`status`、`condition`（即 `conditionCode`）、Search、Reset。每页 10。Query：`q` `status` `condition` `page` `size`。`page` 从 0。信封 `{items,page,size,total}`。
-  - 主按钮 `Add vehicle`。行操作最多三链：`Edit` `Sell`（已售隐藏 Sell）。
-  - 新增必填（00 / 14）：`make` `model` `modelYear` `vin` `source` `purchaseCost` `addedOn` `conditionCode`。可选：`repairCost` `carfaxUrl`。忽略 `dealerId` `status` `soldOn` `soldPrice`。
-  - 枚举提交原值：`TRADE_IN` `AUCTION` `PRIVATE_PURCHASE` `OTHER`；`CERTIFIED` `AS_IS` `UNFIT` `IRREPARABLE`；`IN_STOCK` `SOLD`。展示：`Trade in` 等空格标签。
-  - `Edit`：先 `GET /vehicles/{id}` 回填；`PATCH` 必须带 `version`。已售：采购字段只读。
-  - `Sell`：`ConfirmDialog` 小窗，`Sold date` + `Sold price` 成对必填，按钮 `Confirm sale`。
-  - 详情抽屉底部 Audit：`GET /api/v1/audit?entityType=VEHICLE&entityId=`。无独立 Audit 页、无菜单项。
-  - 已售行变淡。无车辆 DELETE。跨店 id：后端 404，前端 `Vehicle not found`，不当成本店车（CL-2 深链）。
-  - 深链 `/dms?vehicleId=`：打开对应抽屉；404 不露出他店字段。
-- **禁止：** Admin 进入本页（守卫）；PATCH 改 `status`/`soldOn`/`soldPrice`；把 `dealerId` 写入 body。
-- **验收：** 16 **CL-2** 录车；**CL-3** Admin 看不见表；SOLD 后再 Edit 采购 → 页内 `Purchase fields are locked`（`409` `SOLD_LOCKED`）。
+- **Repo:** `dealer-web`
+- **Files:** `src/views/DmsView.vue`; `src/api/vehicles.ts`; `src/api/audit.ts`; sell dialog may be embedded in this View.
+- **Must include:**
+  - Columns (12): Year Make Model, VIN, Source, Condition, Cost, Status, Actions.
+    - Year Make Model ← `modelYear` `make` `model`. Source ← `source`. Condition ← `conditionCode`. Cost ← `purchaseCost`. Status Tag ← `status`.
+  - Filters in one row: `q` (VIN/Make/Model), `status`, `condition` (i.e. `conditionCode`), Search, Reset. 10 per page. Query: `q` `status` `condition` `page` `size`. `page` from 0. Envelope `{items,page,size,total}`.
+  - Primary button `Add vehicle`. Row actions at most three links: `Edit` `Sell` (hide Sell when sold).
+  - Create required (00 / 14): `make` `model` `modelYear` `vin` `source` `purchaseCost` `addedOn` `conditionCode`. Optional: `repairCost` `carfaxUrl`. Ignore `dealerId` `status` `soldOn` `soldPrice`.
+  - Submit raw enum values: `TRADE_IN` `AUCTION` `PRIVATE_PURCHASE` `OTHER`; `CERTIFIED` `AS_IS` `UNFIT` `IRREPARABLE`; `IN_STOCK` `SOLD`. Display: `Trade in` and other space-separated labels.
+  - `Edit`: first `GET /vehicles/{id}` to fill; `PATCH` must carry `version`. Sold: purchase fields read-only.
+  - `Sell`: `ConfirmDialog` small window, `Sold date` + `Sold price` required as a pair, button `Confirm sale`.
+  - Detail drawer bottom Audit: `GET /api/v1/audit?entityType=VEHICLE&entityId=`. No standalone Audit page, no menu item.
+  - Sold rows fade. No vehicle DELETE. Cross-store id: backend 404, frontend `Vehicle not found`, do not treat as this store’s vehicle (CL-2 deep link).
+  - Deep link `/dms?vehicleId=`: open the matching drawer; 404 must not leak another store’s fields.
+- **Ban:** Admin entering this page (guard); PATCH changing `status`/`soldOn`/`soldPrice`; writing `dealerId` into the body.
+- **Acceptance:** 16 **CL-2** record a vehicle; **CL-3** Admin cannot see the table; Edit purchase after SOLD → in-page `Purchase fields are locked` (`409` `SOLD_LOCKED`).
 
-### 接线表 · DMS `/dms`
+### Wiring table · DMS `/dms`
 
-| 控件 | method + path | 成功刷新 | 失败 HTTP / code → 英文 |
+| Control | method + path | Refresh on success | Failure HTTP / code → English |
 |---|---|---|---|
-| 进入 / Search / Reset / 翻页 | `GET /api/v1/vehicles?q=&status=&condition=&page=&size=` | 车辆表 | `403` `FORBIDDEN` → 无权限态 `You do not have access to DMS.`；其他 → `Could not load vehicles.` |
-| `Add vehicle` 提交 | `POST /api/v1/vehicles` → **201** | 车辆表 | `400` `VIN_DUP` → `VIN already in this dealership`；`400` `VALIDATION` → `Check required fields` |
-| 行 `Edit` 打开 | `GET /api/v1/vehicles/{id}` | 抽屉 | `404` `NOT_FOUND` → `Vehicle not found` |
-| `Edit` 保存 | `PATCH /api/v1/vehicles/{id}` 带 `version` → **200** | 该行 + 抽屉 | `404` → `Vehicle not found`；`409` `SOLD_LOCKED` → `Purchase fields are locked`；`409` `VERSION_CONFLICT` → `Refresh and retry`；`400` `VIN_DUP` → 同上 |
-| `Sell` 确认提交 | `POST /api/v1/vehicles/{id}/sell` `{soldOn,soldPrice,version}` → **200** | 车辆表（行变淡，藏 Sell） | `400` `SOLD_PAIR_REQUIRED` → `Sold date and price are required together`；`409` `SOLD_LOCKED` → 已售锁定；`409` `VERSION_CONFLICT`；`404` |
-| 详情底部 Audit | `GET /api/v1/audit?entityType=VEHICLE&entityId={id}` | 只刷新审计列表 | `404` → 不展示业务字段；不把失败画成空车表 |
+| Enter / Search / Reset / page | `GET /api/v1/vehicles?q=&status=&condition=&page=&size=` | Vehicle table | `403` `FORBIDDEN` → no-access state `You do not have access to DMS.`; other → `Could not load vehicles.` |
+| `Add vehicle` submit | `POST /api/v1/vehicles` → **201** | Vehicle table | `400` `VIN_DUP` → `VIN already in this dealership`; `400` `VALIDATION` → `Check required fields` |
+| Row `Edit` open | `GET /api/v1/vehicles/{id}` | Drawer | `404` `NOT_FOUND` → `Vehicle not found` |
+| `Edit` save | `PATCH /api/v1/vehicles/{id}` with `version` → **200** | That row + drawer | `404` → `Vehicle not found`; `409` `SOLD_LOCKED` → `Purchase fields are locked`; `409` `VERSION_CONFLICT` → `Refresh and retry`; `400` `VIN_DUP` → same as above |
+| `Sell` confirm submit | `POST /api/v1/vehicles/{id}/sell` `{soldOn,soldPrice,version}` → **200** | Vehicle table (row fades, hide Sell) | `400` `SOLD_PAIR_REQUIRED` → `Sold date and price are required together`; `409` `SOLD_LOCKED` → sold lock; `409` `VERSION_CONFLICT`; `404` |
+| Detail bottom Audit | `GET /api/v1/audit?entityType=VEHICLE&entityId={id}` | Refresh audit list only | `404` → do not show business fields; do not draw failure as an empty vehicle table |
 
 ---
 
 ## FE-T08 · CRM + Unlink
 
-- **仓：** `dealer-web`
-- **文件：** `src/views/CrmView.vue`；`src/api/customers.ts`；`src/api/vehicles.ts`（挂车下拉）；`src/api/audit.ts`；`src/components/ConfirmDialog.vue`。
-- **必须包含：**
-  - 列（12）：Name, Email, Phone, Linked vehicle, Actions。
-    - Linked vehicle ← 列表 `linkedVehicle`：`{id,modelYear,make,model}`，格式 `2020 Toyota Camry`；`null` 显示 `—`。
-  - 筛一行：`q`（Name/Email/Phone）、`linked`=`true`|`false`、Search、Reset。分页同 DMS。
-  - 主按钮 `Add customer`。四字段：`name` `email` `phone` `homeAddress`。
-  - 行：`Edit`、详情内 `Link vehicle` / `Unlink`（操作列仍 ≤3 文字链）。
-  - `Link vehicle`：可搜索 Select；数据 `GET /api/v1/vehicles?status=IN_STOCK`，再排除已挂（他客占用禁用）。只列本店未售未挂。
-  - **Unlink（硬规则）：**
-    1. 必须 `ConfirmDialog`。取消 → **零请求**。
-    2. 确认后才 `DELETE /api/v1/customers/{id}/vehicles/{vehicleId}` → **204** 无 body。
-    3. 刷新客户表 `linkedVehicle` + 抽屉 `linkedVehicles`。
-    4. 车 `status=SOLD`：按钮隐藏或禁用；若仍请求 → `409` `SOLD_LOCKED` → `Sold vehicles cannot be unlinked`。
-    5. 禁止用 PUT 空值假装解绑。
-  - 详情 Audit：`GET /api/v1/audit?entityType=CUSTOMER&entityId=`。解绑后可选 `entityType=CUSTOMER_VEHICLE`。`fieldSummary` 不得展示电话/邮箱/住址全文。
-  - 深链 `/crm?customerId=`。
-- **禁止：** 独立 Audit 页；跨店 VIN 出现在下拉；单击即删。
-- **验收：** 16 **FE-08**、**CL-2** 挂车、Review 3 Unlink。在库解绑 204 后 Linked vehicle 清空。已售不可解挂。
+- **Repo:** `dealer-web`
+- **Files:** `src/views/CrmView.vue`; `src/api/customers.ts`; `src/api/vehicles.ts` (link dropdown); `src/api/audit.ts`; `src/components/ConfirmDialog.vue`.
+- **Must include:**
+  - Columns (12): Name, Email, Phone, Linked vehicle, Actions.
+    - Linked vehicle ← list `linkedVehicle`: `{id,modelYear,make,model}`, format `2020 Toyota Camry`; `null` shows `—`.
+  - Filters in one row: `q` (Name/Email/Phone), `linked`=`true`|`false`, Search, Reset. Pagination same as DMS.
+  - Primary button `Add customer`. Four fields: `name` `email` `phone` `homeAddress`.
+  - Row: `Edit`, in detail `Link vehicle` / `Unlink` (actions column still ≤3 text links).
+  - `Link vehicle`: searchable Select; data `GET /api/v1/vehicles?status=IN_STOCK`, then exclude already linked (other-customer occupancy disabled). List only this-store unsold unbound.
+  - **Unlink (hard rules):**
+    1. Must use `ConfirmDialog`. Cancel → **zero requests**.
+    2. Only after confirm `DELETE /api/v1/customers/{id}/vehicles/{vehicleId}` → **204** no body.
+    3. Refresh customer table `linkedVehicle` + drawer `linkedVehicles`.
+    4. Vehicle `status=SOLD`: hide or disable the button; if still requested → `409` `SOLD_LOCKED` → `Sold vehicles cannot be unlinked`.
+    5. Ban using empty PUT as a fake unlink.
+  - Detail Audit: `GET /api/v1/audit?entityType=CUSTOMER&entityId=`. After unlink, optional `entityType=CUSTOMER_VEHICLE`. `fieldSummary` must not display full phone/email/address.
+  - Deep link `/crm?customerId=`.
+- **Ban:** standalone Audit page; cross-store VIN in the dropdown; click-to-delete.
+- **Acceptance:** 16 **FE-08**, **CL-2** link, Review 3 Unlink. After in-stock unlink 204, Linked vehicle is empty. Sold cannot be unlinked.
 
-### 接线表 · CRM `/crm`
+### Wiring table · CRM `/crm`
 
-| 控件 | method + path | 成功刷新 | 失败 HTTP / code → 英文 |
+| Control | method + path | Refresh on success | Failure HTTP / code → English |
 |---|---|---|---|
-| 进入 / Search / Reset / 翻页 | `GET /api/v1/customers?q=&linked=&page=&size=` | 客户表 | `403` → `You do not have access to CRM.`；其他 → `Could not load customers.` |
-| `Add customer` | `POST /api/v1/customers` → **201** | 客户表 | `400` `VALIDATION` → `Check required fields` |
-| `Edit` 打开 | `GET /api/v1/customers/{id}` | 抽屉（用 `linkedVehicles[]`） | `404` → `Customer not found` |
-| `Edit` 保存 | `PATCH /api/v1/customers/{id}` 带 `version` → **200** | 该行 + 抽屉 | `404`；`409` `VERSION_CONFLICT` → `Refresh and retry` |
-| `Link vehicle` | `PUT /api/v1/customers/{id}/vehicles/{vehicleId}` → **200** | 列表 Linked vehicle + 抽屉 | `409` `VEHICLE_ALREADY_LINKED` → `Vehicle already linked`；`400` `WRONG_DEALER_OR_SOLD` → `Vehicle not available`；`404` |
-| 挂车下拉 | `GET /api/v1/vehicles?status=IN_STOCK&page=&size=` | 下拉 | 已占禁用 |
-| **`Unlink`（确认后）** | **`DELETE /api/v1/customers/{id}/vehicles/{vehicleId}` → 204** | 列表 Linked vehicle + 抽屉 | `404` → `Link not found`；**`409` `SOLD_LOCKED` → `Sold vehicles cannot be unlinked`** |
-| 详情 Audit | `GET /api/v1/audit?entityType=CUSTOMER&entityId=` | 审计列表 | `404` |
-| 解绑后审计（可选） | `GET /api/v1/audit?entityType=CUSTOMER_VEHICLE&entityId=` | 审计列表 | `404` |
+| Enter / Search / Reset / page | `GET /api/v1/customers?q=&linked=&page=&size=` | Customer table | `403` → `You do not have access to CRM.`; other → `Could not load customers.` |
+| `Add customer` | `POST /api/v1/customers` → **201** | Customer table | `400` `VALIDATION` → `Check required fields` |
+| `Edit` open | `GET /api/v1/customers/{id}` | Drawer (use `linkedVehicles[]`) | `404` → `Customer not found` |
+| `Edit` save | `PATCH /api/v1/customers/{id}` with `version` → **200** | That row + drawer | `404`; `409` `VERSION_CONFLICT` → `Refresh and retry` |
+| `Link vehicle` | `PUT /api/v1/customers/{id}/vehicles/{vehicleId}` → **200** | List Linked vehicle + drawer | `409` `VEHICLE_ALREADY_LINKED` → `Vehicle already linked`; `400` `WRONG_DEALER_OR_SOLD` → `Vehicle not available`; `404` |
+| Link dropdown | `GET /api/v1/vehicles?status=IN_STOCK&page=&size=` | Dropdown | Already taken disabled |
+| **`Unlink` (after confirm)** | **`DELETE /api/v1/customers/{id}/vehicles/{vehicleId}` → 204** | List Linked vehicle + drawer | `404` → `Link not found`; **`409` `SOLD_LOCKED` → `Sold vehicles cannot be unlinked`** |
+| Detail Audit | `GET /api/v1/audit?entityType=CUSTOMER&entityId=` | Audit list | `404` |
+| Post-unlink audit (optional) | `GET /api/v1/audit?entityType=CUSTOMER_VEHICLE&entityId=` | Audit list | `404` |
 
 ---
 
-## FE-T09 · Ad compliance（五态 + Ready/导出门闩）
+## FE-T09 · Ad compliance (five states + Ready/export latch)
 
-- **仓：** `dealer-web`
-- **文件：** `src/views/AdsView.vue`；`src/components/AdWorkspace.vue`；`src/api/listings.ts`；`src/api/vehicles.ts`。
-- **必须包含：**
-  - 页标题 **Ad compliance**。`AdWorkspace`：左选车+表单，右检查结果。
-  - 左表列（12，若用车列表）：Vehicle, Type, Medium, Check status, Actions。Vehicle ← 年/make/model；Type ← `adKind`；Medium ← `medium`；Check status ← listing.`checkStatus` 映射下表。
-  - 表单字段仅：`title` `body` `adKind`=`CASH`\|`FINANCE`\|`LEASE` `medium`=`ONLINE`\|`RADIO_TV_BILLBOARD`。清单展示项随 `adKind`/`medium` 切换（00 §广告：始终查店名联系/既往用途/新旧年份/延保/价格/车况；FINANCE 另 APR/期限/现金价；LEASE 另声明/租期/租金/APR/首付/低公里超额；RADIO_TV_BILLBOARD 免「和利率并列」）。**前端只切换展示项，不自创字段、不在浏览器算通过。**
-  - 右栏总状态 **只允许五态**（展示 ← API `checkStatus`）：
+- **Repo:** `dealer-web`
+- **Files:** `src/views/AdsView.vue`; `src/components/AdWorkspace.vue`; `src/api/listings.ts`; `src/api/vehicles.ts`.
+- **Must include:**
+  - Page title **Ad compliance**. `AdWorkspace`: pick vehicle + form on the left, check results on the right.
+  - Left table columns (12, if using a vehicle list): Vehicle, Type, Medium, Check status, Actions. Vehicle ← year/make/model; Type ← `adKind`; Medium ← `medium`; Check status ← listing.`checkStatus` mapped in the table below.
+  - Form fields only: `title` `body` `adKind`=`CASH`\|`FINANCE`\|`LEASE` `medium`=`ONLINE`\|`RADIO_TV_BILLBOARD`. Checklist display items switch with `adKind`/`medium` (00 §ads: always check dealership name/contacts / prior use / new-used year / warranty / price / condition; FINANCE also APR/term/cash price; LEASE also statement/term/rent/APR/down payment/low-km excess; RADIO_TV_BILLBOARD exempt from “shown next to the rate”). **The frontend only switches display items; it does not invent fields or compute pass in the browser.**
+  - Right-rail overall status **allows only five states** (display ← API `checkStatus`):
 
-    | UI（12） | API `checkStatus`（14） |
+    | UI (12) | API `checkStatus` (14) |
     |---|---|
     | Blocked | `BLOCKED` |
     | Needs AI review | `NEEDS_AI` |
@@ -281,41 +281,41 @@
     | Stale | `STALE` |
     | AI unavailable | `AI_UNAVAILABLE` |
 
-  - `GET /vehicles/{id}/listing` 无行：虚拟空草稿 `id=null`，表单空，empty 用 `Select a vehicle to start.`，**不当** Failed 空表。`id=null` 时禁用 `Run check` / `Mark ready` / `Export TXT`，必须先 `Save draft` 拿到 listing `id`。
-  - 按钮：`Save draft` `Run check` `Mark ready` `Export TXT`。
-  - **`Mark ready` / `Export TXT` 仅当 `checkStatus===PASSED`（非 Stale）可点。** Blocked / Needs AI review / Stale / AI unavailable / 无检查 → 禁用。
-  - `Run check`：body `{ version }`（listing 乐观锁）；按钮 loading；等最多约 15s。
-  - **Blocked = HTTP 200**，右栏 Blocked，**禁止**显示 Passed。网络面板 **不得** 出现浏览器请求 `/internal/v1/ad-check`。
-  - **`502` `AI_UNAVAILABLE`：** 再 `GET` listing，右栏 **AI unavailable**，禁止 Pass；禁用 Ready/导出。不要把 502 画成表格 empty。
-  - `Export TXT`：响应 `Content-Type: text/plain`，触发下载。导出无采购成本、无客户。
-  - 已售车仍可选看广告，按产品只读（可看结果，不鼓励再改成交）。
-  - 深链 `/ads?vehicleId=`。
-- **禁止：** 发布到外部站；第五种以外总状态；Admin 进本页；浏览器调 internal；AI 失败当 Pass；Stale 仍导出。
-- **验收：** 16 **CL-4**（缺价/FINANCE 缺 APR → Blocked、200、不调 AI）；**CL-5**（真 AI 或 AI unavailable）；**CL-6**（改价后 Stale，Ready/导出 `409`）；**FE-09** 广告分支。
+  - `GET /vehicles/{id}/listing` with no row: virtual empty draft `id=null`, empty form, empty uses `Select a vehicle to start.`, **not** a Failed empty table. When `id=null` disable `Run check` / `Mark ready` / `Export TXT`; must `Save draft` first to get a listing `id`.
+  - Buttons: `Save draft` `Run check` `Mark ready` `Export TXT`.
+  - **`Mark ready` / `Export TXT` clickable only when `checkStatus===PASSED` (not Stale).** Blocked / Needs AI review / Stale / AI unavailable / no check → disabled.
+  - `Run check`: body `{ version }` (listing optimistic lock); button loading; wait up to about 15s.
+  - **Blocked = HTTP 200**, right rail Blocked, **ban** showing Passed. Network panel **must not** show a browser request to `/internal/v1/ad-check`.
+  - **`502` `AI_UNAVAILABLE`:** `GET` listing again, right rail **AI unavailable**, ban Pass; disable Ready/export. Do not draw 502 as table empty.
+  - `Export TXT`: response `Content-Type: text/plain`, trigger download. Export has no purchase cost, no customer.
+  - Sold vehicles may still be selected to view the ad; product is read-only (may view results; do not encourage further edits after the deal).
+  - Deep link `/ads?vehicleId=`.
+- **Ban:** publishing to an external site; an overall status outside the five; Admin entering this page; browser calling internal; AI failure as Pass; exporting while Stale.
+- **Acceptance:** 16 **CL-4** (missing price/FINANCE missing APR → Blocked, 200, no AI); **CL-5** (real AI or AI unavailable); **CL-6** (Stale after price change, Ready/export `409`); **FE-09** ad branch.
 
-### 接线表 · Ads `/ads`
+### Wiring table · Ads `/ads`
 
-| 控件 | method + path | 成功刷新 | 失败 HTTP / code → 英文 |
+| Control | method + path | Refresh on success | Failure HTTP / code → English |
 |---|---|---|---|
-| 左表 / 选车 | `GET /api/v1/vehicles?page=&size=`（`status` 不限） | 左表 | 同 DMS 列表 |
-| 选中车后 | `GET /api/v1/vehicles/{id}/listing` | 左表单 + 右 `checkStatus` + `lastCheck` | `404` → `Vehicle not found` |
-| `Save draft` | `PATCH /api/v1/vehicles/{id}/listing` 带 `version`（首次可 0）；空标题正文传 `''` | 表单 `version`/`id`；若曾 Passed → 右态 **Stale** | `404`；`409` `VERSION_CONFLICT` → `Refresh and retry`；`400` `VALIDATION` |
-| `Run check` | `POST /api/v1/listings/{id}/checks` `{version}` | 右结果 = 检查对象（含 `ruleFindings` `checkStatus`） | `404`；`409` `VERSION_CONFLICT`；**`502` `AI_UNAVAILABLE` → 右态 AI unavailable，禁止 Pass**。Blocked **200** 不是失败 |
-| `Mark ready` | `POST /api/v1/listings/{id}/ready` `{version}` | 右态 / listing.`status=READY` | `409` `CHECK_STALE` → `Check is stale. Run check again`；`409` `NOT_PASSED` → `Check has not passed`；`409` `VERSION_CONFLICT`；`404` |
-| `Export TXT` | `POST /api/v1/listings/{id}/exports` `{version}` → **200** `text/plain` 下载 | 不改表 | 同上 409/404。仅 Passed 且非 Stale 可点 |
+| Left table / pick vehicle | `GET /api/v1/vehicles?page=&size=` (`status` unrestricted) | Left table | Same as DMS list |
+| After selecting a vehicle | `GET /api/v1/vehicles/{id}/listing` | Left form + right `checkStatus` + `lastCheck` | `404` → `Vehicle not found` |
+| `Save draft` | `PATCH /api/v1/vehicles/{id}/listing` with `version` (first time may be 0); empty title/body send `''` | Form `version`/`id`; if previously Passed → right state **Stale** | `404`; `409` `VERSION_CONFLICT` → `Refresh and retry`; `400` `VALIDATION` |
+| `Run check` | `POST /api/v1/listings/{id}/checks` `{version}` | Right result = check object (includes `ruleFindings` `checkStatus`) | `404`; `409` `VERSION_CONFLICT`; **`502` `AI_UNAVAILABLE` → right state AI unavailable, ban Pass**. Blocked **200** is not a failure |
+| `Mark ready` | `POST /api/v1/listings/{id}/ready` `{version}` | Right state / listing.`status=READY` | `409` `CHECK_STALE` → `Check is stale. Run check again`; `409` `NOT_PASSED` → `Check has not passed`; `409` `VERSION_CONFLICT`; `404` |
+| `Export TXT` | `POST /api/v1/listings/{id}/exports` `{version}` → **200** `text/plain` download | Do not change the table | Same 409/404. Clickable only when Passed and not Stale |
 
-`lastCheck.ruleFindings[]`：`{ruleId,severity,passed,message}`。右侧列出 `message`，不要写成 OMVIC approved / certified（17）。
+`lastCheck.ruleFindings[]`: `{ruleId,severity,passed,message}`. List `message` on the right; do not write OMVIC approved / certified (17).
 
 ---
 
 ## FE-T10 · Assistant
 
-- **仓：** `dealer-web`
-- **文件：** `src/views/AssistantView.vue`；`src/components/AssistantCard.vue`；`src/api/assistant.ts`。
-- **必须包含：**
-  - 交互（10，薄）：一个输入框 + `Ask`。一次问答。不在本页改车辆/客户/检查。
-  - 请求体仅 `{ text }`。`POST /api/v1/assistant/ask`。
-  - 响应字段 **按 14**，禁止旧 `resources`：
+- **Repo:** `dealer-web`
+- **Files:** `src/views/AssistantView.vue`; `src/components/AssistantCard.vue`; `src/api/assistant.ts`.
+- **Must include:**
+  - Interaction (10, thin): one input + `Ask`. One Q&A. Do not change vehicles/customers/checks on this page.
+  - Request body only `{ text }`. `POST /api/v1/assistant/ask`.
+  - Response fields **per 14**; ban the old `resources`:
 
     ```json
     {
@@ -327,74 +327,74 @@
     }
     ```
 
-  - `kind`：`VEHICLE` | `CUSTOMER` | `LISTING`。`LISTING` 可有 `vehicleId` `checkStatus`。
-  - 前端映射（14 不规定 Vue 路由）：`VEHICLE` → `/dms?vehicleId={id}`；`CUSTOMER` → `/crm?customerId={id}`；`LISTING` → `/ads?vehicleId={vehicleId}`（无 `vehicleId` 则 `/ads`）。
-  - 最多渲染 **5** 张 `AssistantCard`（即使后端多给也截断）。卡：标题 `label` + 进普通页链接。卡上 **禁止** phone / email / homeAddress。
-  - `summaryAvailable===false` 或 `summary===null`（仍 HTTP 200）：说明区固定 **`Smart summary unavailable`**，**仍渲染 cards**。
-  - 整页网络/5xx：`Could not ask assistant`。`400` `VALIDATION`（空提问）：页内提示，不发空卡。
-- **禁止：** 中文「智能说明暂不可用」；卡内改数据；Admin 进本页；浏览器打 `/internal/v1/assistant`。
-- **验收：** 16 **FE-10**、**FE-06**、**BE-12** 的前端表现（≤5 卡、只读、Admin 403）。
+  - `kind`: `VEHICLE` | `CUSTOMER` | `LISTING`. `LISTING` may have `vehicleId` `checkStatus`.
+  - Frontend mapping (14 does not specify Vue routes): `VEHICLE` → `/dms?vehicleId={id}`; `CUSTOMER` → `/crm?customerId={id}`; `LISTING` → `/ads?vehicleId={vehicleId}` (no `vehicleId` then `/ads`).
+  - Render at most **5** `AssistantCard`s (truncate even if the backend sends more). Card: title `label` + link into a normal page. Cards **ban** phone / email / homeAddress.
+  - `summaryAvailable===false` or `summary===null` (still HTTP 200): explanation area fixed **`Smart summary unavailable`**, **still render cards**.
+  - Whole-page network/5xx: `Could not ask assistant`. `400` `VALIDATION` (empty question): in-page hint, do not emit empty cards.
+- **Ban:** Chinese “智能说明暂不可用”; changing data on a card; Admin entering this page; browser hitting `/internal/v1/assistant`.
+- **Acceptance:** 16 **FE-10**, **FE-06**, frontend behavior of **BE-12** (≤5 cards, read-only, Admin 403).
 
-### 接线表 · Assistant `/assistant`
+### Wiring table · Assistant `/assistant`
 
-| 控件 | method + path | 成功 | 失败 HTTP / code → 英文 |
+| Control | method + path | Success | Failure HTTP / code → English |
 |---|---|---|---|
-| `Ask` | `POST /api/v1/assistant/ask` `{text}` → **200** | 说明区：`summaryAvailable` 真则显示 `summary`；假则 **`Smart summary unavailable`**。`cards` ≤5 | `403` `FORBIDDEN` → `You do not have access to Assistant.`；`400` `VALIDATION` → 空提问校验；网络/5xx → `Could not ask assistant` |
+| `Ask` | `POST /api/v1/assistant/ask` `{text}` → **200** | Explanation: if `summaryAvailable` is true show `summary`; else **`Smart summary unavailable`**. `cards` ≤5 | `403` `FORBIDDEN` → `You do not have access to Assistant.`; `400` `VALIDATION` → empty-question validation; network/5xx → `Could not ask assistant` |
 
 ---
 
-## FE-T11 · 对照 16 的验收清单（不写新功能）
+## FE-T11 · Acceptance checklist against 16 (no new features)
 
-- **仓：** `dealer-web`（手测即可；16 不要求本文新增测试文件）。
-- **文件：** 无新文件。在六页上打勾。
-- **必须包含：** 按下列 ID 走一遍。引用编号即可，不要改 16。
-- **禁止：** 为「好测」发明 mock 业务页、stub 冒充 CL-5 云上真实 AI（S2/S3 以 16 为准）。
-- **验收：**
+- **Repo:** `dealer-web` (hand test is enough; 16 does not require this document to add test files).
+- **Files:** no new files. Check off on the six pages.
+- **Must include:** walk the IDs below. Cite numbers only; do not change 16.
+- **Ban:** inventing mock business pages “to make testing easier”; stubs pretending to be CL-5 real cloud AI (S2/S3 follow 16).
+- **Acceptance:**
 
-| 16 ID | 对应任务 | 前端必须看见 / 看不见 |
+| 16 ID | Matching tasks | Frontend must see / must not see |
 |---|---|---|
-| **FE-01** | T02 T05 | 未登录 `/dms` → `/login`，仅 `Sign in with Microsoft`；无密码框、无业务表 |
-| **FE-02** | T02 T06 | Staff 开 `/admin` → `/dms`；无 Dealerships/绑人 |
-| **FE-03** | T02 T07 | Admin 开 `/dms` → `/admin`；无车辆表 |
-| **FE-04** | T02 T08 | Admin 开 `/crm` → `/admin` |
-| **FE-05** | T02 T09 | Admin 开 `/ads` → `/admin` |
-| **FE-06** | T02 T10 | Admin 开 `/assistant` → `/admin` |
-| **FE-07** | T06 | 单路由双 Tab + 列/筛/按钮与 12 一致；无自造 `/admin/members`；无 Edit 店 |
-| **FE-08** | T08 | Unlink 先确认；`DELETE .../vehicles/{vehicleId}`；已售文案 `Sold vehicles cannot be unlinked` |
-| **FE-09** | T04 全页 | 六页 loading/empty/error/403 文案 = 本文 T04 表；广告 502 → 右栏 AI unavailable，不是空表/Passed |
-| **FE-10** | T10 | `Smart summary unavailable`；整页失败 `Could not ask assistant`；卡 ≤5 只读跳转 |
-| **CL-1** | T05 T06 | Admin 开两店、各绑一人；`409 DUP_MEMBER` → `Staff already bound` |
-| **CL-2** | T07 T08 | Staff A 录车录客挂车；Staff B 看不见；深链他店 id → 404 文案 |
-| **CL-3** | T02 | 地址栏改业务 path 立刻回 `/admin` |
-| **CL-4** | T09 | 缺价/FINANCE 缺 APR → Blocked；HTTP 200；无 `/internal` |
-| **CL-5** | T09 | 真检查或 AI unavailable；禁止失败当 Pass |
-| **CL-6** | T09 | 改正文价格 → Stale；Ready/导出 `409 CHECK_STALE` / `NOT_PASSED` |
+| **FE-01** | T02 T05 | Unauthenticated `/dms` → `/login`, only `Sign in with Microsoft`; no password box, no business table |
+| **FE-02** | T02 T06 | Staff open `/admin` → `/dms`; no Dealerships/bind staff |
+| **FE-03** | T02 T07 | Admin open `/dms` → `/admin`; no vehicle table |
+| **FE-04** | T02 T08 | Admin open `/crm` → `/admin` |
+| **FE-05** | T02 T09 | Admin open `/ads` → `/admin` |
+| **FE-06** | T02 T10 | Admin open `/assistant` → `/admin` |
+| **FE-07** | T06 | Single route, dual tabs + columns/filters/buttons match 12; no invented `/admin/members`; no Edit dealership |
+| **FE-08** | T08 | Unlink confirms first; `DELETE .../vehicles/{vehicleId}`; sold copy `Sold vehicles cannot be unlinked` |
+| **FE-09** | T04 all pages | Six-page loading/empty/error/403 copy = this document T04 table; ad 502 → right rail AI unavailable, not empty table/Passed |
+| **FE-10** | T10 | `Smart summary unavailable`; whole-page failure `Could not ask assistant`; cards ≤5 read-only jumps |
+| **CL-1** | T05 T06 | Admin opens two stores, binds one person each; `409 DUP_MEMBER` → `Staff already bound` |
+| **CL-2** | T07 T08 | Staff A records vehicle/customer/link; Staff B cannot see; deep-link other-store id → 404 copy |
+| **CL-3** | T02 | Changing the address bar to a business path immediately returns `/admin` |
+| **CL-4** | T09 | Missing price/FINANCE missing APR → Blocked; HTTP 200; no `/internal` |
+| **CL-5** | T09 | Real check or AI unavailable; ban failure as Pass |
+| **CL-6** | T09 | Changing copy price → Stale; Ready/export `409 CHECK_STALE` / `NOT_PASSED` |
 
-课堂会碰到、前端只需正确显示的后端码：`VIN_DUP` `SOLD_LOCKED` `SOLD_PAIR_REQUIRED` `VEHICLE_ALREADY_LINKED` `WRONG_DEALER_OR_SOLD` `VERSION_CONFLICT` `CHECK_STALE` `NOT_PASSED` `AI_UNAVAILABLE` `DUP_MEMBER` `FORBIDDEN` `NOT_FOUND` `VALIDATION`。
+Backend codes the classroom will hit and the frontend only needs to display correctly: `VIN_DUP` `SOLD_LOCKED` `SOLD_PAIR_REQUIRED` `VEHICLE_ALREADY_LINKED` `WRONG_DEALER_OR_SOLD` `VERSION_CONFLICT` `CHECK_STALE` `NOT_PASSED` `AI_UNAVAILABLE` `DUP_MEMBER` `FORBIDDEN` `NOT_FOUND` `VALIDATION`.
 
 ---
 
-## 枚举与控件英文（全仓共用，禁止另写）
+## Enums and control English (shared across the repo; do not rewrite)
 
-| 位置 | 文案 |
+| Location | Copy |
 |---|---|
-| 登录 | `Sign in with Microsoft` |
-| 顶栏 | `Sign out` · Admin 顶栏 `Platform Admin` |
-| 菜单 | `Admin` · `DMS` · `CRM` · `Ad compliance` · `Assistant` |
+| Login | `Sign in with Microsoft` |
+| Top bar | `Sign out` · Admin top bar `Platform Admin` |
+| Menu | `Admin` · `DMS` · `CRM` · `Ad compliance` · `Assistant` |
 | Admin | `New dealership` · `Bind staff` · `Unbind` |
 | DMS | `Add vehicle` · `Edit` · `Sell` · `Sold date` · `Sold price` · `Confirm sale` |
 | CRM | `Add customer` · `Link vehicle` · `Unlink` |
 | Ad | `Save draft` · `Run check` · `Mark ready` · `Export TXT` |
-| 五态 | `Blocked` · `Needs AI review` · `Passed` · `Stale` · `AI unavailable` |
-| 助手 | `Ask` · `Smart summary unavailable` |
+| Five states | `Blocked` · `Needs AI review` · `Passed` · `Stale` · `AI unavailable` |
+| Assistant | `Ask` · `Smart summary unavailable` |
 
 ---
 
-## 全局禁止（每任务默认叠加）
+## Global bans (stacked on every task by default)
 
-- 不要改 `design/12`–`19`、`IMPLEMENTATION-BRIEF.md`、`design/README.md`。
-- 不要把 Vue 源码写进 `design/`。
-- 不要工单、线索、C 端/买家站、独立 Audit 页、KPI、密码登录、切店、浏览器打 internal。
-- 不要第五套广告总状态；不要用 10 的中文助手失败句。
-- 不要 `GET /api/v1/admin/members`。
-- 不要在请求里用客户端 `dealerId` 切店。
+- Do not change `design/12`–`19`, `IMPLEMENTATION-BRIEF.md`, `design/README.md`.
+- Do not write Vue source into `design/`.
+- Do not implement work orders, leads, consumer/buyer site, standalone Audit page, KPI, password login, dealership switch, or browser hitting internal.
+- Do not add a fifth ad overall status; do not use the Chinese assistant-failure sentence from 10.
+- Do not use `GET /api/v1/admin/members`.
+- Do not use client `dealerId` in requests to switch dealerships.

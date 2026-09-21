@@ -1,64 +1,64 @@
-# 架构（最简，仍过课程硬项）
+# Architecture (minimum that still meets course hard requirements)
 
-版本 v6.0 · 2026-09-21
+Version v6.0 · 2026-09-21
 
-四个独立仓库、四个独立流水线、四个镜像。浏览器和服务间 HTTP 都走 Gateway。AI 用同步 REST，不用队列。
+Four independent repositories, four independent pipelines, four images. Browser and service-to-service HTTP both go through the Gateway. AI uses synchronous REST, not a queue.
 
-| PPT 域 | 单元 | 技术 | 谁负责 |
+| PPT domain | Unit | Technology | Owner |
 |---|---|---|---|
 | UI | dealer-web | Vue 3 + MSAL.js | A |
-| Auth | Microsoft Entra ID | OAuth 2.0 / OIDC + PKCE，JWT | C 配置 |
-| Data | dealer-core | Java 21 Spring Boot + Flyway + 一个 MySQL | C |
-| AI | ai-service | Java 21 Spring Boot，内嵌 GitHub AI 库，无数据库 | B |
-| 入口 | dealer-gateway | Spring Cloud Gateway | C，A 评审 |
+| Auth | Microsoft Entra ID | OAuth 2.0 / OIDC + PKCE, JWT | C configures |
+| Data | dealer-core | Java 21 Spring Boot + Flyway + one MySQL | C |
+| AI | ai-service | Java 21 Spring Boot, embeds the GitHub AI library, no database | B |
+| Entry | dealer-gateway | Spring Cloud Gateway | C, A reviews |
 
 ```mermaid
 flowchart TB
-  U[浏览器] --> WEB[dealer-web]
+  U[Browser] --> WEB[dealer-web]
   U <--> ID[Entra ID]
   U -->|JWT| GW[dealer-gateway]
   GW --> CORE[dealer-core]
-  CORE -->|同步 REST 经 Gateway| GW
+  CORE -->|Synchronous REST via Gateway| GW
   GW --> AI[ai-service]
-  AI --> LIB[GitHub AI 助手库]
-  LIB --> MODEL[Azure OpenAI 或组件已支持的托管端点]
+  AI --> LIB[GitHub AI assistant library]
+  LIB --> MODEL[Azure OpenAI or a hosted endpoint the component already supports]
   CORE --> DB[(MySQL dealer_core)]
 ```
 
-core 与 ai-service 不对外开放，只让 Gateway 进来。绕过 Gateway 必须失败，Sprint 1 能讲这张图。
+core and ai-service are not public; only the Gateway may reach them. Bypassing the Gateway must fail. Sprint 1 must be able to walk through this diagram.
 
-## 身份
+## Identity
 
-角色只有两个：`Platform.Admin`、`Dealer.User`。  
-不存密码。管理员绑定 `entra_oid` 到 `dealer_id`。每个请求用 JWT 角色 + 本地 membership，忽略前端传来的店 ID。
+There are only two roles: `Platform.Admin` and `Dealer.User`.  
+Passwords are not stored. An administrator binds `entra_oid` to `dealer_id`. Each request uses the JWT role plus local membership and ignores any dealership ID sent by the frontend.
 
-## 数据（一张库）
+## Data (one database)
 
-`dealer`、`membership`、`app_user`、`vehicle`、`customer`、`customer_vehicle`、`listing`、`compliance_check`、`audit_event`。  
-业务表带 `dealer_id`。车辆和客户必须同库。管理员查询不准 join 车辆/客户。
+`dealer`, `membership`, `app_user`, `vehicle`, `customer`, `customer_vehicle`, `listing`, `compliance_check`, `audit_event`.  
+Business tables include `dealer_id`. Vehicles and customers must share this database. Administrator queries must not join vehicles or customers.
 
-AI 服务不建库：内部调用 GitHub 助手库。core 把公开车辆 + 广告文本 + 店公开资料发给 ai-service，回缺失项和说明后写入 `compliance_check`。助手问答同样经 core 过滤后再进该库。
+The AI service has no database: it calls the GitHub assistant library in-process. core sends public vehicles + advertisement text + the dealership’s public profile to ai-service, then writes missing items and explanations into `compliance_check`. Assistant Q&A is likewise filtered by core before it reaches that library.
 
-## 检查怎么走
+## How a check runs
 
-1. 店员 POST `/api/v1/listings/{id}/checks`（经 Gateway）。
-2. core 校验本店和版本，调 ai-service（经 Gateway），等最多 15 秒。
-3. 固定清单先跑；没有硬阻断再调 Azure OpenAI。
-4. 结果存 core。失败则 `UNAVAILABLE`，页面不能点通过。
-5. 通过后 POST export，下载 TXT。
+1. A dealership user POSTs `/api/v1/listings/{id}/checks` (via the Gateway).
+2. core validates this dealership and the version, calls ai-service (via the Gateway), and waits at most 15 seconds.
+3. The fixed checklist runs first; Azure OpenAI is called only if there is no hard block.
+4. Results are stored in core. On failure the status is `UNAVAILABLE` and the page cannot click through as a pass.
+5. After a pass, POST export and download TXT.
 
-不用 Service Bus、outbox、DLQ、第二库。不把 GitHub 组件单独做成第五个容器。
+Do not use Service Bus, outbox, DLQ, or a second database. Do not deploy the GitHub component as a fifth container.
 
-## Azure 最小集合
+## Minimum Azure set
 
-一个资源组：Container Apps × 4、一个 MySQL、ACR、Key Vault、Application Insights、Bicep 建出来。  
-MySQL 走私网。HTTPS。密钥进 Key Vault。平台加密开着即可，不另做复杂网络。  
-demo 环境一套就够；本地 Docker Compose 开发。
+One resource group: Container Apps × 4, one MySQL, ACR, Key Vault, Application Insights, created with Bicep.  
+MySQL uses the private network. HTTPS. Secrets go in Key Vault. Platform encryption left on is enough; do not add a complex network.  
+One demo environment is enough; develop locally with Docker Compose.
 
-## 验收
+## Acceptance
 
-- 只发 ai-service，web/core/gateway 镜像不变。
-- 浏览器只能打 Gateway。
-- 店 A token 打店 B 返回 404。
-- 管理员看不到车辆。
-- Azure 上走通：开店 → 录车 → 录客户 → 真实 AI 检查 → 导出。
+- Deploy only ai-service; web/core/gateway images stay unchanged.
+- The browser can reach only the Gateway.
+- A dealership A token against dealership B returns 404.
+- An administrator cannot see vehicles.
+- On Azure, walk through: open a dealership → record a vehicle → record a customer → real AI check → export.

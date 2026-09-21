@@ -1,406 +1,405 @@
-# Dealer Ops 实现手册（给 AI 编码）
+# Dealer Ops implementation brief (for AI coding)
 
-版本 1.6 · 2026-09-21  
-冲突优先级：**PPT > 规格字段 > [DEVELOPMENT-DESIGN.md](DEVELOPMENT-DESIGN.md) / [AI-PROTOCOL-AND-RULES.md](AI-PROTOCOL-AND-RULES.md) > 14 / 15 > 任务单**。`16` / `17` 是验收用例与广告夹具，**不改契约**。`01`–`06` 仍废止。不要再读它们当需求。
+Version 1.6 · 2026-09-21  
+Conflict priority: **PPT > specification fields > [DEVELOPMENT-DESIGN.md](DEVELOPMENT-DESIGN.md) / [AI-PROTOCOL-AND-RULES.md](AI-PROTOCOL-AND-RULES.md) > 14 / 15 > task lists**. `16` / `17` are acceptance cases and ad fixtures and **do not change contracts**. `01`–`06` remain withdrawn. Do not read them as requirements.
 
-设计原文：`d:\常用文件\SAIT\26fall\Capstone\Project Topics\Project Topics\DealerOS-Design`  
-编码骨架（真实路径）：`d:\常用文件\SAIT\26fall\Capstone\Project Topics\DealerOps`  
-（相对本目录：`..\..\DealerOps`）
+Source design: sibling checkout named `DealerOS-Design`  
+Implementation skeleton: this repository
 
-当前骨架只有 `dealer-core`（Flyway `V1__init.sql`）和 `dealer-platform`（`API.md`、`env.example`、compose 仅 MySQL、Bicep/流水线占位）。**还没有** `dealer-web` / `dealer-gateway` / `ai-service` 工程。
+The current skeleton has only `dealer-core` (Flyway `dealer-core/src/main/resources/db/migration/V1__init.sql`) and `dealer-platform` (`API.md`, `env.example`, compose MySQL-only, Bicep/pipeline placeholders). There is **not yet** a `dealer-web` / `dealer-gateway` / `ai-service` project.
 
-### 编码 AI 阅读序
+### Coding-AI reading order
 
-1. **[SCOPE-BASELINE.md](SCOPE-BASELINE.md)**（人认范围）
-2. **后端设计文档** [DEVELOPMENT-DESIGN.md](DEVELOPMENT-DESIGN.md)（范围、阶段、不变量）
-3. **对外 HTTP/DTO** 对照 **14** + [`../dealer-platform/openapi.yaml`](../dealer-platform/openapi.yaml)
-4. **内部协议/规则细处** [AI-PROTOCOL-AND-RULES.md](AI-PROTOCOL-AND-RULES.md)
-5. **拆包** 看 **18** / **19**；按仓执行 **[AI-CODING-BACKEND.md](AI-CODING-BACKEND.md)**
-6. **前端** 仍是 **[13-Frontend-Engineering.md](13-Frontend-Engineering.md)** + **[AI-CODING-FRONTEND.md](AI-CODING-FRONTEND.md)**
-7. 启动 / 云 **[AI-CODING-LOCAL-AND-CLOUD.md](AI-CODING-LOCAL-AND-CLOUD.md)**
-8. 测试 **[AI-CODING-TESTS.md](AI-CODING-TESTS.md)** + **16** / **17**
+1. **[SCOPE-BASELINE.md](SCOPE-BASELINE.md)** (human-approved scope)
+2. **Backend design document** [DEVELOPMENT-DESIGN.md](DEVELOPMENT-DESIGN.md) (scope, phases, invariants)
+3. **Public HTTP/DTOs** against **14** + [`../dealer-platform/openapi.yaml`](../dealer-platform/openapi.yaml)
+4. **Internal protocol/rule details** [AI-PROTOCOL-AND-RULES.md](AI-PROTOCOL-AND-RULES.md)
+5. **Packaging** in **18** / **19**; execute **[AI-CODING-BACKEND.md](AI-CODING-BACKEND.md)** per repo
+6. **Frontend** remains **[13-Frontend-Engineering.md](13-Frontend-Engineering.md)** + **[AI-CODING-FRONTEND.md](AI-CODING-FRONTEND.md)**
+7. Start / cloud **[AI-CODING-LOCAL-AND-CLOUD.md](AI-CODING-LOCAL-AND-CLOUD.md)**
+8. Tests **[AI-CODING-TESTS.md](AI-CODING-TESTS.md)** + **16** / **17**
 
-冲突序：**PPT > 规格字段 > DEVELOPMENT-DESIGN / PROTOCOL > 14/15 > 任务单**。
+Conflict order: **PPT > specification fields > DEVELOPMENT-DESIGN / PROTOCOL > 14/15 > task lists**.
 
-**内部 AI 体（写死）：** PROTOCOL 优先于 BACKEND T22 与 OpenAPI 内部示意。成功 `{success, notes[]}` / `{success, summary}`；失败 `{success:false, code, message}`（**504** `AI_TIMEOUT` / **503** `AI_KEY_MISSING` / **502** `AI_PROVIDER_FAILED`）。core 检查路径对外仍 **502** `AI_UNAVAILABLE`。OpenAPI **对外** path 仍跟 14。不要实现 T22 可能出现的 `{failed,reason}`。
+**Internal AI bodies (pinned):** PROTOCOL wins over BACKEND T22 and OpenAPI internal sketches. Success `{success, notes[]}` / `{success, summary}`; failure `{success:false, code, message}` (**504** `AI_TIMEOUT` / **503** `AI_KEY_MISSING` / **502** `AI_PROVIDER_FAILED`). Core check path is still public **502** `AI_UNAVAILABLE`. OpenAPI **public** paths still follow 14. Do not implement the `{failed,reason}` shape that may appear in T22.
 
-### 文档地图（人读 / 全设计）
+### Document map (human / full design)
 
-1. 开工前给导师：**[SCOPE-BASELINE.md](SCOPE-BASELINE.md)**（一页范围签字）
-2. **本手册**（范围、字段、任务序）→ `00`（六页）
-3. **[13-Frontend-Engineering.md](13-Frontend-Engineering.md)**：前端拆文件、路由、页面↔API（前端仍对照 13 + `AI-CODING-FRONTEND`）
-4. 后端设计文档：**[DEVELOPMENT-DESIGN.md](DEVELOPMENT-DESIGN.md)**（范围、阶段、不变量）。对外 HTTP/DTO 仍对照 **14** + OpenAPI；内部协议/规则细处 **PROTOCOL**；拆包 **18** / **19**。
-5. 验收 / NN-19：**[16-Acceptance-and-Test.md](16-Acceptance-and-Test.md)**（32 用例 + 6 课堂脚本；不改契约）
-6. 广告检查夹具：**[17-Ad-Check-Fixtures.md](17-Ad-Check-Fixtures.md)**（演示用 FX-01 / FX-03 / FX-10 / FX-11 / FX-12）
-7. `12` UI 观感；架构/Sprint/AI 见 `07`–`11`
+1. Before start, give the instructor: **[SCOPE-BASELINE.md](SCOPE-BASELINE.md)** (one-page scope sign-off)
+2. **This brief** (scope, fields, task order) → `00` (six pages)
+3. **[13-Frontend-Engineering.md](13-Frontend-Engineering.md)**: frontend file split, routes, page↔API (frontend still follows 13 + `AI-CODING-FRONTEND`)
+4. Backend design document: **[DEVELOPMENT-DESIGN.md](DEVELOPMENT-DESIGN.md)** (scope, phases, invariants). Public HTTP/DTOs still follow **14** + OpenAPI; internal protocol/rule details **PROTOCOL**; packaging **18** / **19**.
+5. Acceptance / NN-19: **[16-Acceptance-and-Test.md](16-Acceptance-and-Test.md)** (32 cases + 6 classroom scripts; does not change contracts)
+6. Ad-check fixtures: **[17-Ad-Check-Fixtures.md](17-Ad-Check-Fixtures.md)** (demo FX-01 / FX-03 / FX-10 / FX-11 / FX-12)
+7. `12` UI look; architecture/Sprint/AI in `07`–`11`
 
-### 13/14/15 裁定指针（本手册未写死的）
+### 13/14/15 ruling pointers (not pinned in this brief)
 
-- 分页信封 `{items,page,size,total}`，`page` 从 0；完整 JSON / 助手 `{summary,summaryAvailable,cards}` 见 **14**。
-- 解绑：`DELETE /customers/{id}/vehicles/{vehicleId}` → **204**。已售不可新挂（`400 WRONG_DEALER_OR_SOLD`）、不可解挂（`409 SOLD_LOCKED`）。**15** 管行为，**14** 管 HTTP。
-- GET listing 无行：**不落库**、虚拟空草稿；首次 PATCH 用 `''` 满足 NOT NULL（**15**）。
-- 租户权威 `membership.active=1`；忽略客户端 `dealerId`；跨店 **404**；店员无有效 membership 调业务接口 **403** `FORBIDDEN`（不是 401/404）。
-- `/me` 带 `dealerLegalName`；Admin 列表带 `staffCount`。`SOLD_LOCKED` 一律 **409**。
+- Pagination envelope `{items,page,size,total}`, `page` from 0; full JSON / assistant `{summary,summaryAvailable,cards}` in **14**.
+- Unlink: `DELETE /customers/{id}/vehicles/{vehicleId}` → **204**. Sold vehicles cannot be newly linked (`400 WRONG_DEALER_OR_SOLD`) or unlinked (`409 SOLD_LOCKED`). **15** owns behavior, **14** owns HTTP.
+- GET listing with no row: **do not persist**, virtual empty draft; first PATCH uses `''` to satisfy NOT NULL (**15**).
+- Tenant authority is `membership.active=1`; ignore client `dealerId`; cross-dealership **404**; staff without a valid membership calling business APIs → **403** `FORBIDDEN` (not 401/404).
+- `/me` includes `dealerLegalName`; Admin list includes `staffCount`. `SOLD_LOCKED` is always **409**.
 
 ---
 
-## 1. 一句话产品 + 硬约束
+## 1. One-sentence product + hard constraints
 
-独立车商用的多租户后台：一家店一份 DMS/CRM/广告数据；平台管理员只开店、绑员工。
+A multi-tenant back office for independent dealers: each dealership has its own DMS/CRM/ad data; platform admins only open dealerships and bind staff.
 
-| 项 | 必须 |
+| Item | Must |
 |---|---|
-| 语言 | 后端 **Java 21**（可与 ai-manager 对齐用 17，但四个课仓统一一个版本，优先 21）。前端 **Vue 3 + Element Plus + MSAL.js**。界面英文。 |
-| 仓库 | **四个独立应用仓**：`dealer-web`、`dealer-gateway`、`dealer-core`、`ai-service`。另加 `dealer-platform` 放 Bicep/compose/流水线说明。禁止 monorepo。 |
-| 入口 | 浏览器与服务间 HTTP **只走 Spring Cloud Gateway**。core / ai-service 不对外。绕过 Gateway 必须失败。 |
-| 身份 | **Microsoft Entra ID** OAuth/OIDC + PKCE + JWT。角色仅 `Platform.Admin`、`Dealer.User`。不建密码表。管理员「发账号」= 绑定 `entra_oid` → `dealer_id`。 |
-| 数据 | **一个 MySQL** 库 `dealer_core`。Flyway 管表。AI 服务无库。 |
-| AI | `ai-service` **进程内**嵌 `YUANDONG-YANG/ai-manager`。同步 REST。超时由适配器保证 **15s**。 |
-| 调用 | 同步 REST。 |
+| Languages | Backend **Java 21** (may align with ai-manager on 17, but the four course repos share one version; prefer 21). Frontend **Vue 3 + Element Plus + MSAL.js**. UI in English. |
+| Repositories | **Four independent application repos**: `dealer-web`, `dealer-gateway`, `dealer-core`, `ai-service`. Plus `dealer-platform` for Bicep/compose/pipeline notes. Ban a monorepo. |
+| Entry | Browser-to-service HTTP **only through Spring Cloud Gateway**. core / ai-service are not public. Bypassing Gateway must fail. |
+| Identity | **Microsoft Entra ID** OAuth/OIDC + PKCE + JWT. Roles only `Platform.Admin`, `Dealer.User`. Do not build a password table. Admin “issues an account” = bind `entra_oid` → `dealer_id`. |
+| Data | **One MySQL** database `dealer_core`. Flyway owns tables. The AI service has no database. |
+| AI | `ai-service` embeds `YUANDONG-YANG/ai-manager` **in-process**. Synchronous REST. The adapter guarantees a **15s** timeout. |
+| Calls | Synchronous REST. |
 
-规格 PDF 写了用户名密码；**PPT 禁止自研认证**，以 Entra 为准。规格没有 Assistant 页；**PPT 要求真实 AI 核心功能**，按 v6/10/12 做只读助手。
+The specification PDF describes username/password; **PPT forbids homemade auth**, so Entra wins. The specification has no Assistant page; **PPT requires a real-AI core feature**, so build the read-only assistant per v6/10/12.
 
 ---
 
-## 2. 页面与角色矩阵
+## 2. Page and role matrix
 
-| 页面 | 角色 | 做什么 | 落地 |
+| Page | Role | What they do | Landing |
 |---|---|---|---|
-| Login | 全员 | 仅 `Sign in with Microsoft`，无侧栏、无密码框 | 登录页 |
-| Admin | 仅 Platform.Admin | 开店；绑/解绑员工。**零**车辆/客户/广告数据 | 管理员默认页 |
-| DMS | 仅 Dealer.User | 本店车辆增改查、成对登记出售 | 店员默认页 |
-| CRM | 仅 Dealer.User | 本店客户增改查；挂本店未售未占车 | — |
-| Ad compliance | 仅 Dealer.User | 选车写广告、规则+AI、通过后导出 TXT | — |
-| Assistant | 仅 Dealer.User | 本店只读问答，最多 5 张资源卡 | — |
+| Login | Everyone | Only `Sign in with Microsoft`; no sidebar, no password box | Login page |
+| Admin | Platform.Admin only | Open dealerships; bind/unbind staff. **Zero** vehicle/customer/ad data | Admin default page |
+| DMS | Dealer.User only | This-dealership vehicle create/update/read; paired sale | Staff default page |
+| CRM | Dealer.User only | This-dealership customer create/update/read; link this-store in-stock unbound vehicles | — |
+| Ad compliance | Dealer.User only | Pick a vehicle, write an ad, rules+AI, export TXT after pass | — |
+| Assistant | Dealer.User only | This-dealership read-only Q&A, at most 5 resource cards | — |
 
-一家店多名店员看同一份数据。店 A 看不到店 B。管理员开完店也看不到业务。无 KPI 首页。无权限路由直接拦。
+Multiple staff at one dealership see the same data. Dealership A cannot see dealership B. After opening a store, admin still cannot see business data. No KPI home page. Unauthorized routes are blocked directly.
 
 ---
 
-## 3. 完整字段与枚举
+## 3. Complete fields and enums
 
-**不加减字段。** 不要 mileage / 颜色 / 燃油 / 买家公开页。
+**Do not add or remove fields.** No mileage / color / fuel / buyer public page.
 
-### 店 `dealer`
+### Dealership `dealer`
 
 `legalName*` `contactPhone*` `contactEmail*` `contactAddress*` `active` `version`
 
-广告「店名和联系方式」用这四个公开字段，不另建资料表。
+Ad “dealership name and contacts” use these four public fields; do not create another profile table.
 
-### 用户与成员
+### Users and members
 
-`app_user`：`entraTenantId` `entraOid` `displayName` `role`=`Platform.Admin`\|`Dealer.User` `dealerId`（Admin 为空）`active`  
-`membership`：`dealerId` `entraOid` `active` `createdBy`  
-店员每个请求：JWT 角色 + 本地 membership。**忽略前端传来的店 ID。**
+`app_user`: `entraTenantId` `entraOid` `displayName` `role`=`Platform.Admin`\|`Dealer.User` `dealerId` (null for Admin) `active`  
+`membership`: `dealerId` `entraOid` `active` `createdBy`  
+Each staff request: JWT role + local membership. **Ignore any dealership ID sent by the frontend.**
 
-### 车辆 DMS（规格必填/可选）
+### Vehicle DMS (specification required/optional)
 
-必填：`make` `model` `modelYear` `vin` `source` `purchaseCost` `addedOn` `conditionCode`  
-可选：`repairCost` `carfaxUrl` `soldOn` `soldPrice`  
-派生：`status`=`IN_STOCK`\|`SOLD` `version` `dealerId`
+Required: `make` `model` `modelYear` `vin` `source` `purchaseCost` `addedOn` `conditionCode`  
+Optional: `repairCost` `carfaxUrl` `soldOn` `soldPrice`  
+Derived: `status`=`IN_STOCK`\|`SOLD` `version` `dealerId`
 
-| 枚举 | 值 |
+| Enum | Values |
 |---|---|
 | `source` | `TRADE_IN` `AUCTION` `PRIVATE_PURCHASE` `OTHER` |
 | `conditionCode` | `CERTIFIED` `AS_IS` `UNFIT` `IRREPARABLE` |
 
-规则：店内 VIN 唯一。已售后 **采购字段不可改**（make/model/year/vin/source/purchaseCost/addedOn/repairCost/carfax）。`soldOn` 与 `soldPrice` **必须一起填**。出售把 `status` 置 `SOLD`。
+Rules: VIN unique per dealership. After sale, **purchase fields cannot change** (make/model/year/vin/source/purchaseCost/addedOn/repairCost/carfax). `soldOn` and `soldPrice` **must be filled together**. Selling sets `status` to `SOLD`.
 
-### 客户 CRM
+### Customer CRM
 
-必填：`name` `email` `phone` `homeAddress`  
-购车：`customer_vehicle(customerId, vehicleId)`，车辆 **全局唯一挂一个客户**。只挂 **本店 + IN_STOCK + 未挂** 的车。一客户可多车。
+Required: `name` `email` `phone` `homeAddress`  
+Purchase link: `customer_vehicle(customerId, vehicleId)`; a vehicle is **globally unique to one customer**. Link only vehicles that are **this dealership + IN_STOCK + unbound**. One customer may have many vehicles.
 
-### 广告 listing（一车一条）
+### Ad listing (one per vehicle)
 
 `title*` `body*` `adKind`=`CASH`\|`FINANCE`\|`LEASE` `medium`=`ONLINE`\|`RADIO_TV_BILLBOARD`  
 `status`=`DRAFT`\|`READY` `contentVersion` `lastCheckId` `version`
 
-OMVIC **检查项在广告正文 + 已知车辆/店字段里找**，不另加 APR/租期等列。缺了就 Blocked 或让 AI 标缺失。
+OMVIC **checks look in ad copy + known vehicle/dealership fields**; do not add APR/term columns. Missing items Block or let AI mark them missing.
 
-**始终查：** 店名和联系方式；既往用途（如适用：警车/出租/日租等，看正文有无该披露）；新旧/年份（用 `modelYear` + 正文）；延保（如正文声称有）；价格；车况（`conditionCode`）。  
-**FINANCE 另查：** APR、期限、现金价。`RADIO_TV_BILLBOARD` **免**「和利率并列展示」。  
-**LEASE 另查：** 租赁声明、租期、租金、APR、首付；年额度低于 20000 km 要超额公里费（看正文是否声明额度/费用）。
+**Always check:** dealership name and contacts; prior use (if applicable: police/taxi/daily rental, etc., whether the copy discloses it); new/used/year (`modelYear` + copy); extended warranty (if the copy claims one); price; condition (`conditionCode`).  
+**FINANCE additionally:** APR, term, cash price. `RADIO_TV_BILLBOARD` **is exempt** from “shown next to the rate.”  
+**LEASE additionally:** lease statement, term, rent, APR, down payment; annual allowance under 20000 km needs excess-km fees (whether the copy states allowance/fees).
 
-改车辆 **价格相关对外信息或车况**、或改广告标题/正文/类型/媒介 → `contentVersion++`，旧检查作废（Stale）。没有「对外标价」列：车况变或 listing 变即作废。采购成本变更不单独当广告失效条件（已售采购已锁）。
+Changing vehicle **price-related public information or condition**, or changing ad title/body/kind/medium → `contentVersion++`, old check becomes Stale. There is no “public list price” column: condition change or listing change invalidates. Purchase-cost change is not by itself an ad-invalidation condition (sold purchase fields are already locked).
 
-### 检查 `compliance_check`
+### Check `compliance_check`
 
-`contentVersion` `ruleFindings`（JSON 数组）`aiStatus` `aiNotes`（JSON）`recommendation`
+`contentVersion` `ruleFindings` (JSON array) `aiStatus` `aiNotes` (JSON) `recommendation`
 
-| 字段 | 值 |
+| Field | Values |
 |---|---|
 | `aiStatus` | `SKIPPED` `SUCCESS` `FAILED` `UNAVAILABLE` |
 | `recommendation` | `BLOCKED` `NEEDS_AI` `PASSED` `UNAVAILABLE` |
 
-### 审计 `audit_event`（DMS/CRM 每次改）
+### Audit `audit_event` (every DMS/CRM change)
 
-`actorOid` `entityType`=`VEHICLE`\|`CUSTOMER`\|`CUSTOMER_VEHICLE` `entityId` `action`=`CREATE`\|`UPDATE`\|`SELL`\|`LINK`\|`UNLINK` `fieldSummary`（JSON，**不要**写客户电话/邮箱/住址全文）`createdAt`  
-管理员操作可记 `DEALER`/`MEMBERSHIP`，`dealerId` 可空。
+`actorOid` `entityType`=`VEHICLE`\|`CUSTOMER`\|`CUSTOMER_VEHICLE` `entityId` `action`=`CREATE`\|`UPDATE`\|`SELL`\|`LINK`\|`UNLINK` `fieldSummary` (JSON, **do not** write full customer phone/email/address) `createdAt`  
+Admin actions may record `DEALER`/`MEMBERSHIP`; `dealerId` may be null.
 
 ---
 
-## 4. 表清单（对齐 Flyway）
+## 4. Table list (aligned with Flyway)
 
-以骨架为准，**不要另写一套表**：
+Follow the skeleton; **do not invent another table set**:
 
-`d:\常用文件\SAIT\26fall\Capstone\Project Topics\DealerOps\dealer-core\src\main\resources\db\migration\V1__init.sql`
+`dealer-core/src/main/resources/db/migration/V1__init.sql`
 
-| 表 | 用途 |
+| Table | Purpose |
 |---|---|
-| `dealer` | 店 |
-| `app_user` | Entra 用户缓存 + 角色 |
-| `membership` | 店员绑定 |
+| `dealer` | Dealership |
+| `app_user` | Entra user cache + role |
+| `membership` | Staff binding |
 | `vehicle` | DMS |
 | `customer` | CRM |
-| `customer_vehicle` | 一车一客 `uk_cv_vehicle` |
-| `listing` | 一车一广告 `uk_listing_vehicle` |
-| `compliance_check` | 检查快照 |
-| `audit_event` | 审计 |
+| `customer_vehicle` | One vehicle, one customer `uk_cv_vehicle` |
+| `listing` | One ad per vehicle `uk_listing_vehicle` |
+| `compliance_check` | Check snapshot |
+| `audit_event` | Audit |
 
-缺口（编码时用实体/校验补，能不改 SQL 就不改；非改不可再用 `V2__*.sql`）：
+Gaps (fill with entities/validation while coding; do not change SQL if possible; if unavoidable, use `V2__*.sql`):
 
-- `vehicle.status` 只允许 `IN_STOCK`/`SOLD`。
-- `listing` 缺 `last_check_id` 外键（SQL 已有列无 FK）——应用层维护即可。
-- 无「既往用途 / 延保 / APR」列，正确。
-- 索引：`vehicle(dealer_id,status)`、`customer(dealer_id)` 可 V2 加，非开工阻塞。
+- `vehicle.status` allows only `IN_STOCK`/`SOLD`.
+- `listing` has no FK on `last_check_id` (the column exists in SQL without an FK) — application-layer maintenance is enough.
+- No “prior use / warranty / APR” columns — that is correct.
+- Indexes: `vehicle(dealer_id,status)`, `customer(dealer_id)` may be added in V2; they do not block start.
 
-只 Flyway，禁止 `ddl-auto=update`。
+Flyway only; ban `ddl-auto=update`.
 
 ---
 
-## 5. API 清单
+## 5. API list
 
-浏览器只打 Gateway `http://localhost:8080`，前缀 `/api/v1`。core=`8081`，ai-service=`8082`，禁止浏览器直连。
+The browser only hits Gateway `http://localhost:8080`, prefix `/api/v1`. core=`8081`, ai-service=`8082`; the browser must not call them directly.
 
-统一错误体：`{"code":"VIN_DUP","message":"..."}`。跨店 id → **404**（不 403，防探测）。Admin 打业务 URL → **403** `FORBIDDEN`，响应无业务字段。店员无有效 membership → **403**。乐观锁：写带 `version`，冲突 `409 VERSION_CONFLICT`。JSON 形状见 **14**。
+Unified error body: `{"code":"VIN_DUP","message":"..."}`. Cross-dealership id → **404** (not 403; anti-probing). Admin hitting business URLs → **403** `FORBIDDEN`, response has no business fields. Staff without a valid membership → **403**. Optimistic lock: writes carry `version`, conflict `409 VERSION_CONFLICT`. JSON shapes in **14**.
 
-| 方法 | 路径 | 谁 | 关键校验 | 错误码 |
+| Method | Path | Who | Key checks | Error codes |
 |---|---|---|---|---|
-| GET | `/me` | 已登录 | 回 `role`、`dealerId`（Admin 空） | 401 |
+| GET | `/me` | Signed in | Returns `role`, `dealerId` (empty for Admin) | 401 |
 | GET | `/admin/dealers` | Admin | — | 403 |
-| POST | `/admin/dealers` | Admin | 四联系字段非空 | 400 VALIDATION |
+| POST | `/admin/dealers` | Admin | Four contact fields required | 400 VALIDATION |
 | GET | `/admin/dealers/{id}/members` | Admin | — | 404 |
-| POST | `/admin/dealers/{id}/members` | Admin | `{entraOid,displayName}`；写 `membership`+`app_user` | 400 409 DUP_MEMBER |
-| DELETE | `/admin/dealers/{id}/members/{entraOid}` | Admin | 解绑，不删 Entra 账号 | 404 |
-| GET | `/vehicles` | 店员 | 本店；查询 `q`(VIN/Make/Model) `status` `condition`；每页 10 | 403 |
-| POST | `/vehicles` | 店员 | 必填；VIN 本店唯一 | 400 VIN_DUP |
-| GET/PATCH | `/vehicles/{id}` | 店员 | 已售禁改采购字段 | 404；`409 SOLD_LOCKED` |
-| POST | `/vehicles/{id}/sell` | 店员 | `{soldOn,soldPrice,version}` 成对 | 400 SOLD_PAIR_REQUIRED |
-| GET | `/customers` | 店员 | `q` + `linked` 是否已挂车 | 403 |
-| POST | `/customers` | 店员 | 四字段 | 400 |
-| GET/PATCH | `/customers/{id}` | 店员 | 本店 | 404 |
-| PUT | `/customers/{id}/vehicles/{vehicleId}` | 店员 | 同店、未售、未挂；已售不可新挂 | 409 VEHICLE_ALREADY_LINKED 400 WRONG_DEALER_OR_SOLD |
-| DELETE | `/customers/{id}/vehicles/{vehicleId}` | 店员 | 解绑 → 204；已售不可解挂 | 404；`409 SOLD_LOCKED` |
-| GET/PATCH | `/vehicles/{id}/listing` | 店员 | GET 无行=虚拟空草稿不落库；首次 PATCH 用 `''` | 404 |
-| POST | `/listings/{id}/checks` | 店员 | 本店+version；先规则后 AI；最多等 15s | 404 409 502 AI_UNAVAILABLE |
-| POST | `/listings/{id}/ready` | 店员 | 仅当前检查 Passed 且非 Stale | 409 CHECK_STALE / NOT_PASSED |
-| POST | `/listings/{id}/exports` | 店员 | 同上；`text/plain` TXT | 409 CHECK_STALE / NOT_PASSED |
-| GET | `/audit?entityType=&entityId=` | 店员 | 只本店；Admin 不给业务实体 | 404 |
-| POST | `/assistant/ask` | 店员 | `{text}`；不写业务表 | 403 |
+| POST | `/admin/dealers/{id}/members` | Admin | `{entraOid,displayName}`; write `membership`+`app_user` | 400 409 DUP_MEMBER |
+| DELETE | `/admin/dealers/{id}/members/{entraOid}` | Admin | Unbind; do not delete the Entra account | 404 |
+| GET | `/vehicles` | Staff | This dealership; query `q`(VIN/Make/Model) `status` `condition`; page size 10 | 403 |
+| POST | `/vehicles` | Staff | Required fields; VIN unique in this dealership | 400 VIN_DUP |
+| GET/PATCH | `/vehicles/{id}` | Staff | Sold forbids changing purchase fields | 404; `409 SOLD_LOCKED` |
+| POST | `/vehicles/{id}/sell` | Staff | `{soldOn,soldPrice,version}` as a pair | 400 SOLD_PAIR_REQUIRED |
+| GET | `/customers` | Staff | `q` + `linked` whether a vehicle is linked | 403 |
+| POST | `/customers` | Staff | Four fields | 400 |
+| GET/PATCH | `/customers/{id}` | Staff | This dealership | 404 |
+| PUT | `/customers/{id}/vehicles/{vehicleId}` | Staff | Same store, not sold, not linked; sold cannot be newly linked | 409 VEHICLE_ALREADY_LINKED 400 WRONG_DEALER_OR_SOLD |
+| DELETE | `/customers/{id}/vehicles/{vehicleId}` | Staff | Unlink → 204; sold cannot be unlinked | 404; `409 SOLD_LOCKED` |
+| GET/PATCH | `/vehicles/{id}/listing` | Staff | GET with no row = virtual empty draft, not persisted; first PATCH uses `''` | 404 |
+| POST | `/listings/{id}/checks` | Staff | This dealership + version; rules then AI; wait at most 15s | 404 409 502 AI_UNAVAILABLE |
+| POST | `/listings/{id}/ready` | Staff | Only current check Passed and not Stale | 409 CHECK_STALE / NOT_PASSED |
+| POST | `/listings/{id}/exports` | Staff | Same; `text/plain` TXT | 409 CHECK_STALE / NOT_PASSED |
+| GET | `/audit?entityType=&entityId=` | Staff | This dealership only; Admin does not get business entities | 404 |
+| POST | `/assistant/ask` | Staff | `{text}`; do not write business tables | 403 |
 
-**仅内部（Gateway → ai-service，浏览器 404）：**
+**Internal only (Gateway → ai-service; browser 404):**
 
-| 方法 | 路径 | 调用方 | 体 |
+| Method | Path | Caller | Body |
 |---|---|---|---|
-| POST | `/internal/v1/ad-check` | core 经 Gateway | `{listing,vehiclePublic,dealerPublic}` |
-| POST | `/internal/v1/assistant` | core 经 Gateway | `{question,resources[]}` |
+| POST | `/internal/v1/ad-check` | core via Gateway | `{listing,vehiclePublic,dealerPublic}` |
+| POST | `/internal/v1/assistant` | core via Gateway | `{question,resources[]}` |
 
-`vehiclePublic`：year/make/model/vin/condition/source，**无**采购成本。`dealerPublic`：店名+三联系。助手 `resources` 已由 core 滤过，无电话/邮箱/住址。内部成功/失败 JSON **以 PROTOCOL 为准**（见上文「内部 AI 体」），不要抄 T22 / OpenAPI 的 `{failed,reason}`。
-
----
-
-## 6. 广告检查状态机 + ai-manager
-
-页面总状态 **只允许** 这五个（英文 UI）：
-
-| UI | 服务端条件 |
-|---|---|
-| **Blocked** | 固定清单有硬缺（如无价格、FINANCE 无 APR）→ `recommendation=BLOCKED`，`aiStatus=SKIPPED`，**不调模型** |
-| **Needs AI review** | 规则无硬阻断，尚无成功 AI，或刚提交检查中 |
-| **Passed** | 最近检查 `PASSED` 且 `check.contentVersion == listing.contentVersion` |
-| **Stale** | 曾通过，但版本已升（改广告或车况等） |
-| **AI unavailable** | 规则过了但 AI 超时/失败 → `UNAVAILABLE`，**禁止当 Pass** |
-
-仅 **Passed 且非 Stale** 才能 Ready / Export TXT。TXT 内容=店公开信息 + 车辆公开字段 + 标题正文 + 检查时间，不写成本/客户。
-
-```
-店员 POST /listings/{id}/checks
-  → core 校验本店 + version
-  → 跑固定清单
-  → 无硬阻断则 core 经 Gateway POST /internal/v1/ad-check（≤15s）
-  → 写入 compliance_check，回写 listing.last_check_id
-  → 失败：UNAVAILABLE，按钮不能 Pass
-```
-
-### 接 ai-manager（已核实）
-
-- 仓：https://github.com/YUANDONG-YANG/ai-manager（private）  
-- 钉死 commit：`c07e1f2afe5dd692c20f3567ad3a42a90d31a87a`  
-- Maven：`com.aimanager:aimanager:1.0.0-SNAPSHOT` → **实施时从该 commit 打不可变版本再引用**  
-- 包：GitHub Packages `https://maven.pkg.github.com/YUANDONG-YANG/ai-manager`  
-- API：`com.manager.AiManager`：`request(String)`、`startConversation(id, systemMessage)`、`closeConversation`  
-- 厂商：groq / openai / claude / deepseek。**无 mock provider。**
-
-适配器只做：
-
-1. 广告：`startConversation`，system=OMVIC 清单，user=广告 JSON；`finally` `closeConversation`。先 `AIResponse.isSuccess()` 再解析 content。  
-2. 助手：新建短会话，只收已过滤本店资源。
-
-**禁止：** 扫描/暴露 `com.gateway`（`/api/ai/request` `/chat` `/credentials` `/runtime`）；启动 `AIApplication`；给组件单独容器；CI 打付费端点（CI 用 stub）。  
-Key：仅 ai-service 的 `AIMANAGER_API_KEY`（环境变量 / Key Vault）。库内 OpenAI 路径无 15s 保证 → **适配器自设 connect/response 超时**。关掉库限流队列。
+`vehiclePublic`: year/make/model/vin/condition/source, **no** purchase cost. `dealerPublic`: legal name + three contacts. Assistant `resources` are already filtered by core; no phone/email/address. Internal success/failure JSON **follows PROTOCOL** (see “Internal AI bodies” above); do not copy T22 / OpenAPI `{failed,reason}`.
 
 ---
 
-## 7. 前端 UI 规范摘要
+## 6. Ad-check state machine + ai-manager
 
-- 栈：Vue 3 + **Element Plus**。英文。6 页。不要 fork 经销商整仓。  
-- Login：居中单卡，一颗 Microsoft 按钮。  
-- 其余：左菜单 + 顶栏（店名或 `Platform Admin`、角色、`Sign out`）。Admin 只见 Admin；店员只见 DMS/CRM/Ad/Assistant。  
-- 主按钮右上；出售/解绑二次确认。  
-- **每页必须** loading / empty / error。失败不当空表。AI 失败不能显示 Pass。  
-- 表每页 10 条。状态用 Tag。操作列最多 3 个文字链。已售行变淡，采购只读。  
-- 筛一行：搜索 + 1–3 下拉 + Search + Reset。不要价格滑条/地图。  
-  - DMS：VIN/Make/Model；Status；Condition  
-  - CRM：Name/Email/Phone；是否已挂车  
-  - Admin：店名 / 员工邮箱  
-- 表单：抽屉或 Dialog；枚举 Select。出售小窗：Sold date + Sold price。CRM 挂车：可搜索 Select，只列本店未挂未售；已占禁用。  
+Page overall status **allows only** these five (English UI):
 
-**表列**
-
-| 页 | 列 |
+| UI | Server condition |
 |---|---|
-| Admin 店 | Name, Contact, Staff count, Actions |
-| Admin 成员 | Entra ID / email, Dealership, Status, Actions |
+| **Blocked** | Fixed checklist has a hard miss (e.g. no price, FINANCE no APR) → `recommendation=BLOCKED`, `aiStatus=SKIPPED`, **do not call the model** |
+| **Needs AI review** | Rules have no hard block; no successful AI yet, or a check was just submitted |
+| **Passed** | Latest check `PASSED` and `check.contentVersion == listing.contentVersion` |
+| **Stale** | Previously passed, but version has increased (ad or condition changed) |
+| **AI unavailable** | Rules passed but AI timed out/failed → `UNAVAILABLE`, **must not treat as Pass** |
+
+Ready / Export TXT only when **Passed and not Stale**. TXT content = dealership public info + vehicle public fields + title/body + check time; no cost/customer.
+
+```
+Staff POST /listings/{id}/checks
+  → core validates this dealership + version
+  → run the fixed checklist
+  → if no hard block, core POSTs /internal/v1/ad-check via Gateway (≤15s)
+  → write compliance_check, write back listing.last_check_id
+  → failure: UNAVAILABLE; buttons cannot Pass
+```
+
+### Wiring ai-manager (verified)
+
+- Repo: https://github.com/YUANDONG-YANG/ai-manager (private)  
+- Pinned commit: `c07e1f2afe5dd692c20f3567ad3a42a90d31a87a`  
+- Maven: `com.aimanager:aimanager:1.0.0-SNAPSHOT` → **at implementation time, publish an immutable version from that commit and depend on it**  
+- Package: GitHub Packages `https://maven.pkg.github.com/YUANDONG-YANG/ai-manager`  
+- API: `com.manager.AiManager`: `request(String)`, `startConversation(id, systemMessage)`, `closeConversation`  
+- Providers: groq / openai / claude / deepseek. **No mock provider.**
+
+The adapter only:
+
+1. Ads: `startConversation`, system=OMVIC checklist, user=ad JSON; `finally` `closeConversation`. Check `AIResponse.isSuccess()` before parsing content.  
+2. Assistant: start a short conversation; accept only filtered this-dealership resources.
+
+**Ban:** scanning/exposing `com.gateway` (`/api/ai/request` `/chat` `/credentials` `/runtime`); starting `AIApplication`; giving the component its own container; CI hitting paid endpoints (CI uses a stub).  
+Key: `AIMANAGER_API_KEY` on ai-service only (environment / Key Vault). The library OpenAI path has no 15s guarantee → **the adapter sets its own connect/response timeouts**. Turn off the library rate-limit queue.
+
+---
+
+## 7. Frontend UI convention summary
+
+- Stack: Vue 3 + **Element Plus**. English. 6 pages. Do not fork an entire dealer repo.  
+- Login: centered single card, one Microsoft button.  
+- Others: left menu + top bar (dealership name or `Platform Admin`, role, `Sign out`). Admin sees only Admin; staff see only DMS/CRM/Ad/Assistant.  
+- Primary button top-right; sell/unlink require a second confirmation.  
+- **Every page must** have loading / empty / error. Failures are not empty tables. AI failure cannot show Pass.  
+- Tables: 10 rows per page. Status uses Tag. Actions column at most 3 text links. Sold rows fade; purchase fields read-only.  
+- Filters in one row: search + 1–3 dropdowns + Search + Reset. No price sliders/maps.  
+  - DMS: VIN/Make/Model; Status; Condition  
+  - CRM: Name/Email/Phone; whether linked  
+  - Admin: dealership name / staff email  
+- Forms: drawer or Dialog; enums as Select. Sell dialog: Sold date + Sold price. CRM link: searchable Select, only this-store unbound in-stock; already taken disabled.  
+
+**Table columns**
+
+| Page | Columns |
+|---|---|
+| Admin dealerships | Name, Contact, Staff count, Actions |
+| Admin members | Entra ID / email, Dealership, Status, Actions |
 | DMS | Year Make Model, VIN, Source, Condition, Cost, Status, Actions |
 | CRM | Name, Email, Phone, Linked vehicle, Actions |
 | Ad | Vehicle, Type, Medium, Check status, Actions |
 
-**Ad 页：** 左表单、右结果；清单随 CASH/FINANCE/LEASE 与媒介即时变。  
-**Assistant：** 一问一答 + 最多 5 张本店资源卡（点进普通页）。卡上无电话/邮箱/住址。模型挂了仍显示检索列表 + `Smart summary unavailable`。
+**Ad page:** form left, results right; checklist changes immediately with CASH/FINANCE/LEASE and medium.  
+**Assistant:** one Q&A + at most 5 this-dealership resource cards (open a normal page). Cards have no phone/email/address. If the model is down, still show the retrieval list + `Smart summary unavailable`.
 
 ---
 
-## 8. 五仓库、职责、Sprint 完成定义
+## 8. Five repositories, duties, Sprint done definitions
 
-| 目录 | 技术 | 谁 | 职责 |
+| Directory | Tech | Who | Duty |
 |---|---|---|---|
-| `dealer-web` | Vue3 + MSAL + Dockerfile + 自己的 pipeline | **A** | 6 页、登录、web 流水线 |
-| `dealer-gateway` | Spring Cloud Gateway + Dockerfile + pipeline | **C**（A 评审） | 只路由/验 JWT 转发；挡 `/internal` 对浏览器 |
-| `dealer-core` | Boot + Flyway + 一库 + Dockerfile + pipeline | **C** | 租户隔离、业务 API、调 AI |
-| `ai-service` | Boot 无库 + 内嵌 JAR + Dockerfile + pipeline | **B** | 适配器、OMVIC 清单文案、真实模型、ai 流水线能拉私有包 |
-| `dealer-platform` | Bicep、compose、各 pipeline YAML 说明 | **B** 初稿 / 全员证 | 不跑业务代码 |
+| `dealer-web` | Vue3 + MSAL + Dockerfile + its own pipeline | **A** | 6 pages, sign-in, web pipeline |
+| `dealer-gateway` | Spring Cloud Gateway + Dockerfile + pipeline | **C** (A reviews) | Route/verify JWT and forward only; block `/internal` from the browser |
+| `dealer-core` | Boot + Flyway + one database + Dockerfile + pipeline | **C** | Tenant isolation, business API, call AI |
+| `ai-service` | Boot, no database + embedded JAR + Dockerfile + pipeline | **B** | Adapter, OMVIC checklist copy, real model, ai pipeline can pull the private package |
+| `dealer-platform` | Bicep, compose, pipeline YAML notes | **B** first draft / all certify | Does not run business code |
 
-组员 A/B/C **姓名仍缺**，先按角色写卡。
+Team members A/B/C **names are still missing**; write cards by role for now.
 
-**Sprint 1（Review 1）**  
-四空仓能独立构建；讲清 07 架构图；Entra 两角色配上；直连 core 失败、只走 Gateway。对应 NN-01–03。
+**Sprint 1 (Review 1)**  
+Four empty repos build independently; explain the 07 architecture diagram; Entra two roles configured; direct core fails, traffic only through Gateway. Maps to NN-01–03.
 
-**Sprint 2（Review 2）**  
-Azure 上：登录 → Gateway → 录一辆车 → **真实 AI** 扫一段广告。无明文密钥；HTTPS；Key Vault。NN-04–11、NN-15。本地-only 演示课上不算。
+**Sprint 2 (Review 2)**  
+On Azure: sign-in → Gateway → record one vehicle → **real AI** scans an ad. No plaintext secrets; HTTPS; Key Vault. NN-04–11, NN-15. Local-only demos do not count in class.
 
-**Sprint 3（Review 3）**  
-两家店隔离；CRM 挂车；三类广告清单；导出；审计；Assistant。功能冻结。NN-12–14、16–20。看板 + 课后 1–2 段 + 三人各自讲证据（NN-21–24，全程）。
+**Sprint 3 (Review 3)**  
+Two-dealership isolation; CRM link; three ad-kind checklists; export; audit; Assistant. Feature freeze. NN-12–14, 16–20. Board + 1–2 post-class segments + each of three people presents evidence (NN-21–24, throughout).
 
-demo 发布需另一人批准。禁止门户手工发应用。改谁只构建谁。
+Demo release needs a second-person approval. Do not publish apps by hand in the portal. Only the changed repo builds.
 
 ---
 
-## 9. 环境变量
+## 9. Environment variables
 
-抄自 `DealerOps\dealer-platform\env.example`，编码时按仓拆开，**不要提交真实值**。
+Copied from `dealer-platform/env.example`; split by repo while coding; **do not commit real values**.
 
-| 变量 | 给谁 | 说明 |
+| Variable | Who | Notes |
 |---|---|---|
 | `VITE_ENTRA_TENANT_ID` | web | |
-| `VITE_ENTRA_CLIENT_ID` | web | SPA，不要 client secret |
-| `VITE_ENTRA_API_SCOPE` | web | 默认 `api://dealer-api/access_as_user` |
+| `VITE_ENTRA_CLIENT_ID` | web | SPA; no client secret |
+| `VITE_ENTRA_API_SCOPE` | web | Default `api://dealer-api/access_as_user` |
 | `VITE_GATEWAY_URL` | web | `http://localhost:8080` |
 | `GATEWAY_PORT` | gateway | `8080` |
-| `CORE_URL` | gateway | 本地 compose 用 `http://host.docker.internal:8081` |
+| `CORE_URL` | gateway | Local compose uses `http://host.docker.internal:8081` |
 | `AI_URL` | gateway | `http://host.docker.internal:8082` |
 | `CORE_PORT` | core | `8081` |
 | `MYSQL_URL` | core | `jdbc:mysql://localhost:3306/dealer_core?...` |
-| `MYSQL_USER` / `MYSQL_PASSWORD` | core | 本地示例 `dealer` / `dealer_dev_only` |
+| `MYSQL_USER` / `MYSQL_PASSWORD` | core | Local sample `dealer` / `dealer_dev_only` |
 | `AI_PORT` | ai | `8082` |
-| `AIMANAGER_API_KEY` | **仅 ai-service** | 真实 Key，进 Key Vault |
-| `AIMANAGER_GATEWAY_PROVIDER` | ai | `openai` 等库已支持厂商 |
+| `AIMANAGER_API_KEY` | **ai-service only** | Real key, in Key Vault |
+| `AIMANAGER_GATEWAY_PROVIDER` | ai | `openai` and other providers the library already supports |
 | `AIMANAGER_GATEWAY_MODEL` | ai | |
 | `ENTRA_ISSUER` | gateway+core | `https://login.microsoftonline.com/<tenant>/v2.0` |
 | `ENTRA_AUDIENCE` | gateway+core | `api://dealer-api` |
 
-聊天里不要发订阅密码、secret、模型 Key 正文。
+Do not paste subscription passwords, secrets, or model-key bodies in chat.
 
 ---
 
-## 10. 明确禁止实现
+## 10. Explicitly forbidden implementations
 
-- 买家站 / 公开库存站 / 厂家端  
-- 工单、线索漏斗、试驾、统计 KPI 看板、CSV 导入  
-- Service Bus、outbox、DLQ、消息队列、第二数据库、向量库  
-- 第三方自动刊登、支付、Image Studio、Cloudinary  
-- 自研模型 SDK / 对话引擎；部署 ai-manager 的 `com.gateway` 或第五容器  
-- 自建用户名密码、把密码当「更简单」方案  
-- C#、contracts 独立仓、把 01–06 范围救活  
-- 把参考仓 `references/carventory`、`car-dealer-crm` 整仓当运行模块（可看交互，不抄买家/工单/PostgreSQL/密码登录）  
-- CI 打真实付费模型；把 SNAPSHOT 当正式发布号不钉 commit  
-- 前端传 `dealerId` 当权威；Admin join 车辆/客户  
+- Buyer site / public inventory site / OEM portal  
+- Work orders, lead funnel, test drives, KPI dashboards, CSV import  
+- Service Bus, outbox, DLQ, message queues, second database, vector store  
+- Third-party auto-listing, payments, Image Studio, Cloudinary  
+- Homemade model SDK / conversation engine; deploying ai-manager `com.gateway` or a fifth container  
+- Homemade username/password, treating passwords as “simpler”  
+- C#, standalone contracts repo, reviving `01`–`06` scope  
+- Treating reference repos `references/carventory` and `car-dealer-crm` as running modules (you may study UX; do not copy buyer/work-order/PostgreSQL/password login)  
+- CI hitting real paid models; treating SNAPSHOT as a release number without a pinned commit  
+- Frontend sending `dealerId` as authority; Admin joining vehicles/customers  
 
 ---
 
-## 11. 编码顺序（小任务）
+## 11. Coding order (small tasks)
 
-每步可独立 PR。未完成不要跳到「大而全前端」。
+Each step can be its own PR. Do not jump to a “full frontend” before prior steps are done.
 
-| # | 仓库 | 任务 | 完成标准 |
+| # | Repo | Task | Done when |
 |---|---|---|---|
-| 1 | 本机 | 升 JDK 17/21，设 `JAVA_HOME` | `java -version` 为 17 或 21 |
-| 2 | web/gateway/core/ai 四仓 | 空工程 + Dockerfile + 能 `mvn/npm` 构建 | 四仓各自 CI 绿（编译即可） |
-| 3 | core | 接上现有 `V1__init.sql`，实体与枚举 | Flyway 能在空库起表；无额外业务列 |
-| 4 | gateway | 路由 `/api/v1/**`→core，`/internal/v1/**`→ai；拒浏览器打 internal；拒直连演示 | 8080 通，8081 对浏览器失败 |
-| 5 | gateway+core | Entra JWT + 两角色；`GET /me` | 无 token 401；假 dealerId 无效 |
-| 6 | core | Admin 开店/绑人 | 两店两员可插库验证 |
-| 7 | core | 车辆 CRUD + 出售 + 审计 | VIN 唯一；已售锁采购；出售成对；有 `audit_event` |
-| 8 | core | 客户 + 挂车 + 审计 | 跨店 404；一车一客 409 |
-| 9 | core | listing PATCH + **固定规则引擎**（不调 AI） | 缺价 / FINANCE 缺 APR → Blocked |
-| 10 | ai-service | 进程内 AiManager 适配器 + 15s 超时 + stub 测试 | 不暴露 `com.gateway`；CI 不打真模型 |
-| 11 | core+ai | `POST .../checks` 经 Gateway；失败 UNAVAILABLE | 改车况后旧检查 Stale |
-| 12 | core | ready + export TXT | 非 Passed 或 Stale 拒绝 |
-| 13 | core+ai | `POST /assistant/ask`：最多 5 条、核对本店 ID、不写库 | 乱编路径丢弃；模型挂只回列表 |
-| 14 | web | 6 页按第 7 节；登录分流 | Admin 看不见 DMS；空/错/载齐全 |
-| 15 | platform | compose 起 MySQL+四服务；Bicep/流水线等 Azure 权限后再填 | 本机能走通录车；云上是 Sprint 2 项 |
+| 1 | Local machine | Raise JDK 17/21, set `JAVA_HOME` | `java -version` is 17 or 21 |
+| 2 | web/gateway/core/ai four repos | Empty projects + Dockerfile + `mvn/npm` builds | Each repo CI green (compile is enough) |
+| 3 | core | Wire existing `V1__init.sql`, entities and enums | Flyway can create tables on an empty database; no extra business columns |
+| 4 | gateway | Route `/api/v1/**`→core, `/internal/v1/**`→ai; reject browser internal; reject direct-access demo | 8080 works; 8081 fails for the browser |
+| 5 | gateway+core | Entra JWT + two roles; `GET /me` | No token 401; fake dealerId has no effect |
+| 6 | core | Admin open dealership / bind staff | Two stores and two staff can be verified in the database |
+| 7 | core | Vehicle CRUD + sell + audit | VIN unique; sold locks purchase; sale as a pair; `audit_event` exists |
+| 8 | core | Customers + link + audit | Cross-dealership 404; one vehicle one customer 409 |
+| 9 | core | listing PATCH + **fixed rule engine** (no AI call) | Missing price / FINANCE missing APR → Blocked |
+| 10 | ai-service | In-process AiManager adapter + 15s timeout + stub tests | Do not expose `com.gateway`; CI does not hit a real model |
+| 11 | core+ai | `POST .../checks` via Gateway; failure UNAVAILABLE | After condition change, old check is Stale |
+| 12 | core | ready + export TXT | Reject if not Passed or Stale |
+| 13 | core+ai | `POST /assistant/ask`: at most 5, verify this-store IDs, no DB write | Invented paths discarded; model down returns list only |
+| 14 | web | 6 pages per section 7; login routing | Admin cannot see DMS; empty/error/loading complete |
+| 15 | platform | compose starts MySQL+four services; fill Bicep/pipeline after Azure permissions | Local can record a vehicle end to end; cloud is a Sprint 2 item |
 
 ---
 
-## 12. 开工前阻塞（本机真实缺口）
+## 12. Pre-start blockers (real local gaps)
 
-**不要假装已具备。** 来源：`DealerOps\PREP-CHECKLIST.md`。
+**Do not pretend these already exist.** Source: `PREP-CHECKLIST.md`.
 
-| 项 | 现状 | 卡住谁 |
+| Item | Current | Who is blocked |
 |---|---|---|
-| JDK 17/21 | **缺**，本机 JDK 11，Boot 3 编不过 | 全部 Java 仓 |
-| Docker Desktop | **缺** | 本地 MySQL 容器、打镜像 |
-| 组员 A/B/C 姓名 | **缺** | 分工卡、Review 署名 |
-| Azure 订阅 | **缺** | Sprint 2 云演示（Container Apps、MySQL、ACR、Key Vault） |
-| Entra 权限 | **缺** | 登录、两角色、绑用户 |
-| 模型 Key | **缺** | Sprint 2 真实 AI（`AIMANAGER_API_KEY`） |
-| ai-manager 固定版 | **未发布** | 从 `c07e1f2` 打不可改版本，或本机 `mvn install` |
+| JDK 17/21 | **Missing**; local JDK 11; Boot 3 will not compile | All Java repos |
+| Docker Desktop | **Missing** | Local MySQL container, image builds |
+| Team A/B/C names | **Missing** | Assignment cards, Review signatures |
+| Azure subscription | **Missing** | Sprint 2 cloud demo (Container Apps, MySQL, ACR, Key Vault) |
+| Entra permissions | **Missing** | Sign-in, two roles, bind users |
+| Model key | **Missing** | Sprint 2 real AI (`AIMANAGER_API_KEY`) |
+| ai-manager fixed version | **Unpublished** | Publish an immutable version from `c07e1f2`, or local `mvn install` |
 
-已有：规格 PDF、PPT、本手册、`SCOPE-BASELINE`、后端设计 **DEVELOPMENT-DESIGN**、**13/14/15**、拆包 18/19、验收 16、广告夹具 17、Node 20、Maven 3.6、Git、`gh` 已登录 `YUANDONG-YANG`、Flyway V1、API/env 草稿。
+Already have: specification PDF, PPT, this brief, `SCOPE-BASELINE`, backend design **DEVELOPMENT-DESIGN**, **13/14/15**, packaging 18/19, acceptance 16, ad fixtures 17, Node 20, Maven 3.6, Git, `gh` signed in as `YUANDONG-YANG`, Flyway V1, API/env drafts.
 
-Sprint 1 前最好还有：两个店员 Entra 号 + 一个管理员；回调 `http://localhost:5173`；选定 Azure DevOps 或 GitHub Actions；预算上限（MySQL + Container Apps 持续计费）。
+Before Sprint 1, also preferably: two staff Entra accounts + one admin; callback `http://localhost:5173`; choose Azure DevOps or GitHub Actions; budget cap (MySQL + Container Apps bill continuously).
 
-**现在就能写、不依赖云的：** 任务 2–9、10 的 stub、14 的静态页。任务 1 不做则 Java 编不过。任务 5 可用测试 JWT，但 Sprint 2 必须换成真 Entra。
+**Can write now without cloud:** tasks 2–9, task 10 stub, task 14 static pages. Skip task 1 and Java will not compile. Task 5 may use a test JWT, but Sprint 2 must switch to real Entra.
 
 ---
 
-## 验收速查（课上能点）
+## Classroom acceptance checklist (can click in class)
 
-1. Admin 开两家店、各绑一人。  
-2. 店 A 录车、录客户、挂车；店 B 看不见。  
-3. Admin 打车辆接口被拒且无字段。  
-4. 缺价或融资缺 APR → Blocked。  
-5. 真实广告文本走一次真实 AI，能指出缺失。  
-6. 改价/车况/正文后不能用旧检查导出。
+1. Admin opens two dealerships and binds one person each.  
+2. Dealership A records a vehicle, a customer, and a link; dealership B cannot see them.  
+3. Admin hitting vehicle APIs is rejected with no fields.  
+4. Missing price or finance missing APR → Blocked.  
+5. Real ad copy goes through real AI once and can point out gaps.  
+6. After changing price/condition/copy, the old check cannot be used to export.
 
-课程六硬项对照：独立仓+流水线；Gateway；Azure+容器+Bicep+CI/CD；Entra+JWT+RBAC+HTTPS+Key Vault；真实模型扫广告；Scrum 看板与三次全员 Review。
+Course six hard items: independent repos+pipelines; Gateway; Azure+containers+Bicep+CI/CD; Entra+JWT+RBAC+HTTPS+Key Vault; real model scanning ads; Scrum board and three all-hands Reviews.

@@ -1,50 +1,50 @@
-# 本团队 AI 库（已用 gh 只读核实）
+# This team's AI library (verified read-only with gh)
 
-私有库，不要在公开 README 贴密钥或把库当已验收质量证明。
+Private repo. Do not paste secrets in a public README or treat the library as accepted quality proof.
 
-## 核实结果
+## Verification
 
-| 项 | 值 |
+| Item | Value |
 |----|-----|
-| 仓库 | https://github.com/YUANDONG-YANG/ai-manager （private） |
-| 账号 | 本机 `gh`：**YUANDONG-YANG**；只读，不改库、不发布、不在调研阶段打模型 |
-| 提交 | `c07e1f2afe5dd692c20f3567ad3a42a90d31a87a`（`main`，约 2026-03-26） |
+| Repo | https://github.com/YUANDONG-YANG/ai-manager (private) |
+| Account | Local `gh`: **YUANDONG-YANG**; read-only; do not change the repo, publish, or hit models during research |
+| Commit | `c07e1f2afe5dd692c20f3567ad3a42a90d31a87a` (`main`, about 2026-03-26) |
 | Maven | `com.aimanager:aimanager:1.0.0-SNAPSHOT` |
-| Java | 17；Spring Boot parent 3.2.5 |
-| 发布 | GitHub Packages `https://maven.pkg.github.com/YUANDONG-YANG/ai-manager` |
-| 插件 | `skip=true`，按 JAR 给下游用 |
+| Java | 17; Spring Boot parent 3.2.5 |
+| Publish | GitHub Packages `https://maven.pkg.github.com/YUANDONG-YANG/ai-manager` |
+| Plugin | `skip=true`; give downstream a JAR |
 
-## 编码只准用的 API
+## Only these APIs may be used in coding
 
-`com.manager.AiManager`：
+`com.manager.AiManager`:
 
 - `request(String)`
 - `startConversation(id, systemMessage)`
 - `closeConversation`
 
-厂商：groq / openai / claude / deepseek。**没有** `provider=mock`。
+Vendors: groq / openai / claude / deepseek. There is **no** `provider=mock`.
 
-适配器约定（与 `09-AI-Agent-Integration.md` 一致）：
+Adapter contract (same as `design/09-AI-Agent-Integration.md`):
 
-1. 广告检查：`startConversation` 的 system 放 OMVIC/本课清单，user 放广告 JSON；`finally` 里 `closeConversation`。先 `AIResponse.isSuccess()`，再解析 content。
-2. 店内助手：新建短会话，只收已过滤的本店资源。
-3. 进程内调用，**不为该库单独起容器**。Key：`AIMANAGER_API_KEY`（环境变量 / Key Vault），只给 `ai-service`。
+1. Ad check: put the OMVIC/course checklist in `startConversation` system, listing JSON in user; `closeConversation` in `finally`. Check `AIResponse.isSuccess()` first, then parse content.
+2. In-store assistant: start a short conversation and send only already-filtered dealership resources.
+3. In-process call. **Do not start a separate container for this library.** Key: `AIMANAGER_API_KEY` (env / Key Vault), `ai-service` only.
 
-## 不要暴露 `com.gateway`
+## Do not expose `com.gateway`
 
-库内另有 `com.gateway`：`/api/ai/request`、`/chat`、`/credentials`、`/runtime`。  
-那是 **ai-manager 自带的网关演示**，**不是**本课 `dealer-gateway`。
+The library also has `com.gateway`: `/api/ai/request`, `/chat`, `/credentials`, `/runtime`.  
+That is **ai-manager's own gateway demo**. It is **not** this course's `dealer-gateway`.
 
-- 不要扫描、不要启动 `AIApplication`
-- 不要把这些接口暴露到浏览器或公网
-- 不要在 `dealer-gateway` 里转发到 `com.gateway`
+- Do not scan or start `AIApplication`
+- Do not expose those endpoints to the browser or the public internet
+- Do not proxy them from `dealer-gateway` to `com.gateway`
 
-## 质量与超时
+## Quality and timeouts
 
-- 未见可用 `src/test`；README 写测试未维护。不能把「引用了此库」当成 Sprint 验收。
-- OpenAI 路径 `WebClient...blockOptional()` **没有现成 15 秒保证**。`ai-service` 必须自设 connect/response 超时。
-- 限流队列默认关掉，避免和课程超时叠在一起。
-- SNAPSHOT 不宜当发布号：实施时从上述 commit **打不可改版本**再给 `ai-service`。
-- Sprint 2 对该库发一次真实请求；CI 用 stub，不打付费端点。
+- No usable `src/test` was found. The README says tests are unmaintained. Citing this library is not Sprint acceptance.
+- The OpenAI path `WebClient...blockOptional()` has **no ready-made 15-second guarantee**. `ai-service` must set its own connect/response timeouts.
+- Keep the rate-limit queue off by default so it does not stack with the course timeout.
+- SNAPSHOT is a poor release number. At implementation time, **cut an immutable version** from the commit above and give it to `ai-service`.
+- In Sprint 2, send one real request to this library. CI uses a stub and does not hit paid endpoints.
 
-完整设计见：`DealerOS-Design/09-AI-Agent-Integration.md`。
+Full design: `design/09-AI-Agent-Integration.md`.

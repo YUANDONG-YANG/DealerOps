@@ -1,122 +1,122 @@
-﻿> 已废止的 v1.0 历史稿，不据此编码。请从 [当前文档索引](README.md) 阅读 00 业务设计与 07/08/09 微服务、DevOps、AI 组件设计。原始需求已找到并核实，不包含厂家或买家自助端。
+﻿> Superseded v1.0 historical draft. Do not implement from this document. Read the current document index in [README.md](README.md) for the 00 business design and the 07/08/09 microservice, DevOps, and AI component designs. The original requirements have been located and verified; they do not include a manufacturer portal or a buyer self-service site.
 
-# 架构与数据
+# Architecture and data
 
-## 技术决策
+## Technical decisions
 
-仅 Web：B 端后台和 C 端公开展示共用一个 Vue 应用，分别使用 AdminLayout 与 PublicLayout。后台默认桌面，C 端响应式适配手机浏览器。
+Web only: the staff back office (B-side) and the public storefront (C-side) share one Vue app, using AdminLayout and PublicLayout respectively. The back office defaults to desktop; the C-side is responsive for mobile browsers.
 
-技术基线：Java 21、Spring Boot、Spring Security、Spring Data JPA、Bean Validation、MySQL 8.4/InnoDB、Vue 3、Vue Router、Vite。前端使用团队熟悉的 JavaScript，不强制引入 TypeScript；表单样式统一使用一套 UI 组件。数据库变更通过 Flyway 管理。
+Baseline: Java 21, Spring Boot, Spring Security, Spring Data JPA, Bean Validation, MySQL 8.4/InnoDB, Vue 3, Vue Router, Vite. The frontend uses JavaScript the team already knows; TypeScript is not required. Forms use one shared UI component set. Database changes are managed with Flyway.
 
-Spring Boot 的具体受支持稳定版本以及前端依赖补丁号在初始化时检查兼容性后锁定；本阶段不声称已验证完整依赖组合。Java 21 是团队设计选择，不是要求所有库都使用最新主版本。
+The specific supported stable Spring Boot version and frontend dependency patch numbers are locked after a compatibility check at initialization; this stage does not claim a fully verified dependency set. Java 21 is a team design choice, not a requirement that every library use the latest major version.
 
-保留一个后端进程，不引入微服务、Redis、消息队列、搜索集群、向量数据库或 Kubernetes。普通 REST + JSON 即可；AI 检查用同步请求和超时处理。
+Keep one backend process. Do not introduce microservices, Redis, a message queue, a search cluster, a vector database, or Kubernetes. Ordinary REST + JSON is enough; AI checks use a synchronous request with timeout handling.
 
 ```mermaid
 flowchart TB
-  B[B 端 Vue 员工后台] --> API[Spring Boot REST API]
-  C[C 端 Vue 车辆展示与咨询] --> API
+  B[B-side Vue staff back office] --> API[Spring Boot REST API]
+  C[C-side Vue inventory and enquiry] --> API
   API --> DB[(MySQL)]
-  API --> RULE[本地固定规则]
-  API --> ADAPTER[AI 服务适配器]
-  ADAPTER --> AI[一个文本模型服务]
+  API --> RULE[Local fixed rules]
+  API --> ADAPTER[AI service adapter]
+  ADAPTER --> AI[One text-model service]
 ```
 
-## 模块和目录规划
+## Module and directory plan
 
-未来一个仓库包含 frontend、backend、docs 三个目录。本次尚不创建运行项目。
+A future single repository contains frontend, backend, and docs. This pass does not create a runnable project.
 
-后端按 auth、inventory、workorder、listing、compliance、crm、sales、dashboard 分包，各模块只有必要的 controller/service/repository/dto。业务状态和事务在 service 实现，不在 Vue 或 controller 中实现。
+The backend is packaged as auth, inventory, workorder, listing, compliance, crm, sales, dashboard. Each module has only the needed controller/service/repository/dto. Business state and transactions live in the service, not in Vue or the controller.
 
-前端按 public、admin、auth、shared 分区。共享 api client、错误展示、分页组件和格式化函数。无需为 B/C 端创建两个独立构建系统。
+The frontend is partitioned as public, admin, auth, shared. Share the api client, error display, pagination component, and formatters. Do not create two independent build systems for B-side and C-side.
 
-经销商名称、公开联系方式、时区以及规则版本使用单店配置文件，MVP 不开发设置管理页面。配置发生变化时递增 dealerProfileVersion，既有广告检查及发布失效；所有当前 PUBLISHED 广告批量回 DRAFT，再由经理检查发布。通过一次维护事务完成，避免新配置与旧广告混合。
+Dealer name, public contact, timezone, and rule version use a single-store config file; MVP has no settings-admin page. When configuration changes, increment dealerProfileVersion; existing advertisement checks and publishes become invalid; all currently PUBLISHED advertisements are bulk-returned to DRAFT and must be checked and published again by a manager. Do this in one maintenance transaction so new configuration is not mixed with old advertisements.
 
-## 数据通用约定
+## Shared data conventions
 
-- 主键 BIGINT，API 以字符串传递 ID，避免 JavaScript 大整数精度问题。
-- 金额 DECIMAL(12,2)，Java BigDecimal，API 使用小数字符串；币种固定 CAD，不用浮点数计算。
-- created_at、updated_at 使用 UTC DATETIME(3)；业务展示用 America/Toronto。
-- 状态用 VARCHAR + Java enum；数据库约束或服务校验限定合法值。
-- 可编辑主实体含 version INT，使用乐观锁；状态关键动作同时使用车辆行锁。
-- 外键均 RESTRICT，MVP 无硬删除功能，不使用级联删除破坏成交及检查历史。
-- 列表分页默认 20、最多 100；常用排序只接受允许的字段。
+- Primary keys are BIGINT; APIs pass IDs as strings to avoid JavaScript large-integer precision loss.
+- Money is DECIMAL(12,2), Java BigDecimal; APIs use decimal strings. Currency is fixed CAD; do not compute with floating point.
+- created_at and updated_at use UTC DATETIME(3); business display uses America/Toronto.
+- Status is VARCHAR + Java enum; database constraints or service validation limit legal values.
+- Editable main entities include version INT and use optimistic locking; status-critical actions also use a vehicle row lock.
+- Foreign keys are all RESTRICT. MVP has no hard delete; do not use cascade delete that would destroy sale and check history.
+- List pagination defaults to 20, maximum 100; common sorts accept only allowed fields.
 
-## 数据字典
+## Data dictionary
 
-所有表默认包含 id 与 created_at。只列业务字段；字符串长度是本版拟定限制，须同时用于前后端校验。
+All tables include id and created_at by default. Only business fields are listed; string lengths are this version’s proposed limits and must be used by both frontend and backend validation.
 
 ### 1. app_user
 
-email VARCHAR(254) UNIQUE NOT NULL，password_hash VARCHAR(255)，display_name VARCHAR(80)，role VARCHAR(20)（MANAGER/STAFF），active BOOLEAN，updated_at。
+email VARCHAR(254) UNIQUE NOT NULL, password_hash VARCHAR(255), display_name VARCHAR(80), role VARCHAR(20) (MANAGER/STAFF), active BOOLEAN, updated_at.
 
-两个角色、三个初始账号。创建和停用通过维护流程处理，页面不含人员管理。每个受保护请求检查 active，停用后旧会话也不能写入。
+Two roles, three seed accounts. Create and deactivate through a maintenance process; the UI has no people-admin page. Every protected request checks active; after deactivation an old session cannot write.
 
 ### 2. vehicle
 
-stock_no VARCHAR(30) UNIQUE，vin CHAR(17) UNIQUE，make/model VARCHAR(60)，model_year SMALLINT，mileage_km INT，color VARCHAR(40)，base_price DECIMAL(12,2)，mandatory_fee_total DECIMAL(12,2)，photo_key VARCHAR(80)，status VARCHAR(20)，ready_note VARCHAR(500) nullable，internal_note VARCHAR(2000) nullable，created_by FK app_user，version，updated_at。
+stock_no VARCHAR(30) UNIQUE, vin CHAR(17) UNIQUE, make/model VARCHAR(60), model_year SMALLINT, mileage_km INT, color VARCHAR(40), base_price DECIMAL(12,2), mandatory_fee_total DECIMAL(12,2), photo_key VARCHAR(80), status VARCHAR(20), ready_note VARCHAR(500) nullable, internal_note VARCHAR(2000) nullable, created_by FK app_user, version, updated_at.
 
-advertisedPrice 为 base_price + mandatory_fee_total，在服务端计算，不重复保存。费用细分不进入 MVP，mandatory_fee_total 为经销商录入的全部必收费用合计；系统无法证明其没有遗漏。
+advertisedPrice is base_price + mandatory_fee_total, computed on the server, not stored twice. Fee breakdown is out of MVP; mandatory_fee_total is the dealer-entered total of all mandatory fees; the system cannot prove nothing was omitted.
 
-VIN 统一大写、去前后空格、17 位且不含 I/O/Q；只做格式检查，不做外部查询或校验位认证。年份范围 1980 至当前年 + 1。只支持现有库存普通二手车；不支持 as-is、unfit、融资/租赁或需特殊披露的交易广告。录入时人员确认适用范围，后端广告检查保留确认值。
+VIN is uppercased, trimmed, 17 characters, and must not contain I/O/Q; format check only, no external lookup or check-digit certification. Year range is 1980 through current year + 1. Only ordinary used in-stock vehicles; no as-is, unfit, finance/lease, or ads that need special disclosure. Staff confirm the scope at entry; the backend advertisement check keeps that confirmation.
 
-索引：status、(make, model)、created_at；500 辆规模不需要全文索引。
+Indexes: status, (make, model), created_at; at 500 vehicles a full-text index is not needed.
 
 ### 3. work_order
 
-vehicle_id FK vehicle，title VARCHAR(120)，description VARCHAR(2000)，assigned_to FK app_user nullable，status VARCHAR(20)，due_date DATE nullable，actual_cost DECIMAL(12,2) default 0，completion_note VARCHAR(1000) nullable，created_by FK app_user，version，updated_at。
+vehicle_id FK vehicle, title VARCHAR(120), description VARCHAR(2000), assigned_to FK app_user nullable, status VARCHAR(20), due_date DATE nullable, actual_cost DECIMAL(12,2) default 0, completion_note VARCHAR(1000) nullable, created_by FK app_user, version, updated_at.
 
-索引 (vehicle_id,status)、(assigned_to,status)。实际成本只显示内部，不进入广告价格或利润统计。
+Indexes (vehicle_id,status), (assigned_to,status). Actual cost is internal only and does not enter advertisement price or profit statistics.
 
 ### 4. listing
 
-vehicle_id FK vehicle UNIQUE，title VARCHAR(120)，description VARCHAR(3000)，scope_confirmed BOOLEAN default false，status VARCHAR(20)，content_version INT default 1，published_check_id FK compliance_check nullable，published_by FK app_user nullable，published_at DATETIME(3) nullable，review_note VARCHAR(1000) nullable，version，updated_at。
+vehicle_id FK vehicle UNIQUE, title VARCHAR(120), description VARCHAR(3000), scope_confirmed BOOLEAN default false, status VARCHAR(20), content_version INT default 1, published_check_id FK compliance_check nullable, published_by FK app_user nullable, published_at DATETIME(3) nullable, review_note VARCHAR(1000) nullable, version, updated_at.
 
-vehicle 创建时同事务建立一个空 DRAFT listing，避免前端多一步初始化。草稿允许字段未填齐，但发布前必须检查。公开展示从已审核快照读取，且验证当前版本一致；不会读取独立变动的未审核自由文本。
+When a vehicle is created, the same transaction creates an empty DRAFT listing so the frontend does not need a separate init step. A draft may have incomplete fields, but it must be checked before publish. Public display reads from the reviewed snapshot and verifies the current version still matches; it does not read independently changing unchecked free text.
 
-version 用于数据库并发编辑；content_version 专用于广告相关内容变化，两者不要混淆。下架清除当前 published_* 和 review_note，历史发布事件保留在 audit_event。
+version is for concurrent database edits; content_version is only for advertisement-related content changes — do not confuse them. Unpublish clears the current published_* and review_note; historical publish events remain in audit_event.
 
 ### 5. compliance_check
 
-listing_id FK listing，content_version INT，dealer_profile_version VARCHAR(30)，rule_version VARCHAR(30)，snapshot JSON，rule_results JSON，ai_status VARCHAR(20)（SUCCESS/UNAVAILABLE/INVALID_RESPONSE/MOCK），ai_results JSON nullable，provider VARCHAR(60) nullable，model VARCHAR(100) nullable，prompt_version VARCHAR(30)，duration_ms INT，created_by FK app_user，completed_at。
+listing_id FK listing, content_version INT, dealer_profile_version VARCHAR(30), rule_version VARCHAR(30), snapshot JSON, rule_results JSON, ai_status VARCHAR(20) (SUCCESS/UNAVAILABLE/INVALID_RESPONSE/MOCK), ai_results JSON nullable, provider VARCHAR(60) nullable, model VARCHAR(100) nullable, prompt_version VARCHAR(30), duration_ms INT, created_by FK app_user, completed_at.
 
-检查记录不可编辑。snapshot 保存生成广告所需的车辆、价格、描述、披露及经销商公开资料；不含客户、成本和 internal_note。rule_results 每项包含 ruleId、severity、field、message。AI 只存校验后的结构化结果，不保存未经约束的模型原始输出。
+Check records are not editable. snapshot stores the vehicle, price, description, disclosures, and dealer public profile needed to render the ad; it excludes customer, cost, and internal_note. Each rule_results item includes ruleId, severity, field, message. AI stores only validated structured results, not unconstrained raw model output.
 
-为避免双向建表问题，迁移先建 listing（暂不加 published_check_id 外键），再建 compliance_check，最后补外键。发布服务额外验证 check.listing_id 与当前 listing 一致。
+To avoid a circular create problem, migrations first create listing (without the published_check_id FK), then compliance_check, then add the FK. The publish service also verifies check.listing_id matches the current listing.
 
 ### 6. customer
 
-name VARCHAR(100)，email VARCHAR(254) nullable，phone VARCHAR(40) nullable，version，updated_at。至少一个联系方式，禁止全部为空。邮箱和电话不设 UNIQUE，不自动合并陌生访客。
+name VARCHAR(100), email VARCHAR(254) nullable, phone VARCHAR(40) nullable, version, updated_at. At least one contact method; all-empty is forbidden. Email and phone are not UNIQUE; unknown visitors are not auto-merged.
 
-客户没有密码和登录功能。内部新建线索可以选择已有 customer，复用客户信息。名称和联系信息只出现在授权 B 端响应。
+Customers have no password and no login. An internally created lead may select an existing customer and reuse that information. Name and contact appear only in authorized B-side responses.
 
 ### 7. lead
 
-customer_id FK customer，vehicle_id FK vehicle，listing_id FK listing nullable，source VARCHAR(20)（WEB/MANUAL），stage VARCHAR(20)，owner_id FK app_user nullable，message VARCHAR(2000)，next_follow_up_at DATETIME(3) nullable，closed_reason VARCHAR(500) nullable，submission_key CHAR(36) UNIQUE nullable，version，updated_at。
+customer_id FK customer, vehicle_id FK vehicle, listing_id FK listing nullable, source VARCHAR(20) (WEB/MANUAL), stage VARCHAR(20), owner_id FK app_user nullable, message VARCHAR(2000), next_follow_up_at DATETIME(3) nullable, closed_reason VARCHAR(500) nullable, submission_key CHAR(36) UNIQUE nullable, version, updated_at.
 
-WEB 请求使用 UUID submissionKey 去重；同一事务创建 customer + lead，唯一键冲突时回滚并返回既有提交成功的通用信息，不泄露记录。客户端网络重试沿用同一 key。MANUAL 不需要 submission_key。
+WEB requests use a UUID submissionKey for de-duplication; the same transaction creates customer + lead. On unique-key conflict roll back and return a generic success for an existing submission, without leaking the record. Client network retries reuse the same key. MANUAL does not need submission_key.
 
-索引 (vehicle_id,stage)、(owner_id,stage,next_follow_up_at)、customer_id。listing_id 的车辆必须与 vehicle_id 相同，由服务验证。
+Indexes (vehicle_id,stage), (owner_id,stage,next_follow_up_at), customer_id. The listing_id vehicle must match vehicle_id; the service validates this.
 
 ### 8. lead_activity
 
-lead_id FK lead，actor_id FK app_user nullable，type VARCHAR(30)（NOTE/STAGE_CHANGED/ASSIGNED/SALE_RECORDED/AUTO_CLOSED），channel VARCHAR(20) nullable，note VARCHAR(2000)，previous_stage/next_stage VARCHAR(20) nullable。
+lead_id FK lead, actor_id FK app_user nullable, type VARCHAR(30) (NOTE/STAGE_CHANGED/ASSIGNED/SALE_RECORDED/AUTO_CLOSED), channel VARCHAR(20) nullable, note VARCHAR(2000), previous_stage/next_stage VARCHAR(20) nullable.
 
-仅追加，不编辑或删除。访客初始 message 保存在 lead；自动关闭事件由成交事务写入，actor_id 使用执行成交的经理。
+Append-only; no edit or delete. The visitor’s initial message is stored on lead; auto-close events are written by the sale transaction, with actor_id set to the manager who recorded the sale.
 
 ### 9. sale
 
-vehicle_id FK vehicle UNIQUE，lead_id FK lead UNIQUE，customer_id FK customer，recorded_by FK app_user，final_price DECIMAL(12,2)，sold_at DATETIME(3)，note VARCHAR(1000) nullable，vehicle_snapshot JSON。
+vehicle_id FK vehicle UNIQUE, lead_id FK lead UNIQUE, customer_id FK customer, recorded_by FK app_user, final_price DECIMAL(12,2), sold_at DATETIME(3), note VARCHAR(1000) nullable, vehicle_snapshot JSON.
 
-不可编辑，vehicle_snapshot 保存成交当时车辆公开标识和价格信息；客户资料通过 FK 引用，不额外复制联系方式。final_price 是登记的税费前约定成交额，可与广告价格不同，差异必须在 note 说明；本版无税额、支付或利润字段。
+Not editable. vehicle_snapshot stores the vehicle’s public identifiers and price at sale time; customer data is referenced by FK and contact details are not copied. final_price is the registered pre-tax agreed sale amount; it may differ from the advertised price, and the difference must be explained in note. This version has no tax, payment, or profit fields.
 
-vehicle_id UNIQUE 意味着本版同一车辆只经历一次销售，不支持回购重新销售。
+vehicle_id UNIQUE means a vehicle is sold only once in this version; buy-back and resale are not supported.
 
 ### 10. audit_event
 
-actor_id FK app_user nullable，entity_type VARCHAR(30)，entity_id BIGINT，action VARCHAR(40)，metadata JSON，created_at。
+actor_id FK app_user nullable, entity_type VARCHAR(30), entity_id BIGINT, action VARCHAR(40), metadata JSON, created_at.
 
-记录发布/下架、回整备、归档和成交等关键动作。只放 ID、版本、检查 ID、经理复核说明，不放完整客户联系方式、密码、密钥或任意原始请求。后台不单独开发日志页面，详情接口按需返回对应业务事件。
+Records publish/unpublish, return to preparation, archive, sale, and similar key actions. Store only IDs, versions, check IDs, and manager review notes — not full customer contact, passwords, secrets, or arbitrary raw requests. The back office has no dedicated log page; detail APIs return the related business events as needed.
 
 ```mermaid
 erDiagram
@@ -131,48 +131,46 @@ erDiagram
   CUSTOMER ||--o{ SALE : purchases
 ```
 
-## 必须明确的事务
+## Transactions that must be explicit
 
-锁顺序统一为 vehicle → listing → lead（按 ID 升序）→ work_order，涉及多个对象的操作遵守顺序。长时间 AI 网络请求绝不能持有数据库行锁。
+Lock order is always vehicle → listing → lead (by ID ascending) → work_order. Operations that touch multiple objects follow that order. A long AI network request must never hold a database row lock.
 
-### 广告编辑与车辆编辑
+### Advertisement edit and vehicle edit
 
-锁 vehicle，再锁 listing；验证编辑 version。广告相关字段有变化时 content_version + 1，PUBLISHED 回 DRAFT 并清除发布字段，写审计。同事务更新，避免改价后旧广告仍公开。SOLD/ARCHIVED 拒绝修改。单独的内部备注更新不递增广告内容版本。
+Lock vehicle, then listing; verify the edit version. When advertisement-related fields change, content_version + 1, PUBLISHED returns to DRAFT, publish fields are cleared, and an audit is written. Update in the same transaction so an old advertisement cannot stay public after a price change. SOLD/ARCHIVED reject edits. An internal-note-only update does not increment advertisement content version.
 
-### 执行检查
+### Run checks
 
-短事务读取一致快照与版本后提交，事务外执行固定规则和 AI。结果写入新的不可变 check。即便当前版本已改变，结果也可保存为历史，但标记响应 stale=true。发布时必须重新核验版本与规则配置，不相信前端状态。
+A short transaction reads a consistent snapshot and version, then commits; fixed rules and AI run outside the transaction. Results are written as a new immutable check. Even if the current version has already changed, the result may be stored as history, but the response is marked stale=true. Publish must re-verify version and rule configuration and must not trust frontend state.
 
-### 发布
+### Publish
 
-锁 vehicle/listing，验证 AVAILABLE、无活动工单、指定 check 属于本广告、内容版本及经销商/规则版本仍一致、无 BLOCK、required acknowledgements 已提供；再写 PUBLISHED 与审核关联。发布只影响本站，无外部网络副作用。
+Lock vehicle/listing; verify AVAILABLE, no active work orders, the specified check belongs to this advertisement, content version and dealer/rule versions still match, no BLOCK, and required acknowledgements are present; then write PUBLISHED and the review association. Publish affects only this site; there are no external network side effects.
 
-### 访客咨询
+### Visitor enquiry
 
-先按 submission_key 检查重复；新请求锁 vehicle/listing 再确认可展示，创建 customer/lead 并提交。unique submission_key 处理竞争重复。成功响应不含内部记录 ID。售出后新的 key 必须被拒绝；旧 key 的网络重试仍返回通用成功，不新建数据。
+First check duplicates by submission_key; for a new request lock vehicle/listing, confirm it is still displayable, create customer/lead, and commit. Unique submission_key handles race duplicates. A success response contains no internal record IDs. After a sale a new key must be rejected; a network retry of an old key still returns generic success and creates no new data.
 
-### 成交
+### Sale
 
-锁 vehicle/listing 和该车所有 open lead，核验车辆 AVAILABLE、当前 lead 非终态、客户/车辆关联一致、Manager 权限及请求 version。插入 sale → vehicle SOLD → listing CLOSED 并清除发布字段 → 选中 lead WON → 其他 open lead LOST（vehicle sold）→ 清除所有关闭线索 next_follow_up_at → 写 activity/audit，一并提交。任一步失败回滚。
+Lock vehicle/listing and all open leads for that vehicle; verify the vehicle is AVAILABLE, the current lead is not terminal, customer/vehicle association matches, Manager permission, and request versions. Insert sale → vehicle SOLD → listing CLOSED and clear publish fields → selected lead WON → other open leads LOST (vehicle sold) → clear next_follow_up_at on all closed leads → write activity/audit, then commit together. Any step failure rolls back.
 
-所有线索状态变更、分配和备注动作也先锁关联 vehicle/lead，已售车辆的终态线索拒绝修改。数据库 sale 唯一键是并发成交的第二道约束。
+Lead stage changes, assignment, and notes also lock the related vehicle/lead first; terminal leads on a sold vehicle reject edits. The database sale unique key is the second constraint against concurrent sales.
 
-## 认证和部署
+## Authentication and deployment
 
-使用 Spring Security 的服务器 session，Cookie 在演示 HTTPS 环境设 HttpOnly、Secure、SameSite=Lax；写接口使用 CSRF token，登录前从 /auth/csrf 获取，登录/退出后刷新。单实例无需 Redis session，重启要求重新登录是可接受的课程限制。
+Use Spring Security server sessions. In a demo HTTPS environment the cookie is HttpOnly, Secure, SameSite=Lax; write endpoints use a CSRF token obtained from /auth/csrf before login, and refreshed after login/logout. A single instance needs no Redis session; requiring re-login after restart is an acceptable course constraint.
 
-开发时 Vite 代理 /api 到 Java，避免手工跨域策略。演示构建将 Vue 静态文件打包到 Spring Boot，同域访问；SPA fallback 只用于页面路由，不覆盖 /api 的 404。一个后端服务和一个 MySQL 实例即可，AI 密钥只放后端环境变量。
+In development Vite proxies /api to Java so CORS is not hand-tuned. The demo build packs Vue static files into Spring Boot for same-origin access; SPA fallback is only for page routes and must not cover /api 404s. One backend service and one MySQL instance are enough; the AI key lives only in backend environment variables.
 
-数据库使用持久卷或明确的数据目录；每次里程碑导出数据库备份，最终演示前做一次恢复验证。本阶段不选购具体云服务。云环境可用时提供 HTTPS 演示地址；无云环境仍需可复现的本地演示。
+The database uses a persistent volume or an explicit data directory; export a database backup at each milestone and run one restore verification before the final demo. This stage does not purchase a specific cloud service. When cloud is available, provide an HTTPS demo URL; without cloud, a reproducible local demo is still required.
 
-公开咨询限制为每 IP 每分钟 5 次，并设置输入长度、请求体上限及简单隐藏字段检测；单实例限流足够本版，反向代理场景只信任配置过的代理 IP。不要为课程原型引入 CAPTCHA 账户依赖。
+Public enquiry is limited to 5 requests per IP per minute, plus input-length, request-body limits, and a simple hidden-field check. Single-instance rate limiting is enough for this version; in a reverse-proxy setup trust only configured proxy IPs. Do not add a CAPTCHA-account dependency for a course prototype.
 
-## 技术资料
+## Technical references
 
-- [Vue 3 官方介绍](https://vuejs.org/guide/introduction.html)：组件化界面与单文件组件基础。
-- [Spring Boot 系统要求](https://docs.spring.io/spring-boot/system-requirements.html)：初始化时核对 Java 和构建工具兼容性。
-- [MySQL 8.4 锁定读取](https://dev.mysql.com/doc/refman/8.4/en/innodb-locking-reads.html)：成交等事务采用 InnoDB 锁定读取设计。
+- [Vue 3 introduction](https://vuejs.org/guide/introduction.html): component UI and single-file component basics.
+- [Spring Boot system requirements](https://docs.spring.io/spring-boot/system-requirements.html): check Java and build-tool compatibility at initialization.
+- [MySQL 8.4 locking reads](https://dev.mysql.com/doc/refman/8.4/en/innodb-locking-reads.html): sale and similar transactions use InnoDB locking reads.
 
-查询日期：2026-09-09。以上用于技术依据，不表示软件已安装或验证。
-
-
+Retrieved: 2026-09-09. These are technical sources, not a claim that the software is already installed or verified.

@@ -3,56 +3,56 @@ info:
   title: DealerOps Gateway API
   version: "6.0"
   description: |
-    现行 HTTP JSON 以 `design/14-Backend-API-Contract.md` 为准。本文件供编码 AI 生成 Controller / 客户端。
+    Current HTTP JSON is defined by `design/14-Backend-API-Contract.md`. This file is for coding AIs generating Controllers / clients.
 
-    **入口：** 浏览器与对外客户端只打 Gateway `http://localhost:8080`，前缀 `/api/v1/**`。
-    core=8081、ai-service=8082 不对外。绕过 Gateway 必须失败。
+    **Entry:** browsers and external clients call only Gateway `http://localhost:8080`, prefix `/api/v1/**`.
+    core=8081 and ai-service=8082 are not public. Bypassing the Gateway must fail.
 
-    **内部：** tag `Internal` 且 `x-internal: true` 的 `/internal/v1/**` 仅 core 经 Gateway 调 ai-service。
-    浏览器不可达：Gateway 对缺内部头的请求返回 **404**（不 401，以免承认路径）。
+    **Internal:** `/internal/v1/**` tagged `Internal` with `x-internal: true` is only core calling ai-service through the Gateway.
+    Browsers cannot reach these paths: the Gateway returns **404** (not 401) when the internal header is missing, so the path is not acknowledged.
 
-    **租户 / 鉴权（与 15 对齐的行为，字段仍只来自 14）：**
-    - 角色仅 `Platform.Admin`、`Dealer.User`。忽略 body / query / header 里的客户端 `dealerId`。
-    - 店员租户只来自 JWT `oid` → `membership.active=1` 恰好一行。
-    - 跨店 / 本店无此 id → **404** `NOT_FOUND`（防探测，不 403）。
-    - Admin 打业务 URL、店员打 Admin URL、店员无有效 membership 调业务接口 → **403** `FORBIDDEN`。
-    - `GET /me` 在已登录但无店时仍 **200**（`dealerId=null`）。
-    - 带 `version` 的写必须等于当前行，否则 **409** `VERSION_CONFLICT`。
-    - 解绑 `DELETE .../vehicles/{vehicleId}` → **204**。已售不可解绑 → **409** `SOLD_LOCKED`。
-    - 广告检查 Blocked / Needs AI / Passed → **200**（Blocked 不是 HTTP 错误）。规则过了但 AI 失败 → **502** `AI_UNAVAILABLE`（检查行已写）。
+    **Tenant / auth (behavior aligned with 15; fields still come only from 14):**
+    - Roles are only `Platform.Admin` and `Dealer.User`. Ignore client `dealerId` in body / query / header.
+    - Staff tenant comes only from JWT `oid` → exactly one `membership.active=1` row.
+    - Cross-dealership or unknown id in this dealership → **404** `NOT_FOUND` (anti-probing; not 403).
+    - Admin hitting business URLs, staff hitting Admin URLs, or staff without valid membership calling business APIs → **403** `FORBIDDEN`.
+    - `GET /me` is still **200** when authenticated with no dealership (`dealerId=null`).
+    - Writes that carry `version` must match the current row, otherwise **409** `VERSION_CONFLICT`.
+    - Unlink `DELETE .../vehicles/{vehicleId}` → **204**. Sold vehicles cannot be unlinked → **409** `SOLD_LOCKED`.
+    - Ad check Blocked / Needs AI / Passed → **200** (Blocked is not an HTTP error). Rules passed but AI failed → **502** `AI_UNAVAILABLE` (check row already written).
 
-    细节冲突仍以 14 为准。不发明 14 没有的业务字段。
+    If details conflict, 14 wins. Do not invent business fields that 14 does not define.
   x-conflict-authority: design/14-Backend-API-Contract.md
 
 servers:
   - url: http://localhost:8080
-    description: 只经 Gateway。对外唯一 API 源。
+    description: Gateway only. The only public API origin.
 
 tags:
   - name: Me
-    description: 当前登录身份
+    description: Current authenticated identity
   - name: AdminDealers
-    description: Platform.Admin 店 CRUD
+    description: Platform.Admin dealership CRUD
   - name: AdminMemberships
-    description: Platform.Admin 店员绑定
+    description: Platform.Admin staff membership binding
   - name: Vehicles
-    description: Dealer.User 车辆 DMS
+    description: Dealer.User vehicle DMS
   - name: Customers
-    description: Dealer.User 客户 CRM
+    description: Dealer.User customer CRM
   - name: Link
-    description: 挂车 / 解绑
+    description: Link / unlink vehicle
   - name: Listings
-    description: 一车一条广告草稿
+    description: One listing draft per vehicle
   - name: Checks
-    description: 合规检查、Ready、Export
+    description: Compliance check, Ready, Export
   - name: Audit
-    description: 本店审计查询
+    description: This-dealership audit query
   - name: Assistant
-    description: 店员助手（不写业务表）
+    description: Staff assistant (does not write business tables)
   - name: Internal
     description: |
-      Gateway → ai-service。浏览器不可达（404）。
-      仅 core 适配器使用。不要为 SPA 生成这些客户端方法当作用户 API。
+      Gateway → ai-service. Not reachable from the browser (404).
+      For the core adapter only. Do not generate these client methods as user APIs for the SPA.
 
 security:
   - bearerAuth: []
@@ -62,11 +62,11 @@ paths:
     get:
       tags: [Me]
       operationId: getMe
-      summary: 当前用户
-      description: 已登录即可。Admin 的 `dealerId`、`dealerLegalName` 为 null。无有效 membership 的店员仍 200 且 `dealerId=null`。
+      summary: Current user
+      description: Any authenticated user. Admin `dealerId` and `dealerLegalName` are null. Staff without valid membership still get 200 with `dealerId=null`.
       responses:
         "200":
-          description: 身份
+          description: Identity
           content:
             application/json:
               schema:
@@ -78,14 +78,14 @@ paths:
     get:
       tags: [AdminDealers]
       operationId: listDealers
-      summary: 店列表
+      summary: Dealership list
       parameters:
         - $ref: "#/components/parameters/QLegalName"
         - $ref: "#/components/parameters/Page"
         - $ref: "#/components/parameters/Size"
       responses:
         "200":
-          description: 分页店
+          description: Paged dealerships
           content:
             application/json:
               schema:
@@ -97,7 +97,7 @@ paths:
     post:
       tags: [AdminDealers]
       operationId: createDealer
-      summary: 创建店
+      summary: Create dealership
       requestBody:
         required: true
         content:
@@ -106,7 +106,7 @@ paths:
               $ref: "#/components/schemas/DealerCreate"
       responses:
         "201":
-          description: 已创建
+          description: Created
           content:
             application/json:
               schema:
@@ -124,10 +124,10 @@ paths:
     get:
       tags: [AdminDealers]
       operationId: getDealer
-      summary: 单店（Admin 编辑回填）
+      summary: One dealership (Admin edit form)
       responses:
         "200":
-          description: 店
+          description: Dealership
           content:
             application/json:
               schema:
@@ -141,8 +141,8 @@ paths:
     patch:
       tags: [AdminDealers]
       operationId: patchDealer
-      summary: 改四联系字段与 active
-      description: 必须带 `version`。忽略 body.`id`。无 `DELETE /admin/dealers/{id}`。
+      summary: Patch four contact fields and active
+      description: `version` is required. Ignore body.`id`. There is no `DELETE /admin/dealers/{id}`.
       requestBody:
         required: true
         content:
@@ -151,7 +151,7 @@ paths:
               $ref: "#/components/schemas/DealerPatch"
       responses:
         "200":
-          description: 更新后的店
+          description: Updated dealership
           content:
             application/json:
               schema:
@@ -173,15 +173,15 @@ paths:
     get:
       tags: [AdminMemberships]
       operationId: listMembers
-      summary: 店成员
-      description: 店不存在 → 404。`q` 匹配 `displayName` 或 `entraOid`。不编造 email。
+      summary: Dealership members
+      description: Unknown dealership → 404. `q` matches `displayName` or `entraOid`. Do not invent email.
       parameters:
         - $ref: "#/components/parameters/QDisplayOrOid"
         - $ref: "#/components/parameters/Page"
         - $ref: "#/components/parameters/Size"
       responses:
         "200":
-          description: 分页成员
+          description: Paged members
           content:
             application/json:
               schema:
@@ -195,10 +195,10 @@ paths:
     post:
       tags: [AdminMemberships]
       operationId: bindMember
-      summary: 绑定店员
+      summary: Bind staff
       description: |
-        已是该店 **active** 成员 → **409** `DUP_MEMBER`。
-        再绑定已解绑对象按重激活，不 409。不删 Entra 账号。
+        Already an **active** member of this dealership → **409** `DUP_MEMBER`.
+        Re-binding a previously unbound person reactivates them (not 409). Do not delete the Entra account.
       requestBody:
         required: true
         content:
@@ -207,7 +207,7 @@ paths:
               $ref: "#/components/schemas/MemberBind"
       responses:
         "201":
-          description: 成员项
+          description: Member item
           content:
             application/json:
               schema:
@@ -234,14 +234,14 @@ paths:
     delete:
       tags: [AdminMemberships]
       operationId: unbindMember
-      summary: 解绑店员
-      description: 解绑，不删 Entra。无此绑定 → 404。成功 **204** 无 body。
+      summary: Unbind staff
+      description: Unbind without deleting Entra. Unknown binding → 404. Success **204** with no body.
       parameters:
         - $ref: "#/components/parameters/DealerId"
         - $ref: "#/components/parameters/EntraOid"
       responses:
         "204":
-          description: 已解绑，无 body
+          description: Unbound, no body
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -253,8 +253,8 @@ paths:
     get:
       tags: [Vehicles]
       operationId: listVehicles
-      summary: 本店车辆
-      description: 默认 `createdAt` 倒序。Admin → 403。无有效 membership → 403。
+      summary: This-dealership vehicles
+      description: Default `createdAt` descending. Admin → 403. No valid membership → 403.
       parameters:
         - name: q
           in: query
@@ -269,12 +269,12 @@ paths:
           in: query
           schema:
             $ref: "#/components/schemas/ConditionCode"
-          description: 即 `conditionCode`
+          description: Same as `conditionCode`
         - $ref: "#/components/parameters/Page"
         - $ref: "#/components/parameters/Size"
       responses:
         "200":
-          description: 分页车辆
+          description: Paged vehicles
           content:
             application/json:
               schema:
@@ -286,11 +286,11 @@ paths:
     post:
       tags: [Vehicles]
       operationId: createVehicle
-      summary: 入库
+      summary: Intake vehicle
       description: |
-        必填：make/model/modelYear/vin/source/purchaseCost/addedOn/conditionCode。
-        忽略 `dealerId`、`status`、`soldOn`、`soldPrice`。服务端 `status=IN_STOCK`。
-        本店 VIN 重复 → **400** `VIN_DUP`。审计 `VEHICLE`/`CREATE`。
+        Required: make/model/modelYear/vin/source/purchaseCost/addedOn/conditionCode.
+        Ignore `dealerId`, `status`, `soldOn`, `soldPrice`. Server sets `status=IN_STOCK`.
+        Duplicate VIN in this dealership → **400** `VIN_DUP`. Audit `VEHICLE`/`CREATE`.
       requestBody:
         required: true
         content:
@@ -299,13 +299,13 @@ paths:
               $ref: "#/components/schemas/VehicleCreate"
       responses:
         "201":
-          description: 详情
+          description: Detail
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Vehicle"
         "400":
-          description: VALIDATION 或 VIN_DUP
+          description: VALIDATION or VIN_DUP
           content:
             application/json:
               schema:
@@ -330,11 +330,11 @@ paths:
     get:
       tags: [Vehicles]
       operationId: getVehicle
-      summary: 车辆详情
-      description: 跨店/无此车 → **404**。
+      summary: Vehicle detail
+      description: Cross-dealership or unknown vehicle → **404**.
       responses:
         "200":
-          description: 同列表项
+          description: Same as list item
           content:
             application/json:
               schema:
@@ -348,11 +348,11 @@ paths:
     patch:
       tags: [Vehicles]
       operationId: patchVehicle
-      summary: 改采购/身份白名单
+      summary: Patch purchase/identity whitelist
       description: |
-        禁止用 PATCH 改 `status` / `soldOn` / `soldPrice`（走 `/sell`）。忽略 `dealerId`。
-        已售改采购字段 → **409** `SOLD_LOCKED`。未售改 VIN 仍受本店唯一 → **400** `VIN_DUP`。
-        改 `conditionCode` 使对应 listing `contentVersion++`（若已有 listing）。
+        PATCH must not change `status` / `soldOn` / `soldPrice` (use `/sell`). Ignore `dealerId`.
+        Changing purchase fields on a sold vehicle → **409** `SOLD_LOCKED`. Changing VIN on an unsold vehicle still has dealership uniqueness → **400** `VIN_DUP`.
+        Changing `conditionCode` increments the matching listing `contentVersion++` when a listing exists.
       requestBody:
         required: true
         content:
@@ -361,13 +361,13 @@ paths:
               $ref: "#/components/schemas/VehiclePatch"
       responses:
         "200":
-          description: 详情
+          description: Detail
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Vehicle"
         "400":
-          description: VALIDATION 或 VIN_DUP
+          description: VALIDATION or VIN_DUP
           content:
             application/json:
               schema:
@@ -379,7 +379,7 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
         "409":
-          description: VERSION_CONFLICT 或 SOLD_LOCKED
+          description: VERSION_CONFLICT or SOLD_LOCKED
           content:
             application/json:
               schema:
@@ -398,10 +398,10 @@ paths:
     post:
       tags: [Vehicles]
       operationId: sellVehicle
-      summary: 成对出售
+      summary: Sell as a required pair
       description: |
-        `soldOn` 与 `soldPrice` 必须同时有。服务端 `status=SOLD`。
-        缺一 → **400** `SOLD_PAIR_REQUIRED`。已售再售 → **409** `SOLD_LOCKED`。
+        `soldOn` and `soldPrice` must both be present. Server sets `status=SOLD`.
+        Missing either → **400** `SOLD_PAIR_REQUIRED`. Selling again → **409** `SOLD_LOCKED`.
       parameters:
         - $ref: "#/components/parameters/VehicleId"
       requestBody:
@@ -412,7 +412,7 @@ paths:
               $ref: "#/components/schemas/VehicleSell"
       responses:
         "200":
-          description: 详情
+          description: Detail
           content:
             application/json:
               schema:
@@ -433,7 +433,7 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
         "409":
-          description: SOLD_LOCKED 或 VERSION_CONFLICT
+          description: SOLD_LOCKED or VERSION_CONFLICT
           content:
             application/json:
               schema:
@@ -443,7 +443,7 @@ paths:
     get:
       tags: [Customers]
       operationId: listCustomers
-      summary: 本店客户
+      summary: This-dealership customers
       parameters:
         - name: q
           in: query
@@ -454,12 +454,12 @@ paths:
           in: query
           schema:
             type: boolean
-          description: 是否至少挂一辆
+          description: Whether at least one vehicle is linked
         - $ref: "#/components/parameters/Page"
         - $ref: "#/components/parameters/Size"
       responses:
         "200":
-          description: 分页客户（列表用 linkedVehicle）
+          description: Paged customers (list uses linkedVehicle)
           content:
             application/json:
               schema:
@@ -471,8 +471,8 @@ paths:
     post:
       tags: [Customers]
       operationId: createCustomer
-      summary: 建客户
-      description: 忽略 `dealerId`。响应=详情（`linkedVehicles: []`）。
+      summary: Create customer
+      description: Ignore `dealerId`. Response is the detail (`linkedVehicles: []`).
       requestBody:
         required: true
         content:
@@ -481,7 +481,7 @@ paths:
               $ref: "#/components/schemas/CustomerWrite"
       responses:
         "201":
-          description: 详情
+          description: Detail
           content:
             application/json:
               schema:
@@ -499,11 +499,11 @@ paths:
     get:
       tags: [Customers]
       operationId: getCustomer
-      summary: 客户详情
-      description: 跨店 **404**。`linkedVehicles` 为完整数组。
+      summary: Customer detail
+      description: Cross-dealership **404**. `linkedVehicles` is the full array.
       responses:
         "200":
-          description: 详情
+          description: Detail
           content:
             application/json:
               schema:
@@ -517,8 +517,8 @@ paths:
     patch:
       tags: [Customers]
       operationId: patchCustomer
-      summary: 改客户四字段
-      description: 忽略 `dealerId`。审计 `fieldSummary` 不得含电话/邮箱/住址全文。
+      summary: Patch the four customer fields
+      description: Ignore `dealerId`. Audit `fieldSummary` must not contain full phone/email/home address.
       requestBody:
         required: true
         content:
@@ -527,7 +527,7 @@ paths:
               $ref: "#/components/schemas/CustomerPatch"
       responses:
         "200":
-          description: 详情
+          description: Detail
           content:
             application/json:
               schema:
@@ -547,23 +547,23 @@ paths:
     put:
       tags: [Link]
       operationId: linkCustomerVehicle
-      summary: 挂车
+      summary: Link vehicle
       description: |
-        无 body（或忽略 body）。客户与车同店、车 `IN_STOCK`、车尚未挂任何客户。
-        已售不可新挂 → **400** `WRONG_DEALER_OR_SOLD`。跨店 id → **404**（不走该码）。
-        该车已挂（含已挂本客户）→ **409** `VEHICLE_ALREADY_LINKED`。
+        No body (or ignore body). Customer and vehicle must be in the same dealership, vehicle `IN_STOCK`, vehicle not yet linked to any customer.
+        Sold vehicles cannot be newly linked → **400** `WRONG_DEALER_OR_SOLD`. Cross-dealership id → **404** (do not use that code).
+        Vehicle already linked (including to this customer) → **409** `VEHICLE_ALREADY_LINKED`.
       parameters:
         - $ref: "#/components/parameters/CustomerId"
         - $ref: "#/components/parameters/VehicleIdPath"
       responses:
         "200":
-          description: 关联行
+          description: Link row
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/CustomerVehicleLink"
         "400":
-          description: WRONG_DEALER_OR_SOLD（已售不可新挂，或看得见的车/客店不一致）
+          description: WRONG_DEALER_OR_SOLD (sold cannot be newly linked, or visible vehicle/customer dealership mismatch)
           content:
             application/json:
               schema:
@@ -589,17 +589,17 @@ paths:
     delete:
       tags: [Link]
       operationId: unlinkCustomerVehicle
-      summary: 解绑
+      summary: Unlink
       description: |
-        摘掉该客户与该车的关联。不改车辆 `status`。成功 **204** 无 body。
-        车 `status=SOLD` → **409** `SOLD_LOCKED`（成交记录不得抹掉）。
-        无此关联或跨店 → **404**（不 403）。
+        Remove the link between this customer and this vehicle. Do not change vehicle `status`. Success **204** with no body.
+        Vehicle `status=SOLD` → **409** `SOLD_LOCKED` (the sale record must not be erased).
+        No such link or cross-dealership → **404** (not 403).
       parameters:
         - $ref: "#/components/parameters/CustomerId"
         - $ref: "#/components/parameters/VehicleIdPath"
       responses:
         "204":
-          description: 已解绑，无 body
+          description: Unbound, no body
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -607,7 +607,7 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
         "409":
-          description: SOLD_LOCKED（已售不可解挂）
+          description: SOLD_LOCKED (sold vehicles cannot be unlinked)
           content:
             application/json:
               schema:
@@ -622,13 +622,13 @@ paths:
     get:
       tags: [Listings]
       operationId: getVehicleListing
-      summary: 取广告草稿
+      summary: Get listing draft
       description: |
-        无行：**不插入、不落库**，返回虚拟空草稿（`id=null`，`title`/`body`=`""`）。
-        车跨店 **404**。`lastCheck` 为最近检查完整对象或 null。
+        No row: **do not insert or persist**. Return a virtual empty draft (`id=null`, `title`/`body`=`""`).
+        Cross-dealership vehicle **404**. `lastCheck` is the latest full check object or null.
       responses:
         "200":
-          description: listing（虚拟或已持久化）
+          description: listing (virtual or persisted)
           content:
             application/json:
               schema:
@@ -642,11 +642,11 @@ paths:
     patch:
       tags: [Listings]
       operationId: patchVehicleListing
-      summary: 存广告草稿
+      summary: Save listing draft
       description: |
-        无行则 INSERT。升 `contentVersion`，`status` 回到 `DRAFT`。
-        缺省或空白的 `title`/`body` 写入 `''`（满足 NOT NULL）。
-        首次可省略 `version` 或传 `0`；之后必须带当前 `version`。
+        INSERT if no row exists. Increment `contentVersion` and set `status` back to `DRAFT`.
+        Missing or blank `title`/`body` are stored as `''` (NOT NULL).
+        First save may omit `version` or send `0`; later saves must send the current `version`.
       requestBody:
         required: true
         content:
@@ -655,7 +655,7 @@ paths:
               $ref: "#/components/schemas/ListingPatch"
       responses:
         "200":
-          description: 已持久化的 listing
+          description: Persisted listing
           content:
             application/json:
               schema:
@@ -675,11 +675,11 @@ paths:
     post:
       tags: [Checks]
       operationId: runListingCheck
-      summary: 跑合规检查
+      summary: Run compliance check
       description: |
-        `version` = listing 乐观锁。先固定清单，无硬阻断再经 Gateway `POST /internal/v1/ad-check`（≤15s）。
-        **Blocked / Needs AI / Passed → HTTP 200**（Blocked 不是 4xx）。
-        规则过了、AI 超时或失败 → **502** `AI_UNAVAILABLE`，检查行已写 `UNAVAILABLE`。
+        `version` is the listing optimistic lock. Run the fixed checklist first; if there is no hard block, call Gateway `POST /internal/v1/ad-check` (≤15s).
+        **Blocked / Needs AI / Passed → HTTP 200** (Blocked is not a 4xx).
+        Rules passed but AI timed out or failed → **502** `AI_UNAVAILABLE`; the check row is already written as `UNAVAILABLE`.
       parameters:
         - $ref: "#/components/parameters/ListingId"
       requestBody:
@@ -690,7 +690,7 @@ paths:
               $ref: "#/components/schemas/ListingVersionBody"
       responses:
         "200":
-          description: 完整检查对象（含 checkStatus）。Blocked 也是 200。
+          description: Full check object (includes checkStatus). Blocked is still 200.
           content:
             application/json:
               schema:
@@ -704,7 +704,7 @@ paths:
         "409":
           $ref: "#/components/responses/VersionConflict"
         "502":
-          description: AI_UNAVAILABLE（规则已过、模型超时/失败；检查行已写）
+          description: AI_UNAVAILABLE (rules passed, model timed out/failed; check row already written)
           content:
             application/json:
               schema:
@@ -717,8 +717,8 @@ paths:
     post:
       tags: [Checks]
       operationId: markListingReady
-      summary: 标 Ready
-      description: 仅当前检查 Passed 且非 Stale。成功 listing `status=READY`。
+      summary: Mark Ready
+      description: Only when the current check is Passed and not Stale. Success sets listing `status=READY`.
       parameters:
         - $ref: "#/components/parameters/ListingId"
       requestBody:
@@ -729,7 +729,7 @@ paths:
               $ref: "#/components/schemas/ListingVersionBody"
       responses:
         "200":
-          description: 同 GET listing
+          description: Same as GET listing
           content:
             application/json:
               schema:
@@ -760,11 +760,11 @@ paths:
     post:
       tags: [Checks]
       operationId: exportListing
-      summary: 导出纯文本
+      summary: Export plain text
       description: |
-        Body 同 ready。同样的 409/404。
-        成功 **200** `text/plain; charset=UTF-8`。
-        内容 = 店公开四字段 + 车辆公开字段（年/make/model/vin/condition/source，**无成本**）+ 标题正文 + 检查时间。不写客户。
+        Body is the same as ready. Same 409/404.
+        Success **200** `text/plain; charset=UTF-8`.
+        Content = dealership public four fields + vehicle public fields (year/make/model/vin/condition/source, **no cost**) + title/body + check time. Do not include customers.
       parameters:
         - $ref: "#/components/parameters/ListingId"
       requestBody:
@@ -775,7 +775,7 @@ paths:
               $ref: "#/components/schemas/ListingVersionBody"
       responses:
         "200":
-          description: 纯文本导出
+          description: Plain-text export
           content:
             text/plain:
               schema:
@@ -802,12 +802,12 @@ paths:
     get:
       tags: [Audit]
       operationId: listAudit
-      summary: 审计
+      summary: Audit
       description: |
-        `entityType`、`entityId` 必填。店员只本店；实体不在本店 → 404。
-        Admin 查业务实体（VEHICLE/CUSTOMER/CUSTOMER_VEHICLE/LISTING）→ **403** `FORBIDDEN`。
-        店员可查 `VEHICLE`|`CUSTOMER`|`CUSTOMER_VEHICLE`。本查询不对店员开放 `DEALER`/`MEMBERSHIP`。
-        `fieldSummary` 无客户电话/邮箱/住址全文。
+        `entityType` and `entityId` are required. Staff see this dealership only; entity not in this dealership → 404.
+        Admin querying business entities (VEHICLE/CUSTOMER/CUSTOMER_VEHICLE/LISTING) → **403** `FORBIDDEN`.
+        Staff may query `VEHICLE`|`CUSTOMER`|`CUSTOMER_VEHICLE`. This query does not open `DEALER`/`MEMBERSHIP` to staff.
+        `fieldSummary` has no full customer phone/email/home address.
       parameters:
         - name: entityType
           in: query
@@ -824,7 +824,7 @@ paths:
         - $ref: "#/components/parameters/Size"
       responses:
         "200":
-          description: 分页审计
+          description: Paged audit
           content:
             application/json:
               schema:
@@ -842,12 +842,12 @@ paths:
     post:
       tags: [Assistant]
       operationId: askAssistant
-      summary: 店员助手
+      summary: Staff assistant
       description: |
-        仅 Dealer.User。Admin → 403。**不写**车辆/客户/listing/检查表。
-        `text` 空 → **400** `VALIDATION`。
-        模型挂：`summary=null`，`summaryAvailable=false`，`cards` 仍是检索列表（最多 5），HTTP **200**。
-        卡上无电话、邮箱、住址。
+        Dealer.User only. Admin → 403. **Does not write** vehicle/customer/listing/check tables.
+        Empty `text` → **400** `VALIDATION`.
+        Model down: `summary=null`, `summaryAvailable=false`, `cards` remain the retrieval list (max 5), HTTP **200**.
+        Cards have no phone, email, or home address.
       requestBody:
         required: true
         content:
@@ -856,7 +856,7 @@ paths:
               $ref: "#/components/schemas/AssistantAsk"
       responses:
         "200":
-          description: 短说明 + 最多 5 张本店资源卡
+          description: Short summary plus at most 5 this-dealership resource cards
           content:
             application/json:
               schema:
@@ -873,12 +873,12 @@ paths:
       tags: [Internal]
       x-internal: true
       operationId: internalAdCheck
-      summary: 内部广告 AI 检查
+      summary: Internal ad AI check
       description: |
-        **浏览器不可达（Gateway 404）。** 仅 core 经 Gateway 调 ai-service。
-        不要把用户 JWT 转给 ai-service。`vehiclePublic` **无**采购/修理/售价。
-        14 未钉死成功响应字段；ai-service 将模型结果收成供 core 写入的 `aiNotes`。
-        传输失败由 core 记 `UNAVAILABLE`，不由本接口编造业务列。
+        **Not reachable from the browser (Gateway 404).** Only core calls ai-service through the Gateway.
+        Do not forward the user JWT to ai-service. `vehiclePublic` has **no** purchase/repair/sold price.
+        14 does not pin success response fields; ai-service folds model output into `aiNotes` for core to persist.
+        Transport failure is recorded by core as `UNAVAILABLE`. This endpoint must not invent business columns.
       security: []
       parameters:
         - $ref: "#/components/parameters/InternalToken"
@@ -890,24 +890,24 @@ paths:
               $ref: "#/components/schemas/InternalAdCheckRequest"
       responses:
         "200":
-          description: 供 core 写入检查行的 notes（形状对齐 14 的 aiNotes）
+          description: Notes for core to write on the check row (shape aligned with 14 aiNotes)
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/InternalAdCheckNotes"
         "404":
-          description: 浏览器或缺少内部头 → Gateway/ai-service 404（不承认路径）
+          description: Browser or missing internal header → Gateway/ai-service 404 (do not acknowledge the path)
 
   /internal/v1/assistant:
     post:
       tags: [Internal]
       x-internal: true
       operationId: internalAssistant
-      summary: 内部助手短文本
+      summary: Internal assistant short text
       description: |
-        **浏览器不可达（Gateway 404）。** 仅 core 经 Gateway 调 ai-service。
-        `resources` 已经 core 过滤（无电话/邮箱/住址）。返回短文本；core 再核 id。
-        14 只规定「返回短文本」，成功体用纯文本，不另发明业务字段。
+        **Not reachable from the browser (Gateway 404).** Only core calls ai-service through the Gateway.
+        `resources` are already filtered by core (no phone/email/home address). Return short text; core re-checks ids.
+        14 only requires "return short text". Success body is plain text. Do not invent extra business fields.
       security: []
       parameters:
         - $ref: "#/components/parameters/InternalToken"
@@ -919,13 +919,13 @@ paths:
               $ref: "#/components/schemas/InternalAssistantRequest"
       responses:
         "200":
-          description: 短文本（14 §11）
+          description: Short text (14 §11)
           content:
             text/plain:
               schema:
                 type: string
         "404":
-          description: 浏览器或缺少内部头 → 404
+          description: Browser or missing internal header → 404
 
 components:
   securitySchemes:
@@ -933,7 +933,7 @@ components:
       type: http
       scheme: bearer
       bearerFormat: JWT
-      description: Entra Access token。无/坏 JWT → 401 `UNAUTHORIZED`。
+      description: Entra access token. Missing/bad JWT → 401 `UNAUTHORIZED`.
 
   parameters:
     Page:
@@ -943,7 +943,7 @@ components:
         type: integer
         minimum: 0
         default: 0
-      description: 从 0 起
+      description: Zero-based
     Size:
       name: size
       in: query
@@ -952,19 +952,19 @@ components:
         minimum: 1
         maximum: 10
         default: 10
-      description: 默认 10，服务端封顶 10
+      description: Default 10, server cap 10
     QLegalName:
       name: q
       in: query
       schema:
         type: string
-      description: 匹配 legalName
+      description: Matches legalName
     QDisplayOrOid:
       name: q
       in: query
       schema:
         type: string
-      description: 匹配 displayName 或 entraOid
+      description: Matches displayName or entraOid
     DealerId:
       name: id
       in: path
@@ -1014,12 +1014,12 @@ components:
       schema:
         type: string
       description: |
-        内部调用头。浏览器不可带（CORS 不暴露）。缺此头 → 404。
-        不是用户 JWT。值来自环境 / Key Vault。
+        Internal call header. Browsers must not send it (CORS does not expose it). Missing header → 404.
+        Not a user JWT. Value comes from env / Key Vault.
 
   responses:
     Unauthorized:
-      description: 无/坏 JWT。code=`UNAUTHORIZED`
+      description: Missing/bad JWT. code=`UNAUTHORIZED`
       content:
         application/json:
           schema:
@@ -1029,8 +1029,8 @@ components:
             message: Missing or invalid JWT.
     Forbidden:
       description: |
-        角色不允许该 URL（Admin↔店员打错前缀）；或店员无有效 `membership.active=1` 调业务接口。
-        **不是**跨店。code=`FORBIDDEN`。体中不得出现 vin/成本等业务字段。
+        Role is not allowed on this URL (Admin↔staff hit the wrong prefix), or staff without valid `membership.active=1` called a business API.
+        **Not** a cross-dealership case. code=`FORBIDDEN`. Body must not include vin/cost or other business fields.
       content:
         application/json:
           schema:
@@ -1039,7 +1039,7 @@ components:
             code: FORBIDDEN
             message: Role or membership does not allow this URL.
     NotFound:
-      description: 本店无此 id，或**跨店 id**（防探测，不 403）。code=`NOT_FOUND`
+      description: Unknown id in this dealership, or a **cross-dealership id** (anti-probing, not 403). code=`NOT_FOUND`
       content:
         application/json:
           schema:
@@ -1048,7 +1048,7 @@ components:
             code: NOT_FOUND
             message: Resource not found.
     Validation:
-      description: 缺字段、枚举非法、格式错。code=`VALIDATION`；可带 `fieldErrors`
+      description: Missing field, illegal enum, or bad format. code=`VALIDATION`; may include `fieldErrors`
       content:
         application/json:
           schema:
@@ -1059,7 +1059,7 @@ components:
             fieldErrors:
               vin: must not be blank
     VersionConflict:
-      description: 请求 `version` 不等于当前行。code=`VERSION_CONFLICT`
+      description: Request `version` does not match the current row. code=`VERSION_CONFLICT`
       content:
         application/json:
           schema:
@@ -1073,8 +1073,8 @@ components:
       type: object
       required: [code, message]
       description: |
-        标准错误体。禁止 SQL、堆栈、模型原文。
-        `400 VALIDATION` 可增加 `fieldErrors`。
+        Standard error body. No SQL, stacks, or raw model text.
+        `400 VALIDATION` may add `fieldErrors`.
       properties:
         code:
           $ref: "#/components/schemas/ErrorCode"
@@ -1084,27 +1084,27 @@ components:
           type: object
           additionalProperties:
             type: string
-          description: 仅 VALIDATION 可选
+          description: Optional for VALIDATION only
 
     ErrorCode:
       type: string
       description: |
-        | code | HTTP | 含义 |
+        | code | HTTP | Meaning |
         |---|---|---|
-        | VALIDATION | 400 | 缺字段、枚举非法、格式错 |
-        | VIN_DUP | 400 | 本店 VIN 重复 |
-        | SOLD_PAIR_REQUIRED | 400 | 出售缺日期或价格 |
-        | WRONG_DEALER_OR_SOLD | 400 | 挂车：车非本店或已售（跨店 id 走 404） |
-        | UNAUTHORIZED | 401 | 未登录 |
-        | FORBIDDEN | 403 | 角色不允许该 URL；或店员无有效 membership |
-        | NOT_FOUND | 404 | 无资源或跨店 |
-        | VERSION_CONFLICT | 409 | version 不匹配 |
-        | DUP_MEMBER | 409 | 该店已有此 active 成员 |
-        | VEHICLE_ALREADY_LINKED | 409 | 车已挂客户 |
-        | SOLD_LOCKED | 409 | 已售改采购、重复出售、或已售车解绑 |
-        | CHECK_STALE | 409 | Ready/Export 时检查已过期 |
-        | NOT_PASSED | 409 | Ready/Export 时非 Passed |
-        | AI_UNAVAILABLE | 502 | 广告检查 AI 失败/超时（检查行已写） |
+        | VALIDATION | 400 | Missing field, illegal enum, or bad format |
+        | VIN_DUP | 400 | Duplicate VIN in this dealership |
+        | SOLD_PAIR_REQUIRED | 400 | Sell missing date or price |
+        | WRONG_DEALER_OR_SOLD | 400 | Link: vehicle not in this dealership or sold (cross-dealership id uses 404) |
+        | UNAUTHORIZED | 401 | Not authenticated |
+        | FORBIDDEN | 403 | Role not allowed on this URL, or staff has no valid membership |
+        | NOT_FOUND | 404 | Missing resource or cross-dealership |
+        | VERSION_CONFLICT | 409 | version mismatch |
+        | DUP_MEMBER | 409 | This dealership already has this active member |
+        | VEHICLE_ALREADY_LINKED | 409 | Vehicle already linked to a customer |
+        | SOLD_LOCKED | 409 | Sold purchase edit, sell again, or unlink a sold vehicle |
+        | CHECK_STALE | 409 | Check is stale on Ready/Export |
+        | NOT_PASSED | 409 | Check is not Passed on Ready/Export |
+        | AI_UNAVAILABLE | 502 | Ad-check AI failed/timed out (check row already written) |
       enum:
         - VALIDATION
         - VIN_DUP
@@ -1124,7 +1124,7 @@ components:
     PageMeta:
       type: object
       required: [items, page, size, total]
-      description: 分页信封 `{items,page,size,total}`。page 从 0；size 默认且封顶 10。
+      description: Page envelope `{items,page,size,total}`. page is zero-based; size defaults and caps at 10.
       properties:
         page:
           type: integer
@@ -1151,7 +1151,7 @@ components:
 
     VehicleSource:
       type: string
-      description: 14 示例为 AUCTION；取值与手册第 3 节一致，不加减规格字段。
+      description: 14 example is AUCTION. Values match handbook section 3. Do not add or drop spec fields.
       enum: [TRADE_IN, AUCTION, PRIVATE_PURCHASE, OTHER]
 
     ConditionCode:
@@ -1172,7 +1172,7 @@ components:
 
     CheckStatus:
       type: string
-      description: 页面五态派生枚举。STALE 只用于「曾通过后失效」。
+      description: Derived five-state enum for the page. STALE is only for "previously passed, now invalid".
       enum: [BLOCKED, NEEDS_AI, PASSED, STALE, AI_UNAVAILABLE]
 
     AiStatus:
@@ -1217,7 +1217,7 @@ components:
         dealerLegalName:
           type: string
           nullable: true
-          description: 展示用派生字段，不是第二套店资料
+          description: Derived display field, not a second set of dealership data
 
     Dealer:
       type: object
@@ -1238,7 +1238,7 @@ components:
           type: boolean
         staffCount:
           type: integer
-          description: 该店 active membership 计数（派生）
+          description: Count of active memberships for this dealership (derived)
         version:
           type: integer
           format: int64
@@ -1246,7 +1246,7 @@ components:
     DealerCreate:
       type: object
       required: [legalName, contactPhone, contactEmail, contactAddress]
-      description: 四联系字段非空
+      description: Four contact fields are required and non-empty
       properties:
         legalName:
           type: string
@@ -1405,7 +1405,7 @@ components:
     VehiclePatch:
       type: object
       required: [version]
-      description: 白名单仅这些字段。禁止改 status/soldOn/soldPrice。
+      description: Whitelist is only these fields. Do not change status/soldOn/soldPrice.
       properties:
         version:
           type: integer
@@ -1459,7 +1459,7 @@ components:
 
     LinkedVehicleSummary:
       type: object
-      description: CRM 表一列；多车取最近 linkedAt。未挂为 null。
+      description: One CRM table column. If several vehicles, use the latest linkedAt. Null when unlinked.
       required: [id, modelYear, make, model]
       properties:
         id:
@@ -1609,7 +1609,7 @@ components:
     AiNote:
       type: object
       required: [message]
-      description: 模型结构化备注，元素至少 `{message}`
+      description: Structured model notes; each element at least `{message}`
       properties:
         message:
           type: string
@@ -1671,7 +1671,7 @@ components:
           type: integer
           format: int64
           nullable: true
-          description: 虚拟空草稿为 null
+          description: Null for a virtual empty draft
         vehicleId:
           type: integer
           format: int64
@@ -1708,7 +1708,7 @@ components:
         version:
           type: integer
           format: int64
-          description: 首次可省略或 0
+          description: May omit or send 0 on first save
         title:
           type: string
         body:
@@ -1725,7 +1725,7 @@ components:
         version:
           type: integer
           format: int64
-          description: listing 乐观锁
+          description: listing optimistic lock
 
     AuditEvent:
       type: object
@@ -1744,7 +1744,7 @@ components:
         fieldSummary:
           type: object
           additionalProperties: true
-          description: 无客户电话/邮箱/住址全文。挂/解绑仅 {customerId,vehicleId}
+          description: No full customer phone/email/home address. Link/unlink only {customerId,vehicleId}
         actorOid:
           type: string
           format: uuid
@@ -1782,14 +1782,14 @@ components:
           type: string
         status:
           $ref: "#/components/schemas/VehicleStatus"
-          description: 仅 VEHICLE 卡使用（14 示例）
+          description: VEHICLE cards only (14 example)
         vehicleId:
           type: integer
           format: int64
-          description: 仅 LISTING 卡使用（14 示例）
+          description: LISTING cards only (14 example)
         checkStatus:
           $ref: "#/components/schemas/CheckStatus"
-          description: 仅 LISTING 卡使用（14 示例）
+          description: LISTING cards only (14 example)
 
     AssistantAnswer:
       type: object
@@ -1808,7 +1808,7 @@ components:
 
     VehiclePublic:
       type: object
-      description: 内部检查用。无采购/修理/售价。
+      description: For internal checks. No purchase/repair/sold price.
       required: [modelYear, make, model, vin, conditionCode, source]
       properties:
         modelYear:
@@ -1863,7 +1863,7 @@ components:
 
     InternalAdCheckNotes:
       type: object
-      description: 14 未钉死内部成功 JSON；仅复用对外 Check.aiNotes 元素形状，不另加业务列。
+      description: 14 does not pin internal success JSON. Reuse the public Check.aiNotes element shape only. Do not add business columns.
       properties:
         aiNotes:
           type: array

@@ -1,4 +1,4 @@
-// Sprint 2 再填参数。这里只列出必须有的资源名，避免漏项。
+// Fill parameters in Sprint 2. This file only names required resources so none are forgotten.
 targetScope = 'resourceGroup'
 
 param location string
@@ -11,10 +11,10 @@ resource acr 'Microsoft.ContainerRegistry/registries@2023-07-01' = {
   properties: { adminUserEnabled: false }
 }
 
-// 随后在同一文件补：
+// Add in the same file later:
 // - Key Vault
 // - MySQL Flexible Server
 // - Container Apps Environment
 // - dealer-web / dealer-gateway / dealer-core / ai-service
 // - Application Insights
-// 不要在本文件写 subscriptionId 或密钥。
+// Do not write subscriptionId or secrets in this file.

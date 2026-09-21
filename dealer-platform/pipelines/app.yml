@@ -1,4 +1,4 @@
-# 每个应用仓库复制一份，改 displayName 和 Dockerfile 路径。
+# Copy into each app repo. Change displayName and the Dockerfile path.
 trigger:
   branches:
     include: [main]
@@ -7,5 +7,5 @@ pool:
   vmImage: ubuntu-latest
 
 steps:
-  - script: echo "Sprint 1: 先让这个仓库能编译。推镜像、Bicep 在 Azure 权限到位后再打开。"
+  - script: echo "Sprint 1: make this repo compile first. Turn on image push and Bicep after Azure permissions are in place."
     displayName: Placeholder

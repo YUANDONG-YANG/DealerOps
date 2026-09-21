@@ -1,95 +1,93 @@
-﻿> 已废止的 v1.0 历史稿，不据此编码。请从 [当前文档索引](README.md) 阅读 00 业务设计与 07/08/09 微服务、DevOps、AI 组件设计。原始需求已找到并核实，不包含厂家或买家自助端。
+﻿> Superseded v1.0 historical draft. Do not implement from this document. Read the current document index in [README.md](README.md) for the 00 business design and the 07/08/09 microservice, DevOps, and AI component designs. The original requirements have been located and verified; they do not include a manufacturer portal or a buyer self-service site.
 
-# 范围与验收
+# Scope and acceptance
 
-## 项目目标
+## Project goal
 
-DealerOS 帮助一家小型经销商把车辆信息、整备工作、广告检查、客户跟进和成交记录放在同一系统中。毕设成果应能展示完整业务流程，并解释广告为什么被拦截或需要人工复核。
+DealerOS helps a small dealership keep vehicle records, reconditioning work, advertisement checks, customer follow-up, and sale records in one system. The capstone deliverable should demonstrate the full business flow and explain why an advertisement was blocked or needs human review.
 
-演示场景采用 Ontario 普通二手现车经销商，以对应原题指定的 OMVIC。不是覆盖所有地区、车型和交易方式的商业 DMS。
+The demo scenario is an Ontario used-vehicle dealership selling ordinary in-stock cars, matching the original brief’s designation of OMVIC. It is not a commercial DMS covering every region, vehicle type, and transaction type.
 
-## 角色与权限
+## Roles and permissions
 
-- Visitor：无需账号；仅看已发布且可售的广告，提交咨询；不能读取客户资料。
-- Staff：查看内部业务数据，录入及修改未售车辆、管理整备工单、编辑广告、运行检查、维护客户与线索、添加跟进。
-- Manager：拥有 Staff 权限，另可标记车辆可售、发布及下架广告、登记成交、归档车辆、分配线索。
+- Visitor: no account; views only published, available advertisements and submits an enquiry; cannot read customer records.
+- Staff: views internal business data; creates and edits unsold vehicles; manages reconditioning work orders; edits advertisements; runs checks; maintains customers and leads; adds follow-ups.
+- Manager: has Staff permissions, and may also mark a vehicle available, publish and unpublish advertisements, record a sale, archive a vehicle, and assign leads.
 
-只有两种员工账号角色。MVP 内部数据共享，不做分店或行级销售团队隔离。后端逐接口检查权限，前端隐藏按钮只是界面辅助。
+There are only two staff account roles. MVP internal data is shared; there is no multi-location or row-level sales-team isolation. The backend checks permission on each endpoint; hiding buttons in the UI is only a presentation aid.
 
-账号由初始化流程创建 1 个 Manager 和 2 个 Staff；不做开放注册、邮件找回密码和复杂用户管理。密码通过部署环境传入，数据库只存哈希。
+Accounts are created by initialization: 1 Manager and 2 Staff. There is no open registration, email password reset, or complex user administration. Passwords are supplied through the deployment environment; the database stores only hashes.
 
-## 必须完成的功能
+## Required capabilities
 
-### US-01 登录和访问控制
+### US-01 Login and access control
 
-员工登录后进入后台，退出后无法继续访问受保护接口。访客不能读取后台列表；Staff 直接调用发布或成交接口也应得到 403。
+After staff sign in they enter the back office; after sign-out they cannot keep calling protected endpoints. Visitors cannot read back-office lists. Staff who call publish or sale endpoints directly must also receive 403.
 
-### US-02 车辆库存
+### US-02 Vehicle inventory
 
-录入 stock number、VIN、品牌、型号、年份、里程、颜色、基础价格和必收费用，支持搜索与状态筛选。stock number 和 VIN 唯一；金额与里程不允许负数。MVP 支持一张预置演示图片，不实现上传和 AI 修图。
+Capture stock number, VIN, make, model, year, mileage, colour, base price, and mandatory fees, with search and status filters. Stock number and VIN are unique; amounts and mileage must not be negative. MVP supports one preset demo image; upload and AI photo retouching are not implemented.
 
-验收：可新增、查看、编辑；重复 VIN 被拒绝；已售车辆的业务字段不可修改；库存列表刷新后数据仍存在。
+Acceptance: create, view, and edit; duplicate VIN is rejected; business fields of a sold vehicle cannot be changed; inventory list data remains after refresh.
 
-### US-03 整备工单
+### US-03 Reconditioning work orders
 
-库存车辆可关联多张简单工单，字段包括任务、负责人、状态、预计完成日期、实际成本和完成备注。无需工时计费、配件领用或维修客户预约。
+An inventory vehicle may have multiple simple work orders. Fields include task, assignee, status, expected completion date, actual cost, and completion note. There is no labour billing, parts issue, or service-customer booking.
 
-验收：只要存在 OPEN 或 IN_PROGRESS 工单，就不能把车辆标为 AVAILABLE。无须整备的车辆允许没有工单，由经理填写 ready note 后标为可售。
+Acceptance: while any OPEN or IN_PROGRESS work order exists, the vehicle cannot be marked AVAILABLE. A vehicle that needs no reconditioning may have no work orders; a manager fills a ready note and then marks it available.
 
-### US-04 广告草稿与自动检查
+### US-04 Advertisement draft and automatic checks
 
-每辆车只有一个当前广告，包含标题、结构化车辆和价格信息、描述及固定披露区域。执行有限范围的确定性检查和一次 AI 文本检查，分别展示结果、定位和修改建议。
+Each vehicle has one current advertisement containing title, structured vehicle and price information, description, and a fixed disclosure area. Run a limited deterministic check and one AI text check; show results, locations, and suggested edits separately.
 
-验收：缺失必需字段或价格不一致可被稳定拦截；AI 正常时返回真实建议；AI 超时不显示“通过”；修改广告或相关车辆信息后，旧审核结果不能用于发布。
+Acceptance: missing required fields or inconsistent prices are blocked reliably; when AI succeeds it returns a real suggestion; an AI timeout must not display “pass”; after the advertisement or related vehicle information changes, an old review result cannot be used to publish.
 
-### US-05 经理确认和站内发布
+### US-05 Manager confirmation and on-site publish
 
-经理阅读当前版本检查结果，处理或确认提示后发布到本站。固定规则 BLOCK 不允许人工越过。AI 提示可以人工确认，但必须填写原因；AI 未完成时必须明确确认降级范围。
+The manager reads the current-version check results, handles or acknowledges findings, then publishes to this site. A fixed-rule BLOCK cannot be overridden. AI findings may be acknowledged, but a reason is required; when AI did not complete, the manager must explicitly acknowledge the degraded scope.
 
-验收：未检查、旧检查、阻断结果、未整备车辆都不能发布。发布后的车辆页包含公开车辆信息和展示价格，不能泄露成本、客户和内部备注。
+Acceptance: unpublished checks, stale checks, blocking results, and vehicles that are not ready cannot be published. The published vehicle page includes public vehicle information and the display price; it must not leak cost, customer data, or internal notes.
 
-### US-06 客户咨询与跟进
+### US-06 Customer enquiry and follow-up
 
-访客从广告页填写姓名、至少一种联系方式、咨询内容。系统创建客户和关联车辆的线索；员工也可手动录入。线索支持负责人、阶段、下一次跟进日期和时间顺序的跟进记录。
+A visitor on an advertisement page enters name, at least one contact method, and a message. The system creates a customer and a lead on the related vehicle; staff may also enter leads manually. A lead supports an owner, stage, next follow-up date, and time-ordered follow-up notes.
 
-验收：咨询成功后后台能找到；重复提交同一个请求不生成第二条记录；未发布或已售广告不能提交新咨询；没有客户账号和自动邮件发送。
+Acceptance: after a successful enquiry the back office can find it; retrying the same request does not create a second record; unpublished or sold advertisements cannot accept a new enquiry; there are no customer accounts and no automatic emails.
 
-### US-07 成交与自动收尾
+### US-07 Sale and automatic wrap-up
 
-经理选择一条有效线索录入最终成交金额及备注。系统在同一事务内创建销售记录、车辆改为 SOLD、广告下架、对应线索改为 WON、该车其他未结束线索改为 LOST 并记录原因。
+The manager selects a valid lead and enters the final sale amount and a note. In one transaction the system creates a sale record, sets the vehicle to SOLD, unpublishes the advertisement, sets the selected lead to WON, sets the vehicle’s other unfinished leads to LOST with a reason.
 
-验收：两个经理同时提交同一车辆，最多一笔成交；失败时不能只更新一部分数据。MVP 成交是业务记录，不生成合同、不收款、不计算融资或税务账单。确认页说明提交后本版不支持撤销；错误演示数据通过开发环境重置恢复。
+Acceptance: if two managers submit the same vehicle, at most one sale succeeds; on failure the system must not update only part of the data. An MVP sale is a business record: no contract, no payment collection, no finance or tax invoice. The confirmation page states that this version does not support undo after submit; incorrect demo data is restored by a development-environment reset.
 
-### US-08 简单统计
+### US-08 Simple statistics
 
-仪表板显示可售车辆数、待整备工单数、未关闭线索数、本月成交数量及成交金额合计。
+The dashboard shows available vehicle count, open reconditioning work-order count, open lead count, this month’s sale count, and recorded sale amount total.
 
-验收：一次成交后指标与销售列表一致。金额合计表示登记的成交额，不表示利润、到账收入或含税总价。
+Acceptance: after one sale the metrics match the sales list. The amount total is registered sale amounts, not profit, cash received, or a tax-inclusive total.
 
-## 延后功能
+## Deferred features
 
-Image Studio、照片上传、OCR、VIN 外部解码、车辆历史查询、第三方广告同步、完整贷款与租赁、支付、合同电子签、多门店、短信邮件、客户账号、复杂 BI、手机原生 App、向量库和模型训练均不进入本版。
+Image Studio, photo upload, OCR, external VIN decode, vehicle-history lookup, third-party advertisement sync, full loan and lease, payments, contract e-sign, multi-store, SMS/email, customer accounts, complex BI, native mobile apps, vector stores, and model training are all out of this version.
 
-没有额外硬件、实时价格抓取或真实经销商系统接入。唯一计划中的外部业务 API 是一个 AI 文本服务；开发与基础流程通过可明确识别的 mock 和固定规则继续进行。
+There is no extra hardware, live price scraping, or real dealer-system integration. The only planned external business API is one AI text service; development and the baseline flow continue through an identifiable mock and fixed rules.
 
-## 最小成功标准
+## Minimum success criteria
 
-1. US-01 到 US-08 全部可演示，至少一条从入库到成交的端到端流程通过。
-2. 有真实 AI 调用证据与固定样例评估；离线 mock 只能证明联调，不能算完成真实 AI 验收。
-3. 旧审核发布、越权发布、重复成交、AI 超时四类异常得到正确处理。
-4. 数据能在重启后保留，另一个组员按 README 能运行项目。
-5. 项目方接受有限规则和拟议范围；课程要求的报告、演示及个人贡献记录另按评分表补齐。
+1. US-01 through US-08 are all demonstrable; at least one end-to-end path from intake to sale passes.
+2. There is evidence of a real AI call and a fixed-sample evaluation; an offline mock only proves integration, not completion of real-AI acceptance.
+3. Four exception classes are handled correctly: publish with a stale review, unauthorized publish, duplicate sale, and AI timeout.
+4. Data survives restart; another teammate can run the project from the README.
+5. The client accepts the limited rules and proposed scope; course-required reports, demo, and individual contribution records are completed separately against the rubric.
 
-## 非功能目标
+## Non-functional goals
 
-- 演示规模：最多 500 辆车、2,000 条线索、10 个并发用户；这是设计目标，不是已测结果。
-- 常规列表/保存目标：在团队统一测试环境中 p95 不超过 2 秒，AI 调用单独计时。
-- AI 请求上限 15 秒，无自动重试；超时后保留固定规则结果并显示降级状态。
-- 主要后台页面适配桌面，公开车辆页和咨询表适配手机；英文界面，清楚的字段错误和键盘焦点。
-- 数据持久化、服务器权限校验、密码哈希、服务端输入校验、日志不记录客户联系方式或 API 密钥。
+- Demo scale: at most 500 vehicles, 2,000 leads, 10 concurrent users; this is a design target, not a measured result.
+- Routine list/save target: p95 no more than 2 seconds in the team’s shared test environment; AI calls are timed separately.
+- AI request cap 15 seconds, no automatic retry; after timeout keep the fixed-rule results and show the degraded status.
+- Main back-office pages target desktop; public vehicle pages and the enquiry form adapt to phones; English UI, clear field errors, and keyboard focus.
+- Data persistence, server-side permission checks, password hashing, server-side input validation; logs must not record customer contact details or API keys.
 
-## 范围变更原则
+## Scope-change rule
 
-任何新增功能先说明替换掉哪一项，或会增加多少时间。仅“看起来简单”不足以加入 MVP。优先保证交易一致性、检查可解释性和完整演示。
-
-
+Any new feature must first state which item it replaces, or how much extra time it adds. “Looks simple” is not enough to join the MVP. Prefer transaction consistency, explainable checks, and a complete demo.

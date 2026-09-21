@@ -1,130 +1,128 @@
-﻿> 已废止的 v1.0 历史稿，不据此编码。请从 [当前文档索引](README.md) 阅读 00 业务设计与 07/08/09 微服务、DevOps、AI 组件设计。原始需求已找到并核实，不包含厂家或买家自助端。
+﻿> Superseded v1.0 historical draft. Do not implement from this document. Read the current document index in [README.md](README.md) for the 00 business design and the 07/08/09 microservice, DevOps, and AI component designs. The original requirements have been located and verified; they do not include a manufacturer portal or a buyer self-service site.
 
-# 流程与页面
+# Workflows and screens
 
-## 主业务流程
+## Main business flow
 
 ```mermaid
 flowchart LR
-  A[录入车辆] --> B[整备工单]
-  B --> C[经理标记可售]
-  C --> D[编辑广告]
-  D --> E[规则和 AI 检查]
-  E --> F{有固定规则阻断?}
-  F -- 有 --> D
-  F -- 无 --> G[经理复核并发布]
-  G --> H[访客查看并咨询]
-  H --> I[员工跟进线索]
-  I --> J[经理登记成交]
-  J --> K[售出及下架 关闭关联线索 更新统计]
+  A[Enter vehicle] --> B[Reconditioning work order]
+  B --> C[Manager marks available]
+  C --> D[Edit advertisement]
+  D --> E[Rules and AI checks]
+  E --> F{Fixed-rule block?}
+  F -- Yes --> D
+  F -- No --> G[Manager reviews and publishes]
+  G --> H[Visitor views and enquires]
+  H --> I[Staff follow up lead]
+  I --> J[Manager records sale]
+  J --> K[Sold and unpublished; close related leads; update stats]
 ```
 
-广告草稿可在整备期间准备，但必须 AVAILABLE 才能发布。成交可来自员工手动录入的线索，无须先公开发布，车辆仍必须 AVAILABLE。
+An advertisement draft may be prepared during reconditioning, but the vehicle must be AVAILABLE to publish. A sale may come from a staff-entered manual lead without a prior public publish; the vehicle must still be AVAILABLE.
 
-## 状态设计
+## State design
 
 ### Vehicle
 
-- 新建：PREPARING。
-- PREPARING → AVAILABLE：Manager；所有工单 DONE/CANCELLED；填写 ready note。
-- AVAILABLE → PREPARING：Manager；用于追加整备；原子下架广告，增加广告内容版本，使旧检查失效。
-- AVAILABLE → SOLD：只由成交事务触发。
-- PREPARING/AVAILABLE → ARCHIVED：Manager；要求没有进行中工单、没有 NEW/CONTACTED/QUALIFIED 线索，原子下架广告。若有依赖，先完成/取消工单及关闭线索。
-- SOLD 和 ARCHIVED 为本版终态，不做撤销、重新进货或恢复。需要重开时作为以后需求。
+- New: PREPARING.
+- PREPARING → AVAILABLE: Manager; all work orders DONE/CANCELLED; ready note filled.
+- AVAILABLE → PREPARING: Manager; used to add further reconditioning; atomically unpublish the advertisement, increment advertisement content version, and void old checks.
+- AVAILABLE → SOLD: triggered only by the sale transaction.
+- PREPARING/AVAILABLE → ARCHIVED: Manager; requires no in-progress work orders and no NEW/CONTACTED/QUALIFIED leads; atomically unpublish the advertisement. If dependencies exist, finish/cancel work orders and close leads first.
+- SOLD and ARCHIVED are terminal in this version; there is no undo, restock, or restore. Reopening is a future requirement.
 
-新增工单只允许 PREPARING。已可售车辆必须先回整备，避免公开广告和车辆状态不一致。
+New work orders are allowed only in PREPARING. An already-available vehicle must return to preparation first, so a public advertisement cannot disagree with vehicle status.
 
 ### WorkOrder
 
-OPEN → IN_PROGRESS → DONE；OPEN/IN_PROGRESS 可转 CANCELLED。DONE/CANCELLED 不再编辑，错误任务可新建替代工单。标记 DONE 要求完成备注，成本允许 0。
+OPEN → IN_PROGRESS → DONE; OPEN/IN_PROGRESS may go to CANCELLED. DONE/CANCELLED are no longer edited; a wrong task may be replaced by a new work order. Marking DONE requires a completion note; cost may be 0.
 
 ### Listing
 
-DRAFT → PUBLISHED：经理通过当前版本检查并确认；PUBLISHED → DRAFT：人工下架、车辆回整备，或修改广告相关内容；DRAFT/PUBLISHED → CLOSED：车辆售出或归档。
+DRAFT → PUBLISHED: manager passes the current-version check and confirms; PUBLISHED → DRAFT: manual unpublish, vehicle returns to preparation, or advertisement-related content is changed; DRAFT/PUBLISHED → CLOSED: vehicle sold or archived.
 
-不用单独存“已审核”状态。界面根据最近检查与 contentVersion 是否一致，显示“尚未检查”“需重新检查”“有阻断”“可复核”。这避免广告状态与检查状态交叉爆炸。
+Do not store a separate “reviewed” status. The UI uses whether the latest check matches contentVersion to show “not yet checked”, “needs re-check”, “has blockers”, or “ready for review”. That avoids an explosion of crossed listing and check states.
 
-广告相关内容包括标题、描述、车辆品牌型号年份里程、价格/费用、演示图片和范围字段。修改即 contentVersion + 1，清除当前发布确认。仅内部备注、工单备注和客户资料修改不影响广告版本。
+Advertisement-related content includes title, description, vehicle make/model/year/mileage, price/fees, demo image, and scope fields. A change increments contentVersion by 1 and clears the current publish confirmation. Changes to internal notes, work-order notes, and customer records alone do not affect advertisement version.
 
 ### Lead
 
-NEW → CONTACTED → QUALIFIED；NEW/CONTACTED/QUALIFIED 均可转 LOST，必须填写原因。允许 CONTACTED/QUALIFIED 回 NEW 或 CONTACTED，但必须添加说明。
+NEW → CONTACTED → QUALIFIED; NEW/CONTACTED/QUALIFIED may all go to LOST, and a reason is required. CONTACTED/QUALIFIED may return to NEW or CONTACTED, but a note is required.
 
-WON 只能由销售事务设置。LOST/WON 是终态，不提供重新打开。客户后续对另一辆车感兴趣时，新建线索并关联原客户。
+WON can be set only by the sale transaction. LOST/WON are terminal; there is no reopen. If the customer later wants another vehicle, create a new lead and attach the existing customer.
 
-## 关键异常
+## Key exceptions
 
-1. 检查后改价：旧检查保留作历史，新版本未检查；发布返回 CHECK_STALE。
-2. AI 执行期间改稿：检查仍针对原快照，返回历史结果；当前界面提示需要重新运行，不能把它用于新稿发布。
-3. AI 无法连接：固定规则结果可见；AI 显示 UNAVAILABLE；经理只有在无 BLOCK 时可确认降级发布，需填写说明。
-4. 页面长时间未刷新：写入请求携带 version；冲突返回 409，保留用户输入并要求刷新比较。
-5. 车辆刚售出，访客仍开着旧页：咨询提交在服务器重新检查状态，返回 409，提示车辆已不可咨询。
-6. 两笔成交竞争：同一车辆行锁串行化，后到请求返回 VEHICLE_NOT_AVAILABLE，不生成孤立销售记录。
-7. 发布时新增工单：新增工单要求 PREPARING；回整备和发布均锁车辆，不能并发生成“整备中已发布”。
+1. Price change after a check: the old check is kept as history; the new version is unchecked; publish returns CHECK_STALE.
+2. Draft edited while AI is running: the check still targets the original snapshot and returns that historical result; the current UI says a re-run is required and it cannot be used to publish the new draft.
+3. AI cannot connect: fixed-rule results remain visible; AI shows UNAVAILABLE; a manager may confirm a degraded publish only when there is no BLOCK, and must fill a note.
+4. Stale page: write requests carry version; conflict returns 409, keeps the user’s input, and asks for a refresh-and-compare.
+5. Vehicle just sold while a visitor still has the old page open: enquiry submit re-checks status on the server, returns 409, and says the vehicle is no longer available for enquiry.
+6. Two competing sales: the same vehicle row is locked and serialized; the later request returns VEHICLE_NOT_AVAILABLE and creates no orphan sale.
+7. New work order during publish: new work orders require PREPARING; return-to-preparation and publish both lock the vehicle, so “in reconditioning and published” cannot be created concurrently.
 
-## 页面与低保真布局
+## Screens and low-fidelity layout
 
-采用左侧导航 + 顶部账号区域 + 主内容区。表单尽量抽屉或详情页内编辑，不堆大量独立页面。固定英文导航：Dashboard、Vehicles、Work Orders、Leads、Sales。
+Use left navigation + top account area + main content. Prefer drawer or in-detail editing over many standalone pages. Fixed English navigation: Dashboard, Vehicles, Work Orders, Leads, Sales.
 
 ### P01 Login · /login
 
-中心登录卡：Email、Password、Sign in。错误仅显示账号或密码不正确。加载中防止双击；登录后跳转 Dashboard。
+Centered login card: Email, Password, Sign in. Errors only say the account or password is incorrect. Loading prevents double-click; after sign-in go to Dashboard.
 
 ### P02 Dashboard · /app
 
-顶部五个简洁指标：Available vehicles、Open work orders、Open leads、Sales this month、Recorded sales amount。下面列 Today’s follow-ups 和 Open work orders，各最多 5 条，点击跳转对应记录。未设置跟进日期的线索不算逾期。
+Five compact top metrics: Available vehicles, Open work orders, Open leads, Sales this month, Recorded sales amount. Below: Today’s follow-ups and Open work orders, at most 5 each, clickable to the record. Leads with no follow-up date are not overdue.
 
 ### P03 Vehicles · /app/vehicles
 
-顶部：Search（stock number/VIN/make/model）、Status、Add vehicle。
-列表：Stock #、Vehicle、Mileage、Advertised price、Status、Listing status、View。
-新增与编辑使用同一个表单。数值带单位 km 和 CAD；必收费用单独录入，展示总价由后端计算。
+Top: Search (stock number/VIN/make/model), Status, Add vehicle.
+List: Stock #, Vehicle, Mileage, Advertised price, Status, Listing status, View.
+Create and edit share one form. Numbers include units km and CAD; mandatory fees are entered separately; display total is calculated by the backend.
 
 ### P04 Vehicle detail · /app/vehicles/:id
 
-顶部显示车辆摘要和状态。四个页签：Overview、Preparation、Advertisement、Related leads。
+Top: vehicle summary and status. Four tabs: Overview, Preparation, Advertisement, Related leads.
 
-Overview：车辆字段、内部备注、Manager 的 Mark available / Return to preparation / Archive。
-Preparation：工单列表、Add work order、更新工单状态。
-Advertisement：左右分栏，左侧编辑，右侧预览及检查面板。上方显示 Draft version；按钮 Save、Run checks、Publish/Unpublish。每项问题显示字段、原因和建议；Manager 发布弹窗展示 check id、当前版本、需确认提示及备注框。
-Related leads：客户姓名、负责人、阶段、下一跟进时间、查看详情。
+Overview: vehicle fields, internal note, Manager Mark available / Return to preparation / Archive.
+Preparation: work-order list, Add work order, update work-order status.
+Advertisement: two columns — edit on the left, preview and check panel on the right. Top shows Draft version; buttons Save, Run checks, Publish/Unpublish. Each finding shows field, reason, and suggestion; the Manager publish dialog shows check id, current version, acknowledgements, and a note box.
+Related leads: customer name, owner, stage, next follow-up, view detail.
 
-广告结构始终为：车辆标题 → 价格及税牌照说明 → 车辆规格 → 自由描述 → 经销商名称和联系信息 → Enquire。固定披露不藏在折叠区域。
+Advertisement structure is always: vehicle title → price and tax/licence note → vehicle specs → free description → dealer name and contact → Enquire. Fixed disclosures are not hidden in a collapsed section.
 
 ### P05 Work Orders · /app/work-orders
 
-按状态/负责人筛选；显示关联车辆、任务、到期日、状态和成本。更新用抽屉，不做日历排班。
+Filter by status/assignee; show related vehicle, task, due date, status, and cost. Updates use a drawer; there is no calendar scheduler.
 
 ### P06 Leads · /app/leads
 
-采用列表而非拖拽看板。筛选 Stage、Owner、Overdue；Add lead 允许选择已有客户或新建客户及一辆 AVAILABLE 车辆。
-列表显示客户、意向车、阶段、负责人、下一次跟进。新访客线索默认 owner 为空，Manager 可分配；所有员工可读写共享 CRM。
+Use a list, not a drag-and-drop board. Filters: Stage, Owner, Overdue; Add lead allows an existing customer or a new customer plus one AVAILABLE vehicle.
+List shows customer, vehicle of interest, stage, owner, next follow-up. New visitor leads default to empty owner; Manager may assign; all staff can read/write the shared CRM.
 
 ### P07 Lead detail · /app/leads/:id
 
-左侧：客户资料、意向车辆、阶段、负责人、下一跟进日期。
-右侧：时间顺序跟进记录，Add note（渠道 PHONE/EMAIL/VISIT/OTHER，内容，下一日期）。仅记录已发生的联系，不实际发送邮件。
-Manager 的 Record sale 打开成交确认框：客户、车辆、成交金额、备注；提醒车辆会下架及其他线索关闭。WON/LOST 后只读。
-客户编辑会影响该客户所有线索，确认框说明这一点。不会按邮箱自动合并访客，以免把不同人误合并。
+Left: customer profile, vehicle of interest, stage, owner, next follow-up date.
+Right: time-ordered follow-up notes, Add note (channel PHONE/EMAIL/VISIT/OTHER, content, next date). Only record contacts that already happened; do not send email.
+Manager Record sale opens a sale confirmation: customer, vehicle, sale amount, note; warn that the vehicle will be unpublished and other leads closed. After WON/LOST the record is read-only.
+Editing a customer affects all of that customer’s leads; the confirm dialog says so. Visitors are not auto-merged by email, to avoid merging different people.
 
 ### P08 Sales · /app/sales
 
-按成交月份筛选，显示销售编号、车辆、客户、登记人、金额、时间。点击查看只读成交快照。MVP 不提供删除、退款、撤销。
+Filter by sale month; show sale number, vehicle, customer, recorder, amount, time. Click for a read-only sale snapshot. MVP has no delete, refund, or undo.
 
 ### P09 Public inventory · /inventory
 
-车辆卡片：演示图、品牌型号年份、里程、价格及公开联系信息。仅显示 PUBLISHED 且 AVAILABLE。支持品牌和价格范围筛选；空结果提供清楚说明。
+Vehicle cards: demo image, make/model/year, mileage, price, and public contact. Only PUBLISHED and AVAILABLE. Filter by make and price range; empty results have a clear explanation.
 
 ### P10 Public vehicle · /inventory/:listingId
 
-展示完整广告和咨询表：Name、Email、Phone、Message，至少一个联系方式。提示信息会交给经销商回复，不展示其他咨询。提交成功显示简短确认；不返回内部 customerId、leadId 或联系方式。
+Full advertisement and enquiry form: Name, Email, Phone, Message; at least one contact method. Copy says the message will be given to the dealer; other enquiries are not shown. Success shows a short confirmation; do not return internal customerId, leadId, or contact details.
 
-## 统一交互
+## Shared interaction
 
-- 列表必须具备 loading、empty、error 和分页，默认每页 20 条。
-- 金额显示 CAD，时间显示经销商时区 America/Toronto；服务器存 UTC。
-- 保存失败保留输入；字段错误就地显示；状态冲突显示刷新操作。
-- 危险业务操作用明确的对象和结果确认，例如“Record sale for DEMO-001”。
-- 广告页展示“Checks cover selected rules; manager review required”，不使用“OMVIC certified”标志。
-
-
+- Lists must have loading, empty, error, and pagination; default 20 per page.
+- Amounts display CAD; times display dealer timezone America/Toronto; the server stores UTC.
+- Failed save keeps input; field errors show in place; state conflicts offer a refresh action.
+- Dangerous business actions use an explicit object and outcome, for example “Record sale for DEMO-001”.
+- The advertisement page shows “Checks cover selected rules; manager review required” and does not use an “OMVIC certified” mark.

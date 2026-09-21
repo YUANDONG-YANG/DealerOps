@@ -1,112 +1,111 @@
-﻿# DealerOps 后端设计
+﻿# DealerOps backend design
 
-版本：v1.2 · 2026-09-21
+Version: v1.2 · 2026-09-21
 
-本文是 **后端设计文档**（`dealer-gateway` / `dealer-core` / `ai-service`）。  
-不替代规格 PDF 的字段与枚举；不替代 PPT 六硬项。  
-HTTP 路径、DTO、OpenAPI 细处仍看 **`14`**（及仓库 OpenAPI）。数据列与 Flyway 行为仍可对 **`15`**。规则引擎正则与内部 prompt 看 **`AI-PROTOCOL-AND-RULES.md`**。  
-**冲突序：PPT 六硬项 > 规格 PDF 字段 > 本文 + PROTOCOL > `14` / `15`。**  
-前端仍看 **`13`**。范围对齐 `SCOPE-BASELINE.md` + `00` v6；`01`–`06` 不作依据。  
-已裁定、不再并列：跨店 **404**；`DUP_MEMBER`；内部失败 **504/503/502**；对外检查 **502 `AI_UNAVAILABLE`**；**Blocked 不调 AI**。  
-`aiStatus` 只允许 **`SKIPPED` `SUCCESS` `FAILED` `UNAVAILABLE`**。禁止 `INVALID_RESPONSE` / `MOCK`。  
-四仓骨架已在；本文只补还缺的业务实现约定。  
-浏览器只打 Gateway；core / ai-service 不对浏览器。  
-不做工单、线索、买家站、Service Bus、独立 auth 仓、第二库、密码登录。
+This is the **backend design document** (`dealer-gateway` / `dealer-core` / `ai-service`).  
+It does not replace specification-PDF fields and enums; it does not replace the PPT six hard items.  
+HTTP paths, DTOs, and OpenAPI details still live in **`14`** (and the repo OpenAPI). Data columns and Flyway behavior still align with **`15`**. Rule-engine regexes and internal prompts are in **`AI-PROTOCOL-AND-RULES.md`**.  
+**Conflict order: PPT six hard items > specification PDF fields > this document + PROTOCOL > `14` / `15`.**  
+Frontend still follows **`13`**. Scope aligns with `SCOPE-BASELINE.md` + `00` v6; `01`–`06` are not sources.  
+Already ruled, no longer alternatives: cross-dealership **404**; `DUP_MEMBER`; internal failures **504/503/502**; public check **502 `AI_UNAVAILABLE`**; **Blocked does not call AI**.  
+`aiStatus` allows only **`SKIPPED` `SUCCESS` `FAILED` `UNAVAILABLE`**. Ban `INVALID_RESPONSE` / `MOCK`.  
+The four-repo skeleton already exists; this document only fills remaining business-implementation conventions.  
+The browser talks only to Gateway; core / ai-service are not browser-facing.  
+Do not implement work orders, leads, a buyer site, Service Bus, a standalone auth repo, a second database, or password login.
 
 ---
 
-## 1. 课硬项（后端）
+## 1. Course hard items (backend)
 
-| 硬项 | 本文约定 |
+| Hard item | This document |
 |---|---|
-| 四仓 | `dealer-web` / `dealer-gateway` / `dealer-core` / `ai-service`（IaC：`dealer-platform`）。**仓已在，缺业务实现。** |
-| Gateway | 浏览器只打 `:8080` `/api/v1`。直连 `:8081` / `:8082` 失败。 |
-| Entra | JWT 角色仅 `Platform.Admin` / `Dealer.User`。Gateway 与 core 都验。无密码表。 |
-| 真实 AI | `ai-service` 内嵌 GitHub `ai-manager`。失败不得 Pass。CI 不打付费模型。 |
-| 多租户 + 审计 | 店 A 不见店 B；Admin 零业务数据；DMS/CRM 每次改记谁/做什么/何时。 |
-| 广告 + TXT | 固定规则先跑；Passed 且非 Stale 才能 Ready / 导出 TXT。 |
+| Four repos | `dealer-web` / `dealer-gateway` / `dealer-core` / `ai-service` (IaC: `dealer-platform`). **Repos exist; business implementation is missing.** |
+| Gateway | Browser only hits `:8080` `/api/v1`. Direct `:8081` / `:8082` must fail. |
+| Entra | JWT roles only `Platform.Admin` / `Dealer.User`. Gateway and core both verify. No password table. |
+| Real AI | `ai-service` embeds GitHub `ai-manager`. Failure must not Pass. CI does not hit paid models. |
+| Multi-tenant + audit | Dealership A cannot see dealership B; Admin has zero business data; every DMS/CRM change records who/what/when. |
+| Ads + TXT | Fixed rules run first; Ready / export TXT only when Passed and not Stale. |
 
-演示：两店隔离；Admin 打车辆 **403**；缺价 / 融资缺 APR → **200 BLOCKED** 且不调 AI；真实模型跑一次；改价后旧检查不可导出。
+Demo: two-dealership isolation; Admin hitting vehicles **403**; missing price / finance missing APR → **200 BLOCKED** and no AI call; one real-model run; after a price change the old check cannot be exported.
 
 ---
 
-## 2. 端口与路径（短）
+## 2. Ports and paths (short)
 
-| 进程 | 端口 | 听什么 |
+| Process | Port | Listens for |
 |---|---|---|
-| gateway | **8080** | `/api/v1/**` → core；`/internal/v1/**` → ai（须内部头）。CORS 仅 `http://localhost:5173`。不写业务。 |
-| core | **8081** | 业务与事务。无浏览器 CORS。出站只打 Gateway，禁止直连 8082。 |
-| ai-service | **8082** | 无库。不部署 `ai-manager` 的 `com.gateway`。 |
-| web | 5173 | 只打 8080 `/api/v1`。 |
+| gateway | **8080** | `/api/v1/**` → core; `/internal/v1/**` → ai (internal header required). CORS only `http://localhost:5173`. No business logic. |
+| core | **8081** | Business and transactions. No browser CORS. Outbound only to Gateway; never call 8082 directly. |
+| ai-service | **8082** | No database. Do not deploy `ai-manager`'s `com.gateway`. |
+| web | 5173 | Only hits 8080 `/api/v1`. |
 
-对外族（JSON 形状见 14）：`GET /me`；`/admin/dealers` + members；`/vehicles` + `.../sell`；`/customers`；`PUT\|DELETE /customers/{id}/vehicles/{vehicleId}`；`GET\|PATCH /vehicles/{id}/listing`；`POST /listings/{id}/checks\|ready\|exports`；`GET /audit`；`POST /assistant/ask`。  
-内部：`POST /internal/v1/ad-check`、`POST /internal/v1/assistant`。浏览器打这两条 → **404**。
+Public family (JSON shapes in 14): `GET /me`; `/admin/dealers` + members; `/vehicles` + `.../sell`; `/customers`; `PUT\|DELETE /customers/{id}/vehicles/{vehicleId}`; `GET\|PATCH /vehicles/{id}/listing`; `POST /listings/{id}/checks\|ready\|exports`; `GET /audit`; `POST /assistant/ask`.  
+Internal: `POST /internal/v1/ad-check`, `POST /internal/v1/assistant`. Browser hits on these two → **404**.
 
-信封 `{ items, page, size, total }`（size 默认且封顶 10）。错误 `{ code, message }`。写带 `version`。忽略客户端 `dealerId`。
-
----
-
-## 3. 九表（V1，不加减）
-
-`dealer-core/src/main/resources/db/migration/V1__init.sql`：  
-`dealer` · `app_user` · `membership` · `vehicle` · `customer` · `customer_vehicle` · `listing` · `compliance_check` · `audit_event`。  
-禁止 `ddl-auto=update`。禁止加工单/线索/密码表。
-
-| 不变量 | 写死 |
-|---|---|
-| 租户 | 店员 = `membership.active=1` 恰好一行。`app_user.dealer_id` 只是 `/me` 缓存。 |
-| 一人一店 | 任意店已有 active → **409 `DUP_MEMBER`**。曾解绑则重激活。≥2 条 active → 拒业务。 |
-| VIN / 挂车 | VIN 店内唯一。一车一客。 |
-| 审计 | 不写客户联系全文、密钥、模型堆栈。 |
+Envelope `{ items, page, size, total }` (size defaults to and caps at 10). Errors `{ code, message }`. Writes carry `version`. Ignore client `dealerId`.
 
 ---
 
-## 4. 编码硬点（短表）
+## 3. Nine tables (V1, do not add or remove)
 
-| 点 | 写死 |
+`dealer-core/src/main/resources/db/migration/V1__init.sql`:  
+`dealer` · `app_user` · `membership` · `vehicle` · `customer` · `customer_vehicle` · `listing` · `compliance_check` · `audit_event`.  
+Ban `ddl-auto=update`. Ban work-order / lead / password tables.
+
+| Invariant | Pinned |
 |---|---|
-| 跨店 | 先按本店加载。本店无此 id（含他店真实 id）→ **404**，不 403。Admin 打业务 URL → **403**。无/坏 JWT → **401**。店员无店 → 业务 **403**，`GET /me` 仍 200 且 `dealerId=null`。 |
-| 空草稿 | `GET /vehicles/{id}/listing` 无行：**不插库**。虚拟草稿 `id=null`，`title`/`body`=`""`，`adKind=CASH`，`medium=ONLINE`，`DRAFT`，`contentVersion=1`，`lastCheckId=null`，`version=0`。PATCH 把 `null` 收成 `''`。 |
-| SOLD | 只走 `POST /vehicles/{id}/sell`：`soldOn` + `soldPrice` + `version`。缺一、日期非法、或 `soldPrice <= 0` → **400 `SOLD_PAIR_REQUIRED`**（不用 `VALIDATION`）。`IN_STOCK` ⇔ 两字段 NULL；`SOLD` ⇔ 都有且价 > 0。已售锁采购。PATCH 不改 `status`/`soldOn`/`soldPrice`。再售 → **409 `SOLD_LOCKED`**。 |
-| 挂车 PUT | 无店 403 → 跨店/无 id **404** → 本店非 `IN_STOCK` **400 `WRONG_DEALER_OR_SOLD`** → 已挂 **409 `VEHICLE_ALREADY_LINKED`**。`WRONG_DEALER_OR_SOLD` **只**用于本店已售/非在库，禁用于跨店。 |
-| 解绑 DELETE | 同路径 → **204**。无关联或跨店 → **404**。本店车 `SOLD` → **409 `SOLD_LOCKED`**。不改车辆 `status`。 |
-| 内部头 | `X-Dealer-Internal` = `INTERNAL_TOKEN`，本地默认 **`dealer-internal`**（gateway / core 出站 / ai 同一默认）。缺头或错值 → **404**。不转发用户 JWT。CORS `allowedHeaders` 不列该头。 |
-| Blocked 不调 AI | `hard[]` 非空或空草稿 → 落库 `recommendation=BLOCKED`，`aiStatus=SKIPPED`，HTTP **200**，`AiGatewayClient` **零调用**。空草稿立即 hard：`PRICE_MISSING`、`DEALER_NAME_MISSING`、`CONDITION_UNDISCLOSED`。缺价 / `FINANCE` 无 APR 同理 hard。 |
-
-其余 HTTP 码见 14。已吸收：`DUP_MEMBER` 含他店 active。
+| Tenant | Staff = exactly one `membership.active=1` row. `app_user.dealer_id` is only a `/me` cache. |
+| One person, one dealership | Any dealership already has an active membership → **409 `DUP_MEMBER`**. Previously unbound → reactivate. ≥2 active rows → reject business. |
+| VIN / link | VIN unique per dealership. One vehicle, one customer. |
+| Audit | Do not write full customer contact, secrets, or model stack traces. |
 
 ---
 
-## 5. 检查、AI 态、TXT
+## 4. Coding hard points (short table)
 
-`POST /listings/{id}/checks` `{ "version" }`：本店 + 乐观锁 → 组公开输入（车辆无采购/修理/售价）→ core 固定规则 → 再决定是否调 AI。system prompt **不**再塞 OMVIC 硬清单。
-
-| `aiStatus` | 何时 |
+| Point | Pinned |
 |---|---|
-| `SKIPPED` | 硬缺，未调模型 |
-| `SUCCESS` | 内部 200 且 `success=true` |
-| `FAILED` / `UNAVAILABLE` | 规则过了但模型/传输失败。对外都当不可用，**不得 Pass**。禁止再引入 `MOCK` / `INVALID_RESPONSE` |
+| Cross-dealership | Load by this dealership first. Id not in this dealership (including a real id from another store) → **404**, not 403. Admin hitting business URLs → **403**. Missing/bad JWT → **401**. Staff with no dealership → business **403**; `GET /me` still 200 with `dealerId=null`. |
+| Empty draft | `GET /vehicles/{id}/listing` with no row: **do not insert**. Virtual draft `id=null`, `title`/`body`=`""`, `adKind=CASH`, `medium=ONLINE`, `DRAFT`, `contentVersion=1`, `lastCheckId=null`, `version=0`. PATCH coerces `null` to `''`. |
+| SOLD | Only via `POST /vehicles/{id}/sell`: `soldOn` + `soldPrice` + `version`. Missing one, illegal date, or `soldPrice <= 0` → **400 `SOLD_PAIR_REQUIRED`** (not `VALIDATION`). `IN_STOCK` ⇔ both sale fields NULL; `SOLD` ⇔ both present and price > 0. Sold locks purchase fields. PATCH does not change `status`/`soldOn`/`soldPrice`. Sell again → **409 `SOLD_LOCKED`**. |
+| Link PUT | No dealership 403 → cross-store/missing id **404** → this-store not `IN_STOCK` **400 `WRONG_DEALER_OR_SOLD`** → already linked **409 `VEHICLE_ALREADY_LINKED`**. `WRONG_DEALER_OR_SOLD` is **only** for this-store sold/not in stock; never for cross-store. |
+| Unlink DELETE | Same path → **204**. No link or cross-store → **404**. This-store vehicle `SOLD` → **409 `SOLD_LOCKED`**. Do not change vehicle `status`. |
+| Internal header | `X-Dealer-Internal` = `INTERNAL_TOKEN`, local default **`dealer-internal`** (same default on gateway / core outbound / ai). Missing or wrong header → **404**. Do not forward the user JWT. CORS `allowedHeaders` does not list this header. |
+| Blocked skips AI | `hard[]` non-empty or empty draft → persist `recommendation=BLOCKED`, `aiStatus=SKIPPED`, HTTP **200**, `AiGatewayClient` **zero calls**. Empty draft immediately hard: `PRICE_MISSING`, `DEALER_NAME_MISSING`, `CONDITION_UNDISCLOSED`. Missing price / `FINANCE` without APR is likewise hard. |
 
-`recommendation`：`BLOCKED` \| `NEEDS_AI` \| `PASSED` \| `UNAVAILABLE`。  
-页面 `checkStatus`（14）：`BLOCKED` \| `NEEDS_AI` \| `PASSED` \| `STALE` \| `AI_UNAVAILABLE`。
-
-| 步骤 | 库 + HTTP |
-|---|---|
-| hard 非空 | `BLOCKED` + `SKIPPED`，**200**，不调 AI |
-| AI 成功 | `PASSED` + `SUCCESS`，**200** |
-| AI 失败 | 仍落库 `UNAVAILABLE`（或 `FAILED`），回写 `last_check_id`，对外 **502 `AI_UNAVAILABLE`** |
-
-内部失败（PROTOCOL，不对浏览器）：超时 **504 `AI_TIMEOUT`**；缺 Key **503 `AI_KEY_MISSING`**（立即返回，不挂 15s）；其余 **502 `AI_PROVIDER_FAILED`**。体 `{ success:false, code, message }`。成功 ad-check `{ success:true, notes:[{message}] }`；assistant `{ success:true, summary }`。
-
-超时两端：**connect 2s + response 13s = 15s**。core 出站经 Gateway，头 `X-Dealer-Internal`。
-
-改 listing 或车辆价格/车况 → `contentVersion++`，`DRAFT`，**不**清空 `lastCheckId` → 曾 Passed 则派生 **STALE**。Ready / Export 仅 Passed 且非 Stale，否则 **409**。导出 `text/plain; charset=UTF-8`。
-
-助手：AI 失败对外仍 **200**（`summary=null`，`summaryAvailable=false`，`cards` 保留本次检索）。不写库。资源无电话/邮箱/住址。
+Remaining HTTP codes are in 14. Already absorbed: `DUP_MEMBER` includes another dealership still active.
 
 ---
 
-## 6. 还缺什么
+## 5. Checks, AI states, TXT
 
-三 Java 仓与 V1 已在，**还缺** JWT/membership 业务、DMS/CRM/挂车、检查+AI 适配、审计写路径。不要一次生成整套。不要把工单/总线/第二库加回来。
-)
+`POST /listings/{id}/checks` `{ "version" }`: this dealership + optimistic lock → build public input (vehicle without purchase/repair/sold price) → core fixed rules → then decide whether to call AI. The system prompt **does not** embed the OMVIC hard checklist again.
+
+| `aiStatus` | When |
+|---|---|
+| `SKIPPED` | Hard fail; model not called |
+| `SUCCESS` | Internal 200 and `success=true` |
+| `FAILED` / `UNAVAILABLE` | Rules passed but model/transport failed. Treat both as unavailable publicly; **must not Pass**. Do not reintroduce `MOCK` / `INVALID_RESPONSE` |
+
+`recommendation`: `BLOCKED` \| `NEEDS_AI` \| `PASSED` \| `UNAVAILABLE`.  
+Page `checkStatus` (14): `BLOCKED` \| `NEEDS_AI` \| `PASSED` \| `STALE` \| `AI_UNAVAILABLE`.
+
+| Step | DB + HTTP |
+|---|---|
+| hard non-empty | `BLOCKED` + `SKIPPED`, **200**, no AI call |
+| AI success | `PASSED` + `SUCCESS`, **200** |
+| AI failure | Still persist `UNAVAILABLE` (or `FAILED`), write back `last_check_id`, public **502 `AI_UNAVAILABLE`** |
+
+Internal failures (PROTOCOL, not for the browser): timeout **504 `AI_TIMEOUT`**; missing Key **503 `AI_KEY_MISSING`** (return immediately, do not wait 15s); otherwise **502 `AI_PROVIDER_FAILED`**. Body `{ success:false, code, message }`. Successful ad-check `{ success:true, notes:[{message}] }`; assistant `{ success:true, summary }`.
+
+Timeout on both ends: **connect 2s + response 13s = 15s**. Core outbound goes through Gateway with header `X-Dealer-Internal`.
+
+Changing listing or vehicle price/condition → `contentVersion++`, `DRAFT`, **do not** clear `lastCheckId` → if previously Passed, derive **STALE**. Ready / Export only when Passed and not Stale; otherwise **409**. Export `text/plain; charset=UTF-8`.
+
+Assistant: AI failure is still public **200** (`summary=null`, `summaryAvailable=false`, `cards` keep this retrieval). No DB write. Resources have no phone/email/address.
+
+---
+
+## 6. What is still missing
+
+The three Java repos and V1 already exist; **still missing** JWT/membership business, DMS/CRM/link, check+AI adapters, and audit write paths. Do not generate the entire suite in one pass. Do not bring back work orders/bus/second database.

@@ -1,48 +1,48 @@
-﻿# Dealer Ops 业务（最简）
+﻿# Dealer Ops business (minimum)
 
-版本 v6.0 · 2026-09-21
+Version v6.0 · 2026-09-21
 
-范围只来自 [DealerOps-Specification.pdf](DealerOps-Specification.pdf)。技术见 07/08/09/11。
+Scope comes only from [DealerOps-Specification.pdf](DealerOps-Specification.pdf). See 07/08/09/11 for technical design.
 
-规格要三个模块写同一家店的数据：DMS、CRM、Ad Compliance。本版用一个 `dealer_core` 库满足，不做成三个互不相通的系统。登录按课程要求用 Entra，不自建密码表；管理员「发账号」= 把 Entra 用户绑到某家店。
+The specification requires three modules to write data for the same dealership: DMS, CRM, and Ad Compliance. This version meets that with one `dealer_core` database; it is not three disconnected systems. Login uses Entra as required by the course; there is no homemade password table. An administrator “issuing an account” means binding an Entra user to a dealership.
 
-## 页面与角色
+## Screens and roles
 
-| 页面 | 谁用 | 做什么 |
+| Screen | Who uses it | What they do |
 |---|---|---|
-| Login | 全员 | Entra 登录 |
-| Admin | Platform.Admin | 开店、绑定/解绑员工。看不到任何车辆/客户/广告 |
-| DMS | Dealer.User | 本店车辆增改查、登记出售 |
-| CRM | Dealer.User | 本店客户增改查、关联本店车辆 |
-| Ad compliance | Dealer.User | 选车写广告、跑 OMVIC 清单 + GitHub AI 组件、通过后导出文本 |
-| Assistant | Dealer.User | 本店问答；调用同一 GitHub 组件，不能改数据 |
+| Login | Everyone | Entra sign-in |
+| Admin | Platform.Admin | Open dealerships; bind/unbind staff. Cannot see any vehicles, customers, or ads |
+| DMS | Dealer.User | Create, update, and view this dealership’s vehicles; record a sale |
+| CRM | Dealer.User | Create, update, and view this dealership’s customers; associate this dealership’s vehicles |
+| Ad compliance | Dealer.User | Select a vehicle, write an ad, run the OMVIC checklist + GitHub AI component, export text after a pass |
+| Assistant | Dealer.User | In-store Q&A; calls the same GitHub component; cannot change data |
 
-一家店多名员工看同一份数据。店 A 看不到店 B。管理员开完店也看不到业务数据。
+Several staff at one dealership see the same data. Dealership A cannot see dealership B. After opening a dealership, an administrator still cannot see business data.
 
-## 字段（按规格，不加减）
+## Fields (per the specification; do not add or remove)
 
-DMS 必填：Make、Model、Year、VIN、Car source（TRADE_IN / AUCTION / PRIVATE_PURCHASE / OTHER）、Purchase cost、Date added、Condition（CERTIFIED / AS_IS / UNFIT / IRREPARABLE）。  
-可选：Repair cost、Carfax URL、Sold date、Sold price。  
-店内 VIN 唯一。已售后采购信息不可改。出售日期和价格必须一起填。
+DMS required: Make, Model, Year, VIN, Car source (TRADE_IN / AUCTION / PRIVATE_PURCHASE / OTHER), Purchase cost, Date added, Condition (CERTIFIED / AS_IS / UNFIT / IRREPARABLE).  
+Optional: Repair cost, Carfax URL, Sold date, Sold price.  
+VIN is unique within a dealership. After a sale, purchase information cannot be changed. Sold date and sold price must be entered together.
 
-CRM 必填：Name、Email、Phone、Home address。购车从本店 DMS 选车；一车只能挂一个客户。
+CRM required: Name, Email, Phone, Home address. Purchases are selected from this dealership’s DMS; a vehicle can be attached to only one customer.
 
-广告：标题、正文、类型 CASH / FINANCE / LEASE、媒介 ONLINE 或 RADIO_TV_BILLBOARD。  
-始终查：店名和联系方式、既往用途（如适用）、新旧/年份、延保（如有）、价格、车况。  
-FINANCE 另查 APR、期限、现金价。RADIO_TV_BILLBOARD 免「和利率并列展示」。  
-LEASE 另查租赁声明、租期、租金、APR、首付；年额度低于 20000 km 要超额公里费。
+Ads: title, body, type CASH / FINANCE / LEASE, medium ONLINE or RADIO_TV_BILLBOARD.  
+Always check: dealership name and contact details, previous use (when applicable), new/used and year, extended warranty (if any), price, condition.  
+FINANCE additionally checks APR, term, and cash price. RADIO_TV_BILLBOARD is exempt from “shown alongside the interest rate.”  
+LEASE additionally checks the lease statement, lease term, payment, APR, and down payment; if the annual allowance is below 20000 km, excess-kilometre charges are required.
 
-改车辆价格/车况或广告正文后，旧检查作废。AI 失败不能显示通过。通过后才能导出 TXT。不对接外部广告站。
+After a vehicle price/condition change or an ad-body change, the old check is void. An AI failure must not be shown as a pass. Export to TXT is allowed only after a pass. There is no integration with external listing sites.
 
-DMS/CRM 每次改动记：谁、做什么、何时。
+Every DMS/CRM change records: who, what, and when.
 
-## 验收（课堂能演示即可）
+## Acceptance (classroom demonstration is sufficient)
 
-1. 管理员开两家店、各绑一人。
-2. 店 A 录车、录客户、把车挂到客户上；店 B 看不见。
-3. 管理员打车辆接口被拒绝。
-4. 缺价或融资广告缺 APR 被挡住。
-5. 真实广告文本走一次真实 AI，能指出缺失项。
-6. 改价后不能用旧检查导出。
+1. An administrator opens two dealerships and binds one person to each.
+2. Dealership A records a vehicle, records a customer, and attaches the vehicle to the customer; dealership B cannot see them.
+3. An administrator calling the vehicle API is rejected.
+4. A missing price, or a finance ad missing APR, is blocked.
+5. Real ad text is sent through a real AI call once and missing items can be identified.
+6. After a price change, an old check cannot be used to export.
 
-不做：工单、线索、统计看板、CSV 导入、买家站。助手只复用 GitHub 组件，不另写模型层。
+Out of scope: work orders, leads, analytics dashboards, CSV import, buyer site. The assistant only reuses the GitHub component; no separate model layer is written.

@@ -1,35 +1,35 @@
-# 仓库、流水线、分工（最简）
+# Repositories, pipelines, and roles (minimum)
 
-版本 v6.0 · 2026-09-21
+Version v6.0 · 2026-09-21
 
-## 仓库
+## Repositories
 
 ```text
-dealer-web        Vue + Dockerfile + 自己的 pipeline
+dealer-web        Vue + Dockerfile + its own pipeline
 dealer-gateway    Spring Cloud Gateway + Dockerfile + pipeline
 dealer-core       Spring Boot + Flyway + Dockerfile + pipeline
 ai-service        Spring Boot + Dockerfile + pipeline
-dealer-platform   Bicep + 各 pipeline YAML 说明 + 证据
+dealer-platform   Bicep + notes for each pipeline YAML + evidence
 ```
 
-改谁只构建谁。不要 monorepo。契约字段写在 core/ai-service 各自 DTO 里，不另开 contracts 仓库。
+A change builds only that application. Do not use a monorepo. Contract fields live in each of core and ai-service’s own DTOs; there is no separate contracts repository.
 
-## 流水线（每应用一套）
+## Pipelines (one set per application)
 
-PR：Java 编译 + 关键 JUnit，或 Vue build。  
-main：打镜像（tag=commit SHA）→ 推 ACR → 如需要跑 Flyway Job → 发布该应用。  
-demo 发布要另一人点批准。禁止手工点门户发布应用。
+PR: Java compile + critical JUnit, or Vue build.  
+main: build image (tag=commit SHA) → push ACR → run a Flyway Job if needed → deploy that application.  
+A demo deploy needs a second person’s approval. Do not publish applications by clicking the portal by hand.
 
-## 三人
+## Three people
 
-- A：Vue 页面（Admin/DMS/CRM/广告）、登录、web 流水线。
-- B：ai-service、接入 GitHub AI 库、OMVIC 清单、Bicep 初稿、ai 流水线。流水线要能读该私有包。
-- C：core、租户隔离、Gateway、Entra、core 流水线。
+- A: Vue pages (Admin/DMS/CRM/advertisements), login, web pipeline.
+- B: ai-service, GitHub AI library integration, OMVIC checklist, first Bicep draft, ai pipeline. The pipeline must be able to read that private package.
+- C: core, tenant isolation, Gateway, Entra, core pipeline.
 
-## Sprint（对准课程三次 Review）
+## Sprints (aligned to the course’s three Reviews)
 
-1. **Sprint 1**：四个空仓库能独立构建；架构图；Entra 两个角色配上。
-2. **Sprint 2**：Azure 上登录 → Gateway → 录一辆车 → **真实 AI** 扫一段广告。安全：无明文密钥。
-3. **Sprint 3**：两家店隔离、CRM 关联、清单三类广告、导出、审计。冻结功能。
+1. **Sprint 1**: four empty repositories can build independently; architecture diagram; two Entra roles configured.
+2. **Sprint 2**: on Azure, sign in → Gateway → record one vehicle → **real AI** scans a piece of advertisement. Security: no plaintext secrets.
+3. **Sprint 3**: two-dealership isolation, CRM association, checklist for three advertisement types, export, audit. Freeze features.
 
-课后每人写 1–2 段进度。Review 三人各讲一块。细节模板见 11。
+After class each person writes 1–2 paragraphs of progress. At Review each of the three presents one piece. See 11 for the detailed template.

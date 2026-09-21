@@ -1,29 +1,29 @@
-# 前端工程（可编码拆文件）
+# Frontend engineering (file split for coding)
 
-- 状态：**现行有效（v6 前端工程）**
-- 权威冲突顺序：**课程 PPT > 规格字段 > IMPLEMENTATION-BRIEF / 00 > 15（数据/租户/网关）/ 14（HTTP JSON）/ 本文（前端工程）> 12**
-- 本文只管：**路由、守卫、MSAL、页面↔API 对照、组件拆分、空错态、英文文案**；**字段、枚举、DTO 以手册 / 14 为准**，本文不另定列
-- 不做：买家/厂家/工单/线索/KPI 首页/密码登录/独立 Audit 页；不改后端契约、SQL、`01`–`06`
+- Status: **current (v6 frontend engineering)**
+- Authority on conflict: **course PPT > spec fields > IMPLEMENTATION-BRIEF / 00 > 15 (data/tenant/gateway) / 14 (HTTP JSON) / this document (frontend engineering) > 12**
+- This document covers only: **routes, guards, MSAL, page↔API mapping, component split, empty/error states, English copy**. **Fields, enums, and DTOs follow the handbook / 14**; this document does not define extra columns
+- Out of scope: buyer/OEM/tickets/leads/KPI home/password login/standalone Audit page; do not change the backend contract, SQL, or `01`–`06`
 
-编码仓：`dealer-web`（尚未建）。浏览器 HTTP **只打** Gateway。界面英文。字段与枚举抄手册第 3 节，本文不重写。
+Coding repo: `dealer-web` (not created yet). Browser HTTP **hits Gateway only**. UI is English. Copy fields and enums from handbook section 3; this document does not rewrite them.
 
 ---
 
-## 1. 栈与目录（点到即可）
+## 1. Stack and directories (enough to start)
 
-栈与手册一致：**Vue 3 + Vite + Element Plus + Vue Router + Pinia + MSAL.js（`@azure/msal-browser`）**。HTTP 用 axios（或 fetch 包装，二选一钉死 axios）。无 Nuxt、无图表库、无通用 CRUD 生成器。
+Stack matches the handbook: **Vue 3 + Vite + Element Plus + Vue Router + Pinia + MSAL.js (`@azure/msal-browser`)**. HTTP uses axios (or a fetch wrapper — pick one and lock axios). No Nuxt, no chart library, no generic CRUD generator.
 
-建议（现有仓库还没有 `src`，按此新建即可）：
+Suggested (the current repo has no `src` yet; create it as follows):
 
 ```
 dealer-web/
-  .env.example          # 只抄 platform/env.example 前端四项
+  .env.example          # copy only the four frontend items from platform/env.example
   src/
     main.ts
     App.vue
     router/index.ts
     auth/msal.ts        # PublicClientApplication + PKCE
-    api/http.ts         # 只打 VITE_GATEWAY_URL，Bearer
+    api/http.ts         # VITE_GATEWAY_URL only, Bearer
     api/me.ts
     api/admin.ts
     api/vehicles.ts
@@ -31,7 +31,7 @@ dealer-web/
     api/listings.ts
     api/audit.ts
     api/assistant.ts
-    stores/session.ts   # 账号、role、dealer 展示名
+    stores/session.ts   # account, role, dealer display name
     layouts/AppLayout.vue
     components/
       AppMenu.vue
@@ -39,7 +39,7 @@ dealer-web/
       FormDrawer.vue
       ConfirmDialog.vue
       PageState.vue
-      AdWorkspace.vue   # 左表单右结果
+      AdWorkspace.vue   # form left, results right
       AssistantCard.vue
     views/
       LoginView.vue
@@ -50,158 +50,158 @@ dealer-web/
       AssistantView.vue
 ```
 
-不要再拆「工单/线索/看板/AuditView」。`stores` 只留会话；列表状态放各 View 即可。
+Do not add "ticket/lead/dashboard/AuditView" splits. Keep `stores` for session only; list state can live in each View.
 
 ---
 
-## 2. 路由表
+## 2. Route table
 
-手册页名：Login / Admin / DMS / CRM / Ad compliance / Assistant。路径用下面六条，无第七条业务路由。
+Handbook page names: Login / Admin / DMS / CRM / Ad compliance / Assistant. Use the six paths below; no seventh business route.
 
-| path | name | 组件 | `meta` | 登录后落地 |
+| path | name | component | `meta` | post-login landing |
 |---|---|---|---|---|
 | `/login` | `login` | `LoginView` | `public: true` | — |
-| `/admin` | `admin` | `AdminView` | `roles: ['Platform.Admin']` | Admin 默认页 |
-| `/dms` | `dms` | `DmsView` | `roles: ['Dealer.User']` | 店员默认页 |
+| `/admin` | `admin` | `AdminView` | `roles: ['Platform.Admin']` | Admin default page |
+| `/dms` | `dms` | `DmsView` | `roles: ['Dealer.User']` | staff default page |
 | `/crm` | `crm` | `CrmView` | `roles: ['Dealer.User']` | — |
-| `/ads` | `ads` | `AdsView` | `roles: ['Dealer.User']` | 页标题 **Ad compliance** |
+| `/ads` | `ads` | `AdsView` | `roles: ['Dealer.User']` | page title **Ad compliance** |
 | `/assistant` | `assistant` | `AssistantView` | `roles: ['Dealer.User']` | — |
 
-- `/` → 已登录按角色去 `/admin` 或 `/dms`；未登录去 `/login`。
-- 未知 path → 同上，不要做 404 营销页。
-- **禁止**注册：`/audit`、`/tickets`、`/leads`、`/dashboard`、买家公开页。
-- 审计：**藏在 DMS / CRM 详情抽屉底部**，调用手册 `GET /audit?entityType=&entityId=`。无独立 Audit 页、无菜单项。
+- `/` → if signed in, go to `/admin` or `/dms` by role; if not signed in, go to `/login`.
+- Unknown path → same as above; do not build a 404 marketing page.
+- **Do not** register: `/audit`, `/tickets`, `/leads`, `/dashboard`, or buyer public pages.
+- Audit: **hidden at the bottom of the DMS / CRM detail drawer**, calling handbook `GET /audit?entityType=&entityId=`. No standalone Audit page and no menu item.
 
-查询串（详情深链，可选）：`/dms?vehicleId=`、`/crm?customerId=`、`/ads?vehicleId=`（助手卡跳转用）。不把 `dealerId` 放进路由当权威。
-
----
-
-## 3. 路由守卫
-
-`router/index.ts` 一道 `beforeEach`，顺序固定：
-
-1. **未登录**（MSAL 无账号，且非 `meta.public`）→ `/login`，记下 `redirect`。
-2. **已登录且在 `/login`** → `GET /me` 后按角色去 `/admin` 或 `/dms`。
-3. **错角色 / 无权限**
-   - `Platform.Admin` 访问 `/dms` `/crm` `/ads` `/assistant` → 拦回 `/admin`，不渲染业务表。
-   - `Dealer.User` 访问 `/admin` → 拦回 `/dms`。
-4. `GET /me` 失败 401 → 清会话，回 `/login`。
-5. 角色不在 `Platform.Admin` | `Dealer.User`（或 `active=false`，若手册响应有）→ 留在无业务壳，顶栏 `Sign out`，正文走「无权限」态。不要猜第三种角色。
-
-菜单与守卫同一套规则：Admin **只渲染** Admin；店员 **只渲染** DMS / CRM / Ad compliance / Assistant。无权限不靠藏按钮，路由先拦。
+Query strings (optional deep links): `/dms?vehicleId=`, `/crm?customerId=`, `/ads?vehicleId=` (used by assistant cards). Do not put `dealerId` in the route as the tenant authority.
 
 ---
 
-## 4. MSAL 与 HTTP（半页）
+## 3. Route guards
 
-变量名必须与 `dealer-platform/env.example` 一致，**不要 client secret**：
+One `beforeEach` in `router/index.ts`, order fixed:
 
-| 变量 | 用途 |
+1. **Not signed in** (no MSAL account, and not `meta.public`) → `/login`, remember `redirect`.
+2. **Signed in and on `/login`** → after `GET /me`, go to `/admin` or `/dms` by role.
+3. **Wrong role / no permission**
+   - `Platform.Admin` visiting `/dms` `/crm` `/ads` `/assistant` → send back to `/admin`; do not render business tables.
+   - `Dealer.User` visiting `/admin` → send back to `/dms`.
+4. `GET /me` fails with 401 → clear session, return to `/login`.
+5. Role is not `Platform.Admin` | `Dealer.User` (or `active=false`, if the handbook response includes it) → stay in a shell with no business pages, top bar `Sign out`, body shows the "no access" state. Do not invent a third role.
+
+Menu and guards use the same rules: Admin **renders** Admin only; staff **renders** DMS / CRM / Ad compliance / Assistant only. Do not rely on hiding buttons for unauthorized access; the route blocks first.
+
+---
+
+## 4. MSAL and HTTP (half page)
+
+Variable names must match `dealer-platform/env.example`. **No client secret:**
+
+| Variable | Purpose |
 |---|---|
-| `VITE_ENTRA_TENANT_ID` | authority：`https://login.microsoftonline.com/${VITE_ENTRA_TENANT_ID}` |
+| `VITE_ENTRA_TENANT_ID` | authority: `https://login.microsoftonline.com/${VITE_ENTRA_TENANT_ID}` |
 | `VITE_ENTRA_CLIENT_ID` | SPA client id |
-| `VITE_ENTRA_API_SCOPE` | 默认 `api://dealer-api/access_as_user`；`loginRequest.scopes` / `acquireTokenSilent` 只用这一项 |
-| `VITE_GATEWAY_URL` | 唯一 API 根，本地 `http://localhost:8080` |
+| `VITE_ENTRA_API_SCOPE` | default `api://dealer-api/access_as_user`; `loginRequest.scopes` / `acquireTokenSilent` use this item only |
+| `VITE_GATEWAY_URL` | sole API root; local `http://localhost:8080` |
 
-- **PKCE**：`@azure/msal-browser` 对 SPA 默认 PKCE，不要改成 confidential client。
-- **Redirect URI**：开发 `http://localhost:5173`（Vite；须与 Entra SPA 注册一致）。登录用 `loginRedirect`（不要 popup 当主路径）。`redirectUri` / `postLogoutRedirectUri` 都指向同源 `/login`。生产 URI 跟部署主机走，仍是 SPA 回调，不进 Gateway。
-- **登录按钮**：只 `Sign in with Microsoft`。无密码框。
-- **会话**：redirect 回来后 `handleRedirectPromise` → `GET ${VITE_GATEWAY_URL}/api/v1/me`（14：`role`、`dealerId`、`dealerLegalName`；Admin 后两项为 `null`）。顶栏店名：店员用 `dealerLegalName`（空则占位 `Dealership`）；Admin 固定 `Platform Admin`。
-- **只打 Gateway**：`api/http.ts` 的 `baseURL = import.meta.env.VITE_GATEWAY_URL`，路径前缀 `/api/v1`。禁止 axios 指向 8081/8082，禁止打 `/internal/v1/**`。
-- **Bearer 拦截器**：每个请求 `acquireTokenSilent({ scopes: [VITE_ENTRA_API_SCOPE], account })`，失败再 `acquireTokenRedirect`；头 `Authorization: Bearer <accessToken>`。不要把 `dealerId` 放进 query/body 当租户开关（手册：忽略前端传来的店 ID）。
-- **统一错误体**：`{ code, message }`。401 → 重新登录；403/404/409/400/502 → 页内 error 或 `ElMessage`，**不当空表**。乐观锁写带 `version`，`409 VERSION_CONFLICT` 提示刷新后再写。
+- **PKCE**: `@azure/msal-browser` defaults to PKCE for SPA; do not switch to a confidential client.
+- **Redirect URI**: development `http://localhost:5173` (Vite; must match the Entra SPA registration). Sign-in uses `loginRedirect` (popup is not the primary path). `redirectUri` / `postLogoutRedirectUri` both point to same-origin `/login`. Production URI follows the deployed host; it remains an SPA callback and does not enter Gateway.
+- **Sign-in button**: `Sign in with Microsoft` only. No password box.
+- **Session**: after redirect, `handleRedirectPromise` → `GET ${VITE_GATEWAY_URL}/api/v1/me` (14: `role`, `dealerId`, `dealerLegalName`; for Admin the last two are `null`). Top-bar dealership name: staff uses `dealerLegalName` (placeholder `Dealership` if empty); Admin is always `Platform Admin`.
+- **Gateway only**: `api/http.ts` uses `baseURL = import.meta.env.VITE_GATEWAY_URL`, path prefix `/api/v1`. Do not point axios at 8081/8082. Do not call `/internal/v1/**`.
+- **Bearer interceptor**: each request `acquireTokenSilent({ scopes: [VITE_ENTRA_API_SCOPE], account })`, then `acquireTokenRedirect` on failure; header `Authorization: Bearer <accessToken>`. Do not put `dealerId` in query/body as a tenant switch (handbook: ignore dealer IDs sent by the frontend).
+- **Uniform error body**: `{ code, message }`. 401 → sign in again; 403/404/409/400/502 → in-page error or `ElMessage`, **not an empty table**. Optimistic writes include `version`; `409 VERSION_CONFLICT` tells the user to refresh and write again.
 
 ---
 
-## 5. 页面 ↔ API 对照（手册第 5 节）
+## 5. Page ↔ API mapping (handbook section 5)
 
-路径均相对 Gateway：`/api/v1/...`。成功后「刷新」= 再拉本页主列表或当前详情，不要整站 reload。
+All paths are relative to Gateway: `/api/v1/...`. After success, "refresh" means re-fetch this page's main list or the current detail — not a full-site reload.
 
-### 5.1 全局
+### 5.1 Global
 
-| 时机 | 手册路径 | 成功 | 失败提示 |
+| When | Handbook path | Success | Failure copy |
 |---|---|---|---|
-| 进任何受护页 / 登录落地 | `GET /me` | 写入 Pinia：`role`、`dealerId` | `401` Sign in required；其他 Could not load profile |
+| Enter any protected page / login landing | `GET /me` | Write Pinia: `role`, `dealerId` | `401` Sign in required; otherwise Could not load profile |
 
 ### 5.2 Login `/login`
 
-| 控件 | 手册路径 | 成功 | 失败 |
+| Control | Handbook path | Success | Failure |
 |---|---|---|---|
-| `Sign in with Microsoft` | 无业务 API；MSAL redirect + 随后 `GET /me` | Admin→`/admin`，店员→`/dms` | Sign-in failed. Try again. |
+| `Sign in with Microsoft` | no business API; MSAL redirect + then `GET /me` | Admin→`/admin`, staff→`/dms` | Sign-in failed. Try again. |
 
-无「Forgot password」。
+No "Forgot password".
 
-### 5.3 Admin `/admin`（仅 Platform.Admin）
+### 5.3 Admin `/admin` (Platform.Admin only)
 
-**信息架构裁定：一个路由、页内两个 Tab**（对齐 12 的两套列，不拆第二页）。
+**Information-architecture ruling: one route, two in-page Tabs** (aligns with the two column sets in 12; do not split a second page).
 
-- Tab **Dealerships**：列 Name, Contact, Staff count, Actions。筛：店名。主按钮 `New dealership`。
-- Tab **Members**：列 Entra ID / email, Dealership, Status, Actions。筛：员工邮箱。数据用现有接口拼：`GET /admin/dealers` 后对每家 `GET /admin/dealers/{id}/members`，前端摊平（**不要发明** `GET /admin/members`）。
-- 行内 `Staff`：抽屉，只显示该店成员；绑/解绑都在抽屉里。Members Tab 的 Unbind 打同一条 DELETE。
+- Tab **Dealerships**: columns Name, Contact, Staff count, Actions. Filter: dealership name. Primary button `New dealership`.
+- Tab **Members**: columns Entra ID / email, Dealership, Status, Actions. Filter: staff email. Compose data from existing APIs: `GET /admin/dealers`, then `GET /admin/dealers/{id}/members` per dealer, flatten on the frontend (**do not invent** `GET /admin/members`).
+- Row `Staff`: drawer showing that dealership's members only; bind/unbind both happen in the drawer. Unbind on the Members tab calls the same DELETE.
 
-| 控件 | 手册路径 | 成功刷新 | 失败错误码 → 英文 |
+| Control | Handbook path | Success refresh | Failure code → English |
 |---|---|---|---|
-| 进入页 / Search / Reset | `GET /admin/dealers` | 店表 | `403` You cannot open Admin；其他 Could not load dealerships |
-| `New dealership` 提交 | `POST /admin/dealers` 四联系字段 | 店表；切到 Dealerships | `400 VALIDATION` Check required contact fields |
-| 打开 Staff 抽屉 | `GET /admin/dealers/{id}/members` | 抽屉表 | `404` Dealership not found |
-| `Bind staff` 提交 | `POST /admin/dealers/{id}/members` `{entraOid,displayName}` | 该店成员 + 店表 Staff count | `400` Check Entra ID；`409 DUP_MEMBER` Staff already bound |
-| `Unbind`（确认后） | `DELETE /admin/dealers/{id}/members/{entraOid}` | 同上 | `404` Member not found |
-| Members Tab 加载 | 上表两次 GET 组合 | 成员表 | 同店表/成员 GET |
+| Enter page / Search / Reset | `GET /admin/dealers` | dealership table | `403` You cannot open Admin; otherwise Could not load dealerships |
+| `New dealership` submit | `POST /admin/dealers` four contact fields | dealership table; switch to Dealerships | `400 VALIDATION` Check required contact fields |
+| Open Staff drawer | `GET /admin/dealers/{id}/members` | drawer table | `404` Dealership not found |
+| `Bind staff` submit | `POST /admin/dealers/{id}/members` `{entraOid,displayName}` | that dealership's members + table Staff count | `400` Check Entra ID; `409 DUP_MEMBER` Staff already bound |
+| `Unbind` (after confirm) | `DELETE /admin/dealers/{id}/members/{entraOid}` | same as above | `404` Member not found |
+| Members Tab load | the two GETs above combined | member table | same as dealership/member GET |
 
-`staffCount`：14 列表已带回（该店 active membership 计数）。没有值时显示 `—`。字段以手册/14 为准。  
-14 另有 `GET/PATCH /admin/dealers/{id}`；**本课 UI 仍不提供 Edit**（手册无更新店）。无独立「发邮件建 Entra 账号」按钮。
+`staffCount`: already returned by the 14 list (count of that dealership's active memberships). Show `—` when missing. Fields follow the handbook/14.  
+14 also has `GET/PATCH /admin/dealers/{id}`; **this course UI still does not provide Edit** (the handbook has no update-dealership UI). No standalone "email to create an Entra account" button.
 
-### 5.4 DMS `/dms`（仅 Dealer.User）
+### 5.4 DMS `/dms` (Dealer.User only)
 
-筛一行：`q`（VIN/Make/Model）、`status`、`condition`；每页 10。Query：`q` `status` `condition` `page` `size`。**分页信封 `{items,page,size,total}`，`page` 从 0**（14）。字段以手册/14 为准。
+Filter row: `q` (VIN/Make/Model), `status`, `condition`; 10 per page. Query: `q` `status` `condition` `page` `size`. **Pagination envelope `{items,page,size,total}`, `page` starts at 0** (14). Fields follow the handbook/14.
 
-| 控件 | 手册路径 | 成功刷新 | 失败 |
+| Control | Handbook path | Success refresh | Failure |
 |---|---|---|---|
-| 进入 / Search / Reset / 翻页 | `GET /vehicles` | 车辆表 | `403` 走无权限态；其他 Could not load vehicles |
-| `Add vehicle` 提交 | `POST /vehicles` 手册必填 | 车辆表 | `400 VIN_DUP` VIN already in this dealership；`400` Check required fields |
-| 行 `Edit` / 保存 | `GET/PATCH /vehicles/{id}` 带 `version` | 该行 + 打开的抽屉 | `404` Vehicle not found；`SOLD_LOCKED` Purchase fields are locked；`409 VERSION_CONFLICT` Refresh and retry |
-| 行 `Sell` 小窗提交 | `POST /vehicles/{id}/sell` `{soldOn,soldPrice,version}` | 车辆表（行变淡） | `400 SOLD_PAIR_REQUIRED` Sold date and price are required together；`404` |
-| 详情底部 Audit | `GET /audit?entityType=VEHICLE&entityId=` | 只刷新审计列表 | `404` 不展示业务字段 |
+| Enter / Search / Reset / page | `GET /vehicles` | vehicle table | `403` use the no-access state; otherwise Could not load vehicles |
+| `Add vehicle` submit | `POST /vehicles` handbook required fields | vehicle table | `400 VIN_DUP` VIN already in this dealership; `400` Check required fields |
+| Row `Edit` / save | `GET/PATCH /vehicles/{id}` with `version` | that row + open drawer | `404` Vehicle not found; `SOLD_LOCKED` Purchase fields are locked; `409 VERSION_CONFLICT` Refresh and retry |
+| Row `Sell` small-dialog submit | `POST /vehicles/{id}/sell` `{soldOn,soldPrice,version}` | vehicle table (row dimmed) | `400 SOLD_PAIR_REQUIRED` Sold date and price are required together; `404` |
+| Detail footer Audit | `GET /audit?entityType=VEHICLE&entityId=` | refresh audit list only | `404` do not show business fields |
 
-无车辆 DELETE。已售：采购字段只读，隐藏 Sell。跨店 id 当 404。
+No vehicle DELETE. Sold: purchase fields read-only, hide Sell. Cross-dealership ids are treated as 404.
 
-### 5.5 CRM `/crm`（仅 Dealer.User）
+### 5.5 CRM `/crm` (Dealer.User only)
 
-筛：`q`（Name/Email/Phone）、`linked`。分页同 DMS：`page`/`size`，信封 `{items,page,size,total}`（14）。字段以手册/14 为准。
+Filters: `q` (Name/Email/Phone), `linked`. Pagination same as DMS: `page`/`size`, envelope `{items,page,size,total}` (14). Fields follow the handbook/14.
 
-| 控件 | 手册路径 | 成功刷新 | 失败 |
+| Control | Handbook path | Success refresh | Failure |
 |---|---|---|---|
-| 进入 / Search / Reset | `GET /customers` | 客户表 | `403` 无权限态；其他 Could not load customers |
-| `Add customer` | `POST /customers` 四字段 | 客户表 | `400` Check required fields |
-| `Edit` 保存 | `GET/PATCH /customers/{id}` | 该行 + 抽屉 | `404` Customer not found；`409 VERSION_CONFLICT` |
-| `Link vehicle`（可搜索 Select，仅本店未售未挂） | `PUT /customers/{id}/vehicles/{vehicleId}` | 客户表 Linked vehicle + 抽屉 | `409 VEHICLE_ALREADY_LINKED` Vehicle already linked；`400 WRONG_DEALER_OR_SOLD` Vehicle not available |
-| `Unlink`（确认后） | `DELETE /customers/{id}/vehicles/{vehicleId}` → **204** 无 body | 客户表 Linked vehicle + 抽屉 | `404` Link not found；`409 SOLD_LOCKED` Sold vehicles cannot be unlinked |
-| 挂车下拉数据 | `GET /vehicles?status=IN_STOCK`；再排除已挂。14 客户列表有 `linkedVehicle` | 下拉 | 已占禁用。字段以手册/14 为准 |
-| 详情 Audit | `GET /audit?entityType=CUSTOMER&entityId=` | 审计列表 | `404` |
-| 解绑后审计（可选） | `GET /audit?entityType=CUSTOMER_VEHICLE&entityId=` | 审计列表 | `404` |
+| Enter / Search / Reset | `GET /customers` | customer table | `403` no-access state; otherwise Could not load customers |
+| `Add customer` | `POST /customers` four fields | customer table | `400` Check required fields |
+| `Edit` save | `GET/PATCH /customers/{id}` | that row + drawer | `404` Customer not found; `409 VERSION_CONFLICT` |
+| `Link vehicle` (searchable Select, this dealership unsold unlinked only) | `PUT /customers/{id}/vehicles/{vehicleId}` | customer table Linked vehicle + drawer | `409 VEHICLE_ALREADY_LINKED` Vehicle already linked; `400 WRONG_DEALER_OR_SOLD` Vehicle not available |
+| `Unlink` (after confirm) | `DELETE /customers/{id}/vehicles/{vehicleId}` → **204** no body | customer table Linked vehicle + drawer | `404` Link not found; `409 SOLD_LOCKED` Sold vehicles cannot be unlinked |
+| Link-vehicle dropdown data | `GET /vehicles?status=IN_STOCK`; then exclude already linked. 14 customer list has `linkedVehicle` | dropdown | already-taken items disabled. Fields follow the handbook/14 |
+| Detail Audit | `GET /audit?entityType=CUSTOMER&entityId=` | audit list | `404` |
+| Audit after unlink (optional) | `GET /audit?entityType=CUSTOMER_VEHICLE&entityId=` | audit list | `404` |
 
-### 5.6 Ad compliance `/ads`（仅 Dealer.User）
+### 5.6 Ad compliance `/ads` (Dealer.User only)
 
-左：选车 + 广告表单；右：检查结果。清单随 `adKind` / `medium` 即时变（文案规则见手册第 3/6 节，前端只切换展示项，不自创字段）。总状态只允许：Blocked / Needs AI review / Passed / Stale / AI unavailable。
+Left: pick a vehicle + ad form; right: check results. The checklist changes immediately with `adKind` / `medium` (copy rules are in handbook sections 3/6; the frontend only switches displayed items and does not invent fields). Overall status may only be: Blocked / Needs AI review / Passed / Stale / AI unavailable.
 
-| 控件 | 手册路径 | 成功刷新 | 失败 |
+| Control | Handbook path | Success refresh | Failure |
 |---|---|---|---|
-| 左表车辆行 / 选车 | `GET /vehicles`（建议 `status` 不限，已售仍可看广告但按产品只读） | 左表 | 同 DMS |
-| 选中车后加载广告 | `GET /vehicles/{id}/listing`（无则空草稿） | 左表单 + 右状态 | `404` Vehicle not found |
-| `Save draft` | `PATCH /vehicles/{id}/listing` 带 `version` | 表单 version；右态变 Stale（若曾 Passed） | `404`；`409 VERSION_CONFLICT` |
-| `Run check` | `POST /listings/{id}/checks` | 右结果；等最多约 15s，按钮 loading | `404`；`409` 版本冲突；`502 AI_UNAVAILABLE` 右态 **AI unavailable**，**禁止显示 Pass** |
-| `Mark ready` | `POST /listings/{id}/ready` | 右态 | `409 CHECK_STALE` Check is stale. Run check again；`409 NOT_PASSED` Check has not passed |
-| `Export TXT` | `POST /listings/{id}/exports` → `text/plain` 下载 | 不改表 | 同上 409；仅 **Passed 且非 Stale** 可点 |
+| Left vehicle row / select vehicle | `GET /vehicles` (prefer no `status` filter; sold vehicles can still show ads but are product-read-only) | left table | same as DMS |
+| Load listing after select | `GET /vehicles/{id}/listing` (empty draft if none) | left form + right status | `404` Vehicle not found |
+| `Save draft` | `PATCH /vehicles/{id}/listing` with `version` | form version; right state becomes Stale (if it was Passed) | `404`; `409 VERSION_CONFLICT` |
+| `Run check` | `POST /listings/{id}/checks` | right results; wait up to about 15s, button loading | `404`; `409` version conflict; `502 AI_UNAVAILABLE` right state **AI unavailable**, **never show Pass** |
+| `Mark ready` | `POST /listings/{id}/ready` | right state | `409 CHECK_STALE` Check is stale. Run check again; `409 NOT_PASSED` Check has not passed |
+| `Export TXT` | `POST /listings/{id}/exports` → `text/plain` download | do not change the table | same 409s; clickable only when **Passed and not Stale** |
 
-无「发布到外部站」。Admin 不会进入本页。
+No "publish to an external site". Admin never enters this page.
 
-### 5.7 Assistant `/assistant`（仅 Dealer.User）
+### 5.7 Assistant `/assistant` (Dealer.User only)
 
-| 控件 | 手册路径 | 成功 | 失败 |
+| Control | Handbook path | Success | Failure |
 |---|---|---|---|
-| `Ask` | `POST /assistant/ask` `{text}` | 短说明 + ≤5 张卡；卡跳转 `/dms` `/crm` `/ads` | `403` 无权限态；`400 VALIDATION` 空提问；网络/5xx Could not ask assistant |
+| `Ask` | `POST /assistant/ask` `{text}` | short summary + ≤5 cards; cards navigate to `/dms` `/crm` `/ads` | `403` no-access state; `400 VALIDATION` empty question; network/5xx Could not ask assistant |
 
-响应体按 **14**（字段以手册/14 为准，不要用旧 `resources` 猜测）：
+Response body follows **14** (fields follow the handbook/14; do not guess with the old `resources` shape):
 
 ```json
 {
@@ -213,109 +213,109 @@ dealer-web/
 }
 ```
 
-`kind`：`VEHICLE` | `CUSTOMER` | `LISTING`。`LISTING` 卡可带 `vehicleId`、`checkStatus`。前端自己映射到 `/dms` `/crm` `/ads`（14 不规定 Vue 路由）。  
-模型挂但仍 **200**：`summary` 为 `null`，`summaryAvailable=false`，`cards` 仍渲染；说明区固定英文 **`Smart summary unavailable`**（以 12 为准，不用 10 的「智能说明暂不可用」）。  
-不在此页改车辆/客户/检查。卡上不出现 phone / email / homeAddress。
+`kind`: `VEHICLE` | `CUSTOMER` | `LISTING`. `LISTING` cards may include `vehicleId`, `checkStatus`. The frontend maps these to `/dms` `/crm` `/ads` itself (14 does not specify Vue routes).  
+If the model is down but HTTP is still **200**: `summary` is `null`, `summaryAvailable=false`, `cards` still render; the summary area is fixed English **`Smart summary unavailable`** (follow 12; do not use document 10's Chinese wording).  
+Do not change vehicles/customers/checks on this page. Cards must not show phone / email / homeAddress.
 
-### 5.8 不要发明的页
+### 5.8 Pages not to invent
 
-| 想法 | 裁定 |
+| Idea | Ruling |
 |---|---|
-| 独立 Audit / 工单 / 线索 | 不做。审计只在 DMS/CRM 详情 |
-| 管理员看车辆 | 不做。打业务 URL 由后端 403/404，前端守卫已拦 |
-| 浏览器调 `/internal/v1/ad-check` 或 `/internal/v1/assistant` | 禁止 |
+| Standalone Audit / tickets / leads | Do not build. Audit lives only in DMS/CRM detail |
+| Admin viewing vehicles | Do not build. Hitting a business URL is 403/404 from the backend; the frontend guard already blocks |
+| Browser calling `/internal/v1/ad-check` or `/internal/v1/assistant` | Forbidden |
 
 ---
 
-## 6. 组件清单（勿过度设计）
+## 6. Component list (do not over-design)
 
-| 组件 | 职责 | 不要做 |
+| Component | Responsibility | Do not |
 |---|---|---|
-| `AppLayout` | 左菜单 + 顶栏（店名或 `Platform Admin`、角色、`Sign out`）+ `router-view` | KPI 条、多店切换器 |
-| `AppMenu` | Admin：一项 Admin。店员：DMS、CRM、Ad compliance、Assistant | 按权限动态塞工单 |
-| `DataTable` | Element Table + 分页 10 + 操作列最多 3 个文字链 + 状态 Tag；已售行变淡 | 价格滑条、行内万用编辑器 |
-| `FormDrawer` / Dialog | 新增编辑；枚举 `el-select` | 向导式多步 |
-| `ConfirmDialog` | Sell、Unbind staff、Unlink（12：出售/解绑二次确认） | — |
-| `PageState` | 统一 loading / empty / error / forbidden 插槽 | 把失败画成空表 |
-| `AdWorkspace` | 左表单、右结果；清单随类型/媒介变 | 第五种总状态 |
-| `AssistantCard` | 标题 + 进普通页的链接；无联系方式 | 卡内改数据 |
+| `AppLayout` | left menu + top bar (dealership name or `Platform Admin`, role, `Sign out`) + `router-view` | KPI strip, multi-dealership switcher |
+| `AppMenu` | Admin: one Admin item. Staff: DMS, CRM, Ad compliance, Assistant | inject tickets by permission |
+| `DataTable` | Element Table + page size 10 + at most 3 text links in actions + status Tag; sold rows dimmed | price slider, inline universal editor |
+| `FormDrawer` / Dialog | create/edit; enums via `el-select` | multi-step wizard |
+| `ConfirmDialog` | Sell, Unbind staff, Unlink (12: second confirmation for sell/unbind) | — |
+| `PageState` | shared loading / empty / error / forbidden slots | paint failures as empty tables |
+| `AdWorkspace` | form left, results right; checklist changes with type/medium | a fifth overall status |
+| `AssistantCard` | title + link into an ordinary page; no contact details | mutate data inside the card |
 
-出售小窗（可放 `DmsView` 内）：Sold date + Sold price，成对必填。CRM 挂车 Select 只列本店未挂未售。
-
----
-
-## 7. Admin 信息架构（裁定）
-
-**裁定：单页 `/admin` + 两个 Tab（Dealerships | Members），成员编辑用抽屉。**
-
-理由：12 给了两套列和「店名 / 员工邮箱」两种筛，但手册只有「按店取成员」，没有第三张 Admin 子路由。Tab 对齐两套列；Staff 抽屉复用同一套成员 API。不要 `/admin/members` 路由。
+Sell small dialog (may live inside `DmsView`): Sold date + Sold price, required as a pair. CRM link-vehicle Select lists only this dealership's unlinked, unsold vehicles.
 
 ---
 
-## 8. 助手失败文案
+## 7. Admin information architecture (ruling)
 
-以 **12** 为准，英文：
+**Ruling: single page `/admin` + two Tabs (Dealerships | Members); member edits use a drawer.**
 
-- 模型不可用但仍有资源卡：`Smart summary unavailable`
-- 整页请求失败：`Could not ask assistant`（不是 Pass，也不是中文）
-
-不要使用 10 的「智能说明暂不可用」。
+Reason: 12 gives two column sets and two filters ("dealership name / staff email"), but the handbook only has "load members by dealership" and no third Admin sub-route. Tabs align with the two column sets; the Staff drawer reuses the same member APIs. Do not add an `/admin/members` route.
 
 ---
 
-## 9. 解绑客户车辆
+## 8. Assistant failure copy
 
-- UI：CRM 详情对已挂车辆提供 `Unlink`，**必须二次确认**（12）。
-- API（对齐 14）：`DELETE /api/v1/customers/{id}/vehicles/{vehicleId}` → **204** 无 body。审计 `CUSTOMER_VEHICLE` / `UNLINK`。
-- **已售车不可解挂**（15）：按钮对 `status=SOLD` 隐藏或禁用；若仍请求 → `409 SOLD_LOCKED`，文案 `Sold vehicles cannot be unlinked`。
-- 无此关联或跨店 → `404`。不要用 PUT 空值假装解绑。
+Follow **12**, in English:
+
+- Model unavailable but resource cards still present: `Smart summary unavailable`
+- Whole-page request failure: `Could not ask assistant` (not Pass, and not Chinese)
+
+Do not use document 10's Chinese wording.
 
 ---
 
-## 10. 每页四态（各一行）
+## 9. Unlink customer vehicles
 
-| 页 | loading | empty | error | 无权限 |
+- UI: CRM detail provides `Unlink` for a linked vehicle; **second confirmation is required** (12).
+- API (align 14): `DELETE /api/v1/customers/{id}/vehicles/{vehicleId}` → **204** no body. Audit `CUSTOMER_VEHICLE` / `UNLINK`.
+- **Sold vehicles cannot be unlinked** (15): hide or disable the button when `status=SOLD`; if the request is still sent → `409 SOLD_LOCKED`, copy `Sold vehicles cannot be unlinked`.
+- No such link or cross-dealership → `404`. Do not pretend to unlink with an empty PUT.
+
+---
+
+## 10. Four states per page (one line each)
+
+| Page | loading | empty | error | no access |
 |---|---|---|---|---|
-| Login | Signing you in… | （无列表；只显示登录卡） | Sign-in failed. Try again. | 已登录错角色不会停在本页，守卫立刻分流 |
+| Login | Signing you in… | (no list; show the login card only) | Sign-in failed. Try again. | A signed-in wrong role never stays here; the guard redirects immediately |
 | Admin | Loading dealerships… | No dealerships yet. | Could not load dealerships. | You do not have access to Admin. |
 | DMS | Loading vehicles… | No vehicles match. | Could not load vehicles. | You do not have access to DMS. |
 | CRM | Loading customers… | No customers match. | Could not load customers. | You do not have access to CRM. |
 | Ad compliance | Loading listing… | Select a vehicle to start. / No vehicles to advertise. | Could not load listing. | You do not have access to Ad compliance. |
 | Assistant | Asking… / Loading | Ask a question about this dealership. | Could not ask assistant. | You do not have access to Assistant. |
 
-失败不当空表。广告 AI 失败用右栏 **AI unavailable**，不是表格 empty，更不是 Passed。
+Failures must not look like empty tables. Ad AI failure uses the right pane **AI unavailable**, not table empty, and never Passed.
 
 ---
 
-## 11. 英文文案（控件，够编码）
+## 11. English copy (controls, enough to code)
 
-| 位置 | 文案 |
+| Location | Copy |
 |---|---|
-| 登录按钮 | Sign in with Microsoft |
-| 顶栏退出 | Sign out |
-| 顶栏 Admin | Platform Admin |
-| 菜单 | Admin · DMS · CRM · Ad compliance · Assistant |
-| Admin 主按钮 | New dealership |
-| Admin 成员 | Bind staff · Unbind |
+| Login button | Sign in with Microsoft |
+| Top-bar exit | Sign out |
+| Top-bar Admin | Platform Admin |
+| Menu | Admin · DMS · CRM · Ad compliance · Assistant |
+| Admin primary button | New dealership |
+| Admin members | Bind staff · Unbind |
 | DMS | Add vehicle · Edit · Sell |
-| 出售窗 | Sold date · Sold price · Confirm sale |
+| Sell dialog | Sold date · Sold price · Confirm sale |
 | CRM | Add customer · Link vehicle · Unlink |
 | Ad | Save draft · Run check · Mark ready · Export TXT |
-| 检查态 | Blocked · Needs AI review · Passed · Stale · AI unavailable |
-| 助手 | Ask · Smart summary unavailable |
-| 表操作 | 最多三个文字链；不要图标海 |
+| Check states | Blocked · Needs AI review · Passed · Stale · AI unavailable |
+| Assistant | Ask · Smart summary unavailable |
+| Table actions | at most three text links; no icon sea |
 
-枚举下拉值与手册一致：`TRADE_IN` `AUCTION` `PRIVATE_PURCHASE` `OTHER`；`CERTIFIED` `AS_IS` `UNFIT` `IRREPARABLE`；`IN_STOCK` `SOLD`；`CASH` `FINANCE` `LEASE`；`ONLINE` `RADIO_TV_BILLBOARD`。展示可用空格可读标签（如 `Trade in`），提交仍用枚举原值。
+Enum dropdown values match the handbook: `TRADE_IN` `AUCTION` `PRIVATE_PURCHASE` `OTHER`; `CERTIFIED` `AS_IS` `UNFIT` `IRREPARABLE`; `IN_STOCK` `SOLD`; `CASH` `FINANCE` `LEASE`; `ONLINE` `RADIO_TV_BILLBOARD`. Display may use spaced readable labels (for example `Trade in`); submit still uses the raw enum value.
 
 ---
 
-## 12. 前端编码缺口（不在本文发明）
+## 12. Frontend coding gaps (not invented here)
 
-13/14/15 已对齐：**Unlink DELETE 204**、分页信封、`staffCount` / `dealerLegalName`、助手 `{summary,summaryAvailable,cards}`、客户列表 `linkedVehicle`。字段仍以手册/14 为准。
+13/14/15 already align: **Unlink DELETE 204**, pagination envelope, `staffCount` / `dealerLegalName`, assistant `{summary,summaryAvailable,cards}`, customer list `linkedVehicle`. Fields still follow the handbook/14.
 
-仍不在前端发明：
+Still not invented on the frontend:
 
-1. 生产环境 MSAL redirect URI（Entra 注册，非前端臆造）
-2. `dealer-web` 仓库本身尚未创建
+1. Production MSAL redirect URI (Entra registration, not a frontend guess)
+2. The `dealer-web` repository itself is not created yet
 
-本文是拆文件依据，不是业务实现。
+This document is a file-split basis, not a business implementation.

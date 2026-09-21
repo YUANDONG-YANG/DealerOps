@@ -1,73 +1,73 @@
-# AI-CODING · 本机四服务怎么起、云上最小资源叫什么
+# AI-CODING · How to start the four local services, and minimum cloud resource names
 
-版本：现行有效 · 2026-09-21  
-状态：**编码 AI 开工抄本文件。** 不改契约、不改 13–19 / BRIEF / `AI-CODING-BACKEND` / `AI-CODING-FRONTEND` / `AI-PROTOCOL`。  
-**禁止**改 `dealer-platform/infra/main.bicep` 本体（半成品云稿不得冒充已部署）。  
-**禁止**把现有 `docker-compose.yml` 改成假装四服务已实现。
+Version: currently in force · 2026-09-21  
+Status: **Coding AIs start by copying this file.** Do not change contracts, and do not change 13–19 / BRIEF / `AI-CODING-BACKEND` / `AI-CODING-FRONTEND` / `AI-PROTOCOL`.  
+**Do not** change the `dealer-platform/infra/main.bicep` body (an unfinished cloud draft must not be passed off as deployed).  
+**Do not** change the existing `docker-compose.yml` to pretend the four services are already implemented.
 
-原则与端口以 [15](15-Data-Auth-and-Gateway.md) / [19](19-Gateway-and-AI-Engineering.md) 为准。本文只写**可复制命令、名称模式、验收 curl**。
+Principles and ports follow [15](15-Data-Auth-and-Gateway.md) / [19](19-Gateway-and-AI-Engineering.md). This file only records **copy-paste commands, name patterns, and acceptance curls**.
 
 ---
 
-## 1. 端口表（与 15 / 19 / `env.example` 同一套，写死）
+## 1. Port table (same pinned set as 15 / 19 / `env.example`)
 
-| 进程 | 环境变量 | 端口 | 浏览器 |
+| Process | Environment variable | Port | Browser |
 |---|---|---|---|
-| dealer-web（Vite） | — | **5173** | 只出静态 + 跳 Entra |
-| dealer-gateway | `GATEWAY_PORT` | **8080** | **唯一 API 源**（`VITE_GATEWAY_URL=http://localhost:8080`） |
-| dealer-core | `CORE_PORT` | **8081** | 必须失败（产品入口不是 8081） |
-| ai-service | `AI_PORT` | **8082** | 必须失败 |
-| MySQL | — | **3306** | 不给浏览器 |
+| dealer-web (Vite) | — | **5173** | Static only + Entra redirect |
+| dealer-gateway | `GATEWAY_PORT` | **8080** | **Only API origin** (`VITE_GATEWAY_URL=http://localhost:8080`) |
+| dealer-core | `CORE_PORT` | **8081** | Must fail (product entry is not 8081) |
+| ai-service | `AI_PORT` | **8082** | Must fail |
+| MySQL | — | **3306** | Not for the browser |
 
-上游（Gateway 出站，跟 `env.example`）：
+Upstream (Gateway outbound, same as `env.example`):
 
 ```text
 CORE_URL=http://host.docker.internal:8081
 AI_URL=http://host.docker.internal:8082
 ```
 
-本机 IDE 直跑（不进容器）时可用 `http://127.0.0.1:8081` / `http://127.0.0.1:8082`。
+When the IDE runs processes on the host (not in containers), `http://127.0.0.1:8081` / `http://127.0.0.1:8082` are allowed.
 
 ---
 
-## 2. 本机启动顺序 + 健康检查 URL
+## 2. Local start order + health-check URLs
 
-**事实：** 现有 `dealer-platform/docker-compose.yml` **只起 MySQL**，没有 web / gateway / core / ai-service。四服务按第 3 节目标片段由编码 AI 新建仓后落地，**现在不要改 compose 假装已齐**。
+**Fact:** the existing `dealer-platform/docker-compose.yml` **starts MySQL only**; it has no web / gateway / core / ai-service. The four services land from the target fragment in section 3 after the coding AI creates the repos. **Do not change compose now to pretend they are complete.**
 
-### 2.1 顺序（写死）
+### 2.1 Order (pinned)
 
-1. **MySQL**（现有 compose）
-2. **dealer-core**（要库；Flyway）
-3. **ai-service**（无库；可与 core 并行，但必须在 Gateway 之前就绪）
-4. **dealer-gateway**（要能解析 `CORE_URL` / `AI_URL`）
-5. **dealer-web**（只打 8080）
+1. **MySQL** (existing compose)
+2. **dealer-core** (needs the database; Flyway)
+3. **ai-service** (no database; may run in parallel with core, but must be ready before Gateway)
+4. **dealer-gateway** (must resolve `CORE_URL` / `AI_URL`)
+5. **dealer-web** (hits 8080 only)
 
 ```text
-# 1) 仅 MySQL（现状即可）
+# 1) MySQL only (current state is fine)
 cd dealer-platform
 docker compose up -d mysql
 
-# 2) 等 3306
+# 2) Wait for 3306
 mysql -h 127.0.0.1 -P 3306 -u dealer -pdealer_dev_only -e "SELECT 1"
 
-# 3–5) 各仓就绪后（仓尚未建齐时停在这一步，不要伪造进程）
+# 3–5) After each repo is ready (stop here if repos are not all created; do not fake processes)
 # dealer-core  → CORE_PORT=8081
 # ai-service   → AI_PORT=8082
 # dealer-gateway → GATEWAY_PORT=8080
 # dealer-web   → vite :5173
 ```
 
-### 2.2 健康检查（编码时按此暴露，无 JWT）
+### 2.2 Health checks (expose these while coding; no JWT)
 
-| 进程 | URL | 期望 |
+| Process | URL | Expected |
 |---|---|---|
-| MySQL | `mysql … -e "SELECT 1"` | 退出码 0 |
+| MySQL | `mysql … -e "SELECT 1"` | Exit code 0 |
 | dealer-core | `http://127.0.0.1:8081/actuator/health` | **200** |
 | ai-service | `http://127.0.0.1:8082/actuator/health` | **200** |
 | dealer-gateway | `http://127.0.0.1:8080/actuator/health` | **200** |
-| dealer-web | `http://127.0.0.1:5173/` | **200**（Vite 开发页） |
+| dealer-web | `http://127.0.0.1:5173/` | **200** (Vite dev page) |
 
-Windows 用 `curl.exe`（不要用 PowerShell 的 `curl` 别名）：
+On Windows use `curl.exe` (do not use PowerShell’s `curl` alias):
 
 ```text
 curl.exe -s -o NUL -w "%{http_code}" http://127.0.0.1:8081/actuator/health
@@ -76,19 +76,19 @@ curl.exe -s -o NUL -w "%{http_code}" http://127.0.0.1:8080/actuator/health
 curl.exe -s -o NUL -w "%{http_code}" http://127.0.0.1:5173/
 ```
 
-四条健康检查都是 **200** 才算本机进程齐。健康口 **不要**要求 `Authorization` / `X-Dealer-Internal`。
+All four health checks must be **200** before local processes count as complete. Health endpoints **must not** require `Authorization` / `X-Dealer-Internal`.
 
 ---
 
-## 3. 目标 compose（尚未落地 — 编码 AI 按此建）
+## 3. Target compose (not landed yet — coding AI builds this)
 
-**现状一句：** `dealer-platform/docker-compose.yml` 现在只有 `mysql:8.4`，映射 `3306:3306`，库名 `dealer_core`。
+**Current state in one sentence:** `dealer-platform/docker-compose.yml` currently has only `mysql:8.4`, mapped `3306:3306`, database name `dealer_core`.
 
-下面是 **目标** 片段。编码 AI 建四仓 Dockerfile 之后再写入 compose。**现在禁止把这段提交进现有 compose 冒充四服务已跑。**
+The fragment below is the **target**. The coding AI writes it into compose only after the four-repo Dockerfiles exist. **Do not commit this fragment into the existing compose now to pretend the four services are running.**
 
 ```yaml
-# === 目标（尚未落地） dealer-platform/docker-compose.yml ===
-# 编码 AI 建齐四仓后再合并；Gateway 映射 8080；core/ai 不要绑 0.0.0.0 给全班扫。
+# === Target (not landed) dealer-platform/docker-compose.yml ===
+# Merge after the coding AI has all four repos; Gateway maps 8080; do not bind core/ai on 0.0.0.0 for the class to scan.
 services:
   mysql:
     image: mysql:8.4
@@ -111,7 +111,7 @@ services:
       INTERNAL_TOKEN: dealer-internal
       ENTRA_ISSUER: ${ENTRA_ISSUER}
       ENTRA_AUDIENCE: ${ENTRA_AUDIENCE:-api://dealer-api}
-    # 本机演示 curl 才绑回环；不要 "8081:8081"
+    # Bind loopback only for local demo curl; do not use "8081:8081"
     ports:
       - "127.0.0.1:8081:8081"
     depends_on:
@@ -154,119 +154,119 @@ services:
       - "5173:5173"
 ```
 
-`../dealer-*` 是四独立仓相对 `dealer-platform` 的约定路径；仓未检出时不要硬编空镜像。
+`../dealer-*` is the agreed path of the four independent repos relative to `dealer-platform`; do not hard-code empty images when a repo is not checked out.
 
 ---
 
-## 4. Gateway CORS 与内部头（环境变量名写死）
+## 4. Gateway CORS and internal header (environment variable names pinned)
 
-| 项 | 写死值 |
+| Item | Pinned value |
 |---|---|
-| 本机 CORS origin | **`http://localhost:5173`** |
-| 环境变量（Gateway） | **`CORS_ALLOWED_ORIGIN`**（本机默认即上一行；Azure 换成 web 的 HTTPS 源） |
-| 内部请求头名 | **`X-Dealer-Internal`** |
-| 环境变量（值） | **`INTERNAL_TOKEN`** |
-| 本机默认值 | **`dealer-internal`** |
-| Key Vault 秘密名 | **`INTERNAL-TOKEN`**（云上；仓内不写真实值） |
+| Local CORS origin | **`http://localhost:5173`** |
+| Environment variable (Gateway) | **`CORS_ALLOWED_ORIGIN`** (local default is the row above; Azure becomes the web HTTPS origin) |
+| Internal request header name | **`X-Dealer-Internal`** |
+| Environment variable (value) | **`INTERNAL_TOKEN`** |
+| Local default | **`dealer-internal`** |
+| Key Vault secret name | **`INTERNAL-TOKEN`** (cloud; never write the real value in the repo) |
 
-谁读 `INTERNAL_TOKEN`：**gateway**（谓词）、**core**（出站）、**ai-service**（守卫）。**web 不读。**
+Who reads `INTERNAL_TOKEN`: **gateway** (predicate), **core** (outbound), **ai-service** (guard). **web does not read it.**
 
-Gateway 预检允许头只列 `Authorization`、`Content-Type`。**不要**把 `X-Dealer-Internal` 放进 `Access-Control-Allow-Headers`。  
-core:8081 / ai:8082：**不配**对 `http://localhost:5173` 的 CORS。
+Gateway preflight allowed headers list only `Authorization` and `Content-Type`. **Do not** put `X-Dealer-Internal` in `Access-Control-Allow-Headers`.  
+core:8081 / ai:8082: **do not** configure CORS for `http://localhost:5173`.
 
-`AIMANAGER_API_KEY` **只**给 ai-service。`MYSQL_PASSWORD` **只**给 core。密钥不进 Git；仓内只有 `env.example` 空位。
+`AIMANAGER_API_KEY` goes to **ai-service only**. `MYSQL_PASSWORD` goes to **core only**. Secrets stay out of Git; the repo has only empty slots in `env.example`.
 
 ---
 
-## 5. 直连 8081 / 8082 必须失败（curl 期望）
+## 5. Direct 8081 / 8082 must fail (curl expectations)
 
-一律 `curl.exe`。健康检查 200 **不算**产品入口。
+Always use `curl.exe`. Health-check 200 **does not** count as the product entry.
 
-### 5.1 无内部头打 AI 路径 → 404（不要 401）
+### 5.1 AI path without the internal header → 404 (not 401)
 
 ```text
 curl.exe -s -o NUL -w "%{http_code}" -X POST http://127.0.0.1:8080/internal/v1/ad-check
-# 期望：404
+# Expected: 404
 
 curl.exe -s -o NUL -w "%{http_code}" -X POST http://127.0.0.1:8082/internal/v1/ad-check
-# 期望：404
+# Expected: 404
 
 curl.exe -s -o NUL -w "%{http_code}" -X POST http://127.0.0.1:8082/internal/v1/assistant
-# 期望：404
+# Expected: 404
 ```
 
-### 5.2 直连 core 无浏览器 CORS（产品入口不是 8081）
+### 5.2 Direct core has no browser CORS (product entry is not 8081)
 
 ```text
 curl.exe -s -D - -o NUL -X OPTIONS http://127.0.0.1:8081/api/v1/vehicles ^
   -H "Origin: http://localhost:5173" ^
   -H "Access-Control-Request-Method: GET"
-# 期望：响应头里没有 Access-Control-Allow-Origin: http://localhost:5173
+# Expected: response headers do not include Access-Control-Allow-Origin: http://localhost:5173
 
 curl.exe -s -D - -o NUL -X OPTIONS http://127.0.0.1:8080/api/v1/vehicles ^
   -H "Origin: http://localhost:5173" ^
   -H "Access-Control-Request-Method: GET"
-# 期望：有 Access-Control-Allow-Origin: http://localhost:5173
+# Expected: Access-Control-Allow-Origin: http://localhost:5173 is present
 ```
 
-### 5.3 局域网 IP 直连 core / ai → 连不上
+### 5.3 LAN IP direct to core / ai → cannot connect
 
-目标 compose 只把 8081/8082 绑 `127.0.0.1`。把 `127.0.0.1` 换成你的局域网 IPv4：
+Target compose binds 8081/8082 to `127.0.0.1` only. Replace `127.0.0.1` with your LAN IPv4:
 
 ```text
 curl.exe -s -o NUL -w "%{http_code}" --connect-timeout 3 http://<LAN_IP>:8081/actuator/health
-# 期望：连不上（exit != 0 / 超时），不是 200
+# Expected: cannot connect (exit != 0 / timeout), not 200
 
 curl.exe -s -o NUL -w "%{http_code}" --connect-timeout 3 http://<LAN_IP>:8082/actuator/health
-# 期望：连不上
+# Expected: cannot connect
 
 curl.exe -s -o NUL -w "%{http_code}" --connect-timeout 3 http://<LAN_IP>:8080/actuator/health
-# 期望：200（Gateway 才是对公入口）
+# Expected: 200 (Gateway is the public entry)
 ```
 
-若本机 `127.0.0.1:8081` 的 `curl` 仍返回 401：课堂只用来讲「无 CORS / 非产品入口」，**不能**当成「直连失败已验收」。
+If `curl` to local `127.0.0.1:8081` still returns 401: class may use that only to say “no CORS / not the product entry”; it **cannot** count as “direct-access failure already accepted.”
 
-Azure：core / ai **internal** Ingress；对外 FQDN **只有** web + gateway。
+Azure: core / ai use **internal** Ingress; the public FQDN is **only** web + gateway.
 
 ---
 
-## 6. Azure 最小资源名称模式
+## 6. Azure minimum resource name patterns
 
-`main.bicep` 的 `prefix` 默认 **`dealerops`**。名称按下面拼，**不要另起一套花名**。
+`main.bicep` `prefix` defaults to **`dealerops`**. Compose names as below; **do not invent a second nickname set**.
 
-| 资源 | 数量 | 名称模式 | 例（prefix=`dealerops`） | `main.bicep` 现状 |
+| Resource | Count | Name pattern | Example (`prefix=dealerops`) | `main.bicep` status |
 |---|---|---|---|---|
-| Azure Container Registry | 1（Basic，admin 关） | `${prefix}acr` | `dealeropsacr` | **仅此项已写** |
-| Container Apps Environment | 1 | `${prefix}-cae` | `dealerops-cae` | 未写 |
-| Container App | **4** | `${prefix}-web` `${prefix}-gateway` `${prefix}-core` `${prefix}-ai` | `dealerops-web` … `dealerops-ai` | 未写 |
-| MySQL Flexible Server | 1，库名 **`dealer_core`** | `${prefix}-mysql` | `dealerops-mysql` | 未写 |
-| Key Vault | 1 | `${prefix}-kv` | `dealerops-kv` | 未写 |
-| Application Insights | 1 | `${prefix}-appi` | `dealerops-appi` | 未写 |
+| Azure Container Registry | 1 (Basic, admin off) | `${prefix}acr` | `dealeropsacr` | **This item only is written** |
+| Container Apps Environment | 1 | `${prefix}-cae` | `dealerops-cae` | Not written |
+| Container App | **4** | `${prefix}-web` `${prefix}-gateway` `${prefix}-core` `${prefix}-ai` | `dealerops-web` … `dealerops-ai` | Not written |
+| MySQL Flexible Server | 1, database name **`dealer_core`** | `${prefix}-mysql` | `dealerops-mysql` | Not written |
+| Key Vault | 1 | `${prefix}-kv` | `dealerops-kv` | Not written |
+| Application Insights | 1 | `${prefix}-appi` | `dealerops-appi` | Not written |
 
-Bicep **现状 = 仅 ACR**。不要把注释里的待补项当成已部署。不要在 Bicep 写 subscriptionId 或密钥明文。
+Bicep **current state = ACR only**. Do not treat commented TODOs as deployed. Do not write a subscriptionId or plaintext secrets in Bicep.
 
-### 何时才算云上验收
+### When cloud acceptance counts
 
-| Sprint | 云上业务？ |
+| Sprint | Cloud business? |
 |---|---|
-| **Sprint 1** | **不必**云上跑业务。本机四进程 + 架构图 + Entra 两角色 +「直连 8081/8082 失败」能讲即可。ACR 占位够。 |
-| **Sprint 2** | **必须**云上真路径：登录 → Gateway → 录一辆车 → **真实 AI** 检查广告。KV / MySQL / CAE / 四 Container App / Insights 必须补进同一 `main.bicep` 后再部署。core/ai internal；gateway/web external + HTTPS。 |
-| **Sprint 3** | 不再加总线/第二库；隔离、CRM、三类广告、导出、审计跑满。 |
+| **Sprint 1** | Cloud business is **not required**. Local four processes + architecture diagram + Entra two roles + “direct 8081/8082 fails” is enough to present. ACR placeholder is enough. |
+| **Sprint 2** | Cloud **must** be the real path: sign-in → Gateway → record one vehicle → **real AI** ad check. KV / MySQL / CAE / four Container Apps / Insights must be added to the same `main.bicep` before deploy. core/ai internal; gateway/web external + HTTPS. |
+| **Sprint 3** | Do not add a bus/second database; finish isolation, CRM, three ad kinds, export, and audit. |
 
 ---
 
-## 7. 流水线（默认 GitHub Actions，不再二选一）
+## 7. Pipeline (GitHub Actions by default; no longer a choice)
 
-**默认 CI：GitHub Actions。** 四应用仓 **各一份** `.github/workflows/ci.yml`。`dealer-platform` 不跑业务镜像。
+**Default CI: GitHub Actions.** Each of the four application repos has **one** `.github/workflows/ci.yml`. `dealer-platform` does not build business images.
 
-| 仓 | JDK / Node | PR（先 echo/compile） | `main`（再 docker push） |
+| Repo | JDK / Node | PR (echo/compile first) | `main` (then docker push) |
 |---|---|---|---|
-| dealer-gateway | **Java 21** | `echo` 仓名 → `mvn -B -DskipTests compile` | 镜像 `tag=$GITHUB_SHA` → push ACR `${prefix}acr` |
-| dealer-core | **Java 21** | 同上 | 同上；需要时另跑 Flyway Job |
-| ai-service | **Java 21** | 同上；CI **stub**，不打付费端点 | 同上 |
-| dealer-web | Node 20 | `echo` 仓名 → `npm ci && npm run build` | 同上 |
+| dealer-gateway | **Java 21** | `echo` repo name → `mvn -B -DskipTests compile` | Image `tag=$GITHUB_SHA` → push ACR `${prefix}acr` |
+| dealer-core | **Java 21** | Same | Same; optional extra Flyway Job |
+| ai-service | **Java 21** | Same; CI **stub**, do not hit paid endpoints | Same |
+| dealer-web | Node 20 | `echo` repo name → `npm ci && npm run build` | Same |
 
-最小骨架（Java 仓；web 把 compile 换成 `npm`）：
+Minimal skeleton (Java repos; web replaces compile with `npm`):
 
 ```yaml
 name: ci
@@ -293,25 +293,25 @@ jobs:
       - uses: actions/checkout@v4
       - run: echo "build-and-push ${{ github.sha }}"
       # docker build / tag=$GITHUB_SHA / acr login / docker push
-      # ACR 名：${prefix}acr（例 dealeropsacr）。密钥用 GitHub Secrets，不进仓。
+      # ACR name: ${prefix}acr (example dealeropsacr). Secrets via GitHub Secrets, not in the repo.
 ```
 
-demo 发布要另一人批准。禁止门户手点改镜像冒充流水线。
+Demo releases need a second-person approval. Do not change images by hand in the portal and call it a pipeline.
 
 ---
 
-## 8. Java 与密钥
+## 8. Java and secrets
 
-- Java **三仓**（`dealer-gateway` / `dealer-core` / `ai-service`）统一 **21**。禁止一仓 21、一仓 17。
-- `dealer-web` 无 JDK。上游 `ai-manager` 仍是 17 字节码 JAR，**不改该库**；21 运行时可以依赖它。
-- **密钥不进仓：** `.env`、`AIMANAGER_API_KEY`、MySQL 真密码、`INTERNAL_TOKEN` 真值不进 Git。本地复制 `dealer-platform/env.example`。云上走 Key Vault `secretRef`。
-- SPA **无** Entra client secret（PKCE）。`VITE_ENTRA_CLIENT_ID` 不是秘密。
+- The three Java repos (`dealer-gateway` / `dealer-core` / `ai-service`) are uniformly **21**. Ban one repo on 21 and another on 17.
+- `dealer-web` has no JDK. Upstream `ai-manager` remains a Java 17 bytecode JAR; **do not change that library**; a 21 runtime may depend on it.
+- **Secrets stay out of the repo:** `.env`, `AIMANAGER_API_KEY`, real MySQL passwords, and real `INTERNAL_TOKEN` values do not go into Git. Locally copy `dealer-platform/env.example`. Cloud uses Key Vault `secretRef`.
+- SPA has **no** Entra client secret (PKCE). `VITE_ENTRA_CLIENT_ID` is not a secret.
 
 ---
 
-## 编码 AI 禁止
+## Coding AI must not
 
-- 改 13–19、BRIEF、`AI-CODING-BACKEND` / `AI-CODING-FRONTEND` / `AI-PROTOCOL`
-- 改 `dealer-platform/infra/main.bicep` 冒充云已齐
-- 把现有 compose 改成四服务已实现
-- 第五个 auth 仓 / Service Bus / 密钥进仓 / 默认改用 Azure DevOps
+- Change 13–19, BRIEF, `AI-CODING-BACKEND` / `AI-CODING-FRONTEND` / `AI-PROTOCOL`
+- Change `dealer-platform/infra/main.bicep` to pretend the cloud is complete
+- Change the existing compose as if the four services are implemented
+- Add a fifth auth repo / Service Bus / secrets in the repo / default to Azure DevOps

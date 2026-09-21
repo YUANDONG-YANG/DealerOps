@@ -1,35 +1,35 @@
-# 编码前缺口（只有你能提供）
+# Pre-coding gaps (only you can supply)
 
-标了「缺」的不能开始对应模块。没有密码请发到对话里，配好环境变量即可。
+Items marked **Missing** block the matching module. Do not paste passwords into chat. Configure environment variables instead.
 
-## 必须先有（卡住开工）
+## Required first (blocks start of work)
 
-| 项 | 现状 | 你要做什么 |
+| Item | Status | What you need to do |
 |---|---|---|
-| JDK 17 或 21 | **缺**。本机是 JDK 11，Spring Boot 3 编不过 | 安装 Temurin 17 或 21，并让 `JAVA_HOME` 指向它 |
-| Docker Desktop | **缺** | 安装后才能本地起 MySQL，以及后面打容器 |
-| 组员 A/B/C 姓名 | **缺** | 三人名字和谁做 web / AI / core |
-| Azure 订阅 | **缺** | 学生/学校订阅，能建 Container Apps、MySQL、ACR、Key Vault |
-| Entra 权限 | **缺** | 能建 App Registration，加 `Platform.Admin`、`Dealer.User`，能绑用户 |
-| 模型 Key | **缺** | ai-manager 要 `AIMANAGER_API_KEY`（groq/openai/claude/deepseek 其一）。课程演示首选能稳定调用的真实 Key |
-| ai-manager 包 | **未发布固定版** | 从 commit `c07e1f2` 打不可改版本到 GitHub Packages，或允许本机 `mvn install` |
+| JDK 17 or 21 | **Missing**. This machine has JDK 11; Spring Boot 3 will not compile | Install Temurin 17 or 21 and point `JAVA_HOME` at it |
+| Docker Desktop | **Missing** | Required to run MySQL locally and to build containers later |
+| Teammate A/B/C names | **Missing** | Three names and who owns web / AI / core |
+| Azure subscription | **Missing** | Student or school subscription that can create Container Apps, MySQL, ACR, Key Vault |
+| Entra permissions | **Missing** | Can create an App Registration, add `Platform.Admin` and `Dealer.User`, and bind users |
+| Model key | **Missing** | ai-manager needs `AIMANAGER_API_KEY` (one of groq/openai/claude/deepseek). Course demos should use a real key that can be called reliably |
+| ai-manager package | **No pinned release** | Publish an immutable version from commit `c07e1f2` to GitHub Packages, or allow local `mvn install` |
 
-## Sprint 1 前最好有
+## Preferred before Sprint 1
 
-| 项 | 说明 |
+| Item | Notes |
 |---|---|
-| 两个演示用 Entra 账号 + 一个管理员账号 | 用来演示两家店隔离 |
-| 本机或 Azure 回调 URL | 先用 `http://localhost:5173` |
-| Azure DevOps 或 GitHub Actions | 课程要独立 CI/CD；你定用哪边 |
-| 预算上限 | MySQL + Container Apps 会一直产生费用 |
+| Two demo Entra accounts plus one admin account | Used to demo isolation between two dealerships |
+| Local or Azure redirect URL | Start with `http://localhost:5173` |
+| Azure DevOps or GitHub Actions | The course requires independent CI/CD; you choose which |
+| Budget cap | MySQL + Container Apps incur ongoing cost |
 
-## 已具备
+## Already available
 
-- 业务规格 PDF、课程硬要求 PPT、最简设计文档
-- GitHub 账号 `YUANDONG-YANG` 与私有库 `ai-manager`
-- Node 20 / npm、Maven 3.6、Git
-- 本目录五个空仓库骨架、建表 SQL、API 清单、`.env.example`
+- Business spec PDF, course hard-requirement PPT, and the lean design docs
+- GitHub account `YUANDONG-YANG` and private repo `ai-manager`
+- Node 20 / npm, Maven 3.6, Git
+- Five empty repo skeletons in this directory, table SQL, API inventory, `.env.example`
 
-## 不要提供到聊天里的东西
+## Do not put these in chat
 
-订阅密码、Entra client secret（SPA 本来就不该有）、模型 Key 正文。配进本机环境变量或 Key Vault 即可。
+Subscription passwords, Entra client secrets (an SPA should not have one), or the raw model key. Put them in local environment variables or Key Vault.

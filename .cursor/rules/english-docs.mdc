@@ -1,0 +1,27 @@
+---
+description: English-only project language; never write local absolute paths in Markdown
+alwaysApply: true
+---
+
+# Language and path rules
+
+- Reply to the user in **English only**. Do not use Chinese in chat, commits, comments, or project files.
+- All new or edited project text must be English: Markdown, YAML/JSON comments, Java/JS comments, OpenAPI descriptions, commit messages.
+- Do not leave leftover Chinese in files you touch. Translate it; do not delete meaning.
+
+## Markdown paths
+
+Never write a machine-specific absolute path in `*.md`:
+
+- Bad: `d:\常用文件\...`, `C:\Users\...`, `/Users/...`, `/home/...`
+- Good: repo-relative paths such as `design/SCOPE-BASELINE.md`, `dealer-core/src/main/resources/db/migration/V1__init.sql`
+
+Use GitHub URLs or env-var placeholders (`$JAVA_HOME`, sibling checkout named `ai-manager`) instead of a local disk layout.
+
+```md
+<!-- BAD -->
+Source: `D:\常用文件\SAIT\26fall\Capstone\Project Topics\DealerOps`
+
+<!-- GOOD -->
+Source: `design/IMPLEMENTATION-BRIEF.md` in this repository
+```

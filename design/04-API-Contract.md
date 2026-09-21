@@ -1,59 +1,59 @@
-﻿> 已废止的 v1.0 历史稿，不据此编码。请从 [当前文档索引](README.md) 阅读 00 业务设计与 07/08/09 微服务、DevOps、AI 组件设计。原始需求已找到并核实，不包含厂家或买家自助端。
+﻿> Superseded v1.0 historical draft. Do not implement from this document. Read the current document index in [README.md](README.md) for the 00 business design and the 07/08/09 microservice, DevOps, and AI component designs. The original requirements have been located and verified; they do not include a manufacturer portal or a buyer self-service site.
 
-# 接口约定
+# API contract
 
-这是编码前 REST 契约草案，后续生成 OpenAPI 时沿用这里的字段和错误语义，不在本阶段维护一份可能漂移的第二套 YAML。
+This is a pre-coding REST contract draft. When OpenAPI is generated later, keep these fields and error semantics. Do not maintain a second YAML that can drift in this stage.
 
-## 通用规则
+## Common rules
 
-前缀 /api/v1。路径 ID、JSON ID 为字符串；金额为两位小数字符串；时间 ISO-8601 UTC；JSON 使用 camelCase。数据库字段映射见数据字典。
+Prefix /api/v1. Path IDs and JSON IDs are strings; amounts are two-decimal strings; times are ISO-8601 UTC; JSON uses camelCase. Database field mapping is in the data dictionary.
 
-成功单对象直接返回 DTO；列表返回 {items,page,size,total}，page 从 0 开始。POST 创建返回 201；动作成功 200；退出 204。错误统一如下：
+A successful single object returns the DTO directly; lists return {items,page,size,total}, page starting at 0. POST create returns 201; successful actions 200; logout 204. Errors are uniform:
 
 ```json
 {"code":"CHECK_STALE","message":"The advertisement changed. Run checks again.","fieldErrors":{},"requestId":"server-generated-id"}
 ```
 
-400：格式或字段校验错误；401：未登录；403：权限不足/CSRF 失败；404：无此对象；409：状态/版本/唯一约束冲突；429：限流；500：非预期服务错误。不要将 SQL、堆栈和 AI 原始错误暴露给用户。
+400: format or field validation; 401: not signed in; 403: insufficient permission / CSRF failure; 404: no such object; 409: state / version / unique-constraint conflict; 429: rate limit; 500: unexpected service error. Do not expose SQL, stacks, or raw AI errors to users.
 
-所有 PATCH 用白名单 DTO，不接受任意实体属性。员工不能通过修改 role、publishedBy、stage=WON 或 vehicle.status=SOLD 绕过动作接口。公开与内部 DTO 分开。
+All PATCH use a whitelist DTO and do not accept arbitrary entity properties. Staff cannot bypass action endpoints by patching role, publishedBy, stage=WON, or vehicle.status=SOLD. Public and internal DTOs are separate.
 
-下面 M 表示 Manager，S 表示 Staff 或 Manager，P 表示公开。写接口除公开咨询外均要求 CSRF；登录也使用 CSRF。public enquiries 不依赖会话，采用限流及服务端校验。
+Below, M means Manager, S means Staff or Manager, P means public. Write endpoints require CSRF except public enquiry; login also uses CSRF. Public enquiries do not depend on a session; they use rate limiting and server-side validation.
 
-## 认证
+## Authentication
 
-- GET /auth/csrf · P → {token,headerName}。响应禁止缓存。
-- POST /auth/login · P，{email,password} → {id,displayName,role} 和 session cookie；失败通用 401。
-- GET /auth/me · S → 当前用户；无 session 为 401。
-- POST /auth/logout · S → 204，使 session 失效。
-- GET /users/options · S → 活跃用户的 {id,displayName,role} 列表，用于工单与线索分配，不返回邮箱/密码哈希。
+- GET /auth/csrf · P → {token,headerName}. Response must not be cached.
+- POST /auth/login · P, {email,password} → {id,displayName,role} and a session cookie; failure is a generic 401.
+- GET /auth/me · S → current user; no session is 401.
+- POST /auth/logout · S → 204, invalidate the session.
+- GET /users/options · S → {id,displayName,role} list of active users for work-order and lead assignment; do not return email or password hashes.
 
-## 库存与工单
+## Inventory and work orders
 
-- GET /vehicles?query=&status=&page=0&size=20 · S → 车辆摘要列表；默认创建时间倒序。
-- POST /vehicles · S，{stockNo,vin,make,model,modelYear,mileageKm,color,basePrice,mandatoryFeeTotal,photoKey,internalNote} → 车辆详情，事务内建立空广告。photoKey 只能选择后端允许的预置图；未知 key 拒绝。
-- GET /vehicles/{id} · S → 车辆字段、advertisedPrice、version、listingId、listingStatus、contentVersion。
-- PATCH /vehicles/{id} · S，{version,允许修改的车辆字段} → 更新详情。VIN/stockNo 允许未售时修正，仍受唯一约束；status 禁止直接编辑。
-- POST /vehicles/{id}/mark-available · M，{version,readyNote} → 车辆；活动工单返回 OPEN_WORK_ORDERS。
-- POST /vehicles/{id}/return-to-preparation · M，{version,reason} → 车辆并下架；reason 写审计。
-- POST /vehicles/{id}/archive · M，{version,reason} → 归档；未结束工单或线索返回 ACTIVE_DEPENDENCIES。
-- GET /work-orders?vehicleId=&status=&assignedTo=&page=0 · S → 工单列表。
-- POST /vehicles/{id}/work-orders · S，{title,description,assignedTo,dueDate} → OPEN 工单；非 PREPARING 返回 VEHICLE_NOT_PREPARING。
-- PATCH /work-orders/{id} · S，{version,title?,description?,assignedTo?,dueDate?,actualCost?} → 工单；终态不可改。
-- POST /work-orders/{id}/transition · S，{version,toStatus,completionNote?} → 工单；DONE 要求 completionNote。
+- GET /vehicles?query=&status=&page=0&size=20 · S → vehicle summary list; default newest created first.
+- POST /vehicles · S, {stockNo,vin,make,model,modelYear,mileageKm,color,basePrice,mandatoryFeeTotal,photoKey,internalNote} → vehicle detail; creates an empty advertisement in the same transaction. photoKey may only be a backend-allowed preset image; unknown keys are rejected.
+- GET /vehicles/{id} · S → vehicle fields, advertisedPrice, version, listingId, listingStatus, contentVersion.
+- PATCH /vehicles/{id} · S, {version, allowed vehicle fields} → updated detail. VIN/stockNo may be corrected while unsold, still under unique constraints; status cannot be edited directly.
+- POST /vehicles/{id}/mark-available · M, {version,readyNote} → vehicle; active work orders return OPEN_WORK_ORDERS.
+- POST /vehicles/{id}/return-to-preparation · M, {version,reason} → vehicle and unpublish; reason is written to audit.
+- POST /vehicles/{id}/archive · M, {version,reason} → archive; unfinished work orders or leads return ACTIVE_DEPENDENCIES.
+- GET /work-orders?vehicleId=&status=&assignedTo=&page=0 · S → work-order list.
+- POST /vehicles/{id}/work-orders · S, {title,description,assignedTo,dueDate} → OPEN work order; not PREPARING returns VEHICLE_NOT_PREPARING.
+- PATCH /work-orders/{id} · S, {version,title?,description?,assignedTo?,dueDate?,actualCost?} → work order; terminal states are not editable.
+- POST /work-orders/{id}/transition · S, {version,toStatus,completionNote?} → work order; DONE requires completionNote.
 
-每个工单响应含 vehicleId、vehicleStockNo、version 和数据字典字段。终态车辆不能新增工单或修改业务数据。
+Every work-order response includes vehicleId, vehicleStockNo, version, and the data-dictionary fields. Terminal vehicles cannot add work orders or change business data.
 
-## 广告与检查
+## Advertisements and checks
 
-- GET /vehicles/{id}/listing · S → {id,vehicleId,title,description,scopeConfirmed,status,contentVersion,version,preview,latestCheck,publication}。
-- PATCH /listings/{id} · S，{version,title,description,scopeConfirmed} → 更新广告；保存会使相关审核失效，必要时下架。
-- POST /listings/{id}/checks · S，{contentVersion} → 201 检查结果；等待上限 15 秒 AI 请求加本地处理，客户端设 20 秒超时。版本已不一致则 409；运行中发生修改则结果 stale=true。
-- GET /listings/{id}/checks?page=0 · S → 检查历史列表，不含其他广告记录。
-- POST /listings/{id}/publish · M，{version,contentVersion,checkId,acknowledgedFindingIds,acknowledgeAiUnavailable,reviewNote} → 当前广告状态。没有提示且 AI SUCCESS 时允许 reviewNote 为空；有提示或降级时必须填写。
-- POST /listings/{id}/unpublish · M，{version,reason} → DRAFT；只接受当前 PUBLISHED。
+- GET /vehicles/{id}/listing · S → {id,vehicleId,title,description,scopeConfirmed,status,contentVersion,version,preview,latestCheck,publication}.
+- PATCH /listings/{id} · S, {version,title,description,scopeConfirmed} → update advertisement; save voids related reviews and unpublishes when needed.
+- POST /listings/{id}/checks · S, {contentVersion} → 201 check result; wait up to 15 seconds for the AI request plus local processing; client timeout 20 seconds. Version already mismatched is 409; a change during the run marks the result stale=true.
+- GET /listings/{id}/checks?page=0 · S → check history for this advertisement only.
+- POST /listings/{id}/publish · M, {version,contentVersion,checkId,acknowledgedFindingIds,acknowledgeAiUnavailable,reviewNote} → current advertisement status. reviewNote may be empty when there are no findings and AI is SUCCESS; findings or degradation require it.
+- POST /listings/{id}/unpublish · M, {version,reason} → DRAFT; only the current PUBLISHED listing is accepted.
 
-检查响应示例（规则编号定义见第 5 份文档）：
+Check response example (rule IDs are defined in document 05):
 
 ```json
 {
@@ -64,42 +64,40 @@
 }
 ```
 
-没有 BLOCK 时 ruleStatus=NO_BLOCKERS，这不是全面合规认证。AI finding id 由服务器为该 check 生成。发布必须确认该次 check 所有 REVIEW finding id；AI 不可用必须显式确认。MOCK 检查不允许在真实演示/生产配置发布；本地 demo profile 可发布但公开页显示 Demo review 标记。
+When there is no BLOCK, ruleStatus=NO_BLOCKERS; this is not a full compliance certification. AI finding ids are generated by the server for that check. Publish must acknowledge every REVIEW finding id on that check; AI unavailable must be acknowledged explicitly. MOCK checks cannot be published in a real demo/production configuration; a local demo profile may publish but the public page shows a Demo review mark.
 
 ## CRM
 
-- GET /customers?query=&page=0 · S → {id,name,email,phone,version} 分页列表，用于已有客户选择。
-- PATCH /customers/{id} · S，{version,name,email,phone} → 客户，至少一种联系方式。
-- GET /leads?vehicleId=&stage=&ownerId=&overdue=&page=0 · S → 线索摘要列表。
-- POST /leads · S，{vehicleId,customerId?,newCustomer?,message} → 线索。customerId 与 newCustomer 二选一；newCustomer 为 {name,email,phone}。车辆必须 AVAILABLE；新客户与线索原子创建；source=MANUAL、stage=NEW 由后端设置。
-- GET /leads/{id} · S → 线索、客户、车辆摘要、version、activities。
-- POST /leads/{id}/assign · M，{version,ownerId} → 线索，ownerId 可为 null；只分配活跃账号。
-- POST /leads/{id}/transition · S，{version,toStage,reason?} → 线索，LOST 或阶段回退必须 reason，拒绝直接设置 WON。
-- POST /leads/{id}/activities · S，{version,channel,note,nextFollowUpAt} → 201 activity，附 leadVersion；原子更新跟进日期及 lead.version。nextFollowUpAt 可为 null 表示清除，过去日期允许用于记录逾期任务。
+- GET /customers?query=&page=0 · S → paginated {id,name,email,phone,version} for choosing an existing customer.
+- PATCH /customers/{id} · S, {version,name,email,phone} → customer; at least one contact method.
+- GET /leads?vehicleId=&stage=&ownerId=&overdue=&page=0 · S → lead summary list.
+- POST /leads · S, {vehicleId,customerId?,newCustomer?,message} → lead. Exactly one of customerId or newCustomer; newCustomer is {name,email,phone}. Vehicle must be AVAILABLE; new customer and lead are created atomically; source=MANUAL and stage=NEW are set by the backend.
+- GET /leads/{id} · S → lead, customer, vehicle summary, version, activities.
+- POST /leads/{id}/assign · M, {version,ownerId} → lead; ownerId may be null; assign only active accounts.
+- POST /leads/{id}/transition · S, {version,toStage,reason?} → lead; LOST or a stage rollback requires reason; setting WON directly is rejected.
+- POST /leads/{id}/activities · S, {version,channel,note,nextFollowUpAt} → 201 activity with leadVersion; atomically updates follow-up date and lead.version. nextFollowUpAt may be null to clear; a past date is allowed to record an overdue task.
 
-普通 PATCH 不提供 lead.vehicleId/customerId 修改，避免跟进历史突然转移到另一辆车或客户。要更换意向车辆时创建新线索，原线索按实际情况关闭。
+Ordinary PATCH does not allow changing lead.vehicleId/customerId, so follow-up history cannot jump to another vehicle or customer. To change the vehicle of interest, create a new lead and close the old one as appropriate.
 
-## 销售与统计
+## Sales and statistics
 
-- POST /sales · M，{leadId,vehicleVersion,leadVersion,finalPrice,note} → 201 {id,vehicleId,leadId,finalPrice,soldAt}。服务端从 lead 推导 vehicle/customer，不接受前端任意拼接。
-- GET /sales?month=2026-11&page=0 · S → 销售摘要；month 按经销商本地月份转为 UTC 边界查询。
-- GET /sales/{id} · S → 成交快照和关联摘要。
-- GET /dashboard · S → {availableVehicleCount,openWorkOrderCount,openLeadCount,currentMonthSalesCount,currentMonthSalesAmount,followUps,workOrders}。
+- POST /sales · M, {leadId,vehicleVersion,leadVersion,finalPrice,note} → 201 {id,vehicleId,leadId,finalPrice,soldAt}. The server derives vehicle/customer from the lead and does not accept an arbitrary frontend pairing.
+- GET /sales?month=2026-11&page=0 · S → sale summaries; month is converted from dealer-local month to UTC query bounds.
+- GET /sales/{id} · S → sale snapshot and related summaries.
+- GET /dashboard · S → {availableVehicleCount,openWorkOrderCount,openLeadCount,currentMonthSalesCount,currentMonthSalesAmount,followUps,workOrders}.
 
-重复成交返回 409 VEHICLE_NOT_AVAILABLE 或 SALE_ALREADY_EXISTS，客户端提示刷新 Sales 确认；不自动重试创造新交易。销售插入和所有关联状态更新由一个数据库事务完成。
+A duplicate sale returns 409 VEHICLE_NOT_AVAILABLE or SALE_ALREADY_EXISTS; the client prompts a Sales refresh and confirmation. Do not auto-retry to create a new transaction. Sale insert and all related status updates complete in one database transaction.
 
-## C 端公开 API
+## C-side public API
 
-- GET /public/listings?make=&minPrice=&maxPrice=&page=0&size=20 · P → 安全 DTO；只返回可见广告，默认发布时间倒序。
-- GET /public/listings/{id} · P → {id,title,description,make,model,modelYear,mileageKm,color,photoUrl,advertisedPrice,priceDisclosure,dealerName,dealerContact,reviewLabel}。
-- POST /public/listings/{id}/enquiries · P，{submissionKey,name,email,phone,message,website} → 201 {message:"Your enquiry has been received."}，重复 key 返回同样通用确认。website 是正常用户应为空的隐藏反垃圾字段。
+- GET /public/listings?make=&minPrice=&maxPrice=&page=0&size=20 · P → safe DTO; only visible advertisements; default newest published first.
+- GET /public/listings/{id} · P → {id,title,description,make,model,modelYear,mileageKm,color,photoUrl,advertisedPrice,priceDisclosure,dealerName,dealerContact,reviewLabel}.
+- POST /public/listings/{id}/enquiries · P, {submissionKey,name,email,phone,message,website} → 201 {message:"Your enquiry has been received."}; a duplicate key returns the same generic confirmation. website is a hidden anti-spam field that a normal user leaves empty.
 
-公开 DTO 不含 VIN、内部成本、readyNote、客户、员工、审计记录和 AI 原始建议。公开页面读取审核快照且必须核验 listing=PUBLISHED、vehicle=AVAILABLE、发布版本有效。不可见详情一律 404，咨询状态改变用 409 LISTING_UNAVAILABLE。
+Public DTOs exclude VIN, internal cost, readyNote, customers, staff, audit records, and raw AI suggestions. Public pages read the reviewed snapshot and must verify listing=PUBLISHED, vehicle=AVAILABLE, and a valid published version. Invisible details are always 404; enquiry state change uses 409 LISTING_UNAVAILABLE.
 
-public 列表/详情设置 Cache-Control: no-store，避免演示时出售后旧缓存继续展示。C 端页面返回浏览器前台时重新拉取，提交咨询时始终服务器复核。
+Public list/detail set Cache-Control: no-store so a sold vehicle is not still shown from cache during a demo. C-side pages refetch when the browser returns to the foreground; enquiry submit always re-checks on the server.
 
-## 编码时的接口完成要求
+## Interface completion requirements at coding time
 
-每条接口必须有角色、入参校验、返回 DTO 和状态错误；前端不得依赖数据库实体序列化。接口调整先更新本文件，再同时通知负责页面和后端的人。实际 OpenAPI 由控制器和 DTO 在编码阶段生成并比对。
-
-
+Every endpoint must have a role, input validation, a response DTO, and status errors; the frontend must not depend on serializing database entities. Change this file first, then notify the people owning the page and the backend together. Actual OpenAPI is generated from controllers and DTOs during coding and compared against this contract.

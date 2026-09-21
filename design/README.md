@@ -1,62 +1,62 @@
-﻿# Dealer Ops 课程设计（最简实现）
+﻿# Dealer Ops course design (minimal implementation)
 
-版本 v6.0 · 2026-09-21
+Version v6.0 · 2026-09-21
 
-只做课程要交的东西：业务按 [DealerOps-Specification.pdf](DealerOps-Specification.pdf)，技术按 [Non-Negotiable-Project-Requirements.pptx](Non-Negotiable-Project-Requirements.pptx)。不扩范围。
+Deliver only what the course requires: business per [DealerOps-Specification.pdf](DealerOps-Specification.pdf), technology per [Non-Negotiable-Project-Requirements.pptx](Non-Negotiable-Project-Requirements.pptx). Do not expand scope.
 
-- 后端 Java 21 + Spring Boot，前端 Vue 3。
-- 四个独立仓库：web、gateway、core、ai-service。另用一个 platform 仓库放 Bicep/流水线说明。
-- 一个 MySQL 库。AI 服务无状态，同步 REST 调用，不用消息队列、不用第二套库。
-- AI 不自研：复用你 GitHub 上的助手库（默认 [YUANDONG-YANG/ai-manager](https://github.com/YUANDONG-YANG/ai-manager)），嵌在 ai-service 里。
+- Backend Java 21 + Spring Boot, frontend Vue 3.
+- Four independent repositories: web, gateway, core, ai-service. A separate platform repository holds Bicep/pipeline notes.
+- One MySQL database. The AI service is stateless and uses synchronous REST; no message queue and no second database.
+- Do not build AI from scratch: reuse the assistant library on your GitHub (default [YUANDONG-YANG/ai-manager](https://github.com/YUANDONG-YANG/ai-manager)), embedded in ai-service.
 
-**编码从 [IMPLEMENTATION-BRIEF.md](IMPLEMENTATION-BRIEF.md) 开始。** 后端设计文档是 [DEVELOPMENT-DESIGN.md](DEVELOPMENT-DESIGN.md)（范围、阶段、不变量）。对外 HTTP/DTO 仍对照 14 + OpenAPI；内部协议/规则细处看 [AI-PROTOCOL-AND-RULES.md](AI-PROTOCOL-AND-RULES.md)。拆包看 18 / 19；按仓执行 `AI-CODING-BACKEND`。前端仍对照 13。验收 16、广告夹具 17；范围签字 `SCOPE-BASELINE`。`01`–`06` 仍废止，不要当需求。
+**Coding starts from [IMPLEMENTATION-BRIEF.md](IMPLEMENTATION-BRIEF.md).** The backend design document is [DEVELOPMENT-DESIGN.md](DEVELOPMENT-DESIGN.md) (scope, phases, invariants). Public HTTP/DTOs still follow 14 + OpenAPI; internal protocol/rule details are in [AI-PROTOCOL-AND-RULES.md](AI-PROTOCOL-AND-RULES.md). Packaging is in 18 / 19; execute `AI-CODING-BACKEND` per repo. Frontend still follows 13. Acceptance is 16, ad fixtures 17; scope sign-off is `SCOPE-BASELINE`. `01`–`06` remain withdrawn; do not treat them as requirements.
 
-## 编码 AI 入口
+## Coding-AI entry points
 
-人认范围仍先看 `SCOPE-BASELINE` 与 BRIEF。
+Humans still confirm scope first via `SCOPE-BASELINE` and the BRIEF.
 
-- **后端设计：** [DEVELOPMENT-DESIGN.md](DEVELOPMENT-DESIGN.md)（范围、阶段、不变量）。
-- **对外 HTTP/DTO：** [14-Backend-API-Contract.md](14-Backend-API-Contract.md) + [../dealer-platform/openapi.yaml](../dealer-platform/openapi.yaml)。
-- **内部协议/规则：** [AI-PROTOCOL-AND-RULES.md](AI-PROTOCOL-AND-RULES.md)。
-- **拆包：** 18 / 19。任务单 [AI-CODING-BACKEND.md](AI-CODING-BACKEND.md)。
-- **前端：** 仍是 [13-Frontend-Engineering.md](13-Frontend-Engineering.md) + [AI-CODING-FRONTEND.md](AI-CODING-FRONTEND.md)。
-- **冲突序：** PPT > 规格字段 > DEVELOPMENT-DESIGN / PROTOCOL > 14 / 15 > 任务单。
+- **Backend design:** [DEVELOPMENT-DESIGN.md](DEVELOPMENT-DESIGN.md) (scope, phases, invariants).
+- **Public HTTP/DTOs:** [14-Backend-API-Contract.md](14-Backend-API-Contract.md) + [../dealer-platform/openapi.yaml](../dealer-platform/openapi.yaml).
+- **Internal protocol/rules:** [AI-PROTOCOL-AND-RULES.md](AI-PROTOCOL-AND-RULES.md).
+- **Packaging:** 18 / 19. Task list [AI-CODING-BACKEND.md](AI-CODING-BACKEND.md).
+- **Frontend:** still [13-Frontend-Engineering.md](13-Frontend-Engineering.md) + [AI-CODING-FRONTEND.md](AI-CODING-FRONTEND.md).
+- **Conflict order:** PPT > specification fields > DEVELOPMENT-DESIGN / PROTOCOL > 14 / 15 > task lists.
 
-- [AI-CODING-FRONTEND.md](AI-CODING-FRONTEND.md) — `dealer-web` 任务单 FE-T01–11（壳、守卫、MSAL、六页接线）。
-- [AI-CODING-BACKEND.md](AI-CODING-BACKEND.md) — 后端任务单 BE-T01–23（core / Gateway / ai-service）。
-- [AI-PROTOCOL-AND-RULES.md](AI-PROTOCOL-AND-RULES.md) — 内部 JSON、规则细处。
-- [AI-CODING-LOCAL-AND-CLOUD.md](AI-CODING-LOCAL-AND-CLOUD.md) — 本机四服务怎么起、端口与云上最小资源名。
-- [AI-CODING-TESTS.md](AI-CODING-TESTS.md) — 28 条落测任务（空测骨架；不改契约）。
-- [../dealer-platform/openapi.yaml](../dealer-platform/openapi.yaml) — 对外 path/DTO 对照 14；内部示意若冲突，以 PROTOCOL 为准。
+- [AI-CODING-FRONTEND.md](AI-CODING-FRONTEND.md) — `dealer-web` task list FE-T01–11 (shell, guards, MSAL, six-page wiring).
+- [AI-CODING-BACKEND.md](AI-CODING-BACKEND.md) — backend task list BE-T01–23 (core / Gateway / ai-service).
+- [AI-PROTOCOL-AND-RULES.md](AI-PROTOCOL-AND-RULES.md) — internal JSON and rule details.
+- [AI-CODING-LOCAL-AND-CLOUD.md](AI-CODING-LOCAL-AND-CLOUD.md) — how to start the four local services, ports, and minimum cloud resource names.
+- [AI-CODING-TESTS.md](AI-CODING-TESTS.md) — 28 test-implementation tasks (empty test skeletons; do not change contracts).
+- [../dealer-platform/openapi.yaml](../dealer-platform/openapi.yaml) — public path/DTO alignment with 14; if internal sketches conflict, PROTOCOL wins.
 
-## 有效文档
+## Effective documents
 
-0. [实现手册（编码入口）](IMPLEMENTATION-BRIEF.md)
-1. [业务规格 PDF](DealerOps-Specification.pdf)
-2. [课程硬要求 PPT](Non-Negotiable-Project-Requirements.pptx)
-3. [已批准范围（导师/客户签字）](SCOPE-BASELINE.md) **现行有效** — 一页 In/Out 与六硬项，开工前给导师确认；改范围须再签。
-4. [业务与页面](00-Current-Development-Design.md)
-5. [架构](07-Azure-Microservices-Architecture.md)
-6. [仓库与 Sprint](08-DevOps-and-Implementation.md)
-7. [广告 AI（接 GitHub 组件）](09-AI-Agent-Integration.md)
-8. [店内助手（同一组件）](10-Web-AI-Assistant.md)
-9. [追踪与 Scrum](11-Requirements-Governance-and-Agile.md)
-10. [前端 UI 约定](12-Frontend-UI-Conventions.md)
-11. [前端工程（拆文件）](13-Frontend-Engineering.md) **现行有效** — 路由、拆文件、页面↔API；前端仍对照本文 + `AI-CODING-FRONTEND`。
-12. [后端开发设计](DEVELOPMENT-DESIGN.md) **后端设计文档** — 范围、阶段、不变量。
-13. [后端 API 契约（DTO/错误码）](14-Backend-API-Contract.md) **现行有效** — 对外 HTTP、DTO、分页信封、错误码；对照 OpenAPI。
-14. [数据 / 鉴权 / 网关裁定](15-Data-Auth-and-Gateway.md) **现行有效** — 表、租户/membership、Gateway、JWT、规则伪代码。
-15. [验收与测试](16-Acceptance-and-Test.md) **现行有效** — 32 用例 + 6 课堂脚本，对照 NN-19；不改契约。
-16. [广告检查夹具](17-Ad-Check-Fixtures.md) **现行有效** — 22 条广告样例与期望态；课堂优先 FX-01 / FX-03 / FX-10 / FX-11 / FX-12。
-17. [后端 core 工程](18-Backend-Core-Engineering.md) **现行有效** — `dealer-core` 拆包参考。
-18. [Gateway 与 AI 工程](19-Gateway-and-AI-Engineering.md) **现行有效** — Gateway / ai-service 拆包参考。
+0. [Implementation brief (coding entry)](IMPLEMENTATION-BRIEF.md)
+1. [Business specification PDF](DealerOps-Specification.pdf)
+2. [Course hard-requirements PPT](Non-Negotiable-Project-Requirements.pptx)
+3. [Approved scope (instructor/client sign-off)](SCOPE-BASELINE.md) **currently in force** — one-page In/Out and six hard items; confirm with the instructor before starting; re-sign if scope changes.
+4. [Business and pages](00-Current-Development-Design.md)
+5. [Architecture](07-Azure-Microservices-Architecture.md)
+6. [Repos and Sprint](08-DevOps-and-Implementation.md)
+7. [Ad AI (GitHub component)](09-AI-Agent-Integration.md)
+8. [In-store assistant (same component)](10-Web-AI-Assistant.md)
+9. [Tracking and Scrum](11-Requirements-Governance-and-Agile.md)
+10. [Frontend UI conventions](12-Frontend-UI-Conventions.md)
+11. [Frontend engineering (file split)](13-Frontend-Engineering.md) **currently in force** — routes, file split, page↔API; frontend still follows this document + `AI-CODING-FRONTEND`.
+12. [Backend development design](DEVELOPMENT-DESIGN.md) **backend design document** — scope, phases, invariants.
+13. [Backend API contract (DTOs/error codes)](14-Backend-API-Contract.md) **currently in force** — public HTTP, DTOs, pagination envelope, error codes; align with OpenAPI.
+14. [Data / auth / gateway rulings](15-Data-Auth-and-Gateway.md) **currently in force** — tables, tenant/membership, Gateway, JWT, rule pseudocode.
+15. [Acceptance and test](16-Acceptance-and-Test.md) **currently in force** — 32 cases + 6 classroom scripts, mapped to NN-19; does not change contracts.
+16. [Ad-check fixtures](17-Ad-Check-Fixtures.md) **currently in force** — 22 ad samples and expected states; classroom priority FX-01 / FX-03 / FX-10 / FX-11 / FX-12.
+17. [Backend core engineering](18-Backend-Core-Engineering.md) **currently in force** — `dealer-core` packaging reference.
+18. [Gateway and AI engineering](19-Gateway-and-AI-Engineering.md) **currently in force** — Gateway / ai-service packaging reference.
 
-`01`–`06` 仍废止，不编码。路径摘要见 `../dealer-platform/API.md`（指向 14，不是废止的 `04`）。
+`01`–`06` remain withdrawn; do not implement them. Path summary is in `../dealer-platform/API.md` (points at 14, not withdrawn `04`).
 
-## 必须留下的课硬项
+## Course hard items that must remain
 
-独立微服务 + 独立仓库/流水线、Spring Cloud Gateway、Azure Container Apps + Bicep + CI/CD、Entra OAuth/JWT/RBAC、HTTPS 与 Key Vault、真实 Azure OpenAI 扫广告、看板和三次全员 Review。
+Independent microservices + independent repos/pipelines, Spring Cloud Gateway, Azure Container Apps + Bicep + CI/CD, Entra OAuth/JWT/RBAC, HTTPS and Key Vault, real Azure OpenAI scanning ads, board and three all-hands Reviews.
 
-## 明确不做
+## Explicitly out of scope
 
-买家端、厂家端、工单、线索漏斗、Service Bus、outbox、第二数据库、第三方自动刊登、支付、Image Studio、自研一套模型 SDK。
+Buyer portal, OEM portal, work orders, lead funnel, Service Bus, outbox, second database, third-party auto-listing, payments, Image Studio, a custom model SDK.

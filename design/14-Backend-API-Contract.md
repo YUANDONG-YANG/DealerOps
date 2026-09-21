@@ -1,34 +1,34 @@
-# 后端 API 开发契约
+# Backend API development contract
 
-版本 v6.0 · 2026-09-21  
-**现行有效。** 废止的 `01`–`06`（含 `04-API-Contract.md`）不是现行 API。旧 DTO 只借鉴信封形状，实体以 v6 / Flyway `V1__init.sql` 为准。
+Version v6.0 · 2026-09-21  
+**Current.** Retired `01`–`06` (including `04-API-Contract.md`) are not the current API. Old DTOs may be used only for envelope shape; entities follow v6 / Flyway `V1__init.sql`.
 
-**冲突顺序：** 课程 PPT 硬项 > 规格 PDF 字段 > [IMPLEMENTATION-BRIEF.md](IMPLEMENTATION-BRIEF.md) / `00` > **[15](15-Data-Auth-and-Gateway.md) 管数据/租户/网关行为**，**本文管 HTTP JSON** > [13](13-Frontend-Engineering.md) 前端工程 > [12](12-Frontend-UI-Conventions.md)。  
-**入口：** 浏览器与服务间对外只走 Gateway `http://localhost:8080`，前缀 **`/api/v1/**`**。core=`8081`、ai-service=`8082` 不对外。绕过 Gateway 必须失败。  
-**内部：** Gateway → ai-service 的 `/internal/v1/**` 对浏览器 **404**，本文只写给 core 适配器用。
+**Conflict order:** course PPT hard items > spec PDF fields > [IMPLEMENTATION-BRIEF.md](IMPLEMENTATION-BRIEF.md) / `00` > **[15](15-Data-Auth-and-Gateway.md) owns data/tenant/gateway behavior**, **this document owns HTTP JSON** > [13](13-Frontend-Engineering.md) frontend engineering > [12](12-Frontend-UI-Conventions.md).  
+**Entry:** browser-to-service traffic goes only through Gateway `http://localhost:8080`, prefix **`/api/v1/**`**. core=`8081`, ai-service=`8082` are not public. Bypassing Gateway must fail.  
+**Internal:** Gateway → ai-service `/internal/v1/**` is **404** for the browser; this document writes those paths only for the core adapter.
 
-路径表摘要见 `dealer-platform/API.md`。编码以本文 JSON 与错误码为准。
+Path-table summary is in `dealer-platform/API.md`. Coding follows this document's JSON and error codes.
 
 ---
 
-## 0. 本文新裁定 vs 只复述手册
+## 0. New rulings in this document vs handbook restatement
 
-数据列空值、`membership` / `app_user` 谁是权威、索引与 V2，一律留给 **15 号数据文档**。本文只写 HTTP 行为。
+Nullability of data columns, whether `membership` / `app_user` is authoritative, indexes, and V2 are all left to **document 15**. This document writes HTTP behavior only.
 
-| 类型 | 内容 |
+| Type | Content |
 |---|---|
-| **只复述手册** | 角色两枚、忽略前端 `dealerId`、跨店 **404 不 403**、Admin 打业务 URL 无业务字段、错误体 `{code,message}`、写带 `version` → `409 VERSION_CONFLICT`、广告五态条件、检查先规则后 AI（≤15s）、Ready/Export 仅 Passed 且非 Stale、助手不写业务表、内部 `vehiclePublic` 无采购成本、助手 `resources` 无电话/邮箱/住址、列表默认每页 10、VIN 本店唯一、出售成对、已售锁采购、一车一客 |
-| **本文新裁定** | 分页信封 `{items,page,size,total}`（手册只写每页 10，未写信封）；**解绑** `DELETE /customers/{id}/vehicles/{vehicleId}` → 204；Admin **GET/PATCH** 单店（手册只有列表+创建）；`SOLD_LOCKED` 一律 **409**；Blocked 检查 **200**；`AI_UNAVAILABLE` **502** 且已落库；派生字段 `checkStatus` / `staffCount` / 列表 `linkedVehicle`；400 `VALIDATION` 可带 `fieldErrors`；JSON `id` 为数字（不用废止稿的字符串 id）；金额为 JSON number；Admin↔业务 URL 角色错为 **403** `FORBIDDEN`；解绑/绑定的 HTTP 语义（行是否软删交给 15） |
-| **对齐 15** | GET listing 无行：**不落库**、虚拟空草稿；首次 PATCH 用 `''` 满足 `title`/`body` NOT NULL。租户权威 `membership.active=1`；忽略客户端 `dealerId`。跨店 id → **404**。店员无有效 membership 调业务接口 → **403** `FORBIDDEN`（已登录无店，不是 401/404）。已售车：不可新挂（`400 WRONG_DEALER_OR_SOLD`）、不可解挂（`409 SOLD_LOCKED`） |
+| **Handbook restatement only** | two roles; ignore frontend `dealerId`; cross-dealership **404 not 403**; Admin hitting business URLs gets no business fields; error body `{code,message}`; writes carry `version` → `409 VERSION_CONFLICT`; ad five-state conditions; check rules then AI (≤15s); Ready/Export only when Passed and not Stale; assistant does not write business tables; internal `vehiclePublic` has no purchase cost; assistant `resources` have no phone/email/address; lists default to 10 per page; VIN unique per dealership; sell as a pair; sold locks purchase fields; one vehicle one customer |
+| **New rulings here** | pagination envelope `{items,page,size,total}` (handbook says 10 per page but not the envelope); **unlink** `DELETE /customers/{id}/vehicles/{vehicleId}` → 204; Admin **GET/PATCH** single dealership (handbook has list+create only); `SOLD_LOCKED` is always **409**; Blocked checks are **200**; `AI_UNAVAILABLE` is **502** and already persisted; derived fields `checkStatus` / `staffCount` / list `linkedVehicle`; 400 `VALIDATION` may include `fieldErrors`; JSON `id` is a number (do not use string ids from the retired draft); money is a JSON number; Admin↔business URL role mismatch is **403** `FORBIDDEN`; HTTP semantics of bind/unbind (whether the row is soft-deleted is left to 15) |
+| **Aligned with 15** | GET listing with no row: **do not persist**, virtual empty draft; first PATCH uses `''` to satisfy `title`/`body` NOT NULL. Tenant authority is `membership.active=1`; ignore client `dealerId`. Cross-dealership id → **404**. Staff with no valid membership calling business APIs → **403** `FORBIDDEN` (signed in, no dealership — not 401/404). Sold vehicles: no new link (`400 WRONG_DEALER_OR_SOLD`), no unlink (`409 SOLD_LOCKED`) |
 
 ---
 
-## 1. 统一信封与横切规则
+## 1. Uniform envelope and cross-cutting rules
 
-### 1.1 成功
+### 1.1 Success
 
-- 单对象：直接返回 DTO（无再包一层 `data`）。
-- 分页：`page` 从 **0** 起；`size` 默认 **10**，服务端封顶 **10**（对齐手册「每页 10」）。
+- Single object: return the DTO directly (no extra `data` wrapper).
+- Pagination: `page` starts at **0**; `size` defaults to **10**, server cap **10** (aligns with handbook "10 per page").
 
 ```json
 {
@@ -39,20 +39,20 @@
 }
 ```
 
-手册未规定列表信封；形状与废止 `04` 相同，**语义按 v6 实体**，不是恢复旧接口。
+The handbook does not specify a list envelope; the shape matches retired `04`, **semantics follow v6 entities**, and this is not a restore of the old API.
 
-- `POST` 创建：**201**。
-- 更新 / 动作：**200**。
-- 解绑成员、解绑车辆：**204** 无 body。
-- 导出：**200** `Content-Type: text/plain; charset=UTF-8`。
+- `POST` create: **201**.
+- Update / action: **200**.
+- Unbind member, unlink vehicle: **204** no body.
+- Export: **200** `Content-Type: text/plain; charset=UTF-8`.
 
-### 1.2 错误
+### 1.2 Errors
 
 ```json
 { "code": "VIN_DUP", "message": "VIN already exists in this dealership." }
 ```
 
-`400 VALIDATION` 可增加（新裁定）：
+`400 VALIDATION` may add (new ruling):
 
 ```json
 {
@@ -62,26 +62,26 @@
 }
 ```
 
-禁止把 SQL、堆栈、模型原文回给浏览器。
+Do not return SQL, stack traces, or raw model text to the browser.
 
-| HTTP | 何时 |
+| HTTP | When |
 |---|---|
-| 400 | 校验失败、`VIN_DUP`、`WRONG_DEALER_OR_SOLD`、`SOLD_PAIR_REQUIRED` |
-| 401 | 无/坏 JWT |
-| 403 | 角色不够（Admin↔店员打错前缀）；**店员无有效 `membership.active=1` 调业务接口**（已登录无店）。**不是**跨店 |
-| 404 | 本店无此 id、**跨店 id**（防探测，不 403） |
-| 409 | `VERSION_CONFLICT`、`DUP_MEMBER`、`VEHICLE_ALREADY_LINKED`、`SOLD_LOCKED`、`CHECK_STALE`、`NOT_PASSED` |
-| 502 | `AI_UNAVAILABLE`（规则已过、模型超时/失败；检查行已写） |
+| 400 | validation failure, `VIN_DUP`, `WRONG_DEALER_OR_SOLD`, `SOLD_PAIR_REQUIRED` |
+| 401 | missing/bad JWT |
+| 403 | insufficient role (Admin↔staff hitting the wrong prefix); **staff with no valid `membership.active=1` calling a business API** (signed in, no dealership). **Not** cross-dealership |
+| 404 | this id is not in this dealership, **cross-dealership id** (anti-probing, not 403) |
+| 409 | `VERSION_CONFLICT`, `DUP_MEMBER`, `VEHICLE_ALREADY_LINKED`, `SOLD_LOCKED`, `CHECK_STALE`, `NOT_PASSED` |
+| 502 | `AI_UNAVAILABLE` (rules passed, model timeout/failure; check row already written) |
 
-### 1.3 身份、租户、乐观锁
+### 1.3 Identity, tenant, optimistic lock
 
-- 角色仅 `Platform.Admin`、`Dealer.User`。店员租户权威是 **`membership.active=1` 恰好一行**（15）；`app_user.dealer_id` 只是 `/me` 缓存。
-- **忽略** body / query / header 里客户端传来的 `dealerId`。店员租户只来自 JWT `oid` → membership。Admin 的 `dealerId` 恒视为空。
-- 跨店资源 id：**404**，不 403（防探测）。
-- `Dealer.User` 已登录但 **0 条** active membership：业务接口（`/vehicles` `/customers` `/listings` `/audit` `/assistant`）→ **403** `FORBIDDEN`，不是 401、也不是 404。`GET /me` 仍 200（`dealerId=null`）。
-- 带 `version` 的写：`dealer`、`vehicle`、`customer`、`listing`（含 checks/ready/export）。请求 `version` 必须等于当前行。冲突 **409** `VERSION_CONFLICT`。
-- `customer_vehicle` 无 `version` 列：挂/解绑不带乐观锁。
-- 枚举、必填字段与手册第 3 节一致；不加减规格字段。日期 `YYYY-MM-DD`，时间戳 ISO-8601 UTC。JSON camelCase。
+- Roles are only `Platform.Admin` and `Dealer.User`. Staff tenant authority is **exactly one `membership.active=1` row** (15); `app_user.dealer_id` is only a `/me` cache.
+- **Ignore** client `dealerId` in body / query / header. Staff tenant comes only from JWT `oid` → membership. Admin `dealerId` is always treated as empty.
+- Cross-dealership resource id: **404**, not 403 (anti-probing).
+- `Dealer.User` signed in with **0** active memberships: business APIs (`/vehicles` `/customers` `/listings` `/audit` `/assistant`) → **403** `FORBIDDEN`, not 401 and not 404. `GET /me` is still 200 (`dealerId=null`).
+- Writes that carry `version`: `dealer`, `vehicle`, `customer`, `listing` (including checks/ready/export). Request `version` must equal the current row. Conflict **409** `VERSION_CONFLICT`.
+- `customer_vehicle` has no `version` column: link/unlink do not use optimistic locking.
+- Enums and required fields match handbook section 3; do not add or remove spec fields. Dates `YYYY-MM-DD`, timestamps ISO-8601 UTC. JSON camelCase.
 
 ---
 
@@ -89,9 +89,9 @@
 
 | | |
 |---|---|
-| 谁 | 已登录 |
-| 请求 | 无 body |
-| 错误 | `401` 未登录 |
+| Who | signed in |
+| Request | no body |
+| Errors | `401` not signed in |
 
 ```json
 {
@@ -103,17 +103,17 @@
 }
 ```
 
-Admin：`dealerId`、`dealerLegalName` 为 `null`。`dealerLegalName` 为展示用派生字段，不是第二套店资料。
+Admin: `dealerId` and `dealerLegalName` are `null`. `dealerLegalName` is a display-only derived field, not a second set of dealership data.
 
 ---
 
-## 3. Admin：店 CRUD 与 membership
+## 3. Admin: dealership CRUD and membership
 
-谁：仅 `Platform.Admin`。店员打这些 URL → **403** `FORBIDDEN`。
+Who: `Platform.Admin` only. Staff hitting these URLs → **403** `FORBIDDEN`.
 
 ### 3.1 `GET /api/v1/admin/dealers`
 
-Query：`q`（匹配 `legalName`）、`page`、`size`。
+Query: `q` (matches `legalName`), `page`, `size`.
 
 ```json
 {
@@ -135,7 +135,7 @@ Query：`q`（匹配 `legalName`）、`page`、`size`。
 }
 ```
 
-`staffCount`：该店 **active membership** 计数（派生，列定义见 15）。
+`staffCount`: count of that dealership's **active memberships** (derived; column definition is in 15).
 
 ### 3.2 `POST /api/v1/admin/dealers` → 201
 
@@ -148,11 +148,11 @@ Query：`q`（匹配 `legalName`）、`page`、`size`。
 }
 ```
 
-四联系字段非空。响应同 3.3。错误：`400 VALIDATION`、`403`。
+The four contact fields are non-empty. Response matches 3.3. Errors: `400 VALIDATION`, `403`.
 
 ### 3.3 `GET /api/v1/admin/dealers/{id}`
 
-手册无单店 GET。**新裁定：** 补此只读，供 Admin 编辑回填。404 若无此店。响应：
+The handbook has no single-dealership GET. **New ruling:** add this read-only endpoint for Admin edit fill-back. 404 if the dealership does not exist. Response:
 
 ```json
 {
@@ -169,7 +169,7 @@ Query：`q`（匹配 `legalName`）、`page`、`size`。
 
 ### 3.4 `PATCH /api/v1/admin/dealers/{id}`
 
-手册无更新。**新裁定：** 允许改四联系字段与 `active`，必须带 `version`。不做 `DELETE /admin/dealers/{id}`（规格未要求删店）。
+The handbook has no update. **New ruling:** allow changing the four contact fields and `active`; `version` is required. Do not add `DELETE /admin/dealers/{id}` (the spec does not require deleting dealerships).
 
 ```json
 {
@@ -182,11 +182,11 @@ Query：`q`（匹配 `legalName`）、`page`、`size`。
 }
 ```
 
-响应同 3.3。错误：`400`、`404`、`409 VERSION_CONFLICT`。忽略 body.`id`。
+Response matches 3.3. Errors: `400`, `404`, `409 VERSION_CONFLICT`. Ignore body.`id`.
 
 ### 3.5 `GET /api/v1/admin/dealers/{id}/members`
 
-店不存在 → 404。信封分页（`page`/`size`/`q` 匹配 `displayName` 或 `entraOid`）。
+Dealership missing → 404. Paginated envelope (`page`/`size`/`q` matches `displayName` or `entraOid`).
 
 ```json
 {
@@ -204,7 +204,7 @@ Query：`q`（匹配 `legalName`）、`page`、`size`。
 }
 ```
 
-表无员工邮箱列：API **不编造 email**。UI「员工邮箱」筛在现有列上用 `q` 即可。
+The table has no staff-email column: the API **does not invent email**. The UI "staff email" filter can use `q` on existing columns.
 
 ### 3.6 `POST /api/v1/admin/dealers/{id}/members` → 201
 
@@ -212,21 +212,21 @@ Query：`q`（匹配 `legalName`）、`page`、`size`。
 { "entraOid": "22222222-2222-2222-2222-222222222222", "displayName": "Alex Dealer" }
 ```
 
-写 `membership` + `app_user`（列权威见 15）。响应同成员项。  
-`400 VALIDATION`；店 404；已是该店 **active** 成员 → **409** `DUP_MEMBER`。  
-再绑定已解绑对象：按 **重激活** 处理，不 409（是否更新同行交给 15）。不删 Entra 账号。
+Write `membership` + `app_user` (column authority is in 15). Response matches a member item.  
+`400 VALIDATION`; dealership 404; already an **active** member of that dealership → **409** `DUP_MEMBER`.  
+Binding an already-unbound person again is treated as **reactivation**, not 409 (whether the same row is updated is left to 15). Do not delete the Entra account.
 
 ### 3.7 `DELETE /api/v1/admin/dealers/{id}/members/{entraOid}` → 204
 
-解绑，不删 Entra。无此绑定 → 404。
+Unbind; do not delete Entra. No such binding → 404.
 
 ---
 
-## 4. 车辆 DMS（Dealer.User）
+## 4. Vehicles DMS (Dealer.User)
 
-Admin 打本节任一 URL → **403** `FORBIDDEN`（与 CRM/广告/助手相同；体中不得出现 vin/成本等业务字段）。店员只见本店。无有效 membership 的店员 → **403**（见 §1.3）。
+Admin hitting any URL in this section → **403** `FORBIDDEN` (same as CRM/ads/assistant; the body must not contain vin/cost or other business fields). Staff sees this dealership only. Staff with no valid membership → **403** (see §1.3).
 
-列表 Query：`q`（VIN / make / model）、`status`=`IN_STOCK`\|`SOLD`、`condition`（即 `conditionCode`）、`page`、`size`。默认 `createdAt` 倒序。
+List query: `q` (VIN / make / model), `status`=`IN_STOCK`\|`SOLD`, `condition` (that is `conditionCode`), `page`, `size`. Default `createdAt` descending.
 
 ### 4.1 `GET /api/v1/vehicles`
 
@@ -257,7 +257,7 @@ Admin 打本节任一 URL → **403** `FORBIDDEN`（与 CRM/广告/助手相同�
 }
 ```
 
-错误：`401`、`403`（非店员）。
+Errors: `401`, `403` (not staff).
 
 ### 4.2 `POST /api/v1/vehicles` → 201
 
@@ -276,13 +276,13 @@ Admin 打本节任一 URL → **403** `FORBIDDEN`（与 CRM/广告/助手相同�
 }
 ```
 
-必填：make/model/modelYear/vin/source/purchaseCost/addedOn/conditionCode。  
-**忽略** `dealerId`、`status`、`soldOn`、`soldPrice`。服务端 `status=IN_STOCK`。  
-错误：`400 VALIDATION`、`400 VIN_DUP`。响应=详情。审计 `VEHICLE`/`CREATE`。
+Required: make/model/modelYear/vin/source/purchaseCost/addedOn/conditionCode.  
+**Ignore** `dealerId`, `status`, `soldOn`, `soldPrice`. Server sets `status=IN_STOCK`.  
+Errors: `400 VALIDATION`, `400 VIN_DUP`. Response = detail. Audit `VEHICLE`/`CREATE`.
 
 ### 4.3 `GET /api/v1/vehicles/{id}`
 
-响应同列表项。跨店/无此车 → **404**。
+Response matches a list item. Cross-dealership / no such vehicle → **404**.
 
 ### 4.4 `PATCH /api/v1/vehicles/{id}`
 
@@ -302,11 +302,11 @@ Admin 打本节任一 URL → **403** `FORBIDDEN`（与 CRM/广告/助手相同�
 }
 ```
 
-白名单仅上列。禁止用 PATCH 改 `status` / `soldOn` / `soldPrice`（走 `/sell`）。忽略 `dealerId`。  
-已售改采购字段（make/model/year/vin/source/purchaseCost/addedOn/repairCost/carfax）→ **409** `SOLD_LOCKED`。  
-未售改 VIN 仍受本店唯一 → `400 VIN_DUP`。  
-改 `conditionCode`（手册：车况变即作废旧检查）→ 对应 listing `contentVersion++`（若已有 listing）。采购成本单独变更不使广告作废。  
-审计 `VEHICLE`/`UPDATE`。错误另有 `404`、`409 VERSION_CONFLICT`。
+Whitelist is the fields above only. Do not use PATCH to change `status` / `soldOn` / `soldPrice` (use `/sell`). Ignore `dealerId`.  
+Changing purchase fields on a sold vehicle (make/model/year/vin/source/purchaseCost/addedOn/repairCost/carfax) → **409** `SOLD_LOCKED`.  
+Changing VIN while unsold is still unique per dealership → `400 VIN_DUP`.  
+Changing `conditionCode` (handbook: a condition change voids the old check) → increment the corresponding listing `contentVersion++` (if a listing exists). Changing purchase cost alone does not void the ad.  
+Audit `VEHICLE`/`UPDATE`. Other errors: `404`, `409 VERSION_CONFLICT`.
 
 ### 4.5 `POST /api/v1/vehicles/{id}/sell`
 
@@ -314,18 +314,18 @@ Admin 打本节任一 URL → **403** `FORBIDDEN`（与 CRM/广告/助手相同�
 { "soldOn": "2026-09-20", "soldPrice": 18900.00, "version": 1 }
 ```
 
-两者必须同时有。服务端 `status=SOLD`。响应=详情。  
-`400 SOLD_PAIR_REQUIRED`；已售再售 → `409 SOLD_LOCKED`；`409 VERSION_CONFLICT`；`404`。审计 `VEHICLE`/`SELL`。
+Both values must be present together. Server sets `status=SOLD`. Response = detail.  
+`400 SOLD_PAIR_REQUIRED`; selling again after sold → `409 SOLD_LOCKED`; `409 VERSION_CONFLICT`; `404`. Audit `VEHICLE`/`SELL`.
 
 ---
 
-## 5. 客户 CRM（Dealer.User）
+## 5. Customers CRM (Dealer.User)
 
-Admin 打本节任一 URL → **403** `FORBIDDEN`。店员无有效 membership → **403**。跨店 **404**。
+Admin hitting any URL in this section → **403** `FORBIDDEN`. Staff with no valid membership → **403**. Cross-dealership **404**.
 
 ### 5.1 `GET /api/v1/customers`
 
-Query：`q`（name/email/phone）、`linked`=`true`\|`false`（是否至少挂一辆）、`page`、`size`。
+Query: `q` (name/email/phone), `linked`=`true`\|`false` (whether at least one vehicle is linked), `page`, `size`.
 
 ```json
 {
@@ -346,7 +346,7 @@ Query：`q`（name/email/phone）、`linked`=`true`\|`false`（是否至少挂�
 }
 ```
 
-`linkedVehicle`：多车时取最近 `linkedAt` 一辆，供 CRM 表一列；详情见 5.3 完整数组。未挂为 `null`。
+`linkedVehicle`: when multiple vehicles exist, take the most recent `linkedAt` for the CRM table column; detail is the full array in 5.3. Unlinked is `null`.
 
 ### 5.2 `POST /api/v1/customers` → 201
 
@@ -359,7 +359,7 @@ Query：`q`（name/email/phone）、`linked`=`true`\|`false`（是否至少挂�
 }
 ```
 
-忽略 `dealerId`。`400 VALIDATION`。审计 `CUSTOMER`/`CREATE`。响应=详情（`linkedVehicles: []`）。
+Ignore `dealerId`. `400 VALIDATION`. Audit `CUSTOMER`/`CREATE`. Response = detail (`linkedVehicles: []`).
 
 ### 5.3 `GET /api/v1/customers/{id}`
 
@@ -384,7 +384,7 @@ Query：`q`（name/email/phone）、`linked`=`true`\|`false`（是否至少挂�
 }
 ```
 
-跨店 **404**。
+Cross-dealership **404**.
 
 ### 5.4 `PATCH /api/v1/customers/{id}`
 
@@ -398,18 +398,18 @@ Query：`q`（name/email/phone）、`linked`=`true`\|`false`（是否至少挂�
 }
 ```
 
-忽略 `dealerId`。`409 VERSION_CONFLICT`。审计 `CUSTOMER`/`UPDATE`。`fieldSummary` **不得**含电话/邮箱/住址全文。
+Ignore `dealerId`. `409 VERSION_CONFLICT`. Audit `CUSTOMER`/`UPDATE`. `fieldSummary` **must not** contain full phone/email/address text.
 
 ---
 
-## 6. 挂车与解绑（设计缺口：必须有 UNLINK）
+## 6. Link and unlink vehicles (design gap: UNLINK is required)
 
-手册审计有 `LINK` / `UNLINK`，UI（12）出售/**解绑二次确认**，但 API 表只有 `PUT` 挂车。  
-**裁定：补 DELETE，不用「改 PUT 当解绑」或假装无需求。** 二次确认只在前端；API 一次即删关联。
+Handbook audit has `LINK` / `UNLINK`, and the UI (12) requires a second confirmation for sell/**unlink**, but the API table only had `PUT` to link.  
+**Ruling: add DELETE; do not "reuse PUT as unlink" or pretend there is no requirement.** Second confirmation is frontend-only; the API deletes the association in one call.
 
 ### 6.1 `PUT /api/v1/customers/{id}/vehicles/{vehicleId}` → 200
 
-无 body（或忽略 body）。约束：客户与车 **同店**、车 `IN_STOCK`、车 **尚未**挂任何客户。**已售不可新挂**（15）。
+No body (or ignore body). Constraints: customer and vehicle are **the same dealership**, vehicle is `IN_STOCK`, vehicle is **not yet** linked to any customer. **Sold vehicles cannot be newly linked** (15).
 
 ```json
 {
@@ -420,29 +420,29 @@ Query：`q`（name/email/phone）、`linked`=`true`\|`false`（是否至少挂�
 }
 ```
 
-| 码 | HTTP | 何时 |
+| Code | HTTP | When |
 |---|---|---|
-| `VEHICLE_ALREADY_LINKED` | 409 | 该车已挂（含已挂本客户） |
-| `WRONG_DEALER_OR_SOLD` | 400 | **已售不可新挂**，或车/客非本店（跨店 id 一律 **404**，不走本码） |
-| — | 404 | 客户或车 id 对本店不存在（跨店同样 404） |
+| `VEHICLE_ALREADY_LINKED` | 409 | that vehicle is already linked (including already linked to this customer) |
+| `WRONG_DEALER_OR_SOLD` | 400 | **sold cannot be newly linked**, or vehicle/customer is not this dealership (cross-dealership ids are always **404**, not this code) |
+| — | 404 | customer or vehicle id does not exist for this dealership (cross-dealership is also 404) |
 
-审计 `CUSTOMER_VEHICLE` / `LINK`。`entityId` = `customer_vehicle.id`；`fieldSummary` 仅 `{customerId,vehicleId}`。
+Audit `CUSTOMER_VEHICLE` / `LINK`. `entityId` = `customer_vehicle.id`; `fieldSummary` is only `{customerId,vehicleId}`.
 
 ### 6.2 `DELETE /api/v1/customers/{id}/vehicles/{vehicleId}` → 204
 
-摘掉该客户与该车的关联。车回到「未挂」，可供再挂。不改车辆 `status`。  
-**已售不可解挂**（15）：车 `status=SOLD` → **409** `SOLD_LOCKED`（成交记录不得抹掉）。  
-无此关联或跨店 → **404**（不 403）。审计 `CUSTOMER_VEHICLE` / `UNLINK`。
+Remove the association between that customer and that vehicle. The vehicle returns to "unlinked" and can be linked again. Do not change vehicle `status`.  
+**Sold vehicles cannot be unlinked** (15): vehicle `status=SOLD` → **409** `SOLD_LOCKED` (sale record must not be erased).  
+No such association or cross-dealership → **404** (not 403). Audit `CUSTOMER_VEHICLE` / `UNLINK`.
 
 ---
 
-## 7. 广告 listing
+## 7. Ad listing
 
-一车一条。路径用 **车辆 id** 取/存草稿（手册），检查/Ready/Export 用 **listing id**。
+One listing per vehicle. Paths use **vehicle id** to get/save draft (handbook); check/Ready/Export use **listing id**.
 
 ### 7.1 `GET /api/v1/vehicles/{id}/listing`
 
-无行：**不插入、不落库**，返回虚拟空草稿（对齐 15）：
+No row: **do not insert, do not persist**; return a virtual empty draft (align 15):
 
 ```json
 {
@@ -461,14 +461,14 @@ Query：`q`（name/email/phone）、`linked`=`true`\|`false`（是否至少挂�
 }
 ```
 
-有行则 `id` 有值，`lastCheck` 为最近检查摘要或 `null`。车跨店 **404**。
+If a row exists, `id` has a value and `lastCheck` is the latest check summary or `null`. Cross-dealership vehicle **404**.
 
 ### 7.2 `PATCH /api/v1/vehicles/{id}/listing`
 
-无行则 **INSERT**。升 `contentVersion`，`status` 回到 `DRAFT`，旧检查作废（表现为 `checkStatus=STALE` 或 `NEEDS_AI`，见 §8）。  
-V1 `title`/`body` NOT NULL：请求缺省或空白时写入 **`''`**（15），不要传 SQL `null`。
+No row → **INSERT**. Increment `contentVersion`, return `status` to `DRAFT`, void old checks (shown as `checkStatus=STALE` or `NEEDS_AI`, see §8).  
+V1 `title`/`body` are NOT NULL: when the request omits them or they are blank, write **`''`** (15); do not send SQL `null`.
 
-首次创建可省略 `version` 或传 `0`。之后必须带当前 `version`。
+First create may omit `version` or send `0`. Later requests must send the current `version`.
 
 ```json
 {
@@ -480,30 +480,30 @@ V1 `title`/`body` NOT NULL：请求缺省或空白时写入 **`''`**（15），�
 }
 ```
 
-`adKind`：`CASH`\|`FINANCE`\|`LEASE`。`medium`：`ONLINE`\|`RADIO_TV_BILLBOARD`。  
-响应同 7.1（已持久化）。`404` / `409 VERSION_CONFLICT` / `400 VALIDATION`。
+`adKind`: `CASH`\|`FINANCE`\|`LEASE`. `medium`: `ONLINE`\|`RADIO_TV_BILLBOARD`.  
+Response matches 7.1 (now persisted). `404` / `409 VERSION_CONFLICT` / `400 VALIDATION`.
 
 ---
 
-## 8. 检查结果、五态、Ready / Export
+## 8. Check results, five states, Ready / Export
 
-页面总状态 **只允许** 五个英文（手册 §6）。API 在 listing 与检查响应上给派生枚举 `checkStatus`：
+Page overall status **may only** be the five English values (handbook §6). The API exposes derived enum `checkStatus` on listing and check responses:
 
 `BLOCKED` | `NEEDS_AI` | `PASSED` | `STALE` | `AI_UNAVAILABLE`
 
-| UI | `checkStatus` | 服务端条件 |
+| UI | `checkStatus` | Server condition |
 |---|---|---|
-| Blocked | `BLOCKED` | 当前 `lastCheck` 与 `listing.contentVersion` 一致，且 `recommendation=BLOCKED`（`aiStatus=SKIPPED`，未调模型） |
-| Needs AI review | `NEEDS_AI` | 无成功且未 stale 的终态：无检查、或 `recommendation=NEEDS_AI`、或旧 Blocked/Unavailable 后版本已升 |
-| Passed | `PASSED` | `recommendation=PASSED` 且 `check.contentVersion == listing.contentVersion` |
-| Stale | `STALE` | **曾经** `PASSED`，但 listing 版本已升（改标题/正文/类型/媒介，或改车况等手册规定项） |
-| AI unavailable | `AI_UNAVAILABLE` | 当前版本检查 `recommendation=UNAVAILABLE`（规则过了但 AI 失败/超时），**不得**当 Pass |
+| Blocked | `BLOCKED` | current `lastCheck` matches `listing.contentVersion`, and `recommendation=BLOCKED` (`aiStatus=SKIPPED`, model not called) |
+| Needs AI review | `NEEDS_AI` | no successful non-stale terminal state: no check, or `recommendation=NEEDS_AI`, or version already incremented after a previous Blocked/Unavailable |
+| Passed | `PASSED` | `recommendation=PASSED` and `check.contentVersion == listing.contentVersion` |
+| Stale | `STALE` | **previously** `PASSED`, but listing version has incremented (title/body/type/medium changed, or handbook-specified items such as condition changed) |
+| AI unavailable | `AI_UNAVAILABLE` | current-version check `recommendation=UNAVAILABLE` (rules passed but AI failed/timed out), **must not** be treated as Pass |
 
-`STALE` **只**用于「曾通过后失效」。Blocked 后改稿再查，显示 `NEEDS_AI`，不是 Stale。
+`STALE` is **only** for "passed, then invalidated". After Blocked, editing copy and checking again shows `NEEDS_AI`, not Stale.
 
-### 8.1 检查结果 JSON（`lastCheck` 与 POST 响应）
+### 8.1 Check-result JSON (`lastCheck` and POST response)
 
-`ruleFindings`：JSON 数组（列已在 SQL）。元素形状（新裁定，手册只说数组）：
+`ruleFindings`: JSON array (column already in SQL). Element shape (new ruling; handbook only says array):
 
 ```json
 {
@@ -514,12 +514,12 @@ V1 `title`/`body` NOT NULL：请求缺省或空白时写入 **`''`**（15），�
 }
 ```
 
-`severity`：`BLOCK`（硬缺 → 整单 Blocked）或 `REVIEW`（交给 AI）。  
-`aiNotes`：模型结构化备注，元素至少 `{ "message": "..." }`，可为 `[]` / `null`。  
-`aiStatus`：`SKIPPED`\|`SUCCESS`\|`FAILED`\|`UNAVAILABLE`。  
-`recommendation`：`BLOCKED`\|`NEEDS_AI`\|`PASSED`\|`UNAVAILABLE`。
+`severity`: `BLOCK` (hard miss → whole check Blocked) or `REVIEW` (hand to AI).  
+`aiNotes`: structured model notes; elements are at least `{ "message": "..." }`; may be `[]` / `null`.  
+`aiStatus`: `SKIPPED`\|`SUCCESS`\|`FAILED`\|`UNAVAILABLE`.  
+`recommendation`: `BLOCKED`\|`NEEDS_AI`\|`PASSED`\|`UNAVAILABLE`.
 
-完整检查对象：
+Full check object:
 
 ```json
 {
@@ -548,16 +548,16 @@ V1 `title`/`body` NOT NULL：请求缺省或空白时写入 **`''`**（15），�
 { "version": 2 }
 ```
 
-`version` = listing 乐观锁。流程复述手册：本店校验 → 固定清单 → 无硬阻断则经 Gateway `POST /internal/v1/ad-check`（适配器超时 ≤15s）→ 写入 `compliance_check`，回写 `listing.last_check_id`。
+`version` = listing optimistic lock. Flow restates the handbook: this-dealership validation → fixed checklist → if no hard block, via Gateway `POST /internal/v1/ad-check` (adapter timeout ≤15s) → write `compliance_check`, write back `listing.last_check_id`.
 
-| 结果 | HTTP | body |
+| Result | HTTP | body |
 |---|---|---|
-| Blocked / Needs AI / Passed | **200** | 完整检查对象（含 `checkStatus`） |
-| 规则过了，AI 超时或失败 | **502** `AI_UNAVAILABLE` | 标准错误体。检查行 **已写** `UNAVAILABLE`，listing 已指过去。客户端再 GET listing |
-| listing 版本不对 | **409** `VERSION_CONFLICT` | 错误体 |
-| 跨店 / 无 listing | **404** | 错误体 |
+| Blocked / Needs AI / Passed | **200** | full check object (includes `checkStatus`) |
+| Rules passed, AI timeout or failure | **502** `AI_UNAVAILABLE` | standard error body. Check row **already written** as `UNAVAILABLE`, listing already points to it. Client then GET listing |
+| listing version mismatch | **409** `VERSION_CONFLICT` | error body |
+| Cross-dealership / no listing | **404** | error body |
 
-**Blocked 不是 HTTP 错误。** 不要用 4xx 表示「缺价格 / FINANCE 缺 APR」。
+**Blocked is not an HTTP error.** Do not use 4xx to mean "missing price / FINANCE missing APR".
 
 ### 8.3 `POST /api/v1/listings/{id}/ready`
 
@@ -565,32 +565,32 @@ V1 `title`/`body` NOT NULL：请求缺省或空白时写入 **`''`**（15），�
 { "version": 3 }
 ```
 
-仅当前检查 Passed **且** 非 Stale。成功 200，listing `status=READY`，响应同 GET listing。
+Only when the current check is Passed **and** not Stale. Success 200, listing `status=READY`, response matches GET listing.
 
-| 码 | HTTP |
+| Code | HTTP |
 |---|---|
-| `CHECK_STALE` | 409（曾通过但版本已升，或 lastCheck 版本≠ listing） |
-| `NOT_PASSED` | 409（Blocked / Needs AI / AI unavailable / 无检查） |
+| `CHECK_STALE` | 409 (previously passed but version incremented, or lastCheck version ≠ listing) |
+| `NOT_PASSED` | 409 (Blocked / Needs AI / AI unavailable / no check) |
 | `VERSION_CONFLICT` | 409 |
 | — | 404 |
 
 ### 8.4 `POST /api/v1/listings/{id}/exports`
 
-Body 同 ready：`{ "version": 3 }`。同样的 409/404。  
-成功：**200** 纯文本。内容 = 店公开四字段 + 车辆公开字段（年/make/model/vin/condition/source，**无成本**）+ 标题正文 + 检查时间。不写客户。
+Body same as ready: `{ "version": 3 }`. Same 409/404.  
+Success: **200** plain text. Content = dealership public four fields + vehicle public fields (year/make/model/vin/condition/source, **no cost**) + title/body + check time. Do not write customers.
 
 ---
 
-## 9. 审计
+## 9. Audit
 
 ### `GET /api/v1/audit`
 
-Query：`entityType`、`entityId` 必填；`page`、`size` 可选。
+Query: `entityType`, `entityId` required; `page`, `size` optional.
 
-店员：只本店。实体不在本店 → **404**。  
-Admin：**不**给业务实体（`VEHICLE`/`CUSTOMER`/`CUSTOMER_VEHICLE`/`LISTING`）→ **403** `FORBIDDEN`，无 `fieldSummary` 业务内容。
+Staff: this dealership only. Entity not in this dealership → **404**.  
+Admin: **do not** serve business entities (`VEHICLE`/`CUSTOMER`/`CUSTOMER_VEHICLE`/`LISTING`) → **403** `FORBIDDEN`, no `fieldSummary` business content.
 
-`entityType`：`VEHICLE`\|`CUSTOMER`\|`CUSTOMER_VEHICLE`（店员查询）。Admin 写库可用 `DEALER`/`MEMBERSHIP`，**本查询接口不对店员开放这两类**（避免把绑人当业务浏览）；Admin 若查自己的开店审计，可仅 `DEALER`/`MEMBERSHIP` 且 `dealerId` 可空——实施时若未做 Admin 审计页，对该角色统一 403 即可。
+`entityType`: `VEHICLE`\|`CUSTOMER`\|`CUSTOMER_VEHICLE` (staff query). Admin writes may use `DEALER`/`MEMBERSHIP`; **this query API does not open those two types to staff** (avoid treating bind-staff as business browsing). If Admin queries their own dealership-creation audit, they may use only `DEALER`/`MEMBERSHIP` and `dealerId` may be empty — if no Admin audit page is built, a uniform 403 for that role is acceptable.
 
 ```json
 {
@@ -611,23 +611,23 @@ Admin：**不**给业务实体（`VEHICLE`/`CUSTOMER`/`CUSTOMER_VEHICLE`/`LISTIN
 }
 ```
 
-`action`：`CREATE`\|`UPDATE`\|`SELL`\|`LINK`\|`UNLINK`。`fieldSummary` 无客户电话/邮箱/住址全文。
+`action`: `CREATE`\|`UPDATE`\|`SELL`\|`LINK`\|`UNLINK`. `fieldSummary` has no full customer phone/email/address.
 
 ---
 
-## 10. 助手 `POST /api/v1/assistant/ask`
+## 10. Assistant `POST /api/v1/assistant/ask`
 
-仅 `Dealer.User`。Admin → 403。**不写**车辆/客户/listing/检查表。
+`Dealer.User` only. Admin → 403. **Do not write** vehicle/customer/listing/check tables.
 
-请求（手册 `{text}`）：
+Request (handbook `{text}`):
 
 ```json
 { "text": "Which in-stock Toyotas do we have?" }
 ```
 
-`text` 空 → `400 VALIDATION`。
+Empty `text` → `400 VALIDATION`.
 
-响应：短说明 + **最多 5** 张本店资源卡。卡上无电话、邮箱、住址。模型返回的 id 必须落在 core 刚检索的集合里，否则丢弃。
+Response: short summary + **at most 5** dealership resource cards. Cards have no phone, email, or address. Model-returned ids must fall in the set core just retrieved; otherwise drop them.
 
 ```json
 {
@@ -656,15 +656,15 @@ Admin：**不**给业务实体（`VEHICLE`/`CUSTOMER`/`CUSTOMER_VEHICLE`/`LISTIN
 }
 ```
 
-`kind`：`VEHICLE`\|`CUSTOMER`\|`LISTING`。不在此规定 Vue 路由。  
-模型挂：`summary` 为 `null`，`summaryAvailable=false`，`cards` 仍是检索列表（最多 5）。HTTP **200**（检索成功）。仅当店员身份失败才 403。  
-core 经 Gateway 调内部助手；最近对话上下文最多 3 句已过滤文本（手册 10），**不落业务表**。
+`kind`: `VEHICLE`\|`CUSTOMER`\|`LISTING`. Vue routes are not specified here.  
+Model down: `summary` is `null`, `summaryAvailable=false`, `cards` are still the retrieval list (at most 5). HTTP **200** (retrieval succeeded). 403 only when staff identity fails.  
+core calls the internal assistant via Gateway; recent conversation context is at most 3 filtered text turns (handbook 10), **not persisted to business tables**.
 
 ---
 
-## 11. 仅内部（浏览器 404）
+## 11. Internal only (browser 404)
 
-Gateway 转 ai-service。core 调用，不给浏览器。
+Gateway forwards to ai-service. core calls these; the browser does not.
 
 ### `POST /internal/v1/ad-check`
 
@@ -693,7 +693,7 @@ Gateway 转 ai-service。core 调用，不给浏览器。
 }
 ```
 
-`vehiclePublic` **无**采购/修理/售价。ai-service 将模型结果收成供 core 写入的 notes；传输失败由 core 记 `UNAVAILABLE`。
+`vehiclePublic` has **no** purchase/repair/sold price. ai-service folds model output into notes for core to persist; transport failure is recorded by core as `UNAVAILABLE`.
 
 ### `POST /internal/v1/assistant`
 
@@ -706,31 +706,31 @@ Gateway 转 ai-service。core 调用，不给浏览器。
 }
 ```
 
-`resources` 已经 core 过滤。返回短文本；core 再核 id。
+`resources` are already filtered by core. Return short text; core re-checks ids.
 
 ---
 
-## 12. 错误码一览
+## 12. Error-code catalog
 
-| code | HTTP | 含义 |
+| code | HTTP | Meaning |
 |---|---|---|
-| `VALIDATION` | 400 | 缺字段、枚举非法、格式错 |
-| `VIN_DUP` | 400 | 本店 VIN 重复 |
-| `SOLD_PAIR_REQUIRED` | 400 | 出售缺日期或价格 |
-| `WRONG_DEALER_OR_SOLD` | 400 | 挂车：车非本店或已售 |
-| `UNAUTHORIZED` | 401 | 未登录 |
-| `FORBIDDEN` | 403 | 角色不允许该 URL；或店员无有效 membership |
-| `NOT_FOUND` | 404 | 无资源或跨店 |
-| `VERSION_CONFLICT` | 409 | `version` 不匹配 |
-| `DUP_MEMBER` | 409 | 该店已有此 active 成员 |
-| `VEHICLE_ALREADY_LINKED` | 409 | 车已挂客户 |
-| `SOLD_LOCKED` | 409 | 已售改采购、重复出售、或 **已售车解绑** |
-| `CHECK_STALE` | 409 | Ready/Export 时检查已过期 |
-| `NOT_PASSED` | 409 | Ready/Export 时非 Passed |
-| `AI_UNAVAILABLE` | 502 | 广告检查 AI 失败/超时 |
+| `VALIDATION` | 400 | missing field, illegal enum, bad format |
+| `VIN_DUP` | 400 | VIN already exists in this dealership |
+| `SOLD_PAIR_REQUIRED` | 400 | sell missing date or price |
+| `WRONG_DEALER_OR_SOLD` | 400 | link vehicle: vehicle not this dealership or already sold |
+| `UNAUTHORIZED` | 401 | not signed in |
+| `FORBIDDEN` | 403 | role not allowed for this URL; or staff has no valid membership |
+| `NOT_FOUND` | 404 | no resource or cross-dealership |
+| `VERSION_CONFLICT` | 409 | `version` mismatch |
+| `DUP_MEMBER` | 409 | this dealership already has this active member |
+| `VEHICLE_ALREADY_LINKED` | 409 | vehicle already linked to a customer |
+| `SOLD_LOCKED` | 409 | sold purchase edit, sell again, or **unlink a sold vehicle** |
+| `CHECK_STALE` | 409 | check expired at Ready/Export |
+| `NOT_PASSED` | 409 | not Passed at Ready/Export |
+| `AI_UNAVAILABLE` | 502 | ad-check AI failure/timeout |
 
 ---
 
-## 13. 不做（防把废止稿搬回来）
+## 13. Do not build (do not bring the retired draft back)
 
-密码登录、CSRF cookie 会话、工单、线索、销售单、KPI dashboard、买家 `/public/**`、Service Bus、任意 `dealerId` 切换店、Admin 读写车辆/客户/广告。
+Password login, CSRF cookie sessions, tickets, leads, sales orders, KPI dashboard, buyer `/public/**`, Service Bus, arbitrary `dealerId` dealership switching, Admin reading/writing vehicles/customers/ads.

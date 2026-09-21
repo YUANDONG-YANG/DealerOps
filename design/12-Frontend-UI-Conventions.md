@@ -1,56 +1,56 @@
-# 前端 UI 约定（抄交互，不抄业务）
+# Frontend UI conventions (copy interaction, not business)
 
-版本 v6.1 · 2026-09-21
+Version v6.1 · 2026-09-21
 
-不要 fork 任何经销商整仓。那些项目多半带买家站、看板、线索、工单。本课只用 Vue 3 + **Element Plus**，英文界面，6 个页面。字段只按 [00](00-Current-Development-Design.md)。
+Do not fork any full dealer repository. Those projects usually include a buyer site, dashboards, leads, and tickets. This course uses Vue 3 + **Element Plus**, English UI, and 6 pages. Fields follow [00](00-Current-Development-Design.md) only.
 
-## 1. 全局
+## 1. Global
 
-- Login：居中单卡，无侧栏。一颗 `Sign in with Microsoft`（Entra），不要用户名密码。
-- 其余页：左侧菜单 + 顶栏（店名或 `Platform Admin`、角色、`Sign out`）。
-- Admin 只见 Admin；店员只见 DMS / CRM / Ad compliance / Assistant。无权限路由直接拦。
-- 登录后落地：管理员 → Admin；店员 → DMS。不要 KPI 首页。
-- 主按钮在右上；出售/解绑二次确认。
-- 每页必须有加载、空、错三种状态。失败不当空表；AI 失败不能显示 Pass。
+- Login: centered single card, no sidebar. One `Sign in with Microsoft` button (Entra). No username/password.
+- Other pages: left menu + top bar (dealership name or `Platform Admin`, role, `Sign out`).
+- Admin sees Admin only; staff sees DMS / CRM / Ad compliance / Assistant only. Block unauthorized routes immediately.
+- Post-login landing: admin → Admin; staff → DMS. No KPI home page.
+- Primary action is top-right; Sell/Unbind require a second confirmation.
+- Every page must have loading, empty, and error states. Failures must not look like empty tables; an AI failure must never show Pass.
 
-## 2. 表格列（够演示即可）
+## 2. Table columns (enough for the demo)
 
-- Admin 店：Name, Contact, Staff count, Actions
-- Admin 成员：Entra ID / email, Dealership, Status, Actions
-- DMS：Year Make Model, VIN, Source, Condition, Cost, Status, Actions
-- CRM：Name, Email, Phone, Linked vehicle, Actions
-- Ad：Vehicle, Type, Medium, Check status, Actions
+- Admin dealerships: Name, Contact, Staff count, Actions
+- Admin members: Entra ID / email, Dealership, Status, Actions
+- DMS: Year Make Model, VIN, Source, Condition, Cost, Status, Actions
+- CRM: Name, Email, Phone, Linked vehicle, Actions
+- Ad: Vehicle, Type, Medium, Check status, Actions
 
-状态用 Tag。操作列最多 3 个文字链。每页 10 条。已售行变淡，采购字段只读。
+Use Tags for status. The actions column has at most 3 text links. 10 rows per page. Sold rows are dimmed; purchase fields are read-only.
 
-## 3. 筛选
+## 3. Filters
 
-一行：搜索 + 1–3 个下拉 + Search + Reset。不要价格滑条、燃油、地图。
+One row: search + 1–3 dropdowns + Search + Reset. No price sliders, fuel filters, or maps.
 
-- DMS：VIN/Make/Model；Status；Condition
-- CRM：Name/Email/Phone；是否已挂车
-- Admin：店名 / 员工邮箱
+- DMS: VIN/Make/Model; Status; Condition
+- CRM: Name/Email/Phone; whether a vehicle is already linked
+- Admin: dealership name / staff email
 
-## 4. 表单
+## 4. Forms
 
-新增编辑用抽屉或 Dialog。枚举用 Select。出售单独小窗：Sold date + Sold price 成对必填。CRM 挂车用可搜索 Select，只列本店未挂未售车；已占车辆禁用。
+Create and edit use a drawer or Dialog. Enums use Select. Sell uses a separate small dialog: Sold date + Sold price are required as a pair. CRM vehicle linking uses a searchable Select that lists only this dealership's unlinked, unsold vehicles; already-taken vehicles are disabled.
 
-## 5. Ad compliance（最出彩的一页）
+## 5. Ad compliance (the showcase page)
 
-左表单、右结果。清单按广告类型即时变化。总状态只允许：Blocked / Needs AI review / Passed / Stale / AI unavailable。仅 Passed 且非 Stale 才能 Export TXT。
+Form on the left, results on the right. The checklist changes immediately with ad type. Overall status may only be: Blocked / Needs AI review / Passed / Stale / AI unavailable. Export TXT is allowed only when Passed and not Stale.
 
 ## 6. Assistant
 
-一问一答 + 最多 5 张本店资源卡，点进去普通页面。卡上不出现电话/邮箱/住址。模型挂了仍显示检索列表，并写 `Smart summary unavailable`。
+One question, one answer + at most 5 dealership resource cards that open ordinary pages. Cards must not show phone / email / home address. If the model is down, still show the retrieval list and display `Smart summary unavailable`.
 
-## 7. 建议打开看（只看交互）
+## 7. Suggested references (interaction only)
 
 1. [hyundai_dms Dealers](https://github.com/Navpreet0981/hyundai_dms/blob/master/dms_app/src/pages/admin/Dealers.jsx)
 2. [hyundai_dms Cars](https://github.com/Navpreet0981/hyundai_dms/blob/master/dms_app/src/pages/admin/Cars.jsx)
 3. [Car-Mart EntityPage](https://github.com/saadshd/Car-Mart-Frontend/blob/main/src/components/crud/EntityPage.tsx)
-4. [carventory](https://github.com/mohammadumar-dev/carventory) 只看员工后台，不看 marketplace
-5. [vue-element-plus-admin Demo](https://element-plus-admin.cn/)（不要整仓当脚手架）
+4. [carventory](https://github.com/mohammadumar-dev/carventory) staff back office only, not the marketplace
+5. [vue-element-plus-admin Demo](https://element-plus-admin.cn/) (do not use the whole repo as scaffolding)
 6. [Element Plus Result / Table / Empty](https://element-plus.org/en-US/component/result)
-7. [MEVN-MyCar 视频](https://vimeo.com/500102464)
+7. [MEVN-MyCar video](https://vimeo.com/500102464)
 
-不要抄：买家站、图表墙、线索/试驾/工单、暗色玻璃拟态、通用 CRUD 生成器。
+Do not copy: buyer sites, chart walls, leads/test-drives/tickets, dark glassmorphism, or a generic CRUD generator.

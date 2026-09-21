@@ -1,31 +1,31 @@
-# 追踪与 Scrum（课程要留痕，过程从简）
+# Traceability and Scrum (course evidence, light process)
 
-版本 v6.0 · 2026-09-21
+Version v6.0 · 2026-09-21
 
-业务：[DealerOps-Specification.pdf](DealerOps-Specification.pdf)  
-硬要求：[Non-Negotiable-Project-Requirements.pptx](Non-Negotiable-Project-Requirements.pptx)
+Business: [DealerOps-Specification.pdf](DealerOps-Specification.pdf)  
+Hard requirements: [Non-Negotiable-Project-Requirements.pptx](Non-Negotiable-Project-Requirements.pptx)
 
-改范围必须客户/instructor 书面同意。不做的东西：自研模型 SDK、队列、第二库、工单、线索、买家站。助手复用 GitHub 现成库。
+Scope changes need written client/instructor approval. Out of scope: a homemade model SDK, a queue, a second database, work orders, leads, a buyer site. The assistant reuses the existing GitHub library.
 
-| ID | 要演示什么 | 来源 | 谁 | 哪次 Review |
+| ID | What to demonstrate | Source | Who | Which Review |
 |---|---|---|---|---|
-| NN-01 | 四仓库四流水线，能单发 ai-service | PPT 1 | B/C | S1 |
-| NN-02 | 请求都走 Gateway，直连失败 | PPT 1 | C | S1 |
-| NN-03 | 讲清 07 那张图 | PPT 1 | 全员 | S1 |
-| NN-04–07 | Azure 上跑；Docker；Bicep；自动发布 | PPT 2 | B | S2 |
-| NN-08–11 | Entra + JWT；Admin/店隔离；无明文密钥；HTTPS | PPT 3 | C | S2 |
-| NN-12 | 开两家店、绑人 | 规格 | C | S3 |
-| NN-13 | DMS 字段与出售 | 规格 | A | S3 |
-| NN-14 | CRM 四字段 + 挂车 | 规格 | C | S3 |
-| NN-15/18 | 清单 + GitHub 组件真实调用 | 规格 + PPT 5 | B | S2+ |
-| NN-17 | 店内助手页，同一组件 | GitHub 组件 | A/B | S3 |
-| NN-16 | 改车/客有审计 | 规格 | C | S3 |
-| NN-19/20 | 关键测试 + 客户走通签字 | PPT 4 | 全员 | S3 |
-| NN-21–24 | 看板、课后 1–2 段、Review 人人开口、双周客户纪要 | PPT 6 | 轮值 | 全程 |
+| NN-01 | Four repositories, four pipelines; ai-service can deploy alone | PPT 1 | B/C | S1 |
+| NN-02 | All requests go through the Gateway; direct access fails | PPT 1 | C | S1 |
+| NN-03 | Walk through the diagram in 07 | PPT 1 | All | S1 |
+| NN-04–07 | Runs on Azure; Docker; Bicep; automatic deploy | PPT 2 | B | S2 |
+| NN-08–11 | Entra + JWT; Admin / dealership isolation; no plaintext secrets; HTTPS | PPT 3 | C | S2 |
+| NN-12 | Open two dealerships and bind people | Spec | C | S3 |
+| NN-13 | DMS fields and sale | Spec | A | S3 |
+| NN-14 | CRM four fields + attach a vehicle | Spec | C | S3 |
+| NN-15/18 | Checklist + a real call to the GitHub component | Spec + PPT 5 | B | S2+ |
+| NN-17 | In-store assistant page, same component | GitHub component | A/B | S3 |
+| NN-16 | Vehicle/customer changes have audit | Spec | C | S3 |
+| NN-19/20 | Critical tests + client walkthrough sign-off | PPT 4 | All | S3 |
+| NN-21–24 | Board, 1–2 after-class paragraphs, everyone speaks at Review, biweekly client minutes | PPT 6 | Rotation | Entire course |
 
-## 课上怎么做（不要加重流程）
+## How class time works (do not add process weight)
 
-- 一个看板：To do / Doing / Done，卡片写上表 ID。
-- 每次 3 小时课：开头 10 分钟同步，下课每人一段进度。
-- 三次 Review 每人必须讲自己的运行证据，不许一人包讲。
-- 客户会两周一次，纪要只记决定和谁做什么。
+- One board: To do / Doing / Done; cards use the IDs in the table above.
+- Each 3-hour class: 10 minutes of sync at the start; each person writes one progress paragraph at the end.
+- At each of the three Reviews everyone must present their own running evidence; one person must not present for the team.
+- Client meetings every two weeks; minutes record only decisions and who does what.

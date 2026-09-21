@@ -1,33 +1,31 @@
-# DealerOps 参考包（给后续 AI 编码用）
+# DealerOps reference pack (for later AI coding)
 
-本目录只放调研结论，不放本课业务代码。  
-正式范围以设计目录为准：
+This directory holds research conclusions only. It does not hold this course's business code.  
+Official scope is in `design/`.
 
-`D:\常用文件\SAIT\26fall\Capstone\Project Topics\Project Topics\DealerOS-Design`
+Currently effective: `00-Current-Development-Design.md` and `07`–`12`. `01`–`06` are historical drafts.
 
-当前有效：`00-Current-Development-Design.md`、`07`–`12`。`01`–`06` 是历史稿。
+**Read the implementation brief before writing code. Do not start from this directory:**  
+`design/IMPLEMENTATION-BRIEF.md`  
+The brief stays in `design/`. Do not copy it here.
 
-**写代码先读实现手册，不要从本目录开工：**  
-`D:\常用文件\SAIT\26fall\Capstone\Project Topics\Project Topics\DealerOS-Design\IMPLEMENTATION-BRIEF.md`  
-手册留在设计目录，不复制进来。
+## Read order
 
-## 先读谁
-
-| 顺序 | 文件 | 何时读 |
+| Order | File | When to read |
 |------|------|--------|
-| 1 | [00-reuse-policy.md](00-reuse-policy.md) | 动手前：抄什么、禁什么 |
-| 2 | [01-github-repos.md](01-github-repos.md) | 对表、挑交互样例、禁止整仓 fork |
-| 3 | [04-uiux-patterns.md](04-uiux-patterns.md) | 写 `dealer-web` 时；以 `12-Frontend-UI-Conventions.md` 为准 |
-| 4 | [03-ai-manager.md](03-ai-manager.md) | 写 `ai-service` 时 |
-| 5 | [02-omvic.md](02-omvic.md) | 写广告固定规则与文案时；无代码可抄 |
+| 1 | [00-reuse-policy.md](00-reuse-policy.md) | Before work: what to copy, what is forbidden |
+| 2 | [01-github-repos.md](01-github-repos.md) | Compare tables, pick interaction samples, do not fork a whole repo |
+| 3 | [04-uiux-patterns.md](04-uiux-patterns.md) | When writing `dealer-web`; `design/12-Frontend-UI-Conventions.md` is authoritative |
+| 4 | [03-ai-manager.md](03-ai-manager.md) | When writing `ai-service` |
+| 5 | [02-omvic.md](02-omvic.md) | When writing listing fixed rules and copy; no code to copy |
 
-## 编码时怎么用
+## How to use this while coding
 
-- 栈固定：**Java + Vue 3 + Element Plus + Entra**。四应用仓：`dealer-web`、`dealer-gateway`、`dealer-core`、`ai-service`（平台仓另存 Bicep/Compose）。不要把任何经销商课设整仓当底座。
-- 页面只有：**Login, Admin, DMS, CRM, Ad compliance, Assistant**。不要买家站、KPI 首页。
-- GitHub 课设只抄**交互节奏**（表、筛、抽屉、确认）。字段、状态机、隔离、Entra、合规以设计文档为准。
-- 本目录若还有克隆源码（如 `carventory/`），只本地打开看交互，不要接入 Compose，不要当脚手架。
+- Stack is fixed: **Java + Vue 3 + Element Plus + Entra**. Four app repos: `dealer-web`, `dealer-gateway`, `dealer-core`, `ai-service` (the platform repo also stores Bicep/Compose). Do not treat any dealership course repo as the base.
+- Pages are only: **Login, Admin, DMS, CRM, Ad compliance, Assistant**. No buyer site. No KPI home page.
+- GitHub course projects: copy **interaction rhythm** only (tables, filters, drawers, confirms). Fields, state machines, isolation, Entra, and compliance follow the design docs.
+- If this directory still has cloned source (for example `carventory/`), open it locally to inspect interaction only. Do not wire it into Compose. Do not use it as scaffolding.
 
-## 一句话结论
+## One-line conclusion
 
-GitHub 上经销商课设很多，**没有一份能整仓当本课底座**。只抄交互，不抄业务。
+GitHub has many dealership course projects. **None of them can be the whole-repo base for this course.** Copy interaction, not business.
