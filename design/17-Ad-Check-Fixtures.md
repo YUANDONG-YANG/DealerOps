@@ -1,57 +1,57 @@
-# 17 · 广告合规检查样例 / AI 评估夹具
+# 17 · Ad-compliance check samples / AI evaluation fixtures
 
-版本：现行有效（v6）· 2026-09-21  
-**现行有效。** 固定规则与原因码以 [15-Data-Auth-and-Gateway.md](15-Data-Auth-and-Gateway.md) 第 6 节伪代码为准。检查 HTTP、五态、Blocked=200、`AI_UNAVAILABLE`=502 以 [14-Backend-API-Contract.md](14-Backend-API-Contract.md) 第 8 节为准。  
-本文**只**提供可跑的广告文本夹具与期望态，不是规则实现、不是 OpenAPI、不是 OMVIC 认证。系统输出只能是「规则命中 + 复核建议」，**禁止**在 UI 或报告写 OMVIC approved / certified。
+Version: current (v6) · 2026-09-21  
+**Current.** Fixed rules and reason codes follow the [15-Data-Auth-and-Gateway.md](15-Data-Auth-and-Gateway.md) section 6 pseudocode. Check HTTP, five states, Blocked=200, and `AI_UNAVAILABLE`=502 follow [14-Backend-API-Contract.md](14-Backend-API-Contract.md) section 8.  
+This document **only** provides runnable ad-text fixtures and expected states. It is not a rule implementation, not OpenAPI, and not an OMVIC certification. System output may only be "rule hits + review advice"; **do not** write OMVIC approved / certified in the UI or reports.
 
-废止的 `05` 不是现行需求。本文只借鉴其「可重复英文样例 + 期望规则」意图，按 v6 的 `CASH` / `FINANCE` / `LEASE` 与 `ONLINE` / `RADIO_TV_BILLBOARD` 重写。融资/租赁检查 **In Scope**（对齐 00 / 15），不要沿用参考稿「融资不可做」。
+Retired `05` is not a current requirement. This document only borrows its "repeatable English samples + expected rules" intent and rewrites it for v6 `CASH` / `FINANCE` / `LEASE` and `ONLINE` / `RADIO_TV_BILLBOARD`. Finance/lease checks are **In Scope** (align 00 / 15); do not follow the reference draft that said finance cannot be done.
 
-不做：Service Bus、异步审广告、队列回查、外部广告站、宣称合法认证。检查是店员同步 `POST /api/v1/listings/{id}/checks`（规则先于 AI，AI ≤15s）。
+Out of scope: Service Bus, async ad review, queue polling, external ad sites, claiming legal certification. A check is a staff-synchronous `POST /api/v1/listings/{id}/checks` (rules before AI, AI ≤15s).
 
 ---
 
-## 1. 共用店与车辆前提
+## 1. Shared dealership and vehicle premises
 
-除非某条另写，一律用这家店的**公开四字段**（与 14 号示例一致）。固定规则对店名做大小写不敏感包含；联系方式要能对上电话数字 / 邮箱 / 地址原文。
+Unless a fixture says otherwise, always use this dealership's **public four fields** (same as the 14 examples). Fixed rules do a case-insensitive contains on the dealership name; contact must match phone digits / email / address text.
 
-| 字段 | 值 |
+| Field | Value |
 |---|---|
 | `legalName` | Prairie Auto Ltd. |
 | `contactPhone` | 403-555-0100 |
 | `contactEmail` | desk@prairie.example |
 | `contactAddress` | 100 1 Ave SW, Calgary |
 
-车辆（无采购成本进检查；标价只看广告正文，**不用** `purchaseCost`）：
+Vehicles (no purchase cost enters the check; asking price is taken from the ad body only, **not** `purchaseCost`):
 
-| 代号 | year / make / model | VIN（示例） | `conditionCode` | `source` |
+| Code | year / make / model | VIN (sample) | `conditionCode` | `source` |
 |---|---|---|---|---|
 | V-ASIS | 2020 Toyota Camry | 1HGCM82633A004352 | `AS_IS` | `AUCTION` |
 | V-CERT | 2022 Honda Civic | 2HGFC2F59NH000001 | `CERTIFIED` | `TRADE_IN` |
 | V-UNFIT | 2016 Ford F-150 | 1FTFW1E50GFA00001 | `UNFIT` | `OTHER` |
 | V-IRREP | 2018 Chevrolet Cruze | 1G1BE5SM8J7100001 | `IRREPARABLE` | `AUCTION` |
 
-金额/利率写法按 15：允许 `$`、`CAD`、`C$`；APR 须形如 `6.99% APR` 或 `APR 6.99%` / `APR: 6.99%`。
+Amount/rate writing follows 15: `$`, `CAD`, and `C$` are allowed; APR must look like `6.99% APR` or `APR 6.99%` / `APR: 6.99%`.
 
 ---
 
-## 2. 怎么跑、怎么记结果
+## 2. How to run and how to record results
 
-1. 本店 DMS 建对应车辆 → `PATCH` listing（`title`/`body`/`adKind`/`medium`）→ `POST .../checks`（带当前 `version`）。
-2. **硬缺**（`hard[]` 非空）：HTTP **200**，`recommendation=BLOCKED`，`aiStatus=SKIPPED`，**不**调 AI。`checkStatus=BLOCKED`。Ready / Export → **409** `NOT_PASSED`。
-3. **硬缺为空**：固定规则返回 `NEEDS_AI`，core 经 Gateway `POST /internal/v1/ad-check`。成功且模型未再报硬缺 → **200** `PASSED` / `SUCCESS`。超时或失败 → HTTP **502** `AI_UNAVAILABLE`，检查行**已写** `recommendation=UNAVAILABLE`，listing 已指过去；GET listing 的 `checkStatus=AI_UNAVAILABLE`；**UI 不得当 Pass**；Ready / Export → **409** `NOT_PASSED`。
-4. 仅 `PASSED` 且 `check.contentVersion == listing.contentVersion` 才能 Ready，然后导出 **TXT**（店公开四字段 + 车辆公开字段 + 标题正文 + 检查时间；无客户、无成本）。
-5. **Stale** 只用于「曾经 PASSED 后版本已升」。Blocked 后改稿再打开页面是 `NEEDS_AI`，不是 Stale。
-6. 标签均为 **team-authored**。自建夹具成绩只说明本套样例，不预先承诺准确率，不把 GitHub `ai-manager` 库本身当验收证明。
+1. Create the matching vehicle in this dealership's DMS → `PATCH` listing (`title`/`body`/`adKind`/`medium`) → `POST .../checks` (with current `version`).
+2. **Hard miss** (`hard[]` not empty): HTTP **200**, `recommendation=BLOCKED`, `aiStatus=SKIPPED`, **do not** call AI. `checkStatus=BLOCKED`. Ready / Export → **409** `NOT_PASSED`.
+3. **Hard miss empty:** fixed rules return `NEEDS_AI`; core calls Gateway `POST /internal/v1/ad-check`. Success and the model reports no further hard miss → **200** `PASSED` / `SUCCESS`. Timeout or failure → HTTP **502** `AI_UNAVAILABLE`; check row **already written** `recommendation=UNAVAILABLE`; listing already points to it; GET listing `checkStatus=AI_UNAVAILABLE`; **UI must not treat as Pass**; Ready / Export → **409** `NOT_PASSED`.
+4. Only `PASSED` and `check.contentVersion == listing.contentVersion` may Ready, then export **TXT** (dealership public four fields + vehicle public fields + title/body + check time; no customer, no cost).
+5. **Stale** is only for "previously PASSED, then version incremented". After Blocked, editing copy and reopening the page is `NEEDS_AI`, not Stale.
+6. Labels are all **team-authored**. Self-built fixture scores only describe this sample set; they do not pre-commit accuracy and do not treat the GitHub `ai-manager` repo itself as acceptance proof.
 
-`ruleFindings` 的 HTTP 形状见 14（`ruleId` / `severity` / `passed` / `message`）。下表 **原因码** 用 15 伪代码标识（如 `PRICE_MISSING`），实现映射到 `ruleId` 时不得改语义。`severity`：硬缺=`BLOCK`，soft=`REVIEW`。
+`ruleFindings` HTTP shape is in 14 (`ruleId` / `severity` / `passed` / `message`). The **reason codes** in the tables below use 15 pseudocode identifiers (for example `PRICE_MISSING`); mapping them to `ruleId` must not change semantics. `severity`: hard miss=`BLOCK`, soft=`REVIEW`.
 
 ---
 
-## 3. 样例
+## 3. Samples
 
-每条：`id`、`offerType`（= `adKind`）、`channel`（= `medium`）、`title`、`body`、车辆/店前提、固定规则期望、进 AI 时期望、Ready/导出、课堂演示。
+Each item: `id`, `offerType` (= `adKind`), `channel` (= `medium`), `title`, `body`, vehicle/dealership premises, fixed-rule expectation, expectation if AI is entered, Ready/export, classroom demo.
 
-### FX-01 · 缺价（CASH / ONLINE）
+### FX-01 · Missing price (CASH / ONLINE)
 
 | | |
 |---|---|
@@ -60,13 +60,13 @@
 | **channel** | `ONLINE` |
 | **title** | 2020 Toyota Camry — great daily driver |
 | **body** | Sold as-is by Prairie Auto Ltd. Call 403-555-0100, email desk@prairie.example, visit 100 1 Ave SW, Calgary. Clean title story, come see it this weekend. |
-| **车辆/店前提** | V-ASIS。正文**无** `$` / `CAD` / `dollars` 价格。有店名。有完整联系。有 `as-is`。无 APR（CASH 不要求）。 |
-| **固定规则** | **Blocked** · `PRICE_MISSING` · `aiStatus=SKIPPED` · HTTP 200 |
-| **若进 AI** | 不调 AI |
-| **Ready/导出** | 否 |
-| **课堂演示** | **是**（验收：缺价被挡住） |
+| **Vehicle/dealership premises** | V-ASIS. Body has **no** `$` / `CAD` / `dollars` price. Dealership name present. Full contact present. `as-is` present. No APR (CASH does not require it). |
+| **Fixed rules** | **Blocked** · `PRICE_MISSING` · `aiStatus=SKIPPED` · HTTP 200 |
+| **If AI is entered** | do not call AI |
+| **Ready/export** | No |
+| **Classroom demo** | **Yes** (acceptance: missing price is blocked) |
 
-### FX-02 · 缺店名（CASH / ONLINE）
+### FX-02 · Missing dealership name (CASH / ONLINE)
 
 | | |
 |---|---|
@@ -75,13 +75,13 @@
 | **channel** | `ONLINE` |
 | **title** | 2020 Toyota Camry cash deal |
 | **body** | Cash price $18,900 CAD. Sold as-is. Call 403-555-0100, email desk@prairie.example, visit 100 1 Ave SW, Calgary. |
-| **车辆/店前提** | V-ASIS。有价格。正文**不含** `Prairie Auto Ltd.`（「the dealership」不算）。有完整联系。有 `as-is`。 |
-| **固定规则** | **Blocked** · `DEALER_NAME_MISSING` · 不调 AI · HTTP 200 |
-| **若进 AI** | 不调 AI |
-| **Ready/导出** | 否 |
-| **课堂演示** | 否（自动化回归即可） |
+| **Vehicle/dealership premises** | V-ASIS. Price present. Body **does not** contain `Prairie Auto Ltd.` ("the dealership" does not count). Full contact present. `as-is` present. |
+| **Fixed rules** | **Blocked** · `DEALER_NAME_MISSING` · do not call AI · HTTP 200 |
+| **If AI is entered** | do not call AI |
+| **Ready/export** | No |
+| **Classroom demo** | No (automated regression is enough) |
 
-### FX-03 · FINANCE 缺 APR（ONLINE）
+### FX-03 · FINANCE missing APR (ONLINE)
 
 | | |
 |---|---|
@@ -90,13 +90,13 @@
 | **channel** | `ONLINE` |
 | **title** | Finance this 2020 Toyota Camry |
 | **body** | Cash price $18,900. 60 month term available. Sold as-is by Prairie Auto Ltd. 403-555-0100 · desk@prairie.example · 100 1 Ave SW, Calgary. |
-| **车辆/店前提** | V-ASIS。有价格、店名、联系、`as-is`、期限。正文**无** APR 正则（不要写 `% APR` / `APR 6.99%`）。 |
-| **固定规则** | **Blocked** · `FINANCE_APR_MISSING` · 不调 AI · HTTP 200。可同时有 soft `FINANCE_APR_PROXIMITY`（ONLINE），但不改变硬拦。 |
-| **若进 AI** | 不调 AI |
-| **Ready/导出** | 否 |
-| **课堂演示** | **是**（验收：融资缺 APR 被挡住） |
+| **Vehicle/dealership premises** | V-ASIS. Price, dealership name, contact, `as-is`, and term present. Body has **no** APR regex (do not write `% APR` / `APR 6.99%`). |
+| **Fixed rules** | **Blocked** · `FINANCE_APR_MISSING` · do not call AI · HTTP 200. May also have soft `FINANCE_APR_PROXIMITY` (ONLINE), which does not change the hard block. |
+| **If AI is entered** | do not call AI |
+| **Ready/export** | No |
+| **Classroom demo** | **Yes** (acceptance: finance missing APR is blocked) |
 
-### FX-04 · LEASE 缺 APR（ONLINE）
+### FX-04 · LEASE missing APR (ONLINE)
 
 | | |
 |---|---|
@@ -105,13 +105,13 @@
 | **channel** | `ONLINE` |
 | **title** | Lease a 2020 Toyota Camry |
 | **body** | Lease this Camry. $399 per month, 36 months, $2,000 down payment, 20,000 km per year. Sold as-is by Prairie Auto Ltd. 403-555-0100, desk@prairie.example, 100 1 Ave SW, Calgary. Cash price $18,900. |
-| **车辆/店前提** | V-ASIS。有 lease 声明、租金、租期、首付、额度、价格、店名、联系、`as-is`。**无** APR。 |
-| **固定规则** | **Blocked** · `LEASE_APR_MISSING` · 不调 AI · HTTP 200 |
-| **若进 AI** | 不调 AI |
-| **Ready/导出** | 否 |
-| **课堂演示** | 否 |
+| **Vehicle/dealership premises** | V-ASIS. Lease statement, rent, term, down payment, allowance, price, dealership name, contact, `as-is` present. **No** APR. |
+| **Fixed rules** | **Blocked** · `LEASE_APR_MISSING` · do not call AI · HTTP 200 |
+| **If AI is entered** | do not call AI |
+| **Ready/export** | No |
+| **Classroom demo** | No |
 
-### FX-05 · AS_IS 未披露
+### FX-05 · AS_IS not disclosed
 
 | | |
 |---|---|
@@ -120,13 +120,13 @@
 | **channel** | `ONLINE` |
 | **title** | 2020 Toyota Camry — $18,900 |
 | **body** | Cash price $18,900. Prairie Auto Ltd., 403-555-0100, desk@prairie.example, 100 1 Ave SW, Calgary. Ready for a test drive. |
-| **车辆/店前提** | V-ASIS。有价格与店/联系。正文**无** `as-is` / `as is`。 |
-| **固定规则** | **Blocked** · `CONDITION_UNDISCLOSED` · 不调 AI · HTTP 200 |
-| **若进 AI** | 不调 AI |
-| **Ready/导出** | 否 |
-| **课堂演示** | 否 |
+| **Vehicle/dealership premises** | V-ASIS. Price and dealership/contact present. Body has **no** `as-is` / `as is`. |
+| **Fixed rules** | **Blocked** · `CONDITION_UNDISCLOSED` · do not call AI · HTTP 200 |
+| **If AI is entered** | do not call AI |
+| **Ready/export** | No |
+| **Classroom demo** | No |
 
-### FX-06 · UNFIT 未披露
+### FX-06 · UNFIT not disclosed
 
 | | |
 |---|---|
@@ -135,13 +135,13 @@
 | **channel** | `ONLINE` |
 | **title** | 2016 Ford F-150 work truck $9,500 |
 | **body** | Cash price $9,500. Prairie Auto Ltd., 403-555-0100, desk@prairie.example, 100 1 Ave SW, Calgary. Strong frame, sold as a project. |
-| **车辆/店前提** | V-UNFIT。有价格与店/联系。正文**无** `unfit` / `not roadworthy` / `not fit`。「project」不算披露。 |
-| **固定规则** | **Blocked** · `CONDITION_UNDISCLOSED` · 不调 AI · HTTP 200 |
-| **若进 AI** | 不调 AI |
-| **Ready/导出** | 否 |
-| **课堂演示** | 否 |
+| **Vehicle/dealership premises** | V-UNFIT. Price and dealership/contact present. Body has **no** `unfit` / `not roadworthy` / `not fit`. "project" is not disclosure. |
+| **Fixed rules** | **Blocked** · `CONDITION_UNDISCLOSED` · do not call AI · HTTP 200 |
+| **If AI is entered** | do not call AI |
+| **Ready/export** | No |
+| **Classroom demo** | No |
 
-### FX-07 · IRREPARABLE 未披露
+### FX-07 · IRREPARABLE not disclosed
 
 | | |
 |---|---|
@@ -150,13 +150,13 @@
 | **channel** | `ONLINE` |
 | **title** | 2018 Chevrolet Cruze $3,200 parts special |
 | **body** | Cash price $3,200. Prairie Auto Ltd., 403-555-0100, desk@prairie.example, 100 1 Ave SW, Calgary. Great for parts or a rebuild. |
-| **车辆/店前提** | V-IRREP。有价格与店/联系。正文**无** `irreparable` / `salvage` / `write-off` / `write off`。 |
-| **固定规则** | **Blocked** · `CONDITION_UNDISCLOSED` · 不调 AI · HTTP 200 |
-| **若进 AI** | 不调 AI |
-| **Ready/导出** | 否 |
-| **课堂演示** | 否 |
+| **Vehicle/dealership premises** | V-IRREP. Price and dealership/contact present. Body has **no** `irreparable` / `salvage` / `write-off` / `write off`. |
+| **Fixed rules** | **Blocked** · `CONDITION_UNDISCLOSED` · do not call AI · HTTP 200 |
+| **If AI is entered** | do not call AI |
+| **Ready/export** | No |
+| **Classroom demo** | No |
 
-### FX-08 · 广告声称 CERTIFIED、实车 AS_IS
+### FX-08 · Ad claims CERTIFIED, actual vehicle is AS_IS
 
 | | |
 |---|---|
@@ -165,13 +165,13 @@
 | **channel** | `ONLINE` |
 | **title** | Certified 2020 Toyota Camry $18,900 |
 | **body** | Factory certified / CPO Camry. Cash price $18,900. Sold as-is by Prairie Auto Ltd. 403-555-0100, desk@prairie.example, 100 1 Ave SW, Calgary. |
-| **车辆/店前提** | V-ASIS（`conditionCode=AS_IS`）。正文同时有 `certified`/`cpo` 与 `as-is`。规则：声称 certified 且实车不是 CERTIFIED → 硬拦。 |
-| **固定规则** | **Blocked** · `CONDITION_MISMATCH`（广告优于实车）· 不调 AI · HTTP 200 |
-| **若进 AI** | 不调 AI |
-| **Ready/导出** | 否 |
-| **课堂演示** | 否 |
+| **Vehicle/dealership premises** | V-ASIS (`conditionCode=AS_IS`). Body has both `certified`/`cpo` and `as-is`. Rule: claiming certified when the actual vehicle is not CERTIFIED → hard block. |
+| **Fixed rules** | **Blocked** · `CONDITION_MISMATCH` (ad claims better than the actual vehicle) · do not call AI · HTTP 200 |
+| **If AI is entered** | do not call AI |
+| **Ready/export** | No |
+| **Classroom demo** | No |
 
-### FX-09 · LEASE 年额度低于 20000 km 且无超额公里费
+### FX-09 · LEASE annual allowance below 20000 km with no excess-km fee
 
 | | |
 |---|---|
@@ -180,13 +180,13 @@
 | **channel** | `ONLINE` |
 | **title** | Lease 2020 Toyota Camry 15,000 km |
 | **body** | Lease this 2020 Toyota Camry. $399 per month, 36 months, $2,000 down payment, 6.99% APR, 15000 km per year. Sold as-is by Prairie Auto Ltd. 403-555-0100, desk@prairie.example, 100 1 Ave SW, Calgary. Cash price $18,900. |
-| **车辆/店前提** | V-ASIS。有 APR、lease、租期、租金、首付、价格、店/联系、`as-is`。额度 **15000 km/year**，正文**无** `excess` / `overage` / additional km。 |
-| **固定规则** | **Blocked** · `LEASE_EXCESS_KM_MISSING` · 不调 AI · HTTP 200 |
-| **若进 AI** | 不调 AI |
-| **Ready/导出** | 否 |
-| **课堂演示** | 否 |
+| **Vehicle/dealership premises** | V-ASIS. APR, lease, term, rent, down payment, price, dealership/contact, `as-is` present. Allowance **15000 km/year**; body has **no** `excess` / `overage` / additional km. |
+| **Fixed rules** | **Blocked** · `LEASE_EXCESS_KM_MISSING` · do not call AI · HTTP 200 |
+| **If AI is entered** | do not call AI |
+| **Ready/export** | No |
+| **Classroom demo** | No |
 
-### FX-10 · 干净 CASH（可 Pass 后导出 TXT）
+### FX-10 · Clean CASH (can Pass then export TXT)
 
 | | |
 |---|---|
@@ -195,43 +195,43 @@
 | **channel** | `ONLINE` |
 | **title** | 2020 Toyota Camry — cash $18,900 |
 | **body** | 2020 Toyota Camry, VIN 1HGCM82633A004352. Cash price $18,900 CAD. Sold as-is. HST and licensing extra. Sold by Prairie Auto Ltd., 403-555-0100, desk@prairie.example, 100 1 Ave SW, Calgary. In-stock now. |
-| **车辆/店前提** | V-ASIS。有价格、店名、电话+邮箱+地址、年份、`as-is`。无融资/租赁措辞。无「certified」。 |
-| **固定规则** | **Needs AI**（`hard[]` 空；`soft[]` 通常空，年份已在文中）· 将调 AI |
-| **若进 AI** | 期望 **Pass**（`PASSED` / `SUCCESS` / HTTP 200）。`aiNotes` 可空或仅非硬缺备注。**不是** OMVIC 认证。 |
-| **Ready/导出** | **是**（Passed 且非 Stale 后 Ready，再导出 TXT） |
-| **课堂演示** | **是**（验收：真实广告文本走一次真实 AI；通过后导出） |
+| **Vehicle/dealership premises** | V-ASIS. Price, dealership name, phone+email+address, year, `as-is` present. No finance/lease wording. No "certified". |
+| **Fixed rules** | **Needs AI** (`hard[]` empty; `soft[]` usually empty, year already in copy) · will call AI |
+| **If AI is entered** | expect **Pass** (`PASSED` / `SUCCESS` / HTTP 200). `aiNotes` may be empty or non-hard-miss notes only. **Not** an OMVIC certification. |
+| **Ready/export** | **Yes** (Ready after Passed and not Stale, then export TXT) |
+| **Classroom demo** | **Yes** (acceptance: real ad copy through real AI once; export after pass) |
 
-### FX-11 · 改价后旧检查变 Stale（前置步骤，无独立正文）
+### FX-11 · After a price change the old check becomes Stale (prerequisite steps, no independent body)
 
 | | |
 |---|---|
 | **id** | `FX-11` |
-| **offerType** | （沿用 FX-10 的 `CASH`） |
-| **channel** | （沿用 FX-10 的 `ONLINE`） |
-| **title** / **body** | **不是**一条新广告。在 **FX-10 已 PASSED** 的同一 listing 上改价。 |
-| **车辆/店前提** | 仍为 V-ASIS。 |
-| **前置步骤** | 1）按 FX-10 检查并得到 `PASSED`（可先 Ready，非必须）。2）`PATCH` listing：把正文价格改为 `$17,900`（或任意不同标价），`contentVersion++`，`status` 回 `DRAFT`。**不要**清空 `lastCheckId`。3）GET listing：`lastCheck.recommendation` 仍曾是 PASSED，但版本已不等 → **`checkStatus=STALE`**。4）不重新检查就 Ready / Export → **409** `CHECK_STALE`。改车辆 `conditionCode` 同样升 listing 版本，效果相同；**单独改采购成本不作废**。 |
-| **固定规则** | 本步**不再跑**检查。期望页面五态 **Stale**。重新 `POST .../checks` 后按新正文重判（不再是 Stale）。 |
-| **若进 AI** | 作废步骤不调 AI。重查时按新正文走 §2。 |
-| **Ready/导出** | **否**（在重查并通过之前） |
-| **课堂演示** | **是**（验收：改价后不能用旧检查导出） |
+| **offerType** | (reuse FX-10 `CASH`) |
+| **channel** | (reuse FX-10 `ONLINE`) |
+| **title** / **body** | **Not** a new ad. Change the price on the **same listing after FX-10 PASSED**. |
+| **Vehicle/dealership premises** | still V-ASIS. |
+| **Prerequisite steps** | 1) Run FX-10 and get `PASSED` (Ready first is optional). 2) `PATCH` listing: change the body price to `$17,900` (or any different asking price), `contentVersion++`, `status` returns to `DRAFT`. **Do not** clear `lastCheckId`. 3) GET listing: `lastCheck.recommendation` was still PASSED, but versions no longer match → **`checkStatus=STALE`**. 4) Ready / Export without rechecking → **409** `CHECK_STALE`. Changing vehicle `conditionCode` also increments listing version with the same effect; **changing purchase cost alone does not void**. |
+| **Fixed rules** | this step **does not run** a check. Expect page five-state **Stale**. After a new `POST .../checks`, re-judge against the new body (no longer Stale). |
+| **If AI is entered** | the voiding step does not call AI. Recheck follows §2 against the new body. |
+| **Ready/export** | **No** (until recheck and pass) |
+| **Classroom demo** | **Yes** (acceptance: after a price change the old check cannot export) |
 
-### FX-12 · AI 不可用（规则已过）
+### FX-12 · AI unavailable (rules already passed)
 
 | | |
 |---|---|
 | **id** | `FX-12` |
 | **offerType** | `CASH` |
 | **channel** | `ONLINE` |
-| **title** | （与 FX-10 相同） |
-| **body** | （与 FX-10 相同） |
-| **车辆/店前提** | 与 FX-10 相同。运行时让 AI 超时/断 Key/stub 失败（适配器 ≤15s），**不要**用硬缺广告冒充本条。 |
-| **固定规则** | **Needs AI**（与 FX-10 相同，`hard[]` 空）· 将调 AI |
-| **若进 AI** | 调用失败。HTTP **502** `AI_UNAVAILABLE`。`compliance_check` **已落库**：`recommendation=UNAVAILABLE`，`aiStatus=UNAVAILABLE`（或 `FAILED` 再归一到不可用）。listing.`lastCheckId` 已指向该行。GET：`checkStatus=AI_UNAVAILABLE`。**UI 不当 Pass**。 |
-| **Ready/导出** | 否（409 `NOT_PASSED`） |
-| **课堂演示** | **是**（对照真实 AI 成功路径；失败不得显示通过） |
+| **title** | (same as FX-10) |
+| **body** | (same as FX-10) |
+| **Vehicle/dealership premises** | same as FX-10. At runtime force AI timeout / broken Key / stub failure (adapter ≤15s). **Do not** impersonate this fixture with a hard-miss ad. |
+| **Fixed rules** | **Needs AI** (same as FX-10, `hard[]` empty) · will call AI |
+| **If AI is entered** | call fails. HTTP **502** `AI_UNAVAILABLE`. `compliance_check` **already persisted**: `recommendation=UNAVAILABLE`, `aiStatus=UNAVAILABLE` (or `FAILED` then normalized to unavailable). listing.`lastCheckId` already points at that row. GET: `checkStatus=AI_UNAVAILABLE`. **UI must not treat as Pass**. |
+| **Ready/export** | No (409 `NOT_PASSED`) |
+| **Classroom demo** | **Yes** (contrast with the real-AI success path; failure must not show passed) |
 
-### FX-13 · 干净 CASH · RADIO_TV_BILLBOARD
+### FX-13 · Clean CASH · RADIO_TV_BILLBOARD
 
 | | |
 |---|---|
@@ -240,13 +240,13 @@
 | **channel** | `RADIO_TV_BILLBOARD` |
 | **title** | 2020 Camry eighteen nine at Prairie Auto |
 | **body** | On air: 2020 Toyota Camry, cash price $18,900. Sold as-is at Prairie Auto Ltd., 403-555-0100, desk@prairie.example, 100 1 Ave SW, Calgary. |
-| **车辆/店前提** | V-ASIS。媒介为广播/户外；CASH 无 APR 并列规则。有价格、店名、三种联系、`as-is`、年份。 |
-| **固定规则** | **Needs AI** · 调 AI。无 `FINANCE_APR_PROXIMITY`。 |
-| **若进 AI** | 期望 **Pass** |
-| **Ready/导出** | 是（Pass 且非 Stale 后） |
-| **课堂演示** | 否（保证 RADIO 通道至少 1 条；课堂优先 FX-10） |
+| **Vehicle/dealership premises** | V-ASIS. Medium is radio/outdoor; CASH has no APR-proximity rule. Price, dealership name, three contacts, `as-is`, year present. |
+| **Fixed rules** | **Needs AI** · call AI. No `FINANCE_APR_PROXIMITY`. |
+| **If AI is entered** | expect **Pass** |
+| **Ready/export** | Yes (after Pass and not Stale) |
+| **Classroom demo** | No (guarantee at least 1 RADIO channel fixture; class prefers FX-10) |
 
-### FX-14 · FINANCE 带 APR · RADIO_TV_BILLBOARD（免并列）
+### FX-14 · FINANCE with APR · RADIO_TV_BILLBOARD (proximity waived)
 
 | | |
 |---|---|
@@ -255,13 +255,13 @@
 | **channel** | `RADIO_TV_BILLBOARD` |
 | **title** | Finance the 2020 Camry — 6.99 percent APR |
 | **body** | 2020 Toyota Camry. Cash price $18,900. Finance at 6.99% APR, 60 months. Sold as-is by Prairie Auto Ltd., 403-555-0100, desk@prairie.example, 100 1 Ave SW, Calgary. |
-| **车辆/店前提** | V-ASIS。有 APR 正则、期限、现金价、店/联系、`as-is`。`medium=RADIO_TV_BILLBOARD` → **不加** `FINANCE_APR_PROXIMITY`。 |
-| **固定规则** | **Needs AI**（`soft[]` 可空或仅无关项）· 调 AI |
-| **若进 AI** | 期望 **Pass**（广播免「利率与 APR 并列展示」） |
-| **Ready/导出** | 是（Pass 后） |
-| **课堂演示** | 否 |
+| **Vehicle/dealership premises** | V-ASIS. APR regex, term, cash price, dealership/contact, `as-is` present. `medium=RADIO_TV_BILLBOARD` → **do not add** `FINANCE_APR_PROXIMITY`. |
+| **Fixed rules** | **Needs AI** (`soft[]` may be empty or unrelated items only) · call AI |
+| **If AI is entered** | expect **Pass** (radio waives "interest rate shown next to APR") |
+| **Ready/export** | Yes (after Pass) |
+| **Classroom demo** | No |
 
-### FX-15 · FINANCE 带 APR · ONLINE（并列交给 AI）
+### FX-15 · FINANCE with APR · ONLINE (proximity handed to AI)
 
 | | |
 |---|---|
@@ -270,13 +270,13 @@
 | **channel** | `ONLINE` |
 | **title** | 2020 Toyota Camry 6.99% APR finance |
 | **body** | 2020 Toyota Camry. Cash price $18,900. 6.99% APR, 60 month term. Sold as-is by Prairie Auto Ltd., 403-555-0100, desk@prairie.example, 100 1 Ave SW, Calgary. |
-| **车辆/店前提** | V-ASIS。有 APR、期限、现金价、店/联系、`as-is`。ONLINE → soft `FINANCE_APR_PROXIMITY`（版式无法可靠正则）。 |
-| **固定规则** | **Needs AI** · `FINANCE_APR_PROXIMITY`（REVIEW）· 调 AI · **不是** Blocked |
-| **若进 AI** | 本条利率与 APR 写在同一句，期望 **Pass**。若模型只给版式备注、未报硬缺，仍为 Pass。 |
-| **Ready/导出** | 是（Pass 后） |
-| **课堂演示** | 否 |
+| **Vehicle/dealership premises** | V-ASIS. APR, term, cash price, dealership/contact, `as-is` present. ONLINE → soft `FINANCE_APR_PROXIMITY` (layout cannot be reliably regexed). |
+| **Fixed rules** | **Needs AI** · `FINANCE_APR_PROXIMITY` (REVIEW) · call AI · **not** Blocked |
+| **If AI is entered** | this fixture writes rate and APR in the same sentence; expect **Pass**. If the model only comments on layout and reports no hard miss, still Pass. |
+| **Ready/export** | Yes (after Pass) |
+| **Classroom demo** | No |
 
-### FX-16 · LEASE 完整（ONLINE）
+### FX-16 · Complete LEASE (ONLINE)
 
 | | |
 |---|---|
@@ -285,13 +285,13 @@
 | **channel** | `ONLINE` |
 | **title** | Lease 2020 Toyota Camry 6.99% APR |
 | **body** | Lease this 2020 Toyota Camry. Cash price $18,900. $399 per month, 36 months, $2,000 down payment, 6.99% APR, 20,000 km per year. Sold as-is by Prairie Auto Ltd., 403-555-0100, desk@prairie.example, 100 1 Ave SW, Calgary. |
-| **车辆/店前提** | V-ASIS。有 lease 声明、APR、租期、租金、首付、≥20000 km/年、价格、店/联系、`as-is`。额度达标，**不加** `LEASE_EXCESS_KM_MISSING`。 |
-| **固定规则** | **Needs AI** · 调 AI |
-| **若进 AI** | 期望 **Pass** |
-| **Ready/导出** | 是（Pass 后） |
-| **课堂演示** | 否 |
+| **Vehicle/dealership premises** | V-ASIS. Lease statement, APR, term, rent, down payment, ≥20000 km/year, price, dealership/contact, `as-is` present. Allowance meets the threshold; **do not add** `LEASE_EXCESS_KM_MISSING`. |
+| **Fixed rules** | **Needs AI** · call AI |
+| **If AI is entered** | expect **Pass** |
+| **Ready/export** | Yes (after Pass) |
+| **Classroom demo** | No |
 
-### FX-17 · CERTIFIED 已披露（CASH / ONLINE）
+### FX-17 · CERTIFIED disclosed (CASH / ONLINE)
 
 | | |
 |---|---|
@@ -300,13 +300,13 @@
 | **channel** | `ONLINE` |
 | **title** | 2022 Honda Civic certified $22,400 |
 | **body** | 2022 Honda Civic, dealer certified. Cash price $22,400. Prairie Auto Ltd., 403-555-0100, desk@prairie.example, 100 1 Ave SW, Calgary. |
-| **车辆/店前提** | V-CERT。正文有 `certified`，与 `conditionCode=CERTIFIED` 一致。有价格与完整店/联系。 |
-| **固定规则** | **Needs AI** · 无 `CONDITION_MISMATCH` / 无 `CERTIFIED_NOT_IN_COPY` · 调 AI |
-| **若进 AI** | 期望 **Pass** |
-| **Ready/导出** | 是（Pass 后） |
-| **课堂演示** | 否 |
+| **Vehicle/dealership premises** | V-CERT. Body has `certified`, matching `conditionCode=CERTIFIED`. Price and full dealership/contact present. |
+| **Fixed rules** | **Needs AI** · no `CONDITION_MISMATCH` / no `CERTIFIED_NOT_IN_COPY` · call AI |
+| **If AI is entered** | expect **Pass** |
+| **Ready/export** | Yes (after Pass) |
+| **Classroom demo** | No |
 
-### FX-18 · CERTIFIED 未写关键词（paraphrase → AI）
+### FX-18 · CERTIFIED without the keyword (paraphrase → AI)
 
 | | |
 |---|---|
@@ -315,13 +315,13 @@
 | **channel** | `ONLINE` |
 | **title** | 2022 Honda Civic cash $22,400 |
 | **body** | 2022 Honda Civic. Inspected and backed by our in-house quality program. Cash price $22,400. Prairie Auto Ltd., 403-555-0100, desk@prairie.example, 100 1 Ave SW, Calgary. |
-| **车辆/店前提** | V-CERT。正文**无** `certified` / `cpo` / `certifi`。有价格与店/联系。 |
-| **固定规则** | **Needs AI** · soft `CERTIFIED_NOT_IN_COPY` · **不**硬拦 · 调 AI |
-| **若进 AI** | 可用 paraphrase。本条期望 **Pass**，`aiNotes` 可提醒「车况为 CERTIFIED，文案未用 certified」。不要因 soft 自动 Blocked。 |
-| **Ready/导出** | 是（若 AI Pass）；若课堂模型坚持缺词，记 FN/团队标签，仍不得当规则硬拦 |
-| **课堂演示** | 否 |
+| **Vehicle/dealership premises** | V-CERT. Body has **no** `certified` / `cpo` / `certifi`. Price and dealership/contact present. |
+| **Fixed rules** | **Needs AI** · soft `CERTIFIED_NOT_IN_COPY` · **not** a hard block · call AI |
+| **If AI is entered** | paraphrase is allowed. This fixture expects **Pass**; `aiNotes` may note "condition is CERTIFIED, copy did not use certified". Do not auto-Blocked because of a soft hit. |
+| **Ready/export** | Yes (if AI Pass); if the classroom model insists on the missing word, record FN/team label; still must not be a rule hard block |
+| **Classroom demo** | No |
 
-### FX-19 · UNFIT 已披露
+### FX-19 · UNFIT disclosed
 
 | | |
 |---|---|
@@ -330,13 +330,13 @@
 | **channel** | `ONLINE` |
 | **title** | 2016 Ford F-150 unfit $9,500 |
 | **body** | 2016 Ford F-150. This vehicle is unfit / not roadworthy. Cash price $9,500. Prairie Auto Ltd., 403-555-0100, desk@prairie.example, 100 1 Ave SW, Calgary. |
-| **车辆/店前提** | V-UNFIT。正文有 `unfit` 或 `not roadworthy`。有价格与店/联系。 |
-| **固定规则** | **Needs AI** · 已披露则无 `CONDITION_UNDISCLOSED` · 调 AI |
-| **若进 AI** | 期望 **Pass**（披露齐全；模型可备注不适驾风险，但无新硬缺则 Pass） |
-| **Ready/导出** | 是（Pass 后） |
-| **课堂演示** | 否 |
+| **Vehicle/dealership premises** | V-UNFIT. Body has `unfit` or `not roadworthy`. Price and dealership/contact present. |
+| **Fixed rules** | **Needs AI** · disclosed so no `CONDITION_UNDISCLOSED` · call AI |
+| **If AI is entered** | expect **Pass** (disclosure complete; model may note unfit/not-roadworthy risk, but Pass if no new hard miss) |
+| **Ready/export** | Yes (after Pass) |
+| **Classroom demo** | No |
 
-### FX-20 · IRREPARABLE 已披露
+### FX-20 · IRREPARABLE disclosed
 
 | | |
 |---|---|
@@ -345,13 +345,13 @@
 | **channel** | `ONLINE` |
 | **title** | 2018 Cruze irreparable salvage $3,200 |
 | **body** | 2018 Chevrolet Cruze. Irreparable salvage / write-off. Cash price $3,200. Prairie Auto Ltd., 403-555-0100, desk@prairie.example, 100 1 Ave SW, Calgary. For parts only. |
-| **车辆/店前提** | V-IRREP。正文有 `irreparable` 或 `salvage` 或 `write-off`。有价格与店/联系。 |
-| **固定规则** | **Needs AI** · 已披露 · 调 AI |
-| **若进 AI** | 期望 **Pass** |
-| **Ready/导出** | 是（Pass 后） |
-| **课堂演示** | 否 |
+| **Vehicle/dealership premises** | V-IRREP. Body has `irreparable` or `salvage` or `write-off`. Price and dealership/contact present. |
+| **Fixed rules** | **Needs AI** · disclosed · call AI |
+| **If AI is entered** | expect **Pass** |
+| **Ready/export** | Yes (after Pass) |
+| **Classroom demo** | No |
 
-### FX-21 · 联系方式只露一项（soft，不硬拦）
+### FX-21 · Only one contact shown (soft, not a hard block)
 
 | | |
 |---|---|
@@ -360,13 +360,13 @@
 | **channel** | `ONLINE` |
 | **title** | 2020 Toyota Camry $18,900 as-is |
 | **body** | 2020 Toyota Camry. Cash price $18,900. Sold as-is by Prairie Auto Ltd. Call 403-555-0100. |
-| **车辆/店前提** | V-ASIS。有店名、价格、`as-is`、年份。仅电话；**无**邮箱与地址。 |
-| **固定规则** | **Needs AI** · soft `DEALER_CONTACT_INCOMPLETE` · **不是** `DEALER_CONTACT_MISSING`（完全没有联系才硬拦）· 调 AI |
-| **若进 AI** | 期望仍 **Block**（模型应指出缺邮箱/地址）。`recommendation` 不得仅因规则过了就当 Pass；评估记：AI 应产出可定位备注。若某次模型误 Pass，记 FP，UI 仍不得手改成认证文案。 |
-| **Ready/导出** | 否（本夹具期望非 Pass） |
-| **课堂演示** | 否 |
+| **Vehicle/dealership premises** | V-ASIS. Dealership name, price, `as-is`, year present. Phone only; **no** email or address. |
+| **Fixed rules** | **Needs AI** · soft `DEALER_CONTACT_INCOMPLETE` · **not** `DEALER_CONTACT_MISSING` (hard block only when there is no contact at all) · call AI |
+| **If AI is entered** | still expect **Block** (model should note missing email/address). `recommendation` must not become Pass only because rules passed; evaluation note: AI should produce locatable remarks. If a run wrongly Passes, record FP; UI still must not be hand-edited into certification copy. |
+| **Ready/export** | No (this fixture expects non-Pass) |
+| **Classroom demo** | No |
 
-### FX-22 · LEASE 无租赁声明
+### FX-22 · LEASE with no lease statement
 
 | | |
 |---|---|
@@ -375,39 +375,39 @@
 | **channel** | `ONLINE` |
 | **title** | 2020 Camry 6.99% APR $399/mo |
 | **body** | 2020 Toyota Camry. $399 per month, 36 months, $2,000 down payment, 6.99% APR, 20,000 km per year. Cash price $18,900. Sold as-is by Prairie Auto Ltd., 403-555-0100, desk@prairie.example, 100 1 Ave SW, Calgary. |
-| **车辆/店前提** | V-ASIS。`adKind=LEASE`，正文**无** `lease` / `leasing` / `lessee`。有 APR 与其余租赁数字。 |
-| **固定规则** | **Blocked** · `LEASE_STATEMENT_MISSING` · 不调 AI · HTTP 200 |
-| **若进 AI** | 不调 AI |
-| **Ready/导出** | 否 |
-| **课堂演示** | 否 |
+| **Vehicle/dealership premises** | V-ASIS. `adKind=LEASE`, body has **no** `lease` / `leasing` / `lessee`. APR and remaining lease numbers present. |
+| **Fixed rules** | **Blocked** · `LEASE_STATEMENT_MISSING` · do not call AI · HTTP 200 |
+| **If AI is entered** | do not call AI |
+| **Ready/export** | No |
+| **Classroom demo** | No |
 
 ---
 
-## 4. 覆盖核对
+## 4. Coverage check
 
-| 要求 | 夹具 |
+| Requirement | Fixtures |
 |---|---|
-| 缺价 → Blocked，不调 AI | FX-01 |
-| 缺店名 → Blocked，不调 AI | FX-02 |
-| FINANCE 缺 APR → Blocked，不调 AI | FX-03 |
-| LEASE 缺 APR → Blocked，不调 AI | FX-04 |
-| CERTIFIED / AS_IS / UNFIT / IRREPARABLE 未披露或错称 | FX-05、FX-06、FX-07、FX-08、FX-18 |
-| 同上已披露 | FX-10（AS_IS）、FX-17（CERTIFIED）、FX-19、FX-20 |
-| 改价后旧检查 Stale | FX-11（步骤，非独立正文） |
-| 干净 CASH → Pass → 导出 TXT | FX-10 |
-| AI 不可用：502 + 落库，UI 不当 Pass | FX-12 |
-| `RADIO_TV_BILLBOARD` | FX-13、FX-14 |
-| `ONLINE` | 其余多数 |
-| `CASH` / `FINANCE` / `LEASE` | 三类均有 |
+| Missing price → Blocked, no AI | FX-01 |
+| Missing dealership name → Blocked, no AI | FX-02 |
+| FINANCE missing APR → Blocked, no AI | FX-03 |
+| LEASE missing APR → Blocked, no AI | FX-04 |
+| CERTIFIED / AS_IS / UNFIT / IRREPARABLE undisclosed or misstated | FX-05, FX-06, FX-07, FX-08, FX-18 |
+| Same conditions disclosed | FX-10 (AS_IS), FX-17 (CERTIFIED), FX-19, FX-20 |
+| After price change old check Stale | FX-11 (steps, not an independent body) |
+| Clean CASH → Pass → export TXT | FX-10 |
+| AI unavailable: 502 + persisted, UI must not treat as Pass | FX-12 |
+| `RADIO_TV_BILLBOARD` | FX-13, FX-14 |
+| `ONLINE` | most of the rest |
+| `CASH` / `FINANCE` / `LEASE` | all three kinds present |
 
-课堂建议顺序：FX-01 → FX-03 → FX-10（真 AI）→ 导出 TXT → FX-11 改价无法导出 →（可选）FX-12 断 AI。
+Suggested classroom order: FX-01 → FX-03 → FX-10 (real AI) → export TXT → FX-11 price change cannot export → (optional) FX-12 cut AI.
 
 ---
 
-## 5. 明确不做
+## 5. Explicitly out of scope
 
-- 不把本文件当「OMVIC 批准」清单。
-- 不发明 Service Bus / 异步审广告 / 第二库。
-- 不要求实现组为 APR、延保、既往用途加列；APR 只在正文找。
-- 空草稿（title/body 皆空）按 15：硬拦 `PRICE_MISSING` + `DEALER_NAME_MISSING` + `CONDITION_UNDISCLOSED`，不单列广告正文。
-- 助手问答不是本夹具范围。
+- Do not treat this file as an "OMVIC approved" checklist.
+- Do not invent Service Bus / async ad review / a second database.
+- Do not require the implementation group to add columns for APR, extended warranty, or prior use; APR is found in the body only.
+- Empty draft (title/body both empty) follows 15: hard-block `PRICE_MISSING` + `DEALER_NAME_MISSING` + `CONDITION_UNDISCLOSED`; no standalone ad body.
+- Assistant Q&A is not in this fixture set.

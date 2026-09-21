@@ -1,333 +1,333 @@
-# AI-CODING-TESTS · 编码 AI 测试任务单
+# AI-CODING-TESTS · Coding-AI test task list
 
-- 状态：给实现组 / 编码 AI 的**落测清单**（不改契约）
-- **只写任务，不写测试代码进本设计仓。** 实现组在各应用仓按路径建空类 / 空 spec 即可。
-- 权威：路径 / HTTP / 错误码以 [14-Backend-API-Contract.md](14-Backend-API-Contract.md) 为准；租户与规则以 [15-Data-Auth-and-Gateway.md](15-Data-Auth-and-Gateway.md) 为准；路由与英文文案以 [13-Frontend-Engineering.md](13-Frontend-Engineering.md) 为准；用例以 [16-Acceptance-and-Test.md](16-Acceptance-and-Test.md) 为准；广告正文以 [17-Ad-Check-Fixtures.md](17-Ad-Check-Fixtures.md) 为准；core 测试类名以 [18-Backend-Core-Engineering.md](18-Backend-Core-Engineering.md) **§9** 为准。
-- 本文**不改** 13–19、16、17 正文、BRIEF、其他 AI-CODING 文件。
-- 浏览器与产品 HTTP **只打** Gateway `/api/v1/**`（本地 `8080`，云上 Gateway HTTPS）。不要让测试把 SPA 指到 core `8081` / ai-service `8082`。
+- Status: **implementation checklist** for the implementation team / coding AI (does not change contracts)
+- **Write tasks only; do not put test code into this design repo.** The implementation team creates empty classes / empty specs at the listed paths in each application repo.
+- Authority: paths / HTTP / error codes follow [14-Backend-API-Contract.md](14-Backend-API-Contract.md); tenant and rules follow [15-Data-Auth-and-Gateway.md](15-Data-Auth-and-Gateway.md); routes and English copy follow [13-Frontend-Engineering.md](13-Frontend-Engineering.md); cases follow [16-Acceptance-and-Test.md](16-Acceptance-and-Test.md); ad copy follows [17-Ad-Check-Fixtures.md](17-Ad-Check-Fixtures.md); core test class names follow [18-Backend-Core-Engineering.md](18-Backend-Core-Engineering.md) **§9**.
+- This document **does not change** 13–19, 16, 17 body text, BRIEF, or other AI-CODING files.
+- Browser and product HTTP **only hit** Gateway `/api/v1/**` (local `8080`, cloud Gateway HTTPS). Do not point SPA tests at core `8081` / ai-service `8082`.
 
 ---
 
-## 0. Sprint 与环境（硬约束）
+## 0. Sprint and environment (hard constraints)
 
-| Sprint | 测试允许写成什么 | 验收环境 |
+| Sprint | What tests may be written as | Acceptance environment |
 |---|---|---|
-| **Sprint 1** | **能编译的空测试**（JUnit / Vite spec 有类名与 `@Test`/`it` 骨架即可）**或**直连失败测试（见 TEST-14 / BE-14）。不要求两店数据、不要求真实广告跑通。 | **允许本地** Docker / localhost Gateway |
-| **Sprint 2** | 云上 HTTPS + Entra → Gateway → 业务；广告 **真实 AI**（GitHub 组件，禁止 stub 冒充）。至少能支撑 **CL-4 / CL-5** 与 BE-08 / BE-09。 | **必须云上** |
-| **Sprint 3** | BE-01–BE-16、FE-01–FE-10、CL-1–CL-6 同一套云上 Gateway；隔离 / 导出 / 审计 / 助手不得切回本机库。 | **必须云上** |
+| **Sprint 1** | **Compilable empty tests** (JUnit / Vite spec with class names and `@Test`/`it` skeletons) **or** direct-access failure tests (see TEST-14 / BE-14). Two-store data and a real ad run-through are not required. | **Local allowed** Docker / localhost Gateway |
+| **Sprint 2** | Cloud HTTPS + Entra → Gateway → business; ads use **real AI** (GitHub component; stubs do not count). Must at least support **CL-4 / CL-5** and BE-08 / BE-09. | **Must be cloud** |
+| **Sprint 3** | BE-01–BE-16, FE-01–FE-10, CL-1–CL-6 on the same cloud Gateway; isolation / export / audit / assistant must not fall back to a local database. | **Must be cloud** |
 
-**本地-only 不能当 Sprint 2 / Sprint 3（Review 2 / Review 3）。** 本机 HTTP、本机 stub AI、「云上只开了空 Container、业务仍打 localhost」一律不算过。
+**Local-only cannot count as Sprint 2 / Sprint 3 (Review 2 / Review 3).** Local HTTP, local stub AI, and “cloud only opened empty Containers while business still hits localhost” all fail.
 
-core 仓 CI：JUnit + 编译。**自动化不要打真实付费模型**（AI 测用 stub / WireMock Gateway）。**课堂 / Review 2–3 的 CL-5、FX-10 必须云上真实模型**，与 CI stub 分开。
+core repo CI: JUnit + compile. **Automation must not hit a real paid model** (AI tests use stub / WireMock Gateway). **Classroom / Review 2–3 CL-5 and FX-10 must use a real cloud model**, separate from the CI stub.
 
-错误体一律 `{code,message}`，禁止堆栈 / SQL / 模型原文。跨店 **404 `NOT_FOUND`，不 403**。
+Error bodies are always `{code,message}`; ban stack traces / SQL / raw model text. Cross-dealership **404 `NOT_FOUND`, not 403**.
 
 ---
 
-## 1. 覆盖对照（16 ↔ 17 ↔ 18）
+## 1. Coverage map (16 ↔ 17 ↔ 18)
 
-| 16 | 18 测试类（或 web 文件） | 17 夹具 | 本单 |
+| 16 | 18 test class (or web file) | 17 fixture | This list |
 |---|---|---|---|
 | BE-01 | `CrossTenantIsolationIT` | — | TEST-01 |
-| BE-02 | `NoMembershipForbiddenIT`（兼 `MeServiceTest`） | — | TEST-02 |
+| BE-02 | `NoMembershipForbiddenIT` (also `MeServiceTest`) | — | TEST-02 |
 | BE-03 | `SoldLockedIT` | — | TEST-03 |
 | BE-04 | `VinDuplicateIT` | — | TEST-04 |
 | BE-05 | `CustomerVehicleLinkIT` | — | TEST-05 |
 | BE-06 | `SoldUnlinkLockedIT` | — | TEST-06 |
 | BE-07 | `CheckStaleIT` | **FX-11** | TEST-07 |
 | BE-08 | `AiUnavailableIT` | **FX-12** | TEST-08 |
-| BE-09 | `BlockedSkipsAiIT`（兼 `OmvicRuleEngineTest`） | **FX-01、FX-03** | TEST-09 |
-| BE-10 | `ReadyExportGuardIT` | **FX-10**（合格）；否分支可用 FX-01 / FX-03 / FX-12 | TEST-10 |
+| BE-09 | `BlockedSkipsAiIT` (also `OmvicRuleEngineTest`) | **FX-01, FX-03** | TEST-09 |
+| BE-10 | `ReadyExportGuardIT` | **FX-10** (pass); fail branches may use FX-01 / FX-03 / FX-12 | TEST-10 |
 | BE-11 | `AuditNoPiiIT` | — | TEST-11 |
-| BE-12 | `AssistantAskIT` | —（助手不在 17） | TEST-12 |
+| BE-12 | `AssistantAskIT` | — (assistant is not in 17) | TEST-12 |
 | BE-13 | `AdminForbiddenOnBusinessIT` | — | TEST-13 |
 | BE-14 | `CoreNotPublicIT` | — | TEST-14 |
 | BE-15 | `SellPairRequiredIT` | — | TEST-15 |
-| BE-16 | `IgnoreClientDealerIdIT`（兼 `TenantFilterTest`） | — | TEST-16 |
-| FE-01 | `dealer-web` 守卫 spec | — | TEST-17 |
-| FE-02 | 同上 | — | TEST-18 |
-| FE-03 | 同上 | — | TEST-19 |
-| FE-04 | 同上 | — | TEST-20 |
-| FE-05 | 同上 | — | TEST-21 |
-| FE-06 | 同上 | — | TEST-22 |
-| FE-07 | Admin 页 spec | — | TEST-23 |
+| BE-16 | `IgnoreClientDealerIdIT` (also `TenantFilterTest`) | — | TEST-16 |
+| FE-01 | `dealer-web` guard spec | — | TEST-17 |
+| FE-02 | Same | — | TEST-18 |
+| FE-03 | Same | — | TEST-19 |
+| FE-04 | Same | — | TEST-20 |
+| FE-05 | Same | — | TEST-21 |
+| FE-06 | Same | — | TEST-22 |
+| FE-07 | Admin page spec | — | TEST-23 |
 | FE-08 | CRM Unlink spec | — | TEST-24 |
-| FE-09 | 六页四态 spec | 广告失败右栏用 **FX-12** 语义 | TEST-25 |
-| FE-10 | 助手失败 spec | — | TEST-26 |
-| **CL-4** | web e2e + 可复用 TEST-09 | **FX-01、FX-03** | TEST-27 |
-| **CL-5** | web e2e（S2+ 云上真 AI） | **FX-10** | TEST-28 |
+| FE-09 | Six-page four-state spec | Ad-failure right rail uses **FX-12** semantics | TEST-25 |
+| FE-10 | Assistant-failure spec | — | TEST-26 |
+| **CL-4** | web e2e + reusable TEST-09 | **FX-01, FX-03** | TEST-27 |
+| **CL-5** | web e2e (S2+ cloud real AI) | **FX-10** | TEST-28 |
 
-**必点夹具：** FX-01 / FX-03 / FX-10 / FX-11 / FX-12 均已挂到上表。FX-11 **不是**独立广告正文，必须先 FX-10 `PASSED` 再改价。
+**Must-hit fixtures:** FX-01 / FX-03 / FX-10 / FX-11 / FX-12 are all attached to the table above. FX-11 is **not** a standalone ad body; it must start from FX-10 `PASSED` then change the price.
 
-店 / 车前提（17 §1，广告相关任务共用）：店 `Prairie Auto Ltd.`，车 **V-ASIS**（2020 Toyota Camry，`AS_IS`），除非任务另写。
+Dealership / vehicle premise (17 §1, shared by ad-related tasks): dealership `Prairie Auto Ltd.`, vehicle **V-ASIS** (2020 Toyota Camry, `AS_IS`), unless a task says otherwise.
 
 ---
 
-## 2. 后端任务（dealer-core · 经 Gateway）
+## 2. Backend tasks (dealer-core · via Gateway)
 
-包名对齐 18：`com.dealerops.core`。IT 放 `src/test/java/com/dealerops/core/it/`；单元放对应子包。接口均 ` /api/v1/** `。店员租户只来自 JWT `oid` → active membership，**忽略**客户端 `dealerId`。
+Package names follow 18: `com.dealerops.core`. ITs go in `src/test/java/com/dealerops/core/it/`; units go in the matching subpackage. Interfaces are all `/api/v1/**`. Staff tenant comes only from JWT `oid` → active membership; **ignore** client `dealerId`.
 
 ### TEST-01
 
-- 仓 / 文件路径：`dealer-core` / `src/test/java/com/dealerops/core/it/CrossTenantIsolationIT.java`
-- 对应 16：`BE-01`
-- 对应 17：无
-- 必须断言：Staff A 持店 B 的 `vehicleId` / `customerId` / `listingId` 做 GET / PATCH / `POST .../checks` → HTTP **404**，`error.code=NOT_FOUND`；body **无** `vin`、采购成本、客户电话/邮箱/住址。
-- 禁止：用 **403 `FORBIDDEN`** 表示跨店；200 空对象里仍带他店字段。
+- Repo / file path: `dealer-core` / `src/test/java/com/dealerops/core/it/CrossTenantIsolationIT.java`
+- Maps to 16: `BE-01`
+- Maps to 17: none
+- Must assert: Staff A uses dealership B’s `vehicleId` / `customerId` / `listingId` for GET / PATCH / `POST .../checks` → HTTP **404**, `error.code=NOT_FOUND`; body has **no** `vin`, purchase cost, or customer phone/email/address.
+- Ban: using **403 `FORBIDDEN`** for cross-dealership; a 200 empty object that still carries the other store’s fields.
 
 ### TEST-02
 
-- 仓 / 文件路径：`dealer-core` / `src/test/java/com/dealerops/core/it/NoMembershipForbiddenIT.java`；单元 `src/test/java/com/dealerops/core/security/MeServiceTest.java`
-- 对应 16：`BE-02`
-- 对应 17：无
-- 必须断言：`Dealer.User` JWT、0 条 `membership.active=1` 时，业务 API（`/vehicles` `/customers` `/listings` `/audit` `/assistant`）→ HTTP **403**，`error.code=FORBIDDEN`。`GET /me` → **200**，`role=Dealer.User`，`dealerId=null`。
-- 禁止：401（不像未登录）；仍放出店 A 列表；跨店场景误用本条（跨店是 TEST-01）。
+- Repo / file path: `dealer-core` / `src/test/java/com/dealerops/core/it/NoMembershipForbiddenIT.java`; unit `src/test/java/com/dealerops/core/security/MeServiceTest.java`
+- Maps to 16: `BE-02`
+- Maps to 17: none
+- Must assert: `Dealer.User` JWT, 0 rows `membership.active=1`, business APIs (`/vehicles` `/customers` `/listings` `/audit` `/assistant`) → HTTP **403**, `error.code=FORBIDDEN`. `GET /me` → **200**, `role=Dealer.User`, `dealerId=null`.
+- Ban: 401 (this is not “not signed in”); still leaking dealership A’s list; using this case for cross-dealership (that is TEST-01).
 
 ### TEST-03
 
-- 仓 / 文件路径：`dealer-core` / `src/test/java/com/dealerops/core/it/SoldLockedIT.java`
-- 对应 16：`BE-03`
-- 对应 17：无
-- 必须断言：在库车 `POST .../sell` 成对成功后，`PATCH` 采购字段（make/model/year/vin/source/cost/addedOn/repair/carfax）→ HTTP **409**，`error.code=SOLD_LOCKED`；库内采购值不变。
-- 禁止：用 PATCH 改 `status` / `soldOn`；已售再 sell 覆盖原成交。
+- Repo / file path: `dealer-core` / `src/test/java/com/dealerops/core/it/SoldLockedIT.java`
+- Maps to 16: `BE-03`
+- Maps to 17: none
+- Must assert: after a successful paired `POST .../sell` on an in-stock vehicle, `PATCH` purchase fields (make/model/year/vin/source/cost/addedOn/repair/carfax) → HTTP **409**, `error.code=SOLD_LOCKED`; purchase values in the database stay unchanged.
+- Ban: using PATCH to change `status` / `soldOn`; selling again after sold to overwrite the original deal.
 
 ### TEST-04
 
-- 仓 / 文件路径：`dealer-core` / `src/test/java/com/dealerops/core/it/VinDuplicateIT.java`
-- 对应 16：`BE-04`
-- 对应 17：无
-- 必须断言：同店 `POST /vehicles` 再用同一 VIN → HTTP **400**，`error.code=VIN_DUP`。
-- 禁止：跨店同 VIN 被误伤；200 双行。
+- Repo / file path: `dealer-core` / `src/test/java/com/dealerops/core/it/VinDuplicateIT.java`
+- Maps to 16: `BE-04`
+- Maps to 17: none
+- Must assert: same-store `POST /vehicles` again with the same VIN → HTTP **400**, `error.code=VIN_DUP`.
+- Ban: punishing the same VIN across stores; 200 with two rows.
 
 ### TEST-05
 
-- 仓 / 文件路径：`dealer-core` / `src/test/java/com/dealerops/core/it/CustomerVehicleLinkIT.java`
-- 对应 16：`BE-05`
-- 对应 17：无
-- 必须断言：`PUT /customers/{id}/vehicles/{vehicleId}`：① 同店 + `IN_STOCK` + 未占用 → **200**；② 已挂 → **409** `VEHICLE_ALREADY_LINKED`；③ 已售 → **400** `WRONG_DEALER_OR_SOLD`；他店 id → **404** `NOT_FOUND`。一车一客；一客多车允许。
-- 禁止：客户端传 `dealerId` 挂到他店；已售仍新挂成功；跨店走 `WRONG_DEALER_OR_SOLD` 而不是 404。
+- Repo / file path: `dealer-core` / `src/test/java/com/dealerops/core/it/CustomerVehicleLinkIT.java`
+- Maps to 16: `BE-05`
+- Maps to 17: none
+- Must assert: `PUT /customers/{id}/vehicles/{vehicleId}`: (1) same store + `IN_STOCK` + not taken → **200**; (2) already linked → **409** `VEHICLE_ALREADY_LINKED`; (3) sold → **400** `WRONG_DEALER_OR_SOLD`; other-store id → **404** `NOT_FOUND`. One vehicle one customer; one customer many vehicles is allowed.
+- Ban: client sending `dealerId` to link into another store; newly linking a sold vehicle successfully; sending cross-store through `WRONG_DEALER_OR_SOLD` instead of 404.
 
 ### TEST-06
 
-- 仓 / 文件路径：`dealer-core` / `src/test/java/com/dealerops/core/it/SoldUnlinkLockedIT.java`
-- 对应 16：`BE-06`
-- 对应 17：无
-- 必须断言：已挂且已 `SOLD` 后 `DELETE /customers/{id}/vehicles/{vehicleId}` → HTTP **409**，`error.code=SOLD_LOCKED`；关联仍在。在库解绑 → **204** + 审计 `UNLINK`。
-- 禁止：204 后成交关联消失；用 PUT 空值假装解绑。
+- Repo / file path: `dealer-core` / `src/test/java/com/dealerops/core/it/SoldUnlinkLockedIT.java`
+- Maps to 16: `BE-06`
+- Maps to 17: none
+- Must assert: after linked and `SOLD`, `DELETE /customers/{id}/vehicles/{vehicleId}` → HTTP **409**, `error.code=SOLD_LOCKED`; the link remains. In-stock unlink → **204** + audit `UNLINK`.
+- Ban: the sale link disappearing after 204; using empty PUT as a fake unlink.
 
 ### TEST-07
 
-- 仓 / 文件路径：`dealer-core` / `src/test/java/com/dealerops/core/it/CheckStaleIT.java`
-- 对应 16：`BE-07`
-- 对应 17：**FX-11**（前置必须先跑 **FX-10** 至 `PASSED`）
-- 必须断言：按 17 FX-11：`PATCH` 正文价格（如 `$17,900`）升 `contentVersion`，**不要**清空 `lastCheckId`；再 `POST .../ready` 或 `.../exports` → HTTP **409**，`error.code=CHECK_STALE`。GET listing：`checkStatus=STALE`。
-- 禁止：仍 200 导出；把 Blocked 后再改稿标成 Stale（应为 Needs AI）；单独改采购成本当作战作废；把 FX-11 写成一条新广告正文。
+- Repo / file path: `dealer-core` / `src/test/java/com/dealerops/core/it/CheckStaleIT.java`
+- Maps to 16: `BE-07`
+- Maps to 17: **FX-11** (prerequisite: run **FX-10** to `PASSED` first)
+- Must assert: per 17 FX-11: `PATCH` the copy price (e.g. `$17,900`) raises `contentVersion`, **do not** clear `lastCheckId`; then `POST .../ready` or `.../exports` → HTTP **409**, `error.code=CHECK_STALE`. GET listing: `checkStatus=STALE`.
+- Ban: still 200 export; marking a post-Blocked edit as Stale (it should be Needs AI); treating a purchase-cost-only change as ad invalidation; writing FX-11 as a new ad body.
 
 ### TEST-08
 
-- 仓 / 文件路径：`dealer-core` / `src/test/java/com/dealerops/core/it/AiUnavailableIT.java`
-- 对应 16：`BE-08`
-- 对应 17：**FX-12**（title/body **与 FX-10 相同**；运行时断 AI / 超时 / stub 失败）
-- 必须断言：固定规则已过（`hard[]` 空）后调 AI 失败 → HTTP **502**，`error.code=AI_UNAVAILABLE`；`compliance_check` **已写** `recommendation=UNAVAILABLE`；listing `checkStatus=AI_UNAVAILABLE`；Ready / Export → **409** `NOT_PASSED`。
-- 禁止：**用硬缺广告冒充 FX-12**（缺价 / 缺 APR 是 FX-01 / FX-03，走 TEST-09）；200 + Passed；不写库却当通过。
+- Repo / file path: `dealer-core` / `src/test/java/com/dealerops/core/it/AiUnavailableIT.java`
+- Maps to 16: `BE-08`
+- Maps to 17: **FX-12** (title/body **same as FX-10**; runtime disconnect AI / timeout / stub failure)
+- Must assert: after fixed rules already pass (`hard[]` empty), AI call fails → HTTP **502**, `error.code=AI_UNAVAILABLE`; `compliance_check` **is written** `recommendation=UNAVAILABLE`; listing `checkStatus=AI_UNAVAILABLE`; Ready / Export → **409** `NOT_PASSED`.
+- Ban: **using a hard-fail ad to impersonate FX-12** (missing price / missing APR are FX-01 / FX-03, go to TEST-09); 200 + Passed; passing without a database row.
 
 ### TEST-09
 
-- 仓 / 文件路径：`dealer-core` / `src/test/java/com/dealerops/core/it/BlockedSkipsAiIT.java`；单元 `src/test/java/com/dealerops/core/compliance/OmvicRuleEngineTest.java`
-- 对应 16：`BE-09`（课堂 **CL-4**）
-- 对应 17：**FX-01**（`PRICE_MISSING`）、**FX-03**（`FINANCE_APR_MISSING`）
-- 必须断言：`POST .../checks` → HTTP **200**（不是 4xx）；`recommendation=BLOCKED`，`aiStatus=SKIPPED`；`ruleFindings` 含价格类硬缺或 `FINANCE_APR_MISSING`；core **不**调用 Gateway `POST /internal/v1/ad-check`。Ready / Export → **409** `NOT_PASSED`。
-- 禁止：用 4xx 表示缺价；Blocked 仍打模型；把 FX-01 正文拿去冒充 FX-10 / FX-12。
+- Repo / file path: `dealer-core` / `src/test/java/com/dealerops/core/it/BlockedSkipsAiIT.java`; unit `src/test/java/com/dealerops/core/compliance/OmvicRuleEngineTest.java`
+- Maps to 16: `BE-09` (classroom **CL-4**)
+- Maps to 17: **FX-01** (`PRICE_MISSING`), **FX-03** (`FINANCE_APR_MISSING`)
+- Must assert: `POST .../checks` → HTTP **200** (not 4xx); `recommendation=BLOCKED`, `aiStatus=SKIPPED`; `ruleFindings` contain a price-class hard miss or `FINANCE_APR_MISSING`; core **does not** call Gateway `POST /internal/v1/ad-check`. Ready / Export → **409** `NOT_PASSED`.
+- Ban: using 4xx for missing price; still hitting the model when Blocked; using FX-01 copy to impersonate FX-10 / FX-12.
 
 ### TEST-10
 
-- 仓 / 文件路径：`dealer-core` / `src/test/java/com/dealerops/core/it/ReadyExportGuardIT.java`
-- 对应 16：`BE-10`
-- 对应 17：合格路径 **FX-10**；否路径 FX-01 / FX-03 / FX-12（及无检查）
-- 必须断言：Blocked / Needs AI / AI unavailable / 无检查 → ready 与 export **409** `NOT_PASSED`；Stale（FX-11）→ **409** `CHECK_STALE`。仅当前 Passed 且版本一致 → ready **200**；export **200** `Content-Type: text/plain`（店公开四字段 + 车辆公开字段 + 标题正文；**无**采购成本、**无**客户）。
-- 禁止：Stale 仍 READY；导出含成本或客户；未 Ready 就当可导出。
+- Repo / file path: `dealer-core` / `src/test/java/com/dealerops/core/it/ReadyExportGuardIT.java`
+- Maps to 16: `BE-10`
+- Maps to 17: pass path **FX-10**; fail paths FX-01 / FX-03 / FX-12 (and no check)
+- Must assert: Blocked / Needs AI / AI unavailable / no check → ready and export **409** `NOT_PASSED`; Stale (FX-11) → **409** `CHECK_STALE`. Only current Passed with matching version → ready **200**; export **200** `Content-Type: text/plain` (dealership public four fields + vehicle public fields + title/body; **no** purchase cost, **no** customer).
+- Ban: Stale still READY; export containing cost or customer; treating not-Ready as exportable.
 
 ### TEST-11
 
-- 仓 / 文件路径：`dealer-core` / `src/test/java/com/dealerops/core/it/AuditNoPiiIT.java`
-- 对应 16：`BE-11`
-- 对应 17：无
-- 必须断言：改客户电话/邮箱/住址后 `GET /audit?entityType=CUSTOMER&entityId=` → **200**，有谁/做什么/何时；`fieldSummary` **无**电话、邮箱、住址**全文**。挂/解绑 `CUSTOMER_VEHICLE` 同样。跨店实体 → **404** `NOT_FOUND`。
-- 禁止：Admin 查 `VEHICLE` / `CUSTOMER` 带出业务摘要；把号码写进审计 JSON。
+- Repo / file path: `dealer-core` / `src/test/java/com/dealerops/core/it/AuditNoPiiIT.java`
+- Maps to 16: `BE-11`
+- Maps to 17: none
+- Must assert: after changing customer phone/email/address, `GET /audit?entityType=CUSTOMER&entityId=` → **200**, has who/what/when; `fieldSummary` has **no** full phone, email, or address. Link/unlink `CUSTOMER_VEHICLE` likewise. Cross-store entity → **404** `NOT_FOUND`.
+- Ban: Admin querying `VEHICLE` / `CUSTOMER` and getting a business summary; writing numbers into audit JSON.
 
 ### TEST-12
 
-- 仓 / 文件路径：`dealer-core` / `src/test/java/com/dealerops/core/it/AssistantAskIT.java`
-- 对应 16：`BE-12`
-- 对应 17：无（17 不做助手）
-- 必须断言：Staff A `POST /assistant/ask` → **200**，`cards.length≤5`；卡无电话/邮箱/住址；id 落在本店检索集；**不写** vehicle / customer / listing / 检查表。Admin 打同一 URL → **403** `FORBIDDEN`。模型挂：仍 **200** + `summaryAvailable=false`，卡仍可有（不是业务 502）。
-- 禁止：6+ 张卡；助手改库存；把 AI 失败当业务 502 Pass。
+- Repo / file path: `dealer-core` / `src/test/java/com/dealerops/core/it/AssistantAskIT.java`
+- Maps to 16: `BE-12`
+- Maps to 17: none (17 does not cover assistant)
+- Must assert: Staff A `POST /assistant/ask` → **200**, `cards.length≤5`; cards have no phone/email/address; ids fall in this-store retrieval set; **does not write** vehicle / customer / listing / check tables. Admin hitting the same URL → **403** `FORBIDDEN`. Model down: still **200** + `summaryAvailable=false`, cards may still exist (not a business 502).
+- Ban: 6+ cards; assistant changing inventory; treating AI failure as business 502 Pass.
 
 ### TEST-13
 
-- 仓 / 文件路径：`dealer-core` / `src/test/java/com/dealerops/core/it/AdminForbiddenOnBusinessIT.java`
-- 对应 16：`BE-13`（课堂 CL-3 的 API 侧）
-- 对应 17：无
-- 必须断言：Admin JWT 打 `/vehicles` `/customers` `/listings/**` `/assistant/ask` → **403** `FORBIDDEN` 或 **404** `NOT_FOUND`；body **无** `vin` / 成本 / 客户字段。
-- 禁止：只靠前端藏按钮当唯一证据；403 体里仍回列表项。
+- Repo / file path: `dealer-core` / `src/test/java/com/dealerops/core/it/AdminForbiddenOnBusinessIT.java`
+- Maps to 16: `BE-13` (API side of classroom CL-3)
+- Maps to 17: none
+- Must assert: Admin JWT hitting `/vehicles` `/customers` `/listings/**` `/assistant/ask` → **403** `FORBIDDEN` or **404** `NOT_FOUND`; body has **no** `vin` / cost / customer fields.
+- Ban: hidden frontend buttons as the only evidence; 403 body still returning list items.
 
 ### TEST-14
 
-- 仓 / 文件路径：`dealer-core` / `src/test/java/com/dealerops/core/it/CoreNotPublicIT.java`（配置断言即可）；可选对照 `dealer-gateway` 对 `/internal/v1/**` 的浏览器 **404**
-- 对应 16：`BE-14`（Sprint 1 证据）
-- 对应 17：无
-- 必须断言：无内部头打 core `8081`、ai `8082`、`/internal/v1/**` → 失败（无 CORS / **404**）。产品入口只是经 Gateway + 用户 JWT 的 `/api/v1/**`。core **不配** `localhost:5173` CORS。
-- 禁止：把 `curl 127.0.0.1:8081` 本机仍通当成对公 API 已开放；Sprint 1 用本条冒充已过 S2 云安全。
+- Repo / file path: `dealer-core` / `src/test/java/com/dealerops/core/it/CoreNotPublicIT.java` (config assertions are enough); optional counterpart `dealer-gateway` browser **404** for `/internal/v1/**`
+- Maps to 16: `BE-14` (Sprint 1 evidence)
+- Maps to 17: none
+- Must assert: hitting core `8081`, ai `8082`, `/internal/v1/**` without the internal header → fail (no CORS / **404**). Product entry is only `/api/v1/**` via Gateway + user JWT. core **does not** configure `localhost:5173` CORS.
+- Ban: treating a still-working local `curl 127.0.0.1:8081` as “public API already open”; using this item in Sprint 1 to pretend S2 cloud security already passed.
 
 ### TEST-15
 
-- 仓 / 文件路径：`dealer-core` / `src/test/java/com/dealerops/core/it/SellPairRequiredIT.java`
-- 对应 16：`BE-15`
-- 对应 17：无
-- 必须断言：`soldOn` / `soldPrice` 缺一 → HTTP **400**，`error.code=SOLD_PAIR_REQUIRED`；价格 `≤0` → **400**（`VALIDATION` 或同一出售校验）。忽略 PATCH 改出售字段。
-- 禁止：成对成功后仍允许 PATCH 改 `soldOn` / `soldPrice`；缺一却 200。
+- Repo / file path: `dealer-core` / `src/test/java/com/dealerops/core/it/SellPairRequiredIT.java`
+- Maps to 16: `BE-15`
+- Maps to 17: none
+- Must assert: missing one of `soldOn` / `soldPrice` → HTTP **400**, `error.code=SOLD_PAIR_REQUIRED`; price `≤0` → **400** (`VALIDATION` or the same sell validation). Ignore PATCH changing sale fields.
+- Ban: after a successful pair, still allowing PATCH to change `soldOn` / `soldPrice`; missing one yet 200.
 
 ### TEST-16
 
-- 仓 / 文件路径：`dealer-core` / `src/test/java/com/dealerops/core/it/IgnoreClientDealerIdIT.java`；单元 `src/test/java/com/dealerops/core/common/tenant/TenantFilterTest.java`
-- 对应 16：`BE-16`
-- 对应 17：无
-- 必须断言：Staff A 在 body / query / header 冒充店 B 的 `dealerId` 创建车辆 → 仍写入 **店 A**；GET 本店能见、店 B 不可见。
-- 禁止：靠参数切店；跨店 id 读资源用 403。
+- Repo / file path: `dealer-core` / `src/test/java/com/dealerops/core/it/IgnoreClientDealerIdIT.java`; unit `src/test/java/com/dealerops/core/common/tenant/TenantFilterTest.java`
+- Maps to 16: `BE-16`
+- Maps to 17: none
+- Must assert: Staff A spoofs dealership B’s `dealerId` in body / query / header when creating a vehicle → still written to **dealership A**; GET this store can see it, dealership B cannot.
+- Ban: switching stores via a parameter; reading a cross-store id with 403.
 
-**18 §9 其余单元（不另占 16 编号，随映射测）：** `ApiExceptionHandlerTest` → `src/test/java/com/dealerops/core/common/exception/ApiExceptionHandlerTest.java`（14 映射表）；`OmvicRuleEngineTest` 空草稿硬拦见 17：`PRICE_MISSING` + `DEALER_NAME_MISSING` + `CONDITION_UNDISCLOSED`，不单列广告正文。
+**Remaining 18 §9 units (no extra 16 IDs; test with the mapping):** `ApiExceptionHandlerTest` → `src/test/java/com/dealerops/core/common/exception/ApiExceptionHandlerTest.java` (14 mapping table); `OmvicRuleEngineTest` empty-draft hard block per 17: `PRICE_MISSING` + `DEALER_NAME_MISSING` + `CONDITION_UNDISCLOSED`, not a standalone ad body.
 
 ---
 
-## 3. 前端任务（dealer-web · 文案对齐 13）
+## 3. Frontend tasks (dealer-web · copy aligned with 13)
 
-界面英文。失败 **不当空表**。`409 VERSION_CONFLICT` → `Refresh and retry`。守卫在 `src/router/index.ts` 的 `beforeEach`。
+UI in English. Failures **are not empty tables**. `409 VERSION_CONFLICT` → `Refresh and retry`. Guards live in `src/router/index.ts` `beforeEach`.
 
 ### TEST-17
 
-- 仓 / 文件路径：`dealer-web` / `src/router/__tests__/fe01-login-guard.spec.ts`
-- 对应 16：`FE-01`
-- 对应 17：无
-- 必须断言：未登录打开 `/dms` → 到 `/login`；仅按钮文案 **`Sign in with Microsoft`**。
-- 禁止：密码框、业务表、直连 8081。
+- Repo / file path: `dealer-web` / `src/router/__tests__/fe01-login-guard.spec.ts`
+- Maps to 16: `FE-01`
+- Maps to 17: none
+- Must assert: unauthenticated open `/dms` → `/login`; only button copy **`Sign in with Microsoft`**.
+- Ban: password box, business table, direct 8081.
 
 ### TEST-18
 
-- 仓 / 文件路径：`dealer-web` / `src/router/__tests__/fe02-admin-guard.spec.ts`
-- 对应 16：`FE-02`
-- 对应 17：无
-- 必须断言：Staff A 打开 `/admin` → 拦回 `/dms`。
-- 禁止：看见 Dealerships 表、绑人按钮。
+- Repo / file path: `dealer-web` / `src/router/__tests__/fe02-admin-guard.spec.ts`
+- Maps to 16: `FE-02`
+- Maps to 17: none
+- Must assert: Staff A open `/admin` → blocked back to `/dms`.
+- Ban: seeing the Dealerships table or bind-staff button.
 
 ### TEST-19
 
-- 仓 / 文件路径：`dealer-web` / `src/router/__tests__/fe03-dms-guard.spec.ts`
-- 对应 16：`FE-03`
-- 对应 17：无
-- 必须断言：Admin 打开 `/dms` → 拦回 `/admin`。
-- 禁止：渲染车辆表（VIN / 成本）。
+- Repo / file path: `dealer-web` / `src/router/__tests__/fe03-dms-guard.spec.ts`
+- Maps to 16: `FE-03`
+- Maps to 17: none
+- Must assert: Admin open `/dms` → blocked back to `/admin`.
+- Ban: rendering the vehicle table (VIN / cost).
 
 ### TEST-20
 
-- 仓 / 文件路径：`dealer-web` / `src/router/__tests__/fe04-crm-guard.spec.ts`
-- 对应 16：`FE-04`
-- 对应 17：无
-- 必须断言：Admin 打开 `/crm` → 拦回 `/admin`。
-- 禁止：客户四字段表。
+- Repo / file path: `dealer-web` / `src/router/__tests__/fe04-crm-guard.spec.ts`
+- Maps to 16: `FE-04`
+- Maps to 17: none
+- Must assert: Admin open `/crm` → blocked back to `/admin`.
+- Ban: customer four-field table.
 
 ### TEST-21
 
-- 仓 / 文件路径：`dealer-web` / `src/router/__tests__/fe05-ads-guard.spec.ts`
-- 对应 16：`FE-05`
-- 对应 17：无（本条只测守卫，不跑夹具）
-- 必须断言：Admin 打开 `/ads` → 拦回 `/admin`。
-- 禁止：广告表单 / 五态。
+- Repo / file path: `dealer-web` / `src/router/__tests__/fe05-ads-guard.spec.ts`
+- Maps to 16: `FE-05`
+- Maps to 17: none (this item tests the guard only; do not run fixtures)
+- Must assert: Admin open `/ads` → blocked back to `/admin`.
+- Ban: ad form / five states.
 
 ### TEST-22
 
-- 仓 / 文件路径：`dealer-web` / `src/router/__tests__/fe06-assistant-guard.spec.ts`
-- 对应 16：`FE-06`
-- 对应 17：无
-- 必须断言：Admin 打开 `/assistant` → 拦回 `/admin`。
-- 禁止：Ask、资源卡。
+- Repo / file path: `dealer-web` / `src/router/__tests__/fe06-assistant-guard.spec.ts`
+- Maps to 16: `FE-06`
+- Maps to 17: none
+- Must assert: Admin open `/assistant` → blocked back to `/admin`.
+- Ban: Ask, resource cards.
 
 ### TEST-23
 
-- 仓 / 文件路径：`dealer-web` / `src/views/__tests__/AdminView.spec.ts`
-- 对应 16：`FE-07`
-- 对应 17：无
-- 必须断言：Admin 在 **同一** `/admin`：Tab **Dealerships**（Name, Contact, Staff count, Actions；筛店名；`New dealership`）与 **Members**（Entra ID/email, Dealership, Status, Actions；筛员工邮箱）。数据 = 店列表 + 各店 members。Staff / Unbind 走 14 已有 Admin API。
-- 禁止：第二条 Admin 子路由 `/admin/members`；本课 UI 做 Edit 店；车辆 Tab。
+- Repo / file path: `dealer-web` / `src/views/__tests__/AdminView.spec.ts`
+- Maps to 16: `FE-07`
+- Maps to 17: none
+- Must assert: Admin on the **same** `/admin`: tab **Dealerships** (Name, Contact, Staff count, Actions; filter by store name; `New dealership`) and **Members** (Entra ID/email, Dealership, Status, Actions; filter by staff email). Data = dealership list + each store’s members. Staff / Unbind use Admin APIs already in 14.
+- Ban: a second Admin child route `/admin/members`; this-course UI Edit dealership; vehicles tab.
 
 ### TEST-24
 
-- 仓 / 文件路径：`dealer-web` / `src/views/__tests__/CrmUnlink.spec.ts`（组件可测 `src/components/ConfirmDialog.vue`）
-- 对应 16：`FE-08`
-- 对应 17：无
-- 必须断言：Staff A 在 `/crm` 点 `Unlink` → 先 `ConfirmDialog`；取消 **不发**请求；确认后才 `DELETE /api/v1/customers/{id}/vehicles/{vehicleId}`。已售：文案 **`Sold vehicles cannot be unlinked`**（对应 **409** `SOLD_LOCKED`）。在库成功后列表 Linked vehicle 清空。
-- 禁止：单击即删；用 PUT 空值假装解绑；文案停在「尚未提供」。
+- Repo / file path: `dealer-web` / `src/views/__tests__/CrmUnlink.spec.ts` (component may test `src/components/ConfirmDialog.vue`)
+- Maps to 16: `FE-08`
+- Maps to 17: none
+- Must assert: Staff A on `/crm` clicks `Unlink` → `ConfirmDialog` first; cancel **sends no** request; only after confirm `DELETE /api/v1/customers/{id}/vehicles/{vehicleId}`. Sold: copy **`Sold vehicles cannot be unlinked`** (maps to **409** `SOLD_LOCKED`). After in-stock success, list Linked vehicle is empty.
+- Ban: click-to-delete; empty PUT as a fake unlink; copy stuck on “not yet provided.”
 
 ### TEST-25
 
-- 仓 / 文件路径：`dealer-web` / `src/components/__tests__/PageState.spec.ts` 与各 `views/__tests__/*View.spec.ts`
-- 对应 16：`FE-09`
-- 对应 17：广告 AI 失败右栏对齐 **FX-12**（不当 Pass）
-- 必须断言：六页 loading / empty / error / 无权限文案按 13 §10，例如 DMS：`Loading vehicles…` / `No vehicles match.` / `Could not load vehicles.` / `You do not have access to DMS.`。广告：`502` `AI_UNAVAILABLE` → 右栏 **AI unavailable**。
-- 禁止：把 403/502 画成空表；把 AI 失败画成 Passed。
+- Repo / file path: `dealer-web` / `src/components/__tests__/PageState.spec.ts` and each `views/__tests__/*View.spec.ts`
+- Maps to 16: `FE-09`
+- Maps to 17: ad AI-failure right rail aligned with **FX-12** (not Pass)
+- Must assert: six-page loading / empty / error / no-access copy per 13 §10, e.g. DMS: `Loading vehicles…` / `No vehicles match.` / `Could not load vehicles.` / `You do not have access to DMS.` Ads: `502` `AI_UNAVAILABLE` → right rail **AI unavailable**.
+- Ban: drawing 403/502 as an empty table; drawing AI failure as Passed.
 
 ### TEST-26
 
-- 仓 / 文件路径：`dealer-web` / `src/views/__tests__/AssistantView.spec.ts`
-- 对应 16：`FE-10`
-- 对应 17：无
-- 必须断言：模型挂但 HTTP 200（`summaryAvailable=false`，仍有卡）→ 说明区 **`Smart summary unavailable`**。整页 5xx / 网络失败 → **`Could not ask assistant`**。卡 ≤5、只读、跳转 `/dms` `/crm` `/ads`。
-- 禁止：「智能说明暂不可用」；卡上 phone / email / homeAddress；在本页改数据。
+- Repo / file path: `dealer-web` / `src/views/__tests__/AssistantView.spec.ts`
+- Maps to 16: `FE-10`
+- Maps to 17: none
+- Must assert: model down but HTTP 200 (`summaryAvailable=false`, cards still present) → explanation **`Smart summary unavailable`**. Whole-page 5xx / network failure → **`Could not ask assistant`**. Cards ≤5, read-only, jump `/dms` `/crm` `/ads`.
+- Ban: the Chinese assistant-failure sentence from document 10; phone / email / homeAddress on cards; changing data on this page.
 
 ---
 
-## 4. 课堂脚本（S2 起云上；与夹具绑定）
+## 4. Classroom scripts (cloud from S2; bound to fixtures)
 
 ### TEST-27
 
-- 仓 / 文件路径：`dealer-web` / `e2e/cl4-ads-blocked.spec.ts`（可复用 TEST-09 的 API 断言）
-- 对应 16：**CL-4**（00 条 4 · NN-15）
-- 对应 17：**FX-01**、**FX-03**
-- 必须断言：Staff A 在 `/ads` 选 CL-2 / V-ASIS 车。无 listing 行时空草稿文案 `Select a vehicle to start.`，**不当** Failed。粘贴 FX-01 → `Save draft` → `Run check`：右栏总状态 **Blocked**；HTTP **200**；网络面板 **不得**出现浏览器对 `/internal/v1/ad-check` 的请求。再改 `adKind=FINANCE` 用 FX-03（有价无 APR）→ 仍 **Blocked**（`FINANCE_APR_MISSING`），仍不调 AI。
-- 禁止：看见 **Passed**；用 4xx 表示缺价；用 FX-10 正文冒充本条；**本地-only 冒充 Review 2**。
+- Repo / file path: `dealer-web` / `e2e/cl4-ads-blocked.spec.ts` (may reuse TEST-09 API assertions)
+- Maps to 16: **CL-4** (00 item 4 · NN-15)
+- Maps to 17: **FX-01**, **FX-03**
+- Must assert: Staff A on `/ads` picks the CL-2 / V-ASIS vehicle. With no listing row, empty-draft copy `Select a vehicle to start.`, **not** Failed. Paste FX-01 → `Save draft` → `Run check`: right-rail overall **Blocked**; HTTP **200**; network panel **must not** show a browser request to `/internal/v1/ad-check`. Then change `adKind=FINANCE` using FX-03 (has price, no APR) → still **Blocked** (`FINANCE_APR_MISSING`), still no AI call.
+- Ban: seeing **Passed**; using 4xx for missing price; using FX-10 copy to impersonate this item; **local-only impersonating Review 2**.
 
 ### TEST-28
 
-- 仓 / 文件路径：`dealer-web` / `e2e/cl5-ads-real-ai.spec.ts`
-- 对应 16：**CL-5**（00 条 5 · NN-15/18）
-- 对应 17：**FX-10**
-- 必须断言：**必须云上 + 真实 GitHub 组件**。粘贴 FX-10 全文，`Run check`，等待 ≤15s。总状态 **Needs AI review** 或 **Passed**；`aiStatus` 非 `SKIPPED`；`aiNotes` 或说明能指出缺失/风险项（无硬缺时期望 Pass）。超时/失败：右栏 **AI unavailable**，GET listing 仍 `AI_UNAVAILABLE`，**禁止** `Mark ready` / `Export TXT` 当通过。
-- 禁止：stub / 本机模型冒充 S2/S3；把超时画成 Passed；用 FX-01 硬缺冒充「已走 AI」；把 FX-10 与 **FX-12** 混用（FX-12 必须规则已过再断模型）。
+- Repo / file path: `dealer-web` / `e2e/cl5-ads-real-ai.spec.ts`
+- Maps to 16: **CL-5** (00 item 5 · NN-15/18)
+- Maps to 17: **FX-10**
+- Must assert: **must be cloud + real GitHub component**. Paste FX-10 full text, `Run check`, wait ≤15s. Overall **Needs AI review** or **Passed**; `aiStatus` is not `SKIPPED`; `aiNotes` or explanation can point at missing/risk items (expect Pass when there is no hard miss). Timeout/failure: right rail **AI unavailable**, GET listing still `AI_UNAVAILABLE`, **ban** treating `Mark ready` / `Export TXT` as pass.
+- Ban: stub / local model impersonating S2/S3; drawing timeout as Passed; using FX-01 hard miss to impersonate “AI already ran”; mixing FX-10 with **FX-12** (FX-12 must pass rules first, then disconnect the model).
 
 ---
 
-## 5. 夹具速查（课堂建议序）
+## 5. Fixture quick reference (suggested classroom order)
 
-| FX | 用在 | HTTP / code / UI |
+| FX | Used in | HTTP / code / UI |
 |---|---|---|
-| FX-01 | TEST-09、TEST-27、TEST-10 否分支 | 200 + `BLOCKED` / `SKIPPED`；UI **Blocked** |
-| FX-03 | TEST-09、TEST-27 | 同上；`FINANCE_APR_MISSING` |
-| FX-10 | TEST-10 合格、TEST-28、TEST-07 前置 | 真 AI：**200** `PASSED`；然后 Ready / `text/plain` |
-| FX-11 | TEST-07 | 不跑检查；Ready/Export **409** `CHECK_STALE`；UI **Stale** |
-| FX-12 | TEST-08、TEST-25 广告失败 | **502** `AI_UNAVAILABLE`；UI **AI unavailable**；**禁止硬缺冒充** |
+| FX-01 | TEST-09, TEST-27, TEST-10 fail branch | 200 + `BLOCKED` / `SKIPPED`; UI **Blocked** |
+| FX-03 | TEST-09, TEST-27 | Same; `FINANCE_APR_MISSING` |
+| FX-10 | TEST-10 pass, TEST-28, TEST-07 prerequisite | Real AI: **200** `PASSED`; then Ready / `text/plain` |
+| FX-11 | TEST-07 | Do not run a check; Ready/Export **409** `CHECK_STALE`; UI **Stale** |
+| FX-12 | TEST-08, TEST-25 ad failure | **502** `AI_UNAVAILABLE`; UI **AI unavailable**; **ban hard-miss impersonation** |
 
-课堂建议序（17 §4）：FX-01 → FX-03 → FX-10（真 AI）→ 导出 TXT → FX-11 无法导出 →（可选对照）FX-12。
+Suggested classroom order (17 §4): FX-01 → FX-03 → FX-10 (real AI) → export TXT → FX-11 cannot export → (optional contrast) FX-12.
 
 ---
 
-## 6. 条数与齐全性
+## 6. Counts and completeness
 
-| 组 | 本单任务 | 16 / 17 |
+| Group | This list | 16 / 17 |
 |---|---|---|
-| BE-01–BE-16 | TEST-01–TEST-16（16 条） | 16 后端全覆盖；类名 = 18 §9 |
-| FE-01–FE-10 | TEST-17–TEST-26（10 条） | 16 前端全覆盖 |
-| CL-4 / CL-5 | TEST-27 / TEST-28 | S2 现场必须；S3 再含 CL-1–3、CL-6（演示，不另占 TEST 编号） |
-| FX-01 / 03 / 10 / 11 / 12 | 见 §1 与 §5 | 五条必点夹具均已映射 |
+| BE-01–BE-16 | TEST-01–TEST-16 (16 items) | 16 backend fully covered; class names = 18 §9 |
+| FE-01–FE-10 | TEST-17–TEST-26 (10 items) | 16 frontend fully covered |
+| CL-4 / CL-5 | TEST-27 / TEST-28 | Required live in S2; S3 also includes CL-1–3, CL-6 (demo; no extra TEST numbers) |
+| FX-01 / 03 / 10 / 11 / 12 | See §1 and §5 | All five must-hit fixtures are mapped |
 
-**测试任务数：28**（16 BE + 10 FE + 2 课堂）。与 16 的 BE-01–BE-16、FE-01–FE-10、CL-4/5 **齐全**；与 17 的 FX-01/03/10/11/12 **齐全**。课堂 CL-1/2/3/6 仍按 16 现场脚本走，不重复计作第 29–32 条。
+**Test task count: 28** (16 BE + 10 FE + 2 classroom). Complete against 16 BE-01–BE-16, FE-01–FE-10, CL-4/5; complete against 17 FX-01/03/10/11/12. Classroom CL-1/2/3/6 still follow 16 live scripts and are not counted again as items 29–32.
 
-不做：本文件不落地 JUnit / spec 源码；不恢复工单 / 线索 / 买家站；不发明新错误码。
+Do not: land JUnit / spec source in this file; restore work orders / leads / buyer site; invent new error codes.
