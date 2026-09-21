@@ -1,7 +1,9 @@
 package com.dealerops.core.support;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 
 import com.dealerops.core.dealer.AppRole;
 import com.dealerops.core.dealer.AppUserEntity;
@@ -16,6 +18,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
@@ -26,6 +29,7 @@ import org.springframework.transaction.annotation.Transactional;
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
+@Import(MysqlFlywayTestConfig.class)
 @Transactional
 public abstract class CoreItSupport {
 
@@ -52,7 +56,6 @@ public abstract class CoreItSupport {
     foothills.setLegalName("Foothills Motors Ltd.");
     foothills.setContactPhone("403-555-0200");
     foothills.setContactEmail("desk@foothills.example");
-    foothills.setContactAddress("200 2 Ave SW, Calgary");
     foothills.setActive(true);
     dealerBId = dealerRepository.save(foothills).getId();
 
@@ -68,7 +71,8 @@ public abstract class CoreItSupport {
     membership.setCreatedBy(TestTokens.ADMIN_OID);
     membershipRepository.save(membership);
 
-    AppUserEntity user = new AppUserEntity();
+    AppUserEntity user =
+        appUserRepository.findByEntraTenantIdAndEntraOid(TestTokens.TID, oid).orElseGet(AppUserEntity::new);
     user.setEntraTenantId(TestTokens.TID);
     user.setEntraOid(oid);
     user.setDisplayName(displayName);
@@ -108,6 +112,69 @@ public abstract class CoreItSupport {
 
   protected MockHttpServletRequestBuilder postJson(String url, String token, String body) {
     return authed(post(url).contentType(MediaType.APPLICATION_JSON).content(body), token);
+  }
+
+  protected long createVehicle(String token, String vin) throws Exception {
+    String body =
+        """
+        {"make":"Toyota","model":"Camry","modelYear":2020,"vin":"%s","source":"AUCTION","purchaseCost":12000,"addedOn":"2020-03-01","conditionCode":"AS_IS"}
+        """
+            .formatted(vin);
+    MvcResult result =
+        mockMvc
+            .perform(authed(post("/api/v1/vehicles").contentType(MediaType.APPLICATION_JSON).content(body), token))
+            .andReturn();
+    if (result.getResponse().getStatus() != 201) {
+      throw new IllegalStateException("create vehicle failed: " + result.getResponse().getContentAsString());
+    }
+    return json(result).path("id").asLong();
+  }
+
+  protected long createCustomer(String token, String name) throws Exception {
+    String body =
+        """
+        {"name":"%s","email":"%s@prairie.example","phone":"403-555-0199","homeAddress":"9 Hidden Rd"}
+        """
+            .formatted(name, name.toLowerCase().replace(" ", ""));
+    MvcResult result =
+        mockMvc
+            .perform(authed(post("/api/v1/customers").contentType(MediaType.APPLICATION_JSON).content(body), token))
+            .andReturn();
+    if (result.getResponse().getStatus() != 201) {
+      throw new IllegalStateException("create customer failed: " + result.getResponse().getContentAsString());
+    }
+    return json(result).path("id").asLong();
+  }
+
+  protected MvcResult linkVehicle(String token, long customerId, long vehicleId) throws Exception {
+    return mockMvc
+        .perform(authed(put("/api/v1/customers/" + customerId + "/vehicles/" + vehicleId), token))
+        .andReturn();
+  }
+
+  protected MvcResult sellVehicle(String token, long vehicleId, int version, String soldOn, String soldPrice)
+      throws Exception {
+    String body =
+        "{\"soldOn\":\"" + soldOn + "\",\"soldPrice\":" + soldPrice + ",\"version\":" + version + "}";
+    return mockMvc
+        .perform(
+            authed(
+                post("/api/v1/vehicles/" + vehicleId + "/sell").contentType(MediaType.APPLICATION_JSON).content(body),
+                token))
+        .andReturn();
+  }
+
+  protected MvcResult patchVehicleMake(String token, long vehicleId, int version, String make, String vin)
+      throws Exception {
+    String body =
+        """
+        {"version":%d,"make":"%s","model":"Camry","modelYear":2020,"vin":"%s","source":"AUCTION","purchaseCost":12000,"addedOn":"2020-03-01","conditionCode":"AS_IS"}
+        """
+            .formatted(version, make, vin);
+    return mockMvc
+        .perform(
+            authed(patch("/api/v1/vehicles/" + vehicleId).contentType(MediaType.APPLICATION_JSON).content(body), token))
+        .andReturn();
   }
 
   protected boolean bodyHasBusinessLeak(String body) {

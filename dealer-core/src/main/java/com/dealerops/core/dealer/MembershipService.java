@@ -16,8 +16,6 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.function.Function;
-import java.util.stream.Collectors;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -45,19 +43,12 @@ public class MembershipService {
   public PageResponse<MemberResponse> list(Long dealerId, String q, int page, int size) {
     TenantGuard.requireAdmin();
     requireDealer(dealerId);
-    List<MembershipEntity> rows =
-        membershipRepository.findByDealerId(dealerId, Pageable.unpaged()).getContent();
-    Map<String, AppUserEntity> users =
-        appUserRepository
-            .findByEntraOidIn(rows.stream().map(MembershipEntity::getEntraOid).toList())
-            .stream()
-            .collect(Collectors.toMap(AppUserEntity::getEntraOid, Function.identity(), (a, b) -> a));
-    String needle = q == null ? "" : q.trim().toLowerCase(Locale.ROOT);
+    String tid = currentTid();
     List<MemberResponse> items =
-        rows.stream()
+        membershipRepository.findByDealerId(dealerId, Pageable.unpaged()).getContent().stream()
             .sorted(Comparator.comparing(MembershipEntity::getEntraOid))
-            .map(row -> toResponse(row, users.get(row.getEntraOid())))
-            .filter(item -> matches(item, needle))
+            .map(row -> toResponse(row, lookupUser(tid, row.getEntraOid())))
+            .filter(item -> matches(item, q))
             .toList();
     int p = Paging.page(page);
     int s = Paging.size(size);
@@ -79,15 +70,13 @@ public class MembershipService {
       throw new ApiException(ErrorCode.DUP_MEMBER, "Membership already exists");
     }
     MembershipEntity membership =
-        membershipRepository
-            .findByDealerIdAndEntraOid(dealerId, oid)
-            .orElseGet(MembershipEntity::new);
+        membershipRepository.findByDealerIdAndEntraOid(dealerId, oid).orElseGet(MembershipEntity::new);
     membership.setDealerId(dealerId);
     membership.setEntraOid(oid);
     membership.setActive(true);
     membership.setCreatedBy(actorOid());
     membership = membershipRepository.save(membership);
-    upsertStaffUser(oid, body.displayName().trim(), dealerId);
+    AppUserEntity user = upsertStaffUser(oid, body.displayName().trim(), dealerId);
     auditService.record(
         EntityType.MEMBERSHIP.name(),
         membership.getId(),
@@ -95,7 +84,6 @@ public class MembershipService {
         dealerId,
         actorOid(),
         Map.of("entraOid", oid));
-    AppUserEntity user = appUserRepository.findFirstByEntraOid(oid).orElse(null);
     return toResponse(membership, user);
   }
 
@@ -110,8 +98,7 @@ public class MembershipService {
             .orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND, "Not found"));
     membership.setActive(false);
     membershipRepository.save(membership);
-    appUserRepository
-        .findFirstByEntraOid(entraOid)
+    lookupUser(currentTid(), entraOid)
         .ifPresent(
             user -> {
               user.setDealerId(null);
@@ -126,23 +113,21 @@ public class MembershipService {
         Map.of("entraOid", entraOid, "unbound", true));
   }
 
-  private void upsertStaffUser(String oid, String displayName, Long dealerId) {
-    CurrentUser admin = TenantContext.get();
-    String tid = admin == null ? "" : admin.tid();
+  private AppUserEntity upsertStaffUser(String oid, String displayName, Long dealerId) {
+    String tid = currentTid();
     AppUserEntity user =
-        appUserRepository
-            .findByEntraTenantIdAndEntraOid(tid, oid)
-            .or(() -> appUserRepository.findFirstByEntraOid(oid))
-            .orElseGet(AppUserEntity::new);
-    if (user.getEntraTenantId() == null) {
-      user.setEntraTenantId(tid);
-    }
+        appUserRepository.findByEntraTenantIdAndEntraOid(tid, oid).orElseGet(AppUserEntity::new);
+    user.setEntraTenantId(tid);
     user.setEntraOid(oid);
     user.setDisplayName(displayName);
     user.setRole(AppRole.DEALER_USER);
     user.setDealerId(dealerId);
     user.setActive(true);
-    appUserRepository.save(user);
+    return appUserRepository.save(user);
+  }
+
+  private java.util.Optional<AppUserEntity> lookupUser(String tid, String oid) {
+    return appUserRepository.findByEntraTenantIdAndEntraOid(tid, oid);
   }
 
   private void requireDealer(Long dealerId) {
@@ -151,18 +136,28 @@ public class MembershipService {
     }
   }
 
-  private static boolean matches(MemberResponse item, String needle) {
-    if (needle.isEmpty()) {
+  private static boolean matches(MemberResponse item, String q) {
+    if (q == null || q.isBlank()) {
       return true;
     }
+    String needle = q.trim().toLowerCase(Locale.ROOT);
     String name = item.displayName() == null ? "" : item.displayName().toLowerCase(Locale.ROOT);
     String oid = item.entraOid() == null ? "" : item.entraOid().toLowerCase(Locale.ROOT);
     return name.contains(needle) || oid.contains(needle);
   }
 
+  private static MemberResponse toResponse(MembershipEntity row, java.util.Optional<AppUserEntity> user) {
+    return toResponse(row, user.orElse(null));
+  }
+
   private static MemberResponse toResponse(MembershipEntity row, AppUserEntity user) {
     String displayName = user == null ? "" : user.getDisplayName();
     return new MemberResponse(row.getEntraOid(), displayName, AppRole.DEALER_USER.getValue(), row.isActive());
+  }
+
+  private static String currentTid() {
+    CurrentUser user = TenantContext.get();
+    return user == null || user.tid() == null ? "" : user.tid();
   }
 
   private static String actorOid() {
