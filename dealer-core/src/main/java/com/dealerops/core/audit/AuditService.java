@@ -85,7 +85,8 @@ public class AuditService {
     // Staff query types are only VEHICLE / CUSTOMER / CUSTOMER_VEHICLE (14 §9).
     Pageable pageable = Paging.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
     Page<AuditEventEntity> result =
-        auditEventRepository.findByDealerIdAndEntityTypeAndEntityId(tenant, type, entityId, pageable);
+        auditEventRepository.findByDealerIdAndEntityTypeAndEntityIdOrderByCreatedAtDesc(
+            tenant, type, entityId, pageable);
     return new PageResponse<>(
         result.map(this::toItem).getContent(), result.getNumber(), result.getSize(), result.getTotalElements());
   }

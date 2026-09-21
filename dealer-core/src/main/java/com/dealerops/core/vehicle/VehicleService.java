@@ -9,7 +9,6 @@ import com.dealerops.core.common.exception.ApiException;
 import com.dealerops.core.common.exception.ErrorCode;
 import com.dealerops.core.common.tenant.TenantContext;
 import com.dealerops.core.common.tenant.TenantGuard;
-import com.dealerops.core.listing.ListingEntity;
 import com.dealerops.core.listing.ListingRepository;
 import com.dealerops.core.listing.ListingStatus;
 import com.dealerops.core.security.CurrentUser;
@@ -17,16 +16,11 @@ import com.dealerops.core.vehicle.dto.CreateVehicleRequest;
 import com.dealerops.core.vehicle.dto.PatchVehicleRequest;
 import com.dealerops.core.vehicle.dto.SellVehicleRequest;
 import com.dealerops.core.vehicle.dto.VehicleResponse;
-import jakarta.persistence.criteria.Predicate;
 import java.math.BigDecimal;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Sort;
-import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -47,28 +41,10 @@ public class VehicleService {
   @Transactional(readOnly = true)
   public PageResponse<VehicleResponse> list(String q, VehicleStatus status, ConditionCode condition, int page, int size) {
     Long tenant = requireTenant();
-    Specification<VehicleEntity> spec =
-        (root, query, cb) -> {
-          List<Predicate> parts = new ArrayList<>();
-          parts.add(cb.equal(root.get("dealerId"), tenant));
-          if (status != null) {
-            parts.add(cb.equal(root.get("status"), status));
-          }
-          if (condition != null) {
-            parts.add(cb.equal(root.get("conditionCode"), condition));
-          }
-          if (q != null && !q.isBlank()) {
-            String like = "%" + q.trim().toLowerCase(Locale.ROOT) + "%";
-            parts.add(
-                cb.or(
-                    cb.like(cb.lower(root.get("vin")), like),
-                    cb.like(cb.lower(root.get("make")), like),
-                    cb.like(cb.lower(root.get("model")), like)));
-          }
-          return cb.and(parts.toArray(Predicate[]::new));
-        };
+    String query = q == null ? null : q.trim();
     Page<VehicleEntity> result =
-        vehicleRepository.findAll(spec, Paging.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt")));
+        vehicleRepository.search(
+            tenant, query, status, condition, Paging.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt")));
     return new PageResponse<>(
         result.map(this::toResponse).getContent(), result.getNumber(), result.getSize(), result.getTotalElements());
   }

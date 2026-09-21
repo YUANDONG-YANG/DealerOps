@@ -20,18 +20,10 @@ import com.dealerops.core.security.CurrentUser;
 import com.dealerops.core.vehicle.VehicleEntity;
 import com.dealerops.core.vehicle.VehicleRepository;
 import com.dealerops.core.vehicle.VehicleStatus;
-import jakarta.persistence.criteria.Predicate;
-import jakarta.persistence.criteria.Root;
-import jakarta.persistence.criteria.Subquery;
-import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
-import java.util.function.Function;
-import java.util.stream.Collectors;
 import org.springframework.data.domain.Page;
-import org.springframework.data.jpa.domain.Specification;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -57,65 +49,12 @@ public class CustomerService {
   @Transactional(readOnly = true)
   public PageResponse<CustomerListItem> list(String q, Boolean linked, int page, int size) {
     Long tenant = requireTenant();
-    Specification<CustomerEntity> spec =
-        (root, query, cb) -> {
-          List<Predicate> parts = new ArrayList<>();
-          parts.add(cb.equal(root.get("dealerId"), tenant));
-          if (q != null && !q.isBlank()) {
-            String like = "%" + q.trim().toLowerCase(Locale.ROOT) + "%";
-            parts.add(
-                cb.or(
-                    cb.like(cb.lower(root.get("name")), like),
-                    cb.like(cb.lower(root.get("email")), like),
-                    cb.like(cb.lower(root.get("phone")), like)));
-          }
-          if (linked != null) {
-            Subquery<Long> sub = query.subquery(Long.class);
-            Root<CustomerVehicleEntity> cv = sub.from(CustomerVehicleEntity.class);
-            sub.select(cv.get("id")).where(cb.equal(cv.get("customerId"), root.get("id")));
-            parts.add(linked ? cb.exists(sub) : cb.not(cb.exists(sub)));
-          }
-          return cb.and(parts.toArray(Predicate[]::new));
-        };
+    String query = q == null ? null : q.trim();
     Page<CustomerEntity> result =
-        customerRepository.findAll(
-            spec, Paging.of(page, size, org.springframework.data.domain.Sort.by(
-                org.springframework.data.domain.Sort.Direction.DESC, "createdAt")));
-    List<Long> ids = result.getContent().stream().map(CustomerEntity::getId).toList();
-    Map<Long, CustomerVehicleEntity> latestByCustomer =
-        customerVehicleRepository.findByCustomerIdIn(ids).stream()
-            .collect(
-                Collectors.toMap(
-                    CustomerVehicleEntity::getCustomerId,
-                    Function.identity(),
-                    (a, b) -> a.getLinkedAt().isAfter(b.getLinkedAt()) ? a : b));
-    Map<Long, VehicleEntity> vehicles =
-        vehicleRepository
-            .findAllById(
-                latestByCustomer.values().stream().map(CustomerVehicleEntity::getVehicleId).toList())
-            .stream()
-            .collect(Collectors.toMap(VehicleEntity::getId, Function.identity()));
+        customerRepository.search(
+            tenant, query, linked, Paging.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt")));
     List<CustomerListItem> items =
-        result.getContent().stream()
-            .map(
-                customer -> {
-                  CustomerVehicleEntity link = latestByCustomer.get(customer.getId());
-                  VehicleEntity vehicle = link == null ? null : vehicles.get(link.getVehicleId());
-                  LinkedVehicleBrief brief =
-                      vehicle == null
-                          ? null
-                          : new LinkedVehicleBrief(
-                              vehicle.getId(), vehicle.getModelYear(), vehicle.getMake(), vehicle.getModel());
-                  return new CustomerListItem(
-                      customer.getId(),
-                      customer.getName(),
-                      customer.getEmail(),
-                      customer.getPhone(),
-                      customer.getHomeAddress(),
-                      brief,
-                      customer.getVersion());
-                })
-            .toList();
+        result.getContent().stream().map(customer -> toListItem(customer, tenant)).toList();
     return new PageResponse<>(items, result.getNumber(), result.getSize(), result.getTotalElements());
   }
 
@@ -224,19 +163,36 @@ public class CustomerService {
         Map.of("customerId", customerId, "vehicleId", vehicleId));
   }
 
-  private CustomerDetail toDetail(CustomerEntity customer) {
+  private CustomerListItem toListItem(CustomerEntity customer, Long tenant) {
     List<CustomerVehicleEntity> links =
         customerVehicleRepository.findByCustomerIdOrderByLinkedAtDesc(customer.getId());
-    Map<Long, VehicleEntity> vehicles =
-        vehicleRepository
-            .findAllById(links.stream().map(CustomerVehicleEntity::getVehicleId).toList())
-            .stream()
-            .collect(Collectors.toMap(VehicleEntity::getId, Function.identity()));
+    LinkedVehicleBrief brief = null;
+    if (!links.isEmpty()) {
+      brief =
+          vehicleRepository
+              .findByIdAndDealerId(links.get(0).getVehicleId(), tenant)
+              .map(
+                  vehicle ->
+                      new LinkedVehicleBrief(
+                          vehicle.getId(), vehicle.getModelYear(), vehicle.getMake(), vehicle.getModel()))
+              .orElse(null);
+    }
+    return new CustomerListItem(
+        customer.getId(),
+        customer.getName(),
+        customer.getEmail(),
+        customer.getPhone(),
+        customer.getHomeAddress(),
+        brief,
+        customer.getVersion());
+  }
+
+  private CustomerDetail toDetail(CustomerEntity customer) {
+    Long tenant = customer.getDealerId();
     List<LinkedVehicleItem> items =
-        links.stream()
-            .map(link -> vehicles.get(link.getVehicleId()))
+        customerVehicleRepository.findByCustomerIdOrderByLinkedAtDesc(customer.getId()).stream()
+            .map(link -> vehicleRepository.findByIdAndDealerId(link.getVehicleId(), tenant).orElse(null))
             .filter(v -> v != null)
-            .sorted(Comparator.comparing(VehicleEntity::getId))
             .map(
                 v ->
                     new LinkedVehicleItem(
