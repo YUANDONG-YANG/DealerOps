@@ -1,89 +1,89 @@
-# AI 协议与规则硬规格
+# AI protocol and rules hard spec
 
-**现行有效。** 本文裁定 **覆盖** [14-Backend-API-Contract.md](14-Backend-API-Contract.md) / [15-Data-Auth-and-Gateway.md](15-Data-Auth-and-Gateway.md) 下列细处冲突。编码 AI **必须遵守本文**；不得再「选一种」或沿用 15 被废弃的分支。
+**Currently in force.** This document **overrides** the following fine-grained conflicts in [14-Backend-API-Contract.md](14-Backend-API-Contract.md) / [15-Data-Auth-and-Gateway.md](15-Data-Auth-and-Gateway.md). Coding AIs **must follow this document**; they may not “pick one” or keep a withdrawn 15 branch.
 
-本文不是业务代码、不是 OpenAPI 全文、不改 `13`–`19` / BRIEF / README。OMVIC 固定规则仍在 **dealer-core** 先于模型跑；ai-service 只做复核会话。
+This is not business code, not the full OpenAPI, and does not change `13`–`19` / BRIEF / README. OMVIC fixed rules still run in **dealer-core** before the model; ai-service only runs the review conversation.
 
-冲突顺序（仅本文触及的细处）：**本文 > 14 的 HTTP 细码 / 15 的数据行为细处**。未点名的路径、DTO、SQL 仍以 14 / 15 为准。
-
----
-
-## A. 14 vs 15：四条写死
-
-### A.1 跨店挂车：一律 404
-
-**采用 14 的防探测语义，废弃 15 §4「看得见但店不一致 → 400 `WRONG_DEALER_OR_SOLD`」用于跨店 id。**
-
-`PUT /api/v1/customers/{id}/vehicles/{vehicleId}` 判定顺序（禁止对调）：
-
-1. JWT + `membership.active=1` 得到 `tenantDealerId`。无店 → **403** `FORBIDDEN`。
-2. 用 **本店** 加载客户、车辆。客户 id 或车辆 id 对本店不存在（含他店真实 id）→ **404** `NOT_FOUND`。不要先按全局 id 取出再比 `dealer_id`。
-3. 本店车且 `status != IN_STOCK`（含 `SOLD`）→ **400** `WRONG_DEALER_OR_SOLD`。
-4. 本店车已挂任一客户 → **409** `VEHICLE_ALREADY_LINKED`。
-5. 否则 200 + 审计 `LINK`。
-
-`DELETE` 同路径：无关联或跨店 → **404**；本店车 `SOLD` → **409** `SOLD_LOCKED`。
-
-**`WRONG_DEALER_OR_SOLD` 只用于：** 本店车、PUT 挂车、但已售或非 `IN_STOCK`。  
-**禁止**再用于跨店 id、店不一致、客户在他店。14 §12 表里「车非本店」那半句以本文作废。15 §4 表第一行后半句作废。18 §6 同行「看得见但店不一致」作废（18 本身不改文件，实现按本文）。
-
-### A.2 一人两店 active → 409 `DUP_MEMBER`
-
-**采用 15 §2.2，14 必须补这一层（本文即补口）。**
-
-同一 `entraOid` **同一时刻只允许一条** `membership.active=1`。
-
-`POST /api/v1/admin/dealers/{id}/members`：
-
-| 已有状态 | HTTP |
-|---|---|
-| 已是**本店** active | **409** `DUP_MEMBER` |
-| 已是**另一店** active | **409** `DUP_MEMBER`（一人一店；先解绑再绑） |
-| 本店曾解绑 `active=0` | **重激活**该行，不 409，不插第二行 |
-| 无行 | INSERT，201 |
-
-V1 `uk_membership (dealer_id, entra_oid)` 挡不住跨店双 active，**必须应用层检查**。读路径若发现 ≥2 条 active → 500 级配置错误，拒绝业务（15 §2.4）。不要做切店器。
-
-### A.3 售价：`soldPrice > 0` 且与 `soldOn` 成对
-
-`POST /api/v1/vehicles/{id}/sell` body：`soldOn`、`soldPrice`、`version`。
-
-| 条件 | HTTP / code |
-|---|---|
-| 缺 `soldOn`，或 `soldOn` 空白 / 非 `YYYY-MM-DD` | **400** `SOLD_PAIR_REQUIRED` |
-| 缺 `soldPrice`，或 JSON `null` | **400** `SOLD_PAIR_REQUIRED` |
-| `soldPrice` 不是正数（`<= 0`、NaN） | **400** `SOLD_PAIR_REQUIRED` |
-| 已售再售 | **409** `SOLD_LOCKED` |
-| `version` 不匹配 | **409** `VERSION_CONFLICT` |
-| 跨店 / 无此车 | **404** |
-
-不变量：`IN_STOCK` ⇔ 两出售字段都 NULL；`SOLD` ⇔ 两者都非 NULL 且 `soldPrice > 0`。  
-**禁止**用 `400 VALIDATION` 表示「价 ≤ 0」（18 曾允许二选一；本文取消选择）。PATCH 不得改 `status` / `soldOn` / `soldPrice`。
-
-### A.4 AI system prompt：不要再塞 OMVIC 硬清单
-
-**覆盖 09「system 放 OMVIC 清单」。** 硬规则只在 core `OmvicRuleEngine`。打进 `/internal/v1/ad-check` 的广告 **已通过 hard[]**。ai-service 的 system **只**复核是否误导。完整英文正文见 **§B.4**（可复制）。助手 prompt 见 **§B.5**。
+Conflict order (only the fine points this document touches): **this document > 14 HTTP fine codes / 15 data-behavior fine points**. Unnamed paths, DTOs, and SQL still follow 14 / 15.
 
 ---
 
-## B. 内部 AI HTTP（14 §11 未钉的响应）
+## A. 14 vs 15: four pinned rulings
 
-浏览器打 `/internal/v1/**` → Gateway **404**。core 出站只打 Gateway，不直连 8082。
+### A.1 Cross-dealership vehicle link: always 404
 
-### B.1 请求头
+**Adopt 14’s anti-probing semantics. Withdraw 15 §4 “visible but dealership mismatch → 400 `WRONG_DEALER_OR_SOLD`” for cross-store ids.**
 
-| 头 | 值从哪来 |
+`PUT /api/v1/customers/{id}/vehicles/{vehicleId}` decision order (do not swap):
+
+1. JWT + `membership.active=1` yields `tenantDealerId`. No dealership → **403** `FORBIDDEN`.
+2. Load customer and vehicle **in this dealership**. Customer id or vehicle id does not exist for this store (including a real id from another store) → **404** `NOT_FOUND`. Do not load by global id first and then compare `dealer_id`.
+3. This-store vehicle and `status != IN_STOCK` (including `SOLD`) → **400** `WRONG_DEALER_OR_SOLD`.
+4. This-store vehicle already linked to any customer → **409** `VEHICLE_ALREADY_LINKED`.
+5. Otherwise 200 + audit `LINK`.
+
+`DELETE` on the same path: no link or cross-store → **404**; this-store vehicle `SOLD` → **409** `SOLD_LOCKED`.
+
+**`WRONG_DEALER_OR_SOLD` is only for:** this-store vehicle, PUT link, but sold or not `IN_STOCK`.  
+**Ban** using it again for cross-store ids, dealership mismatch, or a customer at another store. The “vehicle not this store” half-sentence in the 14 §12 table is withdrawn by this document. The second half of 15 §4 table row 1 is withdrawn. The matching 18 §6 “visible but dealership mismatch” line is withdrawn (do not edit 18 itself; implement this document).
+
+### A.2 One person, two stores active → 409 `DUP_MEMBER`
+
+**Adopt 15 §2.2; 14 must add this layer (this document is that add).**
+
+The same `entraOid` **may have only one** `membership.active=1` at a time.
+
+`POST /api/v1/admin/dealers/{id}/members`:
+
+| Existing state | HTTP |
 |---|---|
-| `X-Dealer-Internal` | 环境变量 **`INTERNAL_TOKEN`**（Key Vault 建议名 `INTERNAL-TOKEN`） |
-| 本地未设时的字面默认 | **`dealer-internal`**（三端同一默认：gateway 谓词、core 出站、ai-service 校验） |
+| Already **this store** active | **409** `DUP_MEMBER` |
+| Already **another store** active | **409** `DUP_MEMBER` (one person, one store; unbind first, then bind) |
+| This store previously unbound `active=0` | **Reactivate** that row; no 409; do not insert a second row |
+| No row | INSERT, 201 |
 
-禁止把用户 JWT 转给 ai-service。禁止把本头列入 Gateway CORS `allowedHeaders`。缺头或值不对 → **404**（不 401）。
+V1 `uk_membership (dealer_id, entra_oid)` cannot block dual active across stores; **application-layer check is required**. If a read path finds ≥2 active rows → configuration error at 500 level; reject business (15 §2.4). Do not build a dealership switcher.
+
+### A.3 Sale price: `soldPrice > 0` and paired with `soldOn`
+
+`POST /api/v1/vehicles/{id}/sell` body: `soldOn`, `soldPrice`, `version`.
+
+| Condition | HTTP / code |
+|---|---|
+| Missing `soldOn`, or `soldOn` blank / not `YYYY-MM-DD` | **400** `SOLD_PAIR_REQUIRED` |
+| Missing `soldPrice`, or JSON `null` | **400** `SOLD_PAIR_REQUIRED` |
+| `soldPrice` is not a positive number (`<= 0`, NaN) | **400** `SOLD_PAIR_REQUIRED` |
+| Sell again after sold | **409** `SOLD_LOCKED` |
+| `version` mismatch | **409** `VERSION_CONFLICT` |
+| Cross-store / no such vehicle | **404** |
+
+Invariant: `IN_STOCK` ⇔ both sale fields NULL; `SOLD` ⇔ both non-NULL and `soldPrice > 0`.  
+**Ban** using `400 VALIDATION` for “price ≤ 0” (18 once allowed either; this document removes the choice). PATCH must not change `status` / `soldOn` / `soldPrice`.
+
+### A.4 AI system prompt: do not embed the OMVIC hard checklist again
+
+**Overrides 09 “put the OMVIC checklist in system.”** Hard rules live only in core `OmvicRuleEngine`. Ads posted to `/internal/v1/ad-check` **already passed hard[]**. ai-service system **only** reviews whether the copy is misleading. Full English body is in **§B.4** (copy-paste). Assistant prompt is in **§B.5**.
+
+---
+
+## B. Internal AI HTTP (responses 14 §11 did not pin)
+
+Browser hits `/internal/v1/**` → Gateway **404**. Core outbound only hits Gateway; it does not call 8082 directly.
+
+### B.1 Request headers
+
+| Header | Value source |
+|---|---|
+| `X-Dealer-Internal` | Environment variable **`INTERNAL_TOKEN`** (Key Vault suggested name `INTERNAL-TOKEN`) |
+| Literal default when unset locally | **`dealer-internal`** (same default on all three ends: gateway predicate, core outbound, ai-service check) |
+
+Ban forwarding the user JWT to ai-service. Ban listing this header in Gateway CORS `allowedHeaders`. Missing or wrong header → **404** (not 401).
 
 ### B.2 `POST /internal/v1/ad-check`
 
-请求体形状仍是 14 §11（`listing` + `vehiclePublic` 无成本 + `dealerPublic`）。本文只钉 **响应**。
+Request-body shape remains 14 §11 (`listing` + `vehiclePublic` without cost + `dealerPublic`). This document only pins the **response**.
 
-#### 成功 — HTTP **200**
+#### Success — HTTP **200**
 
 ```json
 {
@@ -94,16 +94,16 @@ V1 `uk_membership (dealer_id, entra_oid)` 挡不住跨店双 active，**必须�
 }
 ```
 
-| 字段 | 类型 | 规则 |
+| Field | Type | Rule |
 |---|---|---|
-| `success` | boolean | 必须 `true` |
-| `notes` | array | 可 `[]`；元素至少 `{ "message": string }`。core 原样写入 `aiNotes` |
+| `success` | boolean | Must be `true` |
+| `notes` | array | May be `[]`; each element at least `{ "message": string }`. core writes `aiNotes` as-is |
 
-禁止成功体里再发明 `recommendation` / `checkStatus` / `ruleFindings`。五态由 core 写。成功且模型未要求硬拦 → core：`recommendation=PASSED`，`aiStatus=SUCCESS`。
+Ban inventing `recommendation` / `checkStatus` / `ruleFindings` in the success body. The five states are written by core. On success and the model does not require a hard block → core: `recommendation=PASSED`, `aiStatus=SUCCESS`.
 
-#### 失败（core 一律映射对外 502 `AI_UNAVAILABLE`）
+#### Failure (core always maps to public 502 `AI_UNAVAILABLE`)
 
-统一失败体（三种原因共用形状）：
+Unified failure body (same shape for all three reasons):
 
 ```json
 {
@@ -113,26 +113,26 @@ V1 `uk_membership (dealer_id, entra_oid)` 挡不住跨店双 active，**必须�
 }
 ```
 
-| 原因 | HTTP | `code` | `message`（固定英文） |
+| Reason | HTTP | `code` | `message` (fixed English) |
 |---|---|---|---|
-| connect+response 超时 | **504** | `AI_TIMEOUT` | `Model call exceeded 15s.` |
-| `AIMANAGER_API_KEY` 缺失或空白 | **503** | `AI_KEY_MISSING` | `AIMANAGER_API_KEY is missing or invalid.` |
-| Key 无效 / `isSuccess()==false` / 解析失败 / 厂商错误 | **502** | `AI_PROVIDER_FAILED` | `Model did not return a usable result.` |
+| connect+response timeout | **504** | `AI_TIMEOUT` | `Model call exceeded 15s.` |
+| `AIMANAGER_API_KEY` missing or blank | **503** | `AI_KEY_MISSING` | `AIMANAGER_API_KEY is missing or invalid.` |
+| Invalid key / `isSuccess()==false` / parse failure / vendor error | **502** | `AI_PROVIDER_FAILED` | `Model did not return a usable result.` |
 
-缺 Key：**立即** 503，**不要**挂满 15s。  
-core 判定「AI 失败」：**HTTP ≠ 200，或 body.`success` ≠ true，或读超时**。然后：
+Missing key: **immediate** 503; **do not** wait the full 15s.  
+core treats “AI failed” as: **HTTP ≠ 200, or body.`success` ≠ true, or read timeout**. Then:
 
-- 仍 **INSERT** `compliance_check`：`recommendation=UNAVAILABLE`，`aiStatus=UNAVAILABLE`，`aiNotes=null` 或 `[{ "message": "<code>" }]`
-- 回写 `listing.last_check_id`
-- 对外 **502** `{ "code": "AI_UNAVAILABLE", "message": "Ad check AI is unavailable." }`
+- Still **INSERT** `compliance_check`: `recommendation=UNAVAILABLE`, `aiStatus=UNAVAILABLE`, `aiNotes=null` or `[{ "message": "<code>" }]`
+- Write back `listing.last_check_id`
+- Public **502** `{ "code": "AI_UNAVAILABLE", "message": "Ad check AI is unavailable." }`
 
-禁止 ai-service 返回 200 + 空 notes 冒充 Pass。禁止对外把内部 `AI_TIMEOUT` 原样给浏览器。
+Ban ai-service returning 200 + empty notes as fake Pass. Ban sending internal `AI_TIMEOUT` as-is to the browser.
 
 ### B.3 `POST /internal/v1/assistant`
 
-请求体仍是 14 §11（`question` + 已过滤 `resources`）。
+Request body remains 14 §11 (`question` + already-filtered `resources`).
 
-#### 成功 — HTTP **200**
+#### Success — HTTP **200**
 
 ```json
 {
@@ -141,14 +141,14 @@ core 判定「AI 失败」：**HTTP ≠ 200，或 body.`success` ≠ true，或�
 }
 ```
 
-| 字段 | 类型 | 规则 |
+| Field | Type | Rule |
 |---|---|---|
 | `success` | boolean | `true` |
-| `summary` | string | 短说明；非空。core 再核卡 id（只保留本次 `resources` 里出现过的 id） |
+| `summary` | string | Short explanation; non-empty. core re-checks card ids (keep only ids that appeared in this `resources`) |
 
-#### 失败 — 与 B.2 **同一 JSON 形状与同一 HTTP/code 表**
+#### Failure — **same JSON shape and same HTTP/code table as B.2**
 
-core **不得**对浏览器回 502。对外仍 **200**：
+core **must not** return 502 to the browser. Public remains **200**:
 
 ```json
 {
@@ -158,11 +158,11 @@ core **不得**对浏览器回 502。对外仍 **200**：
 }
 ```
 
-`cards` = 本次检索列表（最多 5），不是空数组（除非检索本就 0 条）。仅身份失败才 403。
+`cards` = this retrieval list (at most 5), not an empty array (unless retrieval itself returned 0). Only identity failure is 403.
 
-### B.4 Ad-check system prompt（完整英文，可复制）
+### B.4 Ad-check system prompt (full English, copy-paste)
 
-`startConversation(conversationId, systemMessage)` 的 `systemMessage` **必须一字不差**用下面整段。禁止再追加 OMVIC 价/APR/店名/车况硬清单。
+The `systemMessage` of `startConversation(conversationId, systemMessage)` **must be this entire paragraph verbatim**. Do not append an OMVIC price/APR/name/condition hard checklist.
 
 ```
 You are a second-pass reviewer for a used-vehicle dealership advertisement.
@@ -179,9 +179,9 @@ No additional misleading claims found.
 Never say the ad is OMVIC approved, OMVIC certified, or legally cleared. Never output SQL, stack traces, API keys, phone/email/address that are not already in the user JSON. Never instruct the caller to change HTTP status codes.
 ```
 
-user 消息 = 14 §11 的 ad-check JSON 原文。`finally` 必须 `closeConversation`。先判断 `AIResponse.isSuccess()` 再解析。把模型每一行收成 `notes[].message`。
+User message = the 14 §11 ad-check JSON as-is. `finally` must `closeConversation`. Check `AIResponse.isSuccess()` before parsing. Collect each model line into `notes[].message`.
 
-### B.5 Assistant system prompt（完整英文，可复制）
+### B.5 Assistant system prompt (full English, copy-paste)
 
 ```
 You are an in-dealership inventory helper. Answer only from the resource list in the user JSON.
@@ -191,34 +191,34 @@ Write one or two short sentences. Mention resource ids only if they appear in th
 Never claim legal approval. Never ask for secrets or tokens.
 ```
 
-user 消息 = `{ "question": "...", "resources": [ ... ] }`。
+User message = `{ "question": "...", "resources": [ ... ] }`.
 
-### B.6 core 调用时序（恰好 8 步）
+### B.6 core call sequence (exactly 8 steps)
 
-`POST /api/v1/listings/{id}/checks`，body `{ "version" }`：
+`POST /api/v1/listings/{id}/checks`, body `{ "version" }`:
 
-1. **本店 + 乐观锁。** listing 不存在或跨店 → 404。`version` ≠ 当前行 → 409 `VERSION_CONFLICT`。
-2. **组公开输入。** listing 的 title/body/adKind/medium；车辆公开字段（年/make/model/vin/conditionCode/source，**无**采购/修理/售价）；店公开四字段。
-3. **跑 `OmvicRuleEngine`（本文 §C）。** 得到 `hard[]`、`soft[]`。
-4. **`hard[]` 非空 → 不调 AI。** 同一事务 INSERT `compliance_check`（`recommendation=BLOCKED`，`aiStatus=SKIPPED`，`ruleFindings`=hard+soft，`severity` hard=`BLOCK` / soft=`REVIEW`），回写 `last_check_id`。HTTP **200** + 完整检查对象。`AiGatewayClient` **零调用**。结束。
-5. **`hard[]` 空 → 才调 AI。** core 经 Gateway `POST /internal/v1/ad-check`，带 `X-Dealer-Internal: ${INTERNAL_TOKEN:dealer-internal}`，超时见 §D。
-6. **成功（HTTP 200 且 `success=true`）。** INSERT 检查：`recommendation=PASSED`，`aiStatus=SUCCESS`，`ruleFindings`=soft（可空），`aiNotes`=`notes`。回写 `last_check_id`。HTTP **200**。
-7. **失败（超时 / 缺 Key / 非 200 / `success≠true`）。** **仍落库**：`recommendation=UNAVAILABLE`，`aiStatus=UNAVAILABLE`，回写 `last_check_id`。禁止当 Pass。
-8. **对外。** 步骤 7 之后 HTTP **502** `AI_UNAVAILABLE`。客户端再 GET listing 可见 `checkStatus=AI_UNAVAILABLE`。写库失败则以库为准，整单回滚，下次再检。
+1. **This dealership + optimistic lock.** Listing missing or cross-store → 404. `version` ≠ current row → 409 `VERSION_CONFLICT`.
+2. **Build public input.** listing title/body/adKind/medium; vehicle public fields (year/make/model/vin/conditionCode/source, **no** purchase/repair/sold price); dealership public four fields.
+3. **Run `OmvicRuleEngine` (this document §C).** Obtain `hard[]`, `soft[]`.
+4. **`hard[]` non-empty → do not call AI.** Same transaction INSERT `compliance_check` (`recommendation=BLOCKED`, `aiStatus=SKIPPED`, `ruleFindings`=hard+soft, `severity` hard=`BLOCK` / soft=`REVIEW`), write back `last_check_id`. HTTP **200** + full check object. `AiGatewayClient` **zero calls**. Stop.
+5. **`hard[]` empty → then call AI.** core POSTs `/internal/v1/ad-check` via Gateway with `X-Dealer-Internal: ${INTERNAL_TOKEN:dealer-internal}`; timeout in §D.
+6. **Success (HTTP 200 and `success=true`).** INSERT check: `recommendation=PASSED`, `aiStatus=SUCCESS`, `ruleFindings`=soft (may be empty), `aiNotes`=`notes`. Write back `last_check_id`. HTTP **200**.
+7. **Failure (timeout / missing key / not 200 / `success≠true`).** **Still persist**: `recommendation=UNAVAILABLE`, `aiStatus=UNAVAILABLE`, write back `last_check_id`. Ban treating as Pass.
+8. **Public.** After step 7, HTTP **502** `AI_UNAVAILABLE`. Client GET listing then sees `checkStatus=AI_UNAVAILABLE`. If the write fails, the database wins: roll back the whole unit and check again next time.
 
 ---
 
-## C. OMVIC 可执行规则（core，先于 AI）
+## C. OMVIC executable rules (core, before AI)
 
-输入：`listing`（title, body, adKind, medium）、`vehicle` 公开字段、`dealer` 公开四字段。  
-`text = listing.title + "\n" + listing.body`。匹配一律 **CASE_INSENSITIVE**。不用 `purchaseCost` 当标价。无 APR 列：只在正文找。
+Input: `listing` (title, body, adKind, medium), `vehicle` public fields, `dealer` public four fields.  
+`text = listing.title + "\n" + listing.body`. Matching is always **CASE_INSENSITIVE**. Do not use `purchaseCost` as the advertised price. No APR column: search copy only.
 
-`hard[]` 非空 → `recommendation=BLOCKED`，`aiStatus=SKIPPED`，**不调 AI**。  
-`hard[]` 空 → 固定规则侧视为将调 AI（`NEEDS_AI`）。
+`hard[]` non-empty → `recommendation=BLOCKED`, `aiStatus=SKIPPED`, **do not call AI**.  
+`hard[]` empty → the fixed-rule side treats this as about to call AI (`NEEDS_AI`).
 
-`ruleId` 用下表标识；HTTP 元素形状见 14 §8.1。
+`ruleId` uses the identifiers below; HTTP element shape is in 14 §8.1.
 
-### C.0 共用正则与工具（可复制）
+### C.0 Shared regexes and helpers (copy-paste)
 
 ```java
 static final Pattern PRICE = Pattern.compile(
@@ -244,7 +244,7 @@ static final Pattern LEASE_DOWN = Pattern.compile(
     "down payment|due at signing|\\$\\d[\\d,]*.{0,12}down",
     Pattern.CASE_INSENSITIVE);
 
-/** 覆盖 15 未写完的 capturedKm：必须能吃 FX-09「15000 km per year」与 FX-16「20,000 km per year」。 */
+/** Overrides 15’s unfinished capturedKm: must accept FX-09 “15000 km per year” and FX-16 “20,000 km per year”. */
 static final Pattern LEASE_KM_ALLOWANCE = Pattern.compile(
     "(\\d{1,2}[, ]?\\d{3}|\\d{1,5})\\s*(?:km|kilomet(?:er|re)s?)\\s*(?:per|/)?\\s*(?:year|yr|annual)",
     Pattern.CASE_INSENSITIVE);
@@ -289,7 +289,7 @@ static boolean containsNormalized(String haystack, String needle) {
     return h.contains(n);
 }
 
-/** 15 未定义。正文出现既往用途线索。 */
+/** 15 did not define this. Copy mentions a prior-use cue. */
 static boolean mentionsPriorUseCue(String text) {
     return PRIOR_USE_CUE.matcher(text).find();
 }
@@ -298,7 +298,7 @@ static boolean mentionsPriorUseDisclosure(String text) {
     return PRIOR_USE_DISCLOSURE.matcher(text).find();
 }
 
-/** 15 未定义。取第一条年额度数字；「20,000」→ 20000。无匹配 → empty。 */
+/** 15 did not define this. Take the first annual-allowance number; “20,000” → 20000. No match → empty. */
 static OptionalInt capturedKm(String text) {
     Matcher m = LEASE_KM_ALLOWANCE.matcher(text);
     if (!m.find()) return OptionalInt.empty();
@@ -307,37 +307,37 @@ static OptionalInt capturedKm(String text) {
 }
 ```
 
-### C.1 规则表（输入 / 判定 / hard vs soft）
+### C.1 Rule table (input / decision / hard vs soft)
 
-对 `text` 跑下列规则。空草稿短路后仍可继续累加，但实现必须 **先** 空草稿 return（与 15 一致）。
+Run the following rules on `text`. After the empty-draft short-circuit you may still accumulate, but the implementation must **first** return on empty draft (same as 15).
 
-| ruleId | 输入 | 判定（写死） | 桶 |
+| ruleId | Input | Decision (pinned) | Bucket |
 |---|---|---|---|
 | `PRICE_MISSING` | `text` | `!PRICE.matcher(text).find()` | **hard** |
-| `DEALER_NAME_MISSING` | `text`, `dealer.legalName` | `!containsNormalized(text, legalName)`。「the dealership」不算店名 | **hard** |
-| `DEALER_CONTACT_MISSING` | `text`, 店三联系 | 电话：`containsNormalized(text, digits(phone))` **或** `PHONE`；邮箱：包含原文 **或** `EMAIL`；地址：包含 `contactAddress`。**三项全无** | **hard** |
-| `DEALER_CONTACT_INCOMPLETE` | 同上 | 三项未齐，但至少有一项 | **soft** |
-| `YEAR_NOT_IN_COPY` | `text`, `vehicle.modelYear` | 正文不含 `String.valueOf(modelYear)` | **soft** |
-| `YEAR_NEW_USED_CONTRADICTION` | `text`, `modelYear`, 日历年 `Y` | `BRAND_NEW` 命中 **且** `modelYear <= Y - 2`（15 未写函数：本文钉死；**soft**，交给 AI） | **soft** |
-| `CONDITION_MISMATCH` | `text`, `conditionCode` | `CERTIFIED` 命中且 `code != CERTIFIED` | **hard** |
-| `CONDITION_UNDISCLOSED` | 同上 | `code==UNFIT` 且无 `UNFIT`；或 `IRREPARABLE` 且无 `IRREP`；或 `AS_IS` 且无 `AS_IS`。空草稿也加本码 | **hard** |
-| `CERTIFIED_NOT_IN_COPY` | 同上 | `code==CERTIFIED` 且无 `CERTIFIED` 正则 | **soft** |
+| `DEALER_NAME_MISSING` | `text`, `dealer.legalName` | `!containsNormalized(text, legalName)`. “the dealership” does not count as the name | **hard** |
+| `DEALER_CONTACT_MISSING` | `text`, three dealership contacts | Phone: `containsNormalized(text, digits(phone))` **or** `PHONE`; email: contains the original **or** `EMAIL`; address: contains `contactAddress`. **All three missing** | **hard** |
+| `DEALER_CONTACT_INCOMPLETE` | Same | Not all three present, but at least one | **soft** |
+| `YEAR_NOT_IN_COPY` | `text`, `vehicle.modelYear` | Copy does not contain `String.valueOf(modelYear)` | **soft** |
+| `YEAR_NEW_USED_CONTRADICTION` | `text`, `modelYear`, calendar year `Y` | `BRAND_NEW` hits **and** `modelYear <= Y - 2` (15 did not define a function: this document pins it; **soft**, hand to AI) | **soft** |
+| `CONDITION_MISMATCH` | `text`, `conditionCode` | `CERTIFIED` hits and `code != CERTIFIED` | **hard** |
+| `CONDITION_UNDISCLOSED` | Same | `code==UNFIT` and no `UNFIT`; or `IRREPARABLE` and no `IRREP`; or `AS_IS` and no `AS_IS`. Also add this code on empty draft | **hard** |
+| `CERTIFIED_NOT_IN_COPY` | Same | `code==CERTIFIED` and no `CERTIFIED` regex | **soft** |
 | `PRIOR_USE_UNCLEAR` | `text` | `mentionsPriorUseCue(text) && !mentionsPriorUseDisclosure(text)` | **soft** |
-| `WARRANTY_CLAIM_NEEDS_REVIEW` | `text` | `WARRANTY_BOAST` 命中 | **soft** |
+| `WARRANTY_CLAIM_NEEDS_REVIEW` | `text` | `WARRANTY_BOAST` hits | **soft** |
 | `FINANCE_APR_MISSING` | `text`, `adKind==FINANCE` | `!APR.matcher(text).find()` | **hard** |
-| `FINANCE_TERM_MISSING` | 同上 | 无 `TERM_MO` | **soft** |
-| `FINANCE_APR_PROXIMITY` | `adKind==FINANCE` 且 `medium != RADIO_TV_BILLBOARD` | 无法可靠正则并列 → **每条 ONLINE FINANCE 都加**（有无 APR 都加；有 hard 仍加 soft，不改变硬拦） | **soft** |
-| `LEASE_APR_MISSING` | `adKind==LEASE` | 无 `APR` | **hard** |
-| `LEASE_STATEMENT_MISSING` | 同上 | 无 `LEASE_WORD` | **hard** |
-| `LEASE_TERM_MISSING` | 同上 | 无 `\d+\s*(month\|months\|mo)\b` | **soft** |
-| `LEASE_RENT_MISSING` | 同上 | 无 `PRICE` 且无 `LEASE_RENT` | **soft** |
-| `LEASE_DOWN_MISSING` | 同上 | 无 `LEASE_DOWN` | **soft** |
-| `LEASE_EXCESS_KM_MISSING` | 同上 | `capturedKm` 有值 **且** `km < 20000` **且** 无 `LEASE_EXCESS` | **hard** |
-| `LEASE_ALLOWANCE_UNSTATED` | 同上 | `capturedKm` 为空 | **soft** |
+| `FINANCE_TERM_MISSING` | Same | No `TERM_MO` | **soft** |
+| `FINANCE_APR_PROXIMITY` | `adKind==FINANCE` and `medium != RADIO_TV_BILLBOARD` | Cannot reliably regex “shown next to”; **add on every ONLINE FINANCE** (with or without APR; still add soft when hard exists; does not change the hard block) | **soft** |
+| `LEASE_APR_MISSING` | `adKind==LEASE` | No `APR` | **hard** |
+| `LEASE_STATEMENT_MISSING` | Same | No `LEASE_WORD` | **hard** |
+| `LEASE_TERM_MISSING` | Same | No `\d+\s*(month\|months\|mo)\b` | **soft** |
+| `LEASE_RENT_MISSING` | Same | No `PRICE` and no `LEASE_RENT` | **soft** |
+| `LEASE_DOWN_MISSING` | Same | No `LEASE_DOWN` | **soft** |
+| `LEASE_EXCESS_KM_MISSING` | Same | `capturedKm` has a value **and** `km < 20000` **and** no `LEASE_EXCESS` | **hard** |
+| `LEASE_ALLOWANCE_UNSTATED` | Same | `capturedKm` empty | **soft** |
 
-空草稿（`blank(title) && blank(body)`）**立即** hard += `PRICE_MISSING`, `DEALER_NAME_MISSING`, `CONDITION_UNDISCLOSED`，return Blocked，不调 AI。
+Empty draft (`blank(title) && blank(body)`) **immediately** hard += `PRICE_MISSING`, `DEALER_NAME_MISSING`, `CONDITION_UNDISCLOSED`, return Blocked, do not call AI.
 
-### C.2 引擎骨架（可复制）
+### C.2 Engine skeleton (copy-paste)
 
 ```java
 Result runFixedOmvic(Listing L, VehiclePublic V, DealerPublic D) {
@@ -362,7 +362,7 @@ Result runFixedOmvic(Listing L, VehiclePublic V, DealerPublic D) {
     }
 
     if (!text.contains(String.valueOf(V.modelYear))) soft.add(YEAR_NOT_IN_COPY);
-    int calendarYear = Year.now(ZoneOffset.UTC).getValue(); // 实现用 UTC 年，禁止再选时区
+    int calendarYear = Year.now(ZoneOffset.UTC).getValue(); // Implementation uses UTC year; do not pick another time zone
     if (BRAND_NEW.matcher(text).find() && V.modelYear <= calendarYear - 2)
         soft.add(YEAR_NEW_USED_CONTRADICTION);
 
@@ -404,44 +404,44 @@ Result runFixedOmvic(Listing L, VehiclePublic V, DealerPublic D) {
         }
     }
 
-    if (!hard.isEmpty()) return blocked(concat(hard, soft)); // SKIPPED, 不调 AI
+    if (!hard.isEmpty()) return blocked(concat(hard, soft)); // SKIPPED, do not call AI
     return needsAi(soft);
 }
 ```
 
-### C.3 对照 17：FX-01 / 03 / 10 / 11 / 12
+### C.3 Against 17: FX-01 / 03 / 10 / 11 / 12
 
-店公开四字段与 V-ASIS 以 17 §1 为准。用 §C 规则跑夹具正文，**必须**得到下表，禁止另发明径。
+Dealership public four fields and V-ASIS follow 17 §1. Running fixture copy through §C rules **must** produce the table below; do not invent another path.
 
-| 夹具 | hard[]（必须含） | soft[]（允许） | 调 AI？ | HTTP / 库态 |
+| Fixture | hard[] (must include) | soft[] (allowed) | Call AI? | HTTP / DB state |
 |---|---|---|---|---|
-| **FX-01** 缺价 CASH | `PRICE_MISSING` | 无要求 | **否** | **200** `BLOCKED` / `SKIPPED` |
-| **FX-03** FINANCE 无 APR | `FINANCE_APR_MISSING` | 可有 `FINANCE_APR_PROXIMITY`（ONLINE），不改变硬拦 | **否** | **200** `BLOCKED` / `SKIPPED` |
-| **FX-10** 干净 CASH | **空** | 通常空（年份已在文中） | **是** | 成功 → **200** `PASSED` / `SUCCESS` |
-| **FX-11** | 本步**不跑**引擎 | — | **否** | GET `checkStatus=STALE`；Ready/Export → **409** `CHECK_STALE` |
-| **FX-12** 正文 = FX-10 | **空**（与 FX-10 同） | 同 FX-10 | **是**（然后失败） | **502** `AI_UNAVAILABLE`；行已写 `UNAVAILABLE`；Ready → **409** `NOT_PASSED` |
+| **FX-01** missing-price CASH | `PRICE_MISSING` | no requirement | **No** | **200** `BLOCKED` / `SKIPPED` |
+| **FX-03** FINANCE no APR | `FINANCE_APR_MISSING` | may have `FINANCE_APR_PROXIMITY` (ONLINE); does not change the hard block | **No** | **200** `BLOCKED` / `SKIPPED` |
+| **FX-10** clean CASH | **empty** | usually empty (year already in copy) | **Yes** | success → **200** `PASSED` / `SUCCESS` |
+| **FX-11** | this step **does not** run the engine | — | **No** | GET `checkStatus=STALE`; Ready/Export → **409** `CHECK_STALE` |
+| **FX-12** copy = FX-10 | **empty** (same as FX-10) | same as FX-10 | **Yes** (then fail) | **502** `AI_UNAVAILABLE`; row written `UNAVAILABLE`; Ready → **409** `NOT_PASSED` |
 
-FX-11 步骤写死：FX-10 已 `PASSED` 后 PATCH 把价格改为 `$17,900`（或任意不同标价）→ `contentVersion++`，`status=DRAFT`，**不**清空 `lastCheckId` → 派生 `STALE`。不要用硬缺广告冒充 FX-12。
+FX-11 steps pinned: after FX-10 is `PASSED`, PATCH the price to `$17,900` (or any different advertised price) → `contentVersion++`, `status=DRAFT`, **do not** clear `lastCheckId` → derive `STALE`. Do not use a hard-fail ad to impersonate FX-12.
 
 ---
 
-## D. 超时（禁止再拆 15s）
+## D. Timeouts (do not split 15s another way)
 
-**connect 2s + response 13s = 总计 15s。** 两端同一套，不要「只设一个 15000」。
+**connect 2s + response 13s = 15s total.** Same set on both ends; do not “set only one 15000.”
 
-### D.1 Spring / WebClient 配置键（写死）
+### D.1 Spring / WebClient config keys (pinned)
 
-**core**（`AiGatewayClient` → Gateway）：
+**core** (`AiGatewayClient` → Gateway):
 
 ```yaml
 dealerops:
   ai:
     connect-timeout-ms: 2000
     response-timeout-ms: 13000
-    # 合计 15000；禁止改成别的拆法
+    # Sum 15000; do not change the split
 ```
 
-Java：
+Java:
 
 ```java
 HttpClient.create()
@@ -450,25 +450,25 @@ HttpClient.create()
 WebClient.builder().clientConnector(new ReactorClientHttpConnector(httpClient));
 ```
 
-**ai-service**（出站打模型；库内 `blockOptional` 无 15s 保证，必须外包一层）：
+**ai-service** (outbound to the model; in-library `blockOptional` has no 15s guarantee; wrap it):
 
 ```yaml
 dealerops:
   ai:
     connect-timeout-ms: 2000
     response-timeout-ms: 13000
-    timeout-ms: 15000   # 仅作校验：必须等于上两项之和
+    timeout-ms: 15000   # Validation only: must equal the sum of the two above
 ```
 
-超时 → 内部 **504** `AI_TIMEOUT`（§B.2）。限流队列 **默认关**。CI 不打付费端点。
+Timeout → internal **504** `AI_TIMEOUT` (§B.2). Rate-limit queue **off by default**. CI does not hit paid endpoints.
 
 ---
 
-## E. 编码 AI 禁止事项
+## E. Coding-AI bans
 
-- 不要改 13–19、BRIEF、README，不要改 `AI-CODING-BACKEND.md`（若他人在写）。
-- 不要把规则引擎搬进 ai-service；不要把 OMVIC 硬清单塞进 system prompt。
-- 不要对跨店挂车回 400/403；不要对一人两店用 200/500 替代 `DUP_MEMBER`。
-- 不要用 `VALIDATION` 表示售价 ≤ 0。
-- 不要在硬缺时调用 `/internal/v1/ad-check`。
-- 不要写业务 Java 进本仓；本文只裁定协议与规则。
+- Do not change 13–19, BRIEF, README, or `AI-CODING-BACKEND.md` (if someone else is writing it).
+- Do not move the rule engine into ai-service; do not embed the OMVIC hard checklist in the system prompt.
+- Do not return 400/403 for a cross-store link; do not use 200/500 instead of `DUP_MEMBER` for one person on two stores.
+- Do not use `VALIDATION` for sale price ≤ 0.
+- Do not call `/internal/v1/ad-check` on a hard miss.
+- Do not write business Java into this repo; this document only rules protocol and rules.

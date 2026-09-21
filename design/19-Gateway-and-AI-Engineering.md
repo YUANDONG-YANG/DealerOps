@@ -1,37 +1,37 @@
-# 19 · Gateway 与 ai-service 工程设计
+# 19 · Gateway and ai-service engineering design
 
-- 状态：**现行有效（v6 Gateway YAML 级 / ai-service 适配器级）**
-- **路由、JWT、CORS、内部头、直连失败、为何无独立 auth 仓、为何无 Service Bus：以 [15](15-Data-Auth-and-Gateway.md) 为准。** 本文不另定原则，只写成可拆文件的配置与适配器边界。
-- **ai-manager 接法以 [09](09-AI-Agent-Integration.md) 为准**（进程内嵌、`AiManager`、禁止扫 `com.gateway`、超时自做）。
-- **HTTP 路径与 JSON 以 [14](14-Backend-API-Contract.md) 为准。** 对外只有 `/api/v1/**`；内部只有 `/internal/v1/ad-check` 与 `/internal/v1/assistant`。本文不另造路径、不另造错误码、不写业务表。
-- 店内助手产品流以 [10](10-Web-AI-Assistant.md) 为准（Vue → Gateway → core 过滤 → 经 Gateway 调内部助手）。本文只写 ai-service 侧适配器。
-- 夹具如何制造「AI 不可用」以 [17](17-Ad-Check-Fixtures.md) **FX-12** 为准。
-- **不管** `dealer-core` 包结构、实体、Flyway、规则引擎实现（留给 18）。**不改** BRIEF / README / `13`–`17` / SCOPE / SQL。
+- Status: **current (v6 Gateway YAML-level / ai-service adapter-level)**
+- **Routes, JWT, CORS, internal header, direct-access failure, why no standalone auth repo, why no Service Bus: follow [15](15-Data-Auth-and-Gateway.md).** This document does not set new principles; it only writes file-splittable config and adapter boundaries.
+- **ai-manager integration follows [09](09-AI-Agent-Integration.md)** (in-process embed, `AiManager`, do not scan `com.gateway`, implement timeout yourself).
+- **HTTP paths and JSON follow [14](14-Backend-API-Contract.md).** Public surface is only `/api/v1/**`; internal surface is only `/internal/v1/ad-check` and `/internal/v1/assistant`. This document invents no extra paths, no extra error codes, and no business tables.
+- In-dealership assistant product flow follows [10](10-Web-AI-Assistant.md) (Vue → Gateway → core filter → internal assistant via Gateway). This document writes the ai-service-side adapter only.
+- How fixtures produce "AI unavailable" follows [17](17-Ad-Check-Fixtures.md) **FX-12**.
+- **Does not cover** `dealer-core` package structure, entities, Flyway, or rule-engine implementation (left to 18). **Does not change** BRIEF / README / `13`–`17` / SCOPE / SQL.
 
-编码仓：`dealer-gateway`、`ai-service`（尚未按本文拆文件时，按下列目录新建即可）。
+Coding repos: `dealer-gateway`, `ai-service` (if files are not yet split as here, create the directories below).
 
 ---
 
-## 0. 冲突顺序与本文边界
+## 0. Conflict order and this document's boundary
 
-| 问什么 | 去哪 |
+| Question | Where |
 |---|---|
-| 浏览器能否打 8081/8082、CORS 谁配、内部头叫什么、JWT claim | **15** |
-| `/api/v1/**` 与 `/internal/v1/**` 的 JSON、502 `AI_UNAVAILABLE` | **14** |
-| `AiManager` API、commit、禁止暴露的组件 Gateway | **09** |
-| 固定 OMVIC 清单伪代码 | **15 §6**（在 **core** 跑，本文不重写） |
-| 夹具正文与 FX-12 | **17** |
-| Gateway `application.yaml` 片段、JWT 过滤器挂哪、ai-service 适配器目录与超时 | **本文** |
+| Can the browser hit 8081/8082, who configures CORS, what the internal header is called, JWT claims | **15** |
+| JSON for `/api/v1/**` and `/internal/v1/**`, 502 `AI_UNAVAILABLE` | **14** |
+| `AiManager` API, commit, Gateway components that must not be exposed | **09** |
+| Fixed OMVIC checklist pseudocode | **15 §6** (runs in **core**; this document does not rewrite it) |
+| Fixture bodies and FX-12 | **17** |
+| Gateway `application.yaml` fragments, where JWT filters hang, ai-service adapter directories and timeouts | **this document** |
 
-禁止：第五个 auth 仓 / GitHub 组件独立容器；Service Bus / 向量库 / 自研模型 SDK；把 `com.gateway` 或库内 `/api/ai/**` 当对外 API；`ai-manager` 当第五微服务。
+Forbidden: a fifth auth repo / a standalone container for the GitHub component; Service Bus / a vector store / a homegrown model SDK; treating `com.gateway` or the library `/api/ai/**` as a public API; treating `ai-manager` as a fifth microservice.
 
 ---
 
 ## 1. dealer-gateway
 
-### 1.1 栈与建议目录
+### 1.1 Stack and suggested directory
 
-**Spring Cloud Gateway**，**Java 21**（与 07 / 15 §12 一致；三 Java 仓同版本，禁止 gateway 21、ai-service 17）。不连 MySQL，不调模型 SDK，不写业务。
+**Spring Cloud Gateway**, **Java 21** (matches 07 / 15 §12; the three Java repos share one version — do not mix gateway 21 and ai-service 17). No MySQL, no model SDK, no business writes.
 
 ```
 dealer-gateway/
@@ -40,28 +40,28 @@ dealer-gateway/
   src/main/java/ca/sait/dealerops/gateway/
     GatewayApplication.java
     config/
-      SecurityConfig.java          # 资源服务器：issuer/audience 见 15 §8
-      CorsConfig.java              # 或 yaml cors；只允许 web origin
+      SecurityConfig.java          # resource server: issuer/audience in 15 §8
+      CorsConfig.java              # or yaml cors; web origin only
     filter/
-      InternalRouteFilter.java     # /internal/v1/** 无 X-Dealer-Internal → 404
+      InternalRouteFilter.java     # /internal/v1/** without X-Dealer-Internal → 404
 ```
 
-包名自定，**不要**用上游库的 `com.gateway`。职责到此为止（15 §7）：路由、验用户 JWT、挡 internal、剥敏感头、转发 `/api/v1` 的 `Authorization`。
+Package name is yours; **do not** use the upstream library `com.gateway`. Responsibility ends here (15 §7): routing, user-JWT validation, blocking internal, stripping sensitive headers, forwarding `/api/v1` `Authorization`.
 
-环境变量名跟 `dealer-platform/env.example`：
+Environment variable names follow `dealer-platform/env.example`:
 
-| 变量 | 用途 |
+| Variable | Purpose |
 |---|---|
-| `GATEWAY_PORT` | 监听 **8080** |
-| `CORE_URL` | 上游 core（本地 `http://host.docker.internal:8081` 或本机 `http://127.0.0.1:8081`） |
-| `AI_URL` | 上游 ai-service（本地 `http://host.docker.internal:8082`） |
-| `ENTRA_ISSUER` / `ENTRA_AUDIENCE` | JWT 验签（15 §8） |
+| `GATEWAY_PORT` | listen **8080** |
+| `CORE_URL` | upstream core (local `http://host.docker.internal:8081` or machine `http://127.0.0.1:8081`) |
+| `AI_URL` | upstream ai-service (local `http://host.docker.internal:8082`) |
+| `ENTRA_ISSUER` / `ENTRA_AUDIENCE` | JWT signature validation (15 §8) |
 
-内部共享秘密 **`INTERNAL_TOKEN`** 已由 **15 §7 / §11** 裁定（KV 名建议 `INTERNAL-TOKEN`）。`env.example` 尚未列出该项：**不要在本文去改 env.example**；开工时本地 `.env` / KV 按 15 补，web **不读**。
+The shared internal secret **`INTERNAL_TOKEN`** is already ruled in **15 §7 / §11** (suggested KV name `INTERNAL-TOKEN`). `env.example` does not list it yet: **do not change env.example in this document**; at start, add it to local `.env` / KV per 15; web **does not read** it.
 
-### 1.2 路由表（`application.yaml` 级）
+### 1.2 Route table (`application.yaml` level)
 
-浏览器与服务间 HTTP 只进本进程。`/api/v1/**` **禁止**转发到 ai-service。
+Browser-to-service HTTP enters this process only. `/api/v1/**` **must not** be forwarded to ai-service.
 
 ```yaml
 server:
@@ -89,14 +89,14 @@ spring:
             - Path=/api/v1/**
           filters:
             - PreserveHostHeader
-            # 用户 JWT 原样转发；不要剥 Authorization
+            # forward user JWT as-is; do not strip Authorization
         - id: ai-service-internal
           uri: ${AI_URL}
           predicates:
             - Path=/internal/v1/**
             - Header=X-Dealer-Internal, ${INTERNAL_TOKEN}
           filters:
-            - RemoveRequestHeader=Authorization   # 用户 JWT 不进 ai-service（15 §7）
+            - RemoveRequestHeader=Authorization   # user JWT must not enter ai-service (15 §7)
         - id: not-found
           uri: no://op
           predicates:
@@ -105,80 +105,80 @@ spring:
             - SetStatus=404
 ```
 
-**浏览器打 `/internal/v1/**` 必须失败（15 §7，三道缺一答辩会被问穿）：**
+**Browser calls to `/internal/v1/**` must fail (15 §7; missing one of the three will be torn apart in defense):**
 
-1. Gateway 谓词：无头 `X-Dealer-Internal: <INTERNAL_TOKEN>` → **404**（不要 401，以免承认路径）。上表无头则走不进 `ai-service-internal`，落到 404。
-2. core 出站自加该头；**不要**把用户 JWT 转给 ai-service。
-3. ai-service 缺该头同样 **404**。即使直连 8082 也失败。
+1. Gateway predicate: no header `X-Dealer-Internal: <INTERNAL_TOKEN>` → **404** (do not use 401, which would acknowledge the path). Without the header the table above never enters `ai-service-internal` and falls through to 404.
+2. core outbound adds that header itself; **do not** forward the user JWT to ai-service.
+3. ai-service missing that header is also **404**. Direct 8082 still fails.
 
-`Access-Control-Allow-Headers` **不要**列出 `X-Dealer-Internal`（15 §13）。CORS **只**在 Gateway（以及对 5173 的 Vite）；core / ai-service 不配浏览器 CORS。
+`Access-Control-Allow-Headers` **must not** list `X-Dealer-Internal` (15 §13). CORS is **only** on Gateway (and Vite for 5173); core / ai-service do not configure browser CORS.
 
-Azure：只允许 web 的 HTTPS origin（替换 `localhost:5173`）。本机预检只服务 Vite。
+Azure: allow only the web HTTPS origin (replace `localhost:5173`). Local preflight serves Vite only.
 
-### 1.3 JWT（Entra → 两角色）
+### 1.3 JWT (Entra → two roles)
 
-映射写死，与 15 §8.1 同一函数，本文不改 claim 表：
+Mapping is locked, same function as 15 §8.1; this document does not change the claim table:
 
-- App Role `value`：`Platform.Admin`、`Dealer.User`
-- `iss` = `ENTRA_ISSUER`，`aud` = `ENTRA_AUDIENCE`（默认 `api://dealer-api`）
-- `roles[]` 是 RBAC 唯一来源；`scp` 不是角色；`groups` 忽略
-- `Platform.Admin` 与 `Dealer.User` 同时出现 → **Admin 赢**
-- 无法映射 → Gateway **401**，进不了 core 业务
+- App Role `value`: `Platform.Admin`, `Dealer.User`
+- `iss` = `ENTRA_ISSUER`, `aud` = `ENTRA_AUDIENCE` (default `api://dealer-api`)
+- `roles[]` is the sole RBAC source; `scp` is not a role; `groups` are ignored
+- `Platform.Admin` and `Dealer.User` both present → **Admin wins**
+- Cannot map → Gateway **401**; never reaches core business
 
-Gateway 与 core **都要**验签。Gateway 验过仍须把 **`Authorization: Bearer`** 转给 core（core 再验，防将来误开 8081）。
+Gateway and core **both** validate signatures. After Gateway validates, it must still forward **`Authorization: Bearer`** to core (core validates again in case 8081 is later opened by mistake).
 
-SPA：MSAL + PKCE，无 client secret。Gateway **不签发**令牌。
+SPA: MSAL + PKCE, no client secret. Gateway **does not issue** tokens.
 
-### 1.4 CORS 只在 Gateway
+### 1.4 CORS only on Gateway
 
-允许的 web origin（本地）：**`http://localhost:5173`**（与 `VITE_GATEWAY_URL=http://localhost:8080` 对照）。  
-允许头：`Authorization`、`Content-Type`。Cookie 不是本课方案。
+Allowed web origin (local): **`http://localhost:5173`** (paired with `VITE_GATEWAY_URL=http://localhost:8080`).  
+Allowed headers: `Authorization`, `Content-Type`. Cookies are not this course's approach.
 
-core:8081 / ai:8082：**不配**对 5173 的 ACAO。这是「直连失败」的一部分，不是可选项。
+core:8081 / ai:8082: **do not** configure ACAO for 5173. This is part of "direct access fails", not optional.
 
-### 1.5 如何证明直连 core:8081 / ai:8082 失败
+### 1.5 How to prove direct core:8081 / ai:8082 access fails
 
-与 15 §10 同一套端口（`env.example`）：web `5173`、gateway **`8080`**、core **`8081`**、ai **`8082`**。
+Same port set as 15 §10 (`env.example`): web `5173`, gateway **`8080`**, core **`8081`**, ai **`8082`**.
 
-| 演示 | 期望 |
+| Demo | Expect |
 |---|---|
-| 页面 `fetch('http://localhost:8081/api/v1/vehicles')`（带或不带 Bearer） | 浏览器拦（无 CORS）。产品入口不是 8081 |
-| 同一请求走 `http://localhost:8080/api/v1/vehicles` + Bearer | 200 或业务错（401/403/404…） |
-| 页面 `fetch('http://localhost:8082/internal/v1/ad-check')` | 无 CORS；即便用非浏览器客户端，无内部头 → **404** |
-| 页面 `fetch('http://localhost:8080/internal/v1/ad-check')`（无内部头） | Gateway **404** |
-| Azure | core / ai **internal** Ingress；对外 FQDN 只有 web + gateway |
+| Page `fetch('http://localhost:8081/api/v1/vehicles')` (with or without Bearer) | browser blocks (no CORS). Product entry is not 8081 |
+| Same request via `http://localhost:8080/api/v1/vehicles` + Bearer | 200 or a business error (401/403/404…) |
+| Page `fetch('http://localhost:8082/internal/v1/ad-check')` | no CORS; even a non-browser client without the internal header → **404** |
+| Page `fetch('http://localhost:8080/internal/v1/ad-check')` (no internal header) | Gateway **404** |
+| Azure | core / ai **internal** Ingress; public FQDNs are web + gateway only |
 
-compose 映射：Gateway 8080；core/ai 不要绑 `0.0.0.0` 给全班扫。课堂备一手：`curl` 8081 若仍通，讲「无 CORS / 无公网 / 需内网」，**不要**靠关防火墙当唯一证据。
+compose mapping: Gateway 8080; do not bind core/ai to `0.0.0.0` for the whole class to scan. Classroom backup: if `curl` 8081 still works, say "no CORS / no public net / needs intranet"; **do not** rely on turning the firewall off as the only evidence.
 
-### 1.6 答辩半页指针（Auth 域 = Entra）
+### 1.6 Half-page defense pointer (Auth domain = Entra)
 
-PPT 的 Auth 域要的是 **OAuth/OIDC + JWT + RBAC**，禁止自研认证。本课 Auth 单元 **就是 Microsoft Entra ID**（07 表），**不是**第五个 Java 仓、不是 GitHub 组件容器。
+The PPT Auth domain wants **OAuth/OIDC + JWT + RBAC** and forbids homegrown authentication. This course's Auth unit **is Microsoft Entra ID** (table 07), **not** a fifth Java repo and not a GitHub-component container.
 
-课堂收束（细节与「为何无 Service Bus」整段在 **15 §8.2 / §9**，此处不重复）：
+Classroom wrap (full "why no Service Bus" section is in **15 §8.2 / §9**; do not repeat it here):
 
-- 身份在 Entra；应用侧只有验票（Gateway + core）与绑店（core `membership`）
-- Gateway 不发牌；管理员「发账号」= 绑 `entra_oid` → `dealer_id`
-- 再写 `dealer-auth` 会撞密码表 / 第五流水线 / 第五 Container App
+- Identity lives in Entra; the application side only validates tickets (Gateway + core) and binds dealerships (core `membership`)
+- Gateway does not issue tokens; admin "issuing an account" = bind `entra_oid` → `dealer_id`
+- Writing `dealer-auth` would hit a password table / fifth pipeline / fifth Container App
 
 ---
 
 ## 2. ai-service
 
-### 2.1 定位
+### 2.1 Position
 
-Java 21 Spring Boot，**无数据库**，无 Flyway，无业务表。进程内依赖 GitHub 私有库 **ai-manager** JAR，**不**给组件单独容器（07 / 09）。
+Java 21 Spring Boot, **no database**, no Flyway, no business tables. In-process dependency on the private GitHub **ai-manager** JAR; **do not** give the component its own container (07 / 09).
 
-钉死（09，只计划、不改该库源码）：
+Locked (09; plan only, do not change that repo's source):
 
-- 仓库：`https://github.com/YUANDONG-YANG/ai-manager`（private）
-- 分支 `main`，commit **`c07e1f2afe5dd692c20f3567ad3a42a90d31a87a`**
-- Maven 坐标现状：`com.aimanager:aimanager:1.0.0-SNAPSHOT`（SNAPSHOT 不适合发布号，见 §2.8）
-- 只用 `com.manager.AiManager`：`request(String)`、`startConversation(id, systemMessage)`、`closeConversation`
-- **不要**扫描 `com.gateway`，**不要**启动 `AIApplication`，**不要**暴露库内 `/api/ai/request`、`/chat`、`/credentials`、`/runtime`
+- Repo: `https://github.com/YUANDONG-YANG/ai-manager` (private)
+- Branch `main`, commit **`c07e1f2afe5dd692c20f3567ad3a42a90d31a87a`**
+- Current Maven coordinates: `com.aimanager:aimanager:1.0.0-SNAPSHOT` (SNAPSHOT is not a release number; see §2.8)
+- Use only `com.manager.AiManager`: `request(String)`, `startConversation(id, systemMessage)`, `closeConversation`
+- **Do not** scan `com.gateway`, **do not** start `AIApplication`, **do not** expose library `/api/ai/request`, `/chat`, `/credentials`, `/runtime`
 
-Key **只**给 ai-service：`AIMANAGER_API_KEY`（环境 / Key Vault）。web / gateway / core 不读。
+The key goes to ai-service **only**: `AIMANAGER_API_KEY` (env / Key Vault). web / gateway / core do not read it.
 
-### 2.2 建议目录（适配器级，不是规则引擎）
+### 2.2 Suggested directory (adapter level, not a rule engine)
 
 ```
 ai-service/
@@ -187,30 +187,30 @@ ai-service/
   src/main/java/ca/sait/dealerops/aiservice/
     AiServiceApplication.java
     config/
-      InternalGuardFilter.java     # 缺 X-Dealer-Internal → 404
-      AiTimeoutConfig.java         # connect/response 总计 ≤15s（09：库无现成超时）
+      InternalGuardFilter.java     # missing X-Dealer-Internal → 404
+      AiTimeoutConfig.java         # connect/response total ≤15s (09: library has no ready timeout)
     adapter/adcheck/
       AdCheckController.java       # POST /internal/v1/ad-check
       AdCheckAdapter.java          # startConversation + finally closeConversation
     adapter/assistant/
       AssistantController.java     # POST /internal/v1/assistant
-      AssistantAdapter.java        # 短会话；只吃 core 已过滤的 resources
+      AssistantAdapter.java        # short conversation; consumes only core-filtered resources
     support/
-      AiManagerFactory.java        # 读 AIMANAGER_* ；限流队列默认关
-      ModelFailureException.java   # 超时 / 缺 Key / 厂商失败 → 给 core 映射 502
+      AiManagerFactory.java        # read AIMANAGER_* ; rate-limit queue off by default
+      ModelFailureException.java   # timeout / missing Key / vendor failure → core maps 502
 ```
 
-监听 **`AI_PORT=8082`**。不配浏览器 CORS。
+Listen **`AI_PORT=8082`**. Do not configure browser CORS.
 
-### 2.3 超时必须自做（09）
+### 2.3 Timeout must be implemented here (09)
 
-库内 OpenAI 路径是 `WebClient...blockOptional()`，**没有现成的 15 秒保证**。适配器必须自己设 **connect + response**，整次模型调用 **≤15s**（与 07 / 14「等最多 15 秒」一致）。
+The library OpenAI path is `WebClient...blockOptional()` and **has no ready 15-second guarantee**. The adapter must set **connect + response** itself so the whole model call is **≤15s** (matches 07 / 14 "wait at most 15 seconds").
 
-- 超时、连接失败、非 success → 适配器失败，**不要**假装 Pass
-- 限流队列 **默认关掉**，避免和课程 15s 叠在一起（09）
-- CI 用 stub，**不打付费端点**；Sprint 2 必须对该库发一次真实请求（09）
+- Timeout, connection failure, non-success → adapter failure; **do not** pretend Pass
+- Rate-limit queue **off by default**, so it does not stack with the course 15s (09)
+- CI uses a stub and **does not hit paid endpoints**; Sprint 2 must send one real request to this library (09)
 
-`application.yaml` 级示意（数值钉 15s，实现可用 WebClient/HttpClient 包一层，不要改 ai-manager 源码）：
+`application.yaml`-level sketch (pin 15s; wrap WebClient/HttpClient in the implementation; do not change ai-manager source):
 
 ```yaml
 server:
@@ -221,112 +221,112 @@ dealerops:
     require-internal-header: true
 ```
 
-### 2.4 内部 API（路径只引用 14 §11）
+### 2.4 Internal APIs (paths cite 14 §11 only)
 
-Gateway → ai-service。core 调用，**浏览器 404**。
+Gateway → ai-service. core calls; **browser 404**.
 
 #### `POST /internal/v1/ad-check`
 
-请求体形状 **原样引用 14 §11**：`listing`（title/body/adKind/medium）、`vehiclePublic`（年/make/model/vin/conditionCode/source，**无**采购/修理/售价）、`dealerPublic`（店公开四字段）。
+Request-body shape **cites 14 §11 as-is**: `listing` (title/body/adKind/medium), `vehiclePublic` (year/make/model/vin/conditionCode/source, **no** purchase/repair/sold price), `dealerPublic` (dealership public four fields).
 
-适配器：
+Adapter:
 
-1. `startConversation`：system = 复核说明（不是 15 的硬规则引擎；硬规则已在 core 跑完）
-2. user = 上述 JSON
-3. 先看 `AIResponse.isSuccess()`，再解析 content
+1. `startConversation`: system = review instructions (not the 15 hard rule engine; hard rules already ran in core)
+2. user = the JSON above
+3. check `AIResponse.isSuccess()` first, then parse content
 4. `finally` `closeConversation`
-5. 把模型结果收成 **供 core 写入 `aiNotes` 的笔记**（14：元素至少 `{ "message": "..." }`）。**不**在本服务落 `compliance_check`
+5. Fold model output into **notes for core to write as `aiNotes`** (14: elements at least `{ "message": "..." }`). **Do not** persist `compliance_check` in this service
 
-传输 / 超时 / 缺 Key：返回 **5xx 或约定失败体**（实现选一种钉死即可），由 **core** 记 `UNAVAILABLE` 并对外 **502 `AI_UNAVAILABLE`**（14 §8.2）。ai-service **不要自己写业务表、不要自己对浏览器回五态**。
+Transport / timeout / missing Key: return **5xx or an agreed failure body** (pick one and lock it); **core** records `UNAVAILABLE` and returns **502 `AI_UNAVAILABLE`** to the outside (14 §8.2). ai-service **must not write business tables or return five states to the browser itself**.
 
 #### `POST /internal/v1/assistant`
 
-请求体形状 **原样引用 14 §11**：`question` + `resources`（core 已过滤；无电话/邮箱/住址）。
+Request-body shape **cites 14 §11 as-is**: `question` + `resources` (already filtered by core; no phone/email/address).
 
-适配器同样新建短会话；返回 **短文本**（14：「返回短文本；core 再核 id」）。core 负责：最多 5 张卡、丢掉乱编 id、模型挂则对外仍 **200** 且 `summaryAvailable=false`（14 §10 / 10 号文档）。ai-service 失败时给 core 可识别的失败，**不要**在此写车辆/客户/listing。
+The adapter likewise starts a short conversation and returns **short text** (14: "return short text; core re-checks ids"). core owns: at most 5 cards, drop invented ids, model down still **200** outside with `summaryAvailable=false` (14 §10 / document 10). When ai-service fails, give core a recognizable failure; **do not** write vehicles/customers/listings here.
 
-不要另造 `/internal/v1/chat`、`/api/ai/**`、库自带 Gateway 路径。
+Do not invent `/internal/v1/chat`, `/api/ai/**`, or the library's own Gateway paths.
 
-### 2.5 与 core 的边界（避免和 18 抢规则引擎）
+### 2.5 Boundary with core (do not steal the 18 rule engine)
 
-| 步骤 | 谁 | 本文是否实现 |
+| Step | Who | Implemented in this document? |
 |---|---|---|
-| JWT、租户、`listing.version`、本店校验 | **core** | 否 |
-| **固定 OMVIC 清单**（15 §6 伪代码：`hard[]` / `soft[]`） | **core，先于任何模型调用** | **否。禁止把规则引擎搬进 ai-service** |
-| `hard[]` 非空 → `BLOCKED` + `aiStatus=SKIPPED`，**不 HTTP 调 AI** | **core** | 否 |
-| `hard[]` 空 → 经 Gateway `POST /internal/v1/ad-check`（≤15s） | core 出站 + **本服务适配器** | 只做模型调用 |
-| 写 `compliance_check` / 回写 `last_check_id` / 对外 200 或 502 | **core** | 否 |
-| 助手：检索最多 5 条、过滤隐私、核 id、不写业务表 | **core**（10 / 14） | 否 |
-| 模型会话 + 15s 超时 + Key | **ai-service** | 是 |
+| JWT, tenant, `listing.version`, this-dealership validation | **core** | No |
+| **Fixed OMVIC checklist** (15 §6 pseudocode: `hard[]` / `soft[]`) | **core, before any model call** | **No. Do not move the rule engine into ai-service** |
+| `hard[]` not empty → `BLOCKED` + `aiStatus=SKIPPED`, **no HTTP AI call** | **core** | No |
+| `hard[]` empty → Gateway `POST /internal/v1/ad-check` (≤15s) | core outbound + **this service's adapter** | model call only |
+| Write `compliance_check` / write back `last_check_id` / outside 200 or 502 | **core** | No |
+| Assistant: retrieve at most 5, filter privacy, check ids, do not write business tables | **core** (10 / 14) | No |
+| Model conversation + 15s timeout + Key | **ai-service** | Yes |
 
-ai-service **假设**打进来的 ad-check 已经过固定规则。它不重判 `PRICE_MISSING` 等硬缺，不决定页面五态。若误把 FX-01 类硬缺广告直接打到 8082，仍只是「又跑了一次模型」，**不能**代替 core 的 Blocked=200。
+ai-service **assumes** an incoming ad-check already passed fixed rules. It does not re-judge `PRICE_MISSING` and similar hard misses, and it does not decide page five states. If an FX-01-class hard-miss ad is sent to 8082 by mistake, that is only "the model ran again" and **cannot** replace core's Blocked=200.
 
-### 2.6 模型与环境变量（跟 `env.example`）
+### 2.6 Model and environment variables (follow `env.example`)
 
-PPT：真实 AI，**Azure OpenAI 优先**。不自研 SDK；厂商走库已有能力（09：groq / openai / claude / deepseek；**没有** `provider=mock`）。
+PPT: real AI, **Azure OpenAI preferred**. No homegrown SDK; vendors use capabilities already in the library (09: groq / openai / claude / deepseek; **no** `provider=mock`).
 
-| `env.example` 名 | ai-service 用法 |
+| `env.example` name | ai-service use |
 |---|---|
 | `AI_PORT` | 8082 |
-| `AIMANAGER_API_KEY` | 唯一模型密钥；空则启动后首次调用必须失败（见下） |
-| `AIMANAGER_GATEWAY_PROVIDER` | 默认示例为 `openai`；课上优先指到 **Azure OpenAI 兼容的 openai 路径**（或库已支持的 Azure 托管端点，07） |
-| `AIMANAGER_GATEWAY_MODEL` | 部署名 / 模型名；空则按库默认，联调必须显式填 |
+| `AIMANAGER_API_KEY` | sole model key; empty must fail on first call after start (see below) |
+| `AIMANAGER_GATEWAY_PROVIDER` | default example `openai`; in class prefer the **Azure OpenAI-compatible openai path** (or an Azure-hosted endpoint the library already supports, 07) |
+| `AIMANAGER_GATEWAY_MODEL` | deployment / model name; empty uses the library default, but pairing must set it explicitly |
 
-不要引入 `OPENAI_API_KEY`、向量连接串、第二套模型客户端。轮换 Key = 只改 KV / `.env`，不改镜像（15 §13）。
+Do not introduce `OPENAI_API_KEY`, a vector connection string, or a second model client. Rotating a key = change KV / `.env` only, not the image (15 §13).
 
-### 2.7 失败如何让 core 映射 `AI_UNAVAILABLE` 502
+### 2.7 How failure lets core map `AI_UNAVAILABLE` 502
 
-ai-service **不**发明 `AI_UNAVAILABLE` 业务表。它只保证失败可观测：
+ai-service **does not** invent an `AI_UNAVAILABLE` business table. It only makes failure observable:
 
-| 原因 | 适配器 | core（14，本文不实现） |
+| Cause | Adapter | core (14; not implemented here) |
 |---|---|---|
-| 超过 15s | 中断，5xx / 超时错误 | 检查行已写 `UNAVAILABLE`，对外 **502** `AI_UNAVAILABLE` |
-| `AIMANAGER_API_KEY` 缺失或无效 | 立即失败，不要挂起满 15s | 同上 |
-| `isSuccess()==false` / 解析失败 | 失败 | 同上 |
-| 助手模型挂 | 失败 | 对外仍 **200** + `summaryAvailable=false`（与检查 502 **不同**） |
+| Over 15s | abort, 5xx / timeout error | check row already written `UNAVAILABLE`, outside **502** `AI_UNAVAILABLE` |
+| `AIMANAGER_API_KEY` missing or invalid | fail immediately; do not hang the full 15s | same as above |
+| `isSuccess()==false` / parse failure | fail | same as above |
+| Assistant model down | fail | outside still **200** + `summaryAvailable=false` (**different** from check 502) |
 
-禁止：ai-service 返回「假 Passed」；把超时当 200 空 notes。
+Forbidden: ai-service returning a "fake Passed"; treating timeout as 200 empty notes.
 
-### 2.8 私有包 / 不可变版本（只计划）
+### 2.8 Private package / immutable version (plan only)
 
-实施时（**不改本文之外的代码、不改 ai-manager 源码**）：
+At implementation time (**do not change code outside this document, do not change ai-manager source**):
 
-1. 从 commit `c07e1f2afe5dd692c20f3567ad3a42a90d31a87a` 打 **非 SNAPSHOT** 不可变版本
-2. 发布到 GitHub Packages `https://maven.pkg.github.com/YUANDONG-YANG/ai-manager`
-3. `ai-service` 只引用该不可变版本
-4. 打版本前本机 `mvn install` 仅供开发
-5. CI stub，不打付费端点
-6. 21 运行时可以依赖 **17 字节码** JAR（15 §12）；不要把三仓降到 17 除非本机全退
+1. From commit `c07e1f2afe5dd692c20f3567ad3a42a90d31a87a` cut a **non-SNAPSHOT** immutable version
+2. Publish to GitHub Packages `https://maven.pkg.github.com/YUANDONG-YANG/ai-manager`
+3. `ai-service` references that immutable version only
+4. Local `mvn install` before that version exists is for development only
+5. CI stub; do not hit paid endpoints
+6. A 21 runtime can depend on a **17 bytecode** JAR (15 §12); do not drop the three repos to 17 unless the whole machine falls back
 
-库 README 测试未维护（09）：**不能**把该库本身当质量证明。夹具标签是 team-authored（17）。
-
----
-
-## 3. FX-12：联调如何制造「AI 不可用」
-
-夹具权威在 **17**：FX-12 的 title/body **与 FX-10 相同**（干净 CASH / ONLINE，`hard[]` 空），**不要**用缺价等硬缺广告冒充本条（硬缺根本不调 AI）。
-
-联调任选其一（适配器 ≤15s）：
-
-1. **断 Key：** 清空或错填 `AIMANAGER_API_KEY` 后重启 ai-service
-2. **超时：** 把超时调到极短，或让厂商端不可达，迫使适配器在 15s 内失败
-3. **CI stub：** stub 固定失败（不打付费端点）
-
-期望链（14 + 17，core 落库，ai-service 只失败）：
-
-- 固定规则 **Needs AI** → 经 Gateway 内部 ad-check
-- 调用失败 → 对外 **502** `AI_UNAVAILABLE`
-- `compliance_check` **已写** `recommendation=UNAVAILABLE`；listing 已指向该行
-- GET：`checkStatus=AI_UNAVAILABLE`；UI **不得**当 Pass；Ready/Export → **409** `NOT_PASSED`
-
-课堂顺序（17）：FX-01 → FX-03 → FX-10（真 AI）→ 导出 → FX-11 Stale → 可选 FX-12 断 AI。
+Library README tests are unmaintained (09): **cannot** treat that library itself as quality proof. Fixture labels are team-authored (17).
 
 ---
 
-## 4. 开工拆文件清单（仍无业务代码）
+## 3. FX-12: how pairing produces "AI unavailable"
 
-**gateway：** `pom`（Java 21 + Spring Cloud Gateway + 资源服务器）→ `application.yaml`（§1.2）→ JWT 配置（issuer/audience）→ 内部头 404 → CORS 仅 5173。
+Fixture authority is **17**: FX-12 title/body are **the same as FX-10** (clean CASH / ONLINE, `hard[]` empty). **Do not** impersonate this fixture with a missing-price or other hard-miss ad (hard miss never calls AI).
 
-**ai-service：** `pom`（Java 21 + 依赖不可变/本地 ai-manager JAR）→ 内部头 404 → `AdCheckAdapter` / `AssistantAdapter` + 15s 超时 → 两个 14 号路径的 Controller → 缺 Key/超时向上游失败。
+Pick one pairing method (adapter ≤15s):
 
-**不要在本仓做：** core 包、规则引擎、SQL、第五容器、Service Bus、暴露 `com.gateway`。
+1. **Break the Key:** empty or wrong `AIMANAGER_API_KEY`, then restart ai-service
+2. **Timeout:** set timeout extremely short, or make the vendor unreachable, so the adapter fails inside 15s
+3. **CI stub:** stub always fails (does not hit paid endpoints)
+
+Expected chain (14 + 17; core persists, ai-service only fails):
+
+- Fixed rules **Needs AI** → Gateway internal ad-check
+- Call fails → outside **502** `AI_UNAVAILABLE`
+- `compliance_check` **already written** `recommendation=UNAVAILABLE`; listing already points at that row
+- GET: `checkStatus=AI_UNAVAILABLE`; UI **must not** treat as Pass; Ready/Export → **409** `NOT_PASSED`
+
+Classroom order (17): FX-01 → FX-03 → FX-10 (real AI) → export → FX-11 Stale → optional FX-12 cut AI.
+
+---
+
+## 4. Start file-split checklist (still no business code)
+
+**gateway:** `pom` (Java 21 + Spring Cloud Gateway + resource server) → `application.yaml` (§1.2) → JWT config (issuer/audience) → internal-header 404 → CORS for 5173 only.
+
+**ai-service:** `pom` (Java 21 + immutable/local ai-manager JAR) → internal-header 404 → `AdCheckAdapter` / `AssistantAdapter` + 15s timeout → Controllers for the two 14 paths → missing Key/timeout fail upstream.
+
+**Do not do in these repos:** core packages, rule engine, SQL, a fifth container, Service Bus, exposing `com.gateway`.
