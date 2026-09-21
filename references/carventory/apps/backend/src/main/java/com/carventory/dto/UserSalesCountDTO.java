@@ -1,0 +1,12 @@
+package com.carventory.dto;
+
+import lombok.AllArgsConstructor;
+import lombok.Data;
+
+@Data
+@AllArgsConstructor
+public class UserSalesCountDTO {
+    private Long userId;
+    private String ownerName;
+    private Long carsSold;
+}

@@ -1,0 +1,17 @@
+# Maven / Java build output
+**/target/
+
+# Local secrets (keep *.example)
+.env
+.env.local
+.env.*.local
+*.pem
+*.p12
+*.jks
+
+# OS / editor junk
+.DS_Store
+Thumbs.db
+*.log
+.idea/
+*.iml

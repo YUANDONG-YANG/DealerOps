@@ -1,0 +1,1897 @@
+openapi: 3.0.3
+info:
+  title: DealerOps Gateway API
+  version: "6.0"
+  description: |
+    现行 HTTP JSON 以 `design/14-Backend-API-Contract.md` 为准。本文件供编码 AI 生成 Controller / 客户端。
+
+    **入口：** 浏览器与对外客户端只打 Gateway `http://localhost:8080`，前缀 `/api/v1/**`。
+    core=8081、ai-service=8082 不对外。绕过 Gateway 必须失败。
+
+    **内部：** tag `Internal` 且 `x-internal: true` 的 `/internal/v1/**` 仅 core 经 Gateway 调 ai-service。
+    浏览器不可达：Gateway 对缺内部头的请求返回 **404**（不 401，以免承认路径）。
+
+    **租户 / 鉴权（与 15 对齐的行为，字段仍只来自 14）：**
+    - 角色仅 `Platform.Admin`、`Dealer.User`。忽略 body / query / header 里的客户端 `dealerId`。
+    - 店员租户只来自 JWT `oid` → `membership.active=1` 恰好一行。
+    - 跨店 / 本店无此 id → **404** `NOT_FOUND`（防探测，不 403）。
+    - Admin 打业务 URL、店员打 Admin URL、店员无有效 membership 调业务接口 → **403** `FORBIDDEN`。
+    - `GET /me` 在已登录但无店时仍 **200**（`dealerId=null`）。
+    - 带 `version` 的写必须等于当前行，否则 **409** `VERSION_CONFLICT`。
+    - 解绑 `DELETE .../vehicles/{vehicleId}` → **204**。已售不可解绑 → **409** `SOLD_LOCKED`。
+    - 广告检查 Blocked / Needs AI / Passed → **200**（Blocked 不是 HTTP 错误）。规则过了但 AI 失败 → **502** `AI_UNAVAILABLE`（检查行已写）。
+
+    细节冲突仍以 14 为准。不发明 14 没有的业务字段。
+  x-conflict-authority: design/14-Backend-API-Contract.md
+
+servers:
+  - url: http://localhost:8080
+    description: 只经 Gateway。对外唯一 API 源。
+
+tags:
+  - name: Me
+    description: 当前登录身份
+  - name: AdminDealers
+    description: Platform.Admin 店 CRUD
+  - name: AdminMemberships
+    description: Platform.Admin 店员绑定
+  - name: Vehicles
+    description: Dealer.User 车辆 DMS
+  - name: Customers
+    description: Dealer.User 客户 CRM
+  - name: Link
+    description: 挂车 / 解绑
+  - name: Listings
+    description: 一车一条广告草稿
+  - name: Checks
+    description: 合规检查、Ready、Export
+  - name: Audit
+    description: 本店审计查询
+  - name: Assistant
+    description: 店员助手（不写业务表）
+  - name: Internal
+    description: |
+      Gateway → ai-service。浏览器不可达（404）。
+      仅 core 适配器使用。不要为 SPA 生成这些客户端方法当作用户 API。
+
+security:
+  - bearerAuth: []
+
+paths:
+  /api/v1/me:
+    get:
+      tags: [Me]
+      operationId: getMe
+      summary: 当前用户
+      description: 已登录即可。Admin 的 `dealerId`、`dealerLegalName` 为 null。无有效 membership 的店员仍 200 且 `dealerId=null`。
+      responses:
+        "200":
+          description: 身份
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Me"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/v1/admin/dealers:
+    get:
+      tags: [AdminDealers]
+      operationId: listDealers
+      summary: 店列表
+      parameters:
+        - $ref: "#/components/parameters/QLegalName"
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/Size"
+      responses:
+        "200":
+          description: 分页店
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PageDealer"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+    post:
+      tags: [AdminDealers]
+      operationId: createDealer
+      summary: 创建店
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DealerCreate"
+      responses:
+        "201":
+          description: 已创建
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Dealer"
+        "400":
+          $ref: "#/components/responses/Validation"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /api/v1/admin/dealers/{id}:
+    parameters:
+      - $ref: "#/components/parameters/DealerId"
+    get:
+      tags: [AdminDealers]
+      operationId: getDealer
+      summary: 单店（Admin 编辑回填）
+      responses:
+        "200":
+          description: 店
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Dealer"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    patch:
+      tags: [AdminDealers]
+      operationId: patchDealer
+      summary: 改四联系字段与 active
+      description: 必须带 `version`。忽略 body.`id`。无 `DELETE /admin/dealers/{id}`。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DealerPatch"
+      responses:
+        "200":
+          description: 更新后的店
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Dealer"
+        "400":
+          $ref: "#/components/responses/Validation"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/VersionConflict"
+
+  /api/v1/admin/dealers/{id}/members:
+    parameters:
+      - $ref: "#/components/parameters/DealerId"
+    get:
+      tags: [AdminMemberships]
+      operationId: listMembers
+      summary: 店成员
+      description: 店不存在 → 404。`q` 匹配 `displayName` 或 `entraOid`。不编造 email。
+      parameters:
+        - $ref: "#/components/parameters/QDisplayOrOid"
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/Size"
+      responses:
+        "200":
+          description: 分页成员
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PageMember"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    post:
+      tags: [AdminMemberships]
+      operationId: bindMember
+      summary: 绑定店员
+      description: |
+        已是该店 **active** 成员 → **409** `DUP_MEMBER`。
+        再绑定已解绑对象按重激活，不 409。不删 Entra 账号。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MemberBind"
+      responses:
+        "201":
+          description: 成员项
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Member"
+        "400":
+          $ref: "#/components/responses/Validation"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: DUP_MEMBER
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                code: DUP_MEMBER
+                message: Already an active member of this dealership.
+
+  /api/v1/admin/dealers/{id}/members/{entraOid}:
+    delete:
+      tags: [AdminMemberships]
+      operationId: unbindMember
+      summary: 解绑店员
+      description: 解绑，不删 Entra。无此绑定 → 404。成功 **204** 无 body。
+      parameters:
+        - $ref: "#/components/parameters/DealerId"
+        - $ref: "#/components/parameters/EntraOid"
+      responses:
+        "204":
+          description: 已解绑，无 body
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/v1/vehicles:
+    get:
+      tags: [Vehicles]
+      operationId: listVehicles
+      summary: 本店车辆
+      description: 默认 `createdAt` 倒序。Admin → 403。无有效 membership → 403。
+      parameters:
+        - name: q
+          in: query
+          schema:
+            type: string
+          description: VIN / make / model
+        - name: status
+          in: query
+          schema:
+            $ref: "#/components/schemas/VehicleStatus"
+        - name: condition
+          in: query
+          schema:
+            $ref: "#/components/schemas/ConditionCode"
+          description: 即 `conditionCode`
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/Size"
+      responses:
+        "200":
+          description: 分页车辆
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PageVehicle"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+    post:
+      tags: [Vehicles]
+      operationId: createVehicle
+      summary: 入库
+      description: |
+        必填：make/model/modelYear/vin/source/purchaseCost/addedOn/conditionCode。
+        忽略 `dealerId`、`status`、`soldOn`、`soldPrice`。服务端 `status=IN_STOCK`。
+        本店 VIN 重复 → **400** `VIN_DUP`。审计 `VEHICLE`/`CREATE`。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VehicleCreate"
+      responses:
+        "201":
+          description: 详情
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Vehicle"
+        "400":
+          description: VALIDATION 或 VIN_DUP
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              examples:
+                validation:
+                  value:
+                    code: VALIDATION
+                    message: Request is invalid.
+                vinDup:
+                  value:
+                    code: VIN_DUP
+                    message: VIN already exists in this dealership.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /api/v1/vehicles/{id}:
+    parameters:
+      - $ref: "#/components/parameters/VehicleId"
+    get:
+      tags: [Vehicles]
+      operationId: getVehicle
+      summary: 车辆详情
+      description: 跨店/无此车 → **404**。
+      responses:
+        "200":
+          description: 同列表项
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Vehicle"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    patch:
+      tags: [Vehicles]
+      operationId: patchVehicle
+      summary: 改采购/身份白名单
+      description: |
+        禁止用 PATCH 改 `status` / `soldOn` / `soldPrice`（走 `/sell`）。忽略 `dealerId`。
+        已售改采购字段 → **409** `SOLD_LOCKED`。未售改 VIN 仍受本店唯一 → **400** `VIN_DUP`。
+        改 `conditionCode` 使对应 listing `contentVersion++`（若已有 listing）。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VehiclePatch"
+      responses:
+        "200":
+          description: 详情
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Vehicle"
+        "400":
+          description: VALIDATION 或 VIN_DUP
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: VERSION_CONFLICT 或 SOLD_LOCKED
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              examples:
+                soldLocked:
+                  value:
+                    code: SOLD_LOCKED
+                    message: Sold vehicles cannot change purchase identity fields.
+                version:
+                  value:
+                    code: VERSION_CONFLICT
+                    message: version does not match.
+
+  /api/v1/vehicles/{id}/sell:
+    post:
+      tags: [Vehicles]
+      operationId: sellVehicle
+      summary: 成对出售
+      description: |
+        `soldOn` 与 `soldPrice` 必须同时有。服务端 `status=SOLD`。
+        缺一 → **400** `SOLD_PAIR_REQUIRED`。已售再售 → **409** `SOLD_LOCKED`。
+      parameters:
+        - $ref: "#/components/parameters/VehicleId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VehicleSell"
+      responses:
+        "200":
+          description: 详情
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Vehicle"
+        "400":
+          description: SOLD_PAIR_REQUIRED
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                code: SOLD_PAIR_REQUIRED
+                message: soldOn and soldPrice are both required.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: SOLD_LOCKED 或 VERSION_CONFLICT
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/v1/customers:
+    get:
+      tags: [Customers]
+      operationId: listCustomers
+      summary: 本店客户
+      parameters:
+        - name: q
+          in: query
+          schema:
+            type: string
+          description: name / email / phone
+        - name: linked
+          in: query
+          schema:
+            type: boolean
+          description: 是否至少挂一辆
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/Size"
+      responses:
+        "200":
+          description: 分页客户（列表用 linkedVehicle）
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PageCustomerListItem"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+    post:
+      tags: [Customers]
+      operationId: createCustomer
+      summary: 建客户
+      description: 忽略 `dealerId`。响应=详情（`linkedVehicles: []`）。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CustomerWrite"
+      responses:
+        "201":
+          description: 详情
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Customer"
+        "400":
+          $ref: "#/components/responses/Validation"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /api/v1/customers/{id}:
+    parameters:
+      - $ref: "#/components/parameters/CustomerId"
+    get:
+      tags: [Customers]
+      operationId: getCustomer
+      summary: 客户详情
+      description: 跨店 **404**。`linkedVehicles` 为完整数组。
+      responses:
+        "200":
+          description: 详情
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Customer"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    patch:
+      tags: [Customers]
+      operationId: patchCustomer
+      summary: 改客户四字段
+      description: 忽略 `dealerId`。审计 `fieldSummary` 不得含电话/邮箱/住址全文。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CustomerPatch"
+      responses:
+        "200":
+          description: 详情
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Customer"
+        "400":
+          $ref: "#/components/responses/Validation"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/VersionConflict"
+
+  /api/v1/customers/{id}/vehicles/{vehicleId}:
+    put:
+      tags: [Link]
+      operationId: linkCustomerVehicle
+      summary: 挂车
+      description: |
+        无 body（或忽略 body）。客户与车同店、车 `IN_STOCK`、车尚未挂任何客户。
+        已售不可新挂 → **400** `WRONG_DEALER_OR_SOLD`。跨店 id → **404**（不走该码）。
+        该车已挂（含已挂本客户）→ **409** `VEHICLE_ALREADY_LINKED`。
+      parameters:
+        - $ref: "#/components/parameters/CustomerId"
+        - $ref: "#/components/parameters/VehicleIdPath"
+      responses:
+        "200":
+          description: 关联行
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CustomerVehicleLink"
+        "400":
+          description: WRONG_DEALER_OR_SOLD（已售不可新挂，或看得见的车/客店不一致）
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                code: WRONG_DEALER_OR_SOLD
+                message: Vehicle is sold or not in this dealership.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: VEHICLE_ALREADY_LINKED
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                code: VEHICLE_ALREADY_LINKED
+                message: Vehicle is already linked to a customer.
+    delete:
+      tags: [Link]
+      operationId: unlinkCustomerVehicle
+      summary: 解绑
+      description: |
+        摘掉该客户与该车的关联。不改车辆 `status`。成功 **204** 无 body。
+        车 `status=SOLD` → **409** `SOLD_LOCKED`（成交记录不得抹掉）。
+        无此关联或跨店 → **404**（不 403）。
+      parameters:
+        - $ref: "#/components/parameters/CustomerId"
+        - $ref: "#/components/parameters/VehicleIdPath"
+      responses:
+        "204":
+          description: 已解绑，无 body
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: SOLD_LOCKED（已售不可解挂）
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                code: SOLD_LOCKED
+                message: Sold vehicles cannot be unlinked.
+
+  /api/v1/vehicles/{id}/listing:
+    parameters:
+      - $ref: "#/components/parameters/VehicleId"
+    get:
+      tags: [Listings]
+      operationId: getVehicleListing
+      summary: 取广告草稿
+      description: |
+        无行：**不插入、不落库**，返回虚拟空草稿（`id=null`，`title`/`body`=`""`）。
+        车跨店 **404**。`lastCheck` 为最近检查完整对象或 null。
+      responses:
+        "200":
+          description: listing（虚拟或已持久化）
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Listing"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    patch:
+      tags: [Listings]
+      operationId: patchVehicleListing
+      summary: 存广告草稿
+      description: |
+        无行则 INSERT。升 `contentVersion`，`status` 回到 `DRAFT`。
+        缺省或空白的 `title`/`body` 写入 `''`（满足 NOT NULL）。
+        首次可省略 `version` 或传 `0`；之后必须带当前 `version`。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ListingPatch"
+      responses:
+        "200":
+          description: 已持久化的 listing
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Listing"
+        "400":
+          $ref: "#/components/responses/Validation"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/VersionConflict"
+
+  /api/v1/listings/{id}/checks:
+    post:
+      tags: [Checks]
+      operationId: runListingCheck
+      summary: 跑合规检查
+      description: |
+        `version` = listing 乐观锁。先固定清单，无硬阻断再经 Gateway `POST /internal/v1/ad-check`（≤15s）。
+        **Blocked / Needs AI / Passed → HTTP 200**（Blocked 不是 4xx）。
+        规则过了、AI 超时或失败 → **502** `AI_UNAVAILABLE`，检查行已写 `UNAVAILABLE`。
+      parameters:
+        - $ref: "#/components/parameters/ListingId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ListingVersionBody"
+      responses:
+        "200":
+          description: 完整检查对象（含 checkStatus）。Blocked 也是 200。
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Check"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/VersionConflict"
+        "502":
+          description: AI_UNAVAILABLE（规则已过、模型超时/失败；检查行已写）
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                code: AI_UNAVAILABLE
+                message: Ad check model timed out or failed.
+
+  /api/v1/listings/{id}/ready:
+    post:
+      tags: [Checks]
+      operationId: markListingReady
+      summary: 标 Ready
+      description: 仅当前检查 Passed 且非 Stale。成功 listing `status=READY`。
+      parameters:
+        - $ref: "#/components/parameters/ListingId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ListingVersionBody"
+      responses:
+        "200":
+          description: 同 GET listing
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Listing"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: CHECK_STALE / NOT_PASSED / VERSION_CONFLICT
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              examples:
+                stale:
+                  value:
+                    code: CHECK_STALE
+                    message: Last passed check does not match listing contentVersion.
+                notPassed:
+                  value:
+                    code: NOT_PASSED
+                    message: Listing check is not PASSED.
+
+  /api/v1/listings/{id}/exports:
+    post:
+      tags: [Checks]
+      operationId: exportListing
+      summary: 导出纯文本
+      description: |
+        Body 同 ready。同样的 409/404。
+        成功 **200** `text/plain; charset=UTF-8`。
+        内容 = 店公开四字段 + 车辆公开字段（年/make/model/vin/condition/source，**无成本**）+ 标题正文 + 检查时间。不写客户。
+      parameters:
+        - $ref: "#/components/parameters/ListingId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ListingVersionBody"
+      responses:
+        "200":
+          description: 纯文本导出
+          content:
+            text/plain:
+              schema:
+                type: string
+          headers:
+            Content-Type:
+              schema:
+                type: string
+                default: text/plain; charset=UTF-8
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: CHECK_STALE / NOT_PASSED / VERSION_CONFLICT
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/v1/audit:
+    get:
+      tags: [Audit]
+      operationId: listAudit
+      summary: 审计
+      description: |
+        `entityType`、`entityId` 必填。店员只本店；实体不在本店 → 404。
+        Admin 查业务实体（VEHICLE/CUSTOMER/CUSTOMER_VEHICLE/LISTING）→ **403** `FORBIDDEN`。
+        店员可查 `VEHICLE`|`CUSTOMER`|`CUSTOMER_VEHICLE`。本查询不对店员开放 `DEALER`/`MEMBERSHIP`。
+        `fieldSummary` 无客户电话/邮箱/住址全文。
+      parameters:
+        - name: entityType
+          in: query
+          required: true
+          schema:
+            $ref: "#/components/schemas/AuditEntityType"
+        - name: entityId
+          in: query
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/Size"
+      responses:
+        "200":
+          description: 分页审计
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PageAuditEvent"
+        "400":
+          $ref: "#/components/responses/Validation"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/v1/assistant/ask:
+    post:
+      tags: [Assistant]
+      operationId: askAssistant
+      summary: 店员助手
+      description: |
+        仅 Dealer.User。Admin → 403。**不写**车辆/客户/listing/检查表。
+        `text` 空 → **400** `VALIDATION`。
+        模型挂：`summary=null`，`summaryAvailable=false`，`cards` 仍是检索列表（最多 5），HTTP **200**。
+        卡上无电话、邮箱、住址。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AssistantAsk"
+      responses:
+        "200":
+          description: 短说明 + 最多 5 张本店资源卡
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AssistantAnswer"
+        "400":
+          $ref: "#/components/responses/Validation"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /internal/v1/ad-check:
+    post:
+      tags: [Internal]
+      x-internal: true
+      operationId: internalAdCheck
+      summary: 内部广告 AI 检查
+      description: |
+        **浏览器不可达（Gateway 404）。** 仅 core 经 Gateway 调 ai-service。
+        不要把用户 JWT 转给 ai-service。`vehiclePublic` **无**采购/修理/售价。
+        14 未钉死成功响应字段；ai-service 将模型结果收成供 core 写入的 `aiNotes`。
+        传输失败由 core 记 `UNAVAILABLE`，不由本接口编造业务列。
+      security: []
+      parameters:
+        - $ref: "#/components/parameters/InternalToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InternalAdCheckRequest"
+      responses:
+        "200":
+          description: 供 core 写入检查行的 notes（形状对齐 14 的 aiNotes）
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InternalAdCheckNotes"
+        "404":
+          description: 浏览器或缺少内部头 → Gateway/ai-service 404（不承认路径）
+
+  /internal/v1/assistant:
+    post:
+      tags: [Internal]
+      x-internal: true
+      operationId: internalAssistant
+      summary: 内部助手短文本
+      description: |
+        **浏览器不可达（Gateway 404）。** 仅 core 经 Gateway 调 ai-service。
+        `resources` 已经 core 过滤（无电话/邮箱/住址）。返回短文本；core 再核 id。
+        14 只规定「返回短文本」，成功体用纯文本，不另发明业务字段。
+      security: []
+      parameters:
+        - $ref: "#/components/parameters/InternalToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InternalAssistantRequest"
+      responses:
+        "200":
+          description: 短文本（14 §11）
+          content:
+            text/plain:
+              schema:
+                type: string
+        "404":
+          description: 浏览器或缺少内部头 → 404
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Entra Access token。无/坏 JWT → 401 `UNAUTHORIZED`。
+
+  parameters:
+    Page:
+      name: page
+      in: query
+      schema:
+        type: integer
+        minimum: 0
+        default: 0
+      description: 从 0 起
+    Size:
+      name: size
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 10
+        default: 10
+      description: 默认 10，服务端封顶 10
+    QLegalName:
+      name: q
+      in: query
+      schema:
+        type: string
+      description: 匹配 legalName
+    QDisplayOrOid:
+      name: q
+      in: query
+      schema:
+        type: string
+      description: 匹配 displayName 或 entraOid
+    DealerId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: integer
+        format: int64
+    VehicleId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: integer
+        format: int64
+    VehicleIdPath:
+      name: vehicleId
+      in: path
+      required: true
+      schema:
+        type: integer
+        format: int64
+    CustomerId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: integer
+        format: int64
+    ListingId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: integer
+        format: int64
+    EntraOid:
+      name: entraOid
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    InternalToken:
+      name: X-Dealer-Internal
+      in: header
+      required: true
+      schema:
+        type: string
+      description: |
+        内部调用头。浏览器不可带（CORS 不暴露）。缺此头 → 404。
+        不是用户 JWT。值来自环境 / Key Vault。
+
+  responses:
+    Unauthorized:
+      description: 无/坏 JWT。code=`UNAUTHORIZED`
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+          example:
+            code: UNAUTHORIZED
+            message: Missing or invalid JWT.
+    Forbidden:
+      description: |
+        角色不允许该 URL（Admin↔店员打错前缀）；或店员无有效 `membership.active=1` 调业务接口。
+        **不是**跨店。code=`FORBIDDEN`。体中不得出现 vin/成本等业务字段。
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+          example:
+            code: FORBIDDEN
+            message: Role or membership does not allow this URL.
+    NotFound:
+      description: 本店无此 id，或**跨店 id**（防探测，不 403）。code=`NOT_FOUND`
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+          example:
+            code: NOT_FOUND
+            message: Resource not found.
+    Validation:
+      description: 缺字段、枚举非法、格式错。code=`VALIDATION`；可带 `fieldErrors`
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+          example:
+            code: VALIDATION
+            message: Request is invalid.
+            fieldErrors:
+              vin: must not be blank
+    VersionConflict:
+      description: 请求 `version` 不等于当前行。code=`VERSION_CONFLICT`
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+          example:
+            code: VERSION_CONFLICT
+            message: version does not match.
+
+  schemas:
+    Error:
+      type: object
+      required: [code, message]
+      description: |
+        标准错误体。禁止 SQL、堆栈、模型原文。
+        `400 VALIDATION` 可增加 `fieldErrors`。
+      properties:
+        code:
+          $ref: "#/components/schemas/ErrorCode"
+        message:
+          type: string
+        fieldErrors:
+          type: object
+          additionalProperties:
+            type: string
+          description: 仅 VALIDATION 可选
+
+    ErrorCode:
+      type: string
+      description: |
+        | code | HTTP | 含义 |
+        |---|---|---|
+        | VALIDATION | 400 | 缺字段、枚举非法、格式错 |
+        | VIN_DUP | 400 | 本店 VIN 重复 |
+        | SOLD_PAIR_REQUIRED | 400 | 出售缺日期或价格 |
+        | WRONG_DEALER_OR_SOLD | 400 | 挂车：车非本店或已售（跨店 id 走 404） |
+        | UNAUTHORIZED | 401 | 未登录 |
+        | FORBIDDEN | 403 | 角色不允许该 URL；或店员无有效 membership |
+        | NOT_FOUND | 404 | 无资源或跨店 |
+        | VERSION_CONFLICT | 409 | version 不匹配 |
+        | DUP_MEMBER | 409 | 该店已有此 active 成员 |
+        | VEHICLE_ALREADY_LINKED | 409 | 车已挂客户 |
+        | SOLD_LOCKED | 409 | 已售改采购、重复出售、或已售车解绑 |
+        | CHECK_STALE | 409 | Ready/Export 时检查已过期 |
+        | NOT_PASSED | 409 | Ready/Export 时非 Passed |
+        | AI_UNAVAILABLE | 502 | 广告检查 AI 失败/超时（检查行已写） |
+      enum:
+        - VALIDATION
+        - VIN_DUP
+        - SOLD_PAIR_REQUIRED
+        - WRONG_DEALER_OR_SOLD
+        - UNAUTHORIZED
+        - FORBIDDEN
+        - NOT_FOUND
+        - VERSION_CONFLICT
+        - DUP_MEMBER
+        - VEHICLE_ALREADY_LINKED
+        - SOLD_LOCKED
+        - CHECK_STALE
+        - NOT_PASSED
+        - AI_UNAVAILABLE
+
+    PageMeta:
+      type: object
+      required: [items, page, size, total]
+      description: 分页信封 `{items,page,size,total}`。page 从 0；size 默认且封顶 10。
+      properties:
+        page:
+          type: integer
+          minimum: 0
+          example: 0
+        size:
+          type: integer
+          minimum: 1
+          maximum: 10
+          example: 10
+        total:
+          type: integer
+          format: int64
+          minimum: 0
+          example: 0
+
+    Role:
+      type: string
+      enum: [Platform.Admin, Dealer.User]
+
+    VehicleStatus:
+      type: string
+      enum: [IN_STOCK, SOLD]
+
+    VehicleSource:
+      type: string
+      description: 14 示例为 AUCTION；取值与手册第 3 节一致，不加减规格字段。
+      enum: [TRADE_IN, AUCTION, PRIVATE_PURCHASE, OTHER]
+
+    ConditionCode:
+      type: string
+      enum: [CERTIFIED, AS_IS, UNFIT, IRREPARABLE]
+
+    AdKind:
+      type: string
+      enum: [CASH, FINANCE, LEASE]
+
+    AdMedium:
+      type: string
+      enum: [ONLINE, RADIO_TV_BILLBOARD]
+
+    ListingStatus:
+      type: string
+      enum: [DRAFT, READY]
+
+    CheckStatus:
+      type: string
+      description: 页面五态派生枚举。STALE 只用于「曾通过后失效」。
+      enum: [BLOCKED, NEEDS_AI, PASSED, STALE, AI_UNAVAILABLE]
+
+    AiStatus:
+      type: string
+      enum: [SKIPPED, SUCCESS, FAILED, UNAVAILABLE]
+
+    Recommendation:
+      type: string
+      enum: [BLOCKED, NEEDS_AI, PASSED, UNAVAILABLE]
+
+    RuleSeverity:
+      type: string
+      enum: [BLOCK, REVIEW]
+
+    AuditEntityType:
+      type: string
+      enum: [VEHICLE, CUSTOMER, CUSTOMER_VEHICLE, LISTING, DEALER, MEMBERSHIP]
+
+    AuditAction:
+      type: string
+      enum: [CREATE, UPDATE, SELL, LINK, UNLINK]
+
+    AssistantCardKind:
+      type: string
+      enum: [VEHICLE, CUSTOMER, LISTING]
+
+    Me:
+      type: object
+      required: [entraOid, displayName, role]
+      properties:
+        entraOid:
+          type: string
+          format: uuid
+        displayName:
+          type: string
+        role:
+          $ref: "#/components/schemas/Role"
+        dealerId:
+          type: integer
+          format: int64
+          nullable: true
+        dealerLegalName:
+          type: string
+          nullable: true
+          description: 展示用派生字段，不是第二套店资料
+
+    Dealer:
+      type: object
+      required: [id, legalName, contactPhone, contactEmail, contactAddress, active, staffCount, version]
+      properties:
+        id:
+          type: integer
+          format: int64
+        legalName:
+          type: string
+        contactPhone:
+          type: string
+        contactEmail:
+          type: string
+        contactAddress:
+          type: string
+        active:
+          type: boolean
+        staffCount:
+          type: integer
+          description: 该店 active membership 计数（派生）
+        version:
+          type: integer
+          format: int64
+
+    DealerCreate:
+      type: object
+      required: [legalName, contactPhone, contactEmail, contactAddress]
+      description: 四联系字段非空
+      properties:
+        legalName:
+          type: string
+        contactPhone:
+          type: string
+        contactEmail:
+          type: string
+        contactAddress:
+          type: string
+
+    DealerPatch:
+      type: object
+      required: [version]
+      properties:
+        version:
+          type: integer
+          format: int64
+        legalName:
+          type: string
+        contactPhone:
+          type: string
+        contactEmail:
+          type: string
+        contactAddress:
+          type: string
+        active:
+          type: boolean
+
+    PageDealer:
+      allOf:
+        - $ref: "#/components/schemas/PageMeta"
+        - type: object
+          properties:
+            items:
+              type: array
+              items:
+                $ref: "#/components/schemas/Dealer"
+
+    Member:
+      type: object
+      required: [entraOid, displayName, role, active]
+      properties:
+        entraOid:
+          type: string
+          format: uuid
+        displayName:
+          type: string
+        role:
+          $ref: "#/components/schemas/Role"
+        active:
+          type: boolean
+
+    MemberBind:
+      type: object
+      required: [entraOid, displayName]
+      properties:
+        entraOid:
+          type: string
+          format: uuid
+        displayName:
+          type: string
+
+    PageMember:
+      allOf:
+        - $ref: "#/components/schemas/PageMeta"
+        - type: object
+          properties:
+            items:
+              type: array
+              items:
+                $ref: "#/components/schemas/Member"
+
+    Vehicle:
+      type: object
+      required:
+        - id
+        - vin
+        - make
+        - model
+        - modelYear
+        - source
+        - purchaseCost
+        - addedOn
+        - conditionCode
+        - status
+        - version
+      properties:
+        id:
+          type: integer
+          format: int64
+        vin:
+          type: string
+        make:
+          type: string
+        model:
+          type: string
+        modelYear:
+          type: integer
+        source:
+          $ref: "#/components/schemas/VehicleSource"
+        purchaseCost:
+          type: number
+        addedOn:
+          type: string
+          format: date
+          description: YYYY-MM-DD
+        conditionCode:
+          $ref: "#/components/schemas/ConditionCode"
+        repairCost:
+          type: number
+          nullable: true
+        carfaxUrl:
+          type: string
+          nullable: true
+        soldOn:
+          type: string
+          format: date
+          nullable: true
+        soldPrice:
+          type: number
+          nullable: true
+        status:
+          $ref: "#/components/schemas/VehicleStatus"
+        version:
+          type: integer
+          format: int64
+
+    VehicleCreate:
+      type: object
+      required: [make, model, modelYear, vin, source, purchaseCost, addedOn, conditionCode]
+      properties:
+        make:
+          type: string
+        model:
+          type: string
+        modelYear:
+          type: integer
+        vin:
+          type: string
+        source:
+          $ref: "#/components/schemas/VehicleSource"
+        purchaseCost:
+          type: number
+        addedOn:
+          type: string
+          format: date
+        conditionCode:
+          $ref: "#/components/schemas/ConditionCode"
+        repairCost:
+          type: number
+          nullable: true
+        carfaxUrl:
+          type: string
+          nullable: true
+
+    VehiclePatch:
+      type: object
+      required: [version]
+      description: 白名单仅这些字段。禁止改 status/soldOn/soldPrice。
+      properties:
+        version:
+          type: integer
+          format: int64
+        make:
+          type: string
+        model:
+          type: string
+        modelYear:
+          type: integer
+        vin:
+          type: string
+        source:
+          $ref: "#/components/schemas/VehicleSource"
+        purchaseCost:
+          type: number
+        addedOn:
+          type: string
+          format: date
+        conditionCode:
+          $ref: "#/components/schemas/ConditionCode"
+        repairCost:
+          type: number
+          nullable: true
+        carfaxUrl:
+          type: string
+          nullable: true
+
+    VehicleSell:
+      type: object
+      required: [soldOn, soldPrice, version]
+      properties:
+        soldOn:
+          type: string
+          format: date
+        soldPrice:
+          type: number
+        version:
+          type: integer
+          format: int64
+
+    PageVehicle:
+      allOf:
+        - $ref: "#/components/schemas/PageMeta"
+        - type: object
+          properties:
+            items:
+              type: array
+              items:
+                $ref: "#/components/schemas/Vehicle"
+
+    LinkedVehicleSummary:
+      type: object
+      description: CRM 表一列；多车取最近 linkedAt。未挂为 null。
+      required: [id, modelYear, make, model]
+      properties:
+        id:
+          type: integer
+          format: int64
+        modelYear:
+          type: integer
+        make:
+          type: string
+        model:
+          type: string
+
+    LinkedVehicleDetail:
+      type: object
+      required: [id, vin, modelYear, make, model, status]
+      properties:
+        id:
+          type: integer
+          format: int64
+        vin:
+          type: string
+        modelYear:
+          type: integer
+        make:
+          type: string
+        model:
+          type: string
+        status:
+          $ref: "#/components/schemas/VehicleStatus"
+
+    CustomerListItem:
+      type: object
+      required: [id, name, email, phone, homeAddress, version]
+      properties:
+        id:
+          type: integer
+          format: int64
+        name:
+          type: string
+        email:
+          type: string
+        phone:
+          type: string
+        homeAddress:
+          type: string
+        linkedVehicle:
+          allOf:
+            - $ref: "#/components/schemas/LinkedVehicleSummary"
+          nullable: true
+        version:
+          type: integer
+          format: int64
+
+    Customer:
+      type: object
+      required: [id, name, email, phone, homeAddress, linkedVehicles, version]
+      properties:
+        id:
+          type: integer
+          format: int64
+        name:
+          type: string
+        email:
+          type: string
+        phone:
+          type: string
+        homeAddress:
+          type: string
+        linkedVehicles:
+          type: array
+          items:
+            $ref: "#/components/schemas/LinkedVehicleDetail"
+        version:
+          type: integer
+          format: int64
+
+    CustomerWrite:
+      type: object
+      required: [name, email, phone, homeAddress]
+      properties:
+        name:
+          type: string
+        email:
+          type: string
+        phone:
+          type: string
+        homeAddress:
+          type: string
+
+    CustomerPatch:
+      type: object
+      required: [version]
+      properties:
+        version:
+          type: integer
+          format: int64
+        name:
+          type: string
+        email:
+          type: string
+        phone:
+          type: string
+        homeAddress:
+          type: string
+
+    PageCustomerListItem:
+      allOf:
+        - $ref: "#/components/schemas/PageMeta"
+        - type: object
+          properties:
+            items:
+              type: array
+              items:
+                $ref: "#/components/schemas/CustomerListItem"
+
+    CustomerVehicleLink:
+      type: object
+      required: [id, customerId, vehicleId, linkedAt]
+      properties:
+        id:
+          type: integer
+          format: int64
+        customerId:
+          type: integer
+          format: int64
+        vehicleId:
+          type: integer
+          format: int64
+        linkedAt:
+          type: string
+          format: date-time
+          description: ISO-8601 UTC
+
+    RuleFinding:
+      type: object
+      required: [ruleId, severity, passed, message]
+      properties:
+        ruleId:
+          type: string
+        severity:
+          $ref: "#/components/schemas/RuleSeverity"
+        passed:
+          type: boolean
+        message:
+          type: string
+
+    AiNote:
+      type: object
+      required: [message]
+      description: 模型结构化备注，元素至少 `{message}`
+      properties:
+        message:
+          type: string
+
+    Check:
+      type: object
+      required:
+        - id
+        - listingId
+        - contentVersion
+        - ruleFindings
+        - aiStatus
+        - recommendation
+        - checkStatus
+        - createdAt
+      properties:
+        id:
+          type: integer
+          format: int64
+        listingId:
+          type: integer
+          format: int64
+        contentVersion:
+          type: integer
+          format: int64
+        ruleFindings:
+          type: array
+          items:
+            $ref: "#/components/schemas/RuleFinding"
+        aiStatus:
+          $ref: "#/components/schemas/AiStatus"
+        aiNotes:
+          type: array
+          nullable: true
+          items:
+            $ref: "#/components/schemas/AiNote"
+        recommendation:
+          $ref: "#/components/schemas/Recommendation"
+        checkStatus:
+          $ref: "#/components/schemas/CheckStatus"
+        createdAt:
+          type: string
+          format: date-time
+
+    Listing:
+      type: object
+      required:
+        - vehicleId
+        - title
+        - body
+        - adKind
+        - medium
+        - status
+        - contentVersion
+        - checkStatus
+        - version
+      properties:
+        id:
+          type: integer
+          format: int64
+          nullable: true
+          description: 虚拟空草稿为 null
+        vehicleId:
+          type: integer
+          format: int64
+        title:
+          type: string
+        body:
+          type: string
+        adKind:
+          $ref: "#/components/schemas/AdKind"
+        medium:
+          $ref: "#/components/schemas/AdMedium"
+        status:
+          $ref: "#/components/schemas/ListingStatus"
+        contentVersion:
+          type: integer
+          format: int64
+        lastCheckId:
+          type: integer
+          format: int64
+          nullable: true
+        lastCheck:
+          allOf:
+            - $ref: "#/components/schemas/Check"
+          nullable: true
+        checkStatus:
+          $ref: "#/components/schemas/CheckStatus"
+        version:
+          type: integer
+          format: int64
+
+    ListingPatch:
+      type: object
+      properties:
+        version:
+          type: integer
+          format: int64
+          description: 首次可省略或 0
+        title:
+          type: string
+        body:
+          type: string
+        adKind:
+          $ref: "#/components/schemas/AdKind"
+        medium:
+          $ref: "#/components/schemas/AdMedium"
+
+    ListingVersionBody:
+      type: object
+      required: [version]
+      properties:
+        version:
+          type: integer
+          format: int64
+          description: listing 乐观锁
+
+    AuditEvent:
+      type: object
+      required: [id, entityType, entityId, action, actorOid, createdAt]
+      properties:
+        id:
+          type: integer
+          format: int64
+        entityType:
+          $ref: "#/components/schemas/AuditEntityType"
+        entityId:
+          type: integer
+          format: int64
+        action:
+          $ref: "#/components/schemas/AuditAction"
+        fieldSummary:
+          type: object
+          additionalProperties: true
+          description: 无客户电话/邮箱/住址全文。挂/解绑仅 {customerId,vehicleId}
+        actorOid:
+          type: string
+          format: uuid
+        createdAt:
+          type: string
+          format: date-time
+
+    PageAuditEvent:
+      allOf:
+        - $ref: "#/components/schemas/PageMeta"
+        - type: object
+          properties:
+            items:
+              type: array
+              items:
+                $ref: "#/components/schemas/AuditEvent"
+
+    AssistantAsk:
+      type: object
+      required: [text]
+      properties:
+        text:
+          type: string
+
+    AssistantCard:
+      type: object
+      required: [kind, id, label]
+      properties:
+        kind:
+          $ref: "#/components/schemas/AssistantCardKind"
+        id:
+          type: integer
+          format: int64
+        label:
+          type: string
+        status:
+          $ref: "#/components/schemas/VehicleStatus"
+          description: 仅 VEHICLE 卡使用（14 示例）
+        vehicleId:
+          type: integer
+          format: int64
+          description: 仅 LISTING 卡使用（14 示例）
+        checkStatus:
+          $ref: "#/components/schemas/CheckStatus"
+          description: 仅 LISTING 卡使用（14 示例）
+
+    AssistantAnswer:
+      type: object
+      required: [summaryAvailable, cards]
+      properties:
+        summary:
+          type: string
+          nullable: true
+        summaryAvailable:
+          type: boolean
+        cards:
+          type: array
+          maxItems: 5
+          items:
+            $ref: "#/components/schemas/AssistantCard"
+
+    VehiclePublic:
+      type: object
+      description: 内部检查用。无采购/修理/售价。
+      required: [modelYear, make, model, vin, conditionCode, source]
+      properties:
+        modelYear:
+          type: integer
+        make:
+          type: string
+        model:
+          type: string
+        vin:
+          type: string
+        conditionCode:
+          $ref: "#/components/schemas/ConditionCode"
+        source:
+          $ref: "#/components/schemas/VehicleSource"
+
+    DealerPublic:
+      type: object
+      required: [legalName, contactPhone, contactEmail, contactAddress]
+      properties:
+        legalName:
+          type: string
+        contactPhone:
+          type: string
+        contactEmail:
+          type: string
+        contactAddress:
+          type: string
+
+    InternalListingSlice:
+      type: object
+      required: [title, body, adKind, medium]
+      properties:
+        title:
+          type: string
+        body:
+          type: string
+        adKind:
+          $ref: "#/components/schemas/AdKind"
+        medium:
+          $ref: "#/components/schemas/AdMedium"
+
+    InternalAdCheckRequest:
+      type: object
+      required: [listing, vehiclePublic, dealerPublic]
+      properties:
+        listing:
+          $ref: "#/components/schemas/InternalListingSlice"
+        vehiclePublic:
+          $ref: "#/components/schemas/VehiclePublic"
+        dealerPublic:
+          $ref: "#/components/schemas/DealerPublic"
+
+    InternalAdCheckNotes:
+      type: object
+      description: 14 未钉死内部成功 JSON；仅复用对外 Check.aiNotes 元素形状，不另加业务列。
+      properties:
+        aiNotes:
+          type: array
+          nullable: true
+          items:
+            $ref: "#/components/schemas/AiNote"
+
+    InternalAssistantResource:
+      type: object
+      required: [kind, id, label]
+      properties:
+        kind:
+          $ref: "#/components/schemas/AssistantCardKind"
+        id:
+          type: integer
+          format: int64
+        label:
+          type: string
+        status:
+          $ref: "#/components/schemas/VehicleStatus"
+
+    InternalAssistantRequest:
+      type: object
+      required: [question, resources]
+      properties:
+        question:
+          type: string
+        resources:
+          type: array
+          items:
+            $ref: "#/components/schemas/InternalAssistantResource"

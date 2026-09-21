@@ -1,0 +1,54 @@
+# 路由写死在本文件（可用 CORE_URL / AI_URL / INTERNAL_TOKEN / ENTRA_* 覆盖）。
+# JWT：issuer/audience 来自环境变量。缺省是占位符，不会在启动时去拉 Entra JWKS
+#（见 SecurityConfig 的 ReactiveJwtDecoder）。配好真实 ENTRA_ISSUER 后才验签。
+server:
+  port: ${GATEWAY_PORT:8080}
+
+spring:
+  application:
+    name: dealer-gateway
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${ENTRA_ISSUER:https://login.microsoftonline.com/<tenant-id>/v2.0}
+          audiences: ${ENTRA_AUDIENCE:api://dealer-api}
+  cloud:
+    gateway:
+      globalcors:
+        add-to-simple-url-handler-mapping: true
+        cors-configurations:
+          '[/**]':
+            allowedOrigins:
+              - "http://localhost:5173"
+            allowedMethods: [GET, POST, PUT, PATCH, DELETE, OPTIONS]
+            allowedHeaders: [Authorization, Content-Type]
+            exposedHeaders: []
+            allowCredentials: false
+      default-filters:
+        - DedupeResponseHeader=Access-Control-Allow-Origin Access-Control-Allow-Credentials, RETAIN_UNIQUE
+      routes:
+        - id: dealer-core-public
+          uri: ${CORE_URL:http://localhost:8081}
+          predicates:
+            - Path=/api/v1/**
+          filters:
+            - PreserveHostHeader
+        - id: ai-service-internal
+          uri: ${AI_URL:http://localhost:8082}
+          predicates:
+            - Path=/internal/v1/**
+            - Header=X-Dealer-Internal, ${INTERNAL_TOKEN:dealer-internal}
+          filters:
+            - RemoveRequestHeader=Authorization
+        - id: not-found
+          uri: no://op
+          predicates:
+            - Path=/**
+          filters:
+            - SetStatus=404
+
+dealerops:
+  internal-header-name: X-Dealer-Internal
+  # PROTOCOL §B.1 默认值（覆盖 BACKEND 任务单的 dealer-internal-dev-only）
+  internal-token: ${INTERNAL_TOKEN:dealer-internal}

@@ -1,0 +1,14 @@
+# Ignore node modules
+node_modules/
+
+# Logs
+logs/
+*.log
+
+# Dependency directories
+dist/
+build/
+
+# IDE config
+.vscode/
+.idea/

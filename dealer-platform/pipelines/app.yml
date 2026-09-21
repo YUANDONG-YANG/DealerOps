@@ -1,0 +1,11 @@
+# 每个应用仓库复制一份，改 displayName 和 Dockerfile 路径。
+trigger:
+  branches:
+    include: [main]
+
+pool:
+  vmImage: ubuntu-latest
+
+steps:
+  - script: echo "Sprint 1: 先让这个仓库能编译。推镜像、Bicep 在 Azure 权限到位后再打开。"
+    displayName: Placeholder

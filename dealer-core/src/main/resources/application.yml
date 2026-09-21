@@ -1,0 +1,37 @@
+server:
+  port: ${CORE_PORT:8081}
+
+spring:
+  main:
+    web-application-type: servlet
+  application:
+    name: dealer-core
+  datasource:
+    url: ${MYSQL_URL:jdbc:mysql://localhost:3306/dealer_core?useSSL=false&allowPublicKeyRetrieval=true}
+    username: ${MYSQL_USER:dealer}
+    password: ${MYSQL_PASSWORD:dealer_dev_only}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate.jdbc.time_zone: UTC
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${ENTRA_ISSUER:https://login.microsoftonline.com/<tenant-id>/v2.0}
+          audiences: ${ENTRA_AUDIENCE:api://dealer-api}
+
+dealerops:
+  gateway-base-url: ${GATEWAY_BASE_URL:http://localhost:8080}
+  internal-token: ${INTERNAL_TOKEN:dealer-internal}
+  ai-timeout-ms: 15000
+  jwt:
+    # entra: 用 ENTRA_ISSUER 拉 JWKS。issuer 仍是占位 <tenant-id> 时自动回退 dev。
+    mode: ${JWT_MODE:dev}
+    # 仅本机 HS256 占位，勿当生产密钥。长度需 >= 32 字节。
+    dev-secret: ${DEV_JWT_SECRET:dealer-dev-jwt-secret-change-me}

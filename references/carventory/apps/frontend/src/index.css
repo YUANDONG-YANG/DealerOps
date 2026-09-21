@@ -1,0 +1,13 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Prevent Tailwind from affecting AntD components */
+.ant-table,
+.ant-card,
+.ant-descriptions,
+.ant-spin,
+.ant-tabs {
+  all: revert;
+}
+
