@@ -1,0 +1,2 @@
+﻿import { http } from './http'
+export const adminApi={dealers:(p:any={})=>http.get('/api/v1/admin/dealers',{params:{...p,size:p.size??10}}),createDealer:(body:any)=>http.post('/api/v1/admin/dealers',body),members:(id:number,p:any={})=>http.get(`/api/v1/admin/dealers/${id}/members`,{params:{...p,size:p.size??10}}),bind:(id:number,b:any)=>http.post(`/api/v1/admin/dealers/${id}/members`,b),unbind:(id:number,oid:string)=>http.delete(`/api/v1/admin/dealers/${id}/members/${encodeURIComponent(oid)}`)}

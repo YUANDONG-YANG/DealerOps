@@ -1,15 +1,79 @@
 package com.dealerops.core.integration;
 
+import com.dealerops.core.compliance.dto.AiNote;
+import com.dealerops.core.integration.dto.AdCheckInternalRequest;
+import com.dealerops.core.integration.dto.AssistantInternalRequest;
+import com.fasterxml.jackson.databind.JsonNode;
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatusCode;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.reactive.function.client.WebClientResponseException;
 
-/** 出站经 Gateway 调 ai-service；本轮不实现广告检查调用。 */
 @Component
 public class AiGatewayClient {
 
   private final WebClient webClient;
+  private final long timeoutMs;
 
-  public AiGatewayClient(WebClient aiGatewayWebClient) {
+  public AiGatewayClient(
+      WebClient aiGatewayWebClient, @Value("${dealerops.ai-timeout-ms:15000}") long timeoutMs) {
     this.webClient = aiGatewayWebClient;
+    this.timeoutMs = timeoutMs;
+  }
+
+  public List<AiNote> adCheck(AdCheckInternalRequest body) {
+    JsonNode node = post("/internal/v1/ad-check", body);
+    if (node == null || !node.path("success").asBoolean(false)) {
+      throw new AiCallFailed("AI check failed.");
+    }
+    return readNotes(node.get("notes"));
+  }
+
+  public String assistant(AssistantInternalRequest body) {
+    JsonNode node = post("/internal/v1/assistant", body);
+    if (node == null || !node.path("success").asBoolean(false) || !node.hasNonNull("summary")) {
+      throw new AiCallFailed("AI assistant failed.");
+    }
+    String summary = node.get("summary").asText();
+    if (summary.isBlank()) {
+      throw new AiCallFailed("AI assistant failed.");
+    }
+    return summary;
+  }
+
+  private JsonNode post(String path, Object body) {
+    try {
+      return webClient
+          .post()
+          .uri(path)
+          .bodyValue(body)
+          .retrieve()
+          .onStatus(HttpStatusCode::isError, response -> response.createException())
+          .bodyToMono(JsonNode.class)
+          .timeout(Duration.ofMillis(timeoutMs))
+          .block();
+    } catch (WebClientResponseException ex) {
+      throw new AiCallFailed("AI call failed.", ex);
+    } catch (RuntimeException ex) {
+      throw new AiCallFailed("AI call failed.", ex);
+    }
+  }
+
+  private static List<AiNote> readNotes(JsonNode notes) {
+    List<AiNote> out = new ArrayList<>();
+    if (notes == null || !notes.isArray()) {
+      return out;
+    }
+    for (JsonNode note : notes) {
+      String message = note.path("message").asText(null);
+      if (message != null && !message.isBlank()) {
+        out.add(new AiNote(message));
+      }
+    }
+    return out;
   }
 }

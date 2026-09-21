@@ -1,0 +1,2 @@
+﻿import { http } from './http'
+export const listingsApi={get:(vid:number)=>http.get(`/api/v1/vehicles/${vid}/listing`),save:(vid:number,b:any)=>http.patch(`/api/v1/vehicles/${vid}/listing`,b),check:(id:number,b:any)=>http.post(`/api/v1/listings/${id}/checks`,b),ready:(id:number,b:any)=>http.post(`/api/v1/listings/${id}/ready`,b),export:(id:number,b:any)=>http.post(`/api/v1/listings/${id}/exports`,b,{responseType:'blob'})}

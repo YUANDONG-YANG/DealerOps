@@ -1,0 +1,8 @@
+﻿<script setup lang="ts">
+import { ref } from 'vue'
+import AppLayout from '../layouts/AppLayout.vue';import PageState from '../components/PageState.vue';import AssistantCard from '../components/AssistantCard.vue';import { assistantApi } from '../api/assistant'
+const text=ref(''),loading=ref(false),error=ref(''),result=ref<any>(),asked=ref(false)
+async function ask(){if(!text.value.trim()){error.value='Please enter a question.';return}loading.value=true;error.value='';asked.value=true;try{result.value=(await assistantApi.ask(text.value)).data}catch{error.value='Could not ask assistant'}finally{loading.value=false}}
+function open(card:any){if(card.kind==='VEHICLE')location.href=`/dms?vehicleId=${card.id}`;else if(card.kind==='CUSTOMER')location.href=`/crm?customerId=${card.id}`;else location.href=card.vehicleId?`/ads?vehicleId=${card.vehicleId}`:'/ads'}
+</script>
+<template><AppLayout><div class="page"><div class="page-header"><div><h1>Assistant</h1><span class="muted">Ask about this dealership</span></div></div><el-card><el-input v-model="text" placeholder="Ask a question about this dealership." @keyup.enter="ask"><template #append><el-button @click="ask">Ask</el-button></template></el-input></el-card><PageState :loading="loading" :error="error" :empty="!asked" empty-text="Ask a question about this dealership." loading-text="Asking…"><div v-if="result" style="margin-top:18px"><div class="summary">{{result.summaryAvailable&&result.summary?result.summary:'Smart summary unavailable'}}</div><div class="card-grid" style="margin-top:18px"><AssistantCard v-for="c in (result.cards||[]).slice(0,5)" :key="c.kind+c.id" :card="c" @open="open(c)"/></div></div></PageState></div></AppLayout></template>

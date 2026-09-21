@@ -1,0 +1,2 @@
+﻿import { http } from './http'
+export const customersApi={list:(p:any={})=>http.get('/api/v1/customers',{params:{...p,size:p.size??10}}),get:(id:number)=>http.get(`/api/v1/customers/${id}`),create:(b:any)=>http.post('/api/v1/customers',b),update:(id:number,b:any)=>http.patch(`/api/v1/customers/${id}`,b),link:(id:number,vid:number)=>http.put(`/api/v1/customers/${id}/vehicles/${vid}`),unlink:(id:number,vid:number)=>http.delete(`/api/v1/customers/${id}/vehicles/${vid}`)}
