@@ -40,6 +40,10 @@
     </dependency>
     <dependency>
       <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-actuator</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-test</artifactId>
       <scope>test</scope>
     </dependency>
@@ -62,11 +66,13 @@
   </build>
 
   <profiles>
-    <!-- Default: resolve com.aimanager:aimanager after `mvn -DskipTests install` in the local checkout. -->
+    <!-- Default: resolve com.aimanager:aimanager after `mvn -DskipTests install` in sibling checkout ai-manager. -->
     <profile>
       <id>aimanager</id>
       <activation>
-        <activeByDefault>true</activeByDefault>
+        <property>
+          <name>!aimanager.stub</name>
+        </property>
       </activation>
       <dependencies>
         <dependency>
@@ -83,7 +89,7 @@
       </repositories>
     </profile>
 
-    <!-- Compile without a local JAR. `mvn -Pstub` turns off the default profile. -->
+    <!-- CI compile without a local JAR: mvn -Pstub,!aimanager -Daimanager.stub=true -->
     <profile>
       <id>stub</id>
       <build>
@@ -98,6 +104,16 @@
                 <compileSourceRoot>${project.basedir}/src/main/java-stub</compileSourceRoot>
               </compileSourceRoots>
             </configuration>
+            <executions>
+              <execution>
+                <id>default-testCompile</id>
+                <configuration>
+                  <compileSourceRoots combine.self="override">
+                    <compileSourceRoot>${project.basedir}/src/test/java</compileSourceRoot>
+                  </compileSourceRoots>
+                </configuration>
+              </execution>
+            </executions>
           </plugin>
         </plugins>
       </build>

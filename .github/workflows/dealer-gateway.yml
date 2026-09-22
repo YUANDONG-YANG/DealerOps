@@ -1,0 +1,43 @@
+# In-repo copy of dealer-gateway CI (design/AI-CODING-LOCAL-AND-CLOUD.md §7).
+name: dealer-gateway
+on:
+  pull_request:
+    paths:
+      - "dealer-gateway/**"
+      - ".github/workflows/dealer-gateway.yml"
+  push:
+    branches: [main]
+    paths:
+      - "dealer-gateway/**"
+      - ".github/workflows/dealer-gateway.yml"
+  workflow_dispatch:
+
+defaults:
+  run:
+    working-directory: dealer-gateway
+
+jobs:
+  compile:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+      - run: echo "repo=${{ github.repository }}"
+      - run: mvn -B -DskipTests compile
+      - name: Unit tests
+        run: mvn -B test
+
+  image:
+    if: github.ref == 'refs/heads/main'
+    needs: compile
+    runs-on: ubuntu-latest
+    environment: demo
+    steps:
+      - uses: actions/checkout@v4
+      - run: echo "build-and-push ${{ github.sha }}"
+      # docker build -t ${{ secrets.ACR_LOGIN_SERVER }}/dealer-gateway:${{ github.sha }} dealer-gateway
+      # ACR: ${prefix}acr. Secrets via GitHub Secrets / Key Vault, not this repo.

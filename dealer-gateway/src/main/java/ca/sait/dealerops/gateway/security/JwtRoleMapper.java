@@ -8,7 +8,7 @@ public final class JwtRoleMapper {
 
   private JwtRoleMapper() {}
 
-  /** Admin 赢。无法映射时返回 null（/api/v1 须 401）。 */
+  /** Admin wins. Unmappable roles return null ({@code /api/v1} must be 401). */
   public static String mapRole(Jwt jwt) {
     Collection<String> roles = jwt.getClaimAsStringList("roles");
     if (roles == null) {

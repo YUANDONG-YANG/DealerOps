@@ -19,3 +19,12 @@ aimanager:
   gateway-provider: ${AIMANAGER_GATEWAY_PROVIDER:openai}
   gateway-model: ${AIMANAGER_GATEWAY_MODEL:}
   expected-commit: c07e1f2afe5dd692c20f3567ad3a42a90d31a87a
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: never

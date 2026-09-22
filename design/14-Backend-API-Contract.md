@@ -5,7 +5,8 @@ Version v6.0 · 2026-09-21
 
 **Conflict order:** course PPT hard items > spec PDF fields > [IMPLEMENTATION-BRIEF.md](IMPLEMENTATION-BRIEF.md) / `00` > **[15](15-Data-Auth-and-Gateway.md) owns data/tenant/gateway behavior**, **this document owns HTTP JSON** > [13](13-Frontend-Engineering.md) frontend engineering > [12](12-Frontend-UI-Conventions.md).  
 **Entry:** browser-to-service traffic goes only through Gateway `http://localhost:8080`, prefix **`/api/v1/**`**. core=`8081`, ai-service=`8082` are not public. Bypassing Gateway must fail.  
-**Internal:** Gateway → ai-service `/internal/v1/**` is **404** for the browser; this document writes those paths only for the core adapter.
+**Internal:** Gateway → ai-service `/internal/v1/**` is **404** for the browser; this document writes those paths only for the core adapter.  
+**PROTOCOL wins** over this document’s §11 response sketches, §12 `WRONG_DEALER_OR_SOLD` “not this dealership” half-sentence, and BACKEND T22 `{failed,reason}`. Internal success/failure JSON and this-store sold-link codes follow [AI-PROTOCOL-AND-RULES.md](AI-PROTOCOL-AND-RULES.md).
 
 Path-table summary is in `dealer-platform/API.md`. Coding follows this document's JSON and error codes.
 
@@ -664,6 +665,8 @@ core calls the internal assistant via Gateway; recent conversation context is at
 
 ## 11. Internal only (browser 404)
 
+**Response bodies are not pinned here.** Use [AI-PROTOCOL-AND-RULES.md](AI-PROTOCOL-AND-RULES.md) §B: success `{success,notes[]}` / `{success,summary}`; failure `{success:false,code,message}` with **504** `AI_TIMEOUT` / **503** `AI_KEY_MISSING` / **502** `AI_PROVIDER_FAILED`. Do not implement T22 `{failed,reason}`.
+
 Gateway forwards to ai-service. core calls these; the browser does not.
 
 ### `POST /internal/v1/ad-check`
@@ -717,7 +720,7 @@ Gateway forwards to ai-service. core calls these; the browser does not.
 | `VALIDATION` | 400 | missing field, illegal enum, bad format |
 | `VIN_DUP` | 400 | VIN already exists in this dealership |
 | `SOLD_PAIR_REQUIRED` | 400 | sell missing date or price |
-| `WRONG_DEALER_OR_SOLD` | 400 | link vehicle: vehicle not this dealership or already sold |
+| `WRONG_DEALER_OR_SOLD` | 400 | **PROTOCOL A.1:** this-store vehicle on PUT link, but sold / not `IN_STOCK`. Cross-store ids are **404**, not this code. |
 | `UNAUTHORIZED` | 401 | not signed in |
 | `FORBIDDEN` | 403 | role not allowed for this URL; or staff has no valid membership |
 | `NOT_FOUND` | 404 | no resource or cross-dealership |

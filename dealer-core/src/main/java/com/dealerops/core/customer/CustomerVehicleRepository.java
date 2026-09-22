@@ -8,6 +8,8 @@ public interface CustomerVehicleRepository extends JpaRepository<CustomerVehicle
 
   boolean existsByVehicleId(Long vehicleId);
 
+  Optional<CustomerVehicleEntity> findByIdAndDealerId(Long id, Long dealerId);
+
   Optional<CustomerVehicleEntity> findByCustomerIdAndVehicleId(Long customerId, Long vehicleId);
 
   List<CustomerVehicleEntity> findByCustomerIdOrderByLinkedAtDesc(Long customerId);

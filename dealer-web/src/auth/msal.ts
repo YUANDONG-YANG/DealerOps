@@ -7,8 +7,9 @@ export const msal = new PublicClientApplication({
   cache:{cacheLocation:'sessionStorage',storeAuthStateInCookie:false}
 })
 let initialized = false
-export async function initializeMsal():Promise<AuthenticationResult|null>{ if(!initialized){await msal.initialize(); initialized=true}; return msal.handleRedirectPromise() }
+export async function initializeMsal():Promise<AuthenticationResult|null>{if(!initialized){await msal.initialize();initialized=true}return msal.handleRedirectPromise()}
 export function account():AccountInfo|undefined{return msal.getActiveAccount()||msal.getAllAccounts()[0]}
 export async function signIn(){return msal.loginRedirect({scopes:[apiScope]})}
-export async function signOut(){const a=account(); return msal.logoutRedirect({account:a,postLogoutRedirectUri:`${window.location.origin}/login`})}
-export async function accessToken(){const a=account();if(!a) throw new Error('Sign in required'); try{return (await msal.acquireTokenSilent({scopes:[apiScope],account:a})).accessToken}catch{return (await msal.acquireTokenRedirect({scopes:[apiScope],account:a})).accessToken}}
+export async function signOut(){return msal.logoutRedirect({account:account(),postLogoutRedirectUri:`${window.location.origin}/login`})}
+export async function clearAccount(){msal.setActiveAccount(null);try{await msal.clearCache()}catch{/* ignore */}}
+export async function accessToken():Promise<string>{const a=account();if(!a)throw new Error('Sign in required');try{return (await msal.acquireTokenSilent({scopes:[apiScope],account:a})).accessToken}catch{await msal.acquireTokenRedirect({scopes:[apiScope]});throw new Error('Redirecting to sign in')}}

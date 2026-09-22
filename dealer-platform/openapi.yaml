@@ -10,6 +10,7 @@ info:
 
     **Internal:** `/internal/v1/**` tagged `Internal` with `x-internal: true` is only core calling ai-service through the Gateway.
     Browsers cannot reach these paths: the Gateway returns **404** (not 401) when the internal header is missing, so the path is not acknowledged.
+    Internal AI **success/failure JSON** is pinned by `design/AI-PROTOCOL-AND-RULES.md` §B.2–B.3 (`{success,notes[]}` and `{success,summary}`). That protocol wins over older OpenAPI or 14 §11 wording that only said “notes” / “short text”.
 
     **Tenant / auth (behavior aligned with 15; fields still come only from 14):**
     - Roles are only `Platform.Admin` and `Dealer.User`. Ignore client `dealerId` in body / query / header.
@@ -21,8 +22,10 @@ info:
     - Unlink `DELETE .../vehicles/{vehicleId}` → **204**. Sold vehicles cannot be unlinked → **409** `SOLD_LOCKED`.
     - Ad check Blocked / Needs AI / Passed → **200** (Blocked is not an HTTP error). Rules passed but AI failed → **502** `AI_UNAVAILABLE` (check row already written).
 
-    If details conflict, 14 wins. Do not invent business fields that 14 does not define.
+    If public `/api/v1` details conflict, 14 wins. Do not invent business fields that 14 does not define.
+    If **internal** AI request/response details conflict, PROTOCOL §B.2–B.3 wins.
   x-conflict-authority: design/14-Backend-API-Contract.md
+  x-internal-ai-authority: design/AI-PROTOCOL-AND-RULES.md
 
 servers:
   - url: http://localhost:8080
@@ -53,6 +56,7 @@ tags:
     description: |
       Gateway → ai-service. Not reachable from the browser (404).
       For the core adapter only. Do not generate these client methods as user APIs for the SPA.
+      Success JSON is application/json `{success,notes[]}` (ad-check) or `{success,summary}` (assistant), not text/plain.
 
 security:
   - bearerAuth: []
@@ -550,7 +554,7 @@ paths:
       summary: Link vehicle
       description: |
         No body (or ignore body). Customer and vehicle must be in the same dealership, vehicle `IN_STOCK`, vehicle not yet linked to any customer.
-        Sold vehicles cannot be newly linked → **400** `WRONG_DEALER_OR_SOLD`. Cross-dealership id → **404** (do not use that code).
+        Sold / not IN_STOCK on a **this-store** vehicle → **400** `WRONG_DEALER_OR_SOLD` (PROTOCOL A.1). Cross-dealership id → **404** (never that code).
         Vehicle already linked (including to this customer) → **409** `VEHICLE_ALREADY_LINKED`.
       parameters:
         - $ref: "#/components/parameters/CustomerId"
@@ -563,7 +567,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/CustomerVehicleLink"
         "400":
-          description: WRONG_DEALER_OR_SOLD (sold cannot be newly linked, or visible vehicle/customer dealership mismatch)
+          description: WRONG_DEALER_OR_SOLD (PROTOCOL A.1 — this-store sold / not IN_STOCK on PUT link only)
           content:
             application/json:
               schema:
@@ -877,8 +881,10 @@ paths:
       description: |
         **Not reachable from the browser (Gateway 404).** Only core calls ai-service through the Gateway.
         Do not forward the user JWT to ai-service. `vehiclePublic` has **no** purchase/repair/sold price.
-        14 does not pin success response fields; ai-service folds model output into `aiNotes` for core to persist.
-        Transport failure is recorded by core as `UNAVAILABLE`. This endpoint must not invent business columns.
+        Request body remains 14 §11 (`listing` + `vehiclePublic` + `dealerPublic`).
+        Success body is PROTOCOL §B.2 JSON `{success:true, notes[]}` (not public `aiNotes` only, not business columns).
+        core persists `notes` onto the check row as `aiNotes`. Do not invent `recommendation` / `checkStatus` / `ruleFindings`.
+        Failure uses the same JSON as assistant: `{success:false, code, message}` with 504/503/502. core maps any failure to public 502 `AI_UNAVAILABLE`.
       security: []
       parameters:
         - $ref: "#/components/parameters/InternalToken"
@@ -890,11 +896,21 @@ paths:
               $ref: "#/components/schemas/InternalAdCheckRequest"
       responses:
         "200":
-          description: Notes for core to write on the check row (shape aligned with 14 aiNotes)
+          description: HTTP 200 and `success=true`. `notes` may be `[]`; each item at least `{message}`.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/InternalAdCheckNotes"
+                $ref: "#/components/schemas/InternalAdCheckOk"
+              example:
+                success: true
+                notes:
+                  - message: No additional misleading claims found.
+        "502":
+          $ref: "#/components/responses/InternalAiProviderFailed"
+        "503":
+          $ref: "#/components/responses/InternalAiKeyMissing"
+        "504":
+          $ref: "#/components/responses/InternalAiTimeout"
         "404":
           description: Browser or missing internal header → Gateway/ai-service 404 (do not acknowledge the path)
 
@@ -903,11 +919,13 @@ paths:
       tags: [Internal]
       x-internal: true
       operationId: internalAssistant
-      summary: Internal assistant short text
+      summary: Internal assistant JSON
       description: |
         **Not reachable from the browser (Gateway 404).** Only core calls ai-service through the Gateway.
-        `resources` are already filtered by core (no phone/email/home address). Return short text; core re-checks ids.
-        14 only requires "return short text". Success body is plain text. Do not invent extra business fields.
+        Request body remains 14 §11 (`question` + already-filtered `resources`).
+        Success body is PROTOCOL §B.3 JSON `{success:true, summary}` (`application/json`, not `text/plain`).
+        `summary` is a short non-empty explanation. core re-checks card ids (keep only ids that appeared in this `resources`).
+        Failure uses the same JSON shape and HTTP/code table as ad-check. core must not send 502 to the browser; public remains 200 with `summary=null`.
       security: []
       parameters:
         - $ref: "#/components/parameters/InternalToken"
@@ -919,11 +937,20 @@ paths:
               $ref: "#/components/schemas/InternalAssistantRequest"
       responses:
         "200":
-          description: Short text (14 §11)
+          description: HTTP 200 and `success=true` with a non-empty `summary`.
           content:
-            text/plain:
+            application/json:
               schema:
-                type: string
+                $ref: "#/components/schemas/InternalAssistantOk"
+              example:
+                success: true
+                summary: Two in-stock Toyotas match. Open a card for DMS.
+        "502":
+          $ref: "#/components/responses/InternalAiProviderFailed"
+        "503":
+          $ref: "#/components/responses/InternalAiKeyMissing"
+        "504":
+          $ref: "#/components/responses/InternalAiTimeout"
         "404":
           description: Browser or missing internal header → 404
 
@@ -1067,6 +1094,36 @@ components:
           example:
             code: VERSION_CONFLICT
             message: version does not match.
+    InternalAiTimeout:
+      description: Internal only (PROTOCOL §B.2). Connect+response timeout. Do not send `AI_TIMEOUT` to the browser.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/InternalAiFailure"
+          example:
+            success: false
+            code: AI_TIMEOUT
+            message: Model call exceeded 15s.
+    InternalAiKeyMissing:
+      description: Internal only. `AIMANAGER_API_KEY` missing or blank. Immediate 503; do not wait 15s.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/InternalAiFailure"
+          example:
+            success: false
+            code: AI_KEY_MISSING
+            message: AIMANAGER_API_KEY is missing or invalid.
+    InternalAiProviderFailed:
+      description: Internal only. Invalid key, `isSuccess()==false`, parse failure, or vendor error.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/InternalAiFailure"
+          example:
+            success: false
+            code: AI_PROVIDER_FAILED
+            message: Model did not return a usable result.
 
   schemas:
     Error:
@@ -1094,7 +1151,7 @@ components:
         | VALIDATION | 400 | Missing field, illegal enum, or bad format |
         | VIN_DUP | 400 | Duplicate VIN in this dealership |
         | SOLD_PAIR_REQUIRED | 400 | Sell missing date or price |
-        | WRONG_DEALER_OR_SOLD | 400 | Link: vehicle not in this dealership or sold (cross-dealership id uses 404) |
+        | WRONG_DEALER_OR_SOLD | 400 | PROTOCOL A.1: this-store PUT link when sold / not IN_STOCK (cross-store is 404) |
         | UNAUTHORIZED | 401 | Not authenticated |
         | FORBIDDEN | 403 | Role not allowed on this URL, or staff has no valid membership |
         | NOT_FOUND | 404 | Missing resource or cross-dealership |
@@ -1861,15 +1918,50 @@ components:
         dealerPublic:
           $ref: "#/components/schemas/DealerPublic"
 
-    InternalAdCheckNotes:
+    InternalAdCheckOk:
       type: object
-      description: 14 does not pin internal success JSON. Reuse the public Check.aiNotes element shape only. Do not add business columns.
+      required: [success, notes]
+      description: |
+        PROTOCOL §B.2 success. `success` must be `true`. `notes` may be `[]`; each element at least `{message}`.
+        core writes `notes` as-is onto public `Check.aiNotes`. Ban `recommendation` / `checkStatus` / `ruleFindings`.
       properties:
-        aiNotes:
+        success:
+          type: boolean
+          enum: [true]
+        notes:
           type: array
-          nullable: true
           items:
             $ref: "#/components/schemas/AiNote"
+
+    InternalAssistantOk:
+      type: object
+      required: [success, summary]
+      description: |
+        PROTOCOL §B.3 success. `application/json`, not `text/plain`. `summary` is short and non-empty.
+      properties:
+        success:
+          type: boolean
+          enum: [true]
+        summary:
+          type: string
+          minLength: 1
+
+    InternalAiFailure:
+      type: object
+      required: [success, code, message]
+      description: |
+        PROTOCOL §B.2–B.3 unified failure for both internal AI paths. `success` must be `false`.
+        HTTP and `code` table: 504 `AI_TIMEOUT`, 503 `AI_KEY_MISSING`, 502 `AI_PROVIDER_FAILED`.
+        These codes are **not** public `/api/v1` ErrorCode values.
+      properties:
+        success:
+          type: boolean
+          enum: [false]
+        code:
+          type: string
+          enum: [AI_TIMEOUT, AI_KEY_MISSING, AI_PROVIDER_FAILED]
+        message:
+          type: string
 
     InternalAssistantResource:
       type: object

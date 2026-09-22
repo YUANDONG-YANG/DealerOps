@@ -20,16 +20,16 @@ Approved scope is [design/SCOPE-BASELINE.md](design/SCOPE-BASELINE.md). Change i
 
 | Path | Status |
 |---|---|
-| `dealer-web/` | **Not in this tree yet.** Planned Vue 3 + Element Plus + MSAL.js on port `5173`. |
+| `dealer-web/` | Vue 3 + Element Plus + MSAL.js. Six pages (`/login`, `/admin`, `/dms`, `/crm`, `/ads`, `/assistant`). Host: `npm run dev` on `5173`. Optional `dealer-web/Dockerfile` serves Vite preview on `5173`. |
 | `dealer-gateway/` | Spring Cloud Gateway on `8080`. Routes `/api/v1/**` to core and `/internal/v1/**` to AI (internal header required). |
 | `dealer-core/` | Java 21 + Spring Boot + Flyway (`V1__init.sql`) + MySQL. Business APIs and JWT/membership are present; treat as in-progress, not a finished product. |
 | `ai-service/` | Java 21, no database. In-process adapter for private `ai-manager`. Default Maven profile needs that JAR; `-Pstub` compiles without a real model. |
-| `dealer-platform/` | Local Compose (MySQL only today), `env.example`, OpenAPI, Bicep/pipeline placeholders. |
+| `dealer-platform/` | Local Compose (MySQL + core + ai-service + gateway), `env.example`, OpenAPI, Bicep/pipeline placeholders. |
 | `design/` | Current course design. Start here. |
 | `PREP-CHECKLIST.md` | Machine and account blockers (JDK, Docker, Entra, Azure, model key). |
 | `REUSE-PLAN.md` | Notes on `references/` (research only, not runtime modules). |
 
-Browser calls only `http://localhost:8080` (`/api/v1`). Direct browser access to core (`8081`) or ai-service (`8082`) must fail. Compose does **not** start the four apps yet.
+Browser calls only `http://localhost:8080` (`/api/v1`). Direct browser access to core (`8081`) or ai-service (`8082`) must fail. Compose stays MySQL plus the three Java apps. `dealer-web` is not a compose service: run it on the host (`npm run dev` in `dealer-web/`) or build the optional Vite-preview image in `dealer-web/Dockerfile`.
 
 ## How to read the docs
 
@@ -53,14 +53,17 @@ Copy [dealer-platform/env.example](dealer-platform/env.example) to a local `.env
 
 ```text
 cd dealer-platform
-docker compose up -d mysql
+docker compose up --build
 ```
 
-That starts MySQL 8.4 on `3306` (`dealer_core` / `dealer` / `dealer_dev_only`). After JDK 21 is on `PATH`:
+That starts MySQL 8.4 on `3306` (`dealer_core` / `dealer` / `dealer_dev_only`), core on `127.0.0.1:8081`, ai-service on `127.0.0.1:8082`, and gateway on `8080`. MySQL-only is still `docker compose up -d mysql`. Web is not in this compose file.
 
 ```text
-# from each app folder
-mvn -DskipTests package
+cd dealer-web
+npm ci
+npm run dev
 ```
 
-`ai-service` without a published `ai-manager` JAR: `mvn -Pstub -DskipTests package`. Ports and boot order: [design/AI-CODING-LOCAL-AND-CLOUD.md](design/AI-CODING-LOCAL-AND-CLOUD.md). Cloud Bicep in `dealer-platform/infra/` is a draft — do not treat it as deployed.
+SPA: `http://127.0.0.1:5173/`. Optional image (Vite preview, same port): `docker build -t dealer-web dealer-web` then `docker run --rm -p 5173:5173 dealer-web`. Copy `dealer-web/.env.example` to `dealer-web/.env` for Entra keys.
+
+`ai-service` image defaults to Maven profile `stub` (no sibling `ai-manager` source in this tree). After `mvn -DskipTests install` in a sibling checkout named `ai-manager`, rebuild with `MAVEN_ARGS=-DskipTests`. Ports and boot order: [design/AI-CODING-LOCAL-AND-CLOUD.md](design/AI-CODING-LOCAL-AND-CLOUD.md). Cloud Bicep in `dealer-platform/infra/` is a draft — do not treat it as deployed.

@@ -1,0 +1,29 @@
+# dealer-platform does not build business images (design/AI-CODING-LOCAL-AND-CLOUD.md §7).
+# Validates Bicep only. Deploy waits for an Azure subscription and Key Vault secret values.
+name: dealer-platform
+on:
+  pull_request:
+    paths:
+      - "dealer-platform/infra/**"
+      - "dealer-platform/pipelines/**"
+      - ".github/workflows/dealer-platform.yml"
+  push:
+    branches: [main]
+    paths:
+      - "dealer-platform/infra/**"
+      - "dealer-platform/pipelines/**"
+      - ".github/workflows/dealer-platform.yml"
+  workflow_dispatch:
+
+jobs:
+  bicep:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/cli@v2
+        with:
+          azcliversion: latest
+          inlineScript: |
+            az bicep install
+            az bicep build --file dealer-platform/infra/main.bicep --stdout > /dev/null
+            echo "Bicep compiled. Not deployed (no subscription / no secret values in repo)."

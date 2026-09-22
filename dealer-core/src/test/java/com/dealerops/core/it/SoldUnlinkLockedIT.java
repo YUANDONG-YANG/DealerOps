@@ -3,99 +3,66 @@ package com.dealerops.core.it;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 
-import com.dealerops.core.customer.CustomerEntity;
-import com.dealerops.core.customer.CustomerRepository;
-import com.dealerops.core.customer.CustomerVehicleEntity;
+import com.dealerops.core.audit.AuditAction;
+import com.dealerops.core.audit.AuditEventRepository;
+import com.dealerops.core.audit.EntityType;
 import com.dealerops.core.customer.CustomerVehicleRepository;
+import com.dealerops.core.support.AdFixtures;
 import com.dealerops.core.support.CoreItSupport;
 import com.dealerops.core.support.TestTokens;
-import com.dealerops.core.vehicle.ConditionCode;
-import com.dealerops.core.vehicle.VehicleEntity;
-import com.dealerops.core.vehicle.VehicleRepository;
-import com.dealerops.core.vehicle.VehicleSource;
-import com.dealerops.core.vehicle.VehicleStatus;
-import java.math.BigDecimal;
-import java.time.LocalDate;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.web.servlet.MvcResult;
 
-/** BE-06 / TEST-06: sold unlink 409; in-stock unlink 204. */
+/** BE-06 / TEST-06: sold unlink is 409 SOLD_LOCKED; in-stock unlink is 204. */
 class SoldUnlinkLockedIT extends CoreItSupport {
 
-  @Autowired private CustomerRepository customerRepository;
-  @Autowired private VehicleRepository vehicleRepository;
   @Autowired private CustomerVehicleRepository customerVehicleRepository;
+  @Autowired private AuditEventRepository auditEventRepository;
 
   @Test
-  void soldUnlinkRemainsLocked() throws Exception {
-    CustomerEntity customer = saveCustomer("Sold Link");
-    VehicleEntity vehicle = saveVehicle("1HGCM82633A009001", VehicleStatus.SOLD);
-    CustomerVehicleEntity link = link(customer.getId(), vehicle.getId());
+  void soldUnlinkIsLockedAndRowRemains() throws Exception {
+    long customerId = createCustomer(TestTokens.staffA(), "Alex");
+    long vehicleId = createVehicle(TestTokens.staffA(), AdFixtures.V_ASIS_VIN);
+    assertThat(linkVehicle(TestTokens.staffA(), customerId, vehicleId).getResponse().getStatus()).isEqualTo(200);
+    assertThat(sellVehicle(TestTokens.staffA(), vehicleId, 0, "2026-09-21", "15000").getResponse().getStatus())
+        .isEqualTo(200);
 
-    MvcResult result =
+    MvcResult sold =
         mockMvc
-            .perform(
-                authed(
-                    delete("/api/v1/customers/" + customer.getId() + "/vehicles/" + vehicle.getId()),
-                    TestTokens.staffA()))
+            .perform(authed(delete("/api/v1/customers/" + customerId + "/vehicles/" + vehicleId), TestTokens.staffA()))
             .andReturn();
-    assertThat(result.getResponse().getStatus()).isEqualTo(409);
-    assertThat(errorCode(result)).isEqualTo("SOLD_LOCKED");
-    assertThat(customerVehicleRepository.findById(link.getId())).isPresent();
+    assertThat(sold.getResponse().getStatus()).isEqualTo(409);
+    assertThat(errorCode(sold)).isEqualTo("SOLD_LOCKED");
+    assertThat(customerVehicleRepository.existsByVehicleId(vehicleId)).isTrue();
+    assertThat(
+            customerVehicleRepository.findByCustomerIdAndVehicleId(customerId, vehicleId).orElseThrow().getDealerId())
+        .isEqualTo(dealerAId);
+    long linkId =
+        customerVehicleRepository.findByCustomerIdAndVehicleId(customerId, vehicleId).orElseThrow().getId();
+    assertThat(customerVehicleRepository.findByIdAndDealerId(linkId, dealerAId)).isPresent();
+    assertThat(customerVehicleRepository.findByIdAndDealerId(linkId, dealerBId)).isEmpty();
   }
 
   @Test
   void inStockUnlinkIs204() throws Exception {
-    CustomerEntity customer = saveCustomer("Open Link");
-    VehicleEntity vehicle = saveVehicle("1HGCM82633A009002", VehicleStatus.IN_STOCK);
-    CustomerVehicleEntity link = link(customer.getId(), vehicle.getId());
+    long customerId = createCustomer(TestTokens.staffA(), "Sam");
+    long vehicleId = createVehicle(TestTokens.staffA(), "1HGCM82633A004360");
+    MvcResult linked = linkVehicle(TestTokens.staffA(), customerId, vehicleId);
+    assertThat(linked.getResponse().getStatus()).isEqualTo(200);
+    long linkId = json(linked).path("id").asLong();
 
     MvcResult result =
         mockMvc
-            .perform(
-                authed(
-                    delete("/api/v1/customers/" + customer.getId() + "/vehicles/" + vehicle.getId()),
-                    TestTokens.staffA()))
+            .perform(authed(delete("/api/v1/customers/" + customerId + "/vehicles/" + vehicleId), TestTokens.staffA()))
             .andReturn();
     assertThat(result.getResponse().getStatus()).isEqualTo(204);
-    assertThat(customerVehicleRepository.findById(link.getId())).isEmpty();
-  }
-
-  private CustomerEntity saveCustomer(String name) {
-    CustomerEntity customer = new CustomerEntity();
-    customer.setDealerId(dealerAId);
-    customer.setName(name);
-    customer.setEmail(name.replace(" ", "").toLowerCase() + "@prairie.example");
-    customer.setPhone("403-555-0199");
-    customer.setHomeAddress("9 Hidden Rd");
-    return customerRepository.save(customer);
-  }
-
-  private VehicleEntity saveVehicle(String vin, VehicleStatus status) {
-    VehicleEntity vehicle = new VehicleEntity();
-    vehicle.setDealerId(dealerAId);
-    vehicle.setVin(vin);
-    vehicle.setMake("Toyota");
-    vehicle.setModel("Camry");
-    vehicle.setModelYear(2020);
-    vehicle.setSource(VehicleSource.AUCTION);
-    vehicle.setPurchaseCost(new BigDecimal("12000.00"));
-    vehicle.setAddedOn(LocalDate.of(2020, 3, 1));
-    vehicle.setConditionCode(ConditionCode.AS_IS);
-    vehicle.setStatus(status);
-    if (status == VehicleStatus.SOLD) {
-      vehicle.setSoldOn(LocalDate.of(2026, 9, 1));
-      vehicle.setSoldPrice(new BigDecimal("15000.00"));
-    }
-    return vehicleRepository.save(vehicle);
-  }
-
-  private CustomerVehicleEntity link(Long customerId, Long vehicleId) {
-    CustomerVehicleEntity row = new CustomerVehicleEntity();
-    row.setDealerId(dealerAId);
-    row.setCustomerId(customerId);
-    row.setVehicleId(vehicleId);
-    return customerVehicleRepository.save(row);
+    assertThat(customerVehicleRepository.existsByVehicleId(vehicleId)).isFalse();
+    assertThat(auditEventRepository.findAll())
+        .anyMatch(
+            row ->
+                EntityType.CUSTOMER_VEHICLE.name().equals(row.getEntityType())
+                    && row.getEntityId() == linkId
+                    && AuditAction.UNLINK.name().equals(row.getAction()));
   }
 }

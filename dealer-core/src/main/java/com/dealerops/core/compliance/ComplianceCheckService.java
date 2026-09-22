@@ -23,6 +23,7 @@ import com.dealerops.core.vehicle.VehicleRepository;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.List;
+import java.util.Objects;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
 
@@ -169,7 +170,7 @@ public class ComplianceCheckService {
           current.setLastCheckId(check.getId());
           listingRepository.save(current);
           listing.setLastCheckId(check.getId());
-          return check;
+          return Objects.requireNonNull(check);
         });
   }
 

@@ -11,12 +11,19 @@ import org.testcontainers.containers.MySQLContainer;
 @TestConfiguration(proxyBeanMethods = false)
 public class MysqlFlywayTestConfig {
 
+  private static final MySQLContainer<?> MYSQL =
+      new MySQLContainer<>("mysql:8.4")
+          .withDatabaseName("dealer_core")
+          .withUsername("dealer")
+          .withPassword("dealer_dev_only");
+
+  static {
+    MYSQL.start();
+  }
+
   @Bean
   @ServiceConnection
   MySQLContainer<?> dealerCoreMysql() {
-    return new MySQLContainer<>("mysql:8.4")
-        .withDatabaseName("dealer_core")
-        .withUsername("dealer")
-        .withPassword("dealer_dev_only");
+    return MYSQL;
   }
 }

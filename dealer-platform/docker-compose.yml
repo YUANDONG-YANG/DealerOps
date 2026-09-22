@@ -1,3 +1,9 @@
+# Target fragment from design/AI-CODING-LOCAL-AND-CLOUD.md §3 + 15 §10.
+# Default AI image is the CI stub (do not switch this file to paid AI).
+# Real JAR override: AI_MAVEN_ARGS="-DskipTests" docker compose build ai-service
+# CORS / SPA Gateway origin come from env (CORS_ALLOWED_ORIGIN, VITE_GATEWAY_URL / GATEWAY_PUBLIC_URL).
+# No Redis / extra datastores. Secrets via ${...} from dealer-platform/.env (copy env.example).
+
 services:
   mysql:
     image: mysql:8.4
@@ -9,3 +15,133 @@ services:
     ports:
       - "3306:3306"
     command: ["--character-set-server=utf8mb4", "--collation-server=utf8mb4_0900_ai_ci"]
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-udealer", "-pdealer_dev_only"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  dealer-core:
+    build: ../dealer-core
+    environment:
+      CORE_PORT: "8081"
+      MYSQL_URL: jdbc:mysql://mysql:3306/dealer_core?useSSL=false&allowPublicKeyRetrieval=true
+      MYSQL_USER: dealer
+      MYSQL_PASSWORD: dealer_dev_only
+      INTERNAL_TOKEN: ${INTERNAL_TOKEN:-dealer-internal}
+      GATEWAY_BASE_URL: http://dealer-gateway:8080
+      ENTRA_ISSUER: ${ENTRA_ISSUER:-https://login.microsoftonline.com/<tenant-id>/v2.0}
+      ENTRA_AUDIENCE: ${ENTRA_AUDIENCE:-api://dealer-api}
+      ENTRA_JWKS_URI: ${ENTRA_JWKS_URI:-}
+      JWT_MODE: ${JWT_MODE:-dev}
+      DEV_JWT_SECRET: ${DEV_JWT_SECRET:-dealer-dev-jwt-secret-change-me}
+    # 15 §10 / LOCAL-AND-CLOUD §3: loopback only; do not use "8081:8081"
+    ports:
+      - "127.0.0.1:8081:8081"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    # LOCAL-AND-CLOUD §2.2: GET /actuator/health → 200, no JWT. JRE image has no curl/wget.
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "bash -c 'exec 3<>/dev/tcp/127.0.0.1/8081; printf \"GET /actuator/health HTTP/1.0\\r\\nHost: 127.0.0.1\\r\\n\\r\\n\" >&3; grep -q UP <&3'",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 90s
+
+  ai-service:
+    build:
+      context: ../ai-service
+      args:
+        # Default stays stub (CI / LOCAL). Override: AI_MAVEN_ARGS="-DskipTests"
+        MAVEN_ARGS: "${AI_MAVEN_ARGS:--Pstub,!aimanager -Daimanager.stub=true -DskipTests}"
+    environment:
+      AI_PORT: "8082"
+      INTERNAL_TOKEN: ${INTERNAL_TOKEN:-dealer-internal}
+      AIMANAGER_API_KEY: ${AIMANAGER_API_KEY:-}
+      AIMANAGER_GATEWAY_PROVIDER: ${AIMANAGER_GATEWAY_PROVIDER:-openai}
+      AIMANAGER_GATEWAY_MODEL: ${AIMANAGER_GATEWAY_MODEL:-}
+    ports:
+      - "127.0.0.1:8082:8082"
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "bash -c 'exec 3<>/dev/tcp/127.0.0.1/8082; printf \"GET /actuator/health HTTP/1.0\\r\\nHost: 127.0.0.1\\r\\n\\r\\n\" >&3; grep -q UP <&3'",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 60s
+
+  dealer-gateway:
+    build: ../dealer-gateway
+    environment:
+      GATEWAY_PORT: "8080"
+      # env.example / LOCAL-AND-CLOUD use host.docker.internal when JVMs run on the host.
+      # In this file all three apps share the compose network, and 15 §10 binds 8081/8082
+      # to 127.0.0.1 only — host.docker.internal cannot reach that loopback publish.
+      CORE_URL: http://dealer-core:8081
+      AI_URL: http://ai-service:8082
+      INTERNAL_TOKEN: ${INTERNAL_TOKEN:-dealer-internal}
+      CORS_ALLOWED_ORIGIN: ${CORS_ALLOWED_ORIGIN:-${WEB_PUBLIC_ORIGIN:-http://localhost:5173}}
+      ENTRA_ISSUER: ${ENTRA_ISSUER:-https://login.microsoftonline.com/<tenant-id>/v2.0}
+      ENTRA_AUDIENCE: ${ENTRA_AUDIENCE:-api://dealer-api}
+      ENTRA_JWKS_URI: ${ENTRA_JWKS_URI:-}
+      JWT_MODE: ${JWT_MODE:-dev}
+      DEV_JWT_SECRET: ${DEV_JWT_SECRET:-dealer-dev-jwt-secret-change-me}
+    ports:
+      - "8080:8080"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    # LOCAL-AND-CLOUD §2.1: gateway after core and ai are ready.
+    depends_on:
+      dealer-core:
+        condition: service_healthy
+      ai-service:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "bash -c 'exec 3<>/dev/tcp/127.0.0.1/8080; printf \"GET /actuator/health HTTP/1.0\\r\\nHost: 127.0.0.1\\r\\n\\r\\n\" >&3; grep -q UP <&3'",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 60s
+
+  dealer-web:
+    build:
+      context: ../dealer-web
+      args:
+        VITE_GATEWAY_URL: ${VITE_GATEWAY_URL:-${GATEWAY_PUBLIC_URL:-http://localhost:8080}}
+        VITE_ENTRA_TENANT_ID: ${VITE_ENTRA_TENANT_ID:-}
+        VITE_ENTRA_CLIENT_ID: ${VITE_ENTRA_CLIENT_ID:-}
+        VITE_ENTRA_API_SCOPE: ${VITE_ENTRA_API_SCOPE:-api://dealer-api/access_as_user}
+    environment:
+      # Entrypoint writes dist/config.json { "gatewayUrl" } for the SPA resolver.
+      VITE_GATEWAY_URL: ${VITE_GATEWAY_URL:-${GATEWAY_PUBLIC_URL:-http://localhost:8080}}
+      GATEWAY_PUBLIC_URL: ${GATEWAY_PUBLIC_URL:-${VITE_GATEWAY_URL:-http://localhost:8080}}
+      VITE_ENTRA_TENANT_ID: ${VITE_ENTRA_TENANT_ID:-}
+      VITE_ENTRA_CLIENT_ID: ${VITE_ENTRA_CLIENT_ID:-}
+      VITE_ENTRA_API_SCOPE: ${VITE_ENTRA_API_SCOPE:-api://dealer-api/access_as_user}
+    ports:
+      - "5173:5173"
+    depends_on:
+      dealer-gateway:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "node -e \"require('http').get('http://127.0.0.1:5173/',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))\"",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 60s

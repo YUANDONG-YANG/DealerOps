@@ -97,10 +97,7 @@ public class AuditService {
           case "VEHICLE" -> vehicleRepository.findByIdAndDealerId(entityId, tenant).isPresent();
           case "CUSTOMER" -> customerRepository.findByIdAndDealerId(entityId, tenant).isPresent();
           case "CUSTOMER_VEHICLE" ->
-              customerVehicleRepository
-                  .findById(entityId)
-                  .filter(row -> tenant.equals(row.getDealerId()))
-                  .isPresent();
+              customerVehicleRepository.findByIdAndDealerId(entityId, tenant).isPresent();
           default -> false;
         };
     if (!found) {

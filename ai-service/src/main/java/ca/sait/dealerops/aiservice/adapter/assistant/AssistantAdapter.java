@@ -10,8 +10,8 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.manager.AiManager;
 import com.manager.core.AIResponse;
+import com.manager.session.Conversation;
 import java.util.UUID;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
@@ -20,15 +20,13 @@ public class AssistantAdapter {
 
   private final AiManagerFactory factory;
   private final ObjectMapper objectMapper;
-  private final long timeoutMs;
+  private final TimedModelCall timedModelCall;
 
   public AssistantAdapter(
-      AiManagerFactory factory,
-      ObjectMapper objectMapper,
-      @Value("${dealerops.ai.timeout-ms:15000}") long timeoutMs) {
+      AiManagerFactory factory, ObjectMapper objectMapper, TimedModelCall timedModelCall) {
     this.factory = factory;
     this.objectMapper = objectMapper;
-    this.timeoutMs = timeoutMs;
+    this.timedModelCall = timedModelCall;
   }
 
   public AssistantOkResponse run(AssistantInternalRequest req) {
@@ -38,9 +36,9 @@ public class AssistantAdapter {
     String conversationId = UUID.randomUUID().toString();
     AiManager mgr = factory.create();
     try {
-      mgr.startConversation(conversationId, SystemPrompts.ASSISTANT);
+      Conversation conversation = mgr.startConversation(conversationId, SystemPrompts.ASSISTANT);
       String userJson = toJson(req);
-      AIResponse response = TimedModelCall.request(timeoutMs, () -> mgr.request(userJson));
+      AIResponse response = timedModelCall.request(() -> conversation.request(userJson).send());
       if (response == null || !response.isSuccess() || !StringUtils.hasText(response.getContent())) {
         throw ModelFailureException.providerFailed();
       }

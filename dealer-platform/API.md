@@ -51,7 +51,7 @@ There is no `DELETE /admin/dealers/{id}`. Admin hitting the business URLs below 
 | POST | `/internal/v1/ad-check` |
 | POST | `/internal/v1/assistant` |
 
-Body shapes: 14 §11.
+Request shapes: 14 §11. **Internal success/failure JSON and sold-link codes: PROTOCOL wins** (`design/AI-PROTOCOL-AND-RULES.md` §A.1 / §B) over 14 §11 sketches, BACKEND T22 `{failed,reason}`, and this file.
 
 Full schema: `openapi.yaml`.  
-If details conflict, 14 wins.
+If public-path details conflict, 14 wins. If internal AI or `WRONG_DEALER_OR_SOLD` vs 404 conflict, PROTOCOL wins.

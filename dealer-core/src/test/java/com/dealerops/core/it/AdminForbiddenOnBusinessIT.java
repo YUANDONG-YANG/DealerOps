@@ -2,21 +2,24 @@ package com.dealerops.core.it;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 
 import com.dealerops.core.support.CoreItSupport;
 import com.dealerops.core.support.TestTokens;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.web.servlet.MvcResult;
 
-/** BE-13 / TEST-13: Admin JWT cannot read business fields. */
+/**
+ * BE-13 / TEST-13 / classroom CL-3 (00 item 3).
+ * Admin JWT on /vehicles /customers /listings/** /assistant/ask → 403 or 404.
+ * Body must not contain vin, purchase cost, or customer fields.
+ */
 class AdminForbiddenOnBusinessIT extends CoreItSupport {
 
   @Test
   void adminBusinessUrlsAre403WithoutVinCostOrCustomer() throws Exception {
     assertNoBusiness(getVehicles(TestTokens.admin()));
     assertNoBusiness(authed(get("/api/v1/customers"), TestTokens.admin()));
-    assertNoBusiness(authed(get("/api/v1/listings/1/checks"), TestTokens.admin()));
+    assertNoBusiness(postJson("/api/v1/listings/1/checks", TestTokens.admin(), "{\"version\":0}"));
     assertNoBusiness(postJson("/api/v1/assistant/ask", TestTokens.admin(), "{\"text\":\"list vehicles\"}"));
   }
 

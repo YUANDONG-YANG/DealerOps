@@ -1524,6 +1524,8 @@ Gateway **forwards** `Authorization` on `/api/v1/**`. Unmappable role: `/api/v1/
 ---
 
 ### BE-T22 ai-service two internal POSTs + failure body (so core becomes 502)
+
+**PROTOCOL wins this task’s `{failed,reason}` / `{aiNotes,success}` / HTTP-503-only sketches.** Implement [AI-PROTOCOL-AND-RULES.md](AI-PROTOCOL-AND-RULES.md) §B: 200 `{success,notes[]}` / `{success,summary}`; failure `{success:false,code,message}` (**504** `AI_TIMEOUT` / **503** `AI_KEY_MISSING` / **502** `AI_PROVIDER_FAILED`). Local `INTERNAL_TOKEN` default is **`dealer-internal`**. Do not rewrite the copy-paste below; do not ship it.
 - Repo: ai-service
 - Create/change files:
   - `ai-service/src/main/java/ca/sait/dealerops/aiservice/adapter/adcheck/AdCheckController.java`

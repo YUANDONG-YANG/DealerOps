@@ -26,8 +26,18 @@ spring:
     oauth2:
       resourceserver:
         jwt:
+          # Placeholder tenant-id is valid for compile/start. JWT_MODE=entra loads JWKS from this issuer.
           issuer-uri: ${ENTRA_ISSUER:https://login.microsoftonline.com/<tenant-id>/v2.0}
           audiences: ${ENTRA_AUDIENCE:api://dealer-api}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: never
 
 dealerops:
   gateway-base-url: ${GATEWAY_BASE_URL:http://localhost:8080}
@@ -37,7 +47,9 @@ dealerops:
     connect-timeout-ms: 2000
     response-timeout-ms: 13000
   jwt:
-    # entra: use ENTRA_ISSUER JWKS. Placeholder issuer <tenant-id> falls back to local HS256.
+    # dev = local HS256 (DEV_JWT_SECRET). entra = ENTRA_ISSUER + ENTRA_AUDIENCE + JWKS.
+    # Placeholder issuer does not fetch JWKS. Optional ENTRA_JWKS_URI overrides derived keys URL.
     mode: ${JWT_MODE:dev}
     # Local HS256 only; not a production secret. Must be at least 32 bytes.
     dev-secret: ${DEV_JWT_SECRET:dealer-dev-jwt-secret-change-me}
+    jwks-uri: ${ENTRA_JWKS_URI:}

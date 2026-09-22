@@ -11,7 +11,8 @@ import org.springframework.web.server.WebFilterChain;
 import reactor.core.publisher.Mono;
 
 /**
- * 浏览器或任意客户端打 /internal/** 且缺少正确 X-Dealer-Internal → 404（不要 401）。
+ * Browser or any client hitting {@code /internal/**} without the correct
+ * {@code X-Dealer-Internal} header → 404 (not 401).
  */
 @Component
 @Order(Ordered.HIGHEST_PRECEDENCE)

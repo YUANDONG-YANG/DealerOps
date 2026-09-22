@@ -11,10 +11,10 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.manager.AiManager;
 import com.manager.core.AIResponse;
+import com.manager.session.Conversation;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -22,15 +22,13 @@ public class AdCheckAdapter {
 
   private final AiManagerFactory factory;
   private final ObjectMapper objectMapper;
-  private final long timeoutMs;
+  private final TimedModelCall timedModelCall;
 
   public AdCheckAdapter(
-      AiManagerFactory factory,
-      ObjectMapper objectMapper,
-      @Value("${dealerops.ai.timeout-ms:15000}") long timeoutMs) {
+      AiManagerFactory factory, ObjectMapper objectMapper, TimedModelCall timedModelCall) {
     this.factory = factory;
     this.objectMapper = objectMapper;
-    this.timeoutMs = timeoutMs;
+    this.timedModelCall = timedModelCall;
   }
 
   public AdCheckOkResponse run(AdCheckInternalRequest req) {
@@ -40,17 +38,14 @@ public class AdCheckAdapter {
     String conversationId = UUID.randomUUID().toString();
     AiManager mgr = factory.create();
     try {
-      mgr.startConversation(conversationId, SystemPrompts.AD_CHECK);
+      Conversation conversation = mgr.startConversation(conversationId, SystemPrompts.AD_CHECK);
       String userJson = toJson(req);
-      AIResponse response = TimedModelCall.request(timeoutMs, () -> mgr.request(userJson));
+      AIResponse response = timedModelCall.request(() -> conversation.request(userJson).send());
       if (response == null || !response.isSuccess()) {
         throw ModelFailureException.providerFailed();
       }
-      List<AiNote> notes = notesFrom(response.getContent());
-      if (notes.isEmpty()) {
-        throw ModelFailureException.providerFailed();
-      }
-      return new AdCheckOkResponse(true, notes);
+      // PROTOCOL B.2: notes may be []; empty array is success, not provider failure.
+      return new AdCheckOkResponse(true, notesFrom(response.getContent()));
     } finally {
       try {
         mgr.closeConversation(conversationId);

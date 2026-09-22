@@ -17,12 +17,13 @@ import org.springframework.web.reactive.function.client.WebClientResponseExcepti
 public class AiGatewayClient {
 
   private final WebClient webClient;
-  private final long timeoutMs;
+  private final long responseTimeoutMs;
 
   public AiGatewayClient(
-      WebClient aiGatewayWebClient, @Value("${dealerops.ai-timeout-ms:15000}") long timeoutMs) {
+      WebClient aiGatewayWebClient,
+      @Value("${dealerops.ai.response-timeout-ms:13000}") long responseTimeoutMs) {
     this.webClient = aiGatewayWebClient;
-    this.timeoutMs = timeoutMs;
+    this.responseTimeoutMs = responseTimeoutMs;
   }
 
   public List<AiNote> adCheck(AdCheckInternalRequest body) {
@@ -54,7 +55,7 @@ public class AiGatewayClient {
           .retrieve()
           .onStatus(HttpStatusCode::isError, response -> response.createException())
           .bodyToMono(JsonNode.class)
-          .timeout(Duration.ofMillis(timeoutMs))
+          .timeout(Duration.ofMillis(responseTimeoutMs))
           .block();
     } catch (WebClientResponseException ex) {
       throw new AiCallFailed("AI call failed.", ex);

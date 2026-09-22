@@ -48,9 +48,8 @@ class IgnoreClientDealerIdIT extends CoreItSupport {
                     TestTokens.staffA()))
             .andReturn();
 
-    assertThat(created.getResponse().getStatus()).isIn(200, 201);
-    Long id = json(created).path("id").asLong();
-    assertThat(vehicleRepository.findById(id)).isPresent();
+    assertThat(created.getResponse().getStatus()).isEqualTo(201);
+    long id = json(created).path("id").asLong();
     assertThat(vehicleRepository.findById(id).orElseThrow().getDealerId()).isEqualTo(dealerAId);
 
     MvcResult staffAGet = mockMvc.perform(authed(get("/api/v1/vehicles/" + id), TestTokens.staffA())).andReturn();

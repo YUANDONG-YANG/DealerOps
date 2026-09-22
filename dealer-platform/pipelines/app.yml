@@ -1,4 +1,5 @@
-# Copy into each app repo. Change displayName and the Dockerfile path.
+# Leftover Azure DevOps stub. Product CI is GitHub Actions (LOCAL-AND-CLOUD §7).
+# See NOTES.md and .github/workflows/*.yml in this repository.
 trigger:
   branches:
     include: [main]
@@ -7,5 +8,5 @@ pool:
   vmImage: ubuntu-latest
 
 steps:
-  - script: echo "Sprint 1: make this repo compile first. Turn on image push and Bicep after Azure permissions are in place."
-    displayName: Placeholder
+  - script: echo "Use GitHub Actions. This file is notes only; it does not deploy."
+    displayName: Redirect to GitHub Actions

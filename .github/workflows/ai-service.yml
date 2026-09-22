@@ -1,0 +1,47 @@
+# In-repo copy of ai-service CI (design/AI-CODING-LOCAL-AND-CLOUD.md §7, 18 §9, 19 §2.8).
+# Stub only: never resolve GitHub Packages or call a paid model.
+name: ai-service
+on:
+  pull_request:
+    paths:
+      - "ai-service/**"
+      - ".github/workflows/ai-service.yml"
+  push:
+    branches: [main]
+    paths:
+      - "ai-service/**"
+      - ".github/workflows/ai-service.yml"
+  workflow_dispatch:
+
+defaults:
+  run:
+    working-directory: ai-service
+
+jobs:
+  compile:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+      - run: echo "repo=${{ github.repository }}"
+      - name: Compile with AI stub
+        run: mvn -B -Pstub,!aimanager -Daimanager.stub=true -DskipTests compile
+      - name: Unit tests (stub, no paid model)
+        run: mvn -B -Pstub,!aimanager -Daimanager.stub=true test
+        env:
+          AIMANAGER_API_KEY: ""
+
+  image:
+    if: github.ref == 'refs/heads/main'
+    needs: compile
+    runs-on: ubuntu-latest
+    environment: demo
+    steps:
+      - uses: actions/checkout@v4
+      - run: echo "build-and-push ${{ github.sha }}"
+      # docker build -t ${{ secrets.ACR_LOGIN_SERVER }}/ai-service:${{ github.sha }} ai-service
+      # AIMANAGER_API_KEY stays in Key Vault secret AIMANAGER-API-KEY. Do not publish packages from this workflow.

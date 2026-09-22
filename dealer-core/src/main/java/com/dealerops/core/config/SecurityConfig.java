@@ -30,6 +30,8 @@ public class SecurityConfig {
         a ->
             a.requestMatchers("/error")
                 .permitAll()
+                .requestMatchers("/actuator/health")
+                .permitAll()
                 .requestMatchers("/api/v1/**")
                 .authenticated()
                 .anyRequest()

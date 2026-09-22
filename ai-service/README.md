@@ -1,83 +1,66 @@
 # ai-service
 
-Dealer Ops 内部 AI 适配器。端口 **8082**，无数据库，不对浏览器开放。进程内调用 `com.manager.AiManager`，**不**扫描、不启动 `com.gateway` / `AIApplication`。
+Internal AI adapter for Dealer Ops. Port **8082**, no database, not browser-facing. Calls `com.manager.AiManager` in-process. Do **not** scan or start library `com.gateway` / `AIApplication`.
 
-内部 JSON 以 `design/AI-PROTOCOL-AND-RULES.md` 为准（不是任务单 T22 的 `{failed,reason}`）。
+Internal JSON follows `design/AI-PROTOCOL-AND-RULES.md` (not BACKEND T22 `{failed,reason}`).
 
-## 本机 ai-manager（2026-09-21 已接入）
+## GitHub ai-manager
 
-源码在 **DealerOps 仓外**，未拷进本仓、未改该库业务代码。
+Do not copy this library into DealerOps and do not change its business source. Consume the JAR.
 
-| 项 | 值 |
+| Item | Value |
 |---|---|
-| 本机绝对路径 | `D:\常用文件\SAIT\26fall\Capstone\Project Topics\ai-manager` |
-| 远程 | https://github.com/YUANDONG-YANG/ai-manager （private） |
-| 钉死 commit | `c07e1f2afe5dd692c20f3567ad3a42a90d31a87a`（detached HEAD，`add main start in pom`） |
+| Repo | https://github.com/YUANDONG-YANG/ai-manager (private) |
+| Local checkout | sibling directory named `ai-manager` (same parent as this repo) |
+| Pinned commit | `c07e1f2afe5dd692c20f3567ad3a42a90d31a87a` |
 | Maven | `com.aimanager:aimanager:1.0.0-SNAPSHOT` |
-| 本机 `.m2` | `C:\Users\Administrator\.m2\repository\com\aimanager\aimanager\1.0.0-SNAPSHOT\`（`mvn -DskipTests install` 已写入 jar/pom） |
-| Java（库） | 17 / Spring Boot parent 3.2.5（17 字节码 JAR，本仓用 Java 21 依赖即可） |
-| 公开 API | `com.manager.AiManager`：`request(String)`、`startConversation(id, systemMessage)`、`closeConversation` |
-| 本目录 compile（2026-09-21） | **通过**：默认 `aimanager` profile，`mvn -DskipTests compile`，`BUILD SUCCESS`（`javac release 21`） |
+| Packages | https://maven.pkg.github.com/YUANDONG-YANG/ai-manager |
+| Library Java | 17 bytecode / Boot parent 3.2.5 (this service stays Java 21) |
+| Public API used | `startConversation(id, systemMessage)`, conversation `request(prompt).send()`, `closeConversation` |
 
-## 本地 install
+## Local install
 
-不要用当前 Cursor 进程默认的 JDK 11。本机 JDK 21：
-
-`C:\Program Files\Eclipse Adoptium\jdk-21.0.12.101-hotspot`
-
-PowerShell：
+Use JDK 21 for this service. In the sibling `ai-manager` checkout (do not edit that repo):
 
 ```powershell
-$env:JAVA_HOME='C:\Program Files\Eclipse Adoptium\jdk-21.0.12.101-hotspot'
-$env:PATH="$env:JAVA_HOME\bin;" + $env:PATH
-java -version
-```
-
-在 **仓外 ai-manager 目录**（不要在本仓里改该库）：
-
-```powershell
-Set-Location 'D:\常用文件\SAIT\26fall\Capstone\Project Topics\ai-manager'
 git checkout c07e1f2afe5dd692c20f3567ad3a42a90d31a87a
 mvn -DskipTests install
 ```
 
-然后在本目录：
+Then in `ai-service`:
 
 ```powershell
-Set-Location 'D:\常用文件\SAIT\26fall\Capstone\Project Topics\DealerOps\ai-service'
 mvn -DskipTests compile
 ```
 
-默认 Maven profile `aimanager` 解析 `com.aimanager:aimanager:1.0.0-SNAPSHOT`。不要改系统全局 `JAVA_HOME` 来迁就本仓。
+The default Maven profile `aimanager` resolves `com.aimanager:aimanager:1.0.0-SNAPSHOT` from the local `.m2` (or GitHub Packages if configured).
 
-## 还没有 JAR 时：stub profile
+## CI stub (no paid model)
 
 ```powershell
-mvn -Pstub -DskipTests compile
+mvn "-Pstub,!aimanager" "-Daimanager.stub=true" test
 ```
 
-`-Pstub` 会关掉默认的 `aimanager` profile，改用 `src/main/java-stub` 里的最小 `AiManager` / `AIResponse`（仅编译，不打真模型）。有 Key 时 stub 调用会走 502 `AI_PROVIDER_FAILED`。当前本机已有真实 JAR，日常不要用 stub。
+That compile path uses `src/main/java-stub` only. A stub call with a key still returns **502** `AI_PROVIDER_FAILED`. Do not treat stub success as Sprint 2 real AI.
 
-## 环境变量
+## Environment
 
-| 变量 | 默认 | 谁读 |
+| Variable | Default | Who |
 |---|---|---|
-| `AI_PORT` | `8082` | 本服务 |
-| `INTERNAL_TOKEN` | `dealer-internal` | 本服务校验 `X-Dealer-Internal`（与 PROTOCOL 一致） |
-| `AIMANAGER_API_KEY` | 空 | 只给本服务 |
+| `AI_PORT` | `8082` | this service |
+| `INTERNAL_TOKEN` | `dealer-internal` | `X-Dealer-Internal` (PROTOCOL §B.1) |
+| `AIMANAGER_API_KEY` | empty | this service only |
 | `AIMANAGER_GATEWAY_PROVIDER` | `openai` | `groq` / `openai` / `claude` / `deepseek` |
-| `AIMANAGER_GATEWAY_MODEL` | 空则用 `current` | 本服务 |
+| `AIMANAGER_GATEWAY_MODEL` | empty → `current` | this service |
 
-缺 Key：立刻 **503** `{ "success": false, "code": "AI_KEY_MISSING", "message": "AIMANAGER_API_KEY is missing or invalid." }`，不满 15s。
+Missing key: immediate **503** `{ "success": false, "code": "AI_KEY_MISSING", "message": "AIMANAGER_API_KEY is missing or invalid." }` (do not wait 15s).
 
-`dealer-platform/env.example` 只追加了缺的 `INTERNAL_TOKEN`；`AIMANAGER_*` 原先已有，未改值。
+## Internal HTTP
 
-## 内部接口
+- `POST /internal/v1/ad-check` — success `{ "success": true, "notes": [{ "message" }] }`
+- `POST /internal/v1/assistant` — success `{ "success": true, "summary" }`
+- Header `X-Dealer-Internal: ${INTERNAL_TOKEN}`; missing or wrong → **404**
+- Failure: **504** `AI_TIMEOUT` / **503** `AI_KEY_MISSING` / **502** `AI_PROVIDER_FAILED`, body `{ "success": false, "code", "message" }`
+- Timeout: connect 2s + response 13s, plus adapter 15s `orTimeout`
 
-- `POST /internal/v1/ad-check` — 成功 `{ "success": true, "notes": [{ "message" }] }`
-- `POST /internal/v1/assistant` — 成功 `{ "success": true, "summary" }`
-- 要求头 `X-Dealer-Internal: ${INTERNAL_TOKEN}`；缺头或错头 → **404**
-- 失败：504 `AI_TIMEOUT` / 503 `AI_KEY_MISSING` / 502 `AI_PROVIDER_FAILED`，体 `{ "success": false, "code", "message" }`
-- 超时：connect 2s + response 13s，适配器再包 15s `orTimeout`
-
-不要对 `http://127.0.0.1:8082` 配浏览器 CORS。core 只经 Gateway 调用。
+Do not configure browser CORS on this process. `dealer-core` calls only through Gateway.

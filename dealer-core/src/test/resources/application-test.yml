@@ -1,4 +1,4 @@
-# ITs use Flyway V1 on MySQL (Testcontainers or compose). No H2 and no ddl-auto create/update.
+# ITs use Flyway V1 on MySQL (Testcontainers or compose). No in-memory schema and no ddl-auto create/update.
 spring:
   jpa:
     hibernate:
