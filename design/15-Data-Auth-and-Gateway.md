@@ -162,8 +162,8 @@ Invariants (checked on every write path):
 
 | Rule | Error |
 |---|---|
-| `vehicle.dealer_id == customer.dealer_id == tenantDealerId` | **cross-dealership id → 404** (not 403). "Visible vehicle/customer but dealership mismatch" in the same request → 400 `WRONG_DEALER_OR_SOLD` |
-| `vehicle.status == IN_STOCK` is required for PUT link | sold cannot be newly linked → **400** `WRONG_DEALER_OR_SOLD` (14 PUT) |
+| `vehicle.dealer_id == customer.dealer_id == tenantDealerId` | **cross-dealership id → 404** (not 403). Never use `WRONG_DEALER_OR_SOLD` for store mismatch |
+| `vehicle.status == IN_STOCK` is required for PUT link | this-store sold / not `IN_STOCK` cannot be newly linked → **400** `WRONG_DEALER_OR_SOLD` (14 PUT) |
 | `uk_cv_vehicle`: a row already exists for that `vehicle_id` | 409 `VEHICLE_ALREADY_LINKED` |
 | One customer, many vehicles | allowed |
 | Sale (sell) | **do not delete** `customer_vehicle`; CRM still shows that vehicle |
@@ -259,6 +259,7 @@ function runFixedOmvic(listing, vehicle, dealer) -> { hardBlocks[], softGaps[], 
           soft += DEALER_CONTACT_INCOMPLETE   // only one contact shown: not a hard block; give to AI
 
   // --- year / new vs used (always) ---
+  // No separate used/new status field (PROTOCOL §C.0a). Contradiction is soft only.
   year = vehicle.modelYear
   if !contains(text, str(year)):
       soft += YEAR_NOT_IN_COPY               // structured year exists, copy omitted it → not a hard block
@@ -283,13 +284,14 @@ function runFixedOmvic(listing, vehicle, dealer) -> { hardBlocks[], softGaps[], 
       soft += CERTIFIED_NOT_IN_COPY          // paraphrase is allowed; give to AI
 
   // --- prior use (always "if applicable") ---
-  // no vehicle column. Only when the copy itself mentions police/taxi/daily rental/lease return etc. without a disclosure phrase → soft
+  // no vehicle column. Cue regex includes police/taxi/limo(usine)/daily rental/lease return etc.
+  // Cue without a disclosure phrase → soft (course: not a hard publish block; see PROTOCOL §C.0a)
   if mentionsPriorUseCue(textNorm) AND !mentionsPriorUseDisclosure(textNorm):
       soft += PRIOR_USE_UNCLEAR
 
   // --- extended warranty (always "if the copy claims one") ---
   if match(textNorm, /extended warranty|warranty included|free warranty/):
-      soft += WARRANTY_CLAIM_NEEDS_REVIEW    // not a hard block; AI reviews completeness
+      soft += WARRANTY_CLAIM_NEEDS_REVIEW    // not a hard block; AI reviews completeness of terms
 
   // --- FINANCE extras ---
   if listing.adKind == FINANCE:
@@ -299,7 +301,7 @@ function runFixedOmvic(listing, vehicle, dealer) -> { hardBlocks[], softGaps[], 
       hasTerm = match(textNorm, /\d+\s*(month|months|mo)\b|term\s*[:=]?\s*\d+/)
       if !hasTerm:
           soft += FINANCE_TERM_MISSING
-      // cash price = hasPrice above; if missing it is already in hard
+      // cash price = hasPrice above (PRICE_MISSING hard). No separate "cost of borrowing" regex (PROTOCOL §C.0a).
       if listing.medium != RADIO_TV_BILLBOARD:
           // "interest rate shown next to APR" cannot be reliably regexed → not hard; soft so AI reviews layout
           soft += FINANCE_APR_PROXIMITY

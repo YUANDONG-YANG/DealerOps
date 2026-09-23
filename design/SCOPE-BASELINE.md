@@ -32,9 +32,19 @@ Classroom demo: two dealerships and two staff isolated; Admin hitting vehicle AP
 
 Work Orders · Leads / follow-up · buyer site / public inventory / visitor inquiry · OEM portal · KPI dashboards · CSV import · Service Bus / outbox / DLQ / second database / vector store · third-party auto-listing · payments · Image Studio · custom model SDK · homemade username/password · C# / standalone contracts repo · mileage / color / fuel and other fields outside the specification.
 
+### Explicitly out of scope (do not design these features)
+
+This course build does **not** include:
+
+- Per-user or per-dealer rate limits / quotas on `/assistant/ask` and listing checks (classroom demo; Azure spend is watched manually).
+- Throughput / concurrency SLOs and CRUD latency budgets (only the existing **15s AI timeout** budget applies).
+- PIPEDA retention schedules or field-level masking beyond keeping platform encryption on and **not** putting phone / email / address into AI prompts, audit `fieldSummary`, or assistant cards (already required elsewhere — not a new privacy program).
+- API v2 / compatibility policy (only `/api/v1` exists for this course).
+- A full observability schema (Application Insights may appear in architecture docs; no new log-field specification here).
+
 ## Cuts versus the proposal / `01`–`06`
 
-The following appeared in early proposals or superseded drafts `design/01`–`06`. **\*superseded, not for grading.** Do not implement, demo, or grade.
+The following appeared in early proposals or superseded drafts now under [archive/](archive/) (`01`–`06`). **\*superseded, not for grading.** Do not implement, demo, or grade.
 
 | Proposal / `01`–`06` had | v6 does not do / does instead |
 |---|---|

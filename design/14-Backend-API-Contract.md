@@ -1,12 +1,12 @@
 # Backend API development contract
 
 Version v6.0 · 2026-09-21  
-**Current.** Retired `01`–`06` (including `04-API-Contract.md`) are not the current API. Old DTOs may be used only for envelope shape; entities follow v6 / Flyway `V1__init.sql`.
+**Current.** Retired `01`–`06` (including archived `04-API-Contract.md` under [archive/](archive/)) are not the current API. Old DTOs may be used only for envelope shape; entities follow v6 / Flyway `V1__init.sql`.
 
 **Conflict order:** course PPT hard items > spec PDF fields > [IMPLEMENTATION-BRIEF.md](IMPLEMENTATION-BRIEF.md) / `00` > **[15](15-Data-Auth-and-Gateway.md) owns data/tenant/gateway behavior**, **this document owns HTTP JSON** > [13](13-Frontend-Engineering.md) frontend engineering > [12](12-Frontend-UI-Conventions.md).  
 **Entry:** browser-to-service traffic goes only through Gateway `http://localhost:8080`, prefix **`/api/v1/**`**. core=`8081`, ai-service=`8082` are not public. Bypassing Gateway must fail.  
 **Internal:** Gateway → ai-service `/internal/v1/**` is **404** for the browser; this document writes those paths only for the core adapter.  
-**PROTOCOL wins** over this document’s §11 response sketches, §12 `WRONG_DEALER_OR_SOLD` “not this dealership” half-sentence, and BACKEND T22 `{failed,reason}`. Internal success/failure JSON and this-store sold-link codes follow [AI-PROTOCOL-AND-RULES.md](AI-PROTOCOL-AND-RULES.md).
+**PROTOCOL wins** over this document’s §11 response sketches and any OpenAPI internal sketches that still show `{failed,reason}`. Internal success/failure JSON and this-store sold-link codes follow [AI-PROTOCOL-AND-RULES.md](AI-PROTOCOL-AND-RULES.md). Cross-dealership ids are always **404**; `WRONG_DEALER_OR_SOLD` is only for this-store sold / not `IN_STOCK` on PUT link.
 
 Path-table summary is in `dealer-platform/API.md`. Coding follows this document's JSON and error codes.
 
@@ -424,7 +424,7 @@ No body (or ignore body). Constraints: customer and vehicle are **the same deale
 | Code | HTTP | When |
 |---|---|---|
 | `VEHICLE_ALREADY_LINKED` | 409 | that vehicle is already linked (including already linked to this customer) |
-| `WRONG_DEALER_OR_SOLD` | 400 | **sold cannot be newly linked**, or vehicle/customer is not this dealership (cross-dealership ids are always **404**, not this code) |
+| `WRONG_DEALER_OR_SOLD` | 400 | **PROTOCOL A.1:** this-store vehicle on PUT link, but sold / not `IN_STOCK`. Cross-dealership ids are always **404**, not this code |
 | — | 404 | customer or vehicle id does not exist for this dealership (cross-dealership is also 404) |
 
 Audit `CUSTOMER_VEHICLE` / `LINK`. `entityId` = `customer_vehicle.id`; `fieldSummary` is only `{customerId,vehicleId}`.
@@ -665,7 +665,7 @@ core calls the internal assistant via Gateway; recent conversation context is at
 
 ## 11. Internal only (browser 404)
 
-**Response bodies are not pinned here.** Use [AI-PROTOCOL-AND-RULES.md](AI-PROTOCOL-AND-RULES.md) §B: success `{success,notes[]}` / `{success,summary}`; failure `{success:false,code,message}` with **504** `AI_TIMEOUT` / **503** `AI_KEY_MISSING` / **502** `AI_PROVIDER_FAILED`. Do not implement T22 `{failed,reason}`.
+**Response bodies are not pinned here.** Use [AI-PROTOCOL-AND-RULES.md](AI-PROTOCOL-AND-RULES.md) §B: success `{success,notes[]}` / `{success,summary}`; failure `{success:false,code,message}` with **504** `AI_TIMEOUT` / **503** `AI_KEY_MISSING` / **502** `AI_PROVIDER_FAILED`.
 
 Gateway forwards to ai-service. core calls these; the browser does not.
 

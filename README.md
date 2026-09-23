@@ -14,7 +14,7 @@ Approved scope is [design/SCOPE-BASELINE.md](design/SCOPE-BASELINE.md). Change i
 
 **Out of scope:** work orders, leads/follow-up, buyer site / public inventory, OEM portal, KPI dashboard, CSV import, Service Bus / outbox / second DB / vector store, third-party listing publish, payments, Image Studio, homemade auth or model SDK, extra vehicle fields (mileage, color, fuel, and similar).
 
-`design/01`–`06` and early proposals are **superseded** (not for grading or coding).
+`design/01`–`06` are **withdrawn** (not for grading or coding); see [design/archive/](design/archive/).
 
 ## Repo layout
 
@@ -33,7 +33,7 @@ Browser calls only `http://localhost:8080` (`/api/v1`). Direct browser access to
 
 ## How to read the docs
 
-Do not use `design/01`–`06` as requirements.
+Do not use `design/01`–`06` as requirements (archived under [design/archive/](design/archive/)).
 
 1. [design/SCOPE-BASELINE.md](design/SCOPE-BASELINE.md) — signed in/out of scope
 2. [design/DEVELOPMENT-DESIGN.md](design/DEVELOPMENT-DESIGN.md) — backend scope, phases, invariants

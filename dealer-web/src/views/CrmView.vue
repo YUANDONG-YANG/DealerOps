@@ -107,10 +107,49 @@ async function loadAudit(id: number) {
   }
 }
 
+/**
+ * Occupancy from GET /customers?linked=true (design/13): list linkedVehicle marks taken rows.
+ * 14 VehicleResponse has no linkedCustomerId — do not invent that public field.
+ * Current drawer already has full linkedVehicles[]; use that for this customer.
+ */
+async function loadLinkedOwners(): Promise<Map<number, number>> {
+  const owners = new Map<number, number>()
+  for (const v of selected.value?.linkedVehicles || []) {
+    if (selected.value?.id != null && v?.id != null) owners.set(v.id, selected.value.id)
+  }
+  let page = 0
+  let total = 1
+  while (page * 50 < total) {
+    const r = await customersApi.list({ linked: true, page, size: 50 })
+    total = Number(r.data.total) || 0
+    const items = r.data.items || []
+    for (const c of items) {
+      if (c.id === selected.value?.id) continue
+      if (c.linkedVehicle?.id != null) owners.set(c.linkedVehicle.id, c.id)
+    }
+    if (!items.length) break
+    page += 1
+  }
+  return owners
+}
+
 async function loadLinkOptions() {
-  const r = await vehiclesApi.list({ status: 'IN_STOCK', page: 0, size: 50 })
-  const linkedIds = new Set((selected.value?.linkedVehicles || []).map((x: any) => x.id))
-  vehicles.value = (r.data.items || []).filter((x: any) => !linkedIds.has(x.id) && !x.linkedCustomerId)
+  try {
+    const [vehicleRes, owners] = await Promise.all([
+      vehiclesApi.list({ status: 'IN_STOCK', page: 0, size: 50 }),
+      loadLinkedOwners(),
+    ])
+    const ownIds = new Set((selected.value?.linkedVehicles || []).map((x: any) => x.id))
+    // Drop this customer's already-linked rows; keep other-customer occupancy for disabled options
+    vehicles.value = (vehicleRes.data.items || [])
+      .filter((x: any) => !ownIds.has(x.id))
+      .map((x: any) => ({
+        ...x,
+        linkedCustomerId: owners.get(x.id) ?? null,
+      }))
+  } catch {
+    vehicles.value = []
+  }
 }
 
 function isTaken(v: any) {

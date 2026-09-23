@@ -53,13 +53,13 @@ public class OmvicRuleEngine {
           Pattern.CASE_INSENSITIVE);
   static final Pattern PRIOR_USE_CUE =
       Pattern.compile(
-          "police|taxi|cab\\b|uber|lyft|rideshare|daily rental|rental (?:car|fleet)|car[- ]share|"
+          "police|taxi|cab\\b|limo(?:usine)?|uber|lyft|rideshare|daily rental|rental (?:car|fleet)|car[- ]share|"
               + "lease return|ex[- ]lease|former lease|repo(?:ssessed)?|ambulance|driver[- ]ed",
           Pattern.CASE_INSENSITIVE);
   static final Pattern PRIOR_USE_DISCLOSURE =
       Pattern.compile(
-          "(?:previously used as|prior use|former(?:ly)? (?:a )?(?:police|taxi|rental)|"
-              + "ex[- ](?:police|taxi|rental)|lease return disclosed|disclosed prior use)",
+          "(?:previously used as|prior use|former(?:ly)? (?:a )?(?:police|taxi|limo(?:usine)?|rental)|"
+              + "ex[- ](?:police|taxi|limo(?:usine)?|rental)|lease return disclosed|disclosed prior use)",
           Pattern.CASE_INSENSITIVE);
   static final Pattern WARRANTY_BOAST =
       Pattern.compile("extended warranty|warranty included|free warranty", Pattern.CASE_INSENSITIVE);

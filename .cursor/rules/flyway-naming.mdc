@@ -1,0 +1,25 @@
+---
+description: Name Flyway migrations after V1 as date, same-day number, and action
+globs: dealer-core/**/db/migration/**
+alwaysApply: true
+---
+
+# Flyway migration names
+
+Leave `dealer-core/src/main/resources/db/migration/V1__init.sql` unchanged.
+
+Every later versioned migration in that folder uses:
+
+`V{YYYYMMDD}_{n}__{action}.sql`
+
+- `{YYYYMMDD}` is the calendar date the script is added.
+- `{n}` is the sequence for that date, starting at `1`. The next script the same day is `2`, then `3`.
+- `{action}` is a short English snake_case verb phrase (what the script does).
+- The separator between version and description is **two** underscores. Flyway requires that.
+
+```text
+V20260923_1__add_listing_search_index.sql
+V20260923_2__add_customer_email_index.sql
+```
+
+Do not use `V2__...`, `V3__...`, or a single underscore between the number and the action (`V20260923_1_add_....sql`). A single underscore makes Flyway treat the action as part of the version.

@@ -1,12 +1,12 @@
 # Dealer Ops implementation brief (for AI coding)
 
-Version 1.6 · 2026-09-21  
-Conflict priority: **PPT > specification fields > [DEVELOPMENT-DESIGN.md](DEVELOPMENT-DESIGN.md) / [AI-PROTOCOL-AND-RULES.md](AI-PROTOCOL-AND-RULES.md) > 14 / 15 > task lists**. `16` / `17` are acceptance cases and ad fixtures and **do not change contracts**. `01`–`06` remain withdrawn. Do not read them as requirements.
+Version 1.7 · 2026-09-23  
+Conflict priority: **PPT > specification fields > [DEVELOPMENT-DESIGN.md](DEVELOPMENT-DESIGN.md) / [AI-PROTOCOL-AND-RULES.md](AI-PROTOCOL-AND-RULES.md) > 14 / 15 > task lists**. `16` / `17` are acceptance cases and ad fixtures and **do not change contracts**. `01`–`06` remain withdrawn (see [archive/](archive/)); do not read them as requirements.
 
 Source design: sibling checkout named `DealerOS-Design`  
 Implementation skeleton: this repository
 
-The current skeleton has only `dealer-core` (Flyway `dealer-core/src/main/resources/db/migration/V1__init.sql`) and `dealer-platform` (`API.md`, `env.example`, compose MySQL-only, Bicep/pipeline placeholders). There is **not yet** a `dealer-web` / `dealer-gateway` / `ai-service` project.
+This repository already contains four apps (`dealer-web`, `dealer-gateway`, `dealer-core`, `ai-service`) plus `dealer-platform` (compose, OpenAPI, Bicep/pipeline notes). Each app has source, a build file (`pom.xml` / `package.json`), and a Dockerfile. Platform Compose wires MySQL and the three Java services. Do not scaffold these projects again.
 
 ### Coding-AI reading order
 
@@ -21,7 +21,7 @@ The current skeleton has only `dealer-core` (Flyway `dealer-core/src/main/resour
 
 Conflict order: **PPT > specification fields > DEVELOPMENT-DESIGN / PROTOCOL > 14/15 > task lists**.
 
-**Internal AI bodies (pinned):** PROTOCOL wins over BACKEND T22 and OpenAPI internal sketches. Success `{success, notes[]}` / `{success, summary}`; failure `{success:false, code, message}` (**504** `AI_TIMEOUT` / **503** `AI_KEY_MISSING` / **502** `AI_PROVIDER_FAILED`). Core check path is still public **502** `AI_UNAVAILABLE`. OpenAPI **public** paths still follow 14. Do not implement the `{failed,reason}` shape that may appear in T22.
+**Internal AI bodies (pinned):** PROTOCOL §B. Success `{success, notes[]}` / `{success, summary}`; failure `{success:false, code, message}` (**504** `AI_TIMEOUT` / **503** `AI_KEY_MISSING` / **502** `AI_PROVIDER_FAILED`). Core check path is still public **502** `AI_UNAVAILABLE`. OpenAPI **public** paths still follow 14.
 
 ### Document map (human / full design)
 
@@ -205,7 +205,7 @@ Unified error body: `{"code":"VIN_DUP","message":"..."}`. Cross-dealership id �
 | POST | `/internal/v1/ad-check` | core via Gateway | `{listing,vehiclePublic,dealerPublic}` |
 | POST | `/internal/v1/assistant` | core via Gateway | `{question,resources[]}` |
 
-`vehiclePublic`: year/make/model/vin/condition/source, **no** purchase cost. `dealerPublic`: legal name + three contacts. Assistant `resources` are already filtered by core; no phone/email/address. Internal success/failure JSON **follows PROTOCOL** (see “Internal AI bodies” above); do not copy T22 / OpenAPI `{failed,reason}`.
+`vehiclePublic`: year/make/model/vin/condition/source, **no** purchase cost. `dealerPublic`: legal name + three contacts. Assistant `resources` are already filtered by core; no phone/email/address. Internal success/failure JSON **follows PROTOCOL** (see “Internal AI bodies” above).
 
 ---
 
@@ -351,23 +351,25 @@ Do not paste subscription passwords, secrets, or model-key bodies in chat.
 
 Each step can be its own PR. Do not jump to a “full frontend” before prior steps are done.
 
-| # | Repo | Task | Done when |
-|---|---|---|---|
-| 1 | Local machine | Raise JDK 17/21, set `JAVA_HOME` | `java -version` is 17 or 21 |
-| 2 | web/gateway/core/ai four repos | Empty projects + Dockerfile + `mvn/npm` builds | Each repo CI green (compile is enough) |
-| 3 | core | Wire existing `V1__init.sql`, entities and enums | Flyway can create tables on an empty database; no extra business columns |
-| 4 | gateway | Route `/api/v1/**`→core, `/internal/v1/**`→ai; reject browser internal; reject direct-access demo | 8080 works; 8081 fails for the browser |
-| 5 | gateway+core | Entra JWT + two roles; `GET /me` | No token 401; fake dealerId has no effect |
-| 6 | core | Admin open dealership / bind staff | Two stores and two staff can be verified in the database |
-| 7 | core | Vehicle CRUD + sell + audit | VIN unique; sold locks purchase; sale as a pair; `audit_event` exists |
-| 8 | core | Customers + link + audit | Cross-dealership 404; one vehicle one customer 409 |
-| 9 | core | listing PATCH + **fixed rule engine** (no AI call) | Missing price / FINANCE missing APR → Blocked |
-| 10 | ai-service | In-process AiManager adapter + 15s timeout + stub tests | Do not expose `com.gateway`; CI does not hit a real model |
-| 11 | core+ai | `POST .../checks` via Gateway; failure UNAVAILABLE | After condition change, old check is Stale |
-| 12 | core | ready + export TXT | Reject if not Passed or Stale |
-| 13 | core+ai | `POST /assistant/ask`: at most 5, verify this-store IDs, no DB write | Invented paths discarded; model down returns list only |
-| 14 | web | 6 pages per section 7; login routing | Admin cannot see DMS; empty/error/loading complete |
-| 15 | platform | compose starts MySQL+four services; fill Bicep/pipeline after Azure permissions | Local can record a vehicle end to end; cloud is a Sprint 2 item |
+**Note:** This brief’s “empty repo” coding order is **historical**. The four apps and platform already exist in this checkout — agents must **not** re-scaffold them. Status below is only for tasks proven by present source/CI/compose; unmarked rows are not claimed done.
+
+| # | Repo | Task | Status | Done when |
+|---|---|---|---|---|
+| 1 | Local machine | Raise JDK 17/21, set `JAVA_HOME` | | `java -version` is 17 or 21 |
+| 2 | web/gateway/core/ai four repos | Empty projects + Dockerfile + `mvn/npm` builds | **done** | Each repo CI green (compile is enough) |
+| 3 | core | Wire existing `V1__init.sql`, entities and enums | **done** | Flyway can create tables on an empty database; no extra business columns |
+| 4 | gateway | Route `/api/v1/**`→core, `/internal/v1/**`→ai; reject browser internal; reject direct-access demo | **done** | 8080 works; 8081 fails for the browser |
+| 5 | gateway+core | Entra JWT + two roles; `GET /me` | **done** | No token 401; fake dealerId has no effect |
+| 6 | core | Admin open dealership / bind staff | **done** | Two stores and two staff can be verified in the database |
+| 7 | core | Vehicle CRUD + sell + audit | **done** | VIN unique; sold locks purchase; sale as a pair; `audit_event` exists |
+| 8 | core | Customers + link + audit | **done** | Cross-dealership 404; one vehicle one customer 409 |
+| 9 | core | listing PATCH + **fixed rule engine** (no AI call) | **done** | Missing price / FINANCE missing APR → Blocked |
+| 10 | ai-service | In-process AiManager adapter + 15s timeout + stub tests | **done** | Do not expose `com.gateway`; CI does not hit a real model |
+| 11 | core+ai | `POST .../checks` via Gateway; failure UNAVAILABLE | **done** | After condition change, old check is Stale |
+| 12 | core | ready + export TXT | **done** | Reject if not Passed or Stale |
+| 13 | core+ai | `POST /assistant/ask`: at most 5, verify this-store IDs, no DB write | **done** | Invented paths discarded; model down returns list only |
+| 14 | web | 6 pages per section 7; login routing | **done** | Admin cannot see DMS; empty/error/loading complete |
+| 15 | platform | compose starts MySQL+four services; fill Bicep/pipeline after Azure permissions | **done** (local compose) | Local can record a vehicle end to end; cloud is a Sprint 2 item |
 
 ---
 

@@ -1,7 +1,11 @@
 package com.dealerops.core.customer;
 
+import com.dealerops.core.common.tenant.TenantDealerListener;
+import com.dealerops.core.common.tenant.TenantFilters;
+import com.dealerops.core.common.tenant.TenantOwned;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EntityListeners;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -9,11 +13,14 @@ import jakarta.persistence.Table;
 import jakarta.persistence.Version;
 import java.time.Instant;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.Filter;
 import org.hibernate.annotations.UpdateTimestamp;
 
 @Entity
 @Table(name = "customer")
-public class CustomerEntity {
+@Filter(name = TenantFilters.NAME, condition = TenantFilters.CONDITION)
+@EntityListeners(TenantDealerListener.class)
+public class CustomerEntity implements TenantOwned {
 
   @Id
   @GeneratedValue(strategy = GenerationType.IDENTITY)

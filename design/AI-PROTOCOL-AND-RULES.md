@@ -12,12 +12,12 @@ Conflict order (only the fine points this document touches): **this document > 1
 
 ### A.1 Cross-dealership vehicle link: always 404
 
-**Adopt 14’s anti-probing semantics. Withdraw 15 §4 “visible but dealership mismatch → 400 `WRONG_DEALER_OR_SOLD`” for cross-store ids.**
+**Cross-dealership ids are always HTTP 404 `NOT_FOUND` (anti-probing).** Do not load by global id and then compare `dealer_id`.
 
 `PUT /api/v1/customers/{id}/vehicles/{vehicleId}` decision order (do not swap):
 
 1. JWT + `membership.active=1` yields `tenantDealerId`. No dealership → **403** `FORBIDDEN`.
-2. Load customer and vehicle **in this dealership**. Customer id or vehicle id does not exist for this store (including a real id from another store) → **404** `NOT_FOUND`. Do not load by global id first and then compare `dealer_id`.
+2. Load customer and vehicle **in this dealership**. Customer id or vehicle id does not exist for this store (including a real id from another store) → **404** `NOT_FOUND`.
 3. This-store vehicle and `status != IN_STOCK` (including `SOLD`) → **400** `WRONG_DEALER_OR_SOLD`.
 4. This-store vehicle already linked to any customer → **409** `VEHICLE_ALREADY_LINKED`.
 5. Otherwise 200 + audit `LINK`.
@@ -25,7 +25,7 @@ Conflict order (only the fine points this document touches): **this document > 1
 `DELETE` on the same path: no link or cross-store → **404**; this-store vehicle `SOLD` → **409** `SOLD_LOCKED`.
 
 **`WRONG_DEALER_OR_SOLD` is only for:** this-store vehicle, PUT link, but sold or not `IN_STOCK`.  
-**Ban** using it again for cross-store ids, dealership mismatch, or a customer at another store. The “vehicle not this store” half-sentence in the 14 §12 table is withdrawn by this document. The second half of 15 §4 table row 1 is withdrawn. The matching 18 §6 “visible but dealership mismatch” line is withdrawn (do not edit 18 itself; implement this document).
+**Ban** using it for cross-store ids, dealership mismatch, or a customer at another store. Aligned wording: [15-Data-Auth-and-Gateway.md](15-Data-Auth-and-Gateway.md) §4, [18-Backend-Core-Engineering.md](18-Backend-Core-Engineering.md) §6, and the `WRONG_DEALER_OR_SOLD` rows in [14-Backend-API-Contract.md](14-Backend-API-Contract.md).
 
 ### A.2 One person, two stores active → 409 `DUP_MEMBER`
 
@@ -262,12 +262,12 @@ static final Pattern BRAND_NEW = Pattern.compile(
     Pattern.CASE_INSENSITIVE);
 
 static final Pattern PRIOR_USE_CUE = Pattern.compile(
-    "police|taxi|cab\\b|uber|lyft|rideshare|daily rental|rental (?:car|fleet)|car[- ]share|"
+    "police|taxi|cab\\b|limo(?:usine)?|uber|lyft|rideshare|daily rental|rental (?:car|fleet)|car[- ]share|"
         + "lease return|ex[- ]lease|former lease|repo(?:ssessed)?|ambulance|driver[- ]ed",
     Pattern.CASE_INSENSITIVE);
 static final Pattern PRIOR_USE_DISCLOSURE = Pattern.compile(
-    "(?:previously used as|prior use|former(?:ly)? (?:a )?(?:police|taxi|rental)|"
-        + "ex[- ](?:police|taxi|rental)|lease return disclosed|disclosed prior use)",
+    "(?:previously used as|prior use|former(?:ly)? (?:a )?(?:police|taxi|limo(?:usine)?|rental)|"
+        + "ex[- ](?:police|taxi|limo(?:usine)?|rental)|lease return disclosed|disclosed prior use)",
     Pattern.CASE_INSENSITIVE);
 
 static final Pattern WARRANTY_BOAST = Pattern.compile(
@@ -306,6 +306,25 @@ static OptionalInt capturedKm(String text) {
     return OptionalInt.of(km);
 }
 ```
+
+### C.0a Course severity model (intentional vs specification wording)
+
+The specification PDF lists many ad disclosures as flat “always required / must disclose.” This course engine still uses only two buckets:
+
+- **hard (`BLOCK`)** — empty draft, missing price, missing dealer name, fully missing dealer contact, condition mismatch/undisclosed for AS_IS/UNFIT/IRREPARABLE, FINANCE/LEASE APR when that `adKind` applies, LEASE statement, LEASE excess-km when allowance &lt; 20,000. Non-empty `hard[]` → `BLOCKED` / `SKIPPED`, **do not call AI**.
+- **soft (`REVIEW`)** — everything else that is regex-checkable but not a publish gate: incomplete contact, year omitted, new/used contradiction, certified not restated, prior-use cue without disclosure, warranty boast, FINANCE term, FINANCE APR proximity (ONLINE), LEASE term/rent/down, LEASE allowance unstated. Soft findings travel with the check and feed AI review; they **do not** alone block Ready.
+
+**Deliberate course choices (do not “fix” by promoting soft → hard or adding columns without instructor sign-off):**
+
+| Spec-ish item | Course ruling |
+|---|---|
+| Status used/new as its own always-required field | **No** `advertisedAsNew` column. Only soft `YEAR_NEW_USED_CONTRADICTION` when copy implies brand-new and `modelYear <= Y-2`. Condition disclosure remains the hard path via `conditionCode`. |
+| FINANCE “cash price” | Covered by always-on hard `PRICE_MISSING` (same price regex). Not a separate FINANCE-only finding. |
+| FINANCE “cost of borrowing” | **Not** a dedicated regex finding (amounts/fees too ambiguous for a fixed rule). Soft layout/APR review + AI notes cover residual risk. |
+| FINANCE loan term / LEASE down / prior-use / warranty terms | Stay **soft** as pinned in §C.1 (AI reviews completeness). |
+| Prior-use cue keywords | Include police / taxi / **limo(usine)** / cab / rideshare / rental / lease-return / etc. Still soft when cue lacks disclosure. |
+
+Ban inventing hard blocks for the soft rows above. Ban adding APR / warranty / prior-use / used-new **columns** (15 already forbids those).
 
 ### C.1 Rule table (input / decision / hard vs soft)
 

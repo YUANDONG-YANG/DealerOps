@@ -101,7 +101,7 @@ All APIs go through Gateway `/api/v1/**`. Staff tenant comes only from JWT `oid`
 | **BE-02** | No membership | `Dealer.User` JWT, 0 `membership.active=1` rows (after unbind) | business APIs **403** (signed in, no dealership); `GET /me`: `role=Dealer.User`, `dealerId=null` | 401 (does not look unsigned-in); still returns dealership A lists |
 | **BE-03** | SOLD lock | After in-stock `POST .../sell` succeeds as a pair, `PATCH` purchase fields (make/model/year/vin/source/cost/addedOn/repair/carfax) | **409** `SOLD_LOCKED`; purchase values in the database unchanged | use PATCH to change `status`/`soldOn`; sell again after sold and overwrite the original sale |
 | **BE-04** | Duplicate VIN | Same dealership `POST /vehicles` again with the same VIN | **400** `VIN_DUP` | same VIN across dealerships is wrongly rejected; 200 duplicate rows |
-| **BE-05** | Link-vehicle rules | `PUT /customers/{id}/vehicles/{vehicleId}`: ① same dealership + `IN_STOCK` + not taken → 200; ② already linked → **409** `VEHICLE_ALREADY_LINKED`; ③ sold or not this dealership → **400** `WRONG_DEALER_OR_SOLD` or cross-dealership **404** | one vehicle one customer (V1 unique key); one customer many vehicles allowed | client `dealerId` links to another dealership; sold still newly linked |
+| **BE-05** | Link-vehicle rules | `PUT /customers/{id}/vehicles/{vehicleId}`: ① same dealership + `IN_STOCK` + not taken → 200; ② already linked → **409** `VEHICLE_ALREADY_LINKED`; ③ this-store sold / not `IN_STOCK` → **400** `WRONG_DEALER_OR_SOLD`; ④ cross-dealership id → **404** `NOT_FOUND` | one vehicle one customer (V1 unique key); one customer many vehicles allowed | client `dealerId` links to another dealership; sold still newly linked; cross-store returned as 400 |
 | **BE-06** | Sold cannot unlink | After linked and `SOLD`, `DELETE /customers/{id}/vehicles/{vehicleId}` | **409** `SOLD_LOCKED`; association remains (15: sale record not erased) | 204 then the sale association disappears. In-stock unlink should still be **204** + audit `UNLINK` |
 | **BE-07** | `CHECK_STALE` | listing was Passed; after PATCH body/type/medium (or handbook-specified condition change) `POST .../ready` or `.../exports` | **409** `CHECK_STALE` (lastCheck version ≠ listing) | still 200 export; mark Blocked-then-edited copy as Stale (should be Needs AI) |
 | **BE-08** | `AI_UNAVAILABLE` is not Pass | fixed rules passed, AI timeout/failure | HTTP **502** `AI_UNAVAILABLE`; `compliance_check` **already written** `recommendation=UNAVAILABLE`; `checkStatus=AI_UNAVAILABLE` | 200 + Passed; skip persist but let UI treat as pass; browser treats as Pass |
@@ -165,7 +165,7 @@ Align [08](08-DevOps-and-Implementation.md) Sprint definition of done and [11](1
 
 - Do not restore tickets, leads, buyer `/public/**`, password tables, CSRF sessions, Service Bus, a second database, or a dealership switcher.
 - This document does not add test-code files; the implementation group may land `BE-*` as JUnit / a frontend manual list, using codes from 14.
-- Retired `01`–`06` (including old `06-Delivery-and-Test-Plan.md`) are not current acceptance.
+- Retired `01`–`06` (including old archived `06-Delivery-and-Test-Plan.md` under [archive/](archive/)) are not current acceptance.
 
 ---
 

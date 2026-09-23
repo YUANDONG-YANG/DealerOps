@@ -2,7 +2,7 @@
 
 The browser only calls `http://localhost:8080`. core=8081 and ai-service=8082 are not browser-direct.
 
-**Full request/response/error codes:** [design/14-Backend-API-Contract.md](../design/14-Backend-API-Contract.md) (current v6). Do not use the retired `design/04-API-Contract.md`.
+**Full request/response/error codes:** [design/14-Backend-API-Contract.md](../design/14-Backend-API-Contract.md) (current v6). Do not use the retired [design/archive/04-API-Contract.md](../design/archive/04-API-Contract.md).
 
 Shared rules: pagination `{items,page,size,total}` (default size=10); errors `{code,message}`; writes carry `version`; cross-dealership id → **404** (not 403); ignore client `dealerId`. Staff without valid `membership.active=1` → **403**. `SOLD_LOCKED` = **409**.
 
@@ -51,7 +51,7 @@ There is no `DELETE /admin/dealers/{id}`. Admin hitting the business URLs below 
 | POST | `/internal/v1/ad-check` |
 | POST | `/internal/v1/assistant` |
 
-Request shapes: 14 §11. **Internal success/failure JSON and sold-link codes: PROTOCOL wins** (`design/AI-PROTOCOL-AND-RULES.md` §A.1 / §B) over 14 §11 sketches, BACKEND T22 `{failed,reason}`, and this file.
+Request shapes: 14 §11. **Internal success/failure JSON and sold-link codes: PROTOCOL wins** (`design/AI-PROTOCOL-AND-RULES.md` §A.1 / §B) over 14 §11 sketches and any older `{failed,reason}` drafts.
 
 Full schema: `openapi.yaml`.  
 If public-path details conflict, 14 wins. If internal AI or `WRONG_DEALER_OR_SOLD` vs 404 conflict, PROTOCOL wins.

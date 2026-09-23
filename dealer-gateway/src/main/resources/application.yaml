@@ -61,7 +61,7 @@ management:
 
 dealerops:
   internal-header-name: X-Dealer-Internal
-  # PROTOCOL §B.1 default (overrides the BACKEND task-list dealer-internal-dev-only)
+  # PROTOCOL §B.1 default, same literal on gateway, core, and ai-service
   internal-token: ${INTERNAL_TOKEN:dealer-internal}
   # Same as CORS_ALLOWED_ORIGIN. Azure: https SPA origin, not localhost-only.
   cors-allowed-origin: ${CORS_ALLOWED_ORIGIN:http://localhost:5173}

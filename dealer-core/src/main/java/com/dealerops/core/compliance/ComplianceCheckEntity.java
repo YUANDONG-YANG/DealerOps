@@ -1,7 +1,11 @@
 package com.dealerops.core.compliance;
 
+import com.dealerops.core.common.tenant.TenantDealerListener;
+import com.dealerops.core.common.tenant.TenantFilters;
+import com.dealerops.core.common.tenant.TenantOwned;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EntityListeners;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
@@ -10,10 +14,13 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.time.Instant;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.Filter;
 
 @Entity
 @Table(name = "compliance_check")
-public class ComplianceCheckEntity {
+@Filter(name = TenantFilters.NAME, condition = TenantFilters.CONDITION)
+@EntityListeners(TenantDealerListener.class)
+public class ComplianceCheckEntity implements TenantOwned {
 
   @Id
   @GeneratedValue(strategy = GenerationType.IDENTITY)

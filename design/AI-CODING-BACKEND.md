@@ -208,7 +208,7 @@ spring:
           audiences: ${ENTRA_AUDIENCE:api://dealer-api}
 dealerops:
   gateway-base-url: ${GATEWAY_BASE_URL:http://localhost:8080}
-  internal-token: ${INTERNAL_TOKEN:dealer-internal-dev-only}
+  internal-token: ${INTERNAL_TOKEN:dealer-internal}
   ai-timeout-ms: 15000
 ```
 
@@ -216,6 +216,7 @@ dealerops:
 `Dockerfile`: `EXPOSE 8081`; `ENTRYPOINT` runs the fat jar.
 
 - Ban: listening on 8080; browser CORS; `ddl-auto=update`; implementing `/internal/v1/**`; changing `V1__init.sql`.
+- Later Flyway scripts (do not rename `V1__init.sql`): `V{YYYYMMDD}_{n}__{action}.sql`, for example `V20260923_1__add_listing_search_index.sql`. `{n}` restarts at `1` each calendar day. Two underscores before the action. Do not use `V2__...`.
 - Acceptance:
   1. `rg "ddl-auto" dealer-core/src/main/resources/application.yml` is only `validate`.
   2. `rg "allowedOrigins|localhost:5173" dealer-core` none.
@@ -279,7 +280,7 @@ spring:
           uri: ${AI_URL:http://127.0.0.1:8082}
           predicates:
             - Path=/internal/v1/**
-            - Header=X-Dealer-Internal, ${INTERNAL_TOKEN:dealer-internal-dev-only}
+            - Header=X-Dealer-Internal, ${INTERNAL_TOKEN:dealer-internal}
           filters:
             - RemoveRequestHeader=Authorization
         - id: not-found
@@ -291,7 +292,7 @@ spring:
 
 dealerops:
   internal-header-name: X-Dealer-Internal
-  internal-token: ${INTERNAL_TOKEN:dealer-internal-dev-only}
+  internal-token: ${INTERNAL_TOKEN:dealer-internal}
 ```
 
 When not in compose, `CORE_URL`/`AI_URL` default to `127.0.0.1` (table above). In compose, override to `http://host.docker.internal:8081` / `8082` (same as `env.example`).
@@ -338,7 +339,7 @@ dealerops:
     timeout-ms: 15000
     require-internal-header: true
   internal-header-name: X-Dealer-Internal
-  internal-token: ${INTERNAL_TOKEN:dealer-internal-dev-only}
+  internal-token: ${INTERNAL_TOKEN:dealer-internal}
 aimanager:
   api-key: ${AIMANAGER_API_KEY:}
   gateway-provider: ${AIMANAGER_GATEWAY_PROVIDER:openai}
@@ -402,13 +403,13 @@ When the adapter calls the model, wrap again with `java.util.concurrent.Completa
 | `AIMANAGER_GATEWAY_MODEL` | ai-service | empty string; must be the deployment name when hitting a real model |
 | `ENTRA_ISSUER` | gateway + core | `https://login.microsoftonline.com/<tenant-id>/v2.0` |
 | `ENTRA_AUDIENCE` | gateway + core | `api://dealer-api` |
-| `INTERNAL_TOKEN` | gateway + core outbound + ai-service | `dealer-internal-dev-only` (not listed in env.example; yaml default is this value. web **does not read** it) |
+| `INTERNAL_TOKEN` | gateway + core outbound + ai-service | `dealer-internal` (not listed in env.example; yaml default is this value. web **does not read** it) |
 | `GATEWAY_BASE_URL` | core outbound | `http://localhost:8080` |
 
 Who does not read: web does not read `AIMANAGER_*` / `MYSQL_*` / `INTERNAL_TOKEN`; gateway/core do not read `AIMANAGER_API_KEY`; ai-service does not read `MYSQL_*`.
 
 - Ban: committing a real key to Git; core reading `AIMANAGER_API_KEY`; changing `env.example`.
-- Acceptance: `rg "AIMANAGER_API_KEY" dealer-core dealer-gateway` has no business read; `rg "INTERNAL_TOKEN|internal-token" dealer-core dealer-gateway ai-service` all three repos default to `dealer-internal-dev-only`.
+- Acceptance: `rg "AIMANAGER_API_KEY" dealer-core dealer-gateway` has no business read; `rg "INTERNAL_TOKEN|internal-token" dealer-core dealer-gateway ai-service` all three repos default to `dealer-internal`.
 
 ---
 
@@ -1116,7 +1117,6 @@ function link(customerId, vehicleId):
   v = findVehicle(vehicleId)
   if c==null or v==null: 404
   if c.dealerId != tenantDealerId or v.dealerId != tenantDealerId: 404   // cross-store is not 400
-  if c.dealerId != v.dealerId: 400 WRONG_DEALER_OR_SOLD
   if v.status != IN_STOCK: 400 WRONG_DEALER_OR_SOLD
   if existsByVehicleId(vehicleId): 409 VEHICLE_ALREADY_LINKED
   row = insert(dealerId=tenant, customerId, vehicleId, linkedAt=now)
@@ -1518,14 +1518,14 @@ Gateway **forwards** `Authorization` on `/api/v1/**`. Unmappable role: `/api/v1/
 - Acceptance:
   1. `curl http://localhost:8080/api/v1/me` → 401.
   2. `curl http://localhost:8080/internal/v1/ad-check` → 404.
-  3. `curl -H "X-Dealer-Internal: dealer-internal-dev-only" -H "Content-Type: application/json" -d "{}" http://localhost:8080/internal/v1/ad-check` reaches 8082 when ai-service is up (not 401).
+  3. `curl -H "X-Dealer-Internal: dealer-internal" -H "Content-Type: application/json" -d "{}" http://localhost:8080/internal/v1/ad-check` reaches 8082 when ai-service is up (not 401).
   4. Browser preflight OPTIONS `/api/v1/vehicles` from `http://localhost:5173` → ACAO includes that origin; `Access-Control-Allow-Headers` does not include `X-Dealer-Internal`.
 
 ---
 
 ### BE-T22 ai-service two internal POSTs + failure body (so core becomes 502)
 
-**PROTOCOL wins this task’s `{failed,reason}` / `{aiNotes,success}` / HTTP-503-only sketches.** Implement [AI-PROTOCOL-AND-RULES.md](AI-PROTOCOL-AND-RULES.md) §B: 200 `{success,notes[]}` / `{success,summary}`; failure `{success:false,code,message}` (**504** `AI_TIMEOUT` / **503** `AI_KEY_MISSING` / **502** `AI_PROVIDER_FAILED`). Local `INTERNAL_TOKEN` default is **`dealer-internal`**. Do not rewrite the copy-paste below; do not ship it.
+Implement [AI-PROTOCOL-AND-RULES.md](AI-PROTOCOL-AND-RULES.md) §B exactly. Local `INTERNAL_TOKEN` default is **`dealer-internal`**.
 - Repo: ai-service
 - Create/change files:
   - `ai-service/src/main/java/ca/sait/dealerops/aiservice/adapter/adcheck/AdCheckController.java`
@@ -1551,11 +1551,11 @@ public class AssistantController {
   @PostMapping("/assistant")
   public AssistantOkResponse assistant(@RequestBody AssistantInternalRequest body) {}
 }
-public record AdCheckOkResponse(java.util.List<AiNote> aiNotes, boolean success) {}
-public record AssistantOkResponse(String text, boolean success) {}
+public record AdCheckOkResponse(boolean success, java.util.List<AiNote> notes) {}
+public record AssistantOkResponse(boolean success, String summary) {}
 public record AiNote(String message) {}
-public record AiFailureBody(boolean failed, String reason) {}
-// reason only: TIMEOUT | NO_KEY | MODEL_ERROR
+public record AiFailureBody(boolean success, String code, String message) {}
+// code only: AI_TIMEOUT | AI_KEY_MISSING | AI_PROVIDER_FAILED
 ```
 
 Request-record fields (aligned with 14 §11; may share shape with core):
@@ -1572,13 +1572,13 @@ public record ResourceIn(String kind, Long id, String label, String status) {}
 `AdCheckAdapter.run(req)`:
 
 ```
-if blank(AIMANAGER_API_KEY): throw ModelFailureException(NO_KEY)   // immediately, do not wait 15s
+if blank(AIMANAGER_API_KEY): throw ModelFailureException(AI_KEY_MISSING)   // immediately, do not wait 15s
 id = UUID
 try:
   AiManager mgr = AiManagerFactory.create()
   mgr.startConversation(id, system)   // system=review notes, not the 15 hard rules
   AIResponse r = mgr.request(userJson) with 15s orTimeout
-  if !r.isSuccess(): throw MODEL_ERROR
+  if !r.isSuccess(): throw AI_PROVIDER_FAILED
   return notes from content   // elements at least {message}
 finally:
   mgr.closeConversation(id)
@@ -1586,28 +1586,34 @@ finally:
 
 Use only `com.manager.AiManager` `request(String)`, `startConversation(id, systemMessage)`, `closeConversation`.
 
-`AiExceptionHandler`: **unified failure contract** (core maps from this):
+`AiExceptionHandler`: **unified failure contract** (PROTOCOL §B.2; same shape for assistant):
 
 ```
-HTTP 503
+HTTP 504 | 503 | 502
 Content-Type: application/json
-{"failed":true,"reason":"TIMEOUT"|"NO_KEY"|"MODEL_ERROR"}
+{"success":false,"code":"AI_TIMEOUT"|"AI_KEY_MISSING"|"AI_PROVIDER_FAILED","message":"<fixed English from PROTOCOL>"}
 ```
 
-core `AiGatewayClient`: HTTP ≥500 or timeout or `failed==true` → `AiCallFailed`. Check path → persist UNAVAILABLE + public **502 `AI_UNAVAILABLE`**. Assistant path → public still 200.
+| Reason | HTTP | `code` |
+|---|---|---|
+| connect+response timeout | **504** | `AI_TIMEOUT` |
+| `AIMANAGER_API_KEY` missing or blank | **503** | `AI_KEY_MISSING` |
+| Invalid key / `isSuccess()==false` / parse failure / vendor error | **502** | `AI_PROVIDER_FAILED` |
+
+core `AiGatewayClient`: HTTP ≠ 200, or body.`success` ≠ true, or read timeout → `AiCallFailed`. Check path → persist UNAVAILABLE + public **502 `AI_UNAVAILABLE`**. Assistant path → public still 200.
 
 ai-service **must not** write `compliance_check` itself, must not return the five states to the browser, must not return a fake Passed.
 
 | Method | HTTP | path | Success body | Failure |
 |---|---|---|---|---|
-| `adCheck` | POST | `/internal/v1/ad-check` | 200 `{aiNotes,success:true}` | 503 `{failed,reason}`; no internal header 404 |
-| `assistant` | POST | `/internal/v1/assistant` | 200 `{text,success:true}` | same 503 |
+| `adCheck` | POST | `/internal/v1/ad-check` | 200 `{success:true,notes[]}` | 504/503/502 `{success:false,code,message}`; no internal header 404 |
+| `assistant` | POST | `/internal/v1/assistant` | 200 `{success:true,summary}` | same failure shape |
 
 - Ban: scanning `com.gateway`; exposing `/api/ai/**`; rule engine; business tables; 200 empty notes pretending success.
 - Acceptance:
   1. `rg "com.gateway" ai-service/src/main/java` none.
   2. `rg "@PostMapping\\(\"/ad-check\"\\)" ai-service` and `@PostMapping("/assistant")`.
-  3. After start with `AIMANAGER_API_KEY=`: `curl -H "X-Dealer-Internal: dealer-internal-dev-only" -H "Content-Type: application/json" -d "{\"listing\":{\"title\":\"t\",\"body\":\"b\",\"adKind\":\"CASH\",\"medium\":\"ONLINE\"},\"vehiclePublic\":{\"modelYear\":2020,\"make\":\"T\",\"model\":\"C\",\"vin\":\"1\",\"conditionCode\":\"AS_IS\",\"source\":\"AUCTION\"},\"dealerPublic\":{\"legalName\":\"X\",\"contactPhone\":\"1\",\"contactEmail\":\"a@b.c\",\"contactAddress\":\"z\"}}" http://127.0.0.1:8082/internal/v1/ad-check` → **503** and body contains `"failed":true` `"NO_KEY"` (returns within 1 second).
+  3. After start with `AIMANAGER_API_KEY=`: `curl -H "X-Dealer-Internal: dealer-internal" -H "Content-Type: application/json" -d "{\"listing\":{\"title\":\"t\",\"body\":\"b\",\"adKind\":\"CASH\",\"medium\":\"ONLINE\"},\"vehiclePublic\":{\"modelYear\":2020,\"make\":\"T\",\"model\":\"C\",\"vin\":\"1\",\"conditionCode\":\"AS_IS\",\"source\":\"AUCTION\"},\"dealerPublic\":{\"legalName\":\"X\",\"contactPhone\":\"1\",\"contactEmail\":\"a@b.c\",\"contactAddress\":\"z\"}}" http://127.0.0.1:8082/internal/v1/ad-check` → **503** and body contains `"success":false` and `"code":"AI_KEY_MISSING"` (returns within 1 second).
   4. Same URL with no header → 404.
   5. core POST `/api/v1/listings/{id}/checks` on a listing with no hard miss at this point → **502** `AI_UNAVAILABLE` and the check row is written.
 

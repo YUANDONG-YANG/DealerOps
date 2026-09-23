@@ -1,7 +1,11 @@
 package com.dealerops.core.listing;
 
+import com.dealerops.core.common.tenant.TenantDealerListener;
+import com.dealerops.core.common.tenant.TenantFilters;
+import com.dealerops.core.common.tenant.TenantOwned;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EntityListeners;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
@@ -12,13 +16,16 @@ import jakarta.persistence.UniqueConstraint;
 import jakarta.persistence.Version;
 import java.time.Instant;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.Filter;
 import org.hibernate.annotations.UpdateTimestamp;
 
 @Entity
 @Table(
     name = "listing",
     uniqueConstraints = @UniqueConstraint(name = "uk_listing_vehicle", columnNames = "vehicle_id"))
-public class ListingEntity {
+@Filter(name = TenantFilters.NAME, condition = TenantFilters.CONDITION)
+@EntityListeners(TenantDealerListener.class)
+public class ListingEntity implements TenantOwned {
 
   @Id
   @GeneratedValue(strategy = GenerationType.IDENTITY)

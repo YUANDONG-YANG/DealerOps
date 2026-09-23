@@ -56,6 +56,21 @@ class OmvicRuleEngineTest {
     assertThat(ruleIds(result)).doesNotContain("PRICE_MISSING", "FINANCE_APR_MISSING", "DEALER_NAME_MISSING");
   }
 
+  @Test
+  void limousineCueWithoutDisclosureIsSoftPriorUse() {
+    String body = AdFixtures.FX10_BODY + " Clean limousine history available on request.";
+    OmvicResult result = engine.run(listing(AdFixtures.FX10_TITLE, body, AdKind.CASH), vAsis(), prairie());
+    assertThat(result.hardBlocked()).isFalse();
+    assertThat(ruleIds(result)).contains("PRIOR_USE_UNCLEAR");
+  }
+
+  @Test
+  void limoCueWithDisclosureDoesNotAddPriorUse() {
+    String body = AdFixtures.FX10_BODY + " Previously used as a limo.";
+    OmvicResult result = engine.run(listing(AdFixtures.FX10_TITLE, body, AdKind.CASH), vAsis(), prairie());
+    assertThat(ruleIds(result)).doesNotContain("PRIOR_USE_UNCLEAR");
+  }
+
   private static List<String> ruleIds(OmvicResult result) {
     return result.findings().stream().map(RuleFinding::ruleId).toList();
   }

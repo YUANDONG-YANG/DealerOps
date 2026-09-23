@@ -263,6 +263,8 @@ Every `/api/v1/**` (business paths other than `/me`) resolves tenant before the 
 6. Admin: do not set a business `tenantDealerId`; allow only `/api/v1/admin/**` and `/me`. Hitting `/vehicles` `/customers` `/listings/**` `/audit` (business entities) `/assistant` → **403 `FORBIDDEN`**, response has **no** vin/cost/customer or other business fields.
 7. After loading a resource by path id: `resource.dealerId != tenantDealerId` → **404 `NOT_FOUND`** (anti-probing, not 403). Missing id in this dealership is also 404.
 
+**Hibernate `tenantFilter`:** business tables (`vehicle`, `customer`, `customer_vehicle`, `listing`, `compliance_check`) declare filter `dealer_id = :tenantDealerId`, bound from `TenantContext` when a dealer-user JPA session/repository runs. Excluded: `app_user`, `membership`, `dealer` (identity / admin), and `audit_event` (nullable `dealer_id` for platform rows). Admin does **not** enable the filter and is still **403** on business APIs before repository access. `@Filter` does **not** cover `EntityManager.find` / Spring Data `findById` — keep `findByIdAndDealerId` (or `TenantGuard.assertSameDealer`) as a second line of defense. Inserts: `@PrePersist` listener sets `dealer_id` from context for dealer users (overwrites client values).
+
 `GET /me`: membership not required; staff with no dealership get `dealerId`/`dealerLegalName` as `null`.
 
 ---
@@ -276,7 +278,7 @@ Every `/api/v1/**` (business paths other than `/me`) resolves tenant before the 
 | Bean Validation / illegal enum / empty text | `VALIDATION` | 400 |
 | This-dealership VIN hits `uk_vehicle_vin` or pre-check duplicate | `VIN_DUP` | 400 |
 | sell missing `soldOn` or `soldPrice`; price ≤0 uses VALIDATION or this code (16: ≤0 → 400) | `SOLD_PAIR_REQUIRED` | 400 |
-| PUT link: sold, or "visible but dealership mismatch" | `WRONG_DEALER_OR_SOLD` | 400 |
+| PUT link: this-store vehicle sold or not `IN_STOCK` (cross-store ids are `NOT_FOUND` / 404) | `WRONG_DEALER_OR_SOLD` | 400 |
 | Missing/bad JWT | `UNAUTHORIZED` | 401 |
 | Role hitting the wrong prefix; staff 0 active memberships | `FORBIDDEN` | 403 |
 | No id in this dealership / **cross-dealership id** / no association | `NOT_FOUND` | 404 |

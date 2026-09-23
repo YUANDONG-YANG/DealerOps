@@ -9,6 +9,10 @@ import jakarta.persistence.Table;
 import java.time.Instant;
 import org.hibernate.annotations.CreationTimestamp;
 
+/**
+ * Platform and membership audits may store {@code dealer_id = null}. Do not apply {@code
+ * tenantFilter} here — a {@code dealer_id = :id} filter would hide those rows.
+ */
 @Entity
 @Table(name = "audit_event")
 public class AuditEventEntity {
