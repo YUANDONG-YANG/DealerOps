@@ -1,0 +1,38 @@
+---
+description: Major design decisions must be filed under design/ as the team source of truth
+alwaysApply: true
+---
+
+# Design documentation (备案)
+
+Major or important design decisions **must** be documented on file under `design/`. That folder is the source of truth for team alignment — do not leave the design only in chat, only in a README, or only in code comments.
+
+## What counts as major
+
+Document (or update) a design doc when the change affects any of:
+
+- Auth / identity (including Entra / MSAL)
+- Tenancy and multi-dealer boundaries
+- Roles and permissions
+- API contracts (REST shapes, error model, versioning)
+- Gateway routing and BFF behavior
+- Classroom acceptance / demo flows
+
+Other cross-cutting product or architecture choices that the team must not diverge on also belong in `design/`.
+
+## Source of truth vs summaries
+
+- **Canonical**: Markdown under `design/` (English only; repo-relative paths — same as `english-docs`).
+- **OK to summarize or link**: root `README`, `PREP-CHECKLIST`, `env.example`, and similar entry points — they must point at the `design/` doc, not replace it.
+
+## Same-change rule
+
+When implementing or changing such a design, update the relevant `design/` document **in the same change**. Prefer editing an existing doc over inventing a parallel one; add a new file only when the topic is new.
+
+```text
+<!-- BAD -->
+Ship auth/tenancy behavior; leave the decision in chat or only in README
+
+<!-- GOOD -->
+Update design/<topic>.md and implement; README may link to that file
+```
