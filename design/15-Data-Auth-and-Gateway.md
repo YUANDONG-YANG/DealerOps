@@ -1,7 +1,8 @@
 # 15 · Data-model rulings, auth, gateway, and minimal cloud deploy
 
-Version: current (v6) · 2026-09-21  
-Status: fills gaps for the `dealer-core` entity layer and `dealer-gateway` configuration; **not** OpenAPI, **not** a business implementation.
+Version: current (v6) · 2026-09-23  
+Status: fills gaps for the `dealer-core` entity layer and `dealer-gateway` configuration; **not** OpenAPI, **not** a business implementation.  
+**Dealer auth (Entra product surface + classroom registration)** is owned here in §8; keep [README.md](../README.md) § Classroom Entra as the short ops copy of the same steps.
 
 ## Conflict order and SQL baseline
 
@@ -380,11 +381,30 @@ Gateway responsibility ends here: routing, user-JWT validation, blocking interna
 
 ---
 
-## 8. JWT claim → role, and why there is no standalone auth microservice
+## 8. Dealer auth (Entra) — product surface, JWT roles, classroom setup
 
-### 8.1 Mapping (locked)
+This section is the **authoritative dealer-auth design**. Frontend route details stay in [13](13-Frontend-Engineering.md); acceptance scripts stay in [16](16-Acceptance-and-Test.md). Do not invent a password path, a second IdP, or a fifth auth microservice.
 
-Create **two App Roles** on the Entra app registration. `value` must be:
+### 8.1 Spec PDF username/password → Entra (errata)
+
+The specification PDF describes username/password login. **That path is superseded.** Course PPT forbids homemade authentication; signed scope says Entra only. See [SCOPE-BASELINE.md](SCOPE-BASELINE.md) **Specification errata** item 1: **Auth = Entra** (not the specification username/password). Out-of-scope table: homemade username/password.
+
+### 8.2 Product surface (locked)
+
+| Topic | Ruling |
+|---|---|
+| Login route | **One** public page: `/login`. Control label **Sign in with Microsoft** only. No password box, no “Forgot password”, no email/password form. |
+| Identity | Microsoft Entra ID OAuth/OIDC + PKCE + JWT via MSAL.js on the SPA. |
+| App Roles (`value` in JWT `roles[]`) | Exactly `Platform.Admin` and `Dealer.User`. |
+| Issuing access | Admin on `/admin` **binds** staff `entraOid` (+ display name) to a dealership (`POST .../members`). That creates/reactivates `membership` and syncs `app_user`. **Not** creating a local password. |
+| Revoking access | **Unbind** = soft deactivate: `membership.active=0`, `app_user.dealer_id=NULL`; do not delete the Entra account or the `app_user` row (see §2.3). |
+| Post-sign-in landings | After MSAL + `GET /me`: **`Platform.Admin` → `/admin`**; **`Dealer.User` with `dealerId` set → `/dms`**; **signed-in but unbound / no business access → `/` no-access shell** (Sign out only; no DMS/CRM/ads/assistant tables). |
+
+Role guards and redirect rules: [13](13-Frontend-Engineering.md) § routes / guards. Classroom demos that exercise bind then isolation: **[16](16-Acceptance-and-Test.md) CL-1** (Admin creates two dealerships and binds one person each) and **CL-2** (dealership A data invisible to dealership B).
+
+### 8.3 JWT claim → role (locked)
+
+Create **two App Roles** on the Entra **API** app registration. `value` must be:
 
 - `Platform.Admin`
 - `Dealer.User`
@@ -413,7 +433,35 @@ function mapRole(claims):
 SPA: MSAL + PKCE, `VITE_ENTRA_CLIENT_ID` is a public client, **no client secret**.  
 Gateway and core **both** validate signatures (same issuer/audience). After Gateway validates, it still forwards the JWT to core; core validates again so a later mistaken public core port still fails.
 
-### 8.2 Defense: the PPT drew Auth as its own domain — why no fifth Java repo
+When `JWT_MODE=dev`, gateway/core use local HS256 (`DEV_JWT_SECRET`) for ITs and classroom stubs. When `JWT_MODE=entra`, they load JWKS from `ENTRA_ISSUER` (or `ENTRA_JWKS_URI`) and enforce `ENTRA_AUDIENCE`. Real Microsoft sign-in requires `entra`.
+
+### 8.4 Classroom / local Entra setup
+
+Account and permission blockers: [PREP-CHECKLIST.md](../PREP-CHECKLIST.md). Copy [dealer-platform/env.example](../dealer-platform/env.example) and [dealer-web/.env.example](../dealer-web/.env.example); **do not commit** real `.env` files.
+
+#### App registrations (one SPA + one API)
+
+1. **API app** (resource): expose scope `access_as_user` under Application ID URI `api://dealer-api` (or your chosen URI — keep SPA scope and `ENTRA_AUDIENCE` aligned).
+2. **App Roles** on that API app (`value` must match JWT `roles[]` exactly): `Platform.Admin`, `Dealer.User`.
+3. **SPA app** (public client, PKCE, **no client secret**):
+   - Redirect URI: `http://localhost:5173/login` (add the cloud HTTPS `/login` URI later). `redirectUri` / `postLogoutRedirectUri` are same-origin `/login`.
+   - API permission: delegated `api://dealer-api/access_as_user`.
+4. Assign App Roles to classroom users in Entra (one admin + two staff for isolation demos).
+
+#### Env wiring
+
+| Variable | Where | Example / notes |
+|---|---|---|
+| `VITE_ENTRA_TENANT_ID` | `dealer-web/.env` | Directory (tenant) ID |
+| `VITE_ENTRA_CLIENT_ID` | `dealer-web/.env` | SPA application (client) ID |
+| `VITE_ENTRA_API_SCOPE` | `dealer-web/.env` | `api://dealer-api/access_as_user` |
+| `JWT_MODE` | `dealer-platform/.env` (compose → gateway + core) | `entra` for real tokens; `dev` for local HS256 ITs |
+| `ENTRA_ISSUER` | same | `https://login.microsoftonline.com/<tenant-id>/v2.0` |
+| `ENTRA_AUDIENCE` | same | `api://dealer-api` (or the API app GUID) |
+
+After staff accounts exist in Entra, an Admin signs in, creates dealerships, and uses **Bind staff** with each person’s Object ID (`oid`). That is the path exercised by [16](16-Acceptance-and-Test.md) **CL-1** / **CL-2**.
+
+### 8.5 Defense: the PPT drew Auth as its own domain — why no fifth Java repo
 
 The PPT draws **Auth** beside UI / Data / AI because it wants **OAuth/OIDC + JWT + RBAC**, and it **forbids homegrown authentication**. This course's Auth unit **is Microsoft Entra ID** (table 07 already says so), not another `dealer-auth`.
 

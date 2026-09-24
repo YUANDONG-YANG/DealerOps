@@ -52,7 +52,7 @@ A multi-tenant back office for independent dealers: each dealership has its own 
 | Languages | Backend **Java 21** (may align with ai-manager on 17, but the four course repos share one version; prefer 21). Frontend **Vue 3 + Element Plus + MSAL.js**. UI in English. |
 | Repositories | **Four independent application repos**: `dealer-web`, `dealer-gateway`, `dealer-core`, `ai-service`. Plus `dealer-platform` for Bicep/compose/pipeline notes. Ban a monorepo. |
 | Entry | Browser-to-service HTTP **only through Spring Cloud Gateway**. core / ai-service are not public. Bypassing Gateway must fail. |
-| Identity | **Microsoft Entra ID** OAuth/OIDC + PKCE + JWT. Roles only `Platform.Admin`, `Dealer.User`. Do not build a password table. Admin “issues an account” = bind `entra_oid` → `dealer_id`. |
+| Identity | **Microsoft Entra ID** OAuth/OIDC + PKCE + JWT. Roles only `Platform.Admin`, `Dealer.User`. Do not build a password table. Admin “issues an account” = bind `entra_oid` → `dealer_id` (unbind = soft deactivate). Spec PDF username/password is **superseded** — see [SCOPE-BASELINE.md](SCOPE-BASELINE.md) errata. **Authoritative design:** [15-Data-Auth-and-Gateway.md](15-Data-Auth-and-Gateway.md) §8 (product surface, JWT mapping, classroom SPA/API registration, `JWT_MODE` / `VITE_ENTRA_*` / `ENTRA_*`). |
 | Data | **One MySQL** database `dealer_core`. Flyway owns tables. The AI service has no database. |
 | AI | `ai-service` embeds `YUANDONG-YANG/ai-manager` **in-process**. Synchronous REST. The adapter guarantees a **15s** timeout. |
 | Calls | Synchronous REST. |
@@ -65,14 +65,15 @@ The specification PDF describes username/password; **PPT forbids homemade auth**
 
 | Page | Role | What they do | Landing |
 |---|---|---|---|
-| Login | Everyone | Only `Sign in with Microsoft`; no sidebar, no password box | Login page |
-| Admin | Platform.Admin only | Open dealerships; bind/unbind staff. **Zero** vehicle/customer/ad data | Admin default page |
-| DMS | Dealer.User only | This-dealership vehicle create/update/read; paired sale | Staff default page |
+| Login | Everyone | Only `Sign in with Microsoft`; no sidebar, no password box | `/login` (sole sign-in page) |
+| Admin | Platform.Admin only | Open dealerships; bind/unbind staff. **Zero** vehicle/customer/ad data | After sign-in → `/admin` |
+| DMS | Dealer.User only | This-dealership vehicle create/update/read; paired sale | After sign-in with `dealerId` → `/dms` |
 | CRM | Dealer.User only | This-dealership customer create/update/read; link this-store in-stock unbound vehicles | — |
 | Ad compliance | Dealer.User only | Pick a vehicle, write an ad, rules+AI, export TXT after pass | — |
 | Assistant | Dealer.User only | This-dealership read-only Q&A, at most 5 resource cards | — |
+| No access | Signed in, unbound / no business role | Shell with Sign out only; no business tables | `/` (not a third App Role) |
 
-Multiple staff at one dealership see the same data. Dealership A cannot see dealership B. After opening a store, admin still cannot see business data. No KPI home page. Unauthorized routes are blocked directly.
+Multiple staff at one dealership see the same data. Dealership A cannot see dealership B. After opening a store, admin still cannot see business data. No KPI home page. Unauthorized routes are blocked directly. Classroom bind + isolation demos: [16-Acceptance-and-Test.md](16-Acceptance-and-Test.md) **CL-1** / **CL-2**. Full Entra classroom wiring: [15](15-Data-Auth-and-Gateway.md) §8.4.
 
 ---
 
@@ -325,10 +326,11 @@ Copied from `dealer-platform/env.example`; split by repo while coding; **do not 
 | `AIMANAGER_API_KEY` | **ai-service only** | Real key, in Key Vault |
 | `AIMANAGER_GATEWAY_PROVIDER` | ai | `openai` and other providers the library already supports |
 | `AIMANAGER_GATEWAY_MODEL` | ai | |
+| `JWT_MODE` | gateway+core | `entra` for real Entra JWKS; `dev` for local HS256 ITs |
 | `ENTRA_ISSUER` | gateway+core | `https://login.microsoftonline.com/<tenant>/v2.0` |
 | `ENTRA_AUDIENCE` | gateway+core | `api://dealer-api` |
 
-Do not paste subscription passwords, secrets, or model-key bodies in chat.
+Classroom SPA + API registration and App Role assignment: [15-Data-Auth-and-Gateway.md](15-Data-Auth-and-Gateway.md) §8.4 (ops mirror: [README.md](../README.md) § Classroom Entra). Do not paste subscription passwords, secrets, or model-key bodies in chat.
 
 ---
 
