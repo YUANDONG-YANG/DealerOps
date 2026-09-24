@@ -66,4 +66,34 @@ npm run dev
 
 SPA: `http://127.0.0.1:5173/`. Optional image (Vite preview, same port): `docker build -t dealer-web dealer-web` then `docker run --rm -p 5173:5173 dealer-web`. Copy `dealer-web/.env.example` to `dealer-web/.env` for Entra keys.
 
+## Classroom Entra (Microsoft sign-in)
+
+Homemade username/password auth is **out of scope**. Dealers and admins sign in with **Microsoft Entra ID** only (`Sign in with Microsoft`). Admin “issues access” by binding a staff `entraOid` to a dealership on `/admin` (not by creating a password).
+
+### App registrations (one SPA + one API)
+
+1. **API app** (resource): expose scope `access_as_user` under Application ID URI `api://dealer-api` (or your chosen URI — keep SPA scope and `ENTRA_AUDIENCE` aligned).
+2. **App roles** on that API app (value must match JWT `roles[]` exactly):
+   - `Platform.Admin`
+   - `Dealer.User`
+3. **SPA app** (public client, PKCE, **no client secret**):
+   - Redirect URI: `http://localhost:5173/login` (add the cloud HTTPS `/login` URI later).
+   - API permission: delegated `api://dealer-api/access_as_user`.
+4. Assign App Roles to classroom users in Entra (one admin + two staff for isolation demos).
+
+### Env wiring
+
+| Variable | Where | Example |
+|---|---|---|
+| `VITE_ENTRA_TENANT_ID` | `dealer-web/.env` | Directory (tenant) ID |
+| `VITE_ENTRA_CLIENT_ID` | `dealer-web/.env` | SPA application (client) ID |
+| `VITE_ENTRA_API_SCOPE` | `dealer-web/.env` | `api://dealer-api/access_as_user` |
+| `JWT_MODE` | `dealer-platform/.env` (compose → gateway + core) | `entra` for real tokens; `dev` for local HS256 ITs |
+| `ENTRA_ISSUER` | same | `https://login.microsoftonline.com/<tenant-id>/v2.0` |
+| `ENTRA_AUDIENCE` | same | `api://dealer-api` (or the API app GUID) |
+
+Copy [dealer-platform/env.example](dealer-platform/env.example) and [dealer-web/.env.example](dealer-web/.env.example). Do not commit real `.env` files. After staff accounts exist in Entra, an Admin signs in, creates dealerships, and uses **Bind staff** with each person’s Object ID (`oid`).
+
+Account and permission blockers: [PREP-CHECKLIST.md](PREP-CHECKLIST.md). Claim → role mapping: [design/15-Data-Auth-and-Gateway.md](design/15-Data-Auth-and-Gateway.md) §8.
+
 `ai-service` image defaults to Maven profile `stub` (no sibling `ai-manager` source in this tree). After `mvn -DskipTests install` in a sibling checkout named `ai-manager`, rebuild with `MAVEN_ARGS=-DskipTests`. Ports and boot order: [design/AI-CODING-LOCAL-AND-CLOUD.md](design/AI-CODING-LOCAL-AND-CLOUD.md). Cloud Bicep in `dealer-platform/infra/` is a draft — do not treat it as deployed.

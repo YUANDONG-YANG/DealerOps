@@ -312,7 +312,11 @@ onMounted(loadDealers)
                 </template>
               </el-table-column>
               <template #actions="{ row }">
-                <el-button link @click="askUnbind(row.dealerId, row.entraOid)">Unbind</el-button>
+                <el-button
+                  v-if="row.active"
+                  link
+                  @click="askUnbind(row.dealerId, row.entraOid)"
+                >Unbind</el-button>
               </template>
             </DataTable>
           </PageState>
@@ -359,7 +363,11 @@ onMounted(loadDealers)
         </el-table-column>
         <el-table-column label="Actions">
           <template #default="{ row }">
-            <el-button v-if="staffDealer" link @click="askUnbind(staffDealer.id, row.entraOid)">Unbind</el-button>
+            <el-button
+              v-if="staffDealer && row.active"
+              link
+              @click="askUnbind(staffDealer.id, row.entraOid)"
+            >Unbind</el-button>
           </template>
         </el-table-column>
       </el-table>

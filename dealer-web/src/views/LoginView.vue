@@ -1,7 +1,7 @@
 ﻿<script setup lang="ts">
 import { ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import { signIn } from '../auth/msal'
+import { rememberPostLoginRedirect, signIn } from '../auth/msal'
 import PageState from '../components/PageState.vue'
 
 const route = useRoute()
@@ -18,10 +18,21 @@ watch(
   { immediate: true },
 )
 
+watch(
+  () => route.query.redirect,
+  (redirect) => {
+    const value = Array.isArray(redirect) ? redirect[0] : redirect
+    if (typeof value === 'string') rememberPostLoginRedirect(value)
+  },
+  { immediate: true },
+)
+
 async function login() {
   error.value = ''
   loading.value = true
   try {
+    const redirect = typeof route.query.redirect === 'string' ? route.query.redirect : ''
+    rememberPostLoginRedirect(redirect)
     await signIn()
   } catch {
     error.value = 'Sign-in failed. Try again.'

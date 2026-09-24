@@ -1,6 +1,6 @@
 ﻿import { createRouter, createWebHistory, type RouteLocationNormalized } from 'vue-router'
 import axios from 'axios'
-import { account, clearAccount } from '../auth/msal'
+import { account, clearAccount, rememberPostLoginRedirect, takePostLoginRedirect } from '../auth/msal'
 import { getMe } from '../api/me'
 import { useSessionStore } from '../stores/session'
 import LoginView from '../views/LoginView.vue'
@@ -50,6 +50,7 @@ router.beforeEach(async (to) => {
   store.account = a || null
 
   if (!a && !to.meta.public) {
+    rememberPostLoginRedirect(to.fullPath)
     return { path: '/login', query: { redirect: to.fullPath } }
   }
 
@@ -78,8 +79,11 @@ router.beforeEach(async (to) => {
   if (to.path === '/login' && a) {
     if (profileFailed) return true
     if (!hasBusinessAccess(store)) return '/'
-    const redirect = typeof to.query.redirect === 'string' ? to.query.redirect : ''
-    if (redirect.startsWith('/') && !redirect.startsWith('//')) return redirect
+    const fromQuery = typeof to.query.redirect === 'string' ? to.query.redirect : ''
+    const redirect = fromQuery || takePostLoginRedirect()
+    if (redirect.startsWith('/') && !redirect.startsWith('//') && !redirect.startsWith('/login')) {
+      return redirect
+    }
     return landingFor(store)
   }
 

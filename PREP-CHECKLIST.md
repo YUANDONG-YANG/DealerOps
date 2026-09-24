@@ -10,7 +10,7 @@ Items marked **Missing** block the matching module. Do not paste passwords into 
 | Docker Desktop | **Missing** | Required to run MySQL locally and to build containers later |
 | Teammate A/B/C names | **Missing** | Three names and who owns web / AI / core |
 | Azure subscription | **Missing** | Student or school subscription that can create Container Apps, MySQL, ACR, Key Vault |
-| Entra permissions | **Missing** | Can create an App Registration, add `Platform.Admin` and `Dealer.User`, and bind users |
+| Entra permissions | **Missing** (env / Azure AD, not code) | Create App Registration(s), App Roles `Platform.Admin` / `Dealer.User`, assign demo users. Steps: [README.md](README.md) § Classroom Entra |
 | Model key | **Missing** | ai-manager needs `AIMANAGER_API_KEY` (one of groq/openai/claude/deepseek). Course demos should use a real key that can be called reliably |
 | ai-manager package | **No pinned release** | Publish an immutable version from commit `c07e1f2` to GitHub Packages, or allow local `mvn install` |
 
