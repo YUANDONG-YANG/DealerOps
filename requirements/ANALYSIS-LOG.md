@@ -19,6 +19,7 @@ New folder [analysis/](analysis/README.md):
 | 01–06 | Requirement items by module: AUTH, DMS, CRM, AD (rules AD-R01–R25), AUD / ARC / SEC / AI / NFR, UI + 23 acceptance cases (AT-01–AT-23) |
 | 07 | Differences between the two sources, 15 assumptions (Q-01–Q-15), questions for the client, risks |
 | 08 | Review of `design/` against the analysis |
+| 09 | Verification checklist: evidence per finding, verdict column for manual review |
 | Traceability-Matrix | Source → requirement ID → design doc → acceptance case |
 
 Each requirement carries a source (`PDF §x` / `DOC` / `SCOPE` / `Derived`) and a priority (Must / Should / Could / Won't).
@@ -43,6 +44,7 @@ Open items:
 
 ### Pending
 
+0. Manually verify each finding in analysis/09 and fill in the verdicts.
 1. Instructor sign-off on B4 and B5, then add them to SCOPE-BASELINE errata.
 2. Decide A1–A3; each touches design 14, AI-PROTOCOL-AND-RULES §C, 16, and 17.
 3. Add the validation table (A6) and disclaimer (A8).
