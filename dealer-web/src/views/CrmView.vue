@@ -136,7 +136,7 @@ async function loadLinkedOwners(): Promise<Map<number, number>> {
 async function loadLinkOptions() {
   try {
     const [vehicleRes, owners] = await Promise.all([
-      vehiclesApi.list({ page: 0, size: 50 }),
+      vehiclesApi.list({ status: 'IN_STOCK', page: 0, size: 50 }),
       loadLinkedOwners(),
     ])
     const ownIds = new Set((selected.value?.linkedVehicles || []).map((x: any) => x.id))

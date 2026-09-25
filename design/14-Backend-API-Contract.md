@@ -410,7 +410,7 @@ Handbook audit has `LINK` / `UNLINK`, and the UI (12) requires a second confirma
 
 ### 6.1 `PUT /api/v1/customers/{id}/vehicles/{vehicleId}` → 200
 
-No body (or ignore body). Constraints: customer and vehicle are **the same dealership**, and the vehicle is **not yet** linked to any customer. In-stock or sold both allowed (15 §4).
+No body (or ignore body). Constraints: customer and vehicle are **the same dealership**, vehicle is `IN_STOCK`, vehicle is **not yet** linked to any customer. **Sold vehicles cannot be newly linked** (15).
 
 ```json
 {

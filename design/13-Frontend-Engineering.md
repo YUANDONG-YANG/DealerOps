@@ -174,7 +174,7 @@ Filters: `q` (Name/Email/Phone), `linked`. Pagination same as DMS: `page`/`size`
 | Enter / Search / Reset | `GET /customers` | customer table | `403` no-access state; otherwise Could not load customers |
 | `Add customer` | `POST /customers` four fields | customer table | `400` Check required fields |
 | `Edit` save | `GET/PATCH /customers/{id}` | that row + drawer | `404` Customer not found; `409 VERSION_CONFLICT` |
-| `Link vehicle` (searchable Select, this dealership, unlinked only (in stock or sold)) | `PUT /customers/{id}/vehicles/{vehicleId}` | customer table Linked vehicle + drawer | `409 VEHICLE_ALREADY_LINKED` Vehicle already linked; `400 WRONG_DEALER_OR_SOLD` Vehicle not available |
+| `Link vehicle` (searchable Select, this dealership unsold unlinked only) | `PUT /customers/{id}/vehicles/{vehicleId}` | customer table Linked vehicle + drawer | `409 VEHICLE_ALREADY_LINKED` Vehicle already linked; `400 WRONG_DEALER_OR_SOLD` Vehicle not available |
 | `Unlink` (after confirm) | `DELETE /customers/{id}/vehicles/{vehicleId}` → **204** no body | customer table Linked vehicle + drawer | `404` Link not found; `409 SOLD_LOCKED` Sold vehicles cannot be unlinked |
 | Link-vehicle dropdown data | `GET /vehicles?status=IN_STOCK`; then exclude already linked. 14 customer list has `linkedVehicle` | dropdown | already-taken items disabled. Fields follow the handbook/14 |
 | Detail Audit | `GET /audit?entityType=CUSTOMER&entityId=` | audit list | `404` |
@@ -240,7 +240,7 @@ Do not change vehicles/customers/checks on this page. Cards must not show phone 
 | `AdWorkspace` | form left, results right; checklist changes with type/medium | a fifth overall status |
 | `AssistantCard` | title + link into an ordinary page; no contact details | mutate data inside the card |
 
-Sell small dialog (may live inside `DmsView`): Sold date + Sold price, required as a pair. CRM link-vehicle Select lists this dealership's unlinked vehicles (in stock or sold).
+Sell small dialog (may live inside `DmsView`): Sold date + Sold price, required as a pair. CRM link-vehicle Select lists only this dealership's unlinked, unsold vehicles.
 
 ---
 

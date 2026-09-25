@@ -46,13 +46,14 @@ Open items:
 
 Scope rule: meet the spec at its minimum. This is a graduation project, not a commercial product (see "Minimum-spec triage" in analysis/08).
 
-Done 2026-09-25:
+Open issues to hand to the developer (verified against code on 2026-09-25):
 
-- A2: `OmvicRuleEngine` runs finance rules for CASH ads that show a rate or payment. Unit test added and passing.
-- A3: linking allows sold vehicles that have no customer yet (`CustomerService.link`, CRM picker, `CustomerVehicleLinkIT` updated; IT not run).
-- B4: erratum 4 added to SCOPE-BASELINE.
-- Design docs 12 / 13 / 14 / 15 / 16 / PROTOCOL updated to match.
+| ID | Where | Issue | Smallest fix |
+|---|---|---|---|
+| A2 | `dealer-core/.../compliance/OmvicRuleEngine.java` (the `if (listing.getAdKind() == AdKind.FINANCE)` block) | A CASH ad showing "$299 per month" or an APR skips all finance rules and can reach PASSED. Spec §5: finance rules apply "if the ad shows a rate or payment". | Also enter the finance block when a CASH ad matches `APR` or a payment pattern. Add one unit case. Update PROTOCOL C.1 and 15 §6. |
+| A3 | `dealer-core/.../customer/CustomerService.java` `link()` (the `IN_STOCK` check) and `dealer-web/src/views/CrmView.vue` `loadLinkOptions()` (`status: 'IN_STOCK'`) | A vehicle sold before being linked can never be linked to its buyer. Spec §4 "Car(s) purchased". | Drop the `IN_STOCK` check; the unique key still enforces one vehicle, one customer. Drop the status filter in the picker. Update 12 / 13 / 14 / 15 / 16 BE-05 and `CustomerVehicleLinkIT.soldCannotBeNewlyLinked`. |
+| B4 | `design/SCOPE-BASELINE.md` errata | PROTOCOL §C.0a makes several "must disclose" items soft, but it isn't a signed erratum. | Add erratum 4: some OMVIC disclosures are review hints, not blockers (see PROTOCOL §C.0a). |
 
 Not planned: A1, A4–A10, B5.
 
-No files under `design/` were changed in this round.
+No code or `design/` files are changed by this analysis. A fix commit was made and reverted, because this analysis only records issues.

@@ -8,7 +8,7 @@ import com.dealerops.core.support.TestTokens;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.web.servlet.MvcResult;
 
-/** BE-05 / TEST-05: link 200 / 409 / 404 as specified. */
+/** BE-05 / TEST-05: link 200 / 409 / 400 / 404 as specified. */
 class CustomerVehicleLinkIT extends CoreItSupport {
 
   @Test
@@ -25,19 +25,15 @@ class CustomerVehicleLinkIT extends CoreItSupport {
   }
 
   @Test
-  void soldVehicleWithoutCustomerCanStillBeLinkedOnce() throws Exception {
+  void soldCannotBeNewlyLinked() throws Exception {
     long customerId = createCustomer(TestTokens.staffA(), "Sam");
     long vehicleId = createVehicle(TestTokens.staffA(), "1HGCM82633A004353");
     assertThat(sellVehicle(TestTokens.staffA(), vehicleId, 0, "2026-09-01", "15000").getResponse().getStatus())
         .isEqualTo(200);
 
     MvcResult result = linkVehicle(TestTokens.staffA(), customerId, vehicleId);
-    assertThat(result.getResponse().getStatus()).isEqualTo(200);
-
-    long other = createCustomer(TestTokens.staffA(), "Lee");
-    MvcResult again = linkVehicle(TestTokens.staffA(), other, vehicleId);
-    assertThat(again.getResponse().getStatus()).isEqualTo(409);
-    assertThat(errorCode(again)).isEqualTo("VEHICLE_ALREADY_LINKED");
+    assertThat(result.getResponse().getStatus()).isEqualTo(400);
+    assertThat(errorCode(result)).isEqualTo("WRONG_DEALER_OR_SOLD");
   }
 
   @Test

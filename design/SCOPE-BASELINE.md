@@ -65,8 +65,7 @@ Already deferred in the proposal and still out of this version: Image Studio, OC
 
 1. **Auth = Entra** (not the specification username/password).  
 2. **Add Assistant as specification section 7** (the specification has no such page; PPT requires a real-AI core feature → in-dealership read-only assistant).  
-3. **publish = Ready + TXT export** (not external publishing, and not listing on a buyer site).  
-4. **Some OMVIC disclosures are review hints, not blockers** (year, new/used, warranty terms, prior use, finance term, lease term/payment/down). See [AI-PROTOCOL-AND-RULES.md](AI-PROTOCOL-AND-RULES.md) §C.0a.
+3. **publish = Ready + TXT export** (not external publishing, and not listing on a buyer site).
 
 ## Signature / email confirmation
 

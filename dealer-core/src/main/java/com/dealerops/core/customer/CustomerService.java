@@ -116,6 +116,9 @@ public class CustomerService {
         vehicleRepository
             .findByIdAndDealerId(vehicleId, tenant)
             .orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND, "Not found"));
+    if (vehicle.getStatus() != VehicleStatus.IN_STOCK) {
+      throw new ApiException(ErrorCode.WRONG_DEALER_OR_SOLD, "Vehicle is sold or not available to link.");
+    }
     if (customerVehicleRepository.existsByVehicleId(vehicleId)) {
       throw new ApiException(ErrorCode.VEHICLE_ALREADY_LINKED, "Vehicle is already linked.");
     }

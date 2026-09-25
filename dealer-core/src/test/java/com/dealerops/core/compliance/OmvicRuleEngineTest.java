@@ -57,14 +57,6 @@ class OmvicRuleEngineTest {
   }
 
   @Test
-  void cashAdShowingPaymentGetsFinanceRules() {
-    String body = AdFixtures.FX10_BODY + " Or $299 per month.";
-    OmvicResult result = engine.run(listing(AdFixtures.FX10_TITLE, body, AdKind.CASH), vAsis(), prairie());
-    assertThat(result.hardBlocked()).isTrue();
-    assertThat(ruleIds(result)).contains("FINANCE_APR_MISSING");
-  }
-
-  @Test
   void limousineCueWithoutDisclosureIsSoftPriorUse() {
     String body = AdFixtures.FX10_BODY + " Clean limousine history available on request.";
     OmvicResult result = engine.run(listing(AdFixtures.FX10_TITLE, body, AdKind.CASH), vAsis(), prairie());
