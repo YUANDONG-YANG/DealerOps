@@ -46,10 +46,12 @@ Open items:
 
 Scope rule: meet the spec at its minimum. This is a graduation project, not a commercial product (see "Minimum-spec triage" in analysis/08).
 
-0. Manually verify A2, A3, and B4 in analysis/09. The other findings are not planned.
-1. A2: run finance rules when the copy shows a rate or payment, not only for `adKind=FINANCE`.
-2. A3: allow linking a SOLD vehicle that has no customer yet.
-3. B4: add one erratum line to SCOPE-BASELINE.
+Done 2026-09-25:
+
+- A2: `OmvicRuleEngine` runs finance rules for CASH ads that show a rate or payment. Unit test added and passing.
+- A3: linking allows sold vehicles that have no customer yet (`CustomerService.link`, CRM picker, `CustomerVehicleLinkIT` updated; IT not run).
+- B4: erratum 4 added to SCOPE-BASELINE.
+- Design docs 12 / 13 / 14 / 15 / 16 / PROTOCOL updated to match.
 
 Not planned: A1, A4–A10, B5.
 
