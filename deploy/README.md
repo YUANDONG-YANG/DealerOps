@@ -2,7 +2,7 @@
 
 This folder is the procedure for the live pipeline. Architecture stays in [design/AI-CODING-LOCAL-AND-CLOUD.md](../design/AI-CODING-LOCAL-AND-CLOUD.md) §7. Follow the steps below without asking anyone else.
 
-Automatic publish means: a push to `main` builds container images and pushes them to GitHub Container Registry (`ghcr.io`). It does not create Azure resources. It does not host the UI on Vercel. Acceptance is local Compose using those images. The browser calls the gateway on localhost, not a public site.
+Automatic publish means: a push to `main` builds container images and pushes them to GitHub Container Registry (`ghcr.io`). It does not create Azure resources, and it does not deploy the site. Local Compose in section 5 is the localhost acceptance stack. The free public demo is section 8: Vercel for the web UI and Railway for the Java gateway and core.
 
 Leave any stack you already started running. The commands in "Local acceptance" are what you run later, when you choose to replace it with a newly published image.
 
@@ -176,58 +176,35 @@ Copy `dealer-platform/env.example` to a local `.env` if you need Entra values. D
 ## 7. What this automation does not do
 
 - It does not create an Azure resource group, log in to Azure, push to Azure Container Registry, or run a Bicep deployment. `dealer-platform/infra/main.bicep` remains in the repo as an optional paid design. Job `bicep` only compiles it.
-- It does not deploy `dealer-web` to Vercel. A public site cannot call a gateway on your laptop unless that gateway itself has a public HTTPS origin (section 8).
-- It does not deploy the Java services to Azure. Private GHCR images are pulled only when `docker login ghcr.io` has `read:packages`. Section 8 is the public HTTPS demo when that login and a paid host are not available.
+- A push to `main` does not deploy `dealer-web` to Vercel and does not create Railway services. Section 8 is the manual free public demo.
+- It does not deploy the Java services to Azure. Private GHCR images are pulled only when `docker login ghcr.io` has `read:packages`. When that login is missing, build the Dockerfiles from this repo (section 8).
 - It does not commit secrets, `.env`, or tokens. GitHub Actions uses its built-in `GITHUB_TOKEN` only inside the `publish` job.
 - It does not stop or recreate containers on a developer machine. Section 5 is manual.
 - An older GitHub Release tag is not this image publish. Confirm images with the `publish-ghcr` run log or the packages page, not with a release.
 
-## 8. Public HTTPS demo (not a paid Azure stack)
+## 8. Free public demo (Vercel web, Railway API)
 
-Sections 1–3 push private images to GHCR. They do not open a public website. Vercel can host the static web app only; the gateway, core, and MySQL cannot run there. Azure Container Apps plus MySQL Flexible Server is the paid design in `dealer-platform/infra/main.bicep` and is not started by this procedure. That design names apps `dealerops-web` and `dealerops-gateway` on the Container Apps default domain. It does not reserve `dealer-ops.sait.*` or any other school zone.
+Sections 1–3 push private images to GHCR. They do not open a public website. Do not buy a domain. Do not create Azure resources. Do not start `dealer-platform/infra/main.bicep`. A custom domain such as `dealer-ops.app` is optional and paid; it is not required. The free hostnames are the ones Vercel and Railway assign (`*.vercel.app` and `*.up.railway.app`).
 
-When `docker login ghcr.io` is missing `read:packages`, a pull of `ghcr.io/yuandong-yang/*:main` fails with `error from registry: unauthorized`. Build the stack from source instead (`docker compose up --build` in `dealer-platform`). The timestamp on that build is `Published local`.
+Vercel hosts only `dealer-web` (the Vite static build). It cannot run `dealer-gateway`, `dealer-core`, `ai-service`, or MySQL.
 
-A fixed public name is a **Cloudflare named tunnel** on the project zone `dealer-ops.app`. `cloudflared tunnel --url` (a quick tunnel) cannot be that name: each start prints a new `https://*.trycloudflare.com` hostname, and the name stops resolving when that process stops. Do not publish a quick-tunnel hostname as the project URL. Do not invent another hostname, and do not register a `sait.ca` name.
+Railway hosts the API: MySQL, `dealer-core`, `ai-service`, and `dealer-gateway`. Build from the repo Dockerfiles (`dealer-core/Dockerfile`, `ai-service/Dockerfile`, `dealer-gateway/Dockerfile`) when `docker login ghcr.io` lacks `read:packages`. Give a public domain only to `dealer-gateway`. Core and ai-service stay on the private Railway network. Swagger is served by the gateway at `/swagger-ui/index.html`. Do not open core port `8081`.
 
-The hostnames are fixed: web is the zone apex `dealer-ops.app`, gateway is `gateway.dealer-ops.app`. The registrable zone to add in Cloudflare is `dealer-ops.app`. A registry lookup (Google RDAP) reports `dealer-ops.app` as not registered and `dealer-ops.dev` as already registered, so this project uses `dealer-ops.app`. This repository does not register the name, does not spend money, and does not make DNS live. The hostnames below resolve only after the operator adds the zone `dealer-ops.app` to their own Cloudflare account. `dealer-platform/env.example` leaves `WEB_PUBLIC_ORIGIN` and `GATEWAY_PUBLIC_URL` empty until that zone exists. There is no Cloudflare origin certificate, tunnel token, or GitHub Actions secret for a tunnel.
+The Vercel site must call that public gateway origin. It must not call `http://localhost:8080`. Set Vercel `VITE_GATEWAY_URL` to `https://<railway-gateway-host>` before the production build. The SPA also accepts `/config.json` `gatewayUrl` (see `dealer-web/src/api/gateway.ts`). On Railway set `GATEWAY_PUBLIC_URL` to the same gateway origin and `CORS_ALLOWED_ORIGIN` to the Vercel origin.
 
 | Check | Public URL |
 |---|---|
-| Web UI | `https://dealer-ops.app/` |
-| Gateway (browser API origin) | `https://gateway.dealer-ops.app/` |
-| Swagger UI (`Published …` in the description) | `https://gateway.dealer-ops.app/swagger-ui/index.html` |
-| OpenAPI JSON | `https://gateway.dealer-ops.app/v3/api-docs` |
+| Web UI | `https://<project>.vercel.app/` |
+| Gateway (browser API origin) | `https://<gateway-service>.up.railway.app/` |
+| Swagger UI (`Published …` in the description) | `https://<gateway-service>.up.railway.app/swagger-ui/index.html` |
+| OpenAPI JSON | `https://<gateway-service>.up.railway.app/v3/api-docs` |
 
-Swagger is served by the gateway. Do not open core port `8081`. Swagger is public (no Bearer token). `/api/v1/**` on the gateway host still requires a Bearer token.
+Swagger is public (no Bearer token). `/api/v1/**` on the gateway host still requires a Bearer token.
 
-Leave the Compose stack from section 5 running. Then:
+1. Web sign-in: from `dealer-web`, `npx vercel whoami`. If that fails, `npx vercel login` and open the URL the CLI prints. Do not print tokens. Deploy with `npx vercel --prod` only after `VITE_GATEWAY_URL` is the Railway gateway origin.
+2. API sign-in: `npx @railway/cli whoami`. If that prints `Unauthorized`, `npx @railway/cli login` and open the URL the CLI prints. Do not print tokens.
+3. In the Railway project, add MySQL, then deploy `dealer-core`, `ai-service`, and `dealer-gateway` from their Dockerfiles. Wire `MYSQL_URL` (JDBC), `CORE_URL`, and `AI_URL` to the private service hosts. Generate the public domain on the gateway service only.
+4. Set Railway `CORS_ALLOWED_ORIGIN` to the Vercel origin and `GATEWAY_PUBLIC_URL` to the gateway origin. Redeploy the gateway if those values change.
+5. Confirm the Vercel URL and `https://<gateway-service>.up.railway.app/swagger-ui/index.html` both return HTTP 200.
 
-1. `cloudflared tunnel login`. Approve the zone `dealer-ops.app` in the browser. This writes an origin certificate on the operator machine. Do not commit that file, and do not paste the certificate or a tunnel token into the repo.
-2. `cloudflared tunnel create dealer-ops`. Note the credentials file path the command prints. Do not commit that file.
-3. `cloudflared tunnel route dns dealer-ops dealer-ops.app`
-4. `cloudflared tunnel route dns dealer-ops gateway.dealer-ops.app`
-5. Write a local config that is not committed (same directory as the origin certificate is fine). Use the credentials path printed in step 2:
-
-```yaml
-tunnel: dealer-ops
-credentials-file: <credentials-file-from-tunnel-create>
-ingress:
-  - hostname: dealer-ops.app
-    service: http://127.0.0.1:5173
-  - hostname: gateway.dealer-ops.app
-    service: http://127.0.0.1:8080
-  - service: http_status:404
-```
-
-6. `cloudflared tunnel --config <that-config-file> run dealer-ops`. Keep this process running. The hostnames stay up only while it runs, but they do not change on the next start.
-7. From `dealer-platform`, point the SPA and CORS at those origins and recreate only the three app containers (MySQL can keep running):
-
-```text
-GATEWAY_PUBLIC_URL=https://gateway.dealer-ops.app
-CORS_ALLOWED_ORIGIN=https://dealer-ops.app
-WEB_PUBLIC_ORIGIN=https://dealer-ops.app
-docker compose up -d --no-build --force-recreate dealer-core dealer-gateway dealer-web
-```
-
-Confirm `https://dealer-ops.app/` and `https://gateway.dealer-ops.app/swagger-ui/index.html` both return HTTP 200. Debug the tunnel from the `cloudflared` log. Debug the stack with the Compose logs in section 6. If Swagger is 401, the gateway image is old: rebuild `dealer-gateway` so the `dealer-core-swagger` route exists.
+If Swagger is 401, the gateway image is old: rebuild `dealer-gateway` so the `dealer-core-swagger` route exists. Debug the API from the Railway service logs. Local Compose in section 5 stays the localhost path and is separate from this demo.
