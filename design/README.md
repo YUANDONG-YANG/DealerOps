@@ -45,7 +45,7 @@ Humans still confirm scope first via `SCOPE-BASELINE` and the BRIEF.
 11. [Frontend engineering (file split)](13-Frontend-Engineering.md) **currently in force** — routes, file split, page↔API; frontend still follows this document + `AI-CODING-FRONTEND`.
 12. [Backend development design](DEVELOPMENT-DESIGN.md) **backend design document** — scope, phases, invariants.
 13. [Backend API contract (DTOs/error codes)](14-Backend-API-Contract.md) **currently in force** — public HTTP, DTOs, pagination envelope, error codes; align with OpenAPI.
-14. [Data / auth / gateway rulings](15-Data-Auth-and-Gateway.md) **currently in force** — tables, tenant/membership, Gateway, JWT, rule pseudocode.
+14. [Data / auth / gateway rulings](15-Data-Auth-and-Gateway.md) **currently in force** — tables, tenant/membership, Gateway, JWT, **dealer Entra auth (§8)**, rule pseudocode.
 15. [Acceptance and test](16-Acceptance-and-Test.md) **currently in force** — 32 cases + 6 classroom scripts, mapped to NN-19; does not change contracts.
 16. [Ad-check fixtures](17-Ad-Check-Fixtures.md) **currently in force** — 22 ad samples and expected states; classroom priority FX-01 / FX-03 / FX-10 / FX-11 / FX-12.
 17. [Backend core engineering](18-Backend-Core-Engineering.md) **currently in force** — `dealer-core` packaging reference.

@@ -70,6 +70,8 @@ SPA: `http://127.0.0.1:5173/`. Optional image (Vite preview, same port): `docker
 
 Homemade username/password auth is **out of scope**. Dealers and admins sign in with **Microsoft Entra ID** only (`Sign in with Microsoft`). Admin “issues access” by binding a staff `entraOid` to a dealership on `/admin` (not by creating a password).
 
+**Authoritative design** (product surface, JWT roles, classroom registration, env vars, landings): [design/15-Data-Auth-and-Gateway.md](design/15-Data-Auth-and-Gateway.md) §8. Scope errata: [design/SCOPE-BASELINE.md](design/SCOPE-BASELINE.md). Classroom demos: [design/16-Acceptance-and-Test.md](design/16-Acceptance-and-Test.md) **CL-1** / **CL-2**.
+
 ### App registrations (one SPA + one API)
 
 1. **API app** (resource): expose scope `access_as_user` under Application ID URI `api://dealer-api` (or your chosen URI — keep SPA scope and `ENTRA_AUDIENCE` aligned).
@@ -94,6 +96,6 @@ Homemade username/password auth is **out of scope**. Dealers and admins sign in 
 
 Copy [dealer-platform/env.example](dealer-platform/env.example) and [dealer-web/.env.example](dealer-web/.env.example). Do not commit real `.env` files. After staff accounts exist in Entra, an Admin signs in, creates dealerships, and uses **Bind staff** with each person’s Object ID (`oid`).
 
-Account and permission blockers: [PREP-CHECKLIST.md](PREP-CHECKLIST.md). Claim → role mapping: [design/15-Data-Auth-and-Gateway.md](design/15-Data-Auth-and-Gateway.md) §8.
+Account and permission blockers: [PREP-CHECKLIST.md](PREP-CHECKLIST.md). Claim → role mapping and full auth design: [design/15-Data-Auth-and-Gateway.md](design/15-Data-Auth-and-Gateway.md) §8.
 
 `ai-service` image defaults to Maven profile `stub` (no sibling `ai-manager` source in this tree). After `mvn -DskipTests install` in a sibling checkout named `ai-manager`, rebuild with `MAVEN_ARGS=-DskipTests`. Ports and boot order: [design/AI-CODING-LOCAL-AND-CLOUD.md](design/AI-CODING-LOCAL-AND-CLOUD.md). Cloud Bicep in `dealer-platform/infra/` is a draft — do not treat it as deployed.

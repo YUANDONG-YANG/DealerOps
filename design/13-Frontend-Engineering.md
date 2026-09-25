@@ -127,7 +127,7 @@ All paths are relative to Gateway: `/api/v1/...`. After success, "refresh" means
 
 | Control | Handbook path | Success | Failure |
 |---|---|---|---|
-| `Sign in with Microsoft` | no business API; MSAL redirect + then `GET /me` | Admin→`/admin`, staff→`/dms` | Sign-in failed. Try again. |
+| `Sign in with Microsoft` | no business API; MSAL redirect + then `GET /me` | Admin→`/admin`; staff with `dealerId`→`/dms`; unbound / no business access→`/` no-access shell | Sign-in failed. Try again. |
 
 No "Forgot password".
 

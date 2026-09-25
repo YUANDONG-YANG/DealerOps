@@ -1,6 +1,6 @@
 # Dealer Ops implementation brief (for AI coding)
 
-Version 1.7 · 2026-09-23  
+Version 1.8 · 2026-09-23  
 Conflict priority: **PPT > specification fields > [DEVELOPMENT-DESIGN.md](DEVELOPMENT-DESIGN.md) / [AI-PROTOCOL-AND-RULES.md](AI-PROTOCOL-AND-RULES.md) > 14 / 15 > task lists**. `16` / `17` are acceptance cases and ad fixtures and **do not change contracts**. `01`–`06` remain withdrawn (see [archive/](archive/)); do not read them as requirements.
 
 Source design: sibling checkout named `DealerOS-Design`  
@@ -385,7 +385,7 @@ Each step can be its own PR. Do not jump to a “full frontend” before prior s
 | Docker Desktop | **Missing** | Local MySQL container, image builds |
 | Team A/B/C names | **Missing** | Assignment cards, Review signatures |
 | Azure subscription | **Missing** | Sprint 2 cloud demo (Container Apps, MySQL, ACR, Key Vault) |
-| Entra permissions | **Missing** | Sign-in, two roles, bind users |
+| Entra permissions | **Missing** | Sign-in, two roles, bind users — [15](15-Data-Auth-and-Gateway.md) §8.4 |
 | Model key | **Missing** | Sprint 2 real AI (`AIMANAGER_API_KEY`) |
 | ai-manager fixed version | **Unpublished** | Publish an immutable version from `c07e1f2`, or local `mvn install` |
 
