@@ -171,7 +171,7 @@ Flyway only; ban `ddl-auto=update`.
 
 ## 5. API list
 
-The browser only hits Gateway `http://localhost:8080`, prefix `/api/v1`. core=`8081`, ai-service=`8082`; the browser must not call them directly.
+The browser only hits Gateway `http://localhost:8080`, prefix `/api/v1`. core=`8081`, ai-service=`8082`; the browser must not call them directly. Swagger UI is on that same gateway: `/swagger-ui/index.html` and `/v3/api-docs` (no Bearer token). Do not open core port `8081` for Swagger.
 
 Unified error body: `{"code":"VIN_DUP","message":"..."}`. Cross-dealership id → **404** (not 403; anti-probing). Admin hitting business URLs → **403** `FORBIDDEN`, response has no business fields. Staff without a valid membership → **403**. Optimistic lock: writes carry `version`, conflict `409 VERSION_CONFLICT`. JSON shapes in **14**.
 

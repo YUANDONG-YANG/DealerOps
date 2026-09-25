@@ -29,6 +29,9 @@ public class SecurityConfig {
                 .permitAll()
                 .pathMatchers("/actuator/health")
                 .permitAll()
+                .pathMatchers(
+                    "/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs", "/v3/api-docs/**")
+                .permitAll()
                 .pathMatchers("/api/v1/**")
                 .authenticated()
                 .pathMatchers("/internal/**")

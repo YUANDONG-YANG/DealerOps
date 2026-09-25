@@ -30,6 +30,7 @@ services:
       MYSQL_PASSWORD: dealer_dev_only
       INTERNAL_TOKEN: ${INTERNAL_TOKEN:-dealer-internal}
       GATEWAY_BASE_URL: http://dealer-gateway:8080
+      GATEWAY_PUBLIC_URL: ${GATEWAY_PUBLIC_URL:-http://localhost:8080}
       ENTRA_ISSUER: ${ENTRA_ISSUER:-https://login.microsoftonline.com/<tenant-id>/v2.0}
       ENTRA_AUDIENCE: ${ENTRA_AUDIENCE:-api://dealer-api}
       ENTRA_JWKS_URI: ${ENTRA_JWKS_URI:-}

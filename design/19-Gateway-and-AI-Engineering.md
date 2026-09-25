@@ -90,6 +90,12 @@ spring:
           filters:
             - PreserveHostHeader
             # forward user JWT as-is; do not strip Authorization
+        - id: dealer-core-swagger
+          uri: ${CORE_URL}
+          predicates:
+            - Path=/swagger-ui.html,/swagger-ui/**,/v3/api-docs,/v3/api-docs/**
+          filters:
+            - PreserveHostHeader
         - id: ai-service-internal
           uri: ${AI_URL}
           predicates:
@@ -112,6 +118,8 @@ spring:
 3. ai-service missing that header is also **404**. Direct 8082 still fails.
 
 `Access-Control-Allow-Headers` **must not** list `X-Dealer-Internal` (15 §13). CORS is **only** on Gateway (and Vite for 5173); core / ai-service do not configure browser CORS.
+
+**Swagger (classroom acceptance).** The browser opens Swagger on the gateway, path `/swagger-ui/index.html`. The gateway proxies that path and `/v3/api-docs` (plus `/v3/api-docs/**`) to core with no Bearer token. Gateway security `permitAll` covers those paths only. `/api/v1/**` stays authenticated. Core `server.forward-headers-strategy=framework` plus `PreserveHostHeader` keep the UI and the spec on the gateway host. The OpenAPI `servers` entry is `GATEWAY_PUBLIC_URL` (default `http://localhost:8080`, or the public gateway origin). Core's outbound `GATEWAY_BASE_URL` stays the in-network gateway (`http://dealer-gateway:8080` in Compose) and is not the browser URL. The description is still `Published <PUBLISHED_AT>`. Core port `8081` is not an acceptance URL.
 
 Azure: allow only the web HTTPS origin (replace `localhost:5173`). Local preflight serves Vite only.
 

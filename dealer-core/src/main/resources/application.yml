@@ -1,5 +1,7 @@
 server:
   port: ${CORE_PORT:8081}
+  # Gateway forwards the browser Host and proto so Swagger links stay on the gateway.
+  forward-headers-strategy: framework
 
 spring:
   main:
@@ -41,6 +43,8 @@ management:
 
 dealerops:
   gateway-base-url: ${GATEWAY_BASE_URL:http://localhost:8080}
+  # Browser origin for OpenAPI "servers". Separate from gateway-base-url, which core uses to call the gateway.
+  public-gateway-url: ${GATEWAY_PUBLIC_URL:http://localhost:8080}
   internal-token: ${INTERNAL_TOKEN:dealer-internal}
   ai-timeout-ms: 15000
   ai:

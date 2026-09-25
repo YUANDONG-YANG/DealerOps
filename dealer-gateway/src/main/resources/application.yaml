@@ -35,6 +35,14 @@ spring:
             - Path=/api/v1/**
           filters:
             - PreserveHostHeader
+        # Classroom acceptance opens Swagger on the gateway. No Bearer token.
+        # Core still renders the page; the browser must not use core's port.
+        - id: dealer-core-swagger
+          uri: ${CORE_URL:http://localhost:8081}
+          predicates:
+            - Path=/swagger-ui.html,/swagger-ui/**,/v3/api-docs,/v3/api-docs/**
+          filters:
+            - PreserveHostHeader
         - id: ai-service-internal
           uri: ${AI_URL:http://localhost:8082}
           predicates:
@@ -44,6 +52,7 @@ spring:
             - RemoveRequestHeader=Authorization
         - id: not-found
           uri: no://op
+          order: 100
           predicates:
             - Path=/**
             - Not=Path=/actuator/health

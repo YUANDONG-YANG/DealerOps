@@ -105,7 +105,7 @@ Example of the shape (the value changes every run): `2026-09-25T16:48:01Z`. UTC,
 | dealer-web | Docker build-arg `VITE_PUBLISHED_AT` baked by Vite into the JS bundle | Fixed footer on every page, including sign-in: `Published 2026-09-25T16:48:01Z` |
 | dealer-core Swagger | Docker build-arg `PUBLISHED_AT` stored as container env `PUBLISHED_AT`. Spring reads `dealerops.published-at` at startup | Swagger UI info description under the title `dealer-core`: `Published 2026-09-25T16:48:01Z` |
 
-Gateway and ai-service images are published in the same run so the stack matches, but they do not render the timestamp. Swagger is hosted by dealer-core, not by the gateway. Direct core is loopback-only in Compose (`127.0.0.1:8081`).
+Gateway and ai-service images are published in the same run so the stack matches, but they do not render the timestamp. Swagger HTML is rendered by dealer-core and **served by the gateway** at `/swagger-ui/index.html`. The OpenAPI document is `/v3/api-docs` on that same gateway. Direct core stays loopback-only in Compose (`127.0.0.1:8081`) and is not the page you open.
 
 Local `npm run dev` in `dealer-web/` has no `VITE_PUBLISHED_AT`, so the footer says `Published local`. `docker compose up --build` from source uses the Dockerfile defaults `VITE_PUBLISHED_AT=local` and `PUBLISHED_AT=local`, so both UIs say `Published local` until you run the GHCR overlay.
 
@@ -149,11 +149,12 @@ After the GHCR stack is up, open:
 | Web UI (footer `Published …`) | `http://localhost:5173/` |
 | Gateway (browser API origin) | `http://localhost:8080/` |
 | Gateway health | `http://localhost:8080/actuator/health` |
-| Swagger UI (description `Published …`) | `http://127.0.0.1:8081/swagger-ui/index.html` |
+| Swagger UI (description `Published …`) | `http://localhost:8080/swagger-ui/index.html` |
+| OpenAPI JSON (same description) | `http://localhost:8080/v3/api-docs` |
 | Core health (loopback) | `http://127.0.0.1:8081/actuator/health` |
 | ai-service health (loopback) | `http://127.0.0.1:8082/actuator/health` |
 
-Ports come from `dealer-platform/docker-compose.yml`: web `5173`, gateway `8080` on all interfaces, core `127.0.0.1:8081`, ai-service `127.0.0.1:8082`, MySQL `3306`. The SPA is supposed to call `http://localhost:8080`, not core or ai-service.
+Ports come from `dealer-platform/docker-compose.yml`: web `5173`, gateway `8080` on all interfaces, core `127.0.0.1:8081`, ai-service `127.0.0.1:8082`, MySQL `3306`. The SPA calls the gateway origin (`GATEWAY_PUBLIC_URL`, default `http://localhost:8080`), not core or ai-service. Swagger needs no `Authorization` header. `/api/v1/**` still requires a Bearer token.
 
 Copy `dealer-platform/env.example` to a local `.env` if you need Entra values. Do not commit `.env`.
 
@@ -170,13 +171,51 @@ Copy `dealer-platform/env.example` to a local `.env` if you need Entra values. D
    - `denied` or `unauthorized`: run `docker login ghcr.io` with `read:packages`. Repo Actions must allow the workflow token to write packages (Settings → Actions → General → Workflow permissions: read and write). The workflow already requests `packages: write`.
    - Push fails in Actions with `denied` even though the file sets `packages: write`: the repository's workflow-token policy is still read-only. Change that setting. Do not add a personal token to the repo to work around it, and do not print tokens into logs.
 6. Web shows `Published local` while Swagger shows a timestamp, or the reverse: the two images were not built in the same `publish` job, or you mixed a source-built container with a GHCR container. Pull again with the overlay in section 5 and recreate only when you intend to switch to the published images.
-7. Swagger returns 401 or an empty page: you must use `http://127.0.0.1:8081/swagger-ui/index.html` against the core container. The gateway does not serve Swagger.
+7. Swagger returns 401 or an empty page: open `http://localhost:8080/swagger-ui/index.html` (or the public gateway origin in section 8, same path). Those paths are public on the gateway. A 401 on `/api/v1/**` is expected without a Bearer token. Do not switch the browser to core port `8081`.
 
 ## 7. What this automation does not do
 
 - It does not create an Azure resource group, log in to Azure, push to Azure Container Registry, or run a Bicep deployment. `dealer-platform/infra/main.bicep` remains in the repo as an optional paid design. Job `bicep` only compiles it.
-- It does not deploy `dealer-web` to Vercel. A public site cannot call a gateway on your laptop.
-- It does not deploy the Java services anywhere except as private GHCR images you run locally.
+- It does not deploy `dealer-web` to Vercel. A public site cannot call a gateway on your laptop unless that gateway itself has a public HTTPS origin (section 8).
+- It does not deploy the Java services to Azure. Private GHCR images are pulled only when `docker login ghcr.io` has `read:packages`. Section 8 is the public HTTPS demo when that login and a paid host are not available.
 - It does not commit secrets, `.env`, or tokens. GitHub Actions uses its built-in `GITHUB_TOKEN` only inside the `publish` job.
 - It does not stop or recreate containers on a developer machine. Section 5 is manual.
 - An older GitHub Release tag is not this image publish. Confirm images with the `publish-ghcr` run log or the packages page, not with a release.
+
+## 8. Public HTTPS demo (not a paid Azure stack)
+
+Sections 1–3 push private images to GHCR. They do not open a public website. Vercel can host the static web app only; the gateway, core, and MySQL cannot run there. Azure Container Apps plus MySQL Flexible Server is the paid design in `dealer-platform/infra/main.bicep` and is not started by this procedure.
+
+When `docker login ghcr.io` is missing `read:packages`, a pull of `ghcr.io/yuandong-yang/*:main` fails with `error from registry: unauthorized`. Build the stack from source instead (`docker compose up --build` in `dealer-platform`). The timestamp on that build is `Published local`.
+
+The public demo is a **Cloudflare quick tunnel** in front of that local Compose stack. `cloudflared tunnel --url` gives a temporary `https://*.trycloudflare.com` hostname. It is free, it is not an Azure resource, and the hostname dies when the `cloudflared` process stops. The next start gets a new hostname.
+
+Run two tunnels against the published host ports:
+
+```text
+cloudflared tunnel --url http://127.0.0.1:5173
+cloudflared tunnel --url http://127.0.0.1:8080
+```
+
+Then point the SPA and CORS at those origins and recreate only the three app containers (MySQL can keep running). From `dealer-platform`:
+
+```text
+GATEWAY_PUBLIC_URL=https://<gateway-tunnel-host>
+CORS_ALLOWED_ORIGIN=https://<web-tunnel-host>
+WEB_PUBLIC_ORIGIN=https://<web-tunnel-host>
+docker compose up -d --no-build --force-recreate dealer-core dealer-gateway dealer-web
+```
+
+The browser uses the gateway tunnel for API calls and for Swagger. It does not use core port `8081`.
+
+The quick-tunnel hostnames below were created for the running demo. They stay up only while `cloudflared` is running on the machine that has Compose up. The next start prints new hostnames; put those in `GATEWAY_PUBLIC_URL` and `CORS_ALLOWED_ORIGIN` and recreate the three app containers again.
+
+| Check | Public URL |
+|---|---|
+| Web UI | `https://plan-magazine-rev-reviewer.trycloudflare.com/` |
+| Swagger UI (`Published …` in the description) | `https://ozone-checks-place-row.trycloudflare.com/swagger-ui/index.html` |
+| OpenAPI JSON | `https://ozone-checks-place-row.trycloudflare.com/v3/api-docs` |
+
+Swagger is public (no Bearer token). `/api/v1/**` on that same host still requires a Bearer token.
+
+Debug the tunnel from the `cloudflared` log line that contains `https://` and `.trycloudflare.com`. Debug the stack with the Compose logs in section 6. If Swagger is 401, the gateway image is old: rebuild `dealer-gateway` so the `dealer-core-swagger` route exists.

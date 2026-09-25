@@ -358,8 +358,11 @@ Browser-to-service HTTP **only** goes through `dealer-gateway`. core / ai-servic
 | Match | Upstream | Who may call | Failure shape |
 |---|---|---|---|
 | `/api/v1/**` | `CORE_URL` (local `http://host.docker.internal:8081`) | browser and user JWTs obtained via MSAL | missing/bad JWT → 401 |
+| `/swagger-ui.html`, `/swagger-ui/**`, `/v3/api-docs`, `/v3/api-docs/**` | `CORE_URL` | browser, **no JWT** (classroom acceptance) | — |
 | `/internal/v1/**` | `AI_URL` (local `http://host.docker.internal:8082`) | **core only** (see below) | browser → **404** (do not use 401, which would acknowledge the path) |
 | other | — | — | 404 |
+
+Swagger UI and its OpenAPI JSON are part of the gateway origin. Acceptance opens `http://localhost:8080/swagger-ui/index.html`, or the same path on a public HTTPS gateway. Do not send the browser to core port `8081`. The info description still reads `Published <PUBLISHED_AT>` from dealer-core. Business `/api/v1/**` stays authenticated. The gateway preserves the browser `Host` so Swagger's script and spec URLs stay on the gateway.
 
 The two internal paths (same as the handbook; this section only defines entry, not OpenAPI bodies):
 

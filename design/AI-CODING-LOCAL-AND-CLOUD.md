@@ -261,7 +261,7 @@ Bicep **current state = ACR only**. Do not treat commented TODOs as deployed. Do
 
 **Automatic publish** is container images on GitHub Container Registry, plus a local Compose acceptance stack. The step-by-step procedure, URLs, and failure checks are in [deploy/README.md](../deploy/README.md). This automation does not create Azure resources and does not host the UI on Vercel. The Bicep stack in `dealer-platform/infra/main.bicep` stays an optional paid design; the publish workflow does not log in to Azure or deploy it.
 
-On `main`, `.github/workflows/publish-ghcr.yml` generates **one** UTC timestamp (`yyyy-MM-dd'T'HH:mm:ss'Z'`, second precision) per run. That same value is baked into `dealer-web` as `VITE_PUBLISHED_AT` (footer text `Published <timestamp>`) and into `dealer-core` as `PUBLISHED_AT` (Swagger info description on `http://127.0.0.1:8081/swagger-ui/index.html`). Image tags `:sha` and `:main` come from that same run. A machine with no `VITE_PUBLISHED_AT` / `PUBLISHED_AT` shows `Published local`.
+On `main`, `.github/workflows/publish-ghcr.yml` generates **one** UTC timestamp (`yyyy-MM-dd'T'HH:mm:ss'Z'`, second precision) per run. That same value is baked into `dealer-web` as `VITE_PUBLISHED_AT` (footer text `Published <timestamp>`) and into `dealer-core` as `PUBLISHED_AT` (Swagger info description on the gateway at `/swagger-ui/index.html`). Image tags `:sha` and `:main` come from that same run. A machine with no `VITE_PUBLISHED_AT` / `PUBLISHED_AT` shows `Published local`. The browser never uses core port `8081` for Swagger. A public HTTPS demo, when one is running, is the procedure in [deploy/README.md](../deploy/README.md); it is not an Azure deployment.
 
 | Repo | JDK / Node | PR | `main` publish |
 |---|---|---|---|
