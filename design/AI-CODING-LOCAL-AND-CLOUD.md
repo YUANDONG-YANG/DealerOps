@@ -263,6 +263,8 @@ Bicep **current state = ACR only**. Do not treat commented TODOs as deployed. Do
 
 On `main`, `.github/workflows/publish-ghcr.yml` generates **one** UTC timestamp (`yyyy-MM-dd'T'HH:mm:ss'Z'`, second precision) per run. That same value is baked into `dealer-web` as `VITE_PUBLISHED_AT` (footer text `Published <timestamp>`) and into `dealer-core` as `PUBLISHED_AT` (Swagger info description on the gateway at `/swagger-ui/index.html`). Image tags `:sha` and `:main` come from that same run. A machine with no `VITE_PUBLISHED_AT` / `PUBLISHED_AT` shows `Published local`. The browser never uses core port `8081` for Swagger. A public HTTPS demo, when one is running, is the procedure in [deploy/README.md](../deploy/README.md); it is not an Azure deployment.
 
+A fixed public hostname is not a Cloudflare quick tunnel (`*.trycloudflare.com` changes every start and disappears when `cloudflared` stops). It is a named tunnel on a DNS zone the operator already controls: web `https://dealer-ops.<zone>/`, gateway and Swagger `https://dealer-ops-gateway.<zone>/` (`/swagger-ui/index.html`). The repo does not store that zone, a tunnel token, or a `sait.ca` record. Steps are in [deploy/README.md](../deploy/README.md) section 8. Paid Azure, if deployed later, uses the `dealerops-web` / `dealerops-gateway` Container Apps names in section 6, not a school domain invented in git.
+
 | Repo | JDK / Node | PR | `main` publish |
 |---|---|---|---|
 | dealer-gateway | **Java 21** | `echo` repo name → `mvn -B -DskipTests compile` | Same image push as the others (`ghcr.io/yuandong-yang/dealer-gateway`) |

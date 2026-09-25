@@ -184,38 +184,52 @@ Copy `dealer-platform/env.example` to a local `.env` if you need Entra values. D
 
 ## 8. Public HTTPS demo (not a paid Azure stack)
 
-Sections 1–3 push private images to GHCR. They do not open a public website. Vercel can host the static web app only; the gateway, core, and MySQL cannot run there. Azure Container Apps plus MySQL Flexible Server is the paid design in `dealer-platform/infra/main.bicep` and is not started by this procedure.
+Sections 1–3 push private images to GHCR. They do not open a public website. Vercel can host the static web app only; the gateway, core, and MySQL cannot run there. Azure Container Apps plus MySQL Flexible Server is the paid design in `dealer-platform/infra/main.bicep` and is not started by this procedure. That design names apps `dealerops-web` and `dealerops-gateway` on the Container Apps default domain. It does not reserve `dealer-ops.sait.*` or any other school zone.
 
 When `docker login ghcr.io` is missing `read:packages`, a pull of `ghcr.io/yuandong-yang/*:main` fails with `error from registry: unauthorized`. Build the stack from source instead (`docker compose up --build` in `dealer-platform`). The timestamp on that build is `Published local`.
 
-The public demo is a **Cloudflare quick tunnel** in front of that local Compose stack. `cloudflared tunnel --url` gives a temporary `https://*.trycloudflare.com` hostname. It is free, it is not an Azure resource, and the hostname dies when the `cloudflared` process stops. The next start gets a new hostname.
+A fixed public name is a **Cloudflare named tunnel** on a DNS zone the operator already controls. `cloudflared tunnel --url` (a quick tunnel) cannot be that name: each start prints a new `https://*.trycloudflare.com` hostname, and the name stops resolving when that process stops. Do not publish a quick-tunnel hostname as the project URL. Do not invent or register a `sait.ca` name. Use `sait.ca` only when that zone is already on the operator's Cloudflare account.
 
-Run two tunnels against the published host ports:
+Nothing in this repo supplies that zone. `dealer-platform/env.example` leaves `WEB_PUBLIC_ORIGIN` and `GATEWAY_PUBLIC_URL` empty. There is no Cloudflare origin certificate, tunnel token, or GitHub Actions secret for a tunnel. The operator must provide the zone before the hostnames below exist.
 
-```text
-cloudflared tunnel --url http://127.0.0.1:5173
-cloudflared tunnel --url http://127.0.0.1:8080
-```
-
-Then point the SPA and CORS at those origins and recreate only the three app containers (MySQL can keep running). From `dealer-platform`:
-
-```text
-GATEWAY_PUBLIC_URL=https://<gateway-tunnel-host>
-CORS_ALLOWED_ORIGIN=https://<web-tunnel-host>
-WEB_PUBLIC_ORIGIN=https://<web-tunnel-host>
-docker compose up -d --no-build --force-recreate dealer-core dealer-gateway dealer-web
-```
-
-The browser uses the gateway tunnel for API calls and for Swagger. It does not use core port `8081`.
-
-The quick-tunnel hostnames below were created for the running demo. They stay up only while `cloudflared` is running on the machine that has Compose up. The next start prints new hostnames; put those in `GATEWAY_PUBLIC_URL` and `CORS_ALLOWED_ORIGIN` and recreate the three app containers again.
+Stable names, once `<zone>` is a zone on that account:
 
 | Check | Public URL |
 |---|---|
-| Web UI | `https://plan-magazine-rev-reviewer.trycloudflare.com/` |
-| Swagger UI (`Published …` in the description) | `https://ozone-checks-place-row.trycloudflare.com/swagger-ui/index.html` |
-| OpenAPI JSON | `https://ozone-checks-place-row.trycloudflare.com/v3/api-docs` |
+| Web UI | `https://dealer-ops.<zone>/` |
+| Gateway (browser API origin) | `https://dealer-ops-gateway.<zone>/` |
+| Swagger UI (`Published …` in the description) | `https://dealer-ops-gateway.<zone>/swagger-ui/index.html` |
+| OpenAPI JSON | `https://dealer-ops-gateway.<zone>/v3/api-docs` |
 
-Swagger is public (no Bearer token). `/api/v1/**` on that same host still requires a Bearer token.
+Swagger is served by the gateway. Do not open core port `8081`. Swagger is public (no Bearer token). `/api/v1/**` on the gateway host still requires a Bearer token.
 
-Debug the tunnel from the `cloudflared` log line that contains `https://` and `.trycloudflare.com`. Debug the stack with the Compose logs in section 6. If Swagger is 401, the gateway image is old: rebuild `dealer-gateway` so the `dealer-core-swagger` route exists.
+Leave the Compose stack from section 5 running. Then:
+
+1. `cloudflared tunnel login`. Approve the zone in the browser. This writes an origin certificate on the operator machine. Do not commit that file, and do not paste the certificate or a tunnel token into the repo.
+2. `cloudflared tunnel create dealer-ops`. Note the credentials file path the command prints. Do not commit that file.
+3. `cloudflared tunnel route dns dealer-ops dealer-ops.<zone>`
+4. `cloudflared tunnel route dns dealer-ops dealer-ops-gateway.<zone>`
+5. Write a local config that is not committed (same directory as the origin certificate is fine). Replace `<zone>` and the credentials path printed in step 2:
+
+```yaml
+tunnel: dealer-ops
+credentials-file: <credentials-file-from-tunnel-create>
+ingress:
+  - hostname: dealer-ops.<zone>
+    service: http://127.0.0.1:5173
+  - hostname: dealer-ops-gateway.<zone>
+    service: http://127.0.0.1:8080
+  - service: http_status:404
+```
+
+6. `cloudflared tunnel --config <that-config-file> run dealer-ops`. Keep this process running. The hostnames stay up only while it runs, but they do not change on the next start.
+7. From `dealer-platform`, point the SPA and CORS at those origins and recreate only the three app containers (MySQL can keep running):
+
+```text
+GATEWAY_PUBLIC_URL=https://dealer-ops-gateway.<zone>
+CORS_ALLOWED_ORIGIN=https://dealer-ops.<zone>
+WEB_PUBLIC_ORIGIN=https://dealer-ops.<zone>
+docker compose up -d --no-build --force-recreate dealer-core dealer-gateway dealer-web
+```
+
+Confirm `https://dealer-ops.<zone>/` and `https://dealer-ops-gateway.<zone>/swagger-ui/index.html` both return HTTP 200. Debug the tunnel from the `cloudflared` log. Debug the stack with the Compose logs in section 6. If Swagger is 401, the gateway image is old: rebuild `dealer-gateway` so the `dealer-core-swagger` route exists.
