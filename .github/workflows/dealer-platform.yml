@@ -19,8 +19,10 @@ jobs:
   bicep:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: azure/cli@v2
+      # checkout@v7 and azure/cli@v3 run on Node 24. azure/cli@v2 (v2.2.0) still declares Node 20.
+      # This script only compiles Bicep. It does not log in or deploy.
+      - uses: actions/checkout@v7
+      - uses: azure/cli@v3
         with:
           azcliversion: latest
           inlineScript: |

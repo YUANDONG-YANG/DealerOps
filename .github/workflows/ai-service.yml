@@ -21,8 +21,8 @@ jobs:
   compile:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: "21"
@@ -41,7 +41,7 @@ jobs:
     runs-on: ubuntu-latest
     environment: demo
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - run: echo "build-and-push ${{ github.sha }}"
       # docker build -t ${{ secrets.ACR_LOGIN_SERVER }}/ai-service:${{ github.sha }} ai-service
       # AIMANAGER_API_KEY stays in Key Vault secret AIMANAGER-API-KEY. Do not publish packages from this workflow.

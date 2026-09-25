@@ -26,7 +26,9 @@ param entraTenantId string = ''
 @description('SPA Entra client id (PKCE, no client secret). Empty until app registration exists.')
 param entraClientId string = ''
 
-@description('Public Gateway URL the SPA calls (VITE_GATEWAY_URL / GATEWAY_PUBLIC_URL). Empty = https://${prefix}-gateway.${cae.defaultDomain}. Do not put a personal hostname in git.')
+// @description must be a compile-time constant. Do not interpolate ${...} here (BCP032/BCP053).
+// The empty-string default is resolved later as https://{prefix}-gateway.{environment default domain}.
+@description('Public Gateway URL the SPA calls (VITE_GATEWAY_URL / GATEWAY_PUBLIC_URL). When empty, deploy uses https://{prefix}-gateway plus the Container Apps environment default domain. Do not put a personal hostname in git.')
 param gatewayPublicUrl string = ''
 
 @description('Gateway CORS origin (CORS_ALLOWED_ORIGIN). Empty = Azure web HTTPS origin. Local Vite is http://localhost:5173.')

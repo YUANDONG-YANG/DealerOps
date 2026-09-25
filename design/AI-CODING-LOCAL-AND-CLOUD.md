@@ -278,8 +278,8 @@ jobs:
   compile:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: "21"
@@ -290,7 +290,7 @@ jobs:
     needs: compile
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - run: echo "build-and-push ${{ github.sha }}"
       # docker build / tag=$GITHUB_SHA / acr login / docker push
       # ACR name: ${prefix}acr (example dealeropsacr). Secrets via GitHub Secrets, not in the repo.
