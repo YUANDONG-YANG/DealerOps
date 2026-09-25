@@ -44,10 +44,13 @@ Open items:
 
 ### Pending
 
-0. Manually verify each finding in analysis/09 and fill in the verdicts.
-1. Instructor sign-off on B4 and B5, then add them to SCOPE-BASELINE errata.
-2. Decide A1–A3; each touches design 14, AI-PROTOCOL-AND-RULES §C, 16, and 17.
-3. Add the validation table (A6) and disclaimer (A8).
-4. After those rulings, update analysis 04 and 07 per analysis/08 §C.
+Scope rule: meet the spec at its minimum. This is a graduation project, not a commercial product (see "Minimum-spec triage" in analysis/08).
+
+0. Manually verify A2, A3, and B4 in analysis/09. The other findings are not planned.
+1. A2: run finance rules when the copy shows a rate or payment, not only for `adKind=FINANCE`.
+2. A3: allow linking a SOLD vehicle that has no customer yet.
+3. B4: add one erratum line to SCOPE-BASELINE.
+
+Not planned: A1, A4–A10, B5.
 
 No files under `design/` were changed in this round.

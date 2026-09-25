@@ -2,6 +2,19 @@
 
 Review date: 2026-09-25. Compares `design/` (v6: 00, 12–19, AI-PROTOCOL-AND-RULES, SCOPE-BASELINE) against the source specification and the requirement items in 01–07.
 
+## Minimum-spec triage (read this first)
+
+This is a student graduation project. The goal is to **meet the spec at its minimum**, not to harden it. After triage, only three items are worth doing. Everything else is left as is.
+
+| Item | Do it? | Smallest fix |
+|---|---|---|
+| A2 CASH ad with a payment skips finance rules | **Yes** | In `OmvicRuleEngine`, run the finance rules when `adKind==FINANCE` **or** the copy matches a rate / payment pattern. No new code, fields, or states. |
+| A3 Vehicle sold before linking can't be linked | **Yes** | In the link check, allow `SOLD` vehicles that have no customer yet. The one-vehicle-one-customer rule and the no-unlink-after-sale rule stay. |
+| B4 Soft-only disclosures not signed | **Yes (docs only)** | Add one line to SCOPE-BASELINE errata: "Some disclosures are review hints, not blockers (see PROTOCOL §C.0a)." |
+| A1 Salesperson checklist | No | The ad page already shows a checklist that follows the ad kind (12 §5). Explain this at defense. |
+| B5 Broadcast exemption reading | No | Keep the current reading. Mention it at defense if asked. |
+| A4–A10 | No | Out of proportion for a course project. |
+
 Findings fall into three groups:
 
 - **A. Gaps**: the source asks for something and the design misses or weakens it without a signed ruling.
