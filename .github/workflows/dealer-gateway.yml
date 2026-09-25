@@ -1,4 +1,4 @@
-# In-repo copy of dealer-gateway CI (design/AI-CODING-LOCAL-AND-CLOUD.md §7).
+# Compile and test only. Image publish is .github/workflows/publish-ghcr.yml (see deploy/README.md).
 name: dealer-gateway
 on:
   pull_request:
@@ -30,14 +30,3 @@ jobs:
       - run: mvn -B -DskipTests compile
       - name: Unit tests
         run: mvn -B test
-
-  image:
-    if: github.ref == 'refs/heads/main'
-    needs: compile
-    runs-on: ubuntu-latest
-    environment: demo
-    steps:
-      - uses: actions/checkout@v7
-      - run: echo "build-and-push ${{ github.sha }}"
-      # docker build -t ${{ secrets.ACR_LOGIN_SERVER }}/dealer-gateway:${{ github.sha }} dealer-gateway
-      # ACR: ${prefix}acr. Secrets via GitHub Secrets / Key Vault, not this repo.

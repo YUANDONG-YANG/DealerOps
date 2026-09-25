@@ -5,6 +5,7 @@ interface ImportMetaEnv {
   readonly VITE_ENTRA_CLIENT_ID: string
   readonly VITE_ENTRA_API_SCOPE: string
   readonly VITE_GATEWAY_URL: string
+  readonly VITE_PUBLISHED_AT?: string
 }
 
 interface ImportMeta {

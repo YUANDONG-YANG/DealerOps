@@ -1,4 +1,4 @@
-# In-repo copy of dealer-core CI (design/AI-CODING-LOCAL-AND-CLOUD.md §7).
+# Compile and test only. Image publish is .github/workflows/publish-ghcr.yml (see deploy/README.md).
 # If the course later splits four git remotes, copy this file to that repo as .github/workflows/ci.yml
 # and set working-directory to ".".
 name: dealer-core
@@ -40,15 +40,3 @@ jobs:
           else
             echo "Docker is not available; skipping *IT (Flyway V1 on mysql:8.4)."
           fi
-
-  image:
-    if: github.ref == 'refs/heads/main'
-    needs: compile
-    runs-on: ubuntu-latest
-    environment: demo
-    steps:
-      - uses: actions/checkout@v7
-      - run: echo "build-and-push ${{ github.sha }}"
-      # docker build -t ${{ secrets.ACR_LOGIN_SERVER }}/dealer-core:${{ github.sha }} dealer-core
-      # ACR name: ${prefix}acr (example dealeropsacr). Login via GitHub Secrets, never commit keys.
-      # Optional extra: Flyway job against Key Vault MYSQL-* after Azure permissions exist.

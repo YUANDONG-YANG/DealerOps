@@ -56,7 +56,9 @@ cd dealer-platform
 docker compose up --build
 ```
 
-That starts MySQL 8.4 on `3306` (`dealer_core` / `dealer` / `dealer_dev_only`), core on `127.0.0.1:8081`, ai-service on `127.0.0.1:8082`, and gateway on `8080`. MySQL-only is still `docker compose up -d mysql`. Web is not in this compose file.
+That starts MySQL 8.4 on `3306` (`dealer_core` / `dealer` / `dealer_dev_only`), core on `127.0.0.1:8081`, ai-service on `127.0.0.1:8082`, gateway on `8080`, and the web UI on `5173`. MySQL-only is still `docker compose up -d mysql`.
+
+Published GHCR images and the shared publish timestamp are described in [deploy/README.md](deploy/README.md). Architecture stays in [design/AI-CODING-LOCAL-AND-CLOUD.md](design/AI-CODING-LOCAL-AND-CLOUD.md) §7.
 
 ```text
 cd dealer-web

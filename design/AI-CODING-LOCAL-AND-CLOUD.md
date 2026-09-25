@@ -257,14 +257,18 @@ Bicep **current state = ACR only**. Do not treat commented TODOs as deployed. Do
 
 ## 7. Pipeline (GitHub Actions by default; no longer a choice)
 
-**Default CI: GitHub Actions.** Each of the four application repos has **one** `.github/workflows/ci.yml`. `dealer-platform` does not build business images.
+**Default CI: GitHub Actions.** Each application has a compile workflow under `.github/workflows/`. `dealer-platform` validates Bicep and does not build business images.
 
-| Repo | JDK / Node | PR (echo/compile first) | `main` (then docker push) |
+**Automatic publish** is container images on GitHub Container Registry, plus a local Compose acceptance stack. The step-by-step procedure, URLs, and failure checks are in [deploy/README.md](../deploy/README.md). This automation does not create Azure resources and does not host the UI on Vercel. The Bicep stack in `dealer-platform/infra/main.bicep` stays an optional paid design; the publish workflow does not log in to Azure or deploy it.
+
+On `main`, `.github/workflows/publish-ghcr.yml` generates **one** UTC timestamp (`yyyy-MM-dd'T'HH:mm:ss'Z'`, second precision) per run. That same value is baked into `dealer-web` as `VITE_PUBLISHED_AT` (footer text `Published <timestamp>`) and into `dealer-core` as `PUBLISHED_AT` (Swagger info description on `http://127.0.0.1:8081/swagger-ui/index.html`). Image tags `:sha` and `:main` come from that same run. A machine with no `VITE_PUBLISHED_AT` / `PUBLISHED_AT` shows `Published local`.
+
+| Repo | JDK / Node | PR | `main` publish |
 |---|---|---|---|
-| dealer-gateway | **Java 21** | `echo` repo name → `mvn -B -DskipTests compile` | Image `tag=$GITHUB_SHA` → push ACR `${prefix}acr` |
-| dealer-core | **Java 21** | Same | Same; optional extra Flyway Job |
-| ai-service | **Java 21** | Same; CI **stub**, do not hit paid endpoints | Same |
-| dealer-web | Node 20 | `echo` repo name → `npm ci && npm run build` | Same |
+| dealer-gateway | **Java 21** | `echo` repo name → `mvn -B -DskipTests compile` | Same image push as the others (`ghcr.io/yuandong-yang/dealer-gateway`) |
+| dealer-core | **Java 21** | Same, plus unit tests | Same; Swagger shows `PUBLISHED_AT` |
+| ai-service | **Java 21** | Stub compile; do not hit paid endpoints | Same stub image |
+| dealer-web | Node 20 | `echo` repo name → `npm ci && npm run build` | Same; footer shows `VITE_PUBLISHED_AT` |
 
 Minimal skeleton (Java repos; web replaces compile with `npm`):
 
@@ -291,12 +295,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - run: echo "build-and-push ${{ github.sha }}"
-      # docker build / tag=$GITHUB_SHA / acr login / docker push
-      # ACR name: ${prefix}acr (example dealeropsacr). Secrets via GitHub Secrets, not in the repo.
+      - run: echo "Images are published by .github/workflows/publish-ghcr.yml"
 ```
 
-Demo releases need a second-person approval. Do not change images by hand in the portal and call it a pipeline.
+The live publisher is `.github/workflows/publish-ghcr.yml`, documented in [deploy/README.md](../deploy/README.md). Do not change images by hand and call it a pipeline.
 
 ---
 

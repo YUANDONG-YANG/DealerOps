@@ -1,5 +1,5 @@
-# In-repo copy of ai-service CI (design/AI-CODING-LOCAL-AND-CLOUD.md §7, 18 §9, 19 §2.8).
-# Stub only: never resolve GitHub Packages or call a paid model.
+# Compile and test only (stub profile). Image publish is .github/workflows/publish-ghcr.yml (see deploy/README.md).
+# Stub only: never call a paid model. The published image uses the same stub Maven profile.
 name: ai-service
 on:
   pull_request:
@@ -34,14 +34,3 @@ jobs:
         run: mvn -B -Pstub,!aimanager -Daimanager.stub=true test
         env:
           AIMANAGER_API_KEY: ""
-
-  image:
-    if: github.ref == 'refs/heads/main'
-    needs: compile
-    runs-on: ubuntu-latest
-    environment: demo
-    steps:
-      - uses: actions/checkout@v7
-      - run: echo "build-and-push ${{ github.sha }}"
-      # docker build -t ${{ secrets.ACR_LOGIN_SERVER }}/ai-service:${{ github.sha }} ai-service
-      # AIMANAGER_API_KEY stays in Key Vault secret AIMANAGER-API-KEY. Do not publish packages from this workflow.

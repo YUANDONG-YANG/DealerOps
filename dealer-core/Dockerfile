@@ -7,5 +7,8 @@ RUN mvn -B -DskipTests package
 FROM eclipse-temurin:21-jre
 WORKDIR /app
 COPY --from=build /src/target/*.jar app.jar
+# Same value the publish workflow bakes into the web image. Startup reads PUBLISHED_AT.
+ARG PUBLISHED_AT=local
+ENV PUBLISHED_AT=${PUBLISHED_AT}
 EXPOSE 8081
 ENTRYPOINT ["java", "-jar", "/app/app.jar"]

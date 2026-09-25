@@ -1,4 +1,4 @@
-# In-repo copy of dealer-web CI (design/AI-CODING-LOCAL-AND-CLOUD.md §7).
+# Compile only. Image publish is .github/workflows/publish-ghcr.yml (see deploy/README.md).
 name: dealer-web
 on:
   pull_request:
@@ -29,13 +29,3 @@ jobs:
       - run: echo "repo=${{ github.repository }}"
       - run: npm ci
       - run: npm run build
-
-  image:
-    if: github.ref == 'refs/heads/main'
-    needs: compile
-    runs-on: ubuntu-latest
-    environment: demo
-    steps:
-      - uses: actions/checkout@v7
-      - run: echo "build-and-push ${{ github.sha }}"
-      # docker build -t ${{ secrets.ACR_LOGIN_SERVER }}/dealer-web:${{ github.sha }} dealer-web

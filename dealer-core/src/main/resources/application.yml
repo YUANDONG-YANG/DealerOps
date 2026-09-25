@@ -46,6 +46,8 @@ dealerops:
   ai:
     connect-timeout-ms: 2000
     response-timeout-ms: 13000
+  # Set by the GHCR image (publish workflow). Local runs stay "local".
+  published-at: ${PUBLISHED_AT:local}
   jwt:
     # dev = local HS256 (DEV_JWT_SECRET). entra = ENTRA_ISSUER + ENTRA_AUDIENCE + JWKS.
     # Placeholder issuer does not fetch JWKS. Optional ENTRA_JWKS_URI overrides derived keys URL.
