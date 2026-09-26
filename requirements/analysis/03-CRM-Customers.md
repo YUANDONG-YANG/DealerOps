@@ -22,7 +22,7 @@
 - Customer : vehicle = 1 : N (a customer can buy several cars).
 - Vehicle : customer = 1 : 0..1 (**a vehicle belongs to at most one customer**).
 - Only vehicles of **the same dealer** can be linked.
-- Only **in-stock** (`IN_STOCK`), not-yet-linked vehicles can be linked; sold vehicles cannot be newly linked.
+- Any not-yet-linked vehicle can be linked, in stock or already sold (closed A3, commit `128c86b`).
 - The link of a sold vehicle cannot be removed (sale records cannot be erased).
 
 ## 4. Requirements
@@ -33,11 +33,11 @@
 | CRM-02 | Edit a customer's four fields | PDF §7 | Must |
 | CRM-03 | Customer list: 10 per page, search by name / email / phone | SCOPE / Derived | Must |
 | CRM-04 | Customer detail: basic info, linked vehicles (year make model, VIN, status), audit history | PDF §4, §6 | Must |
-| CRM-05 | From customer detail, pick and link an in-stock, unlinked vehicle of the same dealer | PDF §4 | Must |
+| CRM-05 | From customer detail, pick and link an unlinked vehicle of the same dealer (in stock or sold) | PDF §4 | Must |
 | CRM-06 | The link picker lists only linkable vehicles, never other dealers' or already-linked ones | PDF §4 | Must |
 | CRM-07 | Linking a vehicle already linked to another customer returns `VEHICLE_ALREADY_LINKED` | SCOPE | Must |
 | CRM-08 | In-stock vehicles can be unlinked; unlinking a sold vehicle returns `SOLD_LOCKED` | SCOPE | Must |
-| CRM-09 | Linking a sold / not-in-stock vehicle returns `WRONG_DEALER_OR_SOLD`; another dealer's vehicle id is always 404 | SCOPE | Must |
+| CRM-09 | Another dealer's vehicle id is always 404 | SCOPE | Must |
 | CRM-10 | Navigate from vehicle detail to its customer and back | Derived | Should |
 | CRM-11 | Create, edit, link, and unlink all write audit entries | PDF §6 | Must |
 | CRM-12 | Customer phone / email / address are **never** sent to AI prompts, audit summaries, or assistant answers | SCOPE (privacy) | Must |
@@ -48,7 +48,7 @@
 ## 5. Typical flow
 
 ```
-Salesperson creates customer → "Link vehicle" on customer detail → pick in-stock vehicle → save
+Salesperson creates customer → "Link vehicle" on customer detail → pick an unlinked vehicle → save
                              → in DMS, enter sold date + sold price → vehicle becomes SOLD, link is locked
 ```
 

@@ -8,9 +8,9 @@ This is a student graduation project. The goal is to **meet the spec at its mini
 
 | Item | Do it? | Smallest fix |
 |---|---|---|
-| A2 CASH ad with a payment skips finance rules | **Yes** | In `OmvicRuleEngine`, run the finance rules when `adKind==FINANCE` **or** the copy matches a rate / payment pattern. No new code, fields, or states. |
-| A3 Vehicle sold before linking can't be linked | **Yes** | In the link check, allow `SOLD` vehicles that have no customer yet. The one-vehicle-one-customer rule and the no-unlink-after-sale rule stay. |
-| B4 Soft-only disclosures not signed | **Yes (docs only)** | Add one line to SCOPE-BASELINE errata: "Some disclosures are review hints, not blockers (see PROTOCOL §C.0a)." |
+| A2 CASH ad with a payment skips finance rules | **Done** (`128c86b`) | In `OmvicRuleEngine`, run the finance rules when `adKind==FINANCE` **or** the copy matches a rate / payment pattern. No new code, fields, or states. |
+| A3 Vehicle sold before linking can't be linked | **Done** (`128c86b`) | In the link check, allow `SOLD` vehicles that have no customer yet. The one-vehicle-one-customer rule and the no-unlink-after-sale rule stay. |
+| B4 Soft-only disclosures not signed | **Done** (`128c86b`) | Add one line to SCOPE-BASELINE errata: "Some disclosures are review hints, not blockers (see PROTOCOL §C.0a)." |
 | A1 Salesperson checklist | No | The ad page already shows a checklist that follows the ad kind (12 §5). Explain this at defense. |
 | B5 Broadcast exemption reading | No | Keep the current reading. Mention it at defense if asked. |
 | A4–A10 | No | Out of proportion for a course project. |
@@ -64,7 +64,7 @@ Most of the design matches the source: roles, tenant isolation (404 vs 403), DMS
 | 04 §4 flow, "AI finds issue → BLOCKED / NEEDS_AI" | Wrong for the current design: AI success → PASSED with notes; AI failure → AI_UNAVAILABLE. AI cannot block (see A4). |
 | 04 §2 checklist inputs, AD-02 | Not in the design. Keep as the proposal in A1. |
 | 04 AD-R02 | Design splits contact: all three missing → hard `DEALER_CONTACT_MISSING`; one or two present → soft `DEALER_CONTACT_INCOMPLETE`. |
-| 04 AD-R11 "Finance triggered by kind or content" (07 Q-11) | Design uses kind only (see A2). |
+| 04 AD-R11 "Finance triggered by kind or content" (07 Q-11) | Closed by A2 (`128c86b`): a CASH ad showing a rate or payment runs the finance rules. |
 | 02 DMS-15 Stale triggers | Design: condition only (see A5). |
 | 01 AUTH-14 | Design is stricter: one person may hold **one active dealer at a time** across all dealers, not just "not twice in the same dealer" (15 §2.2). |
 | 01 §7 "last login removed" | Matches design: unbind is soft (`active=0`), rebinding reactivates the same row. |

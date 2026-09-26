@@ -48,7 +48,7 @@
 | UI-30 | List: name, email, phone, vehicles purchased count; search + paging |
 | UI-31 | Create / edit form |
 | UI-32 | Detail: basic info, linked vehicles (clickable), link / unlink buttons, change history |
-| UI-33 | Link dialog lists only in-stock, unlinked vehicles of this dealer, searchable by VIN / model |
+| UI-33 | Link dialog lists only unlinked vehicles of this dealer (in stock or sold), searchable by VIN / model |
 
 ### Ad compliance
 
