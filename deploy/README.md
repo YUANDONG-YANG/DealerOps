@@ -2,7 +2,7 @@
 
 This folder is the procedure for the live pipeline. Architecture stays in [design/AI-CODING-LOCAL-AND-CLOUD.md](../design/AI-CODING-LOCAL-AND-CLOUD.md) §7. Follow the steps below without asking anyone else.
 
-A push to `main` builds container images and pushes them to GitHub Container Registry (`ghcr.io`). That image publish is what still works. `.github/workflows/deploy-railway.yml` is still in the repo, but Railway deploy is not in use. The Actions secret `RAILWAY_TOKEN` is not a Railway project token, so that job does not publish a website. There is no public site from this repo until that secret is a project token created in the Railway project under **Settings → Tokens → New Project Token**. It does not create Azure resources, it does not buy a domain, and CI does not start a Cloudflare tunnel. Local Compose in section 5 is the stack you can run. While `cloudflared` is running, section 9 lists temporary public URLs for a live demo. Those hostnames are not a deployed site. Which hosts were considered is [deploy/publish-options.md](publish-options.md).
+A push to `main` builds container images and pushes them to GitHub Container Registry (`ghcr.io`). That GHCR publish, via `.github/workflows/publish-ghcr.yml`, is what still publishes automatically for free. Railway is excluded. Its free plan is only about $1 of credit per month, and the token `.github/workflows/deploy-railway.yml` reads is not a valid project token, so that job skips and exits 0. Do not add `RAILWAY_TOKEN`. This pipeline does not create Azure resources and does not buy a domain. CI does not start a Cloudflare tunnel. The current demo entry is a Cloudflare quick tunnel: `cloudflared` on the developer machine forwards HTTPS to local Compose (web and gateway). That is free, and it is not a cloud deploy of the Java services. Hostnames die when the process stops. Section 9 lists the current demo URLs. Host comparison is [deploy/publish-options.md](publish-options.md).
 
 Leave any stack you already started running. The commands in "Local acceptance" are what you run later, when you choose to replace it with a newly published image.
 
@@ -18,7 +18,7 @@ GitHub Actions starts only the workflows whose path filters match the files in t
 | `ai-service/**` or `.github/workflows/ai-service.yml` | `.github/workflows/ai-service.yml` | Job `compile`: stub profile compile and unit tests (no paid model) |
 | `dealer-platform/infra/**`, `dealer-platform/pipelines/**`, or `.github/workflows/dealer-platform.yml` | `.github/workflows/dealer-platform.yml` | Job `bicep`: `az bicep build` only |
 | Any of `dealer-web/**`, `dealer-core/**`, `dealer-gateway/**`, `ai-service/**`, `dealer-platform/docker-compose.yml`, `dealer-platform/docker-compose.ghcr.yml`, or `.github/workflows/publish-ghcr.yml` | `.github/workflows/publish-ghcr.yml` | Job `publish`: build all four images and push them to `ghcr.io` |
-| Every push to `main` (no path filter), or a manual run | `.github/workflows/deploy-railway.yml` | Job `deploy`: not a public site. Railway is unused until `RAILWAY_TOKEN` is a project token |
+| Every push to `main` (no path filter), or a manual run | `.github/workflows/deploy-railway.yml` | Job `deploy`: Railway is excluded. The job skips and exits 0 |
 
 One push can start several workflows. Example: a change under `dealer-core/**` starts `dealer-core` (`compile`) and `publish-ghcr` (`publish`). The publish job still builds all four images so the web footer and Swagger share one timestamp.
 
@@ -71,12 +71,9 @@ There is no secret gate and no skip-for-missing-Azure step. `GITHUB_TOKEN` is su
 ### `.github/workflows/deploy-railway.yml`
 
 - Job `deploy` on `ubuntu-latest`. Script: `deploy/railway-deploy.sh`.
-- Railway deploy is abandoned for now. The repository secret is still named `RAILWAY_TOKEN`. The Railway CLI treats that name as a project token. The value currently stored there is an account token from Railway **Account → Settings → Tokens**, so the CLI rejects it and no services are deployed. Do not commit the token, and do not print it. A project token, when one exists, is created in the Railway project under **Settings → Tokens → New Project Token** and stored at `https://github.com/YUANDONG-YANG/DealerOps/settings/secrets/actions`. CI does not call `railway login`.
-- Skip: when `RAILWAY_TOKEN` is missing or Railway rejects it, the log contains `Railway deploy skipped because RAILWAY_TOKEN is not a valid project token.` The job exits 0, so this workflow does not fail the push while Railway is unused.
-- Success, only after a valid project token is stored: the log contains `Railway project token accepted.`, then `PUBLIC_WEB_URL=`, `PUBLIC_GATEWAY_URL=`, and `SWAGGER_URL=` (the gateway host plus `/swagger-ui/index.html`). The Actions job summary lists the same three URLs.
-- Services: `dealer-web`, `dealer-gateway`, `dealer-core`, and MySQL. Core does not boot without MySQL. Core is not given a public domain. `ai-service` is not part of this deploy; the gateway process still starts.
-- The web container's `GATEWAY_PUBLIC_URL` is the public gateway origin (`https://….up.railway.app`), so the browser does not call `localhost`.
-- Railway logs: in the Railway project, open the service, then **Deployments → View logs**. The Actions run is `https://github.com/YUANDONG-YANG/DealerOps/actions/workflows/deploy-railway.yml`.
+- Railway is excluded. The free plan is only about $1 of credit per month, and the token this workflow reads is not a valid project token. Do not add `RAILWAY_TOKEN`. Do not print any token. CI does not call `railway login`.
+- Skip: the log contains `Railway deploy skipped because RAILWAY_TOKEN is not a valid project token.` The job exits 0, so a green run is a skip, not a public site.
+- The Actions run list is `https://github.com/YUANDONG-YANG/DealerOps/actions/workflows/deploy-railway.yml`.
 
 ## 3. Where images go
 
@@ -187,35 +184,33 @@ Copy `dealer-platform/env.example` to a local `.env` if you need Entra values. D
 ## 7. What this automation does not do
 
 - It does not create an Azure resource group, log in to Azure, push to Azure Container Registry, or run a Bicep deployment. `dealer-platform/infra/main.bicep` remains in the repo as an optional paid design. Job `bicep` only compiles it.
-- A push to `main` does not deploy a public website. Railway is not in use until `RAILWAY_TOKEN` is a valid project token (section 8). It does not deploy to Vercel and it does not start a Cloudflare tunnel. A person can start quick tunnels in front of local Compose for a live demo (section 9). CI does not keep those hostnames.
-- It does not deploy the Java services to Azure. Private GHCR images are pulled only when `docker login ghcr.io` has `read:packages`. When that login is missing, build the Dockerfiles from this repo (section 5).
-- It does not commit secrets, `.env`, or tokens. The publish job uses the built-in `GITHUB_TOKEN`. The Railway job uses the repository secret `RAILWAY_TOKEN` and does not print it.
+- A push to `main` does not deploy a public website. Railway is excluded (section 8). It does not deploy to Azure, Vercel, or Cloudflare. CI does not start a Cloudflare tunnel. The current demo entry is the quick tunnels in section 9, which forward to local Compose and die when `cloudflared` stops.
+- It does not deploy the Java services to Azure or to Cloudflare Workers. Private GHCR images are pulled only when `docker login ghcr.io` has `read:packages`. When that login is missing, build the Dockerfiles from this repo (section 5).
+- It does not commit secrets, `.env`, or tokens. The publish job uses the built-in `GITHUB_TOKEN`. The Railway workflow does not print a token. Do not add `RAILWAY_TOKEN`.
 - It does not stop or recreate containers on a developer machine. Section 5 is manual.
 - An older GitHub Release tag is not this image publish. Confirm images with the `publish-ghcr` run log or the packages page, not with a release.
 
-## 8. Public site on Railway
+## 8. Railway is excluded
 
-Railway deploy is not in use. There is no durable public website. Do not buy a domain. Do not create Azure resources. Do not start `dealer-platform/infra/main.bicep`. Do not use `dealer-ops.app`. A live demo can use the Cloudflare quick tunnels in section 9. The comparison of host options is [deploy/publish-options.md](publish-options.md).
+Railway is not a deployment target. There is no durable public website from this repo. Do not buy a domain. Do not create Azure resources. Do not start `dealer-platform/infra/main.bicep`. Do not use `dealer-ops.app`. Do not add `RAILWAY_TOKEN`. The current demo entry is the Cloudflare quick tunnels in section 9. The comparison of host options is [deploy/publish-options.md](publish-options.md).
 
-`.github/workflows/deploy-railway.yml` still runs on every push to `main`. It calls `deploy/railway-deploy.sh`. That script does not deploy while `RAILWAY_TOKEN` is an account token. Deploy stays off until that secret is a project token from the Railway project **Settings → Tokens → New Project Token**. The CLI reads `RAILWAY_TOKEN` as a project token. An account token from **Account → Settings → Tokens** is rejected. GHCR publish in `.github/workflows/publish-ghcr.yml` stays as the image archive. Local Compose in section 5 is how you run the stack.
+The free Railway plan is only about $1 of credit per month, so it is not treated as a free host for MySQL and the Java services. `.github/workflows/deploy-railway.yml` still runs on every push to `main` and calls `deploy/railway-deploy.sh`. The token that workflow reads is not a valid project token, so the script skips. The log says `Railway deploy skipped because RAILWAY_TOKEN is not a valid project token.` and the job exits 0. A green run does not change a Railway project and does not publish a site.
 
-After a valid project token is stored, the same script is written to deploy MySQL, `dealer-core`, `dealer-gateway`, and `dealer-web` from `dealer-core/Dockerfile`, `dealer-gateway/Dockerfile`, `dealer-web/Dockerfile`, and the `railway.toml` next to each of them. It would generate a public domain only for the gateway (port 8080) and the web app (port 5173). Swagger would be `https://<gateway-host>/swagger-ui/index.html` on that gateway. Do not open core port `8081`. The web service would get `GATEWAY_PUBLIC_URL` set to that gateway origin, and the gateway would get `CORS_ALLOWED_ORIGIN` set to the web origin. The SPA reads `gatewayUrl` from `dist/config.json` (`dealer-web/src/api/gateway.ts`). It must not call `http://localhost:8080`.
+What still publishes automatically for free is the GHCR image push in `.github/workflows/publish-ghcr.yml`. Local Compose in section 5 is how you run the stack. The public demo URLs, while `cloudflared` is running, are in section 9.
 
 | Check | Where |
 |---|---|
 | Workflow file | `.github/workflows/deploy-railway.yml` |
-| Secret | `RAILWAY_TOKEN` must be a project token. Create it under the Railway project **Settings → Tokens → New Project Token**, then store it at `https://github.com/YUANDONG-YANG/DealerOps/settings/secrets/actions`. An account token does not deploy. |
 | Actions log | `https://github.com/YUANDONG-YANG/DealerOps/actions/workflows/deploy-railway.yml` |
+| Expected log | `Railway deploy skipped because RAILWAY_TOKEN is not a valid project token.` |
 | What you can run now | Section 5, from `dealer-platform`, using the GHCR images |
-| Web UI, after a project token | `PUBLIC_WEB_URL` in that Actions log |
-| Gateway, after a project token | `PUBLIC_GATEWAY_URL` |
-| Swagger UI, after a project token | `SWAGGER_URL` |
-
-A local `railway whoami` of `Unauthorized` does not block CI. The workflow does not log in on the runner. If the secret is missing or rejected, the log says `Railway deploy skipped because RAILWAY_TOKEN is not a valid project token.` and the job stays green. No Railway project is changed. Local Compose in section 5 stays the localhost path.
+| Current demo URLs | Section 9 |
 
 ## 9. Live demo (Cloudflare quick tunnels)
 
-These URLs are only for a live demo of the local Compose stack in section 5. They are Cloudflare quick-tunnel hostnames. They are not a purchased domain, not `dealer-ops.app`, and not a Railway or Azure deploy. The names die when `cloudflared` stops. The next start gets different hostnames. Leave `cloudflared` running for the whole demo.
+These URLs are the current demo entry. They are free Cloudflare quick-tunnel hostnames. `cloudflared` on the developer machine forwards HTTPS to local Compose (web and gateway). They are not a cloud deploy of the Java services, not a Cloudflare Pages or Workers deploy, not a purchased domain, not `dealer-ops.app`, and not a Railway or Azure deploy. The names die when `cloudflared` stops. The next start gets different hostnames. Leave the existing `cloudflared` processes running for the whole demo. Do not start a second pair of tunnels while these hostnames are still up.
+
+Cloudflare Pages could host the Vue frontend (`dealer-web`) for free later. `dealer-gateway` and `dealer-core` do not run on Cloudflare Workers. The backend is not deployed to Cloudflare.
 
 Checked while the tunnels were up: both URLs returned HTTP 200.
 
