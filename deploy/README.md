@@ -2,7 +2,7 @@
 
 This folder is the procedure for the live pipeline. Architecture stays in [design/AI-CODING-LOCAL-AND-CLOUD.md](../design/AI-CODING-LOCAL-AND-CLOUD.md) §7. Follow the steps below without asking anyone else.
 
-A push to `main` builds container images and pushes them to GitHub Container Registry (`ghcr.io`). That image publish is what still works. `.github/workflows/deploy-railway.yml` is still in the repo, but Railway deploy is not in use. The Actions secret `RAILWAY_TOKEN` is not a Railway project token, so that job does not publish a website. There is no public site from this repo until that secret is a project token created in the Railway project under **Settings → Tokens → New Project Token**. It does not create Azure resources, it does not buy a domain, and it does not start a Cloudflare tunnel. Local Compose in section 5 is the stack you can run. Which hosts were considered is [deploy/publish-options.md](publish-options.md).
+A push to `main` builds container images and pushes them to GitHub Container Registry (`ghcr.io`). That image publish is what still works. `.github/workflows/deploy-railway.yml` is still in the repo, but Railway deploy is not in use. The Actions secret `RAILWAY_TOKEN` is not a Railway project token, so that job does not publish a website. There is no public site from this repo until that secret is a project token created in the Railway project under **Settings → Tokens → New Project Token**. It does not create Azure resources, it does not buy a domain, and CI does not start a Cloudflare tunnel. Local Compose in section 5 is the stack you can run. While `cloudflared` is running, section 9 lists temporary public URLs for a live demo. Those hostnames are not a deployed site. Which hosts were considered is [deploy/publish-options.md](publish-options.md).
 
 Leave any stack you already started running. The commands in "Local acceptance" are what you run later, when you choose to replace it with a newly published image.
 
@@ -182,12 +182,12 @@ Copy `dealer-platform/env.example` to a local `.env` if you need Entra values. D
    - `denied` or `unauthorized`: run `docker login ghcr.io` with `read:packages`. Repo Actions must allow the workflow token to write packages (Settings → Actions → General → Workflow permissions: read and write). The workflow already requests `packages: write`.
    - Push fails in Actions with `denied` even though the file sets `packages: write`: the repository's workflow-token policy is still read-only. Change that setting. Do not add a personal token to the repo to work around it, and do not print tokens into logs.
 6. Web shows `Published local` while Swagger shows a timestamp, or the reverse: the two images were not built in the same `publish` job, or you mixed a source-built container with a GHCR container. Pull again with the overlay in section 5 and recreate only when you intend to switch to the published images.
-7. Swagger returns 401 or an empty page: open `http://localhost:8080/swagger-ui/index.html` (or the public gateway origin in section 8, same path). Those paths are public on the gateway. A 401 on `/api/v1/**` is expected without a Bearer token. Do not switch the browser to core port `8081`.
+7. Swagger returns 401 or an empty page: open `http://localhost:8080/swagger-ui/index.html` (or the public gateway origin in section 9, same path). Those paths are public on the gateway. A 401 on `/api/v1/**` is expected without a Bearer token. Do not switch the browser to core port `8081`.
 
 ## 7. What this automation does not do
 
 - It does not create an Azure resource group, log in to Azure, push to Azure Container Registry, or run a Bicep deployment. `dealer-platform/infra/main.bicep` remains in the repo as an optional paid design. Job `bicep` only compiles it.
-- A push to `main` does not deploy a public website. Railway is not in use until `RAILWAY_TOKEN` is a valid project token (section 8). It does not deploy to Vercel and it does not start a Cloudflare tunnel.
+- A push to `main` does not deploy a public website. Railway is not in use until `RAILWAY_TOKEN` is a valid project token (section 8). It does not deploy to Vercel and it does not start a Cloudflare tunnel. A person can start quick tunnels in front of local Compose for a live demo (section 9). CI does not keep those hostnames.
 - It does not deploy the Java services to Azure. Private GHCR images are pulled only when `docker login ghcr.io` has `read:packages`. When that login is missing, build the Dockerfiles from this repo (section 5).
 - It does not commit secrets, `.env`, or tokens. The publish job uses the built-in `GITHUB_TOKEN`. The Railway job uses the repository secret `RAILWAY_TOKEN` and does not print it.
 - It does not stop or recreate containers on a developer machine. Section 5 is manual.
@@ -195,7 +195,7 @@ Copy `dealer-platform/env.example` to a local `.env` if you need Entra values. D
 
 ## 8. Public site on Railway
 
-Railway deploy is not in use. There is no public website. Do not buy a domain. Do not create Azure resources. Do not start `dealer-platform/infra/main.bicep`. Do not start a Cloudflare tunnel. The comparison of those options is [deploy/publish-options.md](publish-options.md).
+Railway deploy is not in use. There is no durable public website. Do not buy a domain. Do not create Azure resources. Do not start `dealer-platform/infra/main.bicep`. Do not use `dealer-ops.app`. A live demo can use the Cloudflare quick tunnels in section 9. The comparison of host options is [deploy/publish-options.md](publish-options.md).
 
 `.github/workflows/deploy-railway.yml` still runs on every push to `main`. It calls `deploy/railway-deploy.sh`. That script does not deploy while `RAILWAY_TOKEN` is an account token. Deploy stays off until that secret is a project token from the Railway project **Settings → Tokens → New Project Token**. The CLI reads `RAILWAY_TOKEN` as a project token. An account token from **Account → Settings → Tokens** is rejected. GHCR publish in `.github/workflows/publish-ghcr.yml` stays as the image archive. Local Compose in section 5 is how you run the stack.
 
@@ -212,3 +212,26 @@ After a valid project token is stored, the same script is written to deploy MySQ
 | Swagger UI, after a project token | `SWAGGER_URL` |
 
 A local `railway whoami` of `Unauthorized` does not block CI. The workflow does not log in on the runner. If the secret is missing or rejected, the log says `Railway deploy skipped because RAILWAY_TOKEN is not a valid project token.` and the job stays green. No Railway project is changed. Local Compose in section 5 stays the localhost path.
+
+## 9. Live demo (Cloudflare quick tunnels)
+
+These URLs are only for a live demo of the local Compose stack in section 5. They are Cloudflare quick-tunnel hostnames. They are not a purchased domain, not `dealer-ops.app`, and not a Railway or Azure deploy. The names die when `cloudflared` stops. The next start gets different hostnames. Leave `cloudflared` running for the whole demo.
+
+Checked while the tunnels were up: both URLs returned HTTP 200.
+
+| Check | URL |
+|---|---|
+| Web UI | `https://distinction-cir-accurately-experts.trycloudflare.com/` |
+| Gateway | `https://scenes-moving-tray-exhaust.trycloudflare.com/` |
+| Swagger UI | `https://scenes-moving-tray-exhaust.trycloudflare.com/swagger-ui/index.html` |
+
+Open Swagger on the gateway host above. Do not open core port `8081`.
+
+From the repo root, with Compose already listening on web `5173` and gateway `8080` (`dealer-platform/docker-compose.yml`), start two quick tunnels and leave both processes running:
+
+```text
+cloudflared tunnel --url http://127.0.0.1:5173
+cloudflared tunnel --url http://127.0.0.1:8080
+```
+
+The web container writes `gatewayUrl` into `dist/config.json` at start from `GATEWAY_PUBLIC_URL` (`dealer-web/docker-entrypoint.cjs`). The SPA resolver is `dealer-web/src/api/gateway.ts`. For this demo that value is the public gateway origin `https://scenes-moving-tray-exhaust.trycloudflare.com` (no trailing slash). The gateway allows the browser through `CORS_ALLOWED_ORIGIN`, set to the public web origin `https://distinction-cir-accurately-experts.trycloudflare.com`. Recreate `dealer-web` and `dealer-gateway` from `dealer-platform` after those hostnames exist so the browser calls the public gateway, not `http://localhost:8080`. No image rebuild is required for that env change. When the tunnels stop, those two origins stop working.
