@@ -25,6 +25,7 @@ Conflict order follows SCOPE-BASELINE: **PPT hard requirements > specification P
 | [07-Open-Questions-and-Assumptions.md](07-Open-Questions-and-Assumptions.md) | Source ambiguities, assumptions taken, questions for the client |
 | [08-Design-Review.md](08-Design-Review.md) | Review of `design/` against this analysis: gaps, deviations, corrections |
 | [09-Verification-Checklist.md](09-Verification-Checklist.md) | Evidence (file:line) for each 08 finding, with a verdict column to fill in |
+| [10-Cursor-Change-Review.md](10-Cursor-Change-Review.md) | Review of Cursor's uncommitted changes: A3 not fixed, severity contradiction, scope creep |
 | [Traceability-Matrix.md](Traceability-Matrix.md) | Requirement ID → source → design doc → acceptance case |
 
 ## Requirement ID scheme
