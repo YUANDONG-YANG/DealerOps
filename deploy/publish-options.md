@@ -4,7 +4,9 @@ This note records the hosts that were actually considered for DealerOps, and whi
 
 ## Recommendation
 
-The easier free path for a public site that includes the Java gateway and Swagger is Railway. Vercel is easier only for the frontend and leaves the API unreachable. Azure and a custom domain cost money. GitHub Container Registry is free but not a public website. Cloudflare quick tunnels are free but not stable.
+Railway was the easier free path for a public site that includes the Java gateway and Swagger. That deploy is not in use. The GitHub Actions secret `RAILWAY_TOKEN` holds an account token, and `.github/workflows/deploy-railway.yml` does not deploy with it, because the Railway CLI treats `RAILWAY_TOKEN` as a project token. There is no public website until that secret is a project token from the Railway project **Settings → Tokens → New Project Token**. Do not buy a domain. Do not start a Cloudflare tunnel.
+
+What still works is the image publish. A push to `main` builds and pushes `dealer-web`, `dealer-core`, `dealer-gateway`, and `ai-service` to GitHub Container Registry through `.github/workflows/publish-ghcr.yml`. Local Compose in [deploy/README.md](README.md) section 5 can run that stack on the machine. Vercel is easier only for the frontend and leaves the API unreachable. Azure and a custom domain cost money. GitHub Container Registry is free but not a public website. Cloudflare quick tunnels are free but not stable.
 
 ## Comparison
 
@@ -26,7 +28,7 @@ Fetched from `https://docs.railway.com/reference/pricing` on 2026-09-25:
 - **Hobby** is **$5 / month**. That subscription includes $5 of resource usage. The same page says the Hobby plan is not free: the $5 subscription is charged even when usage is under $5.
 - Service builds are free (build CPU, memory, base-image downloads, image exports, and image storage are not charged). Runtime CPU, RAM, egress, and volume storage are usage-priced on top of the plan.
 
-A push-to-`main` stack that leaves MySQL and the Java services running draws on that monthly credit. This repo does not calculate a bill and does not switch the host because of it. The workflow is `.github/workflows/deploy-railway.yml`. It deploys only when the GitHub Actions secret `RAILWAY_TOKEN` is set.
+A push-to-`main` stack that leaves MySQL and the Java services running would draw on that monthly credit. This repo does not calculate a bill. The workflow file is `.github/workflows/deploy-railway.yml`. Railway deploy is abandoned until `RAILWAY_TOKEN` is a valid project token. The account token in that secret is not used as a workaround.
 
 ## Why the other free options are not this public site
 
