@@ -159,18 +159,17 @@ Invariants (checked on every write path):
 
 ## 4. `customer_vehicle`
 
-**Ruling: one vehicle is linked to one customer globally (`uk_cv_vehicle`). Link only "this dealership + IN_STOCK + not already taken". After sale the association is kept; sold vehicles cannot be newly linked or unlinked.**
+**Ruling: one vehicle is linked to one customer globally (`uk_cv_vehicle`). Link only "this dealership + not already taken" (in stock or sold, so a sale recorded before linking can still reach its buyer). After sale the association is kept and cannot be unlinked.**
 
 | Rule | Error |
 |---|---|
 | `vehicle.dealer_id == customer.dealer_id == tenantDealerId` | **cross-dealership id → 404** (not 403). Never use `WRONG_DEALER_OR_SOLD` for store mismatch |
-| `vehicle.status == IN_STOCK` is required for PUT link | this-store sold / not `IN_STOCK` cannot be newly linked → **400** `WRONG_DEALER_OR_SOLD` (14 PUT) |
 | `uk_cv_vehicle`: a row already exists for that `vehicle_id` | 409 `VEHICLE_ALREADY_LINKED` |
 | One customer, many vehicles | allowed |
 | Sale (sell) | **do not delete** `customer_vehicle`; CRM still shows that vehicle |
 | UNLINK (DELETE) after sold | reject **409** `SOLD_LOCKED` (sale record must not be erased; 14 DELETE must return this code) |
 | UNLINK while in stock | allowed; delete the row or hard-delete per your entity choice (V1 has no soft-delete column); audit `UNLINK` |
-| Link a sold vehicle to someone else | reject (unique key + status both block it) |
+| Link a sold vehicle that has no customer yet | allowed once; a second link → 409 `VEHICLE_ALREADY_LINKED` |
 
 Link/unlink audit: `entityType=CUSTOMER_VEHICLE`, `action=LINK`/`UNLINK`, `fieldSummary` **must not** write full phone/email/address.
 
@@ -295,7 +294,8 @@ function runFixedOmvic(listing, vehicle, dealer) -> { hardBlocks[], softGaps[], 
       soft += WARRANTY_CLAIM_NEEDS_REVIEW    // not a hard block; AI reviews completeness of terms
 
   // --- FINANCE extras ---
-  if listing.adKind == FINANCE:
+  // spec §5: also when a CASH ad shows a rate or payment (e.g. "$299 per month")
+  if listing.adKind == FINANCE OR (listing.adKind == CASH AND (hasApr(text) OR showsPayment(text))):
       hasApr = match(text, /\d+(\.\d+)?\s*%\s*(apr|annual percentage rate)|apr\s*[:=]?\s*\d+(\.\d+)?\s*%/i)
       if !hasApr:
           hard += FINANCE_APR_MISSING

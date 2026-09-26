@@ -63,6 +63,11 @@ public class OmvicRuleEngine {
           Pattern.CASE_INSENSITIVE);
   static final Pattern WARRANTY_BOAST =
       Pattern.compile("extended warranty|warranty included|free warranty", Pattern.CASE_INSENSITIVE);
+  /** Spec §5: finance rules apply whenever the ad shows a rate or payment, whatever the ad kind. */
+  static final Pattern PAYMENT =
+      Pattern.compile(
+          "\\$?\\d[\\d,]*(?:\\.\\d{2})?\\s*(?:per month|/mo|monthly|bi-?weekly|per week|/wk)",
+          Pattern.CASE_INSENSITIVE);
   static final Pattern LEASE_TERM_ONLY =
       Pattern.compile("\\d+\\s*(month|months|mo)\\b", Pattern.CASE_INSENSITIVE);
 
@@ -132,7 +137,9 @@ public class OmvicRuleEngine {
       soft.add(softFinding("WARRANTY_CLAIM_NEEDS_REVIEW", "Warranty claim needs review."));
     }
 
-    if (listing.getAdKind() == AdKind.FINANCE) {
+    boolean showsRateOrPayment =
+        listing.getAdKind() == AdKind.CASH && (APR.matcher(text).find() || PAYMENT.matcher(text).find());
+    if (listing.getAdKind() == AdKind.FINANCE || showsRateOrPayment) {
       if (!APR.matcher(text).find()) {
         hard.add(hardFinding("FINANCE_APR_MISSING", "Finance APR is missing from the ad."));
       }

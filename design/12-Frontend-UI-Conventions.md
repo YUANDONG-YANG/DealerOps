@@ -33,7 +33,7 @@ One row: search + 1–3 dropdowns + Search + Reset. No price sliders, fuel filte
 
 ## 4. Forms
 
-Create and edit use a drawer or Dialog. Enums use Select. Sell uses a separate small dialog: Sold date + Sold price are required as a pair. CRM vehicle linking uses a searchable Select that lists only this dealership's unlinked, unsold vehicles; already-taken vehicles are disabled.
+Create and edit use a drawer or Dialog. Enums use Select. Sell uses a separate small dialog: Sold date + Sold price are required as a pair. CRM vehicle linking uses a searchable Select that lists this dealership's vehicles (in stock or sold); already-taken vehicles are disabled.
 
 ## 5. Ad compliance (the showcase page)
 
