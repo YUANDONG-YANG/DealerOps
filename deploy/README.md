@@ -2,7 +2,7 @@
 
 This folder is the procedure for the live pipeline. Architecture stays in [design/AI-CODING-LOCAL-AND-CLOUD.md](../design/AI-CODING-LOCAL-AND-CLOUD.md) §7. Follow the steps below without asking anyone else.
 
-Automatic publish means: a push to `main` builds container images and pushes them to GitHub Container Registry (`ghcr.io`). It does not create Azure resources, and it does not deploy the site. Local Compose in section 5 is the localhost acceptance stack. The free public demo is section 8: Vercel for the web UI and Railway for the Java gateway and core.
+A push to `main` does two things. It still builds container images and pushes them to GitHub Container Registry (`ghcr.io`). It also runs `.github/workflows/deploy-railway.yml`, which deploys the public site to Railway when the Actions secret `RAILWAY_TOKEN` is set, and skips with a log line when that secret is missing. It does not create Azure resources and it does not buy a domain. Local Compose in section 5 is the localhost acceptance stack. The public host is section 8. Which earlier option was easier and free is [deploy/publish-options.md](publish-options.md).
 
 Leave any stack you already started running. The commands in "Local acceptance" are what you run later, when you choose to replace it with a newly published image.
 
@@ -18,10 +18,11 @@ GitHub Actions starts only the workflows whose path filters match the files in t
 | `ai-service/**` or `.github/workflows/ai-service.yml` | `.github/workflows/ai-service.yml` | Job `compile`: stub profile compile and unit tests (no paid model) |
 | `dealer-platform/infra/**`, `dealer-platform/pipelines/**`, or `.github/workflows/dealer-platform.yml` | `.github/workflows/dealer-platform.yml` | Job `bicep`: `az bicep build` only |
 | Any of `dealer-web/**`, `dealer-core/**`, `dealer-gateway/**`, `ai-service/**`, `dealer-platform/docker-compose.yml`, `dealer-platform/docker-compose.ghcr.yml`, or `.github/workflows/publish-ghcr.yml` | `.github/workflows/publish-ghcr.yml` | Job `publish`: build all four images and push them to `ghcr.io` |
+| Every push to `main` (no path filter), or a manual run | `.github/workflows/deploy-railway.yml` | Job `deploy`: Railway public site, or a skip when `RAILWAY_TOKEN` is unset |
 
 One push can start several workflows. Example: a change under `dealer-core/**` starts `dealer-core` (`compile`) and `publish-ghcr` (`publish`). The publish job still builds all four images so the web footer and Swagger share one timestamp.
 
-A docs-only change outside those paths starts nothing. Use Actions → `publish-ghcr` → Run workflow (`workflow_dispatch`) when you need a publish without a matching path change.
+A docs-only change outside those paths does not start the compile or GHCR workflows. `.github/workflows/deploy-railway.yml` still starts on every push to `main`. Use Actions → `publish-ghcr` → Run workflow (`workflow_dispatch`) when you need an image publish without a matching path change.
 
 Open runs at `https://github.com/YUANDONG-YANG/DealerOps/actions`.
 
@@ -66,6 +67,16 @@ There is no secret gate and no skip-for-missing-Azure step. `GITHUB_TOKEN` is su
 - Success: the log contains one `PUBLISHED_AT=` line, then for each app both `Image ghcr.io/yuandong-yang/<name>:<sha>` and `Image ghcr.io/yuandong-yang/<name>:main`, then `Published <timestamp>`. The job summary on the Actions run repeats that list.
 - Failure is a red job, not a skip. A login or push failure is a permissions problem (see section 6). A `docker build` failure is an application build problem in that image's Dockerfile.
 - The same job builds `dealer-web`, `dealer-core`, `dealer-gateway`, and `ai-service`. The `ai-service` image uses the Dockerfile's default stub Maven args. It does not install a paid model.
+
+### `.github/workflows/deploy-railway.yml`
+
+- Job `deploy` on `ubuntu-latest`. Script: `deploy/railway-deploy.sh`.
+- Secret name: `RAILWAY_TOKEN`. It is a Railway project token, not a local `railway login`. Create it in the Railway dashboard: open the project, **Settings → Tokens → New Project Token**. Add that value as a repository Actions secret named `RAILWAY_TOKEN` at `https://github.com/YUANDONG-YANG/DealerOps/settings/secrets/actions`. Do not commit the token.
+- Skip: when `RAILWAY_TOKEN` is unset, the log contains `RAILWAY_TOKEN is not set. Skipping Railway deploy.` The job stays green. CI does not call `railway login`.
+- Success: the log contains `Railway project token accepted.`, then `PUBLIC_WEB_URL=`, `PUBLIC_GATEWAY_URL=`, and `SWAGGER_URL=` (the gateway host plus `/swagger-ui/index.html`). The Actions job summary lists the same three URLs.
+- Services: `dealer-web`, `dealer-gateway`, `dealer-core`, and MySQL. Core does not boot without MySQL. Core is not given a public domain. `ai-service` is not part of this deploy; the gateway process still starts.
+- The web container's `GATEWAY_PUBLIC_URL` is the public gateway origin (`https://….up.railway.app`), so the browser does not call `localhost`.
+- Railway logs: in the Railway project, open the service, then **Deployments → View logs**. The Actions run is `https://github.com/YUANDONG-YANG/DealerOps/actions/workflows/deploy-railway.yml`.
 
 ## 3. Where images go
 
@@ -176,35 +187,33 @@ Copy `dealer-platform/env.example` to a local `.env` if you need Entra values. D
 ## 7. What this automation does not do
 
 - It does not create an Azure resource group, log in to Azure, push to Azure Container Registry, or run a Bicep deployment. `dealer-platform/infra/main.bicep` remains in the repo as an optional paid design. Job `bicep` only compiles it.
-- A push to `main` does not deploy `dealer-web` to Vercel and does not create Railway services. Section 8 is the manual free public demo.
-- It does not deploy the Java services to Azure. Private GHCR images are pulled only when `docker login ghcr.io` has `read:packages`. When that login is missing, build the Dockerfiles from this repo (section 8).
-- It does not commit secrets, `.env`, or tokens. GitHub Actions uses its built-in `GITHUB_TOKEN` only inside the `publish` job.
+- A push to `main` deploys to Railway only when `RAILWAY_TOKEN` is set (section 8). It does not deploy to Vercel.
+- It does not deploy the Java services to Azure. Private GHCR images are pulled only when `docker login ghcr.io` has `read:packages`. When that login is missing, build the Dockerfiles from this repo (section 5).
+- It does not commit secrets, `.env`, or tokens. The publish job uses the built-in `GITHUB_TOKEN`. The Railway job uses the repository secret `RAILWAY_TOKEN` and does not print it.
 - It does not stop or recreate containers on a developer machine. Section 5 is manual.
 - An older GitHub Release tag is not this image publish. Confirm images with the `publish-ghcr` run log or the packages page, not with a release.
 
-## 8. Free public demo (Vercel web, Railway API)
+## 8. Public site on Railway
 
-Sections 1–3 push private images to GHCR. They do not open a public website. Do not buy a domain. Do not create Azure resources. Do not start `dealer-platform/infra/main.bicep`. A custom domain such as `dealer-ops.app` is optional and paid; it is not required. The free hostnames are the ones Vercel and Railway assign (`*.vercel.app` and `*.up.railway.app`).
+Do not buy a domain. Do not create Azure resources. Do not start `dealer-platform/infra/main.bicep`. Do not use a Cloudflare tunnel. The comparison of those options is [deploy/publish-options.md](publish-options.md). The public host is the `*.up.railway.app` name Railway assigns.
 
-Vercel hosts only `dealer-web` (the Vite static build). It cannot run `dealer-gateway`, `dealer-core`, `ai-service`, or MySQL.
+`.github/workflows/deploy-railway.yml` runs on every push to `main`. It calls `deploy/railway-deploy.sh`, which uses the existing Dockerfiles (`dealer-web/Dockerfile`, `dealer-gateway/Dockerfile`, `dealer-core/Dockerfile`) and the `railway.toml` next to each of them. GHCR publish in `.github/workflows/publish-ghcr.yml` stays as the image archive.
 
-Railway hosts the API: MySQL, `dealer-core`, `ai-service`, and `dealer-gateway`. Build from the repo Dockerfiles (`dealer-core/Dockerfile`, `ai-service/Dockerfile`, `dealer-gateway/Dockerfile`) when `docker login ghcr.io` lacks `read:packages`. Give a public domain only to `dealer-gateway`. Core and ai-service stay on the private Railway network. Swagger is served by the gateway at `/swagger-ui/index.html`. Do not open core port `8081`.
+The script deploys MySQL, `dealer-core`, `dealer-gateway`, and `dealer-web`. It generates a public domain only for the gateway (port 8080) and the web app (port 5173). Swagger is `https://<gateway-host>/swagger-ui/index.html` on that gateway. Do not open core port `8081`. The web service gets `GATEWAY_PUBLIC_URL` set to that same gateway origin, and the gateway gets `CORS_ALLOWED_ORIGIN` set to the web origin. The SPA reads `gatewayUrl` from `dist/config.json` (`dealer-web/src/api/gateway.ts`). It must not call `http://localhost:8080`.
 
-The Vercel site must call that public gateway origin. It must not call `http://localhost:8080`. Set Vercel `VITE_GATEWAY_URL` to `https://<railway-gateway-host>` before the production build. The SPA also accepts `/config.json` `gatewayUrl` (see `dealer-web/src/api/gateway.ts`). On Railway set `GATEWAY_PUBLIC_URL` to the same gateway origin and `CORS_ALLOWED_ORIGIN` to the Vercel origin.
-
-| Check | Public URL |
+| Check | Where |
 |---|---|
-| Web UI | `https://<project>.vercel.app/` |
-| Gateway (browser API origin) | `https://<gateway-service>.up.railway.app/` |
-| Swagger UI (`Published …` in the description) | `https://<gateway-service>.up.railway.app/swagger-ui/index.html` |
+| Workflow file | `.github/workflows/deploy-railway.yml` |
+| Secret | `RAILWAY_TOKEN` (Railway project token). Create it under the Railway project **Settings → Tokens → New Project Token**, then store it at `https://github.com/YUANDONG-YANG/DealerOps/settings/secrets/actions`. |
+| Actions log | `https://github.com/YUANDONG-YANG/DealerOps/actions/workflows/deploy-railway.yml` |
+| Railway logs | Railway project → service → **Deployments → View logs** |
+| Web UI | `PUBLIC_WEB_URL` in that Actions log (`https://<web-service>.up.railway.app/`) |
+| Gateway | `PUBLIC_GATEWAY_URL` (`https://<gateway-service>.up.railway.app/`) |
+| Swagger UI | `SWAGGER_URL` (`https://<gateway-service>.up.railway.app/swagger-ui/index.html`) |
 | OpenAPI JSON | `https://<gateway-service>.up.railway.app/v3/api-docs` |
 
 Swagger is public (no Bearer token). `/api/v1/**` on the gateway host still requires a Bearer token.
 
-1. Web sign-in: from `dealer-web`, `npx vercel whoami`. If that fails, `npx vercel login` and open the URL the CLI prints. Do not print tokens. Deploy with `npx vercel --prod` only after `VITE_GATEWAY_URL` is the Railway gateway origin.
-2. API sign-in: `npx @railway/cli whoami`. If that prints `Unauthorized`, `npx @railway/cli login` and open the URL the CLI prints. Do not print tokens.
-3. In the Railway project, add MySQL, then deploy `dealer-core`, `ai-service`, and `dealer-gateway` from their Dockerfiles. Wire `MYSQL_URL` (JDBC), `CORE_URL`, and `AI_URL` to the private service hosts. Generate the public domain on the gateway service only.
-4. Set Railway `CORS_ALLOWED_ORIGIN` to the Vercel origin and `GATEWAY_PUBLIC_URL` to the gateway origin. Redeploy the gateway if those values change.
-5. Confirm the Vercel URL and `https://<gateway-service>.up.railway.app/swagger-ui/index.html` both return HTTP 200.
+A local `railway whoami` of `Unauthorized` does not block CI. The workflow does not log in on the runner. If the secret is missing, the log says `RAILWAY_TOKEN is not set. Skipping Railway deploy.` and no Railway project is changed.
 
-If Swagger is 401, the gateway image is old: rebuild `dealer-gateway` so the `dealer-core-swagger` route exists. Debug the API from the Railway service logs. Local Compose in section 5 stays the localhost path and is separate from this demo.
+If Swagger is 401, the gateway image is old: the next green `deploy` run rebuilds `dealer-gateway` so the `dealer-core-swagger` route exists. Read the Railway service logs above. Local Compose in section 5 stays the localhost path and is separate from this host.
