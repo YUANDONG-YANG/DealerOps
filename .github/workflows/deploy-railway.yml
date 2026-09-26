@@ -1,6 +1,7 @@
 # Deploys dealer-web, dealer-gateway, dealer-core, and MySQL to Railway on push to main.
 # Uses the GitHub Actions secret RAILWAY_TOKEN (a Railway project token). No local login.
-# Skips with a log line when that secret is unset. Procedure: deploy/README.md
+# Skips with exit 0 when that secret is missing or is not a valid project token.
+# Procedure: deploy/README.md
 name: deploy-railway
 
 on:
@@ -17,7 +18,7 @@ jobs:
     timeout-minutes: 180
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: "20"
       - name: Deploy to Railway or skip

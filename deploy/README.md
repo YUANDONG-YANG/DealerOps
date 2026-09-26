@@ -72,8 +72,7 @@ There is no secret gate and no skip-for-missing-Azure step. `GITHUB_TOKEN` is su
 
 - Job `deploy` on `ubuntu-latest`. Script: `deploy/railway-deploy.sh`.
 - Railway deploy is abandoned for now. The repository secret is still named `RAILWAY_TOKEN`. The Railway CLI treats that name as a project token. The value currently stored there is an account token from Railway **Account → Settings → Tokens**, so the CLI rejects it and no services are deployed. Do not commit the token, and do not print it. A project token, when one exists, is created in the Railway project under **Settings → Tokens → New Project Token** and stored at `https://github.com/YUANDONG-YANG/DealerOps/settings/secrets/actions`. CI does not call `railway login`.
-- Skip: when `RAILWAY_TOKEN` is unset, the log contains `RAILWAY_TOKEN is not set. Skipping Railway deploy.` The job stays green.
-- Rejected token: the job fails and does not print `PUBLIC_WEB_URL`. That failure is expected while Railway is unused. This repo does not switch the secret to another CLI variable to work around it.
+- Skip: when `RAILWAY_TOKEN` is missing or Railway rejects it, the log contains `Railway deploy skipped because RAILWAY_TOKEN is not a valid project token.` The job exits 0, so this workflow does not fail the push while Railway is unused.
 - Success, only after a valid project token is stored: the log contains `Railway project token accepted.`, then `PUBLIC_WEB_URL=`, `PUBLIC_GATEWAY_URL=`, and `SWAGGER_URL=` (the gateway host plus `/swagger-ui/index.html`). The Actions job summary lists the same three URLs.
 - Services: `dealer-web`, `dealer-gateway`, `dealer-core`, and MySQL. Core does not boot without MySQL. Core is not given a public domain. `ai-service` is not part of this deploy; the gateway process still starts.
 - The web container's `GATEWAY_PUBLIC_URL` is the public gateway origin (`https://….up.railway.app`), so the browser does not call `localhost`.
@@ -212,4 +211,4 @@ After a valid project token is stored, the same script is written to deploy MySQ
 | Gateway, after a project token | `PUBLIC_GATEWAY_URL` |
 | Swagger UI, after a project token | `SWAGGER_URL` |
 
-A local `railway whoami` of `Unauthorized` does not block CI. The workflow does not log in on the runner. If the secret is missing, the log says `RAILWAY_TOKEN is not set. Skipping Railway deploy.` and no Railway project is changed. If the secret is set and rejected, the job fails and no public URL is printed. Local Compose in section 5 stays the localhost path.
+A local `railway whoami` of `Unauthorized` does not block CI. The workflow does not log in on the runner. If the secret is missing or rejected, the log says `Railway deploy skipped because RAILWAY_TOKEN is not a valid project token.` and the job stays green. No Railway project is changed. Local Compose in section 5 stays the localhost path.

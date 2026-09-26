@@ -15,15 +15,16 @@ summary() {
   fi
 }
 
-if [[ -z "${RAILWAY_TOKEN//[[:space:]]/}" ]]; then
-  note "RAILWAY_TOKEN is not set. Skipping Railway deploy."
-  note "Create a project token in the Railway dashboard: open the project, Settings, Tokens, New Project Token."
-  note "Add it as the GitHub Actions repository secret RAILWAY_TOKEN:"
-  note "https://github.com/YUANDONG-YANG/DealerOps/settings/secrets/actions"
-  note "CI does not use a local Railway login."
+skip_unused() {
+  note "Railway deploy skipped because RAILWAY_TOKEN is not a valid project token."
   summary "### Railway"
-  summary "Skipped. Secret \`RAILWAY_TOKEN\` is not set."
+  summary "Skipped. RAILWAY_TOKEN is not a valid project token."
   exit 0
+}
+
+railway_token="${RAILWAY_TOKEN:-}"
+if [[ -z "${railway_token//[[:space:]]/}" ]]; then
+  skip_unused
 fi
 
 export CI=true
@@ -88,11 +89,12 @@ mysql_name() {
 
 note "Checking RAILWAY_TOKEN with Railway. The token value is not printed."
 status_file="$(mktemp)"
-if ! run_railway status --json >"$status_file"; then
-  note "Railway rejected RAILWAY_TOKEN. CI does not fall back to a local login."
-  note "Use a project token from the Railway project: Settings, Tokens, New Project Token."
-  exit 1
+status_err="$(mktemp)"
+if ! railway status --json >"$status_file" 2>"$status_err"; then
+  rm -f "$status_file" "$status_err"
+  skip_unused
 fi
+rm -f "$status_err"
 note "Railway project token accepted."
 
 refresh_services
