@@ -106,3 +106,21 @@ Recommendation: keep only A2 (`OmvicRuleEngine` finance trigger), A3 (after fixi
 3. Decide R3: revert to "AI success → PASSED" (minimum) or use the severity-aware mapper.
 4. Decide R4: keep A2 + A3 + B4; revert or separate the rest.
 5. Then run the ITs once (`CustomerVehicleLinkIT`, `BlockedSkipsAiIT`) before committing.
+
+---
+
+## Follow-up (2026-09-25): result of the instructions in 11
+
+| Check | Result |
+|---|---|
+| Backup branch | `backup/cursor-wip-2026-09-25` exists (110 files, +5,198 / −596 vs its parent). Nothing was lost. |
+| Fix commit | `128c86b`. 12 files, +38 / −21. The code and design diff is **identical** to `a4a040d` without the log change. |
+| A2 | Finance rules run for CASH ads that show an APR or a payment. |
+| A3 | `CustomerService.link()` has no `IN_STOCK` / `WRONG_DEALER_OR_SOLD` check. `unlink()` still returns `SOLD_LOCKED` (line 150). `CrmView.vue:139` lists vehicles with no status filter. **R1 is fixed.** |
+| B4 | Erratum 4 is in SCOPE-BASELINE. |
+| R2–R8 | Gone from `main`. They exist only on the backup branch. |
+| Working tree | Clean except an untracked `.vercel/` (Vercel CLI link folder). |
+| Not verified | Step 5 compile: no output was pasted, so not confirmed. Tests not run, by instruction. |
+| Outside this task | `4928618` (ignore MCP configs) and `1c371aa` (Railway deploy workflow) landed between the instructions and the fix. They don't touch requirements scope. |
+
+Verdict: **accepted.** A2, A3, and B4 are closed.

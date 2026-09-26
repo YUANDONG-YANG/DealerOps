@@ -2,6 +2,12 @@
 
 Record of work on the requirement sources in this folder. Newest entry first.
 
+## 2026-09-25 · A2 / A3 / B4 closed
+
+Cursor's large change set was reviewed ([analysis/10](analysis/10-Cursor-Change-Review.md)): A3 was not actually fixed, rule severity contradicted itself, and scope went far beyond the minimum. Cursor was directed ([analysis/11](analysis/11-Cursor-Instructions.md)) to back its work up to `backup/cursor-wip-2026-09-25` and re-apply only the minimal fix.
+
+Result: commit `128c86b`, identical to the reviewed minimal fix. A2, A3, and B4 are closed. Everything else from the review (A1, A4–A10, B5) stays not planned. The backup branch holds Cursor's extra work if any of it is wanted later.
+
 ## 2026-09-25 · Requirements breakdown and design review
 
 ### Inputs
