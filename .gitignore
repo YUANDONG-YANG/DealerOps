@@ -15,3 +15,7 @@ Thumbs.db
 *.log
 .idea/
 *.iml
+
+# Local MCP config (may contain tokens)
+.cursor/mcp.json
+.vscode/mcp.json
