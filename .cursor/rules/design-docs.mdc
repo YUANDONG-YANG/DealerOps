@@ -34,7 +34,7 @@ Other cross-cutting product or architecture choices that the team must not diver
 ## Source of truth vs summaries
 
 - **Canonical**: Markdown under `design/` (English only; repo-relative paths — same as `english-docs`).
-- **OK to summarize or link**: root `README`, `PREP-CHECKLIST`, `env.example`, and similar entry points — they must point at the `design/` doc, not replace it.
+- **OK to summarize or link**: root `README`, `design/PREP-CHECKLIST.md`, `env.example`, and similar entry points — they must point at the `design/` doc, not replace it.
 
 ## Same-change rule
 

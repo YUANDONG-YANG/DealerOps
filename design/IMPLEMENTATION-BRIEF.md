@@ -388,7 +388,7 @@ Each step can be its own PR. Do not jump to a “full frontend” before prior s
 
 ## 12. Pre-start blockers (real local gaps)
 
-**Do not pretend these already exist.** Source: `PREP-CHECKLIST.md`.
+**Do not pretend these already exist.** Source: [PREP-CHECKLIST.md](PREP-CHECKLIST.md).
 
 | Item | Current | Who is blocked |
 |---|---|---|

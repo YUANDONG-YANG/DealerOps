@@ -173,7 +173,7 @@ From `SCOPE-BASELINE.md` Out of Scope / deferred NFRs:
 2. **NN-16 / NN-17** — Real AI path end-to-end with non-stub `aimanager` + live `AIMANAGER_API_KEY` (CI currently builds with stub profile).
 3. **NN-07 image/deploy** — Pipeline image push / ACA deploy still placeholder comments.
 4. **NN-01** — Split (or prove) four independent git remotes if graders enforce “own repository” literally; today path-filtered monorepo CI.
-5. **NN-08 env** — Classroom Entra app registration / roles / demo accounts (code ready; PREP-CHECKLIST Missing).
+5. **NN-08 env** — Classroom Entra app registration / roles / demo accounts (code ready; [design/PREP-CHECKLIST.md](../design/PREP-CHECKLIST.md) Missing).
 6. **NN-19–24** — Scrum board + Review speaking evidence + client minutes (process, not code).
 7. **SPEC-20 residual** — No dedicated “cost of borrowing” finding (only if instructor rejects §C.0a ruling).
 8. **SPEC-14 residual** — No explicit used/new disclosure field (only if instructor rejects §C.0a).

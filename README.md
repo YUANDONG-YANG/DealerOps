@@ -36,9 +36,8 @@ Approved scope is [design/SCOPE-BASELINE.md](design/SCOPE-BASELINE.md). Change i
 | `dealer-core/` | Java 21 + Spring Boot + Flyway (`V1__init.sql`) + MySQL. Business APIs and JWT/membership are present; treat as in-progress, not a finished product. |
 | `ai-service/` | Java 21, no database. In-process adapter for private `ai-manager`. Default Maven profile needs that JAR; `-Pstub` compiles without a real model. |
 | `dealer-platform/` | Local Compose (MySQL + core + ai-service + gateway), `env.example`, OpenAPI, Bicep/pipeline placeholders. |
-| `design/` | Current course design. Start here. |
-| `PREP-CHECKLIST.md` | Machine and account blockers (JDK, Docker, Entra, Azure, model key). |
-| `REUSE-PLAN.md` | Notes on `references/` (research only, not runtime modules). |
+| `design/` | Current course design. Start here. Machine and account blockers: [design/PREP-CHECKLIST.md](design/PREP-CHECKLIST.md). |
+| `references/` | Research copies only, not runtime modules. Reuse notes: [references/REUSE-PLAN.md](references/REUSE-PLAN.md). |
 
 Browser calls only `http://localhost:8080` (`/api/v1`). Direct browser access to core (`8081`) or ai-service (`8082`) must fail. Compose stays MySQL plus the three Java apps. `dealer-web` is not a compose service: run it on the host (`npm run dev` in `dealer-web/`) or build the optional Vite-preview image in `dealer-web/Dockerfile`.
 
@@ -111,6 +110,6 @@ Homemade username/password auth is **out of scope**. Dealers and admins sign in 
 
 Copy [dealer-platform/env.example](dealer-platform/env.example) and [dealer-web/.env.example](dealer-web/.env.example). Do not commit real `.env` files. After staff accounts exist in Entra, an Admin signs in, creates dealerships, and uses **Bind staff** with each person’s Object ID (`oid`).
 
-Account and permission blockers: [PREP-CHECKLIST.md](PREP-CHECKLIST.md). Claim → role mapping and full auth design: [design/15-Data-Auth-and-Gateway.md](design/15-Data-Auth-and-Gateway.md) §8.
+Account and permission blockers: [design/PREP-CHECKLIST.md](design/PREP-CHECKLIST.md). Claim → role mapping and full auth design: [design/15-Data-Auth-and-Gateway.md](design/15-Data-Auth-and-Gateway.md) §8.
 
 `ai-service` image defaults to Maven profile `stub` (no sibling `ai-manager` source in this tree). After `mvn -DskipTests install` in a sibling checkout named `ai-manager`, rebuild with `MAVEN_ARGS=-DskipTests`. Ports and boot order: [design/AI-CODING-LOCAL-AND-CLOUD.md](design/AI-CODING-LOCAL-AND-CLOUD.md). Cloud Bicep in `dealer-platform/infra/` is a draft — do not treat it as deployed.

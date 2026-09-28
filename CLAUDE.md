@@ -34,7 +34,7 @@ Major or important design decisions must be documented under `design/`. That fol
 
 Document or update a design doc when the change affects auth or identity (including Entra / MSAL), tenancy and multi-dealer boundaries, roles and permissions, API contracts, gateway routing and BFF behavior, or classroom acceptance and demo flows. Other cross-cutting product or architecture choices that the team must not diverge on also belong in `design/`.
 
-Canonical text is Markdown under `design/` (English only; repo-relative paths). Root `README`, `PREP-CHECKLIST`, `env.example`, and similar entry points may summarize or link, and must point at the `design/` doc.
+Canonical text is Markdown under `design/` (English only; repo-relative paths). Root `README`, `design/PREP-CHECKLIST.md`, `env.example`, and similar entry points may summarize or link, and must point at the `design/` doc.
 
 When implementing or changing such a design, update the relevant `design/` document in the same change. Prefer editing an existing doc over inventing a parallel one. Add a new file only when the topic is new.
 

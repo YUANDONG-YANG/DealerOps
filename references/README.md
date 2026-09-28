@@ -9,6 +9,8 @@ Currently effective: `00-Current-Development-Design.md` and `07`–`12`. `01`–
 `design/IMPLEMENTATION-BRIEF.md`  
 The brief stays in `design/`. Do not copy it here.
 
+Adaptation notes for the local reference copies: [REUSE-PLAN.md](REUSE-PLAN.md).
+
 ## Read order
 
 | Order | File | When to read |

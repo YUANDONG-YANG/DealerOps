@@ -440,7 +440,7 @@ Gateway and core read `JWT_MODE` from the process environment, a JVM system prop
 
 ### 8.4 Classroom / local Entra setup
 
-Account and permission blockers: [PREP-CHECKLIST.md](../PREP-CHECKLIST.md). Copy [dealer-platform/env.example](../dealer-platform/env.example) and [dealer-web/.env.example](../dealer-web/.env.example); **do not commit** real `.env` files.
+Account and permission blockers: [PREP-CHECKLIST.md](PREP-CHECKLIST.md). Copy [dealer-platform/env.example](../dealer-platform/env.example) and [dealer-web/.env.example](../dealer-web/.env.example); **do not commit** real `.env` files.
 
 #### App registrations (one SPA + one API)
 
