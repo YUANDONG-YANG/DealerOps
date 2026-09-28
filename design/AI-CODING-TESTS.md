@@ -1,7 +1,18 @@
 # AI-CODING-TESTS · Coding-AI test task list
 
-- Status: **implementation checklist** for the implementation team / coding AI (does not change contracts)
-- **Write tasks only; do not put test code into this design repo.** The implementation team creates empty classes / empty specs at the listed paths in each application repo.
+## Development phase: no test authoring
+
+**Development is not complete. Do not write TEST code until the user confirms feature development is complete and explicitly authorizes test work.**
+
+- Do not create, expand, modify, or refactor unit, integration, or end-to-end tests, empty test skeletons, assertions, test fixtures, mocks, or test-only helpers/configuration. This includes fixes made only to get existing tests to compile or pass.
+- Requests to review requirements, inspect code, fix features, build, commit, or push do not authorize test authoring. Do not infer development completion from a successful build or existing coverage.
+- Use source review, compilation/builds, and manual feature checks as appropriate. Running existing tests does not authorize editing them; obey any separate restriction on running tests. Report test failures without changing test code during development.
+- Test-writing instructions elsewhere in this document or linked plans are deferred, including empty-class and sprint-based test tasks. Keep existing tests; do not delete or disable them to bypass failures.
+- This is a student capstone: implement only required behavior and avoid unnecessary complexity.
+
+
+- Status: **DEFERRED — reference only until development is complete and the user authorizes test work** (does not change contracts)
+- **Do not execute the tasks below during development, including empty classes / empty specs.** They describe future test work after the development-phase gate is satisfied.
 - Authority: paths / HTTP / error codes follow [14-Backend-API-Contract.md](14-Backend-API-Contract.md); tenant and rules follow [15-Data-Auth-and-Gateway.md](15-Data-Auth-and-Gateway.md); routes and English copy follow [13-Frontend-Engineering.md](13-Frontend-Engineering.md); cases follow [16-Acceptance-and-Test.md](16-Acceptance-and-Test.md); ad copy follows [17-Ad-Check-Fixtures.md](17-Ad-Check-Fixtures.md); core test class names follow [18-Backend-Core-Engineering.md](18-Backend-Core-Engineering.md) **§9**.
 - This document **does not change** 13–19, 16, 17 body text, BRIEF, or other AI-CODING files.
 - Browser and product HTTP **only hit** Gateway `/api/v1/**` (local `8080`, cloud Gateway HTTPS). Do not point SPA tests at core `8081` / ai-service `8082`.

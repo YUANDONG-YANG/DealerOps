@@ -1,5 +1,16 @@
 # AI protocol and rules hard spec
 
+## Development phase: no test authoring
+
+**Development is not complete. Do not write TEST code until the user confirms feature development is complete and explicitly authorizes test work.**
+
+- Do not create, expand, modify, or refactor unit, integration, or end-to-end tests, empty test skeletons, assertions, test fixtures, mocks, or test-only helpers/configuration. This includes fixes made only to get existing tests to compile or pass.
+- Requests to review requirements, inspect code, fix features, build, commit, or push do not authorize test authoring. Do not infer development completion from a successful build or existing coverage.
+- Use source review, compilation/builds, and manual feature checks as appropriate. Running existing tests does not authorize editing them; obey any separate restriction on running tests. Report test failures without changing test code during development.
+- Test-writing instructions elsewhere in this document or linked plans are deferred, including empty-class and sprint-based test tasks. Keep existing tests; do not delete or disable them to bypass failures.
+- This is a student capstone: implement only required behavior and avoid unnecessary complexity.
+
+
 **Currently in force.** This document **overrides** the following fine-grained conflicts in [14-Backend-API-Contract.md](14-Backend-API-Contract.md) / [15-Data-Auth-and-Gateway.md](15-Data-Auth-and-Gateway.md). Coding AIs **must follow this document**; they may not “pick one” or keep a withdrawn 15 branch.
 
 This is not business code, not the full OpenAPI, and does not change `13`–`19` / BRIEF / README. OMVIC fixed rules still run in **dealer-core** before the model; ai-service only runs the review conversation.

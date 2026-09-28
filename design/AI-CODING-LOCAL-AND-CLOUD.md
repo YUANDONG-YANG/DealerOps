@@ -1,5 +1,16 @@
 # AI-CODING · How to start the four local services, and minimum cloud resource names
 
+## Development phase: no test authoring
+
+**Development is not complete. Do not write TEST code until the user confirms feature development is complete and explicitly authorizes test work.**
+
+- Do not create, expand, modify, or refactor unit, integration, or end-to-end tests, empty test skeletons, assertions, test fixtures, mocks, or test-only helpers/configuration. This includes fixes made only to get existing tests to compile or pass.
+- Requests to review requirements, inspect code, fix features, build, commit, or push do not authorize test authoring. Do not infer development completion from a successful build or existing coverage.
+- Use source review, compilation/builds, and manual feature checks as appropriate. Running existing tests does not authorize editing them; obey any separate restriction on running tests. Report test failures without changing test code during development.
+- Test-writing instructions elsewhere in this document or linked plans are deferred, including empty-class and sprint-based test tasks. Keep existing tests; do not delete or disable them to bypass failures.
+- This is a student capstone: implement only required behavior and avoid unnecessary complexity.
+
+
 Version: currently in force · 2026-09-21  
 Status: **Coding AIs start by copying this file.** Do not change contracts, and do not change 13–19 / BRIEF / `AI-CODING-BACKEND` / `AI-CODING-FRONTEND` / `AI-PROTOCOL`.  
 **Do not** change the `dealer-platform/infra/main.bicep` body (an unfinished cloud draft must not be passed off as deployed).  

@@ -1,14 +1,14 @@
 ---
-description: Prioritize product implementation; do not write or expand tests unless the user explicitly authorizes that phase
+description: No test authoring before feature development is complete and the user authorizes test work
 alwaysApply: true
 ---
 
-# Feature code before tests
+## Development phase: no test authoring
 
-Current priority is implementing product behavior in main source.
+**Development is not complete. Do not write TEST code until the user confirms feature development is complete and explicitly authorizes test work.**
 
-- Do **not** start a test-writing pass on your own.
-- Do **not** add new unit/integration tests, grow test suites, or do test-only refactors unless the user explicitly asks in that conversation.
-- Unit tests and similar verification wait until feature development is finished **and** the user explicitly authorizes that phase.
-- If a change breaks compilation of existing tests, fix the compile break only; do not treat that as a reason to add coverage.
-- This rule does **not** authorize skipping a test the user just requested in the same message. An explicit "write tests" / "add unit tests" (or equivalent) request is the authorization.
+- Do not create, expand, modify, or refactor unit, integration, or end-to-end tests, empty test skeletons, assertions, test fixtures, mocks, or test-only helpers/configuration. This includes fixes made only to get existing tests to compile or pass.
+- Requests to review requirements, inspect code, fix features, build, commit, or push do not authorize test authoring. Do not infer development completion from a successful build or existing coverage.
+- Use source review, compilation/builds, and manual feature checks as appropriate. Running existing tests does not authorize editing them; obey any separate restriction on running tests. Report test failures without changing test code during development.
+- Test-writing instructions elsewhere in this document or linked plans are deferred, including empty-class and sprint-based test tasks. Keep existing tests; do not delete or disable them to bypass failures.
+- This is a student capstone: implement only required behavior and avoid unnecessary complexity.
