@@ -1,0 +1,14 @@
+---
+description: Prioritize product implementation; do not write or expand tests unless the user explicitly authorizes that phase
+alwaysApply: true
+---
+
+# Feature code before tests
+
+Current priority is implementing product behavior in main source.
+
+- Do **not** start a test-writing pass on your own.
+- Do **not** add new unit/integration tests, grow test suites, or do test-only refactors unless the user explicitly asks in that conversation.
+- Unit tests and similar verification wait until feature development is finished **and** the user explicitly authorizes that phase.
+- If a change breaks compilation of existing tests, fix the compile break only; do not treat that as a reason to add coverage.
+- This rule does **not** authorize skipping a test the user just requested in the same message. An explicit "write tests" / "add unit tests" (or equivalent) request is the authorization.

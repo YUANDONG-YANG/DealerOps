@@ -1,0 +1,469 @@
+{
+  "date": "2026-09-28",
+  "method": "browser MCP / Jira UI",
+  "boardCounts": {
+    "To Do": 8,
+    "In Progress": 41,
+    "Review": 28,
+    "Finished": 1
+  },
+  "projectCounts": {
+    "To Do": 11,
+    "In Progress": 49,
+    "Review": 28,
+    "Finished": 1
+  },
+  "changed": 64,
+  "descriptionUpdates": [
+    "KAN-23",
+    "KAN-50",
+    "KAN-67"
+  ],
+  "issues": [
+    {
+      "key": "KAN-3",
+      "before": "To Do",
+      "after": "To Do"
+    },
+    {
+      "key": "KAN-5",
+      "before": "To Do",
+      "after": "To Do"
+    },
+    {
+      "key": "KAN-6",
+      "before": "To Do",
+      "after": "To Do"
+    },
+    {
+      "key": "KAN-7",
+      "before": "To Do",
+      "after": "In Progress"
+    },
+    {
+      "key": "KAN-8",
+      "before": "To Do",
+      "after": "In Progress"
+    },
+    {
+      "key": "KAN-9",
+      "before": "To Do",
+      "after": "In Progress"
+    },
+    {
+      "key": "KAN-10",
+      "before": "To Do",
+      "after": "In Progress"
+    },
+    {
+      "key": "KAN-11",
+      "before": "Review",
+      "after": "In Progress"
+    },
+    {
+      "key": "KAN-12",
+      "before": "To Do",
+      "after": "In Progress"
+    },
+    {
+      "key": "KAN-13",
+      "before": "To Do",
+      "after": "Review"
+    },
+    {
+      "key": "KAN-14",
+      "before": "To Do",
+      "after": "Review"
+    },
+    {
+      "key": "KAN-15",
+      "before": "Finished",
+      "after": "Finished"
+    },
+    {
+      "key": "KAN-16",
+      "before": "Review",
+      "after": "In Progress"
+    },
+    {
+      "key": "KAN-17",
+      "before": "To Do",
+      "after": "Review"
+    },
+    {
+      "key": "KAN-18",
+      "before": "To Do",
+      "after": "In Progress"
+    },
+    {
+      "key": "KAN-19",
+      "before": "In Progress",
+      "after": "In Progress"
+    },
+    {
+      "key": "KAN-20",
+      "before": "To Do",
+      "after": "To Do"
+    },
+    {
+      "key": "KAN-21",
+      "before": "Review",
+      "after": "In Progress"
+    },
+    {
+      "key": "KAN-22",
+      "before": "Review",
+      "after": "In Progress"
+    },
+    {
+      "key": "KAN-23",
+      "before": "In Progress",
+      "after": "In Progress"
+    },
+    {
+      "key": "KAN-24",
+      "before": "To Do",
+      "after": "In Progress"
+    },
+    {
+      "key": "KAN-25",
+      "before": "To Do",
+      "after": "In Progress"
+    },
+    {
+      "key": "KAN-26",
+      "before": "To Do",
+      "after": "In Progress"
+    },
+    {
+      "key": "KAN-27",
+      "before": "To Do",
+      "after": "In Progress"
+    },
+    {
+      "key": "KAN-28",
+      "before": "To Do",
+      "after": "Review"
+    },
+    {
+      "key": "KAN-29",
+      "before": "Review",
+      "after": "Review"
+    },
+    {
+      "key": "KAN-30",
+      "before": "Review",
+      "after": "Review"
+    },
+    {
+      "key": "KAN-31",
+      "before": "To Do",
+      "after": "In Progress"
+    },
+    {
+      "key": "KAN-32",
+      "before": "In Progress",
+      "after": "In Progress"
+    },
+    {
+      "key": "KAN-33",
+      "before": "To Do",
+      "after": "Review"
+    },
+    {
+      "key": "KAN-34",
+      "before": "To Do",
+      "after": "In Progress"
+    },
+    {
+      "key": "KAN-35",
+      "before": "To Do",
+      "after": "In Progress"
+    },
+    {
+      "key": "KAN-36",
+      "before": "To Do",
+      "after": "In Progress"
+    },
+    {
+      "key": "KAN-37",
+      "before": "Review",
+      "after": "In Progress"
+    },
+    {
+      "key": "KAN-38",
+      "before": "To Do",
+      "after": "In Progress"
+    },
+    {
+      "key": "KAN-39",
+      "before": "To Do",
+      "after": "In Progress"
+    },
+    {
+      "key": "KAN-40",
+      "before": "To Do",
+      "after": "In Progress"
+    },
+    {
+      "key": "KAN-41",
+      "before": "To Do",
+      "after": "In Progress"
+    },
+    {
+      "key": "KAN-42",
+      "before": "To Do",
+      "after": "In Progress"
+    },
+    {
+      "key": "KAN-43",
+      "before": "To Do",
+      "after": "In Progress"
+    },
+    {
+      "key": "KAN-44",
+      "before": "Review",
+      "after": "Review"
+    },
+    {
+      "key": "KAN-45",
+      "before": "To Do",
+      "after": "In Progress"
+    },
+    {
+      "key": "KAN-46",
+      "before": "To Do",
+      "after": "In Progress"
+    },
+    {
+      "key": "KAN-47",
+      "before": "To Do",
+      "after": "Review"
+    },
+    {
+      "key": "KAN-48",
+      "before": "Review",
+      "after": "Review"
+    },
+    {
+      "key": "KAN-49",
+      "before": "Review",
+      "after": "Review"
+    },
+    {
+      "key": "KAN-50",
+      "before": "Review",
+      "after": "Review"
+    },
+    {
+      "key": "KAN-51",
+      "before": "To Do",
+      "after": "Review"
+    },
+    {
+      "key": "KAN-52",
+      "before": "To Do",
+      "after": "Review"
+    },
+    {
+      "key": "KAN-53",
+      "before": "To Do",
+      "after": "Review"
+    },
+    {
+      "key": "KAN-54",
+      "before": "Review",
+      "after": "Review"
+    },
+    {
+      "key": "KAN-55",
+      "before": "To Do",
+      "after": "In Progress"
+    },
+    {
+      "key": "KAN-56",
+      "before": "Review",
+      "after": "Review"
+    },
+    {
+      "key": "KAN-57",
+      "before": "To Do",
+      "after": "In Progress"
+    },
+    {
+      "key": "KAN-58",
+      "before": "To Do",
+      "after": "In Progress"
+    },
+    {
+      "key": "KAN-59",
+      "before": "To Do",
+      "after": "In Progress"
+    },
+    {
+      "key": "KAN-60",
+      "before": "To Do",
+      "after": "Review"
+    },
+    {
+      "key": "KAN-61",
+      "before": "To Do",
+      "after": "To Do"
+    },
+    {
+      "key": "KAN-62",
+      "before": "To Do",
+      "after": "In Progress"
+    },
+    {
+      "key": "KAN-63",
+      "before": "To Do",
+      "after": "In Progress"
+    },
+    {
+      "key": "KAN-64",
+      "before": "To Do",
+      "after": "Review"
+    },
+    {
+      "key": "KAN-65",
+      "before": "Review",
+      "after": "In Progress"
+    },
+    {
+      "key": "KAN-66",
+      "before": "To Do",
+      "after": "In Progress"
+    },
+    {
+      "key": "KAN-67",
+      "before": "In Progress",
+      "after": "Review"
+    },
+    {
+      "key": "KAN-68",
+      "before": "To Do",
+      "after": "In Progress"
+    },
+    {
+      "key": "KAN-69",
+      "before": "To Do",
+      "after": "Review"
+    },
+    {
+      "key": "KAN-70",
+      "before": "To Do",
+      "after": "In Progress"
+    },
+    {
+      "key": "KAN-71",
+      "before": "Review",
+      "after": "Review"
+    },
+    {
+      "key": "KAN-72",
+      "before": "In Progress",
+      "after": "In Progress"
+    },
+    {
+      "key": "KAN-73",
+      "before": "To Do",
+      "after": "In Progress"
+    },
+    {
+      "key": "KAN-74",
+      "before": "To Do",
+      "after": "Review"
+    },
+    {
+      "key": "KAN-75",
+      "before": "To Do",
+      "after": "Review"
+    },
+    {
+      "key": "KAN-76",
+      "before": "To Do",
+      "after": "Review"
+    },
+    {
+      "key": "KAN-77",
+      "before": "To Do",
+      "after": "Review"
+    },
+    {
+      "key": "KAN-78",
+      "before": "To Do",
+      "after": "Review"
+    },
+    {
+      "key": "KAN-79",
+      "before": "To Do",
+      "after": "Review"
+    },
+    {
+      "key": "KAN-80",
+      "before": "To Do",
+      "after": "In Progress"
+    },
+    {
+      "key": "KAN-81",
+      "before": "To Do",
+      "after": "In Progress"
+    },
+    {
+      "key": "KAN-82",
+      "before": "To Do",
+      "after": "In Progress"
+    },
+    {
+      "key": "KAN-83",
+      "before": "To Do",
+      "after": "To Do"
+    },
+    {
+      "key": "KAN-84",
+      "before": "To Do",
+      "after": "In Progress"
+    },
+    {
+      "key": "KAN-85",
+      "before": "To Do",
+      "after": "In Progress"
+    },
+    {
+      "key": "KAN-86",
+      "before": "To Do",
+      "after": "To Do"
+    },
+    {
+      "key": "KAN-87",
+      "before": "To Do",
+      "after": "In Progress"
+    },
+    {
+      "key": "KAN-88",
+      "before": "To Do",
+      "after": "To Do"
+    },
+    {
+      "key": "KAN-89",
+      "before": "To Do",
+      "after": "To Do"
+    },
+    {
+      "key": "KAN-90",
+      "before": "To Do",
+      "after": "In Progress"
+    },
+    {
+      "key": "KAN-91",
+      "before": "To Do",
+      "after": "To Do"
+    },
+    {
+      "key": "KAN-92",
+      "before": "To Do",
+      "after": "To Do"
+    }
+  ]
+}

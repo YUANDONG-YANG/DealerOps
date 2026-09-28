@@ -1,0 +1,109 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="900" viewBox="0 0 1400 900">
+  <defs>
+    <style>
+      .title { font-family: Segoe UI, Helvetica, Arial, sans-serif; font-size: 28px; font-weight: 700; fill: #0f172a; }
+      .subtitle { font-family: Segoe UI, Helvetica, Arial, sans-serif; font-size: 14px; fill: #475569; }
+      .box-title { font-family: Segoe UI, Helvetica, Arial, sans-serif; font-size: 16px; font-weight: 700; fill: #0f172a; }
+      .box-type { font-family: Segoe UI, Helvetica, Arial, sans-serif; font-size: 12px; fill: #64748b; }
+      .box-desc { font-family: Segoe UI, Helvetica, Arial, sans-serif; font-size: 12px; fill: #334155; }
+      .label { font-family: Segoe UI, Helvetica, Arial, sans-serif; font-size: 11px; fill: #1e293b; }
+      .caption { font-family: Segoe UI, Helvetica, Arial, sans-serif; font-size: 13px; fill: #b91c1c; font-weight: 600; }
+      .person { fill: #e0f2fe; stroke: #0284c7; stroke-width: 2; }
+      .ext { fill: #fef3c7; stroke: #d97706; stroke-width: 2; }
+      .container { fill: #dbeafe; stroke: #2563eb; stroke-width: 2; }
+      .db { fill: #dcfce7; stroke: #16a34a; stroke-width: 2; }
+      .boundary { fill: none; stroke: #94a3b8; stroke-width: 2; stroke-dasharray: 8 6; }
+    </style>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L8,3 L0,6 Z" fill="#334155"/>
+    </marker>
+  </defs>
+  <rect width="1400" height="900" fill="#f8fafc"/>
+  <text x="40" y="48" class="title">DealerOps — C4 Container Diagram</text>
+  <text x="40" y="74" class="subtitle">Gateway-only public HTTP · four apps · Entra · one MySQL · ai-manager in-process · no queue</text>
+
+  <!-- People / external -->
+  <rect x="40" y="120" width="180" height="100" rx="10" class="person"/>
+  <text x="130" y="155" text-anchor="middle" class="box-title">Browser User</text>
+  <text x="130" y="175" text-anchor="middle" class="box-type">[Person]</text>
+  <text x="130" y="195" text-anchor="middle" class="box-desc">Dealer staff / admin</text>
+
+  <rect x="40" y="260" width="180" height="100" rx="10" class="ext"/>
+  <text x="130" y="295" text-anchor="middle" class="box-title">Microsoft Entra ID</text>
+  <text x="130" y="315" text-anchor="middle" class="box-type">[External System]</text>
+  <text x="130" y="335" text-anchor="middle" class="box-desc">OIDC / JWT roles</text>
+
+  <!-- System boundary -->
+  <rect x="260" y="100" width="1100" height="680" rx="12" class="boundary"/>
+  <text x="280" y="130" class="box-title">DealerOps System</text>
+
+  <!-- dealer-web -->
+  <rect x="300" y="170" width="220" height="120" rx="8" class="container"/>
+  <text x="410" y="205" text-anchor="middle" class="box-title">dealer-web</text>
+  <text x="410" y="225" text-anchor="middle" class="box-type">[Container: Vue / Vite]</text>
+  <text x="410" y="250" text-anchor="middle" class="box-desc">SPA · MSAL login</text>
+  <text x="410" y="270" text-anchor="middle" class="box-desc">calls Gateway only</text>
+
+  <!-- dealer-gateway -->
+  <rect x="600" y="170" width="260" height="140" rx="8" class="container"/>
+  <text x="730" y="205" text-anchor="middle" class="box-title">dealer-gateway</text>
+  <text x="730" y="225" text-anchor="middle" class="box-type">[Container: Spring Cloud Gateway]</text>
+  <text x="730" y="250" text-anchor="middle" class="box-desc">ONLY public HTTP entry</text>
+  <text x="730" y="270" text-anchor="middle" class="box-desc">JWT validation · routing</text>
+  <text x="730" y="290" text-anchor="middle" class="box-desc">internal route filter</text>
+
+  <!-- dealer-core -->
+  <rect x="420" y="400" width="260" height="140" rx="8" class="container"/>
+  <text x="550" y="435" text-anchor="middle" class="box-title">dealer-core</text>
+  <text x="550" y="455" text-anchor="middle" class="box-type">[Container: Spring Boot]</text>
+  <text x="550" y="480" text-anchor="middle" class="box-desc">DMS / CRM / ads / audit</text>
+  <text x="550" y="500" text-anchor="middle" class="box-desc">tenant filter · not public</text>
+  <text x="550" y="520" text-anchor="middle" class="box-desc">AI via Gateway only</text>
+
+  <!-- ai-service -->
+  <rect x="780" y="400" width="280" height="160" rx="8" class="container"/>
+  <text x="920" y="435" text-anchor="middle" class="box-title">ai-service</text>
+  <text x="920" y="455" text-anchor="middle" class="box-type">[Container: Spring Boot]</text>
+  <text x="920" y="480" text-anchor="middle" class="box-desc">ad-check · assistant</text>
+  <text x="920" y="500" text-anchor="middle" class="box-desc">not public · no DB</text>
+  <text x="920" y="520" text-anchor="middle" class="box-desc">ai-manager in-process</text>
+  <text x="920" y="540" text-anchor="middle" class="box-desc">(library, not a 5th app)</text>
+
+  <!-- MySQL -->
+  <rect x="480" y="620" width="200" height="110" rx="8" class="db"/>
+  <text x="580" y="655" text-anchor="middle" class="box-title">MySQL</text>
+  <text x="580" y="675" text-anchor="middle" class="box-type">[Container: Database]</text>
+  <text x="580" y="700" text-anchor="middle" class="box-desc">one DB · nine tables</text>
+
+  <!-- Explicitly no queue -->
+  <rect x="920" y="620" width="240" height="90" rx="8" fill="#fee2e2" stroke="#dc2626" stroke-width="2" stroke-dasharray="4 4"/>
+  <text x="1040" y="655" text-anchor="middle" class="box-title">No message queue</text>
+  <text x="1040" y="680" text-anchor="middle" class="box-desc">No Service Bus / outbox</text>
+
+  <!-- Arrows -->
+  <line x1="220" y1="170" x2="300" y2="210" stroke="#334155" stroke-width="2" marker-end="url(#arrow)"/>
+  <text x="240" y="175" class="label">HTTPS</text>
+
+  <line x1="220" y1="200" x2="300" y2="230" stroke="#334155" stroke-width="1.5" stroke-dasharray="4 3" marker-end="url(#arrow)"/>
+  <text x="230" y="225" class="label">MSAL</text>
+
+  <line x1="130" y1="260" x2="300" y2="230" stroke="#d97706" stroke-width="1.5" stroke-dasharray="4 3" marker-end="url(#arrow)"/>
+
+  <line x1="520" y1="230" x2="600" y2="230" stroke="#334155" stroke-width="2.5" marker-end="url(#arrow)"/>
+  <text x="540" y="220" class="label">HTTPS → :8080 only</text>
+
+  <line x1="700" y1="310" x2="550" y2="400" stroke="#334155" stroke-width="2" marker-end="url(#arrow)"/>
+  <text x="580" y="360" class="label">/api/v1/*</text>
+
+  <line x1="760" y1="310" x2="900" y2="400" stroke="#334155" stroke-width="2" marker-end="url(#arrow)"/>
+  <text x="820" y="360" class="label">/internal/ai/*</text>
+
+  <path d="M680 470 C740 470, 740 470, 780 470" fill="none" stroke="#334155" stroke-width="2" marker-end="url(#arrow)"/>
+  <text x="700" y="458" class="label">via Gateway (not direct)</text>
+
+  <line x1="550" y1="540" x2="580" y2="620" stroke="#16a34a" stroke-width="2" marker-end="url(#arrow)"/>
+  <text x="500" y="590" class="label">JDBC</text>
+
+  <text x="40" y="860" class="caption">Caption: Bypassing the Gateway must fail — core and ai-service are not publicly reachable.</text>
+</svg>

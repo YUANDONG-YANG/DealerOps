@@ -1,0 +1,19 @@
+---
+description: DealerOps project members to use when creating or assigning JIRA work
+alwaysApply: true
+---
+
+# JIRA project members
+
+Use these people when creating, assigning, or mentioning JIRA work for this project. There are four members.
+
+| Display name | Initials | Notes |
+| --- | --- | --- |
+| Bedgel Fadhil Nda… | BW | Surname is truncated in the source list; do not invent the rest |
+| Jackson Warga | JW | |
+| Logan Jones | — | Photo avatar |
+| Yuandong Yang | — | Current user ("You") |
+
+- Address Yuandong Yang as the person in this chat.
+- Do not add other assignees unless the user names them.
+- If a ticket needs the full spelling of Bedgel's surname, ask before writing it.
