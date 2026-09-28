@@ -17,7 +17,7 @@ Scope changes require a re-sign of this page or email confirmation.
 |---|---|
 | Multi-tenant | One dealership, one data set; dealership A cannot see dealership B; Admin has **zero** business data after opening stores and binding staff |
 | DMS | Specification vehicle fields; VIN unique per dealership; sale fields as a pair; sold locks purchase fields |
-| CRM | Name / Email / Phone / Home address; link an in-stock, unbound vehicle at this dealership; one vehicle, one customer |
+| CRM | Name / Email / Phone / Home address; link an unbound vehicle at this dealership (in stock or sold; sold links cannot be removed); one vehicle, one customer |
 | Ad check + TXT export | OMVIC fixed checklist + GitHub AI component; Ready + TXT only when Passed and not Stale |
 | Audit | Every DMS/CRM change: who, what, when |
 | Assistant | In-dealership read-only Q&A; same AI component; no database writes |

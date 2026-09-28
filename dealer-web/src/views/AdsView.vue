@@ -36,6 +36,9 @@ const saving = ref(false)
 const checking = ref(false)
 const readyBusy = ref(false)
 const exportBusy = ref(false)
+let vehicleListSeq = 0
+let listingLoadSeq = 0
+let loadedListingVehicleId: number | null = null
 
 const sold = computed(() => selected.value?.status === 'SOLD')
 const canRunCheck = computed(() => !!listing.value.id && !sold.value)
@@ -64,14 +67,18 @@ function mediumLabel(medium?: string) {
 }
 
 async function loadVehicles() {
+  const request = ++vehicleListSeq
+  const requestedPage = page.value
   listLoading.value = true
   listError.value = ''
   listForbidden.value = false
   try {
-    const r = await vehiclesApi.list({ page: page.value, size: 10 })
+    const r = await vehiclesApi.list({ page: requestedPage, size: 10 })
+    if (request !== vehicleListSeq) return
     vehicles.value = r.data.items || []
     total.value = r.data.total || 0
   } catch (e) {
+    if (request !== vehicleListSeq) return
     vehicles.value = []
     const { status, code } = apiError(e)
     if (status === 403 || code === 'FORBIDDEN') {
@@ -80,27 +87,32 @@ async function loadVehicles() {
       listError.value = 'Could not load listing.'
     }
   } finally {
-    listLoading.value = false
+    if (request === vehicleListSeq) listLoading.value = false
   }
 }
 
 async function select(vehicle: any) {
+  const request = ++listingLoadSeq
   selected.value = vehicle
   listingError.value = ''
   listingForbidden.value = false
   actionError.value = ''
   listingLoading.value = true
+  loadedListingVehicleId = null
   listing.value = emptyListing(vehicle.id)
   try {
     const r = await listingsApi.get(vehicle.id)
+    if (request !== listingLoadSeq) return
     listing.value = { ...emptyListing(vehicle.id), ...r.data, vehicleId: vehicle.id }
+    loadedListingVehicleId = vehicle.id
     rememberSummary(listing.value)
   } catch (e) {
+    if (request !== listingLoadSeq) return
     const { status, code } = apiError(e)
     if (status === 403 || code === 'FORBIDDEN') listingForbidden.value = true
     else listingError.value = status === 404 || code === 'NOT_FOUND' ? 'Vehicle not found' : 'Could not load listing.'
   } finally {
-    listingLoading.value = false
+    if (request === listingLoadSeq) listingLoading.value = false
   }
 }
 
@@ -123,26 +135,35 @@ async function openVehicleId(raw: unknown) {
 
 async function refreshListing() {
   if (!selected.value?.id) return
-  const r = await listingsApi.get(selected.value.id)
-  listing.value = { ...emptyListing(selected.value.id), ...r.data, vehicleId: selected.value.id }
+  const request = listingLoadSeq
+  const vehicleId = selected.value.id
+  const r = await listingsApi.get(vehicleId)
+  if (request !== listingLoadSeq || selected.value?.id !== vehicleId) return
+  listing.value = { ...emptyListing(vehicleId), ...r.data, vehicleId }
+  loadedListingVehicleId = vehicleId
   rememberSummary(listing.value)
 }
 
 async function save() {
   if (!selected.value?.id || sold.value) return
+  const vehicleId = selected.value.id
+  if (listing.value.vehicleId !== vehicleId || loadedListingVehicleId !== vehicleId) return
   saving.value = true
   actionError.value = ''
   try {
-    const r = await listingsApi.save(selected.value.id, {
+    const r = await listingsApi.save(vehicleId, {
       version: listing.value.version || 0,
       title: listing.value.title ?? '',
       body: listing.value.body ?? '',
       adKind: listing.value.adKind,
       medium: listing.value.medium,
     })
-    listing.value = { ...emptyListing(selected.value.id), ...r.data, vehicleId: selected.value.id }
+    if (selected.value?.id !== vehicleId) return
+    listing.value = { ...emptyListing(vehicleId), ...r.data, vehicleId }
+    loadedListingVehicleId = vehicleId
     rememberSummary(listing.value)
   } catch (e) {
+    if (selected.value?.id !== vehicleId) return
     actionError.value = saveMessage(e)
   } finally {
     saving.value = false
@@ -150,23 +171,29 @@ async function save() {
 }
 
 async function runCheck() {
-  if (!listing.value.id || sold.value) return
+  if (!listing.value.id || sold.value || !selected.value?.id) return
+  const vehicleId = selected.value.id
+  if (listing.value.vehicleId !== vehicleId) return
   checking.value = true
   actionError.value = ''
   try {
     const check = (await listingsApi.check(listing.value.id, { version: listing.value.version })).data
+    if (selected.value?.id !== vehicleId) return
     try {
       await refreshListing()
     } catch {
+      if (selected.value?.id !== vehicleId || listing.value.vehicleId !== vehicleId) return
       listing.value = applyCheckToListing(listing.value, check)
       rememberSummary(listing.value)
     }
   } catch (e) {
+    if (selected.value?.id !== vehicleId) return
     const { status, code } = apiError(e)
     if (status === 502 || code === 'AI_UNAVAILABLE') {
       try {
         await refreshListing()
       } catch {
+        if (selected.value?.id !== vehicleId || listing.value.vehicleId !== vehicleId) return
         listing.value = { ...listing.value, checkStatus: 'AI_UNAVAILABLE' }
         rememberSummary(listing.value)
       }
@@ -185,14 +212,19 @@ async function runCheck() {
 }
 
 async function markReady() {
-  if (!listing.value.id || listing.value.checkStatus !== 'PASSED') return
+  if (!listing.value.id || listing.value.checkStatus !== 'PASSED' || !selected.value?.id) return
+  const vehicleId = selected.value.id
+  if (listing.value.vehicleId !== vehicleId) return
   readyBusy.value = true
   actionError.value = ''
   try {
-    const r = await listingsApi.ready(listing.value.id, { version: listing.value.version })
-    listing.value = { ...listing.value, ...r.data, id: listing.value.id }
+    const listingId = listing.value.id
+    const r = await listingsApi.ready(listingId, { version: listing.value.version })
+    if (selected.value?.id !== vehicleId || listing.value.vehicleId !== vehicleId) return
+    listing.value = { ...listing.value, ...r.data, id: listingId, vehicleId }
     rememberSummary(listing.value)
   } catch (e) {
+    if (selected.value?.id !== vehicleId) return
     actionError.value = await readyExportMessageAsync(e)
   } finally {
     readyBusy.value = false

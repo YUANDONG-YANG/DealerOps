@@ -17,6 +17,7 @@ import com.dealerops.core.vehicle.dto.PatchVehicleRequest;
 import com.dealerops.core.vehicle.dto.SellVehicleRequest;
 import com.dealerops.core.vehicle.dto.VehicleResponse;
 import java.math.BigDecimal;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
 import org.springframework.data.domain.Page;
@@ -77,7 +78,7 @@ public class VehicleService {
         AuditAction.CREATE.name(),
         tenant,
         actorOid(),
-        Map.of("vinChanged", true));
+        createdVehicleFields(body));
     return toResponse(vehicle);
   }
 
@@ -93,13 +94,13 @@ public class VehicleService {
     if (!body.version().equals(vehicle.getVersion())) {
       throw new ApiException(ErrorCode.VERSION_CONFLICT, "Version conflict.");
     }
-    if (vehicle.getStatus() == VehicleStatus.SOLD && purchaseFieldsChanged(vehicle, body)) {
+    Map<String, Object> changed = changedVehicleFields(vehicle, body);
+    if (vehicle.getStatus() == VehicleStatus.SOLD && purchaseFieldsChanged(changed)) {
       throw new ApiException(ErrorCode.SOLD_LOCKED, "Sold vehicle is locked.");
     }
-    if (!vehicle.getVin().equals(body.vin()) && vehicleRepository.existsByDealerIdAndVin(tenant, body.vin())) {
+    if (changed.containsKey("vin") && vehicleRepository.existsByDealerIdAndVin(tenant, body.vin())) {
       throw new ApiException(ErrorCode.VIN_DUP, "VIN already exists in this dealership.");
     }
-    ConditionCode oldCondition = vehicle.getConditionCode();
     vehicle.setMake(body.make());
     vehicle.setModel(body.model());
     vehicle.setModelYear(body.modelYear());
@@ -110,7 +111,7 @@ public class VehicleService {
     vehicle.setConditionCode(body.conditionCode());
     vehicle.setRepairCost(body.repairCost());
     vehicle.setCarfaxUrl(body.carfaxUrl());
-    if (oldCondition != vehicle.getConditionCode()) {
+    if (changed.containsKey("conditionCode")) {
       listingRepository
           .findByVehicleIdAndDealerId(vehicle.getId(), tenant)
           .ifPresent(
@@ -126,7 +127,7 @@ public class VehicleService {
         AuditAction.UPDATE.name(),
         tenant,
         actorOid(),
-        Map.of("identityFieldsChanged", true));
+        changed);
     return toResponse(vehicle);
   }
 
@@ -143,6 +144,7 @@ public class VehicleService {
     if (vehicle.getStatus() == VehicleStatus.SOLD) {
       throw new ApiException(ErrorCode.SOLD_LOCKED, "Sold vehicle is locked.");
     }
+    Map<String, Object> changed = changedSellFields(vehicle, body);
     vehicle.setStatus(VehicleStatus.SOLD);
     vehicle.setSoldOn(body.soldOn());
     vehicle.setSoldPrice(body.soldPrice());
@@ -153,7 +155,7 @@ public class VehicleService {
         AuditAction.SELL.name(),
         tenant,
         actorOid(),
-        Map.of("sold", true));
+        changed);
     return toResponse(vehicle);
   }
 
@@ -164,16 +166,92 @@ public class VehicleService {
         .orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND, "Not found"));
   }
 
-  private static boolean purchaseFieldsChanged(VehicleEntity vehicle, PatchVehicleRequest body) {
-    return !Objects.equals(vehicle.getMake(), body.make())
-        || !Objects.equals(vehicle.getModel(), body.model())
-        || vehicle.getModelYear() != body.modelYear()
-        || !Objects.equals(vehicle.getVin(), body.vin())
-        || vehicle.getSource() != body.source()
-        || vehicle.getPurchaseCost().compareTo(body.purchaseCost()) != 0
-        || !Objects.equals(vehicle.getAddedOn(), body.addedOn())
-        || !Objects.equals(vehicle.getRepairCost(), body.repairCost())
-        || !Objects.equals(vehicle.getCarfaxUrl(), body.carfaxUrl());
+  private static Map<String, Object> createdVehicleFields(CreateVehicleRequest body) {
+    Map<String, Object> fields = new LinkedHashMap<>();
+    fields.put("make", true);
+    fields.put("model", true);
+    fields.put("modelYear", true);
+    fields.put("vin", true);
+    fields.put("source", true);
+    fields.put("purchaseCost", true);
+    fields.put("addedOn", true);
+    fields.put("conditionCode", true);
+    fields.put("status", true);
+    if (body.repairCost() != null) {
+      fields.put("repairCost", true);
+    }
+    if (body.carfaxUrl() != null) {
+      fields.put("carfaxUrl", true);
+    }
+    return fields;
+  }
+
+  private static Map<String, Object> changedVehicleFields(VehicleEntity vehicle, PatchVehicleRequest body) {
+    Map<String, Object> changed = new LinkedHashMap<>();
+    if (!Objects.equals(vehicle.getMake(), body.make())) {
+      changed.put("make", true);
+    }
+    if (!Objects.equals(vehicle.getModel(), body.model())) {
+      changed.put("model", true);
+    }
+    if (vehicle.getModelYear() != body.modelYear()) {
+      changed.put("modelYear", true);
+    }
+    if (!Objects.equals(vehicle.getVin(), body.vin())) {
+      changed.put("vin", true);
+    }
+    if (vehicle.getSource() != body.source()) {
+      changed.put("source", true);
+    }
+    if (vehicle.getPurchaseCost().compareTo(body.purchaseCost()) != 0) {
+      changed.put("purchaseCost", true);
+    }
+    if (!Objects.equals(vehicle.getAddedOn(), body.addedOn())) {
+      changed.put("addedOn", true);
+    }
+    if (vehicle.getConditionCode() != body.conditionCode()) {
+      changed.put("conditionCode", true);
+    }
+    if (!Objects.equals(vehicle.getRepairCost(), body.repairCost())) {
+      changed.put("repairCost", true);
+    }
+    if (!Objects.equals(vehicle.getCarfaxUrl(), body.carfaxUrl())) {
+      changed.put("carfaxUrl", true);
+    }
+    return changed;
+  }
+
+  private static Map<String, Object> changedSellFields(VehicleEntity vehicle, SellVehicleRequest body) {
+    Map<String, Object> changed = new LinkedHashMap<>();
+    if (vehicle.getStatus() != VehicleStatus.SOLD) {
+      changed.put("status", true);
+    }
+    if (!Objects.equals(vehicle.getSoldOn(), body.soldOn())) {
+      changed.put("soldOn", true);
+    }
+    if (moneyChanged(vehicle.getSoldPrice(), body.soldPrice())) {
+      changed.put("soldPrice", true);
+    }
+    return changed;
+  }
+
+  private static boolean purchaseFieldsChanged(Map<String, Object> changed) {
+    return changed.containsKey("make")
+        || changed.containsKey("model")
+        || changed.containsKey("modelYear")
+        || changed.containsKey("vin")
+        || changed.containsKey("source")
+        || changed.containsKey("purchaseCost")
+        || changed.containsKey("addedOn")
+        || changed.containsKey("repairCost")
+        || changed.containsKey("carfaxUrl");
+  }
+
+  private static boolean moneyChanged(BigDecimal current, BigDecimal next) {
+    if (current == null || next == null) {
+      return current != next;
+    }
+    return current.compareTo(next) != 0;
   }
 
   private VehicleResponse toResponse(VehicleEntity vehicle) {

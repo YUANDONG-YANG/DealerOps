@@ -20,8 +20,10 @@ import com.dealerops.core.security.CurrentUser;
 import com.dealerops.core.vehicle.VehicleEntity;
 import com.dealerops.core.vehicle.VehicleRepository;
 import com.dealerops.core.vehicle.VehicleStatus;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
@@ -74,7 +76,8 @@ public class CustomerService {
         AuditAction.CREATE.name(),
         tenant,
         actorOid(),
-        Map.of("contactFieldsChanged", true));
+        contactFieldChanges(
+            null, null, null, null, body.name(), body.email(), body.phone(), body.homeAddress()));
     return toDetail(customer);
   }
 
@@ -90,6 +93,16 @@ public class CustomerService {
     if (!body.version().equals(customer.getVersion())) {
       throw new ApiException(ErrorCode.VERSION_CONFLICT, "Version conflict.");
     }
+    Map<String, Object> fieldSummary =
+        contactFieldChanges(
+            customer.getName(),
+            customer.getEmail(),
+            customer.getPhone(),
+            customer.getHomeAddress(),
+            body.name(),
+            body.email(),
+            body.phone(),
+            body.homeAddress());
     customer.setName(body.name());
     customer.setEmail(body.email());
     customer.setPhone(body.phone());
@@ -101,7 +114,7 @@ public class CustomerService {
         AuditAction.UPDATE.name(),
         tenant,
         actorOid(),
-        Map.of("contactFieldsChanged", true));
+        fieldSummary);
     return toDetail(customer);
   }
 
@@ -137,11 +150,13 @@ public class CustomerService {
   @Transactional
   public void unlink(Long customerId, Long vehicleId) {
     Long tenant = requireTenant();
-    if (customerRepository.findByIdAndDealerId(customerId, tenant).isEmpty()
-        || vehicleRepository.findByIdAndDealerId(vehicleId, tenant).isEmpty()) {
+    if (customerRepository.findByIdAndDealerId(customerId, tenant).isEmpty()) {
       throw new ApiException(ErrorCode.NOT_FOUND, "Not found");
     }
-    VehicleEntity vehicle = vehicleRepository.findByIdAndDealerId(vehicleId, tenant).orElseThrow();
+    VehicleEntity vehicle =
+        vehicleRepository
+            .findByIdAndDealerId(vehicleId, tenant)
+            .orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND, "Not found"));
     CustomerVehicleEntity row =
         customerVehicleRepository
             .findByCustomerIdAndVehicleId(customerId, vehicleId)
@@ -203,6 +218,31 @@ public class CustomerService {
         customer.getHomeAddress(),
         items,
         customer.getVersion());
+  }
+
+  private static Map<String, Object> contactFieldChanges(
+      String previousName,
+      String previousEmail,
+      String previousPhone,
+      String previousHomeAddress,
+      String name,
+      String email,
+      String phone,
+      String homeAddress) {
+    Map<String, Object> changed = new LinkedHashMap<>();
+    if (!Objects.equals(previousName, name)) {
+      changed.put("name", true);
+    }
+    if (!Objects.equals(previousEmail, email)) {
+      changed.put("email", true);
+    }
+    if (!Objects.equals(previousPhone, phone)) {
+      changed.put("phone", true);
+    }
+    if (!Objects.equals(previousHomeAddress, homeAddress)) {
+      changed.put("homeAddress", true);
+    }
+    return changed;
   }
 
   private CustomerEntity loadThisDealer(Long id) {

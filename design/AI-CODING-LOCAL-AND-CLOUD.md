@@ -121,6 +121,7 @@ services:
     build: ../ai-service
     environment:
       AI_PORT: "8082"
+      SPRING_PROFILES_ACTIVE: dev
       INTERNAL_TOKEN: dealer-internal
       AIMANAGER_API_KEY: ${AIMANAGER_API_KEY}
       AIMANAGER_GATEWAY_PROVIDER: ${AIMANAGER_GATEWAY_PROVIDER:-openai}
@@ -134,6 +135,7 @@ services:
       GATEWAY_PORT: "8080"
       CORE_URL: http://host.docker.internal:8081
       AI_URL: http://host.docker.internal:8082
+      SPRING_PROFILES_ACTIVE: dev
       INTERNAL_TOKEN: dealer-internal
       CORS_ALLOWED_ORIGIN: http://localhost:5173
       ENTRA_ISSUER: ${ENTRA_ISSUER}
@@ -166,7 +168,7 @@ services:
 | Environment variable (Gateway) | **`CORS_ALLOWED_ORIGIN`** (local default is the row above; Azure becomes the web HTTPS origin) |
 | Internal request header name | **`X-Dealer-Internal`** |
 | Environment variable (value) | **`INTERNAL_TOKEN`** |
-| Local default | **`dealer-internal`** |
+| Local default | **`dealer-internal`**, accepted only when the Spring profile is **`dev`** or **`local`**. Any other profile must set a non-default **`INTERNAL_TOKEN`** shared by gateway, ai-service, and dealer-core. |
 | Key Vault secret name | **`INTERNAL-TOKEN`** (cloud; never write the real value in the repo) |
 
 Who reads `INTERNAL_TOKEN`: **gateway** (predicate), **core** (outbound), **ai-service** (guard). **web does not read it.**

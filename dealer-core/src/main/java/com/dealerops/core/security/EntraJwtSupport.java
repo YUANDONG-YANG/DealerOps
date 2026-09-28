@@ -19,11 +19,21 @@ public final class EntraJwtSupport {
   public static final String DEFAULT_ISSUER = "https://login.microsoftonline.com/<tenant-id>/v2.0";
   public static final String DEFAULT_AUDIENCE = "api://dealer-api";
   public static final String DEFAULT_DEV_SECRET = "dealer-dev-jwt-secret-change-me";
+  /** HS256 keys shorter than this are rejected, except the classroom default below. */
+  public static final int MIN_HMAC_KEY_BYTES = 32;
 
   private EntraJwtSupport() {}
 
   public static boolean isEntraMode(String mode) {
     return ENTRA_MODE.equalsIgnoreCase(mode == null ? "" : mode.trim());
+  }
+
+  public static boolean isDevMode(String mode) {
+    return DEV_MODE.equalsIgnoreCase(mode == null ? "" : mode.trim());
+  }
+
+  public static boolean isWellKnownDevSecret(String secret) {
+    return DEFAULT_DEV_SECRET.equals(secret);
   }
 
   /** Placeholder {@code <tenant-id>} (or blank) must not trigger a JWKS fetch. */
@@ -57,11 +67,26 @@ public final class EntraJwtSupport {
     return iss + "/discovery/v2.0/keys";
   }
 
+  /**
+   * HS256 key for an explicit {@code JWT_MODE=dev} decoder.
+   * A blank secret is rejected (it must not become the classroom default here).
+   * The classroom default is shorter than {@link #MIN_HMAC_KEY_BYTES} and is zero-padded
+   * only for that exact value so existing local tokens still verify. Any other short
+   * secret is rejected so a custom {@code DEV_JWT_SECRET} is not silently weakened.
+   */
   public static SecretKey hmacSecret(String secret) {
-    String value = secret == null || secret.isBlank() ? DEFAULT_DEV_SECRET : secret;
-    byte[] raw = value.getBytes(StandardCharsets.UTF_8);
-    byte[] bytes = raw.length >= 32 ? raw : pad(raw);
-    return new SecretKeySpec(bytes, "HmacSHA256");
+    if (secret == null || secret.isBlank()) {
+      throw new IllegalArgumentException("DEV_JWT_SECRET is blank");
+    }
+    byte[] raw = secret.getBytes(StandardCharsets.UTF_8);
+    if (raw.length >= MIN_HMAC_KEY_BYTES) {
+      return new SecretKeySpec(raw, "HmacSHA256");
+    }
+    if (DEFAULT_DEV_SECRET.equals(secret)) {
+      return new SecretKeySpec(pad(raw), "HmacSHA256");
+    }
+    throw new IllegalArgumentException(
+        "DEV_JWT_SECRET must be at least 32 UTF-8 bytes. Short custom secrets are not padded.");
   }
 
   public static OAuth2TokenValidator<Jwt> audienceValidator(String audience) {

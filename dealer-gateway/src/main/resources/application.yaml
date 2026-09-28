@@ -1,6 +1,7 @@
 # Routes are pinned here (override with CORE_URL / AI_URL / INTERNAL_TOKEN / ENTRA_* / JWT_MODE).
 # JWT: JWT_MODE=dev uses local HS256. JWT_MODE=entra uses issuer + audience + JWKS.
 # Placeholder ENTRA_ISSUER does not fetch JWKS at startup.
+# CORS policy is only in CorsConfig. Do not add spring.cloud.gateway.globalcors.
 server:
   port: ${GATEWAY_PORT:8080}
 
@@ -15,32 +16,32 @@ spring:
           audiences: ${ENTRA_AUDIENCE:api://dealer-api}
   cloud:
     gateway:
-      globalcors:
-        add-to-simple-url-handler-mapping: true
-        cors-configurations:
-          '[/**]':
-            allowedOrigins:
-              # Local Vite or Azure web HTTPS. Set CORS_ALLOWED_ORIGIN; no hostname in git.
-              - "${CORS_ALLOWED_ORIGIN:http://localhost:5173}"
-            allowedMethods: [GET, POST, PUT, PATCH, DELETE, OPTIONS]
-            allowedHeaders: [Authorization, Content-Type]
-            exposedHeaders: []
-            allowCredentials: false
-      default-filters:
-        - DedupeResponseHeader=Access-Control-Allow-Origin Access-Control-Allow-Credentials, RETAIN_UNIQUE
+      # Backstop if a route omits metadata. Per-route metadata below overrides this.
+      # response-timeout here is a duration; route metadata values are milliseconds.
+      httpclient:
+        connect-timeout: 2000
+        response-timeout: 18s
       routes:
         - id: dealer-core-public
           uri: ${CORE_URL:http://localhost:8081}
           predicates:
             - Path=/api/v1/**
+          # Outer hop for browser calls, including checks that block on core's 13s AI wait.
+          # 18s stays under the browser check timeout (20s) and above that nested wait.
+          metadata:
+            connect-timeout: 2000
+            response-timeout: 18000
           filters:
             - PreserveHostHeader
-        # Classroom acceptance opens Swagger on the gateway. No Bearer token.
-        # Core still renders the page; the browser must not use core's port.
+        # Proxied for local/dev classroom only. SecurityConfig denies these paths
+        # unless dealerops.jwt.mode is dev and no non-local Spring profile is active.
         - id: dealer-core-swagger
           uri: ${CORE_URL:http://localhost:8081}
           predicates:
             - Path=/swagger-ui.html,/swagger-ui/**,/v3/api-docs,/v3/api-docs/**
+          metadata:
+            connect-timeout: 2000
+            response-timeout: 5000
           filters:
             - PreserveHostHeader
         - id: ai-service-internal
@@ -48,6 +49,10 @@ spring:
           predicates:
             - Path=/internal/v1/**
             - Header=X-Dealer-Internal, ${INTERNAL_TOKEN:dealer-internal}
+          # Covers ai-service response-timeout-ms (13000) plus a small margin.
+          metadata:
+            connect-timeout: 2000
+            response-timeout: 16000
           filters:
             - RemoveRequestHeader=Authorization
         - id: not-found

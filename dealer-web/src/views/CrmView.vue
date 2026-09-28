@@ -1,12 +1,14 @@
 ﻿<script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { nextTick, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
+import type { FormInstance, FormRules } from 'element-plus'
 import AppLayout from '../layouts/AppLayout.vue'
 import DataTable from '../components/DataTable.vue'
 import FormDrawer from '../components/FormDrawer.vue'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 import PageState from '../components/PageState.vue'
+import { messageOf } from '../api/http'
 import { customersApi } from '../api/customers'
 import { errorCode, errorStatus, vehiclesApi } from '../api/vehicles'
 import { auditApi } from '../api/audit'
@@ -28,13 +30,34 @@ const linkError = ref('')
 const unlinkId = ref<number | null>(null)
 const linkId = ref<number | undefined>()
 const form = ref(blankForm())
+const formRef = ref<FormInstance>()
 const filters = ref({ q: '', linked: '' })
+let listSeq = 0
+let editSeq = 0
 const CUSTOMER_FIELDS = [
   { key: 'name', label: 'Name' },
   { key: 'email', label: 'Email' },
   { key: 'phone', label: 'Phone' },
   { key: 'homeAddress', label: 'Home address' },
 ] as const
+
+function requiredFieldRule() {
+  return {
+    required: true,
+    trigger: 'blur' as const,
+    validator: (_rule: unknown, value: unknown, callback: (error?: Error) => void) => {
+      if (typeof value !== 'string' || value.trim() === '') callback(new Error('Check required fields'))
+      else callback()
+    },
+  }
+}
+
+const customerRules: FormRules = {
+  name: [requiredFieldRule()],
+  email: [requiredFieldRule()],
+  phone: [requiredFieldRule()],
+  homeAddress: [requiredFieldRule()],
+}
 
 function blankForm() {
   return { name: '', email: '', phone: '', homeAddress: '' }
@@ -54,10 +77,23 @@ function summaryText(raw: unknown) {
   return Object.keys(o).length ? JSON.stringify(o) : '—'
 }
 
+function validationMessage(error: unknown) {
+  const fieldErrors = (
+    error as { response?: { data?: { fieldErrors?: Record<string, unknown> | null } } }
+  ).response?.data?.fieldErrors
+  if (fieldErrors && typeof fieldErrors === 'object') {
+    const parts = Object.entries(fieldErrors)
+      .map(([field, detail]) => (typeof detail === 'string' && detail.trim() ? `${field}: ${detail.trim()}` : ''))
+      .filter((part) => part.length > 0)
+    if (parts.length) return parts.join('; ')
+  }
+  return messageOf(error, 'Check required fields')
+}
+
 function mapCustomerWrite(e: unknown) {
   const code = errorCode(e)
   const status = errorStatus(e)
-  if (code === 'VALIDATION') return 'Check required fields'
+  if (code === 'VALIDATION') return validationMessage(e)
   if (code === 'VERSION_CONFLICT') return 'Refresh and retry'
   if (status === 404 || code === 'NOT_FOUND') return 'Customer not found'
   return 'Could not save customer.'
@@ -81,73 +117,97 @@ function mapUnlink(e: unknown) {
 }
 
 const load = async () => {
+  const seq = ++listSeq
   loading.value = true
   error.value = ''
   forbidden.value = false
   try {
     const r = await customersApi.list({ ...filters.value, page: page.value, size: 10 })
+    if (seq !== listSeq) return
     rows.value = r.data.items || []
     total.value = r.data.total || 0
   } catch (e) {
+    if (seq !== listSeq) return
     if (errorStatus(e) === 403 || errorCode(e) === 'FORBIDDEN') forbidden.value = true
     else error.value = 'Could not load customers.'
     rows.value = []
   } finally {
-    loading.value = false
+    if (seq === listSeq) loading.value = false
   }
 }
 
-async function loadAudit(id: number) {
+async function loadAudit(id: number, seq: number) {
+  if (seq !== editSeq) return
   audit.value = []
   try {
     const r = await auditApi.list({ entityType: 'CUSTOMER', entityId: id })
+    if (seq !== editSeq) return
     audit.value = r.data.items || []
   } catch {
+    if (seq !== editSeq) return
     audit.value = []
   }
 }
 
+async function collectPages(
+  loadPage: (page: number, size: number) => Promise<{ data: { items?: any[]; total?: number; size?: number } }>,
+): Promise<any[]> {
+  const collected: any[] = []
+  let pageIndex = 0
+  let totalCount = Number.POSITIVE_INFINITY
+  let size = 10
+  while (collected.length < totalCount) {
+    const r = await loadPage(pageIndex, size)
+    const pageItems = r.data.items || []
+    totalCount = Number(r.data.total) || 0
+    const returned = Number(r.data.size)
+    if (Number.isFinite(returned) && returned > 0) size = Math.min(returned, 10)
+    collected.push(...pageItems)
+    if (!pageItems.length) break
+    pageIndex += 1
+  }
+  return collected
+}
+
 /**
- * Occupancy from GET /customers?linked=true (design/13): list linkedVehicle marks taken rows.
+ * Occupancy comes from full customer details; the list contains only the latest vehicle.
  * 14 VehicleResponse has no linkedCustomerId — do not invent that public field.
  * Current drawer already has full linkedVehicles[]; use that for this customer.
  */
-async function loadLinkedOwners(): Promise<Map<number, number>> {
+async function loadLinkedOwners(customer: any): Promise<Map<number, number>> {
   const owners = new Map<number, number>()
-  for (const v of selected.value?.linkedVehicles || []) {
-    if (selected.value?.id != null && v?.id != null) owners.set(v.id, selected.value.id)
+  const customerId = customer?.id
+  for (const v of customer?.linkedVehicles || []) {
+    if (customerId != null && v?.id != null) owners.set(v.id, customerId)
   }
-  let page = 0
-  let total = 1
-  while (page * 50 < total) {
-    const r = await customersApi.list({ linked: true, page, size: 50 })
-    total = Number(r.data.total) || 0
-    const items = r.data.items || []
-    for (const c of items) {
-      if (c.id === selected.value?.id) continue
-      if (c.linkedVehicle?.id != null) owners.set(c.linkedVehicle.id, c.id)
+  const items = await collectPages((pageIndex, size) => customersApi.list({ linked: true, page: pageIndex, size }))
+  for (const c of items) {
+    if (c.id === customerId) continue
+    const detail = (await customersApi.get(c.id)).data
+    for (const v of detail.linkedVehicles || []) {
+      if (v?.id != null) owners.set(v.id, c.id)
     }
-    if (!items.length) break
-    page += 1
   }
   return owners
 }
 
-async function loadLinkOptions() {
+async function loadLinkOptions(seq: number, customer: any) {
   try {
-    const [vehicleRes, owners] = await Promise.all([
-      vehiclesApi.list({ page: 0, size: 50 }),
-      loadLinkedOwners(),
+    const [allVehicles, owners] = await Promise.all([
+      collectPages((pageIndex, size) => vehiclesApi.list({ page: pageIndex, size })),
+      loadLinkedOwners(customer),
     ])
-    const ownIds = new Set((selected.value?.linkedVehicles || []).map((x: any) => x.id))
-    // Drop this customer's already-linked rows; keep other-customer occupancy for disabled options
-    vehicles.value = (vehicleRes.data.items || [])
-      .filter((x: any) => !ownIds.has(x.id))
+    if (seq !== editSeq) return
+    const ownIds = new Set((customer?.linkedVehicles || []).map((x: any) => x.id))
+    // Only offer unlinked vehicles, including same-dealer sold vehicles.
+    vehicles.value = allVehicles
+      .filter((x: any) => !ownIds.has(x.id) && !owners.has(x.id))
       .map((x: any) => ({
         ...x,
         linkedCustomerId: owners.get(x.id) ?? null,
       }))
   } catch {
+    if (seq !== editSeq) return
     vehicles.value = []
   }
 }
@@ -156,7 +216,14 @@ function isTaken(v: any) {
   return Boolean(v.linkedCustomerId) && v.linkedCustomerId !== selected.value?.id
 }
 
+function closeDrawer() {
+  if (!drawer.value) return
+  editSeq += 1
+  drawer.value = false
+}
+
 async function openCreate() {
+  editSeq += 1
   selected.value = null
   form.value = blankForm()
   formError.value = ''
@@ -165,14 +232,18 @@ async function openCreate() {
   vehicles.value = []
   linkId.value = undefined
   drawer.value = true
+  await nextTick()
+  formRef.value?.clearValidate()
 }
 
 async function openEdit(id: number) {
+  const seq = ++editSeq
   formError.value = ''
   linkError.value = ''
   audit.value = []
   try {
     const r = await customersApi.get(id)
+    if (seq !== editSeq) return
     selected.value = r.data
     form.value = {
       name: r.data.name ?? '',
@@ -181,18 +252,26 @@ async function openEdit(id: number) {
       homeAddress: r.data.homeAddress ?? '',
     }
     drawer.value = true
-    await loadLinkOptions()
-    await loadAudit(id)
+    await nextTick()
+    if (seq !== editSeq) return
+    formRef.value?.clearValidate()
+    await loadLinkOptions(seq, r.data)
+    await loadAudit(id, seq)
   } catch (e) {
+    if (seq !== editSeq) return
     selected.value = null
     form.value = blankForm()
     drawer.value = false
-    ElMessage.error(errorStatus(e) === 404 || errorCode(e) === 'NOT_FOUND' ? 'Customer not found' : 'Customer not found')
+    const missing = errorStatus(e) === 404 || errorCode(e) === 'NOT_FOUND'
+    ElMessage.error(missing ? 'Customer not found' : 'Could not load customer.')
   }
 }
 
 async function save() {
   formError.value = ''
+  if (!formRef.value) return
+  const ok = await formRef.value.validate().then((passed) => passed !== false).catch(() => false)
+  if (!ok) return
   try {
     if (selected.value) {
       const saved = await customersApi.update(selected.value.id, { ...form.value, version: selected.value.version })
@@ -248,8 +327,7 @@ async function unlink() {
   }
 }
 
-async function openDeepLink() {
-  const raw = route.query.customerId
+async function openDeepLink(raw: unknown = route.query.customerId) {
   if (raw == null || raw === '') return
   const id = Number(Array.isArray(raw) ? raw[0] : raw)
   if (!Number.isFinite(id)) {
@@ -259,10 +337,17 @@ async function openDeepLink() {
   await openEdit(id)
 }
 
-onMounted(async () => {
-  await load()
-  await openDeepLink()
+onMounted(() => {
+  void load()
 })
+
+watch(
+  () => route.query.customerId,
+  (value) => {
+    void openDeepLink(value)
+  },
+  { immediate: true },
+)
 </script>
 
 <template>
@@ -306,9 +391,9 @@ onMounted(async () => {
         </DataTable>
       </PageState>
     </div>
-    <FormDrawer title="Customer" :visible="drawer" @close="drawer = false">
-      <el-form label-position="top">
-        <el-form-item v-for="field in CUSTOMER_FIELDS" :key="field.key" :label="field.label">
+    <FormDrawer title="Customer" :visible="drawer" @close="closeDrawer">
+      <el-form ref="formRef" :model="form" :rules="customerRules" label-position="top">
+        <el-form-item v-for="field in CUSTOMER_FIELDS" :key="field.key" :label="field.label" :prop="field.key">
           <el-input v-model="form[field.key]" />
         </el-form-item>
         <p v-if="formError" class="danger-text">{{ formError }}</p>
@@ -319,7 +404,7 @@ onMounted(async () => {
             <el-option
               v-for="v in vehicles"
               :key="v.id"
-              :label="linkedLabel(v)"
+              :label="`${linkedLabel(v)} · ${v.vin}`"
               :value="v.id"
               :disabled="isTaken(v)"
             />
@@ -327,7 +412,8 @@ onMounted(async () => {
           <el-button style="margin-top: 10px" @click="link">Link vehicle</el-button>
           <p v-if="linkError" class="danger-text">{{ linkError }}</p>
           <div v-for="v in selected.linkedVehicles || []" :key="v.id" style="margin-top: 12px">
-            <span>{{ linkedLabel(v) }}</span>
+            <router-link :to="{ path: '/dms', query: { vehicleId: v.id } }">{{ linkedLabel(v) }}</router-link>
+            <span class="muted"> · {{ v.vin }} · {{ v.status === 'SOLD' ? 'Sold' : 'In stock' }}</span>
             <el-button v-if="v.status !== 'SOLD'" link @click="requestUnlink(v.id)">Unlink</el-button>
             <span v-else class="muted"> Sold vehicles cannot be unlinked</span>
           </div>

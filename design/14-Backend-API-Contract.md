@@ -6,7 +6,7 @@ Version v6.0 · 2026-09-21
 **Conflict order:** course PPT hard items > spec PDF fields > [IMPLEMENTATION-BRIEF.md](IMPLEMENTATION-BRIEF.md) / `00` > **[15](15-Data-Auth-and-Gateway.md) owns data/tenant/gateway behavior**, **this document owns HTTP JSON** > [13](13-Frontend-Engineering.md) frontend engineering > [12](12-Frontend-UI-Conventions.md).  
 **Entry:** browser-to-service traffic goes only through Gateway `http://localhost:8080`, prefix **`/api/v1/**`**. core=`8081`, ai-service=`8082` are not public. Bypassing Gateway must fail.  
 **Internal:** Gateway → ai-service `/internal/v1/**` is **404** for the browser; this document writes those paths only for the core adapter.  
-**PROTOCOL wins** over this document’s §11 response sketches and any OpenAPI internal sketches that still show `{failed,reason}`. Internal success/failure JSON and this-store sold-link codes follow [AI-PROTOCOL-AND-RULES.md](AI-PROTOCOL-AND-RULES.md). Cross-dealership ids are always **404**; `WRONG_DEALER_OR_SOLD` is only for this-store sold / not `IN_STOCK` on PUT link.
+**PROTOCOL wins** over this document’s §11 response sketches and any OpenAPI internal sketches that still show `{failed,reason}`. Internal success/failure JSON follows [AI-PROTOCOL-AND-RULES.md](AI-PROTOCOL-AND-RULES.md). Cross-dealership ids are always **404**. PUT link does not reject a same-store sold vehicle: `CustomerService.link` links an in-stock or sold vehicle that is not already linked, and it does not throw `WRONG_DEALER_OR_SOLD`.
 
 Path-table summary is in `dealer-platform/API.md`. Coding follows this document's JSON and error codes.
 
@@ -20,7 +20,7 @@ Nullability of data columns, whether `membership` / `app_user` is authoritative,
 |---|---|
 | **Handbook restatement only** | two roles; ignore frontend `dealerId`; cross-dealership **404 not 403**; Admin hitting business URLs gets no business fields; error body `{code,message}`; writes carry `version` → `409 VERSION_CONFLICT`; ad five-state conditions; check rules then AI (≤15s); Ready/Export only when Passed and not Stale; assistant does not write business tables; internal `vehiclePublic` has no purchase cost; assistant `resources` have no phone/email/address; lists default to 10 per page; VIN unique per dealership; sell as a pair; sold locks purchase fields; one vehicle one customer |
 | **New rulings here** | pagination envelope `{items,page,size,total}` (handbook says 10 per page but not the envelope); **unlink** `DELETE /customers/{id}/vehicles/{vehicleId}` → 204; Admin **GET/PATCH** single dealership (handbook has list+create only); `SOLD_LOCKED` is always **409**; Blocked checks are **200**; `AI_UNAVAILABLE` is **502** and already persisted; derived fields `checkStatus` / `staffCount` / list `linkedVehicle`; 400 `VALIDATION` may include `fieldErrors`; JSON `id` is a number (do not use string ids from the retired draft); money is a JSON number; Admin↔business URL role mismatch is **403** `FORBIDDEN`; HTTP semantics of bind/unbind (whether the row is soft-deleted is left to 15) |
-| **Aligned with 15** | GET listing with no row: **do not persist**, virtual empty draft; first PATCH uses `''` to satisfy `title`/`body` NOT NULL. Tenant authority is `membership.active=1`; ignore client `dealerId`. Cross-dealership id → **404**. Staff with no valid membership calling business APIs → **403** `FORBIDDEN` (signed in, no dealership — not 401/404). Sold vehicles: no new link (`400 WRONG_DEALER_OR_SOLD`), no unlink (`409 SOLD_LOCKED`) |
+| **Aligned with 15** | GET listing with no row: **do not persist**, virtual empty draft; first PATCH uses `''` to satisfy `title`/`body` NOT NULL. Tenant authority is `membership.active=1`; ignore client `dealerId`. Cross-dealership id → **404**. Staff with no valid membership calling business APIs → **403** `FORBIDDEN` (signed in, no dealership — not 401/404). Sold vehicles: a new link is allowed when the vehicle is not already linked; unlink stays **409** `SOLD_LOCKED` |
 
 ---
 
@@ -67,7 +67,7 @@ Do not return SQL, stack traces, or raw model text to the browser.
 
 | HTTP | When |
 |---|---|
-| 400 | validation failure, `VIN_DUP`, `WRONG_DEALER_OR_SOLD`, `SOLD_PAIR_REQUIRED` |
+| 400 | validation failure, `VIN_DUP`, `SOLD_PAIR_REQUIRED` |
 | 401 | missing/bad JWT |
 | 403 | insufficient role (Admin↔staff hitting the wrong prefix); **staff with no valid `membership.active=1` calling a business API** (signed in, no dealership). **Not** cross-dealership |
 | 404 | this id is not in this dealership, **cross-dealership id** (anti-probing, not 403) |
@@ -424,8 +424,9 @@ No body (or ignore body). Constraints: customer and vehicle are **the same deale
 | Code | HTTP | When |
 |---|---|---|
 | `VEHICLE_ALREADY_LINKED` | 409 | that vehicle is already linked (including already linked to this customer) |
-| `WRONG_DEALER_OR_SOLD` | 400 | **PROTOCOL A.1:** this-store vehicle on PUT link, but sold / not `IN_STOCK`. Cross-dealership ids are always **404**, not this code |
 | — | 404 | customer or vehicle id does not exist for this dealership (cross-dealership is also 404) |
+
+`CustomerService.link` does not read `vehicle.status` and does not throw `WRONG_DEALER_OR_SOLD`. A same-store `SOLD` vehicle with no existing `customer_vehicle` row is linked the same way as an `IN_STOCK` vehicle.
 
 Audit `CUSTOMER_VEHICLE` / `LINK`. `entityId` = `customer_vehicle.id`; `fieldSummary` is only `{customerId,vehicleId}`.
 
@@ -659,7 +660,7 @@ Response: short summary + **at most 5** dealership resource cards. Cards have no
 
 `kind`: `VEHICLE`\|`CUSTOMER`\|`LISTING`. Vue routes are not specified here.  
 Model down: `summary` is `null`, `summaryAvailable=false`, `cards` are still the retrieval list (at most 5). HTTP **200** (retrieval succeeded). 403 only when staff identity fails.  
-core calls the internal assistant via Gateway; recent conversation context is at most 3 filtered text turns (handbook 10), **not persisted to business tables**.
+core calls the internal assistant via Gateway with the question and the retrieved resources only. A three-turn cap, if kept, limits only what may be sent and is not a `ConcurrentHashMap` or deque. Per-user turns are not retained in memory, because that history is not sent and must not grow for the life of the JVM. It is **not persisted to business tables**.
 
 ---
 
@@ -720,7 +721,7 @@ Gateway forwards to ai-service. core calls these; the browser does not.
 | `VALIDATION` | 400 | missing field, illegal enum, bad format |
 | `VIN_DUP` | 400 | VIN already exists in this dealership |
 | `SOLD_PAIR_REQUIRED` | 400 | sell missing date or price |
-| `WRONG_DEALER_OR_SOLD` | 400 | **PROTOCOL A.1:** this-store vehicle on PUT link, but sold / not `IN_STOCK`. Cross-store ids are **404**, not this code. |
+| `WRONG_DEALER_OR_SOLD` | 400 | Declared on `ErrorCode`. `CustomerService.link` does not throw it. A same-store sold vehicle may be linked. A missing or cross-dealership id is `NOT_FOUND` (404). An existing link is `VEHICLE_ALREADY_LINKED` (409). |
 | `UNAUTHORIZED` | 401 | not signed in |
 | `FORBIDDEN` | 403 | role not allowed for this URL; or staff has no valid membership |
 | `NOT_FOUND` | 404 | no resource or cross-dealership |

@@ -48,7 +48,8 @@ That compile path uses `src/main/java-stub` only. A stub call with a key still r
 | Variable | Default | Who |
 |---|---|---|
 | `AI_PORT` | `8082` | this service |
-| `INTERNAL_TOKEN` | `dealer-internal` | `X-Dealer-Internal` (PROTOCOL §B.1) |
+| `INTERNAL_TOKEN` | `dealer-internal` | `X-Dealer-Internal` (PROTOCOL §B.1). Accepted only when the Spring profile is `dev` or `local`; otherwise set a non-default token shared with gateway and dealer-core. |
+| `SPRING_PROFILES_ACTIVE` | unset | Local classroom: `dev`. Do not set `dev` on Azure. |
 | `AIMANAGER_API_KEY` | empty | this service only |
 | `AIMANAGER_GATEWAY_PROVIDER` | `openai` | `groq` / `openai` / `claude` / `deepseek` |
 | `AIMANAGER_GATEWAY_MODEL` | empty → `current` | this service |

@@ -240,7 +240,7 @@ public class GatewayApplication {
 }
 ```
 
-**Copy the entire** `application.yaml` (port 8080 / upstream 8081 / 8082, internal header name, CORS origin pinned):
+**Copy the entire** `application.yaml` (port 8080 / upstream 8081 / 8082, internal header name). CORS is not in this file: it is only in `dealer-gateway` `CorsConfig`. Allowed origin is `CORS_ALLOWED_ORIGIN`, default `http://localhost:5173`. Do not set `spring.cloud.gateway.globalcors` or `DedupeResponseHeader`:
 
 ```yaml
 server:
@@ -257,18 +257,6 @@ spring:
           audiences: ${ENTRA_AUDIENCE:api://dealer-api}
   cloud:
     gateway:
-      globalcors:
-        add-to-simple-url-handler-mapping: true
-        cors-configurations:
-          '[/**]':
-            allowedOrigins:
-              - "http://localhost:5173"
-            allowedMethods: [GET, POST, PUT, PATCH, DELETE, OPTIONS]
-            allowedHeaders: [Authorization, Content-Type]
-            exposedHeaders: []
-            allowCredentials: false
-      default-filters:
-        - DedupeResponseHeader=Access-Control-Allow-Origin Access-Control-Allow-Credentials, RETAIN_UNIQUE
       routes:
         - id: dealer-core-public
           uri: ${CORE_URL:http://127.0.0.1:8081}
@@ -302,8 +290,8 @@ When not in compose, `CORE_URL`/`AI_URL` default to `127.0.0.1` (table above). I
 - Acceptance:
   1. `rg "Path=/api/v1" dealer-gateway/src/main/resources/application.yaml` and the same block `uri` contains `CORE_URL` or `8081`.
   2. `rg "Path=/internal/v1" dealer-gateway/src/main/resources/application.yaml` and contains `X-Dealer-Internal`.
-  3. `rg "allowedOrigins" -A2 dealer-gateway/src/main/resources/application.yaml` contains `http://localhost:5173`.
-  4. `rg "X-Dealer-Internal" dealer-gateway/src/main/resources/application.yaml` CORS `allowedHeaders` section does not contain that header.
+  3. `rg "CORS_ALLOWED_ORIGIN" dealer-gateway/src/main/java/ca/sait/dealerops/gateway/config/CorsConfig.java` and the default origin is `http://localhost:5173`.
+  4. `rg "X-Dealer-Internal" dealer-gateway/src/main/java/ca/sait/dealerops/gateway/config/CorsConfig.java` shows allowed headers that do not include that header. `application.yaml` has no `globalcors` and no `DedupeResponseHeader`.
   5. After gateway starts: `curl -s -o NUL -w "%{http_code}" http://localhost:8080/internal/v1/ad-check` → `404` (no internal header).
   6. `curl -s -o NUL -w "%{http_code}" http://localhost:8080/no-such` → `404`.
 
@@ -403,7 +391,7 @@ When the adapter calls the model, wrap again with `java.util.concurrent.Completa
 | `AIMANAGER_GATEWAY_MODEL` | ai-service | empty string; must be the deployment name when hitting a real model |
 | `ENTRA_ISSUER` | gateway + core | `https://login.microsoftonline.com/<tenant-id>/v2.0` |
 | `ENTRA_AUDIENCE` | gateway + core | `api://dealer-api` |
-| `INTERNAL_TOKEN` | gateway + core outbound + ai-service | `dealer-internal` (not listed in env.example; yaml default is this value. web **does not read** it) |
+| `INTERNAL_TOKEN` | gateway + core outbound + ai-service | `dealer-internal`, accepted only when the Spring profile is `dev` or `local`. Any other profile must set a non-default value shared by gateway, ai-service, and dealer-core. Web **does not read** it. |
 | `GATEWAY_BASE_URL` | core outbound | `http://localhost:8080` |
 
 Who does not read: web does not read `AIMANAGER_*` / `MYSQL_*` / `INTERNAL_TOKEN`; gateway/core do not read `AIMANAGER_API_KEY`; ai-service does not read `MYSQL_*`.
@@ -1116,8 +1104,8 @@ function link(customerId, vehicleId):
   c = findCustomer(customerId)
   v = findVehicle(vehicleId)
   if c==null or v==null: 404
-  if c.dealerId != tenantDealerId or v.dealerId != tenantDealerId: 404   // cross-store is not 400
-  if v.status != IN_STOCK: 400 WRONG_DEALER_OR_SOLD
+  if c.dealerId != tenantDealerId or v.dealerId != tenantDealerId: 404 NOT_FOUND   // cross-store is not 400
+  // same-dealer SOLD and IN_STOCK may both be linked; do not throw WRONG_DEALER_OR_SOLD
   if existsByVehicleId(vehicleId): 409 VEHICLE_ALREADY_LINKED
   row = insert(dealerId=tenant, customerId, vehicleId, linkedAt=now)
   audit CUSTOMER_VEHICLE/LINK entityId=row.id fieldSummary={customerId,vehicleId}
@@ -1138,11 +1126,11 @@ function unlink(customerId, vehicleId):
 
 | Method | HTTP | path | Error codes |
 |---|---|---|---|
-| `link` | PUT | `/api/v1/customers/{id}/vehicles/{vehicleId}` | 404; 400 WRONG_DEALER_OR_SOLD; 409 VEHICLE_ALREADY_LINKED; 403 |
+| `link` | PUT | `/api/v1/customers/{id}/vehicles/{vehicleId}` | 404 NOT_FOUND; 409 VEHICLE_ALREADY_LINKED; 403 |
 | `unlink` | DELETE | same | 204; 404; 409 SOLD_LOCKED; 403 |
 
 - Ban: using PUT as unlink; DELETE succeeding on a sold vehicle; a soft-delete column.
-- Acceptance: `rg "@DeleteMapping" dealer-core/src/main/java/com/dealerops/core/customer/CustomerVehicleController.java`. Sold vehicle PUT → 400 `WRONG_DEALER_OR_SOLD`. Sold vehicle DELETE → 409 `SOLD_LOCKED`. In-stock DELETE → 204 and `SELECT * FROM customer_vehicle WHERE vehicle_id=?` empty.
+- Acceptance: `rg "@DeleteMapping" dealer-core/src/main/java/com/dealerops/core/customer/CustomerVehicleController.java`. Same-dealer sold vehicle PUT on an unlinked vehicle → 200. Missing customer or vehicle → `NOT_FOUND`. A second link → 409 `VEHICLE_ALREADY_LINKED`. Sold vehicle DELETE → 409 `SOLD_LOCKED`. In-stock DELETE → 204 and `SELECT * FROM customer_vehicle WHERE vehicle_id=?` empty.
 
 ---
 
@@ -1421,7 +1409,7 @@ public record ResourceCard(String kind, Long id, String label, String status, Lo
 public record AskResponse(String summary, boolean summaryAvailable, java.util.List<ResourceCard> cards) {}
 ```
 
-`kind`: `VEHICLE`|`CUSTOMER`|`LISTING`. Cards have no phone/email/address. `AssistantResourceQuery.load(tenantDealerId, text)` at most 5 this-store resources. Admin → 403. Do not write `vehicle`/`customer`/`listing`/`compliance_check`. Keep at most 3 filtered sentences in memory (`ConcurrentHashMap<oid, Deque<String>>`); **do not persist to a business table**.
+`kind`: `VEHICLE`|`CUSTOMER`|`LISTING`. Cards have no phone/email/address. `AssistantResourceQuery.load(tenantDealerId, text)` at most 5 this-store resources. Admin → 403. Do not write `vehicle`/`customer`/`listing`/`compliance_check`. Do not retain per-user conversation history in memory: it is not sent on the next call (question + resources only) and must not grow for the life of the JVM. Do not persist it to a business table.
 
 Model down: still **200**, `summary=null`, `summaryAvailable=false`, `cards`=retrieval list. Do not 502 (502 is only for ad check).
 
@@ -1525,7 +1513,7 @@ Gateway **forwards** `Authorization` on `/api/v1/**`. Unmappable role: `/api/v1/
 
 ### BE-T22 ai-service two internal POSTs + failure body (so core becomes 502)
 
-Implement [AI-PROTOCOL-AND-RULES.md](AI-PROTOCOL-AND-RULES.md) §B exactly. Local `INTERNAL_TOKEN` default is **`dealer-internal`**.
+Implement [AI-PROTOCOL-AND-RULES.md](AI-PROTOCOL-AND-RULES.md) §B exactly. Local `INTERNAL_TOKEN` default is **`dealer-internal`**, accepted only when the Spring profile is **`dev`** or **`local`**.
 - Repo: ai-service
 - Create/change files:
   - `ai-service/src/main/java/ca/sait/dealerops/aiservice/adapter/adcheck/AdCheckController.java`

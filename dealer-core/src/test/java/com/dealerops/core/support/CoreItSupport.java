@@ -58,6 +58,7 @@ public abstract class CoreItSupport {
     foothills.setLegalName("Foothills Motors Ltd.");
     foothills.setContactPhone("403-555-0200");
     foothills.setContactEmail("desk@foothills.example");
+    foothills.setContactAddress("200 Foothills Ave");
     foothills.setActive(true);
     dealerBId = dealerRepository.save(foothills).getId();
 

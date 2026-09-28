@@ -62,6 +62,8 @@ services:
         MAVEN_ARGS: "${AI_MAVEN_ARGS:--Pstub,!aimanager -Daimanager.stub=true -DskipTests}"
     environment:
       AI_PORT: "8082"
+      # Local/classroom only. Azure Container Apps must not set this profile.
+      SPRING_PROFILES_ACTIVE: dev
       INTERNAL_TOKEN: ${INTERNAL_TOKEN:-dealer-internal}
       AIMANAGER_API_KEY: ${AIMANAGER_API_KEY:-}
       AIMANAGER_GATEWAY_PROVIDER: ${AIMANAGER_GATEWAY_PROVIDER:-openai}
@@ -88,6 +90,8 @@ services:
       # to 127.0.0.1 only — host.docker.internal cannot reach that loopback publish.
       CORE_URL: http://dealer-core:8081
       AI_URL: http://ai-service:8082
+      # Local/classroom only. Azure Container Apps must not set this profile.
+      SPRING_PROFILES_ACTIVE: dev
       INTERNAL_TOKEN: ${INTERNAL_TOKEN:-dealer-internal}
       CORS_ALLOWED_ORIGIN: ${CORS_ALLOWED_ORIGIN:-${WEB_PUBLIC_ORIGIN:-http://localhost:5173}}
       ENTRA_ISSUER: ${ENTRA_ISSUER:-https://login.microsoftonline.com/<tenant-id>/v2.0}

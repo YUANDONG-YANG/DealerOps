@@ -32,12 +32,8 @@ function isLanding(to: RouteLocationNormalized) {
 
 function landingFor(store: ReturnType<typeof useSessionStore>) {
   if (store.role === 'Platform.Admin') return '/admin'
-  if (store.role === 'Dealer.User' && store.dealerId != null) return '/dms'
+  if (store.hasBusinessAccess) return '/dms'
   return '/'
-}
-
-function hasBusinessAccess(store: ReturnType<typeof useSessionStore>) {
-  return store.role === 'Platform.Admin' || (store.role === 'Dealer.User' && store.dealerId != null)
 }
 
 function knownRole(store: ReturnType<typeof useSessionStore>) {
@@ -78,7 +74,7 @@ router.beforeEach(async (to) => {
 
   if (to.path === '/login' && a) {
     if (profileFailed) return true
-    if (!hasBusinessAccess(store)) return '/'
+    if (!store.hasBusinessAccess) return '/'
     const fromQuery = typeof to.query.redirect === 'string' ? to.query.redirect : ''
     const redirect = fromQuery || takePostLoginRedirect()
     if (redirect.startsWith('/') && !redirect.startsWith('//') && !redirect.startsWith('/login')) {
@@ -89,17 +85,17 @@ router.beforeEach(async (to) => {
 
   if (isLanding(to)) {
     if (!a) return '/login'
-    if (hasBusinessAccess(store)) return landingFor(store)
+    if (store.hasBusinessAccess) return landingFor(store)
     return true
   }
 
   const roles = to.meta.roles as string[] | undefined
   if (roles && !roles.includes(store.role || '')) {
-    if (hasBusinessAccess(store)) return landingFor(store)
+    if (store.hasBusinessAccess) return landingFor(store)
     return '/'
   }
 
-  if (a && (!knownRole(store) || !hasBusinessAccess(store)) && !to.meta.public) {
+  if (a && (!knownRole(store) || !store.hasBusinessAccess) && !to.meta.public) {
     return '/'
   }
 

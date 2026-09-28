@@ -1,5 +1,6 @@
 ﻿<script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
+import type { FormInstance, FormRules } from 'element-plus'
 import AppLayout from '../layouts/AppLayout.vue'
 import DataTable from '../components/DataTable.vue'
 import FormDrawer from '../components/FormDrawer.vue'
@@ -26,15 +27,31 @@ const membersError = ref('')
 const membersForbidden = ref(false)
 
 const drawer = ref(false)
+const dealerFormRef = ref<FormInstance>()
 const form = ref({ legalName: '', contactPhone: '', contactEmail: '', contactAddress: '' })
 const formError = ref('')
+const dealerRules: FormRules = {
+  legalName: [{ required: true, message: 'Legal name is required', trigger: 'blur' }],
+  contactPhone: [{ required: true, message: 'Contact phone is required', trigger: 'blur' }],
+  contactEmail: [{ required: true, message: 'Contact email is required', trigger: 'blur' }],
+  contactAddress: [{ required: true, message: 'Contact address is required', trigger: 'blur' }],
+}
 
 const staffDealer = ref<Dealer | null>(null)
 const memberDrawer = ref(false)
+const memberFormRef = ref<FormInstance>()
 const drawerMembers = ref<Member[]>([])
 const drawerError = ref('')
 const member = ref({ entraOid: '', displayName: '' })
 const bindError = ref('')
+const memberRules: FormRules = {
+  entraOid: [{ required: true, message: 'Entra OID is required', trigger: 'blur' }],
+  displayName: [{ required: true, message: 'Display name is required', trigger: 'blur' }],
+}
+
+let dealersLoadSeq = 0
+let membersLoadSeq = 0
+let drawerMembersLoadSeq = 0
 
 const confirm = ref(false)
 const pendingUnbind = ref<{ dealerId: number; entraOid: string } | null>(null)
@@ -53,21 +70,40 @@ function loadErrorMessage(e: unknown) {
   return 'Could not load dealerships.'
 }
 
+function serverDetail(error: unknown): string | undefined {
+  const data = (error as { response?: { data?: { message?: unknown; fieldErrors?: unknown } } })
+    .response?.data
+  if (!data || typeof data !== 'object') return undefined
+  const parts: string[] = []
+  const message = typeof data.message === 'string' ? data.message.trim() : ''
+  if (message) parts.push(message)
+  const fields = data.fieldErrors
+  if (fields && typeof fields === 'object') {
+    for (const [field, text] of Object.entries(fields)) {
+      if (typeof text === 'string' && text.trim()) parts.push(`${field}: ${text.trim()}`)
+    }
+  }
+  return parts.length ? parts.join(' ') : undefined
+}
+
 async function loadDealers() {
+  const seq = ++dealersLoadSeq
   loading.value = true
   error.value = ''
   forbidden.value = false
   try {
     const r = await adminApi.dealers({ q: q.value, page: page.value, size: 10 })
+    if (seq !== dealersLoadSeq) return
     rows.value = r.data.items || []
     total.value = r.data.total || 0
   } catch (e) {
+    if (seq !== dealersLoadSeq) return
     rows.value = []
     total.value = 0
     forbidden.value = isForbidden(e)
     error.value = forbidden.value ? '' : loadErrorMessage(e)
   } finally {
-    loading.value = false
+    if (seq === dealersLoadSeq) loading.value = false
   }
 }
 
@@ -98,14 +134,18 @@ async function fetchDealerMembers(dealerId: number, filterQ: string) {
 }
 
 async function loadFlatMembers() {
+  const seq = ++membersLoadSeq
   membersLoading.value = true
   membersError.value = ''
   membersForbidden.value = false
+  const filterQ = memberQ.value
   try {
     const dealers = await fetchAllDealers()
+    if (seq !== membersLoadSeq) return
     const flat: FlatMember[] = []
     for (const d of dealers) {
-      const items = await fetchDealerMembers(d.id, memberQ.value)
+      const items = await fetchDealerMembers(d.id, filterQ)
+      if (seq !== membersLoadSeq) return
       for (const m of items) {
         flat.push({ ...m, dealerId: d.id, legalName: d.legalName })
       }
@@ -113,6 +153,7 @@ async function loadFlatMembers() {
     flatMembers.value = flat
     if (memberPage.value * 10 >= flat.length) memberPage.value = 0
   } catch (e) {
+    if (seq !== membersLoadSeq) return
     flatMembers.value = []
     membersForbidden.value = isForbidden(e)
     if (membersForbidden.value) {
@@ -123,18 +164,23 @@ async function loadFlatMembers() {
       membersError.value = loadErrorMessage(e)
     }
   } finally {
-    membersLoading.value = false
+    if (seq === membersLoadSeq) membersLoading.value = false
   }
 }
 
 async function openMembers(row: Dealer) {
+  const seq = ++drawerMembersLoadSeq
   staffDealer.value = row
   memberDrawer.value = true
   bindError.value = ''
   drawerError.value = ''
+  drawerMembers.value = []
   try {
-    drawerMembers.value = await fetchDealerMembers(row.id, '')
+    const items = await fetchDealerMembers(row.id, '')
+    if (seq !== drawerMembersLoadSeq) return
+    drawerMembers.value = items
   } catch (e) {
+    if (seq !== drawerMembersLoadSeq) return
     drawerMembers.value = []
     if (adminErrorCode(e) === 'NOT_FOUND' || adminErrorStatus(e) === 404) {
       drawerError.value = 'Dealership not found'
@@ -148,30 +194,50 @@ async function openMembers(row: Dealer) {
 
 async function refreshDrawerMembers() {
   if (!staffDealer.value) return
-  drawerMembers.value = await fetchDealerMembers(staffDealer.value.id, '')
+  const seq = ++drawerMembersLoadSeq
+  const dealerId = staffDealer.value.id
+  try {
+    const items = await fetchDealerMembers(dealerId, '')
+    if (seq !== drawerMembersLoadSeq) return
+    drawerMembers.value = items
+  } catch (e) {
+    if (seq !== drawerMembersLoadSeq) return
+    throw e
+  }
+}
+
+function openDealer() {
+  formError.value = ''
+  drawer.value = true
+  dealerFormRef.value?.clearValidate()
 }
 
 async function create() {
   formError.value = ''
-  const body = form.value
-  if (!body.legalName || !body.contactPhone || !body.contactEmail || !body.contactAddress) {
+  const dealerForm = dealerFormRef.value
+  if (dealerForm) {
+    const valid = await dealerForm.validate().then(() => true).catch(() => false)
+    if (!valid) return
+  } else if (!form.value.legalName || !form.value.contactPhone || !form.value.contactEmail || !form.value.contactAddress) {
     formError.value = 'Check required contact fields'
     return
   }
+  const body = form.value
   try {
     await adminApi.createDealer(body)
     drawer.value = false
     form.value = { legalName: '', contactPhone: '', contactEmail: '', contactAddress: '' }
+    dealerFormRef.value?.clearValidate()
     tab.value = 'dealers'
     page.value = 0
     await loadDealers()
   } catch (e) {
     if (adminErrorCode(e) === 'VALIDATION' || adminErrorStatus(e) === 400) {
-      formError.value = 'Check required contact fields'
+      formError.value = serverDetail(e) || 'Check required contact fields'
     } else if (isForbidden(e)) {
       formError.value = 'You do not have access to Admin.'
     } else {
-      formError.value = 'Check required contact fields'
+      formError.value = serverDetail(e) || 'Could not create dealership.'
     }
   }
 }
@@ -179,9 +245,18 @@ async function create() {
 async function bind() {
   bindError.value = ''
   if (!staffDealer.value) return
+  const memberForm = memberFormRef.value
+  if (memberForm) {
+    const valid = await memberForm.validate().then(() => true).catch(() => false)
+    if (!valid) return
+  } else if (!member.value.entraOid || !member.value.displayName) {
+    bindError.value = 'Check Entra ID'
+    return
+  }
   try {
     await adminApi.bind(staffDealer.value.id, member.value)
     member.value = { entraOid: '', displayName: '' }
+    memberFormRef.value?.clearValidate()
     await refreshDrawerMembers()
     await loadDealers()
     if (tab.value === 'members') await loadFlatMembers()
@@ -190,13 +265,13 @@ async function bind() {
     if (code === 'DUP_MEMBER' || adminErrorStatus(e) === 409) {
       bindError.value = 'Staff already bound'
     } else if (code === 'VALIDATION' || adminErrorStatus(e) === 400) {
-      bindError.value = 'Check Entra ID'
+      bindError.value = serverDetail(e) || 'Check Entra ID'
     } else if (code === 'NOT_FOUND' || adminErrorStatus(e) === 404) {
       bindError.value = 'Dealership not found'
     } else if (isForbidden(e)) {
       bindError.value = 'You do not have access to Admin.'
     } else {
-      bindError.value = 'Check Entra ID'
+      bindError.value = serverDetail(e) || 'Could not bind staff.'
     }
   }
 }
@@ -223,7 +298,7 @@ async function unbind() {
     } else if (isForbidden(e)) {
       unbindError.value = 'You do not have access to Admin.'
     } else {
-      unbindError.value = 'Member not found'
+      unbindError.value = serverDetail(e) || 'Could not unbind staff.'
     }
   }
 }
@@ -249,7 +324,7 @@ onMounted(loadDealers)
           <h1>Admin</h1>
           <span class="muted">Dealerships and members</span>
         </div>
-        <el-button type="primary" @click="drawer = true; formError = ''">New dealership</el-button>
+        <el-button type="primary" @click="openDealer">New dealership</el-button>
       </div>
       <el-tabs v-model="tab" @tab-change="onTab">
         <el-tab-pane label="Dealerships" name="dealers">
@@ -324,31 +399,31 @@ onMounted(loadDealers)
       </el-tabs>
     </div>
     <FormDrawer title="New dealership" :visible="drawer" @close="drawer = false">
-      <el-form label-position="top">
+      <el-form ref="dealerFormRef" :model="form" :rules="dealerRules" label-position="top">
         <p v-if="formError" class="danger-text">{{ formError }}</p>
-        <el-form-item label="Legal name">
+        <el-form-item label="Legal name" prop="legalName">
           <el-input v-model="form.legalName" />
         </el-form-item>
-        <el-form-item label="Contact phone">
+        <el-form-item label="Contact phone" prop="contactPhone">
           <el-input v-model="form.contactPhone" />
         </el-form-item>
-        <el-form-item label="Contact email">
+        <el-form-item label="Contact email" prop="contactEmail">
           <el-input v-model="form.contactEmail" />
         </el-form-item>
-        <el-form-item label="Contact address">
+        <el-form-item label="Contact address" prop="contactAddress">
           <el-input v-model="form.contactAddress" />
         </el-form-item>
         <el-button type="primary" @click="create">Create</el-button>
       </el-form>
     </FormDrawer>
     <FormDrawer :title="staffDealer ? `Staff · ${staffDealer.legalName}` : 'Staff'" :visible="memberDrawer" @close="memberDrawer = false">
-      <el-form label-position="top">
+      <el-form ref="memberFormRef" :model="member" :rules="memberRules" label-position="top">
         <p v-if="drawerError" class="danger-text">{{ drawerError }}</p>
         <p v-if="bindError" class="danger-text">{{ bindError }}</p>
-        <el-form-item label="Entra OID">
+        <el-form-item label="Entra OID" prop="entraOid">
           <el-input v-model="member.entraOid" />
         </el-form-item>
-        <el-form-item label="Display name">
+        <el-form-item label="Display name" prop="displayName">
           <el-input v-model="member.displayName" />
         </el-form-item>
         <el-button type="primary" @click="bind">Bind staff</el-button>

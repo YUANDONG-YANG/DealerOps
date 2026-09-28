@@ -207,7 +207,7 @@ Each service maps to a 14 endpoint group. Implementations cite paths only and co
 
 - **Endpoints (14 §5–6):** `GET/POST /customers`, `GET/PATCH /customers/{id}`, `PUT /customers/{id}/vehicles/{vehicleId}`, `DELETE` same path → **204**.
 - **Duties:** four fields required. List `q` + `linked`; list derived `linkedVehicle` (most recent `linkedAt` when many); detail `linkedVehicles[]`. Ignore `dealerId`.
-- **PUT link:** customer and vehicle are **the same dealership** and equal `tenantDealerId`; vehicle `IN_STOCK`; not yet taken. Sold cannot be newly linked → `400 WRONG_DEALER_OR_SOLD`. Already linked (including to this customer) → `409 VEHICLE_ALREADY_LINKED`. Cross-dealership id → **404** (not WRONG_DEALER). One customer many vehicles allowed.
+- **PUT link:** customer and vehicle are **the same dealership** and equal `tenantDealerId`; not yet taken. Same-store `IN_STOCK` and `SOLD` vehicles may both be newly linked. `CustomerService.link` does not read `vehicle.status` and does not throw `WRONG_DEALER_OR_SOLD`. Already linked (including to this customer) → `409 VEHICLE_ALREADY_LINKED`. Cross-dealership id → **404**. One customer many vehicles allowed.
 - **DELETE unlink:** in stock → hard-delete the association row (V1 has no soft-delete column); vehicle returns to unlinked; do not change `vehicle.status`. Sold → **409 `SOLD_LOCKED`** (sale record not erased). No association / cross-dealership → 404.
 - **Audit:** `CUSTOMER` CREATE/UPDATE; `CUSTOMER_VEHICLE` LINK/UNLINK. `entityId` for link uses `customer_vehicle.id`; `fieldSummary` is only `{customerId,vehicleId}`, **no** full phone/email/address.
 
@@ -237,7 +237,7 @@ Each service maps to a 14 endpoint group. Implementations cite paths only and co
 
 - **Endpoints (14 §10):** `POST /assistant/ask`, `{text}`. Empty text → `400 VALIDATION`. Admin → 403.
 - **Duties:** read-only retrieve this dealership's vehicles/customers/listings; assemble at most 5 `resources` (no phone/email/address). Via Gateway `POST /internal/v1/assistant`. Model-returned ids **must** fall in this retrieval set; otherwise drop them.
-- **Do not write** `vehicle` / `customer` / `listing` / `compliance_check`. Conversation context is at most 3 filtered text turns, **not persisted to business tables**.
+- **Do not write** `vehicle` / `customer` / `listing` / `compliance_check`. The next AI call sends question + resources only. A three-turn cap, if kept, limits only what may be sent and is not a `ConcurrentHashMap` or deque. Per-user turns are not retained in memory, because that history is not sent and must not grow for the life of the JVM. It is **not persisted to business tables**.
 - Model down: HTTP **200**, `summary=null`, `summaryAvailable=false`, `cards` still the retrieval list. Do not use 502 as if it were an ad-check failure.
 
 ### 4.9 Supporting types (not business services 5–8, but required)
@@ -278,7 +278,7 @@ Every `/api/v1/**` (business paths other than `/me`) resolves tenant before the 
 | Bean Validation / illegal enum / empty text | `VALIDATION` | 400 |
 | This-dealership VIN hits `uk_vehicle_vin` or pre-check duplicate | `VIN_DUP` | 400 |
 | sell missing `soldOn` or `soldPrice`; price ≤0 uses VALIDATION or this code (16: ≤0 → 400) | `SOLD_PAIR_REQUIRED` | 400 |
-| PUT link: this-store vehicle sold or not `IN_STOCK` (cross-store ids are `NOT_FOUND` / 404) | `WRONG_DEALER_OR_SOLD` | 400 |
+| PUT link does not throw this. `CustomerService.link` ignores vehicle status, so a same-store sold vehicle may be linked. Cross-store ids are `NOT_FOUND` (404). The enum stays on `ErrorCode` and has no production throw site. | `WRONG_DEALER_OR_SOLD` | 400 |
 | Missing/bad JWT | `UNAUTHORIZED` | 401 |
 | Role hitting the wrong prefix; staff 0 active memberships | `FORBIDDEN` | 403 |
 | No id in this dealership / **cross-dealership id** / no association | `NOT_FOUND` | 404 |
@@ -330,7 +330,7 @@ Every DMS/CRM write (and optional Admin create/bind) inserts one `audit_event` r
 
 Allowed `entity_type` / `action` match 14 §9: `VEHICLE|CUSTOMER|CUSTOMER_VEHICLE` × `CREATE|UPDATE|SELL|LINK|UNLINK`; Admin may also use `DEALER`/`MEMBERSHIP`.
 
-Summaries record only ids, enums, whether contact fields changed (for example `{"contactFieldsChanged":true}`), or link `{customerId,vehicleId}`. Changing a customer phone still records `UPDATE`, but **do not** put the new number in the JSON.
+Summaries record only ids, enums, field-name booleans for the contact fields that actually changed (for example `{"name":true,"phone":true}`), or link `{customerId,vehicleId}`. The only contact keys are `name`, `email`, `phone`, and `homeAddress`, and each value is `true`. Changing a customer phone still records `UPDATE`, but **do not** put the new number, email, or address in the JSON.
 
 ---
 

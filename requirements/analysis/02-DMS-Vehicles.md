@@ -53,7 +53,7 @@ System fields (not in the source, needed to build): `id`, `dealerId`, `status` (
 | DMS-12 | A sold vehicle cannot be sold again | SCOPE | Must |
 | DMS-13 | Concurrent edits: writes carry `version`; a mismatch returns `VERSION_CONFLICT` and the UI asks the user to refresh | SCOPE | Should |
 | DMS-14 | Create, edit, and sell all write audit entries | PDF §6 | Must |
-| DMS-15 | Changing ad-relevant fields such as condition turns the vehicle's passed ad check Stale | SCOPE | Must |
+| DMS-15 | Changing vehicle condition turns the vehicle's passed ad check Stale; other vehicle/profile fields are outside the demo invalidation scope (deferred A5) | SCOPE | Must |
 | DMS-16 | Derived values such as profit (sold price − purchase cost − repair cost) may be shown on detail, not stored | Derived | Could |
 | DMS-17 | Deleting vehicles is not offered in this release (keeps audit and sale records) | Derived | Won't |
 

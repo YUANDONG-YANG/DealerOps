@@ -28,7 +28,8 @@ public class ListingController {
   }
 
   @PatchMapping("/api/v1/vehicles/{id}/listing")
-  public ListingResponse patchByVehicle(@PathVariable Long id, @RequestBody PatchListingRequest body) {
+  public ListingResponse patchByVehicle(
+      @PathVariable Long id, @Valid @RequestBody PatchListingRequest body) {
     return listingService.patchByVehicle(id, body);
   }
 

@@ -85,7 +85,7 @@ Legend for **Code status**: `implemented` · `partial` · `design-only` · `miss
 |---|---|---|---|---|
 | SPEC-10 | Required: name, email, phone, home address | BRIEF §3 | `CustomerEntity` NOT NULL; create/patch validation | — |
 | SPEC-11 | Link purchases to that dealer’s DMS vehicles | BRIEF; 14 unlink/link rules | `CustomerVehicleController` PUT/DELETE; `CustomerService`; `CrmView.vue` | — |
-| SCOPE-CRM-01 | One vehicle → one customer; link only IN_STOCK unbound same store | 15; 14 | `uk_cv_vehicle`; `VEHICLE_ALREADY_LINKED` / `WRONG_DEALER_OR_SOLD` / `SOLD_LOCKED` | — |
+| SCOPE-CRM-01 | One vehicle → one customer; link an unbound same-store vehicle, IN_STOCK or SOLD (A3 correction, 2026-09-28) | 15; 14 | `uk_cv_vehicle`; duplicate link → `VEHICLE_ALREADY_LINKED`; cross-store → 404; sold unlink → `SOLD_LOCKED` | — |
 
 ### D. Ad compliance (OMVIC checklist)
 

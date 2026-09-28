@@ -1,5 +1,5 @@
 ﻿<script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { nextTick, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import AppLayout from '../layouts/AppLayout.vue'
@@ -7,6 +7,7 @@ import DataTable from '../components/DataTable.vue'
 import FormDrawer from '../components/FormDrawer.vue'
 import PageState from '../components/PageState.vue'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
+import { messageOf } from '../api/http'
 import { errorCode, errorStatus, vehiclesApi } from '../api/vehicles'
 import { auditApi } from '../api/audit'
 
@@ -39,6 +40,27 @@ const audit = ref<any[]>([])
 const filters = ref({ q: '', status: '', condition: '' })
 const form = ref(blankForm())
 const sellForm = ref({ soldOn: '', soldPrice: '' })
+const vehicleFormRef = ref<{
+  validate: () => Promise<unknown>
+  clearValidate: () => void
+} | null>(null)
+let listRequest = 0
+let detailRequest = 0
+
+function requiredRule(trigger: 'blur' | 'change') {
+  return [{ required: true, whitespace: true, message: 'Required', trigger }]
+}
+
+const formRules = {
+  make: requiredRule('blur'),
+  model: requiredRule('blur'),
+  modelYear: requiredRule('blur'),
+  vin: requiredRule('blur'),
+  purchaseCost: requiredRule('blur'),
+  addedOn: requiredRule('blur'),
+  source: requiredRule('change'),
+  conditionCode: requiredRule('change'),
+}
 
 function blankForm() {
   return {
@@ -73,7 +95,7 @@ function mapWrite(e: unknown) {
   const code = errorCode(e)
   const status = errorStatus(e)
   if (code === 'VIN_DUP') return 'VIN already in this dealership'
-  if (code === 'VALIDATION') return 'Check required fields'
+  if (code === 'VALIDATION') return messageOf(e, 'Check required fields')
   if (code === 'SOLD_LOCKED') return 'Purchase fields are locked'
   if (code === 'VERSION_CONFLICT') return 'Refresh and retry'
   if (code === 'SOLD_PAIR_REQUIRED') return 'Sold date and price are required together'
@@ -82,111 +104,137 @@ function mapWrite(e: unknown) {
 }
 
 const load = async () => {
+  const seq = ++listRequest
   loading.value = true
   error.value = ''
   forbidden.value = false
   try {
     const r = await vehiclesApi.list({ ...filters.value, page: page.value, size: 10 })
+    if (seq !== listRequest) return
     rows.value = r.data.items || []
     total.value = r.data.total || 0
   } catch (e) {
+    if (seq !== listRequest) return
     if (errorStatus(e) === 403 || errorCode(e) === 'FORBIDDEN') forbidden.value = true
     else error.value = 'Could not load vehicles.'
     rows.value = []
   } finally {
-    loading.value = false
+    if (seq === listRequest) loading.value = false
   }
 }
 
-async function loadAudit(id: number) {
+async function loadAudit(id: number, seq = detailRequest) {
+  if (seq !== detailRequest) return
   audit.value = []
   try {
     const r = await auditApi.list({ entityType: 'VEHICLE', entityId: id })
+    if (seq !== detailRequest) return
     audit.value = r.data.items || []
   } catch {
+    if (seq !== detailRequest) return
     audit.value = []
   }
 }
 
-async function fillFromGet(id: number) {
-  const r = await vehiclesApi.get(id)
-  edit.value = r.data
-  form.value = {
-    make: r.data.make ?? '',
-    model: r.data.model ?? '',
-    modelYear: r.data.modelYear ?? '',
-    vin: r.data.vin ?? '',
-    source: r.data.source ?? 'AUCTION',
-    purchaseCost: r.data.purchaseCost ?? '',
-    addedOn: r.data.addedOn ?? '',
-    conditionCode: r.data.conditionCode ?? 'AS_IS',
-    repairCost: r.data.repairCost ?? '',
-    carfaxUrl: r.data.carfaxUrl ?? '',
+function vehicleForm(data: any) {
+  return {
+    make: data.make ?? '',
+    model: data.model ?? '',
+    modelYear: data.modelYear ?? '',
+    vin: data.vin ?? '',
+    source: data.source ?? 'AUCTION',
+    purchaseCost: data.purchaseCost ?? '',
+    addedOn: data.addedOn ?? '',
+    conditionCode: data.conditionCode ?? 'AS_IS',
+    repairCost: data.repairCost ?? '',
+    carfaxUrl: data.carfaxUrl ?? '',
   }
-  return r.data
 }
 
 async function openCreate() {
+  detailRequest += 1
   edit.value = null
   form.value = blankForm()
   formError.value = ''
   audit.value = []
   drawer.value = true
+  await nextTick()
+  vehicleFormRef.value?.clearValidate()
 }
 
 async function openEdit(id: number) {
+  const seq = ++detailRequest
   formError.value = ''
   audit.value = []
   try {
-    await fillFromGet(id)
+    const r = await vehiclesApi.get(id)
+    if (seq !== detailRequest) return
+    edit.value = r.data
+    form.value = vehicleForm(r.data)
     drawer.value = true
+    await nextTick()
+    if (seq !== detailRequest) return
+    vehicleFormRef.value?.clearValidate()
     await loadAudit(id)
   } catch (e) {
+    if (seq !== detailRequest) return
     edit.value = null
     form.value = blankForm()
     drawer.value = false
-    ElMessage.error(errorStatus(e) === 404 || errorCode(e) === 'NOT_FOUND' ? 'Vehicle not found' : 'Vehicle not found')
+    const missing = errorStatus(e) === 404 || errorCode(e) === 'NOT_FOUND'
+    ElMessage.error(missing ? 'Vehicle not found' : 'Could not load vehicle.')
   }
 }
 
 async function save() {
   formError.value = ''
+  const seq = detailRequest
+  if (vehicleFormRef.value) {
+    const ok = await vehicleFormRef.value.validate().then(() => true).catch(() => false)
+    if (!ok) return
+  }
+  if (seq !== detailRequest) return
+  const current = edit.value
+  const payload = { ...form.value }
   try {
-    if (edit.value) {
-      const saved = await vehiclesApi.update(edit.value.id, { ...form.value, version: edit.value.version })
-      edit.value = saved.data
-      form.value = {
-        ...form.value,
-        make: saved.data.make,
-        model: saved.data.model,
-        modelYear: saved.data.modelYear,
-        vin: saved.data.vin,
-        source: saved.data.source,
-        purchaseCost: saved.data.purchaseCost,
-        addedOn: saved.data.addedOn,
-        conditionCode: saved.data.conditionCode,
-        repairCost: saved.data.repairCost ?? '',
-        carfaxUrl: saved.data.carfaxUrl ?? '',
+    if (current) {
+      const saved = await vehiclesApi.update(current.id, { ...payload, version: current.version })
+      if (seq !== detailRequest) {
+        await load()
+        return
       }
-      await loadAudit(saved.data.id)
+      edit.value = saved.data
+      form.value = vehicleForm(saved.data)
+      await loadAudit(saved.data.id, seq)
     } else {
-      await vehiclesApi.create(form.value)
+      await vehiclesApi.create(payload)
+      if (seq !== detailRequest) {
+        await load()
+        return
+      }
       drawer.value = false
     }
     await load()
   } catch (e) {
+    if (seq !== detailRequest) return
     formError.value = mapWrite(e)
   }
 }
 
 async function openSell(id: number) {
+  const seq = ++detailRequest
   sellError.value = ''
   sellForm.value = { soldOn: '', soldPrice: '' }
   try {
-    await fillFromGet(id)
+    const r = await vehiclesApi.get(id)
+    if (seq !== detailRequest) return
+    edit.value = r.data
+    form.value = vehicleForm(r.data)
     sellOpen.value = true
-  } catch {
-    ElMessage.error('Vehicle not found')
+  } catch (e) {
+    if (seq !== detailRequest) return
+    const missing = errorStatus(e) === 404 || errorCode(e) === 'NOT_FOUND'
+    ElMessage.error(missing ? 'Vehicle not found' : 'Could not open sale.')
   }
 }
 
@@ -198,35 +246,47 @@ async function sell() {
     sellError.value = 'Sold date and price are required together'
     return
   }
+  const seq = detailRequest
+  const id = edit.value.id
+  const version = edit.value.version
   try {
-    await vehiclesApi.sell(edit.value.id, {
+    await vehiclesApi.sell(id, {
       soldOn,
       soldPrice: price,
-      version: edit.value.version,
+      version,
     })
-    sellOpen.value = false
-    drawer.value = false
+    if (seq === detailRequest) {
+      sellOpen.value = false
+      drawer.value = false
+    }
     await load()
   } catch (e) {
+    if (seq !== detailRequest) return
     sellError.value = mapWrite(e)
   }
 }
 
-async function openDeepLink() {
-  const raw = route.query.vehicleId
+function openDeepLink(raw: unknown) {
   if (raw == null || raw === '') return
   const id = Number(Array.isArray(raw) ? raw[0] : raw)
   if (!Number.isFinite(id)) {
     ElMessage.error('Vehicle not found')
     return
   }
-  await openEdit(id)
+  void openEdit(id)
 }
 
-onMounted(async () => {
-  await load()
-  await openDeepLink()
+onMounted(() => {
+  void load()
 })
+
+watch(
+  () => route.query.vehicleId,
+  (value) => {
+    openDeepLink(value)
+  },
+  { immediate: true },
+)
 </script>
 
 <template>
@@ -291,20 +351,24 @@ onMounted(async () => {
       </PageState>
     </div>
     <FormDrawer :title="edit ? 'Edit vehicle' : 'Add vehicle'" :visible="drawer" @close="drawer = false">
-      <el-form label-position="top">
-        <el-form-item v-for="field in PURCHASE_FIELDS" :key="field.key" :label="field.label">
+      <el-form ref="vehicleFormRef" :model="form" :rules="formRules" label-position="top">
+        <el-form-item v-for="field in PURCHASE_FIELDS" :key="field.key" :label="field.label" :prop="field.key">
           <el-input v-model="form[field.key]" :disabled="edit?.status === 'SOLD'" />
         </el-form-item>
-        <el-form-item label="Source">
+        <el-form-item label="Source" prop="source">
           <el-select v-model="form.source" :disabled="edit?.status === 'SOLD'">
             <el-option v-for="v in SOURCES" :key="v" :label="enumLabel(v)" :value="v" />
           </el-select>
         </el-form-item>
-        <el-form-item label="Condition">
+        <el-form-item label="Condition" prop="conditionCode">
           <el-select v-model="form.conditionCode" :disabled="edit?.status === 'SOLD'">
             <el-option v-for="v in CONDITIONS" :key="v" :label="enumLabel(v)" :value="v" />
           </el-select>
         </el-form-item>
+        <template v-if="edit?.status === 'SOLD'">
+          <el-form-item label="Sold date"><span>{{ edit.soldOn }}</span></el-form-item>
+          <el-form-item label="Sold price (CAD)"><span>{{ Number(edit.soldPrice).toFixed(2) }}</span></el-form-item>
+        </template>
         <p v-if="formError" class="danger-text">{{ formError }}</p>
         <el-button type="primary" @click="save">Save</el-button>
         <div v-if="edit?.id" class="detail-audit">

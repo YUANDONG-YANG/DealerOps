@@ -18,14 +18,13 @@ Conflict order (only the fine points this document touches): **this document > 1
 
 1. JWT + `membership.active=1` yields `tenantDealerId`. No dealership → **403** `FORBIDDEN`.
 2. Load customer and vehicle **in this dealership**. Customer id or vehicle id does not exist for this store (including a real id from another store) → **404** `NOT_FOUND`.
-3. This-store vehicle and `status != IN_STOCK` (including `SOLD`) → **400** `WRONG_DEALER_OR_SOLD`.
-4. This-store vehicle already linked to any customer → **409** `VEHICLE_ALREADY_LINKED`.
-5. Otherwise 200 + audit `LINK`.
+3. This-store vehicle already linked to any customer → **409** `VEHICLE_ALREADY_LINKED`.
+4. Otherwise 200 + audit `LINK`. A same-dealer `IN_STOCK` or `SOLD` vehicle may be linked. `CustomerService.link` does not read `vehicle.status` and must not throw `WRONG_DEALER_OR_SOLD`.
 
-`DELETE` on the same path: no link or cross-store → **404**; this-store vehicle `SOLD` → **409** `SOLD_LOCKED`.
+`DELETE` on the same path: no link or cross-store → **404** `NOT_FOUND`; this-store vehicle `SOLD` → **409** `SOLD_LOCKED`.
 
-**`WRONG_DEALER_OR_SOLD` is only for:** this-store vehicle, PUT link, but sold or not `IN_STOCK`.  
-**Ban** using it for cross-store ids, dealership mismatch, or a customer at another store. Aligned wording: [15-Data-Auth-and-Gateway.md](15-Data-Auth-and-Gateway.md) §4, [18-Backend-Core-Engineering.md](18-Backend-Core-Engineering.md) §6, and the `WRONG_DEALER_OR_SOLD` rows in [14-Backend-API-Contract.md](14-Backend-API-Contract.md).
+**`WRONG_DEALER_OR_SOLD`** stays on `ErrorCode`. The link path must not throw it. A missing customer or vehicle is `NOT_FOUND`. An existing link is `VEHICLE_ALREADY_LINKED`. Unlink of a sold vehicle is still **409** `SOLD_LOCKED`.
+**Ban** using `WRONG_DEALER_OR_SOLD` for a same-dealer sold vehicle, for cross-store ids, for a dealership mismatch, or for a customer at another store. Aligned wording: [15-Data-Auth-and-Gateway.md](15-Data-Auth-and-Gateway.md) §4, [18-Backend-Core-Engineering.md](18-Backend-Core-Engineering.md) §6, and the `WRONG_DEALER_OR_SOLD` rows in [14-Backend-API-Contract.md](14-Backend-API-Contract.md).
 
 ### A.2 One person, two stores active → 409 `DUP_MEMBER`
 
@@ -75,7 +74,7 @@ Browser hits `/internal/v1/**` → Gateway **404**. Core outbound only hits Gate
 | Header | Value source |
 |---|---|
 | `X-Dealer-Internal` | Environment variable **`INTERNAL_TOKEN`** (Key Vault suggested name `INTERNAL-TOKEN`) |
-| Literal default when unset locally | **`dealer-internal`** (same default on all three ends: gateway predicate, core outbound, ai-service check) |
+| Literal default when unset | **`dealer-internal`**, accepted only when the Spring profile is **`dev`** or **`local`**. Any other profile must set a non-default **`INTERNAL_TOKEN`** shared by gateway, ai-service, and dealer-core. Gateway and ai-service refuse to start on that default. |
 
 Ban forwarding the user JWT to ai-service. Ban listing this header in Gateway CORS `allowedHeaders`. Missing or wrong header → **404** (not 401).
 
@@ -201,7 +200,7 @@ User message = `{ "question": "...", "resources": [ ... ] }`.
 2. **Build public input.** listing title/body/adKind/medium; vehicle public fields (year/make/model/vin/conditionCode/source, **no** purchase/repair/sold price); dealership public four fields.
 3. **Run `OmvicRuleEngine` (this document §C).** Obtain `hard[]`, `soft[]`.
 4. **`hard[]` non-empty → do not call AI.** Same transaction INSERT `compliance_check` (`recommendation=BLOCKED`, `aiStatus=SKIPPED`, `ruleFindings`=hard+soft, `severity` hard=`BLOCK` / soft=`REVIEW`), write back `last_check_id`. HTTP **200** + full check object. `AiGatewayClient` **zero calls**. Stop.
-5. **`hard[]` empty → then call AI.** core POSTs `/internal/v1/ad-check` via Gateway with `X-Dealer-Internal: ${INTERNAL_TOKEN:dealer-internal}`; timeout in §D.
+5. **`hard[]` empty → then call AI.** core POSTs `/internal/v1/ad-check` via Gateway with `X-Dealer-Internal: ${INTERNAL_TOKEN:dealer-internal}` (that default is accepted only when gateway and ai-service run Spring profile `dev` or `local`; see §B.1); timeout in §D.
 6. **Success (HTTP 200 and `success=true`).** INSERT check: `recommendation=PASSED`, `aiStatus=SUCCESS`, `ruleFindings`=soft (may be empty), `aiNotes`=`notes`. Write back `last_check_id`. HTTP **200**.
 7. **Failure (timeout / missing key / not 200 / `success≠true`).** **Still persist**: `recommendation=UNAVAILABLE`, `aiStatus=UNAVAILABLE`, write back `last_check_id`. Ban treating as Pass.
 8. **Public.** After step 7, HTTP **502** `AI_UNAVAILABLE`. Client GET listing then sees `checkStatus=AI_UNAVAILABLE`. If the write fails, the database wins: roll back the whole unit and check again next time.
@@ -230,6 +229,10 @@ static final Pattern EMAIL = Pattern.compile("\\S+@\\S+\\.\\S+");
 
 static final Pattern APR = Pattern.compile(
     "\\d+(?:\\.\\d+)?\\s*%\\s*(?:apr|annual percentage rate)|apr\\s*[:=]?\\s*\\d+(?:\\.\\d+)?\\s*%",
+    Pattern.CASE_INSENSITIVE);
+
+static final Pattern PAYMENT = Pattern.compile(
+    "\\$?\\d[\\d,]*(?:\\.\\d{2})?\\s*(?:per month|/mo|monthly|bi-?weekly|per week|/wk)",
     Pattern.CASE_INSENSITIVE);
 
 static final Pattern TERM_MO = Pattern.compile(
@@ -345,7 +348,7 @@ Run the following rules on `text`. After the empty-draft short-circuit you may s
 | `WARRANTY_CLAIM_NEEDS_REVIEW` | `text` | `WARRANTY_BOAST` hits | **soft** |
 | `FINANCE_APR_MISSING` | `text`, `adKind==FINANCE`, or `CASH` whose copy matches `APR` or `PAYMENT` (spec §5: "if the ad shows a rate or payment") | `!APR.matcher(text).find()` | **hard** |
 | `FINANCE_TERM_MISSING` | Same | No `TERM_MO` | **soft** |
-| `FINANCE_APR_PROXIMITY` | `adKind==FINANCE` and `medium != RADIO_TV_BILLBOARD` | Cannot reliably regex “shown next to”; **add on every ONLINE FINANCE** (with or without APR; still add soft when hard exists; does not change the hard block) | **soft** |
+| `FINANCE_APR_PROXIMITY` | FINANCE or CASH matching APR/PAYMENT, and `medium != RADIO_TV_BILLBOARD` | Cannot reliably regex “shown next to”; **add on every ONLINE finance-triggered ad** (with or without APR; still add soft when hard exists; does not change the hard block) | **soft** |
 | `LEASE_APR_MISSING` | `adKind==LEASE` | No `APR` | **hard** |
 | `LEASE_STATEMENT_MISSING` | Same | No `LEASE_WORD` | **hard** |
 | `LEASE_TERM_MISSING` | Same | No `\d+\s*(month\|months\|mo)\b` | **soft** |
@@ -400,7 +403,8 @@ Result runFixedOmvic(Listing L, VehiclePublic V, DealerPublic D) {
         soft.add(PRIOR_USE_UNCLEAR);
     if (WARRANTY_BOAST.matcher(text).find()) soft.add(WARRANTY_CLAIM_NEEDS_REVIEW);
 
-    if (L.adKind == FINANCE) {
+    if (L.adKind == FINANCE || (L.adKind == CASH
+        && (APR.matcher(text).find() || PAYMENT.matcher(text).find()))) {
         if (!APR.matcher(text).find()) hard.add(FINANCE_APR_MISSING);
         if (!TERM_MO.matcher(text).find()) soft.add(FINANCE_TERM_MISSING);
         if (L.medium != RADIO_TV_BILLBOARD) soft.add(FINANCE_APR_PROXIMITY);

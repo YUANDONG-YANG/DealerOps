@@ -9,10 +9,12 @@ import org.springframework.web.cors.reactive.CorsWebFilter;
 import org.springframework.web.cors.reactive.UrlBasedCorsConfigurationSource;
 
 /**
- * 15 §13 / LOCAL-AND-CLOUD §4: one SPA origin from {@code CORS_ALLOWED_ORIGIN}.
- * Local default is Vite {@code http://localhost:5173}. Azure is the web HTTPS origin
- * (Bicep {@code corsAllowedOrigin} / {@code webPublicOrigin}). Do not list
- * {@code X-Dealer-Internal}.
+ * Sole CORS policy (15 §13 / LOCAL-AND-CLOUD §4). One SPA origin from {@code
+ * CORS_ALLOWED_ORIGIN}. Local default is Vite {@code http://localhost:5173}. Azure is the web
+ * HTTPS origin (Bicep {@code corsAllowedOrigin} / {@code webPublicOrigin}).
+ *
+ * <p>Do not also set {@code spring.cloud.gateway.globalcors}. A second writer was only kept in
+ * sync by {@code DedupeResponseHeader} and could drift. Do not list {@code X-Dealer-Internal}.
  */
 @Configuration
 public class CorsConfig {

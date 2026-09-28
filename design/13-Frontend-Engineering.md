@@ -131,6 +131,8 @@ All paths are relative to Gateway: `/api/v1/...`. After success, "refresh" means
 
 No "Forgot password".
 
+The CRM link picker checks every linked customer’s full `linkedVehicles` collection; the list’s single `linkedVehicle` is only a preview and cannot establish occupancy. Only unlinked vehicles are offered. Customer audit history includes link and unlink events even after the relationship row is deleted.
+
 ### 5.3 Admin `/admin` (Platform.Admin only)
 
 **Information-architecture ruling: one route, two in-page Tabs** (aligns with the two column sets in 12; do not split a second page).
@@ -174,9 +176,9 @@ Filters: `q` (Name/Email/Phone), `linked`. Pagination same as DMS: `page`/`size`
 | Enter / Search / Reset | `GET /customers` | customer table | `403` no-access state; otherwise Could not load customers |
 | `Add customer` | `POST /customers` four fields | customer table | `400` Check required fields |
 | `Edit` save | `GET/PATCH /customers/{id}` | that row + drawer | `404` Customer not found; `409 VERSION_CONFLICT` |
-| `Link vehicle` (searchable Select, this dealership, unlinked only (in stock or sold)) | `PUT /customers/{id}/vehicles/{vehicleId}` | customer table Linked vehicle + drawer | `409 VEHICLE_ALREADY_LINKED` Vehicle already linked; `400 WRONG_DEALER_OR_SOLD` Vehicle not available |
+| `Link vehicle` (searchable Select, this dealership, unlinked only (in stock or sold)) | `PUT /customers/{id}/vehicles/{vehicleId}` | customer table Linked vehicle + drawer | `409 VEHICLE_ALREADY_LINKED` Vehicle already linked; `404` Vehicle not found. A same-store sold vehicle is a valid link. |
 | `Unlink` (after confirm) | `DELETE /customers/{id}/vehicles/{vehicleId}` → **204** no body | customer table Linked vehicle + drawer | `404` Link not found; `409 SOLD_LOCKED` Sold vehicles cannot be unlinked |
-| Link-vehicle dropdown data | `GET /vehicles?status=IN_STOCK`; then exclude already linked. 14 customer list has `linkedVehicle` | dropdown | already-taken items disabled. Fields follow the handbook/14 |
+| Link-vehicle dropdown data | Link options call `GET /vehicles` and linked-owner occupancy calls `GET /customers?linked=true`, both with `page` and `size` only (no `status` filter), requesting size 10, adopting the size the server returns (capped at 10), and paging until the accumulated count reaches `total`. Drop vehicles already linked to this customer. 14 customer list has `linkedVehicle` | dropdown | already-taken items (linked to another customer) stay disabled. In-stock and sold vehicles both appear. Fields follow the handbook/14 |
 | Detail Audit | `GET /audit?entityType=CUSTOMER&entityId=` | audit list | `404` |
 | Audit after unlink (optional) | `GET /audit?entityType=CUSTOMER_VEHICLE&entityId=` | audit list | `404` |
 

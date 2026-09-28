@@ -4,16 +4,14 @@ import { useSessionStore } from '../stores/session'
 
 const session = useSessionStore()
 const items = computed(() => {
+  if (!session.hasBusinessAccess) return []
   if (session.role === 'Platform.Admin') return [{ label: 'Admin', to: '/admin' }]
-  if (session.role === 'Dealer.User' && session.dealerId != null) {
-    return [
-      { label: 'DMS', to: '/dms' },
-      { label: 'CRM', to: '/crm' },
-      { label: 'Ad compliance', to: '/ads' },
-      { label: 'Assistant', to: '/assistant' },
-    ]
-  }
-  return []
+  return [
+    { label: 'DMS', to: '/dms' },
+    { label: 'CRM', to: '/crm' },
+    { label: 'Ad compliance', to: '/ads' },
+    { label: 'Assistant', to: '/assistant' },
+  ]
 })
 </script>
 

@@ -33,7 +33,7 @@ Checked on 2026-09-28 from outside the VM: the web UI returned HTTP 200 with tit
 
 Caddy on the VM terminates TLS with a Let's Encrypt certificate for that hostname. Ports 80 and 443 are public. Port 22 is limited to the address used when the VM was created.
 
-MySQL 8.4 and the four services (`dealer-web`, `dealer-gateway`, `dealer-core`, and the `ai-service` stub) run together from `dealer-platform/docker-compose.yml` on this one VM, with an on-VM memory cap file `docker-compose.vm-limits.yml`. There is no Azure Database for MySQL and there are no Container Apps. `dealer-platform/infra/main.bicep` was not deployed. Images were built on the VM from this repo.
+MySQL 8.4 and the four services (`dealer-web`, `dealer-gateway`, `dealer-core`, and the `ai-service` stub) run together from `dealer-platform/docker-compose.yml` on this one VM, with an on-VM memory cap file `docker-compose.vm-limits.yml`. `dealer-platform/infra/main.bicep` was not deployed. Images were built on the VM from this repo.
 
 The active Azure for Students credit lot, checked before the VM was created, showed a closed balance of 100 USD and expires 2026-10-27. Cost Management actual cost from the grant start through 2026-09-28 was 6.31 CAD. `Standard_B2ms` in Canada Central is 0.0928 USD per hour. The spending limit stops the subscription when the credit runs out.
 
@@ -43,4 +43,4 @@ A push to `main` builds container images and pushes them to GitHub Container Reg
 
 ## Other hosts
 
-Other hosts are unavailable for this project. Railway, Azure Container Apps, Cloudflare, Vercel, a custom domain, Oracle, and Muse are not the demo. Do not deploy them. The files for those older ideas can stay in the repo; they are not a live host.
+Other hosts are unavailable.

@@ -25,13 +25,13 @@
 | Q-06 | Can vehicles or customers be deleted? | No (protects audit and sale records) | DMS-17, CRM-14 |
 | Q-07 | How does the ad "price" relate to DMS? DMS has no list price | Price is checked only in the ad body; no new DMS field | AD-R07 |
 | Q-08 | Where does "new / used" status come from? DMS has no such field | Checked in the ad body; independent dealers default to used | AD-R04 |
-| Q-09 | Who decides whether previous use / warranty "applies"? | The salesperson ticks the checklist; the system then requires disclosure in the body | AD-R03, AD-R06 |
+| Q-09 | Who decides whether previous use / warranty "applies"? | No structured answers in this demo. Display a checklist; existing copy cues produce soft hints. Silent prior use/warranty cannot be inferred (accepted A1 limitation) | AD-R03, AD-R06 |
 | Q-10 | Exactly 20,000 km/year — excess-km disclosure needed? | No (source says "under 20,000") | AD-R25 |
-| Q-11 | Is a finance ad triggered by kind or by content? | Either FINANCE kind or a rate / payment appearing in the body | AD-R10–R13 |
+| Q-11 | Is a finance ad triggered by kind or by content? | FINANCE, or CASH matching the existing APR/PAYMENT pattern in title/body; LEASE keeps its own rules | AD-R10–R13 |
 | Q-12 | Can one vehicle have several ads (different media)? | One ad per vehicle | AD-01 |
 | Q-13 | Should audit record views? | Only modifications, not views | AUD-01–03 |
 | Q-14 | Is there only one admin? | Multiple admin accounts allowed, same role | AUTH-01 |
-| Q-15 | How far does "update rules without a code change" go this release? | Rules in a config file, effective on restart; no admin UI | AD-15 |
+| Q-15 | How far does "update rules without a code change" go this release? | Not this release. The patterns are hardcoded `static final Pattern` constants in `OmvicRuleEngine` (`dealer-core/src/main/java/com/dealerops/core/compliance/OmvicRuleEngine.java`). There is no rules config file and no admin UI. A rule change needs a code change. | AD-15 |
 
 ## 3. Questions for the client / instructor
 
@@ -47,5 +47,5 @@
 |---|---|---|
 | Compliance misjudgement | Ad text is natural language; keyword matching can miss or misfire | Fixed rules only check presence; semantic issues go to AI; regression test on the fixture set |
 | AI instability | Same ad, different results on two runs | Low temperature, structured output, fixed fixture regression |
-| Regulation changes | OMVIC rules change | Configurable rules + disclaimer |
+| Regulation changes | OMVIC rules change | Rules are hardcoded `static final Pattern` constants in `OmvicRuleEngine`; a regulation change needs a code change. There is no rules config file. |
 | Tenant data leak | A missed dealer filter | Uniform data-layer filter + automated AT-01-style tests |

@@ -79,6 +79,7 @@ function open(card: AssistantCardDto) {
           <span class="muted">Ask about this dealership</span>
         </div>
       </div>
+      <p class="muted">Read-only: this assistant never changes dealership records. Search by make, VIN or customer name, or ask “Which Toyota vehicles are in stock?” Results show up to five matches, not a total count.</p>
       <el-card>
         <el-input v-model="text" placeholder="Ask a question about this dealership." @keyup.enter="ask">
           <template #append>

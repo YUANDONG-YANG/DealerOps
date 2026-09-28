@@ -2,6 +2,46 @@
 
 Record of work on the requirement sources in this folder. Newest entry first.
 
+## 2026-09-28 · Minimal fixes before commit/push
+
+Implemented V-01–04 from analysis/12: sold fields visible, customer link history remains readable, all linked vehicles excluded from the CRM picker, and simple assistant keyword/status questions supported. Added only small existing-page displays (VIN/detail link, read-only notice, BLOCK/REVIEW labels). Updated two obsolete CORS assertions, removed the CI skipTests mistake, and supplied the required address in the existing integration fixture. No new test cases/framework, schema or service. Push note: GitHub rejected the workflow change because the current OAuth credential lacks workflow scope. The one-line dealer-core.yml CI correction is retained locally and excluded from the pushed code commit; the remote pipeline still has its prior integration-test command.
+
+Final local verification: core 25/25, gateway 15/15, AI stub 19/19 unit tests passed; web type-check and production build passed; CRM occupancy smoke check passed; git diff --check passed. Real Azure/Entra/AI and Docker integration are not claimed.
+
+## 2026-09-28 · Requirements versus current code verification
+
+Read the original PDF/DOCX, current requirements and implementation. Recorded four business follow-ups (sold fields, visible link audit, multi-vehicle picker occupancy, assistant sentence retrieval), documentation mismatches and delivery evidence separately. Core: 25 unit tests passed; gateway: 15 tests, 2 stale CORS assertions failed; AI stub: 19 tests passed; web build passed. Docker integration, browser E2E and real AI were not run. No application code or scope was changed.
+
+Report: [analysis/12-Requirements-Code-Verification-2026-09-28.md](analysis/12-Requirements-Code-Verification-2026-09-28.md).
+
+## 2026-09-28 · Codex's fix verified by build + test
+
+Full report: [../review/DealerOps-Codex-Change-Review-2026-09-28.md](../review/DealerOps-Codex-Change-Review-2026-09-28.md).
+
+Verified the uncommitted working-tree changes against the six High-severity findings from the same-day code review: all six are correctly fixed (merge-patch semantics restored, compliance-check version race closed, ad-view request race guarded, gateway JWT dev-mode fail-closed, internal-route shared secret fail-closed, AI-call timeout now cancels its task). Two related Medium items (anonymous Swagger, duplicate CORS config) were also fixed as a side effect.
+
+Compiled and ran the unit test suites for real (offline `mvn`) rather than reading code only: `dealer-core` and `ai-service` compile clean with all unit tests passing; `dealer-gateway` compiles clean but **`CorsHeadersTest` and `GatewayNotPublicTest` now fail** — they assert the old, duplicated CORS block in `application.yaml` that the GW-7 fix intentionally removed. The tests need updating to check `CorsConfig.java` instead, not the fix reverting. `dealer-web` type-checks clean. Medium/Low items beyond the six High ones were not individually re-verified (diff is 65+ files).
+
+## 2026-09-28 · Minimal demo requirements reconciliation
+
+Resolved six documentation issues: course BLOCK/REVIEW severity, AI success semantics, CASH finance triggering, sold-vehicle linking, display-only checklist scope, and acceptance traceability. Added AT-24–28 as focused manual checks, not executed-test claims. Updated the protocol skeleton and corrected the old Jira report’s sold-link false positive. No application code or live Jira state changed. Details: [resolution](../review/DealerOps-Requirements-Resolution-2026-09-28.md). Earlier log entries below are historical snapshots.
+
+## 2026-09-28 · Code review across all four services
+
+Full report: [../review/DealerOps-Code-Review-2026-09-28.md](../review/DealerOps-Code-Review-2026-09-28.md).
+
+Audited `requirements/analysis/` against current code (it had only ever been verified doc-vs-doc, except A2/A3/B4). Found the A3 fix never propagated to `design/13`, `14`, and `18`, which still describe the old sold-vehicle-link block — a coding agent following those three alone would reintroduce the bug. Also found `requirements/analysis/07` Q-15 contradicts `08`'s A7 finding on whether OMVIC rules are config-driven.
+
+Then reviewed all Java/Vue source in `dealer-core`, `dealer-gateway`, `ai-service`, `dealer-web` line by line (not just docs). Six High-severity issues found, none previously tracked:
+- `ListingService.patchByVehicle()` resets `adKind`/`medium` to defaults on a partial PATCH instead of merging.
+- `ComplianceCheckService` can stamp a check PASSED against a *newer* content version than the one it actually evaluated, letting stale/unchecked ad copy pass the staleness gate.
+- `AdsView.vue`'s vehicle-switch has no request-sequencing guard, so a slow response can persist one vehicle's ad copy onto another.
+- The gateway's JWT mode defaults to `dev` with a hardcoded secret if `JWT_MODE` is unset.
+- The `/internal/v1/**` shared-secret header defaults to the same hardcoded value across all three services.
+- `ai-service`'s AI-call timeout doesn't cancel the underlying task, risking thread starvation under sustained AI latency.
+
+No code changed by this review — findings only, recorded in the report above.
+
 ## 2026-09-25 · A2 / A3 / B4 closed
 
 Cursor's large change set was reviewed ([analysis/10](analysis/10-Cursor-Change-Review.md)): A3 was not actually fixed, rule severity contradicted itself, and scope went far beyond the minimum. Cursor was directed ([analysis/11](analysis/11-Cursor-Instructions.md)) to back its work up to `backup/cursor-wip-2026-09-25` and re-apply only the minimal fix.

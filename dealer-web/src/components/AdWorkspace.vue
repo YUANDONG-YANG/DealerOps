@@ -84,6 +84,7 @@ const formDisabled = computed(() => !props.hasSelection || props.readOnly)
     </div>
     <el-card class="result-pane">
       <template #header>Check result</template>
+      <p>This check is not legal advice and is not an OMVIC approval.</p>
       <div v-if="!hasSelection" class="state">Select a vehicle to start.</div>
       <template v-else>
         <el-tag v-if="isCheckStatus(listing.checkStatus)" :type="statusType" class="status-tag">{{ statusLabel }}</el-tag>
@@ -94,7 +95,9 @@ const formDisabled = computed(() => !props.hasSelection || props.readOnly)
         <p class="muted">Display only. Pass or block comes from the server check, not this list.</p>
         <h4>Rule findings</h4>
         <ul v-if="findings.length">
-          <li v-for="(finding, index) in findings" :key="finding.ruleId + '-' + index">{{ finding.message }}</li>
+          <li v-for="(finding, index) in findings" :key="finding.ruleId + '-' + index">
+            <strong>{{ finding.severity === 'BLOCK' ? 'Block' : 'Review' }} · {{ finding.ruleId }}</strong>: {{ finding.message }}
+          </li>
         </ul>
         <p v-else class="muted">No rule findings yet. Save a draft and run check.</p>
         <template v-if="aiNotes.length">

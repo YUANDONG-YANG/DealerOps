@@ -10,6 +10,8 @@ Dealer users have an Assistant page in the back office. They ask one question an
 
 Platform administrators do not have this page. Queries are this dealership only. Phone, email, and home address are not sent to the model.
 
+The classroom retrieval supports make/VIN/customer-name keywords and simple questions such as “Which Toyota vehicles are in stock?” or “Show sold Toyota vehicles.” It returns up to five matches; these are examples, not inventory/customer totals. It is not a general natural-language database query engine.
+
 ## Flow
 
 1. Vue → Gateway → core. core recognizes the JWT and `dealer_id`.
@@ -18,4 +20,4 @@ Platform administrators do not have this page. Queries are this dealership only.
 4. core verifies that any IDs returned by the model are among those 5, then builds cards. Invented paths are dropped.
 5. Conversation must not change vehicles, customers, or check results.
 
-One Q&A completes synchronously. No queue, no vector store, no complex multi-turn storage (at most the last 3 already-filtered sentences for this dealership). If the model is down, show only the retrieval list and state “Smart explanation is temporarily unavailable.”
+One Q&A completes synchronously. No queue, no vector store, no complex multi-turn storage (a three-turn cap, if kept, limits only what may be sent and is not a ConcurrentHashMap or deque). Per-user turns are not retained in memory, because the next AI call sends question + resources only and the history must not grow for the life of the JVM. If the model is down, show only the retrieval list and state “Smart explanation is temporarily unavailable.”

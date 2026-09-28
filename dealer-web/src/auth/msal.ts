@@ -21,6 +21,8 @@ export const msal = new PublicClientApplication({
 })
 
 let initialized = false
+/** Set synchronously before acquireTokenRedirect so only one redirect can start. */
+let redirectStarted = false
 
 function setActiveFrom(result: AuthenticationResult | null | undefined) {
   if (result?.account) {
@@ -98,7 +100,15 @@ export async function accessToken(): Promise<string> {
   try {
     return (await msal.acquireTokenSilent({ scopes: [apiScope], account: a })).accessToken
   } catch {
-    await msal.acquireTokenRedirect({ scopes: [apiScope] })
+    if (!redirectStarted) {
+      redirectStarted = true
+      try {
+        await msal.acquireTokenRedirect({ scopes: [apiScope] })
+      } catch (error) {
+        redirectStarted = false
+        throw error
+      }
+    }
     throw new Error('Redirecting to sign in')
   }
 }

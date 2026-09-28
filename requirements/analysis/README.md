@@ -2,6 +2,10 @@
 
 This folder breaks the two source documents under `requirements/` into requirement items that can be built and accepted.
 
+2026-09-28: course-demo reconciliation is recorded in ../../review/DealerOps-Requirements-Resolution-2026-09-28.md. Current ad decisions are in 04 and acceptance in 06. Reviews 08–11 retain historical findings; their old proposals do not restore deferred features. Scope errata override original disclosure severity.
+
+最新源码核实：[12-Requirements-Code-Verification-2026-09-28.md](12-Requirements-Code-Verification-2026-09-28.md)。包含当前实现证据、实际测试结果及最小收尾项；不将历史建议恢复为开发范围。
+
 ## Sources
 
 | ID | File | Content | Role |

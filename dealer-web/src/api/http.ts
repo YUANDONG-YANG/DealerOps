@@ -50,15 +50,46 @@ http.interceptors.response.use(
   },
 )
 
-export function messageOf(error: unknown, fallback = 'Request failed.') {
-  const e = error as { response?: { data?: { message?: string; code?: string } } }
-  return e.response?.data?.message || fallback
+export type ApiErrorInfo = { status?: number; code?: string; message?: string }
+
+type ApiErrorBody = { code?: string; message?: string }
+
+function responseOf(error: unknown): { status?: number; data?: ApiErrorBody | Blob } | undefined {
+  return (error as { response?: { status?: number; data?: ApiErrorBody | Blob } }).response
 }
 
-export function statusOf(error: unknown) {
-  return (error as { response?: { status?: number } }).response?.status
+function infoFrom(status: number | undefined, data: ApiErrorBody | Blob | undefined): ApiErrorInfo {
+  if (data == null || data instanceof Blob) return { status }
+  return { status, code: data.code, message: data.message }
 }
 
-export function codeOf(error: unknown) {
-  return (error as { response?: { data?: { code?: string } } }).response?.data?.code
+/** Sync snapshot. A blob body (export) exposes status only; parseApiError reads its JSON. */
+export function apiError(error: unknown): ApiErrorInfo {
+  const response = responseOf(error)
+  return infoFrom(response?.status, response?.data)
+}
+
+export async function parseApiError(error: unknown): Promise<ApiErrorInfo> {
+  const response = responseOf(error)
+  let data = response?.data
+  if (data instanceof Blob) {
+    try {
+      data = JSON.parse(await data.text()) as ApiErrorBody
+    } catch {
+      data = undefined
+    }
+  }
+  return infoFrom(response?.status, data)
+}
+
+export function statusOf(error: unknown): number | undefined {
+  return apiError(error).status
+}
+
+export function codeOf(error: unknown): string | undefined {
+  return apiError(error).code
+}
+
+export function messageOf(error: unknown, fallback = 'Request failed.'): string {
+  return apiError(error).message || fallback
 }

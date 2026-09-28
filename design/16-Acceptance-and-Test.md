@@ -6,7 +6,7 @@
 - Out of scope: tickets, leads, consumer buyer site, password login, standalone Audit page, KPI, CSV import. The assistant only reuses the GitHub component and is read-only.
 - **Local-only cannot pass Sprint 2 / Sprint 3 (Review 2 / Review 3) acceptance.** Sprint 1 may explain architecture and four-repo builds on a local machine; S2/S3 must be a **cloud demo** (Entra → Gateway → business → real AI on Azure). See section 5.
 
-Numbering: classroom scripts `CL-*`, backend `BE-*` (may serve as [11](11-Requirements-Governance-and-Agile.md) **NN-19** key test table), frontend `FE-*`. Total **32** use cases + 6 classroom scripts (the scripts themselves are not counted in the 32).
+Numbering: classroom scripts `CL-*`, backend `BE-*` (may serve as [11](11-Requirements-Governance-and-Agile.md) **NN-19** key test table), frontend `FE-*`. Total **26** use cases + 6 classroom scripts (the scripts themselves are not counted in the 32).
 
 ---
 
@@ -77,7 +77,7 @@ Each script states: who signs in, which page, what they must see / must not see.
 
 1. Still on **`/ads`** (**must be cloud + real GitHub component**; stubs must not impersonate S2/S3).
 2. Write copy that should pass the fixed checklist (dealership name, contact, price, condition wording, year; FINANCE includes APR), `Run check`, wait ≤15s.
-3. **See:** overall status enters **Needs AI review** or **Passed** (depends on the model); `aiStatus` is not `SKIPPED`; `aiNotes` or the summary can **point out missing/risk items** (spec: a real call that can identify missing items).
+3. **See:** after a successful AI response, overall status is **Passed** (soft findings and AI notes do not veto it); `aiStatus` is not `SKIPPED`; `aiNotes` or the summary can **point out missing/risk items** (spec: a real call that can identify missing items).
 4. **Do not see:** timeout/failure painted as Passed. If the model is down: right pane **AI unavailable**, check row already persisted (GET listing is still `AI_UNAVAILABLE`), **do not** treat `Mark ready` / `Export TXT` as a pass.
 
 ### CL-6 · After a price change the old check cannot export (00 item 6)
@@ -178,4 +178,4 @@ Align [08](08-DevOps-and-Implementation.md) Sprint definition of done and [11](1
 | Backend extras BE-13–BE-16 | 4 | S1 leans BE-14; S3 leans BE-13/16 |
 | Frontend FE-01–FE-10 | 10 | S3 guards and six pages; S2 at least `/login`+`/dms`+`/ads` four states |
 
-**32 use cases total** (16 backend + 10 frontend; the 6 classroom items are demo scripts, matched against the table above at acceptance, and are not counted again as items 33–38).
+**26 use cases total** (16 backend + 10 frontend), plus 6 classroom scripts. The focused manual checks in requirements/analysis/06 (AT-24–28) reuse these flows and are not new implementation features.

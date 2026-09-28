@@ -73,6 +73,7 @@ public class ComplianceCheckService {
     if (!body.version().equals(listing.getVersion())) {
       throw new ApiException(ErrorCode.VERSION_CONFLICT, "Version conflict.");
     }
+    int evaluatedContentVersion = listing.getContentVersion();
     VehicleEntity vehicle =
         vehicleRepository
             .findByIdAndDealerId(listing.getVehicleId(), tenant)
@@ -84,7 +85,13 @@ public class ComplianceCheckService {
     OmvicResult omvic = omvicRuleEngine.run(listing, vehicle, dealer);
     if (omvic.hardBlocked()) {
       ComplianceCheckEntity saved =
-          persistCheck(listing, omvic.findings(), AiStatus.SKIPPED, null, Recommendation.BLOCKED);
+          persistCheck(
+              listing,
+              evaluatedContentVersion,
+              omvic.findings(),
+              AiStatus.SKIPPED,
+              null,
+              Recommendation.BLOCKED);
       return toDto(listing, saved);
     }
     try {
@@ -109,10 +116,22 @@ public class ComplianceCheckService {
                       dealer.getContactEmail(),
                       dealer.getContactAddress())));
       ComplianceCheckEntity saved =
-          persistCheck(listing, omvic.findings(), AiStatus.SUCCESS, notes, Recommendation.PASSED);
+          persistCheck(
+              listing,
+              evaluatedContentVersion,
+              omvic.findings(),
+              AiStatus.SUCCESS,
+              notes,
+              Recommendation.PASSED);
       return toDto(listing, saved);
     } catch (AiCallFailed ex) {
-      persistCheck(listing, omvic.findings(), AiStatus.UNAVAILABLE, null, Recommendation.UNAVAILABLE);
+      persistCheck(
+          listing,
+          evaluatedContentVersion,
+          omvic.findings(),
+          AiStatus.UNAVAILABLE,
+          null,
+          Recommendation.UNAVAILABLE);
       throw new ApiException(ErrorCode.AI_UNAVAILABLE, "Ad check AI is unavailable.");
     }
   }
@@ -148,6 +167,7 @@ public class ComplianceCheckService {
 
   private ComplianceCheckEntity persistCheck(
       ListingEntity listing,
+      int evaluatedContentVersion,
       List<RuleFinding> findings,
       AiStatus aiStatus,
       List<AiNote> notes,
@@ -161,7 +181,8 @@ public class ComplianceCheckService {
           ComplianceCheckEntity check = new ComplianceCheckEntity();
           check.setDealerId(current.getDealerId());
           check.setListingId(current.getId());
-          check.setContentVersion(current.getContentVersion());
+          // Stamp the version evaluated at the start of check(), not this re-read.
+          check.setContentVersion(evaluatedContentVersion);
           check.setRuleFindingsJson(writeJson(findings));
           check.setAiStatus(aiStatus);
           check.setAiNotes(notes == null ? null : writeJson(notes));
@@ -170,6 +191,7 @@ public class ComplianceCheckService {
           current.setLastCheckId(check.getId());
           listingRepository.save(current);
           listing.setLastCheckId(check.getId());
+          listing.setContentVersion(current.getContentVersion());
           return Objects.requireNonNull(check);
         });
   }

@@ -14,13 +14,10 @@ class CorsHeadersTest {
     String yaml = Files.readString(Path.of("src/main/resources/application.yaml"));
     assertThat(yaml).contains("CORS_ALLOWED_ORIGIN");
     assertThat(yaml).contains("http://localhost:5173");
-    int allowedHeaders = yaml.indexOf("allowedHeaders:");
-    int exposed = yaml.indexOf("exposedHeaders:", allowedHeaders);
-    assertThat(allowedHeaders).isGreaterThan(0);
-    String headers = yaml.substring(allowedHeaders, exposed);
-    assertThat(headers).contains("Authorization");
-    assertThat(headers).contains("Content-Type");
-    assertThat(headers).doesNotContain("X-Dealer-Internal");
+    String config = Files.readString(Path.of("src/main/java/ca/sait/dealerops/gateway/config/CorsConfig.java"));
+    assertThat(config).contains("setAllowedHeaders(List.of(\"Authorization\", \"Content-Type\"))");
+    assertThat(config).contains("setExposedHeaders(List.of())");
+    assertThat(config).doesNotContain("setAllowedHeaders(List.of(\"X-Dealer-Internal\"))");
   }
 
   @Test

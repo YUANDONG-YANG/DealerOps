@@ -14,6 +14,7 @@ import com.dealerops.core.security.CurrentUser;
 import com.dealerops.core.vehicle.VehicleRepository;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.util.List;
 import java.util.Map;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -82,6 +83,9 @@ public class AuditService {
     }
     Long tenant = user.tenantDealerId();
     assertEntityInDealer(type, entityId, tenant);
+    if (EntityType.CUSTOMER.name().equals(type)) {
+      return customerHistory(tenant, entityId, page, size);
+    }
     // Staff query types are only VEHICLE / CUSTOMER / CUSTOMER_VEHICLE (14 §9).
     Pageable pageable = Paging.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
     Page<AuditEventEntity> result =
@@ -91,13 +95,35 @@ public class AuditService {
         result.map(this::toItem).getContent(), result.getNumber(), result.getSize(), result.getTotalElements());
   }
 
+  // The classroom data set is small. Merge existing link events without a schema migration
+  // or duplicate writes, so even an already-deleted link retains its customer history.
+  private PageResponse<AuditItem> customerHistory(Long tenant, Long customerId, int page, int size) {
+    List<AuditItem> events = auditEventRepository.findByDealerIdOrderByCreatedAtDescIdDesc(tenant).stream()
+        .filter(event -> {
+          if (EntityType.CUSTOMER.name().equals(event.getEntityType())) {
+            return event.getEntityId() == customerId.longValue();
+          }
+          if (!EntityType.CUSTOMER_VEHICLE.name().equals(event.getEntityType())) return false;
+          Map<String, Object> summary = readSummary(event.getFieldSummary());
+          Object id = summary == null ? null : summary.get("customerId");
+          return id instanceof Number number && number.longValue() == customerId.longValue();
+        })
+        .map(this::toItem).toList();
+    int p = Paging.page(page);
+    int s = Paging.size(size);
+    int from = (int) Math.min((long) p * s, events.size());
+    int to = (int) Math.min((long) from + s, events.size());
+    return new PageResponse<>(events.subList(from, to), p, s, events.size());
+  }
+
   private void assertEntityInDealer(String type, Long entityId, Long tenant) {
     boolean found =
         switch (type) {
           case "VEHICLE" -> vehicleRepository.findByIdAndDealerId(entityId, tenant).isPresent();
           case "CUSTOMER" -> customerRepository.findByIdAndDealerId(entityId, tenant).isPresent();
           case "CUSTOMER_VEHICLE" ->
-              customerVehicleRepository.findByIdAndDealerId(entityId, tenant).isPresent();
+              customerVehicleRepository.findByIdAndDealerId(entityId, tenant).isPresent()
+                  || auditEventRepository.existsByDealerIdAndEntityTypeAndEntityId(tenant, type, entityId);
           default -> false;
         };
     if (!found) {

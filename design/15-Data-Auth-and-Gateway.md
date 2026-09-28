@@ -358,11 +358,11 @@ Browser-to-service HTTP **only** goes through `dealer-gateway`. core / ai-servic
 | Match | Upstream | Who may call | Failure shape |
 |---|---|---|---|
 | `/api/v1/**` | `CORE_URL` (local `http://host.docker.internal:8081`) | browser and user JWTs obtained via MSAL | missing/bad JWT → 401 |
-| `/swagger-ui.html`, `/swagger-ui/**`, `/v3/api-docs`, `/v3/api-docs/**` | `CORE_URL` | browser, **no JWT** (classroom acceptance) | — |
+| `/swagger-ui.html`, `/swagger-ui/**`, `/v3/api-docs`, `/v3/api-docs/**` | `CORE_URL` | browser with **no JWT** only when `dealerops.jwt.mode` is `dev` and every active Spring profile is local (`dev`, `local`, `test`, or `default`). `JWT_MODE=entra`, or any other profile, **denies** these paths | denied, not the schema |
 | `/internal/v1/**` | `AI_URL` (local `http://host.docker.internal:8082`) | **core only** (see below) | browser → **404** (do not use 401, which would acknowledge the path) |
 | other | — | — | 404 |
 
-Swagger UI and its OpenAPI JSON are part of the gateway origin. Acceptance opens `http://localhost:8080/swagger-ui/index.html`, or the same path on a public HTTPS gateway. Do not send the browser to core port `8081`. The info description still reads `Published <PUBLISHED_AT>` from dealer-core. Business `/api/v1/**` stays authenticated. The gateway preserves the browser `Host` so Swagger's script and spec URLs stay on the gateway.
+Swagger UI and its OpenAPI JSON are part of the gateway origin. Anonymous access is only the local classroom case above. `JWT_MODE=entra`, or any active profile other than `dev`, `local`, `test`, or `default`, denies `/swagger-ui.html`, `/swagger-ui/**`, `/v3/api-docs`, and `/v3/api-docs/**`. When that case is open, acceptance uses `http://localhost:8080/swagger-ui/index.html`, or the same path on a public HTTPS gateway. Do not send the browser to core port `8081`. The info description still reads `Published <PUBLISHED_AT>` from dealer-core. Business `/api/v1/**` stays authenticated. The gateway preserves the browser `Host` so Swagger's script and spec URLs stay on the gateway.
 
 The two internal paths (same as the handbook; this section only defines entry, not OpenAPI bodies):
 
@@ -373,7 +373,7 @@ The two internal paths (same as the handbook; this section only defines entry, n
 
 Do all three; missing one will be torn apart in defense:
 
-1. **Gateway predicate:** `/internal/v1/**` requires header `X-Dealer-Internal: <INTERNAL_TOKEN>` (value from env / Key Vault, **not** the user JWT). Browser without this header → Gateway **404**.
+1. **Gateway predicate:** `/internal/v1/**` requires header `X-Dealer-Internal: <INTERNAL_TOKEN>` (value from env / Key Vault, **not** the user JWT). Browser without this header → Gateway **404**. The well-known default `dealer-internal` is accepted only when the Spring profile is `dev` or `local`. Any other profile must set a non-default `INTERNAL_TOKEN` shared by gateway, ai-service, and dealer-core. Gateway and ai-service refuse to start on that default.
 2. **core outbound:** add that header when calling AI; **do not** forward the user JWT to ai-service (ai-service has no users and no database).
 3. **ai-service:** bind in-cluster only; missing internal header → 404. Even a direct 8082 connection fails.
 
@@ -436,7 +436,7 @@ function mapRole(claims):
 SPA: MSAL + PKCE, `VITE_ENTRA_CLIENT_ID` is a public client, **no client secret**.  
 Gateway and core **both** validate signatures (same issuer/audience). After Gateway validates, it still forwards the JWT to core; core validates again so a later mistaken public core port still fails.
 
-When `JWT_MODE=dev`, gateway/core use local HS256 (`DEV_JWT_SECRET`) for ITs and classroom stubs. When `JWT_MODE=entra`, they load JWKS from `ENTRA_ISSUER` (or `ENTRA_JWKS_URI`) and enforce `ENTRA_AUDIENCE`. Real Microsoft sign-in requires `entra`.
+Gateway and core read `JWT_MODE` from the process environment, a JVM system property, or the command line. The application placeholder `${JWT_MODE:dev}` is not a mode source. An unset `JWT_MODE` does not select local HMAC, does not accept the committed secret `dealer-dev-jwt-secret-change-me`, and the process fails to start. Explicit `JWT_MODE=dev` uses local HS256 (`DEV_JWT_SECRET`). That classroom secret is accepted only when every active Spring profile is local (`dev`, `local`, `test`, `default`, or `classroom`), including when no profile is active. A custom `DEV_JWT_SECRET` shorter than 32 UTF-8 bytes fails startup and is not zero-padded. The exact classroom secret may still be padded to 32 bytes. When `JWT_MODE=entra`, they load JWKS from `ENTRA_ISSUER` (or `ENTRA_JWKS_URI`) and enforce `ENTRA_AUDIENCE`. Real Microsoft sign-in requires `entra`.
 
 ### 8.4 Classroom / local Entra setup
 
@@ -585,8 +585,8 @@ The handbook allows "align with ai-manager on 17" only as a fallback when the ma
 
 ### CORS
 
-- Allow browser origins **only** on Gateway (and the web dev server for 5173 during development).
-- Locally allow `http://localhost:5173`; on Azure allow only the web HTTPS origin.
+- Allow browser origins **only** on Gateway, in `CorsConfig`'s `CorsWebFilter` (and the web dev server for 5173 during development). `spring.cloud.gateway.globalcors` and `DedupeResponseHeader` are not used.
+- The allowed origin is `CORS_ALLOWED_ORIGIN`. The local default is `http://localhost:5173`. On Azure allow only the web HTTPS origin.
 - core / ai-service: **do not** configure browser CORS (or configure empty). This is part of section 10 "direct access fails".
 - Preflight: allow `Authorization`, `Content-Type`; **do not** expose `X-Dealer-Internal` to the browser (do not list it in `Access-Control-Allow-Headers`).
 

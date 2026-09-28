@@ -1,4 +1,6 @@
-﻿import { http } from './http'
+﻿import { apiError, http, parseApiError } from './http'
+
+export { apiError }
 
 export type CheckStatus = 'BLOCKED' | 'NEEDS_AI' | 'PASSED' | 'STALE' | 'AI_UNAVAILABLE'
 export type AdKind = 'CASH' | 'FINANCE' | 'LEASE'
@@ -38,7 +40,7 @@ export interface Listing {
   version: number
 }
 
-export const CHECK_STATUS_LABEL: Record<CheckStatus, string> = {
+const CHECK_STATUS_LABEL: Record<CheckStatus, string> = {
   BLOCKED: 'Blocked',
   NEEDS_AI: 'Needs AI review',
   PASSED: 'Passed',
@@ -81,32 +83,6 @@ export function applyCheckToListing(listing: Listing, check: CheckResult): Listi
   }
 }
 
-export function apiError(error: unknown): { status?: number; code?: string; message?: string } {
-  const err = error as { response?: { status?: number; data?: { code?: string; message?: string } | Blob } }
-  const data = err.response?.data
-  if (data instanceof Blob) {
-    return { status: err.response?.status }
-  }
-  return {
-    status: err.response?.status,
-    code: data?.code,
-    message: data?.message,
-  }
-}
-
-export async function parseApiError(error: unknown): Promise<{ status?: number; code?: string; message?: string }> {
-  const err = error as { response?: { status?: number; data?: { code?: string; message?: string } | Blob } }
-  let data = err.response?.data
-  if (data instanceof Blob) {
-    try {
-      data = JSON.parse(await data.text()) as { code?: string; message?: string }
-    } catch {
-      data = undefined
-    }
-  }
-  return { status: err.response?.status, code: data?.code, message: data?.message }
-}
-
 function mapReadyExport({ status, code }: { status?: number; code?: string; message?: string }): string {
   if (code === 'CHECK_STALE') return 'Check is stale. Run check again'
   if (code === 'NOT_PASSED') return 'Check has not passed'
@@ -114,10 +90,6 @@ function mapReadyExport({ status, code }: { status?: number; code?: string; mess
   if (status === 404 || code === 'NOT_FOUND') return 'Vehicle not found'
   if (status === 403 || code === 'FORBIDDEN') return 'You do not have access to Ad compliance.'
   return 'Check has not passed'
-}
-
-export function readyExportMessage(error: unknown): string {
-  return mapReadyExport(apiError(error))
 }
 
 export async function readyExportMessageAsync(error: unknown): Promise<string> {

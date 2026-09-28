@@ -1,11 +1,11 @@
-﻿import { http } from './http'
+﻿import { codeOf, http, statusOf } from './http'
 
 export function errorStatus(error: unknown): number {
-  return (error as { response?: { status?: number } }).response?.status ?? 0
+  return statusOf(error) ?? 0
 }
 
 export function errorCode(error: unknown): string {
-  return (error as { response?: { data?: { code?: string } } }).response?.data?.code || ''
+  return codeOf(error) || ''
 }
 
 function vehicleWriteBody(b: Record<string, unknown>) {

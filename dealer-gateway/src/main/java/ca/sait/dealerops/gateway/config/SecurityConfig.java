@@ -3,6 +3,7 @@ package ca.sait.dealerops.gateway.config;
 import ca.sait.dealerops.gateway.security.JwtRoleMapper;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.env.Environment;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.config.Customizer;
@@ -19,27 +20,62 @@ import org.springframework.web.server.WebFilterChain;
 @EnableWebFluxSecurity
 public class SecurityConfig {
 
+  private static final String[] OPENAPI_PATHS = {
+    "/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs", "/v3/api-docs/**"
+  };
+
   @Bean
-  SecurityWebFilterChain chain(ServerHttpSecurity http) {
+  SecurityWebFilterChain chain(ServerHttpSecurity http, Environment environment) {
+    boolean anonymousOpenApi = anonymousOpenApiEnabled(environment);
     http.csrf(ServerHttpSecurity.CsrfSpec::disable);
     http.oauth2ResourceServer(o -> o.jwt(Customizer.withDefaults()));
     http.authorizeExchange(
-        a ->
-            a.pathMatchers(HttpMethod.OPTIONS, "/**")
-                .permitAll()
-                .pathMatchers("/actuator/health")
-                .permitAll()
-                .pathMatchers(
-                    "/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs", "/v3/api-docs/**")
-                .permitAll()
-                .pathMatchers("/api/v1/**")
-                .authenticated()
-                .pathMatchers("/internal/**")
-                .permitAll()
-                .anyExchange()
-                .denyAll());
+        a -> {
+          a.pathMatchers(HttpMethod.OPTIONS, "/**").permitAll();
+          a.pathMatchers("/actuator/health").permitAll();
+          // Local/dev classroom only. Any other mode or a non-local profile denies the schema.
+          if (anonymousOpenApi) {
+            a.pathMatchers(OPENAPI_PATHS).permitAll();
+          } else {
+            a.pathMatchers(OPENAPI_PATHS).denyAll();
+          }
+          a.pathMatchers("/api/v1/**").authenticated();
+          a.pathMatchers("/internal/**").permitAll();
+          a.anyExchange().denyAll();
+        });
     http.addFilterAfter(apiRoleFilter(), SecurityWebFiltersOrder.AUTHENTICATION);
     return http.build();
+  }
+
+  /**
+   * Anonymous Swagger/OpenAPI is the local classroom default ({@code JWT_MODE=dev}, no
+   * non-local Spring profile). Entra and any non-local profile do not serve the schema.
+   */
+  static boolean anonymousOpenApiEnabled(Environment environment) {
+    String mode = environment.getProperty("dealerops.jwt.mode", "dev");
+    if (mode == null || !"dev".equalsIgnoreCase(mode.trim())) {
+      return false;
+    }
+    for (String profile : environment.getActiveProfiles()) {
+      if (!isLocalProfile(profile)) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  private static boolean isLocalProfile(String profile) {
+    if (profile == null) {
+      return true;
+    }
+    String normalized = profile.trim();
+    if (normalized.isEmpty()) {
+      return true;
+    }
+    return normalized.equalsIgnoreCase("dev")
+        || normalized.equalsIgnoreCase("local")
+        || normalized.equalsIgnoreCase("test")
+        || normalized.equalsIgnoreCase("default");
   }
 
   /**

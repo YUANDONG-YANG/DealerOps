@@ -54,10 +54,6 @@ public class ListingService {
   public ListingResponse patchByVehicle(Long vehicleId, PatchListingRequest body) {
     Long tenant = requireTenant();
     requireVehicle(vehicleId, tenant);
-    String title = blankToEmpty(body == null ? null : body.title());
-    String text = blankToEmpty(body == null ? null : body.body());
-    AdKind kind = body == null || body.adKind() == null ? AdKind.CASH : body.adKind();
-    AdMedium medium = body == null || body.medium() == null ? AdMedium.ONLINE : body.medium();
     ListingEntity row = listingRepository.findByVehicleIdAndDealerId(vehicleId, tenant).orElse(null);
     if (row == null) {
       Integer version = body == null ? null : body.version();
@@ -67,10 +63,10 @@ public class ListingService {
       row = new ListingEntity();
       row.setDealerId(tenant);
       row.setVehicleId(vehicleId);
-      row.setTitle(title);
-      row.setBody(text);
-      row.setAdKind(kind);
-      row.setMedium(medium);
+      row.setTitle(blankToEmpty(body == null ? null : body.title()));
+      row.setBody(blankToEmpty(body == null ? null : body.body()));
+      row.setAdKind(body == null || body.adKind() == null ? AdKind.CASH : body.adKind());
+      row.setMedium(body == null || body.medium() == null ? AdMedium.ONLINE : body.medium());
       row.setStatus(ListingStatus.DRAFT);
       row.setContentVersion(1);
       row.setLastCheckId(null);
@@ -79,15 +75,33 @@ public class ListingService {
       if (body == null || body.version() == null || !body.version().equals(row.getVersion())) {
         throw new ApiException(ErrorCode.VERSION_CONFLICT, "Version conflict.");
       }
-      row.setTitle(title);
-      row.setBody(text);
-      row.setAdKind(kind);
-      row.setMedium(medium);
+      applyPresentFields(row, body);
       row.setContentVersion(row.getContentVersion() + 1);
       row.setStatus(ListingStatus.DRAFT);
       listingRepository.save(row);
     }
     return getByVehicle(vehicleId);
+  }
+
+  /**
+   * Merge-patch for a stored listing. Jackson maps both an omitted JSON property and an explicit
+   * null to a null record component, so a null here means "leave the stored value". An explicit
+   * blank title or body still stores {@code ""}. Kind and medium change only when the request
+   * carries a value, so a later OMVIC check still sees the stored ad classification.
+   */
+  private static void applyPresentFields(ListingEntity row, PatchListingRequest body) {
+    if (body.title() != null) {
+      row.setTitle(blankToEmpty(body.title()));
+    }
+    if (body.body() != null) {
+      row.setBody(blankToEmpty(body.body()));
+    }
+    if (body.adKind() != null) {
+      row.setAdKind(body.adKind());
+    }
+    if (body.medium() != null) {
+      row.setMedium(body.medium());
+    }
   }
 
   @Transactional

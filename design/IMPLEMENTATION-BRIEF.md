@@ -36,7 +36,7 @@ Conflict order: **PPT > specification fields > DEVELOPMENT-DESIGN / PROTOCOL > 1
 ### 13/14/15 ruling pointers (not pinned in this brief)
 
 - Pagination envelope `{items,page,size,total}`, `page` from 0; full JSON / assistant `{summary,summaryAvailable,cards}` in **14**.
-- Unlink: `DELETE /customers/{id}/vehicles/{vehicleId}` → **204**. Sold vehicles cannot be newly linked (`400 WRONG_DEALER_OR_SOLD`) or unlinked (`409 SOLD_LOCKED`). **15** owns behavior, **14** owns HTTP.
+- Unlink: `DELETE /customers/{id}/vehicles/{vehicleId}` → **204**. A same-dealer sold vehicle can be newly linked. A missing customer or vehicle is `NOT_FOUND`. An existing link is `409 VEHICLE_ALREADY_LINKED`. Unlink of a sold vehicle stays **409** `SOLD_LOCKED`. **15** owns behavior, **14** owns HTTP.
 - GET listing with no row: **do not persist**, virtual empty draft; first PATCH uses `''` to satisfy NOT NULL (**15**).
 - Tenant authority is `membership.active=1`; ignore client `dealerId`; cross-dealership **404**; staff without a valid membership calling business APIs → **403** `FORBIDDEN` (not 401/404).
 - `/me` includes `dealerLegalName`; Admin list includes `staffCount`. `SOLD_LOCKED` is always **409**.
@@ -171,7 +171,7 @@ Flyway only; ban `ddl-auto=update`.
 
 ## 5. API list
 
-The browser only hits Gateway `http://localhost:8080`, prefix `/api/v1`. core=`8081`, ai-service=`8082`; the browser must not call them directly. Swagger UI is on that same gateway: `/swagger-ui/index.html` and `/v3/api-docs` (no Bearer token). Do not open core port `8081` for Swagger.
+The browser only hits Gateway `http://localhost:8080`, prefix `/api/v1`. core=`8081`, ai-service=`8082`; the browser must not call them directly. Swagger UI stays on that same gateway (`/swagger-ui/index.html` and `/v3/api-docs`). Anonymous access, with no Bearer token, is only when `dealerops.jwt.mode` is `dev` and every active Spring profile is local (`dev`, `local`, `test`, or `default`). Any other JWT mode or profile denies those paths. Do not open core port `8081` for Swagger.
 
 Unified error body: `{"code":"VIN_DUP","message":"..."}`. Cross-dealership id → **404** (not 403; anti-probing). Admin hitting business URLs → **403** `FORBIDDEN`, response has no business fields. Staff without a valid membership → **403**. Optimistic lock: writes carry `version`, conflict `409 VERSION_CONFLICT`. JSON shapes in **14**.
 
@@ -190,7 +190,7 @@ Unified error body: `{"code":"VIN_DUP","message":"..."}`. Cross-dealership id �
 | GET | `/customers` | Staff | `q` + `linked` whether a vehicle is linked | 403 |
 | POST | `/customers` | Staff | Four fields | 400 |
 | GET/PATCH | `/customers/{id}` | Staff | This dealership | 404 |
-| PUT | `/customers/{id}/vehicles/{vehicleId}` | Staff | Same store, not sold, not linked; sold cannot be newly linked | 409 VEHICLE_ALREADY_LINKED 400 WRONG_DEALER_OR_SOLD |
+| PUT | `/customers/{id}/vehicles/{vehicleId}` | Staff | Same store, in stock or sold, not already linked | 404 NOT_FOUND; 409 VEHICLE_ALREADY_LINKED |
 | DELETE | `/customers/{id}/vehicles/{vehicleId}` | Staff | Unlink → 204; sold cannot be unlinked | 404; `409 SOLD_LOCKED` |
 | GET/PATCH | `/vehicles/{id}/listing` | Staff | GET with no row = virtual empty draft, not persisted; first PATCH uses `''` | 404 |
 | POST | `/listings/{id}/checks` | Staff | This dealership + version; rules then AI; wait at most 15s | 404 409 502 AI_UNAVAILABLE |

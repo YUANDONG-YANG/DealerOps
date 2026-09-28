@@ -1,5 +1,5 @@
 ﻿<script setup lang="ts">
-defineProps<{ visible: boolean; title?: string; message?: string; confirmLabel?: string; confirmText?: string }>()
+defineProps<{ visible: boolean; title?: string; message?: string; confirmLabel?: string }>()
 const emit = defineEmits<{ confirm: []; cancel: [] }>()
 </script>
 <template>
@@ -9,7 +9,7 @@ const emit = defineEmits<{ confirm: []; cancel: [] }>()
     </slot>
     <template #footer>
       <el-button @click="emit('cancel')">Cancel</el-button>
-      <el-button type="primary" @click="emit('confirm')">{{ confirmLabel || confirmText || 'Confirm' }}</el-button>
+      <el-button type="primary" @click="emit('confirm')">{{ confirmLabel || 'Confirm' }}</el-button>
     </template>
   </el-dialog>
 </template>

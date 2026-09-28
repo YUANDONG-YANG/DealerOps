@@ -1,4 +1,4 @@
-﻿import { http } from './http'
+﻿import { codeOf, http, statusOf } from './http'
 
 export type Dealer = {
   id: number
@@ -31,14 +31,12 @@ export type BindMemberBody = { entraOid: string; displayName: string }
 
 export type AdminErrorCode = 'DUP_MEMBER' | 'VALIDATION' | 'FORBIDDEN' | 'NOT_FOUND' | string
 
-type ApiErr = { response?: { status?: number; data?: { code?: string; message?: string } } }
-
 export function adminErrorCode(error: unknown): AdminErrorCode | undefined {
-  return (error as ApiErr).response?.data?.code
+  return codeOf(error)
 }
 
 export function adminErrorStatus(error: unknown): number | undefined {
-  return (error as ApiErr).response?.status
+  return statusOf(error)
 }
 
 /** Course UI does not Edit dealership — no GET/PATCH /admin/dealers/{id}. */

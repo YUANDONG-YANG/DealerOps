@@ -57,7 +57,7 @@ Environment variable names follow `dealer-platform/env.example`:
 | `AI_URL` | upstream ai-service (local `http://host.docker.internal:8082`) |
 | `ENTRA_ISSUER` / `ENTRA_AUDIENCE` | JWT signature validation (15 §8) |
 
-The shared internal secret **`INTERNAL_TOKEN`** is already ruled in **15 §7 / §11** (suggested KV name `INTERNAL-TOKEN`). `env.example` does not list it yet: **do not change env.example in this document**; at start, add it to local `.env` / KV per 15; web **does not read** it.
+The shared internal secret **`INTERNAL_TOKEN`** is ruled in **15 §7** (suggested KV name `INTERNAL-TOKEN`). The well-known default `dealer-internal` is accepted only when the Spring profile is `dev` or `local`. Any other profile must set a non-default `INTERNAL_TOKEN` shared by gateway, ai-service, and dealer-core; gateway and ai-service refuse to start on that default. Local Compose sets `SPRING_PROFILES_ACTIVE=dev` on gateway and ai-service only. Web **does not read** it.
 
 ### 1.2 Route table (`application.yaml` level)
 
@@ -70,23 +70,18 @@ server:
 spring:
   cloud:
     gateway:
-      globalcors:
-        add-to-simple-url-handler-mapping: true
-        cors-configurations:
-          '[/**]':
-            allowedOrigins:
-              - "http://localhost:5173"
-            allowedMethods: [GET, POST, PUT, PATCH, DELETE, OPTIONS]
-            allowedHeaders: [Authorization, Content-Type]
-            exposedHeaders: []
-            allowCredentials: false
-      default-filters:
-        - DedupeResponseHeader=Access-Control-Allow-Origin Access-Control-Allow-Credentials, RETAIN_UNIQUE
+      # CORS is only CorsConfig's CorsWebFilter. Do not set globalcors or DedupeResponseHeader.
+      httpclient:
+        connect-timeout: 2000
+        response-timeout: 18s
       routes:
         - id: dealer-core-public
           uri: ${CORE_URL}
           predicates:
             - Path=/api/v1/**
+          metadata:
+            connect-timeout: 2000
+            response-timeout: 18000
           filters:
             - PreserveHostHeader
             # forward user JWT as-is; do not strip Authorization
@@ -94,13 +89,19 @@ spring:
           uri: ${CORE_URL}
           predicates:
             - Path=/swagger-ui.html,/swagger-ui/**,/v3/api-docs,/v3/api-docs/**
+          metadata:
+            connect-timeout: 2000
+            response-timeout: 5000
           filters:
             - PreserveHostHeader
         - id: ai-service-internal
           uri: ${AI_URL}
           predicates:
             - Path=/internal/v1/**
-            - Header=X-Dealer-Internal, ${INTERNAL_TOKEN}
+            - Header=X-Dealer-Internal, ${INTERNAL_TOKEN:dealer-internal}
+          metadata:
+            connect-timeout: 2000
+            response-timeout: 16000
           filters:
             - RemoveRequestHeader=Authorization   # user JWT must not enter ai-service (15 §7)
         - id: not-found
@@ -111,6 +112,8 @@ spring:
             - SetStatus=404
 ```
 
+Route metadata timeouts are finite: the AI route is connect 2s and response 16s; dealer-core `/api/v1/**` is connect 2s and response 18s; Swagger is connect 2s and response 5s. The httpclient backstop is connect 2s and response 18s.
+
 **Browser calls to `/internal/v1/**` must fail (15 §7; missing one of the three will be torn apart in defense):**
 
 1. Gateway predicate: no header `X-Dealer-Internal: <INTERNAL_TOKEN>` → **404** (do not use 401, which would acknowledge the path). Without the header the table above never enters `ai-service-internal` and falls through to 404.
@@ -119,7 +122,7 @@ spring:
 
 `Access-Control-Allow-Headers` **must not** list `X-Dealer-Internal` (15 §13). CORS is **only** on Gateway (and Vite for 5173); core / ai-service do not configure browser CORS.
 
-**Swagger (classroom acceptance).** The browser opens Swagger on the gateway, path `/swagger-ui/index.html`. The gateway proxies that path and `/v3/api-docs` (plus `/v3/api-docs/**`) to core with no Bearer token. Gateway security `permitAll` covers those paths only. `/api/v1/**` stays authenticated. Core `server.forward-headers-strategy=framework` plus `PreserveHostHeader` keep the UI and the spec on the gateway host. The OpenAPI `servers` entry is `GATEWAY_PUBLIC_URL` (default `http://localhost:8080`, or the public gateway origin). Core's outbound `GATEWAY_BASE_URL` stays the in-network gateway (`http://dealer-gateway:8080` in Compose) and is not the browser URL. The description is still `Published <PUBLISHED_AT>`. Core port `8081` is not an acceptance URL.
+**Swagger (classroom acceptance).** Anonymous Swagger and OpenAPI are available only when `dealerops.jwt.mode` is `dev` and every active Spring profile is local (`dev`, `local`, `test`, or `default`). `JWT_MODE=entra`, or any other profile, denies `/swagger-ui.html`, `/swagger-ui/**`, `/v3/api-docs`, and `/v3/api-docs/**`. When that local case is open, the browser opens Swagger on the gateway, path `/swagger-ui/index.html`, with no Bearer token. `/api/v1/**` stays authenticated. Core `server.forward-headers-strategy=framework` plus `PreserveHostHeader` keep the UI and the spec on the gateway host. The OpenAPI `servers` entry is `GATEWAY_PUBLIC_URL` (default `http://localhost:8080`, or the public gateway origin). Core's outbound `GATEWAY_BASE_URL` stays the in-network gateway (`http://dealer-gateway:8080` in Compose) and is not the browser URL. The description is still `Published <PUBLISHED_AT>`. Core port `8081` is not an acceptance URL.
 
 Azure: allow only the web HTTPS origin (replace `localhost:5173`). Local preflight serves Vite only.
 
@@ -135,11 +138,13 @@ Mapping is locked, same function as 15 §8.1; this document does not change the 
 
 Gateway and core **both** validate signatures. After Gateway validates, it must still forward **`Authorization: Bearer`** to core (core validates again in case 8081 is later opened by mistake).
 
-SPA: MSAL + PKCE, no client secret. Gateway **does not issue** tokens.
+SPA: MSAL + PKCE, no client secret. Gateway does not issue tokens.
+
+The gateway and core decoders read `JWT_MODE` from the process environment, a JVM system property, or the command line. An unset `JWT_MODE` does not select local HMAC and does not accept the committed secret `dealer-dev-jwt-secret-change-me`; startup fails. Explicit `JWT_MODE=dev` still accepts that classroom secret when every active Spring profile is local (`dev`, `local`, `test`, `default`, or `classroom`), including when no profile is active. A custom `DEV_JWT_SECRET` shorter than 32 UTF-8 bytes fails startup and is not zero-padded. The exact classroom secret may still be padded to 32 bytes. `JWT_MODE=entra` validates Entra JWKS.
 
 ### 1.4 CORS only on Gateway
 
-Allowed web origin (local): **`http://localhost:5173`** (paired with `VITE_GATEWAY_URL=http://localhost:8080`).  
+CORS is defined only in the gateway `CorsConfig` `CorsWebFilter`. `spring.cloud.gateway.globalcors` and `DedupeResponseHeader` are not used. The allowed origin is `CORS_ALLOWED_ORIGIN`, default `http://localhost:5173` (paired with `VITE_GATEWAY_URL=http://localhost:8080`).
 Allowed headers: `Authorization`, `Content-Type`. Cookies are not this course's approach.
 
 core:8081 / ai:8082: **do not** configure ACAO for 5173. This is part of "direct access fails", not optional.

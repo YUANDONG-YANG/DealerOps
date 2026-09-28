@@ -20,7 +20,8 @@ class GatewayNotPublicTest {
     assertThat(yaml).contains("Path=/internal/v1/**");
     assertThat(yaml).contains("Header=X-Dealer-Internal");
     assertThat(yaml).contains("http://localhost:5173");
-    assertThat(yaml).contains("allowedHeaders: [Authorization, Content-Type]");
+    String cors = Files.readString(Path.of("src/main/java/ca/sait/dealerops/gateway/config/CorsConfig.java"));
+    assertThat(cors).contains("setAllowedHeaders(List.of(\"Authorization\", \"Content-Type\"))");
     assertThat(yaml).doesNotContain("X-Dealer-Internal]");
     assertThat(yaml).contains("INTERNAL_TOKEN:dealer-internal");
     assertThat(yaml).contains("include: health");

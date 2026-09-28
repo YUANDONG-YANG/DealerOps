@@ -11,7 +11,6 @@ export const useSessionStore = defineStore('session', {
     entraOid: '',
   }),
   getters: {
-    signedIn: (s) => !!s.account,
     hasBusinessAccess: (s) => s.role === 'Platform.Admin' || (s.role === 'Dealer.User' && s.dealerId !== null),
   },
   actions: {
