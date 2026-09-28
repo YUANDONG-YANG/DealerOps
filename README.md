@@ -70,7 +70,7 @@ That starts MySQL 8.4 on `3306` (`dealer_core` / `dealer` / `dealer_dev_only`), 
 
 That Compose file sets `SPRING_PROFILES_ACTIVE=dev` on `dealer-gateway` and `ai-service` only, so the local default `INTERNAL_TOKEN` (`dealer-internal`) is accepted. Any other Spring profile must set one non-default `INTERNAL_TOKEN` shared by gateway, ai-service, and dealer-core. Do not set the `dev` profile on the Azure Container Apps stack.
 
-Published GHCR images and the shared publish timestamp are described in [deploy/README.md](deploy/README.md). Architecture stays in [design/AI-CODING-LOCAL-AND-CLOUD.md](design/AI-CODING-LOCAL-AND-CLOUD.md) §7.
+The current public demo is a Cloudflare quick tunnel in front of this Compose stack. The GHCR publish, the tunnel steps, and the Azure backup VM are in [deploy/README.md](deploy/README.md). Architecture stays in [design/AI-CODING-LOCAL-AND-CLOUD.md](design/AI-CODING-LOCAL-AND-CLOUD.md) §7.
 
 ```text
 cd dealer-web
@@ -93,7 +93,7 @@ Homemade username/password auth is **out of scope**. Dealers and admins sign in 
    - `Platform.Admin`
    - `Dealer.User`
 3. **SPA app** (public client, PKCE, **no client secret**):
-   - Redirect URI: `http://localhost:5173/login` (add the cloud HTTPS `/login` URI later).
+   - Redirect URI: `http://localhost:5173/login`. While a Cloudflare quick tunnel is up, also add `https://<web-host>/login` from [deploy/README.md](deploy/README.md). The Azure backup hostname is recorded in that same file.
    - API permission: delegated `api://dealer-api/access_as_user`.
 4. Assign App Roles to classroom users in Entra (one admin + two staff for isolation demos).
 

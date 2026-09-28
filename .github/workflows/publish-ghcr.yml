@@ -1,5 +1,5 @@
 # Builds and pushes the four app images to GHCR. Compile stays in the per-app workflows.
-# Does not log in to Azure and does not deploy to Vercel.
+# Does not start the Cloudflare quick tunnel and does not deploy the Azure backup.
 # Procedure: deploy/README.md
 name: publish-ghcr
 on:
