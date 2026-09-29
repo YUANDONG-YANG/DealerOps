@@ -464,7 +464,22 @@ Account and permission blockers: [PREP-CHECKLIST.md](PREP-CHECKLIST.md). Copy [d
 
 After staff accounts exist in Entra, an Admin signs in, creates dealerships, and uses **Bind staff** with each person’s Object ID (`oid`). That is the path exercised by [16](16-Acceptance-and-Test.md) **CL-1** / **CL-2**.
 
-### 8.5 Defense: the PPT drew Auth as its own domain — why no fifth Java repo
+### 8.5 Personal Microsoft account sign-in (capstone acceptance path)
+
+**Decision (2026-09-29):** the App Registration pair (SPA + API) is hosted in the developer's own Entra tenant, not SAIT's `f52f2183-9f67-4ad2-b656-6f754fe196cb` tenant. Reason: SAIT tenant app registration needs institutional admin consent, which blocks capstone acceptance on someone else's schedule. This does **not** reopen §8.1/§8.2/§8.3: identity is still Microsoft Entra ID OAuth/OIDC + PKCE + JWT via MSAL.js, the login page is still the single **Sign in with Microsoft** control, and `roles[]` in the access token stays the sole RBAC source. Only the hosting tenant and its account-type setting change.
+
+| Setting | Value |
+|---|---|
+| App Registration tenant | Developer's own Entra tenant (developer is Global Admin there; no SAIT approval needed) |
+| Supported account types | "Accounts in any organizational directory and personal Microsoft accounts" |
+| User assignment required (Enterprise Application) | **No** — anyone with a Microsoft account (work/school or personal) can complete sign-in. A visitor with no Microsoft account gets Microsoft's own **Create one!** self-registration and MFA enrollment on `login.microsoftonline.com`; DealerOps code does not implement registration or MFA itself. |
+| First sign-in with no App Role assigned | `roles claims.roles or []` is empty → `mapRole` returns `NONE` → same existing "signed-in but unbound" no-access shell from §8.2, **not** a new code path |
+| Promoting a new sign-in to `Platform.Admin` / `Dealer.User` | The developer (Global Admin of their own tenant) opens Enterprise Applications → App roles → assigns the role to that person's object **after** their first sign-in has created it. Same App Role model as §8.3/§8.4 step 4; only who is eligible to sign in first changes (anyone, not a pre-enrolled classroom roster) |
+| `VITE_ENTRA_TENANT_ID` / `ENTRA_ISSUER` | Point at the developer's own tenant ID, not SAIT's. Update per §8.4 env wiring table |
+
+Tradeoff to flag for acceptance: this widens sign-in from "SAIT classroom roster" to "anyone with a Microsoft account," which is broader than the classroom setup in §8.4 describes. It stays inside "Entra only, no homemade auth" (§8.1), so it does not reopen the specification errata. Use this path when SAIT tenant admin consent is not available in time; fall back to §8.4's SAIT-tenant classroom setup if the course later requires sign-in restricted to SAIT accounts.
+
+### 8.6 Defense: the PPT drew Auth as its own domain — why no fifth Java repo
 
 The PPT draws **Auth** beside UI / Data / AI because it wants **OAuth/OIDC + JWT + RBAC**, and it **forbids homegrown authentication**. This course's Auth unit **is Microsoft Entra ID** (table 07 already says so), not another `dealer-auth`.
 
