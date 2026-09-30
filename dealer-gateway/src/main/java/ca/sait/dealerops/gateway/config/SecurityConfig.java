@@ -33,6 +33,7 @@ public class SecurityConfig {
         a -> {
           a.pathMatchers(HttpMethod.OPTIONS, "/**").permitAll();
           a.pathMatchers("/actuator/health").permitAll();
+          a.pathMatchers(HttpMethod.POST, "/api/v1/auth/login").permitAll();
           // Local/dev classroom only. Any other mode or a non-local profile denies the schema.
           if (anonymousOpenApi) {
             a.pathMatchers(OPENAPI_PATHS).permitAll();

@@ -17,6 +17,9 @@ import org.hibernate.annotations.CreationTimestamp;
     uniqueConstraints = @UniqueConstraint(name = "uk_user_oid", columnNames = {"entra_tenant_id", "entra_oid"}))
 public class AppUserEntity {
 
+  /** Fixed value for {@link #entraTenantId} since S8's 2026-09-30 reversal to local username/password auth. */
+  public static final String LOCAL_TENANT_ID = "local";
+
   @Id
   @GeneratedValue(strategy = GenerationType.IDENTITY)
   @Column(name = "id")
@@ -27,6 +30,9 @@ public class AppUserEntity {
 
   @Column(name = "entra_oid", nullable = false, length = 64)
   private String entraOid;
+
+  @Column(name = "password_hash", nullable = false, length = 100)
+  private String passwordHash;
 
   @Column(name = "display_name", nullable = false, length = 120)
   private String displayName;
@@ -63,6 +69,14 @@ public class AppUserEntity {
 
   public void setEntraOid(String entraOid) {
     this.entraOid = entraOid;
+  }
+
+  public String getPasswordHash() {
+    return passwordHash;
+  }
+
+  public void setPasswordHash(String passwordHash) {
+    this.passwordHash = passwordHash;
   }
 
   public String getDisplayName() {

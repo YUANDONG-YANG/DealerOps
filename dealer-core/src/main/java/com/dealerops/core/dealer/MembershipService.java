@@ -17,6 +17,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import org.springframework.data.domain.Pageable;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,16 +28,19 @@ public class MembershipService {
   private final MembershipRepository membershipRepository;
   private final AppUserRepository appUserRepository;
   private final AuditService auditService;
+  private final PasswordEncoder passwordEncoder;
 
   public MembershipService(
       DealerRepository dealerRepository,
       MembershipRepository membershipRepository,
       AppUserRepository appUserRepository,
-      AuditService auditService) {
+      AuditService auditService,
+      PasswordEncoder passwordEncoder) {
     this.dealerRepository = dealerRepository;
     this.membershipRepository = membershipRepository;
     this.appUserRepository = appUserRepository;
     this.auditService = auditService;
+    this.passwordEncoder = passwordEncoder;
   }
 
   @Transactional(readOnly = true)
@@ -76,7 +80,7 @@ public class MembershipService {
     membership.setActive(true);
     membership.setCreatedBy(actorOid());
     membership = membershipRepository.save(membership);
-    AppUserEntity user = upsertStaffUser(oid, body.displayName().trim(), dealerId);
+    AppUserEntity user = upsertStaffUser(oid, body.displayName().trim(), body.password(), dealerId);
     auditService.record(
         EntityType.MEMBERSHIP.name(),
         membership.getId(),
@@ -113,12 +117,13 @@ public class MembershipService {
         Map.of("entraOid", entraOid, "unbound", true));
   }
 
-  private AppUserEntity upsertStaffUser(String oid, String displayName, Long dealerId) {
-    String tid = currentTid();
+  private AppUserEntity upsertStaffUser(String oid, String displayName, String password, Long dealerId) {
+    String tid = AppUserEntity.LOCAL_TENANT_ID;
     AppUserEntity user =
         appUserRepository.findByEntraTenantIdAndEntraOid(tid, oid).orElseGet(AppUserEntity::new);
     user.setEntraTenantId(tid);
     user.setEntraOid(oid);
+    user.setPasswordHash(passwordEncoder.encode(password));
     user.setDisplayName(displayName);
     user.setRole(AppRole.DEALER_USER);
     user.setDealerId(dealerId);

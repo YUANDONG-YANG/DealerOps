@@ -1,6 +1,5 @@
-# Routes are pinned here (override with CORE_URL / AI_URL / INTERNAL_TOKEN / ENTRA_* / JWT_MODE).
-# JWT: JWT_MODE=dev uses local HS256. JWT_MODE=entra uses issuer + audience + JWKS.
-# Placeholder ENTRA_ISSUER does not fetch JWKS at startup.
+# Routes are pinned here (override with CORE_URL / AI_URL / INTERNAL_TOKEN / JWT_MODE).
+# JWT: dealer-core issues and validates its own HS256 tokens at /api/v1/auth/login (no Entra).
 # CORS policy is only in CorsConfig. Do not add spring.cloud.gateway.globalcors.
 server:
   port: ${GATEWAY_PORT:8080}
@@ -8,12 +7,6 @@ server:
 spring:
   application:
     name: dealer-gateway
-  security:
-    oauth2:
-      resourceserver:
-        jwt:
-          issuer-uri: ${ENTRA_ISSUER:https://login.microsoftonline.com/<tenant-id>/v2.0}
-          audiences: ${ENTRA_AUDIENCE:api://dealer-api}
   cloud:
     gateway:
       # Backstop if a route omits metadata. Per-route metadata below overrides this.
@@ -82,4 +75,3 @@ dealerops:
   jwt:
     mode: ${JWT_MODE:dev}
     dev-secret: ${DEV_JWT_SECRET:dealer-dev-jwt-secret-change-me}
-    jwks-uri: ${ENTRA_JWKS_URI:}

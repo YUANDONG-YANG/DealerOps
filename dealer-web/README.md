@@ -27,27 +27,21 @@ Health: `http://127.0.0.1:5173/` → 200.
 
 Copy `.env.example` to `.env` and fill Entra keys.
 
-## Classroom Entra setup (SPA)
+## Sign-in (admin-issued username/password)
 
-Password login is forbidden. Use Microsoft Entra only.
+Reversed from Entra 2026-09-30 to match the client specification. See [design/15-Data-Auth-and-Gateway.md](../design/15-Data-Auth-and-Gateway.md) §8.
 
-1. Register a **public** SPA client (PKCE). Redirect URI: `http://localhost:5173/login`.
-2. Register (or reuse) the API app with Application ID URI `api://dealer-api`, scope `access_as_user`, and App Roles `Platform.Admin` / `Dealer.User`.
-3. Grant the SPA delegated permission to `api://dealer-api/access_as_user`. Assign roles to demo users in Entra.
-4. Set `VITE_ENTRA_TENANT_ID`, `VITE_ENTRA_CLIENT_ID`, and `VITE_ENTRA_API_SCOPE` in `.env`.
-5. Point gateway/core at the same tenant with `JWT_MODE=entra`, `ENTRA_ISSUER`, and `ENTRA_AUDIENCE` (see `dealer-platform/env.example`).
+The `/login` page posts `{ username, password }` to `POST /api/v1/auth/login` on the gateway and stores the returned JWT. Only the platform admin can create a staff login, from `/admin` (binds a dealership, username, and temporary password in one step). The platform admin account itself is seeded on `dealer-core` startup from `ADMIN_USERNAME` / `ADMIN_PASSWORD` (see `dealer-platform/env.example`); there is no self-registration.
 
-After sign-in, the SPA calls `GET /api/v1/me`. Admin lands on `/admin` and binds staff by Entra object ID. Staff without an active membership see the no-access landing; staff with a membership land on `/dms`.
-
-Full classroom checklist: root [README.md](../README.md) § Classroom Entra. Role claim rules: [design/15-Data-Auth-and-Gateway.md](../design/15-Data-Auth-and-Gateway.md) §8.
+After sign-in, the SPA calls `GET /api/v1/me`. Admin lands on `/admin`. Staff without an active membership see the no-access landing; staff with a membership land on `/dms`.
 
 ## Image (LOCAL-AND-CLOUD target)
 
-Vite **preview** on 5173 (not nginx). Entra `VITE_*` values still bake at build time. Prefer runtime `dist/config.json` (copied from `public/config.json`) or `window.__DEALER_GATEWAY_URL__` for the Gateway origin.
+Vite **preview** on 5173 (not nginx). Prefer runtime `dist/config.json` (copied from `public/config.json`) or `window.__DEALER_GATEWAY_URL__` for the Gateway origin.
 
 ```text
 docker build -t dealer-web .
 docker run --rm -p 5173:5173 dealer-web
 ```
 
-Optional build args: `VITE_GATEWAY_URL`, `VITE_ENTRA_TENANT_ID`, `VITE_ENTRA_CLIENT_ID`, `VITE_ENTRA_API_SCOPE`. On Azure, leave `VITE_GATEWAY_URL` empty and mount or replace `dist/config.json` with `{ "gatewayUrl": "https://<gateway-host>" }` instead of baking localhost.
+Optional build args: `VITE_GATEWAY_URL`. On Azure, leave it empty and mount or replace `dist/config.json` with `{ "gatewayUrl": "https://<gateway-host>" }` instead of baking localhost.

@@ -21,7 +21,7 @@ Private GitHub: [YUANDONG-YANG/DealerOps](https://github.com/YUANDONG-YANG/Deale
 
 Approved scope is [design/SCOPE-BASELINE.md](design/SCOPE-BASELINE.md). Change it only with a re-sign or confirming email.
 
-**In scope:** two roles (`Platform.Admin`, `Dealer.User`); Entra OAuth/OIDC + PKCE + JWT; browser traffic only through the gateway; spec PDF vehicle/customer fields; VIN unique per store; paired sell; sold purchase fields locked; one customer per vehicle; OMVIC rule check then real AI; Ready + TXT export only when the latest check is Passed and not Stale; DMS/CRM audit (who / what / when); read-only in-store Assistant (same AI component, no writes).
+**In scope:** two roles (`Platform.Admin`, `Dealer.User`); admin-issued username/password + JWT (client spec, reversed from Entra 2026-09-30); browser traffic only through the gateway; spec PDF vehicle/customer fields; VIN unique per store; paired sell; sold purchase fields locked; one customer per vehicle; OMVIC rule check then real AI; Ready + TXT export only when the latest check is Passed and not Stale; DMS/CRM audit (who / what / when); read-only in-store Assistant (same AI component, no writes).
 
 **Out of scope:** work orders, leads/follow-up, buyer site / public inventory, OEM portal, KPI dashboard, CSV import, Service Bus / outbox / second DB / vector store, third-party listing publish, payments, Image Studio, homemade auth or model SDK, extra vehicle fields (mileage, color, fuel, and similar).
 
@@ -78,38 +78,21 @@ npm ci
 npm run dev
 ```
 
-SPA: `http://127.0.0.1:5173/`. Optional image (Vite preview, same port): `docker build -t dealer-web dealer-web` then `docker run --rm -p 5173:5173 dealer-web`. Copy `dealer-web/.env.example` to `dealer-web/.env` for Entra keys.
+SPA: `http://127.0.0.1:5173/`. Optional image (Vite preview, same port): `docker build -t dealer-web dealer-web` then `docker run --rm -p 5173:5173 dealer-web`. Copy `dealer-web/.env.example` to `dealer-web/.env`.
 
-## Classroom Entra (Microsoft sign-in)
+## Sign-in (admin-issued username/password)
 
-Homemade username/password auth is **out of scope**. Dealers and admins sign in with **Microsoft Entra ID** only (`Sign in with Microsoft`). Admin “issues access” by binding a staff `entraOid` to a dealership on `/admin` (not by creating a password).
+Reversed from Entra 2026-09-30 to match the client specification (`requirements/DealerOps-Specification.pdf` §2, §8): dealers and admins sign in with a username and password issued by the platform admin, not Microsoft Entra. Admin "issues access" by creating a staff username + temporary password bound to a dealership on `/admin`.
 
-**Authoritative design** (product surface, JWT roles, classroom registration, env vars, landings): [design/15-Data-Auth-and-Gateway.md](design/15-Data-Auth-and-Gateway.md) §8. Scope errata: [design/SCOPE-BASELINE.md](design/SCOPE-BASELINE.md). Classroom demos: [design/16-Acceptance-and-Test.md](design/16-Acceptance-and-Test.md) **CL-1** / **CL-2**.
-
-### App registrations (one SPA + one API)
-
-1. **API app** (resource): expose scope `access_as_user` under Application ID URI `api://dealer-api` (or your chosen URI — keep SPA scope and `ENTRA_AUDIENCE` aligned).
-2. **App roles** on that API app (value must match JWT `roles[]` exactly):
-   - `Platform.Admin`
-   - `Dealer.User`
-3. **SPA app** (public client, PKCE, **no client secret**):
-   - Redirect URI: `http://localhost:5173/login`. While a Cloudflare quick tunnel is up, also add `https://<web-host>/login` from [deploy/README.md](deploy/README.md). The Azure backup hostname is recorded in that same file.
-   - API permission: delegated `api://dealer-api/access_as_user`.
-4. Assign App Roles to classroom users in Entra (one admin + two staff for isolation demos).
+**Authoritative design** (product surface, JWT roles, env wiring, landings): [design/15-Data-Auth-and-Gateway.md](design/15-Data-Auth-and-Gateway.md) §8. Scope errata: [design/SCOPE-BASELINE.md](design/SCOPE-BASELINE.md).
 
 ### Env wiring
 
-| Variable | Where | Example |
+| Variable | Where | Notes |
 |---|---|---|
-| `VITE_ENTRA_TENANT_ID` | `dealer-web/.env` | Directory (tenant) ID |
-| `VITE_ENTRA_CLIENT_ID` | `dealer-web/.env` | SPA application (client) ID |
-| `VITE_ENTRA_API_SCOPE` | `dealer-web/.env` | `api://dealer-api/access_as_user` |
-| `JWT_MODE` | `dealer-platform/.env` (compose → gateway + core) | `entra` for real tokens; `dev` for local HS256 ITs |
-| `ENTRA_ISSUER` | same | `https://login.microsoftonline.com/<tenant-id>/v2.0` |
-| `ENTRA_AUDIENCE` | same | `api://dealer-api` (or the API app GUID) |
+| `DEV_JWT_SECRET` | `dealer-platform/.env` (compose → gateway + core) | ≥32 UTF-8 bytes; unique per environment |
+| `ADMIN_USERNAME` / `ADMIN_PASSWORD` | `dealer-platform/.env` (core only) | Seeds the one platform admin on first startup; no-op once it exists |
 
-Copy [dealer-platform/env.example](dealer-platform/env.example) and [dealer-web/.env.example](dealer-web/.env.example). Do not commit real `.env` files. After staff accounts exist in Entra, an Admin signs in, creates dealerships, and uses **Bind staff** with each person’s Object ID (`oid`).
-
-Account and permission blockers: [design/PREP-CHECKLIST.md](design/PREP-CHECKLIST.md). Claim → role mapping and full auth design: [design/15-Data-Auth-and-Gateway.md](design/15-Data-Auth-and-Gateway.md) §8.
+Copy [dealer-platform/env.example](dealer-platform/env.example) and [dealer-web/.env.example](dealer-web/.env.example). Do not commit real `.env` files. After the platform admin signs in, they create dealerships and use **Bind staff** to issue each person a username and temporary password.
 
 `ai-service` image defaults to Maven profile `stub` (no sibling `ai-manager` source in this tree). After `mvn -DskipTests install` in a sibling checkout named `ai-manager`, rebuild with `MAVEN_ARGS=-DskipTests`. Ports and boot order: [design/AI-CODING-LOCAL-AND-CLOUD.md](design/AI-CODING-LOCAL-AND-CLOUD.md). Cloud Bicep in `dealer-platform/infra/` is a draft — do not treat it as deployed.

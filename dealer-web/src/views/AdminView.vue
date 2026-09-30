@@ -42,11 +42,15 @@ const memberDrawer = ref(false)
 const memberFormRef = ref<FormInstance>()
 const drawerMembers = ref<Member[]>([])
 const drawerError = ref('')
-const member = ref({ entraOid: '', displayName: '' })
+const member = ref({ entraOid: '', displayName: '', password: '' })
 const bindError = ref('')
 const memberRules: FormRules = {
-  entraOid: [{ required: true, message: 'Entra OID is required', trigger: 'blur' }],
+  entraOid: [{ required: true, message: 'Username is required', trigger: 'blur' }],
   displayName: [{ required: true, message: 'Display name is required', trigger: 'blur' }],
+  password: [
+    { required: true, message: 'Temporary password is required', trigger: 'blur' },
+    { min: 8, message: 'At least 8 characters', trigger: 'blur' },
+  ],
 }
 
 let dealersLoadSeq = 0
@@ -249,13 +253,13 @@ async function bind() {
   if (memberForm) {
     const valid = await memberForm.validate().then(() => true).catch(() => false)
     if (!valid) return
-  } else if (!member.value.entraOid || !member.value.displayName) {
-    bindError.value = 'Check Entra ID'
+  } else if (!member.value.entraOid || !member.value.displayName || !member.value.password) {
+    bindError.value = 'Check username, display name, and password'
     return
   }
   try {
     await adminApi.bind(staffDealer.value.id, member.value)
-    member.value = { entraOid: '', displayName: '' }
+    member.value = { entraOid: '', displayName: '', password: '' }
     memberFormRef.value?.clearValidate()
     await refreshDrawerMembers()
     await loadDealers()
@@ -265,7 +269,7 @@ async function bind() {
     if (code === 'DUP_MEMBER' || adminErrorStatus(e) === 409) {
       bindError.value = 'Staff already bound'
     } else if (code === 'VALIDATION' || adminErrorStatus(e) === 400) {
-      bindError.value = serverDetail(e) || 'Check Entra ID'
+      bindError.value = serverDetail(e) || 'Check username'
     } else if (code === 'NOT_FOUND' || adminErrorStatus(e) === 404) {
       bindError.value = 'Dealership not found'
     } else if (isForbidden(e)) {
@@ -377,7 +381,7 @@ onMounted(loadDealers)
               :page="memberPage"
               @page="p => { memberPage = p }"
             >
-              <el-table-column label="Entra ID / email">
+              <el-table-column label="Username">
                 <template #default="{ row }">{{ row.entraOid }}</template>
               </el-table-column>
               <el-table-column prop="legalName" label="Dealership" />
@@ -420,16 +424,19 @@ onMounted(loadDealers)
       <el-form ref="memberFormRef" :model="member" :rules="memberRules" label-position="top">
         <p v-if="drawerError" class="danger-text">{{ drawerError }}</p>
         <p v-if="bindError" class="danger-text">{{ bindError }}</p>
-        <el-form-item label="Entra OID" prop="entraOid">
+        <el-form-item label="Username" prop="entraOid">
           <el-input v-model="member.entraOid" />
         </el-form-item>
         <el-form-item label="Display name" prop="displayName">
           <el-input v-model="member.displayName" />
         </el-form-item>
+        <el-form-item label="Temporary password" prop="password">
+          <el-input v-model="member.password" type="password" show-password />
+        </el-form-item>
         <el-button type="primary" @click="bind">Bind staff</el-button>
       </el-form>
       <el-table :data="drawerMembers" style="margin-top:20px">
-        <el-table-column prop="entraOid" label="Entra ID" />
+        <el-table-column prop="entraOid" label="Username" />
         <el-table-column prop="displayName" label="Name" />
         <el-table-column label="Status">
           <template #default="{ row }">

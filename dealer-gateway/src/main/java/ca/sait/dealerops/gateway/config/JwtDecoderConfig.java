@@ -1,6 +1,6 @@
 package ca.sait.dealerops.gateway.config;
 
-import ca.sait.dealerops.gateway.security.EntraJwtSupport;
+import ca.sait.dealerops.gateway.security.JwtSupport;
 import java.util.Locale;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -9,72 +9,30 @@ import org.springframework.core.env.EnumerablePropertySource;
 import org.springframework.core.env.Environment;
 import org.springframework.core.env.PropertySource;
 import org.springframework.security.oauth2.core.DelegatingOAuth2TokenValidator;
-import org.springframework.security.oauth2.core.OAuth2TokenValidator;
 import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
-import org.springframework.security.oauth2.jwt.Jwt;
-import org.springframework.security.oauth2.jwt.JwtException;
 import org.springframework.security.oauth2.jwt.JwtValidators;
 import org.springframework.security.oauth2.jwt.NimbusReactiveJwtDecoder;
 import org.springframework.security.oauth2.jwt.ReactiveJwtDecoder;
-import reactor.core.publisher.Mono;
 
+/**
+ * Local HS256 decoder for tokens {@code dealer-core} issues itself at {@code /api/v1/auth/login}
+ * (design/15-Data-Auth-and-Gateway.md S8, admin-issued username/password, no Entra).
+ */
 @Configuration
 public class JwtDecoderConfig {
 
-  /**
-   * {@code JWT_MODE=dev}: local HS256 (same secret as core).
-   * {@code JWT_MODE=entra}: issuer + audience + JWKS. Placeholder issuer does not fetch JWKS.
-   * An unset {@code JWT_MODE} does not select the local HMAC decoder.
-   */
   @Bean
   public ReactiveJwtDecoder jwtDecoder(Environment environment) {
     String mode = explicitJwtMode(environment);
-    if (mode == null) {
+    if (mode == null || !"dev".equalsIgnoreCase(mode)) {
       throw new IllegalStateException(
-          "JWT_MODE is unset. Set JWT_MODE=entra to validate Entra tokens, or JWT_MODE=dev for local HS256. The local HMAC decoder is not the default.");
+          "JWT_MODE must be 'dev'. The local HS256 decoder is the only mode since the Entra reversal.");
     }
-    String issuer =
-        firstNonBlank(
-            environment.getProperty("ENTRA_ISSUER"),
-            environment.getProperty("spring.security.oauth2.resourceserver.jwt.issuer-uri"),
-            EntraJwtSupport.DEFAULT_ISSUER);
     String audience =
         firstNonBlank(
-            environment.getProperty("ENTRA_AUDIENCE"),
             environment.getProperty("spring.security.oauth2.resourceserver.jwt.audiences"),
-            EntraJwtSupport.DEFAULT_AUDIENCE);
-    String jwksUriOverride =
-        firstNonBlank(
-            environment.getProperty("ENTRA_JWKS_URI"),
-            environment.getProperty("dealerops.jwt.jwks-uri"),
-            "");
-    String devSecret = EntraJwtSupport.isDevMode(mode) ? devSecret(environment) : "";
-    return jwtDecoder(issuer, audience, mode, devSecret, jwksUriOverride);
-  }
-
-  /**
-   * Builds a decoder from an explicit mode. Values other than {@code dev} and {@code entra} are rejected.
-   */
-  public ReactiveJwtDecoder jwtDecoder(
-      String issuer,
-      String audience,
-      String mode,
-      String devSecret,
-      String jwksUriOverride) {
-    if (EntraJwtSupport.useEntraJwks(mode, issuer)) {
-      return entraDecoder(issuer.trim(), audience, jwksUriOverride);
-    }
-    if (EntraJwtSupport.isEntraMode(mode)) {
-      return token ->
-          Mono.error(
-              new JwtException(
-                  "JWT_MODE=entra but ENTRA_ISSUER is unset or still a placeholder; JWKS is not loaded"));
-    }
-    if (!EntraJwtSupport.isDevMode(mode)) {
-      throw new IllegalStateException(
-          "JWT_MODE must be 'dev' or 'entra'. Refusing the local HMAC decoder.");
-    }
-    return devDecoder(audience, devSecret);
+            JwtSupport.DEFAULT_AUDIENCE);
+    return devDecoder(audience, devSecret(environment));
   }
 
   /**
@@ -117,17 +75,17 @@ public class JwtDecoderConfig {
         || lower.contains("systemproperties");
   }
 
-  private static String devSecret(Environment environment) {
+  static String devSecret(Environment environment) {
     String configured =
         firstNonBlank(
             environment.getProperty("DEV_JWT_SECRET"),
             environment.getProperty("dealerops.jwt.dev-secret"));
-    if (configured == null || EntraJwtSupport.isWellKnownDevSecret(configured)) {
+    if (configured == null || JwtSupport.isWellKnownDevSecret(configured)) {
       if (!acceptsWellKnownDevSecret(environment)) {
         throw new IllegalStateException(
-            "The built-in classroom HMAC secret is not accepted for a non-dev Spring profile. Set JWT_MODE=entra, or set DEV_JWT_SECRET to a secret of at least 32 bytes.");
+            "The built-in classroom HMAC secret is not accepted for a non-dev Spring profile. Set DEV_JWT_SECRET to a secret of at least 32 bytes.");
       }
-      return EntraJwtSupport.DEFAULT_DEV_SECRET;
+      return JwtSupport.DEFAULT_DEV_SECRET;
     }
     return configured;
   }
@@ -166,23 +124,14 @@ public class JwtDecoderConfig {
     return null;
   }
 
-  private static ReactiveJwtDecoder entraDecoder(String issuer, String audience, String jwksOverride) {
-    String jwks = EntraJwtSupport.jwksUri(issuer, jwksOverride);
-    NimbusReactiveJwtDecoder decoder = NimbusReactiveJwtDecoder.withJwkSetUri(jwks).build();
-    OAuth2TokenValidator<Jwt> withIssuer = JwtValidators.createDefaultWithIssuer(issuer);
-    decoder.setJwtValidator(
-        new DelegatingOAuth2TokenValidator<>(withIssuer, EntraJwtSupport.audienceValidator(audience)));
-    return decoder;
-  }
-
   private static ReactiveJwtDecoder devDecoder(String audience, String devSecret) {
     NimbusReactiveJwtDecoder decoder =
-        NimbusReactiveJwtDecoder.withSecretKey(EntraJwtSupport.hmacSecret(devSecret))
+        NimbusReactiveJwtDecoder.withSecretKey(JwtSupport.hmacSecret(devSecret))
             .macAlgorithm(MacAlgorithm.HS256)
             .build();
     decoder.setJwtValidator(
         new DelegatingOAuth2TokenValidator<>(
-            JwtValidators.createDefault(), EntraJwtSupport.audienceValidator(audience)));
+            JwtValidators.createDefault(), JwtSupport.audienceValidator(audience)));
     return decoder;
   }
 }

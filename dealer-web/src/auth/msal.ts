@@ -1,55 +1,33 @@
-﻿import {
-  PublicClientApplication,
-  type AccountInfo,
-  type AuthenticationResult,
-} from '@azure/msal-browser'
+/**
+ * Admin-issued username/password session (design/15-Data-Auth-and-Gateway.md S8, reversed from
+ * Entra 2026-09-30). File kept at this path/name so router and test mocks do not need to change.
+ */
+import axios from 'axios'
+import { resolveGatewayUrl } from '../api/gateway'
 
-const tenant = import.meta.env.VITE_ENTRA_TENANT_ID || 'common'
-const clientId = import.meta.env.VITE_ENTRA_CLIENT_ID || 'dealer-web-placeholder'
-export const apiScope = import.meta.env.VITE_ENTRA_API_SCOPE || 'api://dealer-api/access_as_user'
+export type LocalAccount = { token: string }
 
+const TOKEN_KEY = 'dealerops.accessToken'
 const REDIRECT_KEY = 'dealerops.postLoginRedirect'
 
-export const msal = new PublicClientApplication({
-  auth: {
-    clientId,
-    authority: `https://login.microsoftonline.com/${tenant}`,
-    redirectUri: `${window.location.origin}/login`,
-    postLogoutRedirectUri: `${window.location.origin}/login`,
-  },
-  cache: { cacheLocation: 'sessionStorage', storeAuthStateInCookie: false },
-})
-
-let initialized = false
-/** Set synchronously before acquireTokenRedirect so only one redirect can start. */
-let redirectStarted = false
-
-function setActiveFrom(result: AuthenticationResult | null | undefined) {
-  if (result?.account) {
-    msal.setActiveAccount(result.account)
-    return
-  }
-  if (!msal.getActiveAccount()) {
-    const first = msal.getAllAccounts()[0]
-    if (first) msal.setActiveAccount(first)
+function readToken(): string | null {
+  try {
+    return sessionStorage.getItem(TOKEN_KEY)
+  } catch {
+    return null
   }
 }
 
-export async function initializeMsal(): Promise<AuthenticationResult | null> {
-  if (!initialized) {
-    await msal.initialize()
-    initialized = true
-  }
-  const result = await msal.handleRedirectPromise()
-  setActiveFrom(result)
-  return result
+export async function initializeMsal(): Promise<null> {
+  return null
 }
 
-export function account(): AccountInfo | undefined {
-  return msal.getActiveAccount() || msal.getAllAccounts()[0]
+export function account(): LocalAccount | undefined {
+  const token = readToken()
+  return token ? { token } : undefined
 }
 
-/** Remember an in-app path across the Entra redirect round-trip (query string is lost). */
+/** Remember an in-app path across the login round-trip. */
 export function rememberPostLoginRedirect(path: string | null | undefined) {
   if (!path || !path.startsWith('/') || path.startsWith('//') || path.startsWith('/login')) {
     return
@@ -74,41 +52,37 @@ export function takePostLoginRedirect(): string {
   return ''
 }
 
-export async function signIn() {
-  return msal.loginRedirect({ scopes: [apiScope] })
+type LoginResponse = { accessToken: string; role: string; displayName: string }
+
+export async function signIn(username: string, password: string) {
+  const baseURL = await resolveGatewayUrl()
+  const { data } = await axios.post<LoginResponse>(`${baseURL}/api/v1/auth/login`, {
+    username,
+    password,
+  })
+  try {
+    sessionStorage.setItem(TOKEN_KEY, data.accessToken)
+  } catch {
+    /* ignore quota / private mode */
+  }
+  return data
 }
 
 export async function signOut() {
-  return msal.logoutRedirect({
-    account: account(),
-    postLogoutRedirectUri: `${window.location.origin}/login`,
-  })
+  await clearAccount()
+  window.location.assign('/login')
 }
 
 export async function clearAccount() {
-  msal.setActiveAccount(null)
   try {
-    await msal.clearCache()
+    sessionStorage.removeItem(TOKEN_KEY)
   } catch {
     /* ignore */
   }
 }
 
 export async function accessToken(): Promise<string> {
-  const a = account()
-  if (!a) throw new Error('Sign in required')
-  try {
-    return (await msal.acquireTokenSilent({ scopes: [apiScope], account: a })).accessToken
-  } catch {
-    if (!redirectStarted) {
-      redirectStarted = true
-      try {
-        await msal.acquireTokenRedirect({ scopes: [apiScope] })
-      } catch (error) {
-        redirectStarted = false
-        throw error
-      }
-    }
-    throw new Error('Redirecting to sign in')
-  }
+  const token = readToken()
+  if (!token) throw new Error('Sign in required')
+  return token
 }

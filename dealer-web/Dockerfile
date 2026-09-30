@@ -6,15 +6,9 @@ COPY . .
 # Leave VITE_GATEWAY_URL empty in Azure so the image does not bake localhost:8080.
 # Runtime origin: dist/config.json gatewayUrl or window.__DEALER_GATEWAY_URL__.
 ARG VITE_GATEWAY_URL=
-ARG VITE_ENTRA_TENANT_ID=
-ARG VITE_ENTRA_CLIENT_ID=
-ARG VITE_ENTRA_API_SCOPE=api://dealer-api/access_as_user
 # CI sets this to the workflow UTC timestamp. Source builds leave it as local.
 ARG VITE_PUBLISHED_AT=local
 ENV VITE_GATEWAY_URL=$VITE_GATEWAY_URL \
-    VITE_ENTRA_TENANT_ID=$VITE_ENTRA_TENANT_ID \
-    VITE_ENTRA_CLIENT_ID=$VITE_ENTRA_CLIENT_ID \
-    VITE_ENTRA_API_SCOPE=$VITE_ENTRA_API_SCOPE \
     VITE_PUBLISHED_AT=$VITE_PUBLISHED_AT
 RUN npm run build
 

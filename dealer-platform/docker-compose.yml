@@ -31,11 +31,10 @@ services:
       INTERNAL_TOKEN: ${INTERNAL_TOKEN:-dealer-internal}
       GATEWAY_BASE_URL: http://dealer-gateway:8080
       GATEWAY_PUBLIC_URL: ${GATEWAY_PUBLIC_URL:-http://localhost:8080}
-      ENTRA_ISSUER: ${ENTRA_ISSUER:-https://login.microsoftonline.com/<tenant-id>/v2.0}
-      ENTRA_AUDIENCE: ${ENTRA_AUDIENCE:-api://dealer-api}
-      ENTRA_JWKS_URI: ${ENTRA_JWKS_URI:-}
       JWT_MODE: ${JWT_MODE:-dev}
       DEV_JWT_SECRET: ${DEV_JWT_SECRET:-dealer-dev-jwt-secret-change-me}
+      ADMIN_USERNAME: ${ADMIN_USERNAME:-}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
     # 15 §10 / LOCAL-AND-CLOUD §3: loopback only; do not use "8081:8081"
     ports:
       - "127.0.0.1:8081:8081"
@@ -94,9 +93,6 @@ services:
       SPRING_PROFILES_ACTIVE: dev
       INTERNAL_TOKEN: ${INTERNAL_TOKEN:-dealer-internal}
       CORS_ALLOWED_ORIGIN: ${CORS_ALLOWED_ORIGIN:-${WEB_PUBLIC_ORIGIN:-http://localhost:5173}}
-      ENTRA_ISSUER: ${ENTRA_ISSUER:-https://login.microsoftonline.com/<tenant-id>/v2.0}
-      ENTRA_AUDIENCE: ${ENTRA_AUDIENCE:-api://dealer-api}
-      ENTRA_JWKS_URI: ${ENTRA_JWKS_URI:-}
       JWT_MODE: ${JWT_MODE:-dev}
       DEV_JWT_SECRET: ${DEV_JWT_SECRET:-dealer-dev-jwt-secret-change-me}
     ports:
@@ -125,16 +121,10 @@ services:
       context: ../dealer-web
       args:
         VITE_GATEWAY_URL: ${VITE_GATEWAY_URL:-${GATEWAY_PUBLIC_URL:-http://localhost:8080}}
-        VITE_ENTRA_TENANT_ID: ${VITE_ENTRA_TENANT_ID:-}
-        VITE_ENTRA_CLIENT_ID: ${VITE_ENTRA_CLIENT_ID:-}
-        VITE_ENTRA_API_SCOPE: ${VITE_ENTRA_API_SCOPE:-api://dealer-api/access_as_user}
     environment:
       # Entrypoint writes dist/config.json { "gatewayUrl" } for the SPA resolver.
       VITE_GATEWAY_URL: ${VITE_GATEWAY_URL:-${GATEWAY_PUBLIC_URL:-http://localhost:8080}}
       GATEWAY_PUBLIC_URL: ${GATEWAY_PUBLIC_URL:-${VITE_GATEWAY_URL:-http://localhost:8080}}
-      VITE_ENTRA_TENANT_ID: ${VITE_ENTRA_TENANT_ID:-}
-      VITE_ENTRA_CLIENT_ID: ${VITE_ENTRA_CLIENT_ID:-}
-      VITE_ENTRA_API_SCOPE: ${VITE_ENTRA_API_SCOPE:-api://dealer-api/access_as_user}
     ports:
       - "5173:5173"
     depends_on:

@@ -1,9 +1,9 @@
 ﻿import { defineStore } from 'pinia'
-import type { AccountInfo } from '@azure/msal-browser'
+import type { LocalAccount } from '../auth/msal'
 export type Role = 'Platform.Admin' | 'Dealer.User' | null
 export const useSessionStore = defineStore('session', {
   state: () => ({
-    account: null as AccountInfo | null,
+    account: null as LocalAccount | null,
     role: null as Role,
     dealerId: null as number | null,
     dealerLegalName: null as string | null,
