@@ -22,7 +22,7 @@ Scope changes require a re-sign of this page or email confirmation.
 | Audit | Every DMS/CRM change: who, what, when |
 | Assistant | In-dealership read-only Q&A; same AI component; no database writes |
 | Four repos | `dealer-web` / `dealer-gateway` / `dealer-core` / `ai-service` (plus `dealer-platform` for IaC) |
-| Entra | OAuth/OIDC + PKCE + JWT; roles only `Platform.Admin` / `Dealer.User`; bind `entra_oid`→dealership |
+| Auth | Admin-issued username/password per dealer user (client spec, reversed from Entra 2026-09-30); JWT roles only `Platform.Admin` / `Dealer.User`; bind `app_user`→dealership. See [15-Data-Auth-and-Gateway.md](15-Data-Auth-and-Gateway.md) §8 |
 | Gateway | Browser traffic only through Gateway; direct core / ai-service access must fail |
 | Real AI | `ai-service` embeds the GitHub component in-process; failure must not display Pass |
 
@@ -30,7 +30,7 @@ Classroom demo: two dealerships and two staff isolated; Admin hitting vehicle AP
 
 ## Out of Scope (do not write back into scope)
 
-Work Orders · Leads / follow-up · buyer site / public inventory / visitor inquiry · OEM portal · KPI dashboards · CSV import · Service Bus / outbox / DLQ / second database / vector store · third-party auto-listing · payments · Image Studio · custom model SDK · homemade username/password · C# / standalone contracts repo · mileage / color / fuel and other fields outside the specification.
+Work Orders · Leads / follow-up · buyer site / public inventory / visitor inquiry · OEM portal · KPI dashboards · CSV import · Service Bus / outbox / DLQ / second database / vector store · third-party auto-listing · payments · Image Studio · custom model SDK · C# / standalone contracts repo · mileage / color / fuel and other fields outside the specification. Username/password auth is **no longer** out of scope — see errata item 1.
 
 ### Explicitly out of scope (do not design these features)
 
@@ -63,7 +63,7 @@ Already deferred in the proposal and still out of this version: Image Studio, OC
 
 ## Specification errata (PPT / v6 win)
 
-1. **Auth = Entra** (not the specification username/password).  
+1. ~~**Auth = Entra** (not the specification username/password).~~ **Reversed (2026-09-30):** the developer chose to satisfy the client specification directly — admin-issued username/password per dealer user (PDF §2, §8), not Entra. This specific point no longer follows the "PPT hard requirements > specification PDF" conflict order stated above; every other PPT hard requirement (four repos/pipelines, Gateway, Azure+Docker+Bicep+CI/CD, real AI, Scrum board) is unaffected. See [15-Data-Auth-and-Gateway.md](15-Data-Auth-and-Gateway.md) §8 for the reversed design. KAN-5 (client/instructor sign-off) is still open, so this scope is not yet formally re-confirmed in writing.  
 2. **Add Assistant as specification section 7** (the specification has no such page; PPT requires a real-AI core feature → in-dealership read-only assistant).  
 3. **publish = Ready + TXT export** (not external publishing, and not listing on a buyer site).  
 4. **Some OMVIC disclosures are review hints, not blockers** (year, new/used, warranty terms, prior use, finance term, lease term/payment/down). See [AI-PROTOCOL-AND-RULES.md](AI-PROTOCOL-AND-RULES.md) §C.0a.

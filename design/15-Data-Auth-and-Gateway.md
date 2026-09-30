@@ -2,13 +2,13 @@
 
 Version: current (v6) · 2026-09-23  
 Status: fills gaps for the `dealer-core` entity layer and `dealer-gateway` configuration; **not** OpenAPI, **not** a business implementation.  
-**Dealer auth (Entra product surface + classroom registration)** is owned here in §8; keep [README.md](../README.md) § Classroom Entra as the short ops copy of the same steps.
+**Dealer auth (admin-issued username/password, reversed from Entra 2026-09-30)** is owned here in §8; keep [README.md](../README.md) § Classroom Entra updated to match or remove it if stale.
 
 ## Conflict order and SQL baseline
 
 On conflict, decide in this order and **do not reverse it**:
 
-1. Course PPT (independent repos, Gateway, Entra/JWT/RBAC, Container Apps, Bicep, HTTPS, Key Vault, real AI)
+1. Course PPT (independent repos, Gateway, JWT/RBAC, Container Apps, Bicep, HTTPS, Key Vault, real AI) — **except Auth**, where the client specification's username/password wins per [SCOPE-BASELINE.md](SCOPE-BASELINE.md) errata item 1 (reversed 2026-09-30) and §8 below
 2. DealerOps spec PDF fields and enums (do not add or remove columns)
 3. `IMPLEMENTATION-BRIEF.md` / `00`
 4. **This document owns data, tenant, and gateway behavior**; **[14](14-Backend-API-Contract.md) owns HTTP JSON**; **[13](13-Frontend-Engineering.md) owns frontend engineering**
@@ -55,6 +55,8 @@ Entity convention: `Listing.title` / `Listing.body` are non-null Java `String`s 
 ## 2. `app_user.dealer_id` vs `membership` (tenant authority)
 
 **Ruling: staff tenant authority is `membership` (the row with `active=1`). `app_user.dealer_id` is only a cache for `GET /me`; write paths must stay in sync with membership and must not be used as the isolation key.**
+
+Column note (since §8's 2026-09-30 reversal): `entra_oid` below holds the **username**, and `entra_tenant_id` is the fixed literal `'local'` for every row — see §8.3. The column names are unchanged from `V1__init.sql` (locked); only their meaning changed from an Entra claim to a local credential.
 
 ### 2.1 Division of labor
 
@@ -384,46 +386,32 @@ Gateway responsibility ends here: routing, user-JWT validation, blocking interna
 
 ---
 
-## 8. Dealer auth (Entra) — product surface, JWT roles, classroom setup
+## 8. Dealer auth (client spec: admin-issued username/password) — product surface, JWT roles
 
-This section is the **authoritative dealer-auth design**. Frontend route details stay in [13](13-Frontend-Engineering.md); acceptance scripts stay in [16](16-Acceptance-and-Test.md). Do not invent a password path, a second IdP, or a fifth auth microservice.
+**Reversed (2026-09-30):** this section previously specified Microsoft Entra ID sign-in, following a PPT-hard-requirement errata over the client specification. The developer decided to satisfy the client specification directly instead: `DealerOps-Specification.pdf` §2 ("platform admin... issues login credentials"; "every dealer user signs in with their own username and password") and §8 ("hash and salt passwords server-side"). See [SCOPE-BASELINE.md](SCOPE-BASELINE.md) **Specification errata** item 1 (now marked reversed). This section is the **authoritative dealer-auth design**. Frontend route details stay in [13](13-Frontend-Engineering.md); acceptance scripts stay in [16](16-Acceptance-and-Test.md).
 
-### 8.1 Spec PDF username/password → Entra (errata)
+### 8.1 Why this is still not a fifth microservice
 
-The specification PDF describes username/password login. **That path is superseded.** Course PPT forbids homemade authentication; signed scope says Entra only. See [SCOPE-BASELINE.md](SCOPE-BASELINE.md) **Specification errata** item 1: **Auth = Entra** (not the specification username/password). Out-of-scope table: homemade username/password.
+Login is one endpoint on `dealer-core` (`POST /api/v1/auth/login`), reusing the JWT issuance/validation machinery already built for the former Entra path (§8.3's `roles[]`-based RBAC, Gateway + core double validation, `TenantFilter`). Only the token **issuer** changes: `dealer-core` signs the token itself after checking a password hash, instead of forwarding a token Entra already signed. No second database, no fifth repo, no fifth pipeline.
 
 ### 8.2 Product surface (locked)
 
 | Topic | Ruling |
 |---|---|
-| Login route | **One** public page: `/login`. Control label **Sign in with Microsoft** only. No password box, no “Forgot password”, no email/password form. |
-| Identity | Microsoft Entra ID OAuth/OIDC + PKCE + JWT via MSAL.js on the SPA. |
-| App Roles (`value` in JWT `roles[]`) | Exactly `Platform.Admin` and `Dealer.User`. |
-| Issuing access | Admin on `/admin` **binds** staff `entraOid` (+ display name) to a dealership (`POST .../members`). That creates/reactivates `membership` and syncs `app_user`. **Not** creating a local password. |
-| Revoking access | **Unbind** = soft deactivate: `membership.active=0`, `app_user.dealer_id=NULL`; do not delete the Entra account or the `app_user` row (see §2.3). |
-| Post-sign-in landings | After MSAL + `GET /me`: **`Platform.Admin` → `/admin`**; **`Dealer.User` with `dealerId` set → `/dms`**; **signed-in but unbound / no business access → `/` no-access shell** (Sign out only; no DMS/CRM/ads/assistant tables). |
+| Login route | **One** public page: `/login`. Username + password fields, **Sign in** button. |
+| Identity | `dealer-core` verifies the password and issues an HS256 JWT (existing `JWT_MODE=dev` signing path in [18](18-Backend-Core-Engineering.md), now the **only** mode — `JWT_MODE=entra` and its JWKS client are dead code to remove). |
+| Roles (`roles[]` in the JWT) | Exactly `Platform.Admin` and `Dealer.User`, same as before. |
+| Issuing access | Per spec §2, **only the platform admin** creates dealer businesses and issues each staff login (username + a temporary password the admin sets and communicates out of band). Staff cannot self-register (matches spec "Dealer users cannot create or remove logins"). Admin on `/admin` **creates** a staff credential (`POST .../members` with `username`, `tempPassword`) bound to a dealership; that creates/reactivates `membership` and `app_user`, same flow as the old "bind," except it also sets `password_hash`. |
+| Revoking access | **Unbind** = soft deactivate: `membership.active=0`, `app_user.dealer_id=NULL`; keep the `app_user` row and its password hash (see §2.3), consistent with "do not delete the account." |
+| Post-sign-in landings | Unchanged: **`Platform.Admin` → `/admin`**; **`Dealer.User` with `dealerId` set → `/dms`**; **signed-in but unbound → `/` no-access shell**. |
 
-Role guards and redirect rules: [13](13-Frontend-Engineering.md) § routes / guards. Classroom demos that exercise bind then isolation: **[16](16-Acceptance-and-Test.md) CL-1** (Admin creates two dealerships and binds one person each) and **CL-2** (dealership A data invisible to dealership B).
+Role guards and redirect rules: [13](13-Frontend-Engineering.md) § routes / guards. Classroom demos: **[16](16-Acceptance-and-Test.md) CL-1** / **CL-2** (dealership isolation), unchanged.
 
-### 8.3 JWT claim → role (locked)
+### 8.3 Password storage and JWT issuance (locked)
 
-Create **two App Roles** on the Entra **API** app registration. `value` must be:
-
-- `Platform.Admin`
-- `Dealer.User`
-
-Access token (audience = `ENTRA_AUDIENCE`, default `api://dealer-api`):
-
-| Claim | Use |
-|---|---|
-| `iss` | must equal `ENTRA_ISSUER` (`https://login.microsoftonline.com/<tid>/v2.0`) |
-| `aud` | `api://dealer-api` or that API's GUID (must match `ENTRA_AUDIENCE`) |
-| `oid` | `app_user.entra_oid` / `membership.entra_oid` |
-| `tid` | `app_user.entra_tenant_id` |
-| `name` / `preferred_username` | write back `display_name` (update when present) |
-| `roles` (array) | **sole RBAC source** |
-| `scp` / `scope` | only proves `access_as_user`; **not** Admin/staff |
-| `groups` | **ignore** (this course does not use security groups as roles) |
+- **Password hashing:** BCrypt (Spring Security `BCryptPasswordEncoder`), never plaintext, never logged. This satisfies the client spec's own §8 production note ("hash and salt passwords server-side") without adding a new dependency — `dealer-core` already depends on `spring-boot-starter-security`.
+- **Schema:** `V1__init.sql` stays unchanged (locked). A new migration `V20260930_1__add_password_hash.sql` adds `app_user.password_hash VARCHAR(100) NOT NULL`. The existing `entra_oid` column is repurposed to hold the **username** (unique per `entra_tenant_id`); `entra_tenant_id` is fixed to the literal `'local'` for every row so the existing `uk_user_oid (entra_tenant_id, entra_oid)` unique key still enforces "one username, one account." `membership.entra_oid` likewise holds the username. Column names stay as V1 defined them (renaming a locked-migration column is not allowed); new code reads them as "user identifier," not as an Entra claim.
+- **Token issuance:** `POST /api/v1/auth/login` takes `{username, password}`, loads `app_user` by `(entra_tenant_id='local', entra_oid=username)`, verifies the BCrypt hash, then issues the same HS256 JWT shape the old Entra path produced: `roles: [app_user.role]`, `oid: app_user.entra_oid` (the username), `tid: 'local'`, `name: app_user.display_name`. Gateway and core validate it exactly as they validated the local HS256 token in the old `JWT_MODE=dev` path — no change to `TenantFilter` or role mapping.
 
 ```
 function mapRole(claims):
@@ -433,60 +421,17 @@ function mapRole(claims):
   return NONE          // Gateway 401, or 403 everywhere except core /me
 ```
 
-SPA: MSAL + PKCE, `VITE_ENTRA_CLIENT_ID` is a public client, **no client secret**.  
-Gateway and core **both** validate signatures (same issuer/audience). After Gateway validates, it still forwards the JWT to core; core validates again so a later mistaken public core port still fails.
+- **Secret:** the JWT signing secret (`DEV_JWT_SECRET`, ≥32 UTF-8 bytes) becomes the one and only signing secret for every environment, not a classroom-only fallback. Generate a real secret per environment (local `.env`, VM `.env`, future Container Apps Key Vault secret `JWT-SIGNING-SECRET`); do not ship the committed placeholder `dealer-dev-jwt-secret-change-me` past local development.
 
-Gateway and core read `JWT_MODE` from the process environment, a JVM system property, or the command line. The application placeholder `${JWT_MODE:dev}` is not a mode source. An unset `JWT_MODE` does not select local HMAC, does not accept the committed secret `dealer-dev-jwt-secret-change-me`, and the process fails to start. Explicit `JWT_MODE=dev` uses local HS256 (`DEV_JWT_SECRET`). That classroom secret is accepted only when every active Spring profile is local (`dev`, `local`, `test`, `default`, or `classroom`), including when no profile is active. A custom `DEV_JWT_SECRET` shorter than 32 UTF-8 bytes fails startup and is not zero-padded. The exact classroom secret may still be padded to 32 bytes. When `JWT_MODE=entra`, they load JWKS from `ENTRA_ISSUER` (or `ENTRA_JWKS_URI`) and enforce `ENTRA_AUDIENCE`. Real Microsoft sign-in requires `entra`.
+### 8.4 Env wiring
 
-### 8.4 Classroom / local Entra setup
-
-Account and permission blockers: [PREP-CHECKLIST.md](PREP-CHECKLIST.md). Copy [dealer-platform/env.example](../dealer-platform/env.example) and [dealer-web/.env.example](../dealer-web/.env.example); **do not commit** real `.env` files.
-
-#### App registrations (one SPA + one API)
-
-1. **API app** (resource): expose scope `access_as_user` under Application ID URI `api://dealer-api` (or your chosen URI — keep SPA scope and `ENTRA_AUDIENCE` aligned).
-2. **App Roles** on that API app (`value` must match JWT `roles[]` exactly): `Platform.Admin`, `Dealer.User`.
-3. **SPA app** (public client, PKCE, **no client secret**):
-   - Redirect URI: `http://localhost:5173/login` (add the cloud HTTPS `/login` URI later). `redirectUri` / `postLogoutRedirectUri` are same-origin `/login`.
-   - API permission: delegated `api://dealer-api/access_as_user`.
-4. Assign App Roles to classroom users in Entra (one admin + two staff for isolation demos).
-
-#### Env wiring
-
-| Variable | Where | Example / notes |
+| Variable | Where | Notes |
 |---|---|---|
-| `VITE_ENTRA_TENANT_ID` | `dealer-web/.env` | Directory (tenant) ID |
-| `VITE_ENTRA_CLIENT_ID` | `dealer-web/.env` | SPA application (client) ID |
-| `VITE_ENTRA_API_SCOPE` | `dealer-web/.env` | `api://dealer-api/access_as_user` |
-| `JWT_MODE` | `dealer-platform/.env` (compose → gateway + core) | `entra` for real tokens; `dev` for local HS256 ITs |
-| `ENTRA_ISSUER` | same | `https://login.microsoftonline.com/<tenant-id>/v2.0` |
-| `ENTRA_AUDIENCE` | same | `api://dealer-api` (or the API app GUID) |
+| `JWT_SIGNING_SECRET` (replaces `DEV_JWT_SECRET` as the real-environment name) | `dealer-platform/.env` (compose → gateway + core) | ≥32 UTF-8 bytes; unique per environment, never committed |
+| `VITE_*_ENTRA_*` | removed from `dealer-web/.env` | no longer read; MSAL.js dependency removed from `dealer-web/package.json` |
+| `ENTRA_ISSUER` / `ENTRA_AUDIENCE` / `ENTRA_JWKS_URI` | removed from gateway/core config | Entra JWKS validation path deleted as dead code |
 
-After staff accounts exist in Entra, an Admin signs in, creates dealerships, and uses **Bind staff** with each person’s Object ID (`oid`). That is the path exercised by [16](16-Acceptance-and-Test.md) **CL-1** / **CL-2**.
-
-### 8.5 Personal Microsoft account sign-in (capstone acceptance path)
-
-**Decision (2026-09-29):** the App Registration pair (SPA + API) is hosted in the developer's own Entra tenant, not SAIT's `f52f2183-9f67-4ad2-b656-6f754fe196cb` tenant. Reason: SAIT tenant app registration needs institutional admin consent, which blocks capstone acceptance on someone else's schedule. This does **not** reopen §8.1/§8.2/§8.3: identity is still Microsoft Entra ID OAuth/OIDC + PKCE + JWT via MSAL.js, the login page is still the single **Sign in with Microsoft** control, and `roles[]` in the access token stays the sole RBAC source. Only the hosting tenant and its account-type setting change.
-
-| Setting | Value |
-|---|---|
-| App Registration tenant | Developer's own Entra tenant (developer is Global Admin there; no SAIT approval needed) |
-| Supported account types | "Accounts in any organizational directory and personal Microsoft accounts" |
-| User assignment required (Enterprise Application) | **No** — anyone with a Microsoft account (work/school or personal) can complete sign-in. A visitor with no Microsoft account gets Microsoft's own **Create one!** self-registration and MFA enrollment on `login.microsoftonline.com`; DealerOps code does not implement registration or MFA itself. |
-| First sign-in with no App Role assigned | `roles claims.roles or []` is empty → `mapRole` returns `NONE` → same existing "signed-in but unbound" no-access shell from §8.2, **not** a new code path |
-| Promoting a new sign-in to `Platform.Admin` / `Dealer.User` | The developer (Global Admin of their own tenant) opens Enterprise Applications → App roles → assigns the role to that person's object **after** their first sign-in has created it. Same App Role model as §8.3/§8.4 step 4; only who is eligible to sign in first changes (anyone, not a pre-enrolled classroom roster) |
-| `VITE_ENTRA_TENANT_ID` / `ENTRA_ISSUER` | Point at the developer's own tenant ID, not SAIT's. Update per §8.4 env wiring table |
-| MFA / Security Defaults | **Decision (2026-09-30, supersedes the 2026-09-29 entry):** Security Defaults stays **on** (the tenant default). Every account, including the shared `Platform.Admin` test account, enrolls in Microsoft Authenticator app MFA at first sign-in. No Conditional Access / Entra ID P1 needed — this is the free, automatic tenant default; nothing to configure |
-
-Tradeoff to flag for acceptance: this widens sign-in from "SAIT classroom roster" to "anyone with a Microsoft account," which is broader than the classroom setup in §8.4 describes. It stays inside "Entra only, no homemade auth" (§8.1), so it does not reopen the specification errata. Use this path when SAIT tenant admin consent is not available in time; fall back to §8.4's SAIT-tenant classroom setup if the course later requires sign-in restricted to SAIT accounts.
-
-### 8.6 Defense: the PPT drew Auth as its own domain — why no fifth Java repo
-
-The PPT draws **Auth** beside UI / Data / AI because it wants **OAuth/OIDC + JWT + RBAC**, and it **forbids homegrown authentication**. This course's Auth unit **is Microsoft Entra ID** (table 07 already says so), not another `dealer-auth`.
-
-A self-built auth microservice would require a password table or a second token issuer, which hits the PPT directly; it would also add a fifth repo, a fifth pipeline, and a fifth Container App, exceeding "four app repos + platform" and the handbook "do not build a password table". Admin "issuing an account" = bind `entra_oid` → `dealer_id`; identity lives in Entra; authorization cache and tenant live in core `app_user`/`membership`. Gateway only validates tokens; it does not issue them.
-
-Classroom wrap (half page): **independent Auth = identity is hosted independently by Entra; the application side has no authentication service, only ticket validation and dealership binding.** That matches "four business/entry processes + one IdP", not a missing microservice.
+No App Registration, no tenant, no Microsoft account of any kind is part of this auth path anymore. [design/15-Data-Auth-and-Gateway.md] §8.5/§8.6 (personal-Microsoft-account sign-in, MFA policy) are historical — superseded by this section, kept in git history, not repeated here.
 
 ---
 
