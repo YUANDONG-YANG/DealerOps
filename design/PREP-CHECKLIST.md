@@ -10,7 +10,7 @@ Items marked **Missing** block the matching module. Do not paste passwords into 
 | Docker Desktop | **Missing** | Required to run MySQL locally and to build containers later |
 | Teammate A/B/C names | **Missing** | Three names and who owns web / AI / core |
 | Azure subscription | **Missing** | Student or school subscription that can create Container Apps, MySQL, ACR, Key Vault |
-| Entra permissions | **Missing** (env / Azure AD, not code) | Create App Registration(s), App Roles `Platform.Admin` / `Dealer.User`, assign demo users. Design: [15-Data-Auth-and-Gateway.md](15-Data-Auth-and-Gateway.md) §8.4. Ops steps: [README.md](../README.md) § Classroom Entra |
+| Platform admin credentials | **Missing** (env, not code) | Set `ADMIN_USERNAME` / `ADMIN_PASSWORD` so `dealer-core` seeds the one platform admin on startup (reversed from Entra 2026-09-30). Design: [15-Data-Auth-and-Gateway.md](15-Data-Auth-and-Gateway.md) §8 |
 | Model key | **Missing** | ai-manager needs `AIMANAGER_API_KEY` (one of groq/openai/claude/deepseek). Course demos should use a real key that can be called reliably |
 | ai-manager package | **No pinned release** | Publish an immutable version from commit `c07e1f2` to GitHub Packages, or allow local `mvn install` |
 
@@ -18,8 +18,7 @@ Items marked **Missing** block the matching module. Do not paste passwords into 
 
 | Item | Notes |
 |---|---|
-| Two demo Entra accounts plus one admin account | Used to demo isolation between two dealerships |
-| Local or Azure redirect URL | Start with `http://localhost:5173` |
+| Two demo staff usernames/passwords plus one admin account | Used to demo isolation between two dealerships; admin creates staff logins on `/admin` |
 | Azure DevOps or GitHub Actions | The course requires independent CI/CD; you choose which |
 | Budget cap | MySQL + Container Apps incur ongoing cost |
 
@@ -32,4 +31,4 @@ Items marked **Missing** block the matching module. Do not paste passwords into 
 
 ## Do not put these in chat
 
-Subscription passwords, Entra client secrets (an SPA should not have one), or the raw model key. Put them in local environment variables or Key Vault.
+Subscription passwords, `ADMIN_PASSWORD` / staff passwords, or the raw model key. Put them in local environment variables or Key Vault.

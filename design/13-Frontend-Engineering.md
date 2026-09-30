@@ -92,23 +92,19 @@ Menu and guards use the same rules: Admin **renders** Admin only; staff **render
 
 ---
 
-## 4. MSAL and HTTP (half page)
+## 4. Sign-in and HTTP (half page)
 
-Variable names must match `dealer-platform/env.example`. **No client secret:**
+Reversed from MSAL/Entra to admin-issued username/password 2026-09-30; see [15](15-Data-Auth-and-Gateway.md) §8. Variable names must match `dealer-platform/env.example`:
 
 | Variable | Purpose |
 |---|---|
-| `VITE_ENTRA_TENANT_ID` | authority: `https://login.microsoftonline.com/${VITE_ENTRA_TENANT_ID}` |
-| `VITE_ENTRA_CLIENT_ID` | SPA client id |
-| `VITE_ENTRA_API_SCOPE` | default `api://dealer-api/access_as_user`; `loginRequest.scopes` / `acquireTokenSilent` use this item only |
 | `VITE_GATEWAY_URL` | sole API root; local `http://localhost:8080` |
 
-- **PKCE**: `@azure/msal-browser` defaults to PKCE for SPA; do not switch to a confidential client.
-- **Redirect URI**: development `http://localhost:5173` (Vite; must match the Entra SPA registration). Sign-in uses `loginRedirect` (popup is not the primary path). `redirectUri` / `postLogoutRedirectUri` both point to same-origin `/login`. Production URI follows the deployed host; it remains an SPA callback and does not enter Gateway.
-- **Sign-in button**: `Sign in with Microsoft` only. No password box.
-- **Session**: after redirect, `handleRedirectPromise` → `GET ${VITE_GATEWAY_URL}/api/v1/me` (14: `role`, `dealerId`, `dealerLegalName`; for Admin the last two are `null`). Top-bar dealership name: staff uses `dealerLegalName` (placeholder `Dealership` if empty); Admin is always `Platform Admin`.
+- **Sign-in button**: username + password fields, one `Sign in` button. No Microsoft redirect.
+- **Login call**: `src/auth/msal.ts` (kept at this path/name; no MSAL inside it) posts `{ username, password }` to `POST ${VITE_GATEWAY_URL}/api/v1/auth/login`, and stores the returned JWT in `sessionStorage`.
+- **Session**: after a successful login, `GET ${VITE_GATEWAY_URL}/api/v1/me` (14: `role`, `dealerId`, `dealerLegalName`; for Admin the last two are `null`). Top-bar dealership name: staff uses `dealerLegalName` (placeholder `Dealership` if empty); Admin is always `Platform Admin`.
 - **Gateway only**: `api/http.ts` uses `baseURL = import.meta.env.VITE_GATEWAY_URL`, path prefix `/api/v1`. Do not point axios at 8081/8082. Do not call `/internal/v1/**`.
-- **Bearer interceptor**: each request `acquireTokenSilent({ scopes: [VITE_ENTRA_API_SCOPE], account })`, then `acquireTokenRedirect` on failure; header `Authorization: Bearer <accessToken>`. Do not put `dealerId` in query/body as a tenant switch (handbook: ignore dealer IDs sent by the frontend).
+- **Bearer interceptor**: each request reads the stored token and sets `Authorization: Bearer <token>`; no silent refresh (tokens expire after 1 hour — sign in again). Do not put `dealerId` in query/body as a tenant switch (handbook: ignore dealer IDs sent by the frontend).
 - **Uniform error body**: `{ code, message }`. 401 → sign in again; 403/404/409/400/502 → in-page error or `ElMessage`, **not an empty table**. Optimistic writes include `version`; `409 VERSION_CONFLICT` tells the user to refresh and write again.
 
 ---
@@ -138,7 +134,7 @@ The CRM link picker checks every linked customer’s full `linkedVehicles` colle
 **Information-architecture ruling: one route, two in-page Tabs** (aligns with the two column sets in 12; do not split a second page).
 
 - Tab **Dealerships**: columns Name, Contact, Staff count, Actions. Filter: dealership name. Primary button `New dealership`.
-- Tab **Members**: columns Entra ID / email, Dealership, Status, Actions. Filter: staff email. Compose data from existing APIs: `GET /admin/dealers`, then `GET /admin/dealers/{id}/members` per dealer, flatten on the frontend (**do not invent** `GET /admin/members`).
+- Tab **Members**: columns Username, Dealership, Status, Actions. Filter: username. Compose data from existing APIs: `GET /admin/dealers`, then `GET /admin/dealers/{id}/members` per dealer, flatten on the frontend (**do not invent** `GET /admin/members`).
 - Row `Staff`: drawer showing that dealership's members only; bind/unbind both happen in the drawer. Unbind on the Members tab calls the same DELETE.
 
 | Control | Handbook path | Success refresh | Failure code → English |
@@ -146,12 +142,12 @@ The CRM link picker checks every linked customer’s full `linkedVehicles` colle
 | Enter page / Search / Reset | `GET /admin/dealers` | dealership table | `403` You cannot open Admin; otherwise Could not load dealerships |
 | `New dealership` submit | `POST /admin/dealers` four contact fields | dealership table; switch to Dealerships | `400 VALIDATION` Check required contact fields |
 | Open Staff drawer | `GET /admin/dealers/{id}/members` | drawer table | `404` Dealership not found |
-| `Bind staff` submit | `POST /admin/dealers/{id}/members` `{entraOid,displayName}` | that dealership's members + table Staff count | `400` Check Entra ID; `409 DUP_MEMBER` Staff already bound |
+| `Bind staff` submit | `POST /admin/dealers/{id}/members` `{entraOid,displayName,password}` | that dealership's members + table Staff count | `400` Check username, display name, and password; `409 DUP_MEMBER` Staff already bound |
 | `Unbind` (after confirm) | `DELETE /admin/dealers/{id}/members/{entraOid}` | same as above | `404` Member not found |
 | Members Tab load | the two GETs above combined | member table | same as dealership/member GET |
 
 `staffCount`: already returned by the 14 list (count of that dealership's active memberships). Show `—` when missing. Fields follow the handbook/14.  
-14 also has `GET/PATCH /admin/dealers/{id}`; **this course UI still does not provide Edit** (the handbook has no update-dealership UI). No standalone "email to create an Entra account" button.
+14 also has `GET/PATCH /admin/dealers/{id}`; **this course UI still does not provide Edit** (the handbook has no update-dealership UI). Bind staff issues the username and temporary password directly in that one form; there is no separate account-creation step.
 
 ### 5.4 DMS `/dms` (Dealer.User only)
 
@@ -317,7 +313,7 @@ Enum dropdown values match the handbook: `TRADE_IN` `AUCTION` `PRIVATE_PURCHASE`
 
 Still not invented on the frontend:
 
-1. Production MSAL redirect URI (Entra registration, not a frontend guess)
+1. Production login page copy beyond the username/password form already described in §4
 2. The `dealer-web` repository itself is not created yet
 
 This document is a file-split basis, not a business implementation.

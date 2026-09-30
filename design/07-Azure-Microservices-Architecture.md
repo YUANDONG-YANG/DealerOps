@@ -6,8 +6,8 @@ Four independent repositories, four independent pipelines, four images. Browser 
 
 | PPT domain | Unit | Technology | Owner |
 |---|---|---|---|
-| UI | dealer-web | Vue 3 + MSAL.js | A |
-| Auth | Microsoft Entra ID | OAuth 2.0 / OIDC + PKCE, JWT | C configures |
+| UI | dealer-web | Vue 3 | A |
+| Auth | dealer-core (admin-issued username/password, reversed from Entra 2026-09-30; [15](15-Data-Auth-and-Gateway.md) §8) | JWT, BCrypt password hash | C configures |
 | Data | dealer-core | Java 21 Spring Boot + Flyway + one MySQL | C |
 | AI | ai-service | Java 21 Spring Boot, embeds the GitHub AI library, no database | B |
 | Entry | dealer-gateway | Spring Cloud Gateway | C, A reviews |
@@ -15,7 +15,6 @@ Four independent repositories, four independent pipelines, four images. Browser 
 ```mermaid
 flowchart TB
   U[Browser] --> WEB[dealer-web]
-  U <--> ID[Entra ID]
   U -->|JWT| GW[dealer-gateway]
   GW --> CORE[dealer-core]
   CORE -->|Synchronous REST via Gateway| GW

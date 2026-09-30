@@ -14,18 +14,6 @@ param prefix string = 'dealerops'
 @description('Container image tag. Pipelines use $GITHUB_SHA; do not treat latest as a release.')
 param imageTag string = 'latest'
 
-@description('Entra issuer. Empty until classroom tenant is ready.')
-param entraIssuer string = ''
-
-@description('Entra API audience (BRIEF).')
-param entraAudience string = 'api://dealer-api'
-
-@description('SPA Entra tenant. Empty until classroom tenant is ready. Not a secret.')
-param entraTenantId string = ''
-
-@description('SPA Entra client id (PKCE, no client secret). Empty until app registration exists.')
-param entraClientId string = ''
-
 // @description must be a compile-time constant. Do not interpolate ${...} here (BCP032/BCP053).
 // The empty-string default is resolved later as https://{prefix}-gateway.{environment default domain}.
 @description('Public Gateway URL the SPA calls (VITE_GATEWAY_URL / GATEWAY_PUBLIC_URL). When empty, deploy uses https://{prefix}-gateway plus the Container Apps environment default domain. Do not put a personal hostname in git.')
@@ -51,6 +39,17 @@ param internalToken string
 @secure()
 @description('ai-service model key only. Deploy-time only. Key Vault secret name AIMANAGER-API-KEY.')
 param aimanagerApiKey string
+
+@secure()
+@description('HS256 JWT signing secret shared by gateway and core (>=32 UTF-8 bytes). Deploy-time only. Key Vault secret name JWT-SIGNING-SECRET.')
+param jwtSigningSecret string
+
+@description('Username for the one seeded platform admin account (design/15-Data-Auth-and-Gateway.md S8). Empty skips seeding.')
+param adminUsername string = ''
+
+@secure()
+@description('Password for the seeded platform admin account. Deploy-time only. Key Vault secret name ADMIN-PASSWORD.')
+param adminPassword string = ''
 
 var acrName = '${prefix}acr'
 var tenantId = subscription().tenantId
@@ -179,6 +178,18 @@ resource kvAiKey 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = {
   properties: { value: aimanagerApiKey }
 }
 
+resource kvJwtSecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = {
+  parent: kv
+  name: 'JWT-SIGNING-SECRET'
+  properties: { value: jwtSigningSecret }
+}
+
+resource kvAdminPassword 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = {
+  parent: kv
+  name: 'ADMIN-PASSWORD'
+  properties: { value: adminPassword }
+}
+
 resource mysql 'Microsoft.DBforMySQL/flexibleServers@2023-12-30' = {
   name: '${prefix}-mysql'
   location: location
@@ -260,6 +271,18 @@ var kvSecretAi = {
   identity: uai.id
 }
 
+var kvSecretJwt = {
+  name: 'jwt-signing-secret'
+  keyVaultUrl: '${kv.properties.vaultUri}secrets/JWT-SIGNING-SECRET'
+  identity: uai.id
+}
+
+var kvSecretAdminPassword = {
+  name: 'admin-password'
+  keyVaultUrl: '${kv.properties.vaultUri}secrets/ADMIN-PASSWORD'
+  identity: uai.id
+}
+
 // Public HTTPS URLs from CAE name pattern (LOCAL-AND-CLOUD §6). Override with params; no personal hostname.
 var resolvedGatewayUrl = empty(gatewayPublicUrl) ? 'https://${prefix}-gateway.${cae.properties.defaultDomain}' : gatewayPublicUrl
 var resolvedWebOrigin = empty(corsAllowedOrigin) ? 'https://${prefix}-web.${cae.properties.defaultDomain}' : corsAllowedOrigin
@@ -278,7 +301,7 @@ resource coreApp 'Microsoft.App/containerApps@2024-03-01' = {
     configuration: {
       activeRevisionsMode: 'Single'
       registries: [registry]
-      secrets: [kvSecretInternal, kvSecretMysql]
+      secrets: [kvSecretInternal, kvSecretMysql, kvSecretJwt, kvSecretAdminPassword]
       ingress: {
         external: false
         targetPort: 8081
@@ -298,16 +321,17 @@ resource coreApp 'Microsoft.App/containerApps@2024-03-01' = {
             { name: 'MYSQL_PASSWORD', secretRef: 'mysql-password' }
             { name: 'INTERNAL_TOKEN', secretRef: 'internal-token' }
             { name: 'GATEWAY_BASE_URL', value: 'https://${prefix}-gateway.${cae.properties.defaultDomain}' }
-            { name: 'ENTRA_ISSUER', value: entraIssuer }
-            { name: 'ENTRA_AUDIENCE', value: entraAudience }
-            { name: 'JWT_MODE', value: 'entra' }
+            { name: 'JWT_MODE', value: 'dev' }
+            { name: 'DEV_JWT_SECRET', secretRef: 'jwt-signing-secret' }
+            { name: 'ADMIN_USERNAME', value: adminUsername }
+            { name: 'ADMIN_PASSWORD', secretRef: 'admin-password' }
             { name: 'APPLICATIONINSIGHTS_CONNECTION_STRING', value: appi.properties.ConnectionString }
           ]
         }
       ]
     }
   }
-  dependsOn: [acrPull, mysqlDb, kvInternalToken, kvMysqlPassword]
+  dependsOn: [acrPull, mysqlDb, kvInternalToken, kvMysqlPassword, kvJwtSecret, kvAdminPassword]
 }
 
 resource aiApp 'Microsoft.App/containerApps@2024-03-01' = {
@@ -365,7 +389,7 @@ resource gatewayApp 'Microsoft.App/containerApps@2024-03-01' = {
     configuration: {
       activeRevisionsMode: 'Single'
       registries: [registry]
-      secrets: [kvSecretInternal]
+      secrets: [kvSecretInternal, kvSecretJwt]
       ingress: {
         external: true
         targetPort: 8080
@@ -384,16 +408,15 @@ resource gatewayApp 'Microsoft.App/containerApps@2024-03-01' = {
             { name: 'AI_URL', value: 'https://${prefix}-ai.${cae.properties.defaultDomain}' }
             { name: 'INTERNAL_TOKEN', secretRef: 'internal-token' }
             { name: 'CORS_ALLOWED_ORIGIN', value: resolvedWebOrigin }
-            { name: 'ENTRA_ISSUER', value: entraIssuer }
-            { name: 'ENTRA_AUDIENCE', value: entraAudience }
-            { name: 'JWT_MODE', value: 'entra' }
+            { name: 'JWT_MODE', value: 'dev' }
+            { name: 'DEV_JWT_SECRET', secretRef: 'jwt-signing-secret' }
             { name: 'APPLICATIONINSIGHTS_CONNECTION_STRING', value: appi.properties.ConnectionString }
           ]
         }
       ]
     }
   }
-  dependsOn: [acrPull, kvInternalToken]
+  dependsOn: [acrPull, kvInternalToken, kvJwtSecret]
 }
 
 resource webApp 'Microsoft.App/containerApps@2024-03-01' = {
@@ -425,9 +448,6 @@ resource webApp 'Microsoft.App/containerApps@2024-03-01' = {
           env: [
             { name: 'VITE_GATEWAY_URL', value: resolvedGatewayUrl }
             { name: 'GATEWAY_PUBLIC_URL', value: resolvedGatewayUrl }
-            { name: 'VITE_ENTRA_TENANT_ID', value: entraTenantId }
-            { name: 'VITE_ENTRA_CLIENT_ID', value: entraClientId }
-            { name: 'VITE_ENTRA_API_SCOPE', value: 'api://dealer-api/access_as_user' }
             { name: 'APPLICATIONINSIGHTS_CONNECTION_STRING', value: appi.properties.ConnectionString }
           ]
         }
@@ -439,7 +459,7 @@ resource webApp 'Microsoft.App/containerApps@2024-03-01' = {
 
 output acrLoginServer string = acr.properties.loginServer
 output keyVaultName string = kv.name
-output keyVaultSecretNames array = ['INTERNAL-TOKEN', 'MYSQL-PASSWORD', 'AIMANAGER-API-KEY']
+output keyVaultSecretNames array = ['INTERNAL-TOKEN', 'MYSQL-PASSWORD', 'AIMANAGER-API-KEY', 'JWT-SIGNING-SECRET', 'ADMIN-PASSWORD']
 output gatewayFqdn string = '${prefix}-gateway.${cae.properties.defaultDomain}'
 output webFqdn string = '${prefix}-web.${cae.properties.defaultDomain}'
 output gatewayPublicUrl string = resolvedGatewayUrl
