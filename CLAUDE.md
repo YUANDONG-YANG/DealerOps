@@ -44,10 +44,10 @@ Use these people when creating, assigning, or mentioning JIRA work for this proj
 
 | Display name | Initials | Notes |
 | --- | --- | --- |
-| Bedgel Fadhil Ndaâ€?| BW | Surname is truncated in the source list; do not invent the rest |
+| Bedgel Fadhil Ndaâ€¦ | BW | Surname is truncated in the source list; do not invent the rest |
 | Jackson Warga | JW | |
-| Logan Jones | â€?| Photo avatar |
-| Yuandong Yang | â€?| Current user ("You") |
+| Logan Jones | â€” | Photo avatar |
+| Yuandong Yang | â€” | Current user ("You") |
 
 - Address Yuandong Yang as the person in this chat.
 - Do not add other assignees unless the user names them.

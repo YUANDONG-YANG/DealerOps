@@ -19,3 +19,7 @@ Thumbs.db
 # Local MCP config (may contain tokens)
 .cursor/mcp.json
 .vscode/mcp.json
+
+# Personal/working files that must not be published (incident: accidentally committed/pushed 2026-10-05, see deploy/README.md discussion)
+/review/industry-contracts-*/
+/screen/
