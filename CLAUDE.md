@@ -23,7 +23,7 @@ This development-phase gate takes precedence over conflicting test-writing instr
 ## Language and path rules
 
 - Reply to the user in **English only**. Do not use Chinese in chat, commits, comments, or project files.
-- All new or edited project text must be English: Markdown, YAML/JSON comments, Java/JS comments, OpenAPI descriptions, commit messages.
+- All new or edited project text must be English: Markdown, YAML/JSON comments, Java/JS comments, OpenAPI descriptions, commit messages, and pull request descriptions.
 - Do not leave leftover Chinese in files you touch. Translate it; do not delete meaning.
 
 Never write a machine-specific absolute path in `*.md`. Use repo-relative paths such as `design/SCOPE-BASELINE.md` and `dealer-core/src/main/resources/db/migration/V1__init.sql`. Use GitHub URLs or env-var placeholders (`$JAVA_HOME`, sibling checkout named `ai-manager`) instead of a local disk layout.
@@ -44,10 +44,10 @@ Use these people when creating, assigning, or mentioning JIRA work for this proj
 
 | Display name | Initials | Notes |
 | --- | --- | --- |
-| Bedgel Fadhil Ndaâ€¦ | BW | Surname is truncated in the source list; do not invent the rest |
+| Bedgel Fadhil Ndaâ€?| BW | Surname is truncated in the source list; do not invent the rest |
 | Jackson Warga | JW | |
-| Logan Jones | â€” | Photo avatar |
-| Yuandong Yang | â€” | Current user ("You") |
+| Logan Jones | â€?| Photo avatar |
+| Yuandong Yang | â€?| Current user ("You") |
 
 - Address Yuandong Yang as the person in this chat.
 - Do not add other assignees unless the user names them.

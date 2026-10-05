@@ -101,7 +101,7 @@ docker compose up -d --no-build --force-recreate --no-deps dealer-web dealer-gat
 
 If the stack was started with the GHCR overlay, add `-f docker-compose.yml -f docker-compose.ghcr.yml` to that command.
 
-For Microsoft sign-in, add `https://<web-host>/login` as a SPA redirect URI while that hostname is up. The hostname changes on the next `cloudflared` start, so repeat the `.env` update, the container recreate, and the redirect URI. When the processes stop, those origins stop working.
+The hostname changes on the next `cloudflared` start, so repeat the `.env` update and the container recreate. When the processes stop, those origins stop working.
 
 Cloudflare Pages is not this path. `dealer-gateway` and `dealer-core` do not run on Workers.
 
@@ -140,7 +140,20 @@ MySQL 8.4 and the four services (`dealer-web`, `dealer-gateway`, `dealer-core`, 
 
 The active Azure for Students credit lot, checked before the VM was created, showed a closed balance of 100 USD and expires 2026-10-27. Cost Management actual cost from the grant start through 2026-09-28 was 6.31 CAD. `Standard_B2ms` in Canada Central is 0.0928 USD per hour. The spending limit stops the subscription when the credit runs out.
 
-## 7. Limits
+## 7. Two environments: cloud + local VM
+
+The operator runs two independent copies of the stack, not one shared environment:
+
+| Environment | Where | Reached via |
+|---|---|---|
+| Cloud | [Backup: Azure student VM](#backup-azure-student-vm) (section 6) | `https://dealerops-sait.canadacentral.cloudapp.azure.com/` |
+| Local | A separate Windows VM (console/RDP, not this repo's host machine) | Section 4 (local stack) + section 5 (Cloudflare quick tunnel) run unmodified inside that VM |
+
+The local VM runs the exact same `dealer-platform/docker-compose.yml` stack as section 4; there is no separate compose file for it. Steps inside that VM: install Docker Desktop (WSL2 backend), clone this repo, copy `dealer-platform/env.example` to `.env` and set `DEV_JWT_SECRET` plus `ADMIN_USERNAME` / `ADMIN_PASSWORD` (seeds the one platform admin — see [design/15-Data-Auth-and-Gateway.md](../design/15-Data-Auth-and-Gateway.md) §8), then `docker compose up --build`. `dealer-web` runs separately (`npm run dev`, or its own Docker image) same as section 4.
+
+The two environments do not share a database, a JWT signing secret, or admin credentials — each `.env` is independent. Keep that in mind if you bind the same person's staff username on both: the password and the underlying account are not the same row.
+
+## 8. Limits
 
 - GHCR publish does not start `cloudflared` and does not update the Azure backup VM.
 - Job `bicep` compiles `dealer-platform/infra/main.bicep` and does not deploy it.
