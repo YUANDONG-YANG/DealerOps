@@ -7,6 +7,7 @@ These rules apply to every coding agent in this repository, including Cursor, Co
 - Do not add or leave dead code. Unused classes, methods, fields, routes, components, and exports must not stay in the change. When you touch a file, remove code that has no caller. Do not keep a speculative API for later.
 - Do not reimplement behavior that already exists. Search the current module for a service, helper, component, or utility that already does the job, and extend that. A second copy of the same flow is not allowed.
 - Use a design pattern when the change has a real boundary or removes duplication. Prefer a pattern the module already uses. Do not add a pattern that has no caller, and do not wrap a single call in a new abstraction.
+- Do not hardcode values that belong in configuration: connection strings, URLs, ports, tenant/environment IDs, and similar. Use environment variables, application config, or an existing constant; extend the config surface the module already uses instead of inlining a literal.
 
 ## Development phase: no test authoring
 
@@ -23,7 +24,7 @@ This development-phase gate takes precedence over conflicting test-writing instr
 ## Language and path rules
 
 - Reply to the user in **English only**. Do not use Chinese in chat, commits, comments, or project files.
-- All new or edited project text must be English: Markdown, YAML/JSON comments, Java/JS comments, OpenAPI descriptions, commit messages.
+- All new or edited project text must be English: Markdown, YAML/JSON comments, Java/JS comments, OpenAPI descriptions, commit messages, and pull request descriptions.
 - Do not leave leftover Chinese in files you touch. Translate it; do not delete meaning.
 
 Never write a machine-specific absolute path in `*.md`. Use repo-relative paths such as `design/SCOPE-BASELINE.md` and `dealer-core/src/main/resources/db/migration/V1__init.sql`. Use GitHub URLs or env-var placeholders (`$JAVA_HOME`, sibling checkout named `ai-manager`) instead of a local disk layout.
