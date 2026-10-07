@@ -13,7 +13,7 @@ import org.hibernate.annotations.CreationTimestamp;
 @Entity
 @Table(
     name = "membership",
-    uniqueConstraints = @UniqueConstraint(name = "uk_membership", columnNames = {"dealer_id", "entra_oid"}))
+    uniqueConstraints = @UniqueConstraint(name = "uk_membership", columnNames = {"dealer_id", "username"}))
 public class MembershipEntity {
 
   @Id
@@ -24,8 +24,8 @@ public class MembershipEntity {
   @Column(name = "dealer_id", nullable = false)
   private Long dealerId;
 
-  @Column(name = "entra_oid", nullable = false, length = 64)
-  private String entraOid;
+  @Column(name = "username", nullable = false, length = 64)
+  private String username;
 
   @Column(name = "active", nullable = false)
   private boolean active = true;
@@ -49,12 +49,12 @@ public class MembershipEntity {
     this.dealerId = dealerId;
   }
 
-  public String getEntraOid() {
-    return entraOid;
+  public String getUsername() {
+    return username;
   }
 
-  public void setEntraOid(String entraOid) {
-    this.entraOid = entraOid;
+  public void setUsername(String username) {
+    this.username = username;
   }
 
   public boolean isActive() {

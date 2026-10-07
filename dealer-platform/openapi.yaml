@@ -13,8 +13,9 @@ info:
     Internal AI **success/failure JSON** is pinned by `design/AI-PROTOCOL-AND-RULES.md` §B.2–B.3 (`{success,notes[]}` and `{success,summary}`). That protocol wins over older OpenAPI or 14 §11 wording that only said “notes” / “short text”.
 
     **Tenant / auth (behavior aligned with 15; fields still come only from 14):**
+    - `POST /api/v1/auth/login` is the only anonymous `/api/v1` operation. It returns an HS256 `accessToken` (claims `sub`=username, `name`, `roles`); every other operation needs `Authorization: Bearer <accessToken>`.
     - Roles are only `Platform.Admin` and `Dealer.User`. Ignore client `dealerId` in body / query / header.
-    - Staff tenant comes only from JWT `oid` → exactly one `membership.active=1` row.
+    - Staff tenant comes only from the JWT `sub` (the username) → exactly one `membership.active=1` row.
     - Cross-dealership or unknown id in this dealership → **404** `NOT_FOUND` (anti-probing; not 403).
     - Admin hitting business URLs, staff hitting Admin URLs, or staff without valid membership calling business APIs → **403** `FORBIDDEN`.
     - `GET /me` is still **200** when authenticated with no dealership (`dealerId=null`).
@@ -32,6 +33,8 @@ servers:
     description: Gateway only. The only public API origin.
 
 tags:
+  - name: Auth
+    description: Anonymous login with an admin-issued username and password
   - name: Me
     description: Current authenticated identity
   - name: AdminDealers
@@ -62,6 +65,41 @@ security:
   - bearerAuth: []
 
 paths:
+  /api/v1/auth/login:
+    post:
+      tags: [Auth]
+      operationId: login
+      summary: Login
+      description: |
+        Anonymous. Loads the active `app_user` by `username` and verifies the BCrypt password hash.
+        Unknown username, inactive account, or wrong password → **401** `UNAUTHORIZED` with the same message.
+        Blank `username` or `password` → **400** `VALIDATION`.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+      responses:
+        "200":
+          description: Signed in
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LoginResponse"
+        "400":
+          $ref: "#/components/responses/Validation"
+        "401":
+          description: Invalid username or password. code=`UNAUTHORIZED`
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                code: UNAUTHORIZED
+                message: Invalid username or password
+
   /api/v1/me:
     get:
       tags: [Me]
@@ -146,7 +184,7 @@ paths:
       tags: [AdminDealers]
       operationId: patchDealer
       summary: Patch four contact fields and active
-      description: `version` is required. Ignore body.`id`. There is no `DELETE /admin/dealers/{id}`.
+      description: Every field, including `version` and `active`, is required. Ignore body.`id`. There is no `DELETE /admin/dealers/{id}`.
       requestBody:
         required: true
         content:
@@ -178,9 +216,9 @@ paths:
       tags: [AdminMemberships]
       operationId: listMembers
       summary: Dealership members
-      description: Unknown dealership → 404. `q` matches `displayName` or `entraOid`. Do not invent email.
+      description: Unknown dealership → 404. `q` matches `displayName` or `username`. Do not invent email.
       parameters:
-        - $ref: "#/components/parameters/QDisplayOrOid"
+        - $ref: "#/components/parameters/QDisplayOrUsername"
         - $ref: "#/components/parameters/Page"
         - $ref: "#/components/parameters/Size"
       responses:
@@ -201,8 +239,8 @@ paths:
       operationId: bindMember
       summary: Bind staff
       description: |
-        Already an **active** member of this dealership → **409** `DUP_MEMBER`.
-        Re-binding a previously unbound person reactivates them (not 409). Do not delete the Entra account.
+        Already an **active** member of this dealership, still active at another dealership, or the username belongs to a Platform.Admin account → **409** `DUP_MEMBER`.
+        Re-binding a previously unbound person reactivates them (not 409) and resets their password to the one supplied.
       requestBody:
         required: true
         content:
@@ -234,15 +272,15 @@ paths:
                 code: DUP_MEMBER
                 message: Already an active member of this dealership.
 
-  /api/v1/admin/dealers/{id}/members/{entraOid}:
+  /api/v1/admin/dealers/{id}/members/{username}:
     delete:
       tags: [AdminMemberships]
       operationId: unbindMember
       summary: Unbind staff
-      description: Unbind without deleting Entra. Unknown binding → 404. Success **204** with no body.
+      description: Unbind without deleting the `app_user` account. Unknown binding → 404. Success **204** with no body.
       parameters:
         - $ref: "#/components/parameters/DealerId"
-        - $ref: "#/components/parameters/EntraOid"
+        - $ref: "#/components/parameters/Username"
       responses:
         "204":
           description: Unbound, no body
@@ -405,7 +443,8 @@ paths:
       summary: Sell as a required pair
       description: |
         `soldOn` and `soldPrice` must both be present. Server sets `status=SOLD`.
-        Missing either → **400** `SOLD_PAIR_REQUIRED`. Selling again → **409** `SOLD_LOCKED`.
+        Missing either → **400** `SOLD_PAIR_REQUIRED`. `soldOn` in the future or before `addedOn`,
+        or `soldPrice` ≤ 0 → **400** `VALIDATION`. Selling again → **409** `SOLD_LOCKED`.
       parameters:
         - $ref: "#/components/parameters/VehicleId"
       requestBody:
@@ -422,7 +461,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/Vehicle"
         "400":
-          description: SOLD_PAIR_REQUIRED
+          description: SOLD_PAIR_REQUIRED or VALIDATION
           content:
             application/json:
               schema:
@@ -476,7 +515,7 @@ paths:
       tags: [Customers]
       operationId: createCustomer
       summary: Create customer
-      description: Ignore `dealerId`. Response is the detail (`linkedVehicles: []`).
+      description: "Ignore `dealerId`. Response is the detail (`linkedVehicles: []`)."
       requestBody:
         required: true
         content:
@@ -960,7 +999,7 @@ components:
       type: http
       scheme: bearer
       bearerFormat: JWT
-      description: Entra access token. Missing/bad JWT → 401 `UNAUTHORIZED`.
+      description: HS256 access token issued by `POST /api/v1/auth/login`. Missing/bad JWT → 401 `UNAUTHORIZED`.
 
   parameters:
     Page:
@@ -986,12 +1025,12 @@ components:
       schema:
         type: string
       description: Matches legalName
-    QDisplayOrOid:
+    QDisplayOrUsername:
       name: q
       in: query
       schema:
         type: string
-      description: Matches displayName or entraOid
+      description: Matches displayName or username
     DealerId:
       name: id
       in: path
@@ -1027,13 +1066,13 @@ components:
       schema:
         type: integer
         format: int64
-    EntraOid:
-      name: entraOid
+    Username:
+      name: username
       in: path
       required: true
       schema:
         type: string
-        format: uuid
+        maxLength: 64
     InternalToken:
       name: X-Dealer-Internal
       in: header
@@ -1154,13 +1193,16 @@ components:
         | WRONG_DEALER_OR_SOLD | 400 | PROTOCOL A.1: this-store PUT link when sold / not IN_STOCK (cross-store is 404) |
         | UNAUTHORIZED | 401 | Not authenticated |
         | FORBIDDEN | 403 | Role not allowed on this URL, or staff has no valid membership |
-        | NOT_FOUND | 404 | Missing resource or cross-dealership |
+        | NOT_FOUND | 404 | Missing resource or cross-dealership; also an unknown API path |
+        | METHOD_NOT_ALLOWED | 405 | HTTP method not supported on this path |
         | VERSION_CONFLICT | 409 | version mismatch |
         | DUP_MEMBER | 409 | This dealership already has this active member |
         | VEHICLE_ALREADY_LINKED | 409 | Vehicle already linked to a customer |
         | SOLD_LOCKED | 409 | Sold purchase edit, sell again, or unlink a sold vehicle |
         | CHECK_STALE | 409 | Check is stale on Ready/Export |
         | NOT_PASSED | 409 | Check is not Passed on Ready/Export |
+        | UNSUPPORTED_MEDIA_TYPE | 415 | Request body is not `application/json` |
+        | INTERNAL_ERROR | 500 | Unexpected server error; details are logged server-side only |
         | AI_UNAVAILABLE | 502 | Ad-check AI failed/timed out (check row already written) |
       enum:
         - VALIDATION
@@ -1170,12 +1212,15 @@ components:
         - UNAUTHORIZED
         - FORBIDDEN
         - NOT_FOUND
+        - METHOD_NOT_ALLOWED
         - VERSION_CONFLICT
         - DUP_MEMBER
         - VEHICLE_ALREADY_LINKED
         - SOLD_LOCKED
         - CHECK_STALE
         - NOT_PASSED
+        - UNSUPPORTED_MEDIA_TYPE
+        - INTERNAL_ERROR
         - AI_UNAVAILABLE
 
     PageMeta:
@@ -1256,13 +1301,34 @@ components:
       type: string
       enum: [VEHICLE, CUSTOMER, LISTING]
 
+    LoginRequest:
+      type: object
+      required: [username, password]
+      properties:
+        username:
+          type: string
+          description: Admin-issued login; leading/trailing spaces are trimmed
+        password:
+          type: string
+
+    LoginResponse:
+      type: object
+      required: [accessToken, role, displayName]
+      properties:
+        accessToken:
+          type: string
+          description: "HS256 JWT. Send as `Authorization: Bearer <accessToken>`."
+        role:
+          $ref: "#/components/schemas/Role"
+        displayName:
+          type: string
+
     Me:
       type: object
-      required: [entraOid, displayName, role]
+      required: [username, displayName, role]
       properties:
-        entraOid:
+        username:
           type: string
-          format: uuid
         displayName:
           type: string
         role:
@@ -1275,6 +1341,16 @@ components:
           type: string
           nullable: true
           description: Derived display field, not a second set of dealership data
+        dealerContactPhone:
+          type: string
+          nullable: true
+        dealerContactEmail:
+          type: string
+          nullable: true
+        dealerContactAddress:
+          type: string
+          nullable: true
+          description: The bound dealership's public contact fields (shown on the ad page); null for Admin or unbound staff
 
     Dealer:
       type: object
@@ -1316,7 +1392,8 @@ components:
 
     DealerPatch:
       type: object
-      required: [version]
+      required: [version, legalName, contactPhone, contactEmail, contactAddress, active]
+      description: Full replacement of the four contact fields and `active`; every field is required and the strings are non-blank.
       properties:
         version:
           type: integer
@@ -1344,11 +1421,10 @@ components:
 
     Member:
       type: object
-      required: [entraOid, displayName, role, active]
+      required: [username, displayName, role, active]
       properties:
-        entraOid:
+        username:
           type: string
-          format: uuid
         displayName:
           type: string
         role:
@@ -1358,13 +1434,18 @@ components:
 
     MemberBind:
       type: object
-      required: [entraOid, displayName]
+      required: [username, displayName, password]
       properties:
-        entraOid:
+        username:
           type: string
-          format: uuid
+          maxLength: 64
         displayName:
           type: string
+          maxLength: 120
+        password:
+          type: string
+          minLength: 8
+          description: Temporary password the admin issues; stored only as a BCrypt hash.
 
     PageMember:
       allOf:
@@ -1427,6 +1508,17 @@ components:
           nullable: true
         status:
           $ref: "#/components/schemas/VehicleStatus"
+        linkedCustomer:
+          type: object
+          nullable: true
+          description: Linked customer (DMS-08); null when unlinked. Never carries contact fields.
+          required: [id, name]
+          properties:
+            id:
+              type: integer
+              format: int64
+            name:
+              type: string
         version:
           type: integer
           format: int64
@@ -1437,69 +1529,103 @@ components:
       properties:
         make:
           type: string
+          maxLength: 50
+          description: Trimmed by the server
         model:
           type: string
+          maxLength: 50
+          description: Trimmed by the server
         modelYear:
           type: integer
+          minimum: 1900
+          description: 1900 to next calendar year (upper bound checked by the service)
         vin:
           type: string
+          pattern: "^[A-HJ-NPR-Za-hj-npr-z0-9]{17}$"
+          description: 17 characters without I, O, or Q; stored upper-cased
         source:
           $ref: "#/components/schemas/VehicleSource"
         purchaseCost:
           type: number
+          minimum: 0
+          description: At most 10 integer digits and 2 decimals
         addedOn:
           type: string
           format: date
+          description: YYYY-MM-DD, not in the future
         conditionCode:
           $ref: "#/components/schemas/ConditionCode"
         repairCost:
           type: number
+          minimum: 0
           nullable: true
         carfaxUrl:
           type: string
+          maxLength: 500
+          pattern: "^[Hh][Tt][Tt][Pp][Ss]?://\\S+$"
+          description: http(s) URL
           nullable: true
 
     VehiclePatch:
       type: object
-      required: [version]
-      description: Whitelist is only these fields. Do not change status/soldOn/soldPrice.
+      required: [version, make, model, modelYear, vin, source, purchaseCost, addedOn, conditionCode]
+      description: Full replacement of this whitelist with the same rules as create. Do not change status/soldOn/soldPrice.
       properties:
         version:
           type: integer
           format: int64
         make:
           type: string
+          maxLength: 50
+          description: Trimmed by the server
         model:
           type: string
+          maxLength: 50
+          description: Trimmed by the server
         modelYear:
           type: integer
+          minimum: 1900
+          description: 1900 to next calendar year (upper bound checked by the service)
         vin:
           type: string
+          pattern: "^[A-HJ-NPR-Za-hj-npr-z0-9]{17}$"
+          description: 17 characters without I, O, or Q; stored upper-cased
         source:
           $ref: "#/components/schemas/VehicleSource"
         purchaseCost:
           type: number
+          minimum: 0
+          description: At most 10 integer digits and 2 decimals
         addedOn:
           type: string
           format: date
+          description: YYYY-MM-DD, not in the future
         conditionCode:
           $ref: "#/components/schemas/ConditionCode"
         repairCost:
           type: number
+          minimum: 0
           nullable: true
         carfaxUrl:
           type: string
+          maxLength: 500
+          pattern: "^[Hh][Tt][Tt][Pp][Ss]?://\\S+$"
+          description: http(s) URL
           nullable: true
 
     VehicleSell:
       type: object
-      required: [soldOn, soldPrice, version]
+      required: [version]
+      description: "`soldOn` and `soldPrice` are a required pair: either missing → 400 `SOLD_PAIR_REQUIRED`."
       properties:
         soldOn:
           type: string
           format: date
+          description: Not in the future and not before `addedOn`
         soldPrice:
           type: number
+          exclusiveMinimum: true
+          minimum: 0
         version:
           type: integer
           format: int64
@@ -1566,6 +1692,9 @@ components:
           allOf:
             - $ref: "#/components/schemas/LinkedVehicleSummary"
           nullable: true
+        linkedVehicleCount:
+          type: integer
+          description: Number of vehicles linked to this customer (CRM list "vehicles purchased" count)
         version:
           type: integer
           format: int64
@@ -1599,28 +1728,43 @@ components:
       properties:
         name:
           type: string
+          maxLength: 100
         email:
           type: string
+          format: email
+          maxLength: 254
         phone:
           type: string
+          maxLength: 40
+          pattern: "^(?=(?:\\D*\\d){7,20}\\D*$)[0-9+\\-() ]+$"
+          description: 7-20 digits; only digits, '+', '-', '(', ')' and spaces
         homeAddress:
           type: string
+          maxLength: 300
 
     CustomerPatch:
       type: object
-      required: [version]
+      required: [version, name, email, phone, homeAddress]
+      description: Full replacement with the same rules as create.
       properties:
         version:
           type: integer
           format: int64
         name:
           type: string
+          maxLength: 100
         email:
           type: string
+          format: email
+          maxLength: 254
         phone:
           type: string
+          maxLength: 40
+          pattern: "^(?=(?:\\D*\\d){7,20}\\D*$)[0-9+\\-() ]+$"
+          description: 7-20 digits; only digits, '+', '-', '(', ')' and spaces
         homeAddress:
           type: string
+          maxLength: 300
 
     PageCustomerListItem:
       allOf:
@@ -1768,6 +1912,7 @@ components:
           description: May omit or send 0 on first save
         title:
           type: string
+          maxLength: 200
         body:
           type: string
         adKind:
@@ -1786,7 +1931,7 @@ components:
 
     AuditEvent:
       type: object
-      required: [id, entityType, entityId, action, actorOid, createdAt]
+      required: [id, entityType, entityId, action, actorUsername, createdAt]
       properties:
         id:
           type: integer
@@ -1802,9 +1947,8 @@ components:
           type: object
           additionalProperties: true
           description: No full customer phone/email/home address. Link/unlink only {customerId,vehicleId}
-        actorOid:
+        actorUsername:
           type: string
-          format: uuid
         createdAt:
           type: string
           format: date-time

@@ -2,18 +2,18 @@
 
 - Status: **current (v6 frontend engineering)**
 - Authority on conflict: **course PPT > spec fields > IMPLEMENTATION-BRIEF / 00 > 15 (data/tenant/gateway) / 14 (HTTP JSON) / this document (frontend engineering) > 12**
-- This document covers only: **routes, guards, MSAL, page↔API mapping, component split, empty/error states, English copy**. **Fields, enums, and DTOs follow the handbook / 14**; this document does not define extra columns
-- Out of scope: buyer/OEM/tickets/leads/KPI home/password login/standalone Audit page; do not change the backend contract, SQL, or `01`–`06`
+- This document covers only: **routes, guards, sign-in, page↔API mapping, component split, empty/error states, English copy**. **Fields, enums, and DTOs follow the handbook / 14**; this document does not define extra columns
+- Out of scope: buyer/OEM/tickets/leads/KPI home/self-registration/forgot-password/standalone Audit page; do not change the backend contract, SQL, or `01`–`06`
 
-Coding repo: `dealer-web` (not created yet). Browser HTTP **hits Gateway only**. UI is English. Copy fields and enums from handbook section 3; this document does not rewrite them.
+Coding repo: `dealer-web`. Browser HTTP **hits Gateway only**. UI is English. Copy fields and enums from handbook section 3; this document does not rewrite them.
 
 ---
 
 ## 1. Stack and directories (enough to start)
 
-Stack matches the handbook: **Vue 3 + Vite + Element Plus + Vue Router + Pinia + MSAL.js (`@azure/msal-browser`)**. HTTP uses axios (or a fetch wrapper — pick one and lock axios). No Nuxt, no chart library, no generic CRUD generator.
+Stack: **Vue 3 + Vite + Element Plus + Vue Router + Pinia**. No third-party identity SDK (see §4). HTTP uses axios (or a fetch wrapper — pick one and lock axios). No Nuxt, no chart library, no generic CRUD generator.
 
-Suggested (the current repo has no `src` yet; create it as follows):
+Layout:
 
 ```
 dealer-web/
@@ -22,7 +22,7 @@ dealer-web/
     main.ts
     App.vue
     router/index.ts
-    auth/msal.ts        # PublicClientApplication + PKCE
+    auth/login.ts       # username/password login + sessionStorage token
     api/http.ts         # VITE_GATEWAY_URL only, Bearer
     api/me.ts
     api/admin.ts
@@ -80,7 +80,7 @@ Query strings (optional deep links): `/dms?vehicleId=`, `/crm?customerId=`, `/ad
 
 One `beforeEach` in `router/index.ts`, order fixed:
 
-1. **Not signed in** (no MSAL account, and not `meta.public`) → `/login`, remember `redirect`.
+1. **Not signed in** (no stored login token, and not `meta.public`) → `/login`, remember `redirect`.
 2. **Signed in and on `/login`** → after `GET /me`, go to `/admin` or `/dms` by role.
 3. **Wrong role / no permission**
    - `Platform.Admin` visiting `/dms` `/crm` `/ads` `/assistant` → send back to `/admin`; do not render business tables.
@@ -94,14 +94,14 @@ Menu and guards use the same rules: Admin **renders** Admin only; staff **render
 
 ## 4. Sign-in and HTTP (half page)
 
-Reversed from MSAL/Entra to admin-issued username/password 2026-09-30; see [15](15-Data-Auth-and-Gateway.md) §8. Variable names must match `dealer-platform/env.example`:
+Admin-issued username/password; see [15](15-Data-Auth-and-Gateway.md) §8. Variable names must match `dealer-platform/env.example`:
 
 | Variable | Purpose |
 |---|---|
 | `VITE_GATEWAY_URL` | sole API root; local `http://localhost:8080` |
 
 - **Sign-in button**: username + password fields, one `Sign in` button. No Microsoft redirect.
-- **Login call**: `src/auth/msal.ts` (kept at this path/name; no MSAL inside it) posts `{ username, password }` to `POST ${VITE_GATEWAY_URL}/api/v1/auth/login`, and stores the returned JWT in `sessionStorage`.
+- **Login call**: `src/auth/login.ts` posts `{ username, password }` to `POST ${VITE_GATEWAY_URL}/api/v1/auth/login`, and stores the returned JWT in `sessionStorage`.
 - **Session**: after a successful login, `GET ${VITE_GATEWAY_URL}/api/v1/me` (14: `role`, `dealerId`, `dealerLegalName`; for Admin the last two are `null`). Top-bar dealership name: staff uses `dealerLegalName` (placeholder `Dealership` if empty); Admin is always `Platform Admin`.
 - **Gateway only**: `api/http.ts` uses `baseURL = import.meta.env.VITE_GATEWAY_URL`, path prefix `/api/v1`. Do not point axios at 8081/8082. Do not call `/internal/v1/**`.
 - **Bearer interceptor**: each request reads the stored token and sets `Authorization: Bearer <token>`; no silent refresh (tokens expire after 1 hour — sign in again). Do not put `dealerId` in query/body as a tenant switch (handbook: ignore dealer IDs sent by the frontend).
@@ -123,11 +123,11 @@ All paths are relative to Gateway: `/api/v1/...`. After success, "refresh" means
 
 | Control | Handbook path | Success | Failure |
 |---|---|---|---|
-| `Sign in with Microsoft` | no business API; MSAL redirect + then `GET /me` | Admin→`/admin`; staff with `dealerId`→`/dms`; unbound / no business access→`/` no-access shell | Sign-in failed. Try again. |
+| `Sign in` (username + password) | `POST /auth/login` then `GET /me` | Admin→`/admin`; staff with `dealerId`→`/dms`; unbound / no business access→`/` shell showing `Your account is not provisioned yet. Contact your administrator.` | Invalid username or password. |
 
 No "Forgot password".
 
-The CRM link picker checks every linked customer’s full `linkedVehicles` collection; the list’s single `linkedVehicle` is only a preview and cannot establish occupancy. Only unlinked vehicles are offered. Customer audit history includes link and unlink events even after the relationship row is deleted.
+The CRM link picker uses each vehicle’s `linkedCustomer` (`{id, name}` or `null`) from `GET /vehicles` to establish occupancy; the customer list’s single `linkedVehicle` is only a preview. Only unlinked vehicles are offered. Customer audit history includes link and unlink events even after the relationship row is deleted.
 
 ### 5.3 Admin `/admin` (Platform.Admin only)
 
@@ -142,8 +142,8 @@ The CRM link picker checks every linked customer’s full `linkedVehicles` colle
 | Enter page / Search / Reset | `GET /admin/dealers` | dealership table | `403` You cannot open Admin; otherwise Could not load dealerships |
 | `New dealership` submit | `POST /admin/dealers` four contact fields | dealership table; switch to Dealerships | `400 VALIDATION` Check required contact fields |
 | Open Staff drawer | `GET /admin/dealers/{id}/members` | drawer table | `404` Dealership not found |
-| `Bind staff` submit | `POST /admin/dealers/{id}/members` `{entraOid,displayName,password}` | that dealership's members + table Staff count | `400` Check username, display name, and password; `409 DUP_MEMBER` Staff already bound |
-| `Unbind` (after confirm) | `DELETE /admin/dealers/{id}/members/{entraOid}` | same as above | `404` Member not found |
+| `Bind staff` submit | `POST /admin/dealers/{id}/members` `{username,displayName,password}` | that dealership's members + table Staff count | `400` Check username, display name, and password; `409 DUP_MEMBER` Staff already bound |
+| `Unbind` (after confirm) | `DELETE /admin/dealers/{id}/members/{username}` | same as above | `404` Member not found |
 | Members Tab load | the two GETs above combined | member table | same as dealership/member GET |
 
 `staffCount`: already returned by the 14 list (count of that dealership's active memberships). Show `—` when missing. Fields follow the handbook/14.  
@@ -160,6 +160,7 @@ Filter row: `q` (VIN/Make/Model), `status`, `condition`; 10 per page. Query: `q`
 | Row `Edit` / save | `GET/PATCH /vehicles/{id}` with `version` | that row + open drawer | `404` Vehicle not found; `SOLD_LOCKED` Purchase fields are locked; `409 VERSION_CONFLICT` Refresh and retry |
 | Row `Sell` small-dialog submit | `POST /vehicles/{id}/sell` `{soldOn,soldPrice,version}` | vehicle table (row dimmed) | `400 SOLD_PAIR_REQUIRED` Sold date and price are required together; `404` |
 | Detail footer Audit | `GET /audit?entityType=VEHICLE&entityId=` | refresh audit list only | `404` do not show business fields |
+| Detail linked customer / ad status | `linkedCustomer` from `GET /vehicles/{id}` (link to `/crm?customerId=`); `GET /vehicles/{id}/listing` `checkStatus` | detail drawer | ad status shows `Could not load ad check status.` |
 
 No vehicle DELETE. Sold: purchase fields read-only, hide Sell. Cross-dealership ids are treated as 404.
 
@@ -174,7 +175,7 @@ Filters: `q` (Name/Email/Phone), `linked`. Pagination same as DMS: `page`/`size`
 | `Edit` save | `GET/PATCH /customers/{id}` | that row + drawer | `404` Customer not found; `409 VERSION_CONFLICT` |
 | `Link vehicle` (searchable Select, this dealership, unlinked only (in stock or sold)) | `PUT /customers/{id}/vehicles/{vehicleId}` | customer table Linked vehicle + drawer | `409 VEHICLE_ALREADY_LINKED` Vehicle already linked; `404` Vehicle not found. A same-store sold vehicle is a valid link. |
 | `Unlink` (after confirm) | `DELETE /customers/{id}/vehicles/{vehicleId}` → **204** no body | customer table Linked vehicle + drawer | `404` Link not found; `409 SOLD_LOCKED` Sold vehicles cannot be unlinked |
-| Link-vehicle dropdown data | Link options call `GET /vehicles` and linked-owner occupancy calls `GET /customers?linked=true`, both with `page` and `size` only (no `status` filter), requesting size 10, adopting the size the server returns (capped at 10), and paging until the accumulated count reaches `total`. Drop vehicles already linked to this customer. 14 customer list has `linkedVehicle` | dropdown | already-taken items (linked to another customer) stay disabled. In-stock and sold vehicles both appear. Fields follow the handbook/14 |
+| Link-vehicle dropdown data | Link options call `GET /vehicles` with `page` and `size` only (no `status` filter), requesting size 10, adopting the size the server returns (capped at 10), and paging until the accumulated count reaches `total`. Drop every vehicle whose `linkedCustomer` is set (this customer or another) | dropdown | only unlinked vehicles are listed. In-stock and sold vehicles both appear. Fields follow the handbook/14 |
 | Detail Audit | `GET /audit?entityType=CUSTOMER&entityId=` | audit list | `404` |
 | Audit after unlink (optional) | `GET /audit?entityType=CUSTOMER_VEHICLE&entityId=` | audit list | `404` |
 
@@ -274,7 +275,7 @@ Do not use document 10's Chinese wording.
 
 | Page | loading | empty | error | no access |
 |---|---|---|---|---|
-| Login | Signing you in… | (no list; show the login card only) | Sign-in failed. Try again. | A signed-in wrong role never stays here; the guard redirects immediately |
+| Login | Signing you in… | (no list; show the login card only) | Invalid username or password. | A signed-in wrong role never stays here; the guard redirects immediately |
 | Admin | Loading dealerships… | No dealerships yet. | Could not load dealerships. | You do not have access to Admin. |
 | DMS | Loading vehicles… | No vehicles match. | Could not load vehicles. | You do not have access to DMS. |
 | CRM | Loading customers… | No customers match. | Could not load customers. | You do not have access to CRM. |
@@ -289,7 +290,7 @@ Failures must not look like empty tables. Ad AI failure uses the right pane **AI
 
 | Location | Copy |
 |---|---|
-| Login button | Sign in with Microsoft |
+| Login button | Sign in (fields: Username, Password) |
 | Top-bar exit | Sign out |
 | Top-bar Admin | Platform Admin |
 | Menu | Admin · DMS · CRM · Ad compliance · Assistant |

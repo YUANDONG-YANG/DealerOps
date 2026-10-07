@@ -6,7 +6,7 @@ Record of work on the requirement sources in this folder. Newest entry first.
 
 Implemented V-01–04 from analysis/12: sold fields visible, customer link history remains readable, all linked vehicles excluded from the CRM picker, and simple assistant keyword/status questions supported. Added only small existing-page displays (VIN/detail link, read-only notice, BLOCK/REVIEW labels). Updated two obsolete CORS assertions, removed the CI skipTests mistake, and supplied the required address in the existing integration fixture. No new test cases/framework, schema or service. Push note: GitHub rejected the workflow change because the current OAuth credential lacks workflow scope. The one-line dealer-core.yml CI correction is retained locally and excluded from the pushed code commit; the remote pipeline still has its prior integration-test command.
 
-Final local verification: core 25/25, gateway 15/15, AI stub 19/19 unit tests passed; web type-check and production build passed; CRM occupancy smoke check passed; git diff --check passed. Real Azure/Entra/AI and Docker integration are not claimed.
+Final local verification: core 25/25, gateway 15/15, AI stub 19/19 unit tests passed; web type-check and production build passed; CRM occupancy smoke check passed; git diff --check passed. Real Azure/external sign-in/AI and Docker integration are not claimed.
 
 ## 2026-09-28 · Requirements versus current code verification
 

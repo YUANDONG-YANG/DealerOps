@@ -22,7 +22,7 @@ Major or important design decisions **must** be documented on file under `design
 
 Document (or update) a design doc when the change affects any of:
 
-- Auth / identity (including Entra / MSAL)
+- Auth / identity (login, passwords, JWT)
 - Tenancy and multi-dealer boundaries
 - Roles and permissions
 - API contracts (REST shapes, error model, versioning)

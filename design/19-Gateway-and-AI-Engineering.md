@@ -43,21 +43,21 @@ dealer-gateway/
       SecurityConfig.java          # resource server: issuer/audience in 15 §8
       CorsConfig.java              # or yaml cors; web origin only
     filter/
-      InternalRouteFilter.java     # /internal/v1/** without X-Dealer-Internal → 404
+      InternalRouteFilter.java     # /internal/** without the exact X-Dealer-Internal → 404; that header on any other path → 404
 ```
 
-Package name is yours; **do not** use the upstream library `com.gateway`. Responsibility ends here (15 §7): routing, user-JWT validation, blocking internal, stripping sensitive headers, forwarding `/api/v1` `Authorization`.
+Package name is yours; **do not** use the upstream library `com.gateway`. Responsibility ends here (15 §7): routing, user-JWT validation, blocking internal, rejecting a client-supplied `X-Dealer-Internal` outside `/internal/**`, forwarding `/api/v1` `Authorization`.
 
 Environment variable names follow `dealer-platform/env.example`:
 
 | Variable | Purpose |
 |---|---|
 | `GATEWAY_PORT` | listen **8080** |
-| `CORE_URL` | upstream core (local `http://host.docker.internal:8081` or machine `http://127.0.0.1:8081`) |
-| `AI_URL` | upstream ai-service (local `http://host.docker.internal:8082`) |
-| `ENTRA_ISSUER` / `ENTRA_AUDIENCE` | JWT signature validation (15 §8) |
+| `CORE_URL` | upstream core (local `http://localhost:8081`; cloud the `dealerops-core` HTTPS origin) |
+| `AI_URL` | upstream ai-service (local `http://localhost:8082`; cloud the `dealerops-ai` HTTPS origin) |
+| `JWT_MODE` / `DEV_JWT_SECRET` | JWT signature validation; must match dealer-core (15 §8) |
 
-The shared internal secret **`INTERNAL_TOKEN`** is ruled in **15 §7** (suggested KV name `INTERNAL-TOKEN`). The well-known default `dealer-internal` is accepted only when the Spring profile is `dev` or `local`. Any other profile must set a non-default `INTERNAL_TOKEN` shared by gateway, ai-service, and dealer-core; gateway and ai-service refuse to start on that default. Local Compose sets `SPRING_PROFILES_ACTIVE=dev` on gateway and ai-service only. Web **does not read** it.
+The shared internal secret **`INTERNAL_TOKEN`** is ruled in **15 §7** (suggested KV name `INTERNAL-TOKEN`). The well-known default `dealer-internal` is accepted only when the Spring profile is `dev` or `local`. Any other profile must set a non-default `INTERNAL_TOKEN` shared by gateway, ai-service, and dealer-core; gateway and ai-service refuse to start on that default. Locally, set `SPRING_PROFILES_ACTIVE=dev` on gateway and ai-service only; the Azure stack sets no Spring profile. Web **does not read** it.
 
 ### 1.2 Route table (`application.yaml` level)
 
@@ -84,6 +84,8 @@ spring:
             response-timeout: 18000
           filters:
             - PreserveHostHeader
+            # a client-supplied X-Dealer-Internal on a public path → 404 in InternalRouteFilter
+            # (RemoveRequestHeader fails on read-only headers in SCG 4.1.5 + Spring 6.1.14)
             # forward user JWT as-is; do not strip Authorization
         - id: dealer-core-swagger
           uri: ${CORE_URL}
@@ -98,12 +100,13 @@ spring:
           uri: ${AI_URL}
           predicates:
             - Path=/internal/v1/**
-            - Header=X-Dealer-Internal, ${INTERNAL_TOKEN:dealer-internal}
+            - Header=X-Dealer-Internal, \Q${INTERNAL_TOKEN:dealer-internal}\E   # literal match; base64 '+' is a regex quantifier
           metadata:
             connect-timeout: 2000
             response-timeout: 16000
+          # core's AI WebClient sends only X-Dealer-Internal, never the user JWT (15 §7)
           filters:
-            - RemoveRequestHeader=Authorization   # user JWT must not enter ai-service (15 §7)
+            - CacheRequestBody=String
         - id: not-found
           uri: no://op
           predicates:
@@ -122,25 +125,27 @@ Route metadata timeouts are finite: the AI route is connect 2s and response 16s;
 
 `Access-Control-Allow-Headers` **must not** list `X-Dealer-Internal` (15 §13). CORS is **only** on Gateway (and Vite for 5173); core / ai-service do not configure browser CORS.
 
-**Swagger (classroom acceptance).** Anonymous Swagger and OpenAPI are available only when `dealerops.jwt.mode` is `dev` and every active Spring profile is local (`dev`, `local`, `test`, or `default`). `JWT_MODE=entra`, or any other profile, denies `/swagger-ui.html`, `/swagger-ui/**`, `/v3/api-docs`, and `/v3/api-docs/**`. When that local case is open, the browser opens Swagger on the gateway, path `/swagger-ui/index.html`, with no Bearer token. `/api/v1/**` stays authenticated. Core `server.forward-headers-strategy=framework` plus `PreserveHostHeader` keep the UI and the spec on the gateway host. The OpenAPI `servers` entry is `GATEWAY_PUBLIC_URL` (default `http://localhost:8080`, or the public gateway origin). Core's outbound `GATEWAY_BASE_URL` stays the in-network gateway (`http://dealer-gateway:8080` in Compose) and is not the browser URL. The description is still `Published <PUBLISHED_AT>`. Core port `8081` is not an acceptance URL.
+**Swagger (classroom acceptance).** Anonymous Swagger and OpenAPI are available only when `dealerops.jwt.mode` is `dev` and every active Spring profile is local (`dev`, `local`, `test`, or `default`). Any other JWT mode or Spring profile denies `/swagger-ui.html`, `/swagger-ui/**`, `/v3/api-docs`, and `/v3/api-docs/**`. When that local case is open, the browser opens Swagger on the gateway, path `/swagger-ui/index.html`, with no Bearer token. `/api/v1/**` stays authenticated. Core `server.forward-headers-strategy=framework` plus `PreserveHostHeader` keep the UI and the spec on the gateway host. The OpenAPI `servers` entry is `GATEWAY_PUBLIC_URL` (default `http://localhost:8080`, or the public gateway origin). Core's outbound `GATEWAY_BASE_URL` stays the gateway origin it calls (`http://localhost:8080` locally, the `dealerops-gateway` HTTPS origin in Azure) and is not necessarily the browser URL. The description is still `Published <PUBLISHED_AT>`. Core port `8081` is not an acceptance URL.
+
+The runtime OpenAPI document declares the `bearerAuth` HTTP security scheme globally, so Swagger UI provides an **Authorize** button for protected `/api/v1/**` operations. `POST /api/v1/auth/login` is explicitly anonymous; paste the token returned by that operation into Swagger's Authorize dialog before trying other business APIs. The internal `/internal/v1/**` AI routes remain core-only and are not user-token APIs.
 
 Azure: allow only the web HTTPS origin (replace `localhost:5173`). Local preflight serves Vite only.
 
-### 1.3 JWT (Entra → two roles)
+### 1.3 JWT (two roles)
 
 Mapping is locked, same function as 15 §8.1; this document does not change the claim table:
 
-- App Role `value`: `Platform.Admin`, `Dealer.User`
-- `iss` = `ENTRA_ISSUER`, `aud` = `ENTRA_AUDIENCE` (default `api://dealer-api`)
+- Role values: `Platform.Admin`, `Dealer.User`
+- `iss` = `dealerops-core` (validated by the gateway), `aud` = `api://dealer-api` (override with `spring.security.oauth2.resourceserver.jwt.audiences`)
 - `roles[]` is the sole RBAC source; `scp` is not a role; `groups` are ignored
 - `Platform.Admin` and `Dealer.User` both present → **Admin wins**
 - Cannot map → Gateway **401**; never reaches core business
 
 Gateway and core **both** validate signatures. After Gateway validates, it must still forward **`Authorization: Bearer`** to core (core validates again in case 8081 is later opened by mistake).
 
-SPA: MSAL + PKCE, no client secret. Gateway does not issue tokens.
+SPA: username/password form; dealer-core issues the token at `POST /api/v1/auth/login`. Gateway does not issue tokens.
 
-The gateway and core decoders read `JWT_MODE` from the process environment, a JVM system property, or the command line. An unset `JWT_MODE` does not select local HMAC and does not accept the committed secret `dealer-dev-jwt-secret-change-me`; startup fails. Explicit `JWT_MODE=dev` still accepts that classroom secret when every active Spring profile is local (`dev`, `local`, `test`, `default`, or `classroom`), including when no profile is active. A custom `DEV_JWT_SECRET` shorter than 32 UTF-8 bytes fails startup and is not zero-padded. The exact classroom secret may still be padded to 32 bytes. `JWT_MODE=entra` validates Entra JWKS.
+The gateway and core decoders read `JWT_MODE` from the process environment, a JVM system property, or the command line. An unset `JWT_MODE` does not select local HMAC and does not accept the committed secret `dealer-dev-jwt-secret-change-me`; startup fails. Explicit `JWT_MODE=dev` still accepts that classroom secret when every active Spring profile is local (`dev`, `local`, `test`, `default`, or `classroom`), including when no profile is active. A custom `DEV_JWT_SECRET` shorter than 32 UTF-8 bytes fails startup and is not zero-padded. The exact classroom secret may still be padded to 32 bytes.
 
 ### 1.4 CORS only on Gateway
 
@@ -148,6 +153,20 @@ CORS is defined only in the gateway `CorsConfig` `CorsWebFilter`. `spring.cloud.
 Allowed headers: `Authorization`, `Content-Type`. Cookies are not this course's approach.
 
 core:8081 / ai:8082: **do not** configure ACAO for 5173. This is part of "direct access fails", not optional.
+
+### 1.4.1 Request tracing and local logs
+
+Every gateway request receives an `X-Request-ID` when the client does not provide one. The gateway returns that ID to the client and forwards it to the downstream service. Gateway, core, and ai-service log the same ID so a developer can follow one request across the boundary:
+
+```text
+log-sum/dealer-gateway-YYYY-MM-DD.log
+log-sum/dealer-core-YYYY-MM-DD.log
+log-sum/ai-service-YYYY-MM-DD.log
+```
+
+The gateway log records the route ID, HTTP status, duration, and completion signal. Core and ai-service record the method, path, status, and duration; core also records the authenticated username when available. Authorization tokens, passwords, and request bodies must never be logged.
+
+For `/api/v1/assistant/ask`, core permits both `Platform.Admin` and a bound `Dealer.User`. Admin retrieval is cross-dealer; dealer-user retrieval remains tenant-scoped. A `Platform.Admin` request therefore reaches ai-service (when the AI adapter is available), while an unbound or invalid role is rejected before the AI call. A permitted request produces the same request ID in gateway, core, and ai-service logs.
 
 ### 1.5 How to prove direct core:8081 / ai:8082 access fails
 
@@ -161,17 +180,17 @@ Same port set as 15 §10 (`env.example`): web `5173`, gateway **`8080`**, core *
 | Page `fetch('http://localhost:8080/internal/v1/ad-check')` (no internal header) | Gateway **404** |
 | Azure | core / ai **internal** Ingress; public FQDNs are web + gateway only |
 
-compose mapping: Gateway 8080; do not bind core/ai to `0.0.0.0` for the whole class to scan. Classroom backup: if `curl` 8081 still works, say "no CORS / no public net / needs intranet"; **do not** rely on turning the firewall off as the only evidence.
+Local binding: Gateway on 8080; core and ai set `SERVER_ADDRESS=127.0.0.1` so they are not on `0.0.0.0` for the whole class to scan. Classroom backup: if `curl` 8081 still works, say "no CORS / no public net / needs intranet"; **do not** rely on turning the firewall off as the only evidence.
 
-### 1.6 Half-page defense pointer (Auth domain = Entra)
+### 1.6 Half-page defense pointer (Auth domain)
 
-The PPT Auth domain wants **OAuth/OIDC + JWT + RBAC** and forbids homegrown authentication. This course's Auth unit **is Microsoft Entra ID** (table 07), **not** a fifth Java repo and not a GitHub-component container.
+The client specification requires admin-issued usernames and passwords (PDF §2, §8). The Auth unit is one login endpoint on `dealer-core` plus **JWT + RBAC** validated by gateway and core, **not** a fifth Java repo and not a GitHub-component container ([SCOPE-BASELINE.md](SCOPE-BASELINE.md) errata 1).
 
 Classroom wrap (full "why no Service Bus" section is in **15 §8.2 / §9**; do not repeat it here):
 
-- Identity lives in Entra; the application side only validates tickets (Gateway + core) and binds dealerships (core `membership`)
-- Gateway does not issue tokens; admin "issuing an account" = bind `entra_oid` → `dealer_id`
-- Writing `dealer-auth` would hit a password table / fifth pipeline / fifth Container App
+- Identity lives in `app_user` (BCrypt password hash); core issues the JWT, Gateway + core validate it, and core binds dealerships (`membership`)
+- Gateway does not issue tokens; admin "issuing an account" = bind `username` → `dealer_id`
+- A separate `dealer-auth` service would add a fifth pipeline and a fifth deployed app for one endpoint
 
 ---
 

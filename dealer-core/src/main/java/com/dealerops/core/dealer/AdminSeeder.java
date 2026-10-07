@@ -39,14 +39,11 @@ public class AdminSeeder implements ApplicationRunner {
       return;
     }
     username = username.trim();
-    if (appUserRepository
-        .findByEntraTenantIdAndEntraOid(AppUserEntity.LOCAL_TENANT_ID, username)
-        .isPresent()) {
+    if (appUserRepository.findByUsername(username).isPresent()) {
       return;
     }
     AppUserEntity admin = new AppUserEntity();
-    admin.setEntraTenantId(AppUserEntity.LOCAL_TENANT_ID);
-    admin.setEntraOid(username);
+    admin.setUsername(username);
     admin.setPasswordHash(passwordEncoder.encode(password));
     admin.setDisplayName("Platform Admin");
     admin.setRole(AppRole.PLATFORM_ADMIN);

@@ -71,18 +71,37 @@ Do not return SQL, stack traces, or raw model text to the browser.
 | 401 | missing/bad JWT |
 | 403 | insufficient role (Admin↔staff hitting the wrong prefix); **staff with no valid `membership.active=1` calling a business API** (signed in, no dealership). **Not** cross-dealership |
 | 404 | this id is not in this dealership, **cross-dealership id** (anti-probing, not 403) |
+| 405 | `METHOD_NOT_ALLOWED` (HTTP method not supported on this path) |
 | 409 | `VERSION_CONFLICT`, `DUP_MEMBER`, `VEHICLE_ALREADY_LINKED`, `SOLD_LOCKED`, `CHECK_STALE`, `NOT_PASSED` |
+| 415 | `UNSUPPORTED_MEDIA_TYPE` (body is not `application/json`) |
+| 500 | `INTERNAL_ERROR` (unexpected error; details logged server-side only) |
 | 502 | `AI_UNAVAILABLE` (rules passed, model timeout/failure; check row already written) |
 
 ### 1.3 Identity, tenant, optimistic lock
 
 - Roles are only `Platform.Admin` and `Dealer.User`. Staff tenant authority is **exactly one `membership.active=1` row** (15); `app_user.dealer_id` is only a `/me` cache.
-- **Ignore** client `dealerId` in body / query / header. Staff tenant comes only from JWT `oid` → membership. Admin `dealerId` is always treated as empty.
+- **Ignore** client `dealerId` in body / query / header. Staff tenant comes only from JWT `sub` (the username) → membership. Admin `dealerId` is always treated as empty.
 - Cross-dealership resource id: **404**, not 403 (anti-probing).
 - `Dealer.User` signed in with **0** active memberships: business APIs (`/vehicles` `/customers` `/listings` `/audit` `/assistant`) → **403** `FORBIDDEN`, not 401 and not 404. `GET /me` is still 200 (`dealerId=null`).
 - Writes that carry `version`: `dealer`, `vehicle`, `customer`, `listing` (including checks/ready/export). Request `version` must equal the current row. Conflict **409** `VERSION_CONFLICT`.
 - `customer_vehicle` has no `version` column: link/unlink do not use optimistic locking.
 - Enums and required fields match handbook section 3; do not add or remove spec fields. Dates `YYYY-MM-DD`, timestamps ISO-8601 UTC. JSON camelCase.
+
+### 1.4 `POST /api/v1/auth/login` (anonymous)
+
+The only `/api/v1` operation without a token. Auth design is owned by [15](15-Data-Auth-and-Gateway.md) §8.
+
+```json
+{ "username": "alex.dealer", "password": "temporary-pass-1" }
+```
+
+Response **200**:
+
+```json
+{ "accessToken": "<HS256 JWT>", "role": "Dealer.User", "displayName": "Alex Dealer" }
+```
+
+The token carries `sub` (username), `name`, and `roles`; send it as `Authorization: Bearer <accessToken>` on every other call. Blank `username` or `password` → `400 VALIDATION`. Unknown username, inactive account, or wrong password → `401 UNAUTHORIZED` with one message (`Invalid username or password`).
 
 ---
 
@@ -96,15 +115,18 @@ Do not return SQL, stack traces, or raw model text to the browser.
 
 ```json
 {
-  "entraOid": "11111111-1111-1111-1111-111111111111",
+  "username": "alex.dealer",
   "displayName": "Alex Dealer",
   "role": "Dealer.User",
   "dealerId": 1,
-  "dealerLegalName": "Prairie Auto Ltd."
+  "dealerLegalName": "Prairie Auto Ltd.",
+  "dealerContactPhone": "403-555-0100",
+  "dealerContactEmail": "sales@prairieauto.ca",
+  "dealerContactAddress": "100 Main St, Calgary"
 }
 ```
 
-Admin: `dealerId` and `dealerLegalName` are `null`. `dealerLegalName` is a display-only derived field, not a second set of dealership data.
+Admin: `dealerId`, `dealerLegalName` and the three `dealerContact*` fields are `null`. They are display-only derived fields (the ad page shows them, UI-41), not a second set of dealership data.
 
 ---
 
@@ -183,17 +205,17 @@ The handbook has no update. **New ruling:** allow changing the four contact fiel
 }
 ```
 
-Response matches 3.3. Errors: `400`, `404`, `409 VERSION_CONFLICT`. Ignore body.`id`.
+Every field in the example is required (full replacement; the four strings are non-blank). Response matches 3.3. Errors: `400`, `404`, `409 VERSION_CONFLICT`. Ignore body.`id`.
 
 ### 3.5 `GET /api/v1/admin/dealers/{id}/members`
 
-Dealership missing → 404. Paginated envelope (`page`/`size`/`q` matches `displayName` or `entraOid`).
+Dealership missing → 404. Paginated envelope (`page`/`size`/`q` matches `displayName` or `username`).
 
 ```json
 {
   "items": [
     {
-      "entraOid": "22222222-2222-2222-2222-222222222222",
+      "username": "alex.dealer",
       "displayName": "Alex Dealer",
       "role": "Dealer.User",
       "active": true
@@ -210,16 +232,16 @@ The table has no staff-email column: the API **does not invent email**. The UI "
 ### 3.6 `POST /api/v1/admin/dealers/{id}/members` → 201
 
 ```json
-{ "entraOid": "22222222-2222-2222-2222-222222222222", "displayName": "Alex Dealer" }
+{ "username": "alex.dealer", "displayName": "Alex Dealer", "password": "temporary-pass-1" }
 ```
 
 Write `membership` + `app_user` (column authority is in 15). Response matches a member item.  
-`400 VALIDATION`; dealership 404; already an **active** member of that dealership → **409** `DUP_MEMBER`.  
-Binding an already-unbound person again is treated as **reactivation**, not 409 (whether the same row is updated is left to 15). Do not delete the Entra account.
+`400 VALIDATION`; dealership 404; already an **active** member of that dealership, still active at another dealership, or the username belongs to a `Platform.Admin` account → **409** `DUP_MEMBER` (an admin account is never overwritten or demoted).  
+Binding an already-unbound person again is treated as **reactivation**, not 409 (whether the same row is updated is left to 15). Do not delete the `app_user` account.
 
-### 3.7 `DELETE /api/v1/admin/dealers/{id}/members/{entraOid}` → 204
+### 3.7 `DELETE /api/v1/admin/dealers/{id}/members/{username}` → 204
 
-Unbind; do not delete Entra. No such binding → 404.
+Unbind; do not delete the `app_user` account. No such binding → 404.
 
 ---
 
@@ -249,6 +271,7 @@ List query: `q` (VIN / make / model), `status`=`IN_STOCK`\|`SOLD`, `condition` (
       "soldOn": null,
       "soldPrice": null,
       "status": "IN_STOCK",
+      "linkedCustomer": null,
       "version": 0
     }
   ],
@@ -257,6 +280,8 @@ List query: `q` (VIN / make / model), `status`=`IN_STOCK`\|`SOLD`, `condition` (
   "total": 1
 }
 ```
+
+`linkedCustomer` is `{ "id": 4, "name": "Jane Doe" }` when the vehicle is linked to a customer, otherwise `null` (DMS-08, CRM-10). It never carries customer contact fields (CRM-12).
 
 Errors: `401`, `403` (not staff).
 
@@ -279,6 +304,7 @@ Errors: `401`, `403` (not staff).
 
 Required: make/model/modelYear/vin/source/purchaseCost/addedOn/conditionCode.  
 **Ignore** `dealerId`, `status`, `soldOn`, `soldPrice`. Server sets `status=IN_STOCK`.  
+The server trims `make` / `model` (1-50 characters) and upper-cases `vin`. `400 VALIDATION` covers the field rules in requirements/analysis/02-DMS-Vehicles.md (VIN 17 chars without I/O/Q, 1900 ≤ `modelYear` ≤ next year, costs ≥ 0, `addedOn` not in the future, `carfaxUrl` http(s)); PATCH applies the same rules.  
 Errors: `400 VALIDATION`, `400 VIN_DUP`. Response = detail. Audit `VEHICLE`/`CREATE`.
 
 ### 4.3 `GET /api/v1/vehicles/{id}`
@@ -303,7 +329,7 @@ Response matches a list item. Cross-dealership / no such vehicle → **404**.
 }
 ```
 
-Whitelist is the fields above only. Do not use PATCH to change `status` / `soldOn` / `soldPrice` (use `/sell`). Ignore `dealerId`.  
+Whitelist is the fields above only; all are required except `repairCost` and `carfaxUrl` (full replacement, same rules as 4.2). Do not use PATCH to change `status` / `soldOn` / `soldPrice` (use `/sell`). Ignore `dealerId`.  
 Changing purchase fields on a sold vehicle (make/model/year/vin/source/purchaseCost/addedOn/repairCost/carfax) → **409** `SOLD_LOCKED`.  
 Changing VIN while unsold is still unique per dealership → `400 VIN_DUP`.  
 Changing `conditionCode` (handbook: a condition change voids the old check) → increment the corresponding listing `contentVersion++` (if a listing exists). Changing purchase cost alone does not void the ad.  
@@ -316,7 +342,7 @@ Audit `VEHICLE`/`UPDATE`. Other errors: `404`, `409 VERSION_CONFLICT`.
 ```
 
 Both values must be present together. Server sets `status=SOLD`. Response = detail.  
-`400 SOLD_PAIR_REQUIRED`; selling again after sold → `409 SOLD_LOCKED`; `409 VERSION_CONFLICT`; `404`. Audit `VEHICLE`/`SELL`.
+`400 SOLD_PAIR_REQUIRED` (date or price missing); `400 VALIDATION` (`soldOn` in the future or before `addedOn`, `soldPrice` ≤ 0); selling again after sold → `409 SOLD_LOCKED`; `409 VERSION_CONFLICT`; `404`. Audit `VEHICLE`/`SELL`.
 
 ---
 
@@ -338,6 +364,7 @@ Query: `q` (name/email/phone), `linked`=`true`\|`false` (whether at least one ve
       "phone": "403-555-0199",
       "homeAddress": "12 Oak St",
       "linkedVehicle": { "id": 10, "modelYear": 2020, "make": "Toyota", "model": "Camry" },
+      "linkedVehicleCount": 1,
       "version": 0
     }
   ],
@@ -347,7 +374,7 @@ Query: `q` (name/email/phone), `linked`=`true`\|`false` (whether at least one ve
 }
 ```
 
-`linkedVehicle`: when multiple vehicles exist, take the most recent `linkedAt` for the CRM table column; detail is the full array in 5.3. Unlinked is `null`.
+`linkedVehicle`: when multiple vehicles exist, take the most recent `linkedAt` for the CRM table column; detail is the full array in 5.3. Unlinked is `null`. `linkedVehicleCount` is the number of linked vehicles (CRM list "vehicles purchased", UI-30).
 
 ### 5.2 `POST /api/v1/customers` → 201
 
@@ -360,7 +387,7 @@ Query: `q` (name/email/phone), `linked`=`true`\|`false` (whether at least one ve
 }
 ```
 
-Ignore `dealerId`. `400 VALIDATION`. Audit `CUSTOMER`/`CREATE`. Response = detail (`linkedVehicles: []`).
+Field rules: `name` ≤ 100, `email` valid, ≤ 254, trimmed and stored lower-case (`customer.email` is `VARCHAR(254)` since `V20261007_2`), `phone` 7–20 digits using only digits, `+`, `-`, `(`, `)`, spaces (≤ 40 chars), `homeAddress` ≤ 300; all non-blank. Ignore `dealerId`. `400 VALIDATION`. Audit `CUSTOMER`/`CREATE`. Response = detail (`linkedVehicles: []`).
 
 ### 5.3 `GET /api/v1/customers/{id}`
 
@@ -399,7 +426,7 @@ Cross-dealership **404**.
 }
 ```
 
-Ignore `dealerId`. `409 VERSION_CONFLICT`. Audit `CUSTOMER`/`UPDATE`. `fieldSummary` **must not** contain full phone/email/address text.
+All fields are required (full replacement, same rules as 5.2). Ignore `dealerId`. `400 VALIDATION`, `409 VERSION_CONFLICT`. Audit `CUSTOMER`/`UPDATE`. `fieldSummary` **must not** contain full phone/email/address text.
 
 ---
 
@@ -603,7 +630,7 @@ Admin: **do not** serve business entities (`VEHICLE`/`CUSTOMER`/`CUSTOMER_VEHICL
       "entityId": 77,
       "action": "UNLINK",
       "fieldSummary": { "customerId": 4, "vehicleId": 10 },
-      "actorOid": "22222222-2222-2222-2222-222222222222",
+      "actorUsername": "alex.dealer",
       "createdAt": "2026-09-21T21:10:00Z"
     }
   ],
@@ -629,7 +656,7 @@ Request (handbook `{text}`):
 
 Empty `text` → `400 VALIDATION`.
 
-Response: short summary + **at most 5** dealership resource cards. Cards have no phone, email, or address. Model-returned ids must fall in the set core just retrieved; otherwise drop them.
+Response: short summary + **at most 5** dealership resource cards. Cards have no phone, email, or address. Model-returned ids must fall in the set core just retrieved; otherwise drop them. When the summary names one or more retrieved ids, `cards` holds only those; when it names none, `cards` is the whole retrieval list. An id counts as named only when written as an id (`#12`, `id 12`, `vehicle 12`, `customer id 12`); a bare number such as a count ("2 Toyotas match") or a model year is not a reference.
 
 ```json
 {
@@ -724,17 +751,20 @@ Gateway forwards to ai-service. core calls these; the browser does not.
 | `WRONG_DEALER_OR_SOLD` | 400 | Declared on `ErrorCode`. `CustomerService.link` does not throw it. A same-store sold vehicle may be linked. A missing or cross-dealership id is `NOT_FOUND` (404). An existing link is `VEHICLE_ALREADY_LINKED` (409). |
 | `UNAUTHORIZED` | 401 | not signed in |
 | `FORBIDDEN` | 403 | role not allowed for this URL; or staff has no valid membership |
-| `NOT_FOUND` | 404 | no resource or cross-dealership |
+| `NOT_FOUND` | 404 | no resource or cross-dealership; also an unknown API path |
+| `METHOD_NOT_ALLOWED` | 405 | HTTP method not supported on this path |
 | `VERSION_CONFLICT` | 409 | `version` mismatch |
 | `DUP_MEMBER` | 409 | this dealership already has this active member |
 | `VEHICLE_ALREADY_LINKED` | 409 | vehicle already linked to a customer |
 | `SOLD_LOCKED` | 409 | sold purchase edit, sell again, or **unlink a sold vehicle** |
 | `CHECK_STALE` | 409 | check expired at Ready/Export |
 | `NOT_PASSED` | 409 | not Passed at Ready/Export |
+| `UNSUPPORTED_MEDIA_TYPE` | 415 | request body is not `application/json` |
+| `INTERNAL_ERROR` | 500 | unexpected server error; details are logged server-side only |
 | `AI_UNAVAILABLE` | 502 | ad-check AI failure/timeout |
 
 ---
 
 ## 13. Do not build (do not bring the retired draft back)
 
-Password login, CSRF cookie sessions, tickets, leads, sales orders, KPI dashboard, buyer `/public/**`, Service Bus, arbitrary `dealerId` dealership switching, Admin reading/writing vehicles/customers/ads.
+CSRF cookie sessions, tickets, leads, sales orders, KPI dashboard, buyer `/public/**`, Service Bus, arbitrary `dealerId` dealership switching, Admin reading/writing vehicles/customers/ads.

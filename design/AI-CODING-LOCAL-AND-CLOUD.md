@@ -13,8 +13,8 @@
 
 Version: currently in force · 2026-09-21  
 Status: **Coding AIs start by copying this file.** Do not change contracts, and do not change 13–19 / BRIEF / `AI-CODING-BACKEND` / `AI-CODING-FRONTEND` / `AI-PROTOCOL`.  
-**Do not** change the `dealer-platform/infra/main.bicep` body (an unfinished cloud draft must not be passed off as deployed).  
-**Do not** change the existing `docker-compose.yml` to pretend the four services are already implemented.
+**Do not** add a container runtime back. There are no Dockerfiles, no Compose file, and no container registry in this project: local is five processes, cloud is `deploy/terraform` plus a JAR upload.  
+**Do not** edit `deploy/terraform` to claim a resource is live. That stack is real infrastructure as code, and only `terraform apply` on an operator machine makes it exist.
 
 Principles and ports follow [15](15-Data-Auth-and-Gateway.md) / [19](19-Gateway-and-AI-Engineering.md). This file only records **copy-paste commands, name patterns, and acceptance curls**.
 
@@ -24,7 +24,7 @@ Principles and ports follow [15](15-Data-Auth-and-Gateway.md) / [19](19-Gateway-
 
 | Process | Environment variable | Port | Browser |
 |---|---|---|---|
-| dealer-web (Vite) | — | **5173** | Static only + Entra redirect |
+| dealer-web (Vite) | — | **5173** | Static only; signs in through the gateway |
 | dealer-gateway | `GATEWAY_PORT` | **8080** | **Only API origin** (`VITE_GATEWAY_URL=http://localhost:8080`) |
 | dealer-core | `CORE_PORT` | **8081** | Must fail (product entry is not 8081) |
 | ai-service | `AI_PORT` | **8082** | Must fail |
@@ -33,40 +33,46 @@ Principles and ports follow [15](15-Data-Auth-and-Gateway.md) / [19](19-Gateway-
 Upstream (Gateway outbound, same as `env.example`):
 
 ```text
-CORE_URL=http://host.docker.internal:8081
-AI_URL=http://host.docker.internal:8082
+CORE_URL=http://localhost:8081
+AI_URL=http://localhost:8082
 ```
 
-When the IDE runs processes on the host (not in containers), `http://127.0.0.1:8081` / `http://127.0.0.1:8082` are allowed.
+Every process runs on the machine itself, so `http://127.0.0.1:8081` / `http://127.0.0.1:8082` are the same thing and both spellings are allowed.
+
+`dealer-core` and `ai-service` also take `SERVER_ADDRESS=127.0.0.1`, so they bind loopback and section 5.3 still holds without a container port mapping. `dealer-gateway` leaves it unset. In Azure, App Service routes to the app, so none of the three sets it.
 
 ---
 
 ## 2. Local start order + health-check URLs
 
-**Fact:** the existing `dealer-platform/docker-compose.yml` **starts MySQL only**; it has no web / gateway / core / ai-service. The four services land from the target fragment in section 3 after the coding AI creates the repos. **Do not change compose now to pretend they are complete.**
+**Fact:** there is no orchestrator. Five processes are started by hand, in the order below, and each one waits for the previous health check. Copy-ready IntelliJ run configurations and shell commands: [README](../README.md) "Local development startup".
 
 ### 2.1 Order (pinned)
 
-1. **MySQL** (existing compose)
+1. **MySQL** (a local MySQL 8 service on 3306)
 2. **dealer-core** (needs the database; Flyway)
 3. **ai-service** (no database; may run in parallel with core, but must be ready before Gateway)
 4. **dealer-gateway** (must resolve `CORE_URL` / `AI_URL`)
 5. **dealer-web** (hits 8080 only)
 
 ```text
-# 1) MySQL only (current state is fine)
-cd dealer-platform
-docker compose up -d mysql
+# 1) MySQL 8 on 3306, database dealer_core, user dealer
+mysql -h 127.0.0.1 -P 3306 -u dealer -pdealer_dev_only dealer_core -e "SELECT 1"
 
-# 2) Wait for 3306
-mysql -h 127.0.0.1 -P 3306 -u dealer -pdealer_dev_only -e "SELECT 1"
+# 2) dealer-core   → CORE_PORT=8081 SERVER_ADDRESS=127.0.0.1
+cd dealer-core && mvn spring-boot:run
 
-# 3–5) After each repo is ready (stop here if repos are not all created; do not fake processes)
-# dealer-core  → CORE_PORT=8081
-# ai-service   → AI_PORT=8082
-# dealer-gateway → GATEWAY_PORT=8080
-# dealer-web   → vite :5173
+# 3) ai-service    → AI_PORT=8082 SERVER_ADDRESS=127.0.0.1
+cd ai-service && mvn spring-boot:run   # stub profile is the default; real AI adds -Daimanager.real=true
+
+# 4) dealer-gateway → GATEWAY_PORT=8080
+cd dealer-gateway && mvn spring-boot:run
+
+# 5) dealer-web     → vite :5173
+cd dealer-web && npm ci && npm run dev
 ```
+
+Every value each process needs is in `dealer-platform/env.example`. Do not fake a process: if a service will not start, fix it or report it.
 
 ### 2.2 Health checks (expose these while coding; no JWT)
 
@@ -91,85 +97,21 @@ All four health checks must be **200** before local processes count as complete.
 
 ---
 
-## 3. Target compose (not landed yet — coding AI builds this)
+## 3. Local configuration per process
 
-**Current state in one sentence:** `dealer-platform/docker-compose.yml` currently has only `mysql:8.4`, mapped `3306:3306`, database name `dealer_core`.
+There is no compose file to merge into. Each process reads its values from the environment, and `dealer-platform/env.example` is the single list. Copy it to a local `.env`, or paste the same names into IntelliJ run configurations.
 
-The fragment below is the **target**. The coding AI writes it into compose only after the four-repo Dockerfiles exist. **Do not commit this fragment into the existing compose now to pretend the four services are running.**
+| Process | Must be set locally |
+|---|---|
+| `dealer-core` | `CORE_PORT=8081`, `SERVER_ADDRESS=127.0.0.1`, `MYSQL_URL` / `MYSQL_USER` / `MYSQL_PASSWORD`, `GATEWAY_BASE_URL`, `GATEWAY_PUBLIC_URL`, `INTERNAL_TOKEN`, `JWT_MODE=dev`, `DEV_JWT_SECRET`, and `ADMIN_USERNAME` / `ADMIN_PASSWORD` to seed the first admin |
+| `ai-service` | `AI_PORT=8082`, `SERVER_ADDRESS=127.0.0.1`, `SPRING_PROFILES_ACTIVE=dev`, `INTERNAL_TOKEN`, `AIMANAGER_API_KEY` (empty for the stub), `AIMANAGER_GATEWAY_PROVIDER` |
+| `dealer-gateway` | `GATEWAY_PORT=8080`, `CORE_URL`, `AI_URL`, `SPRING_PROFILES_ACTIVE=dev`, `INTERNAL_TOKEN`, `CORS_ALLOWED_ORIGIN=http://localhost:5173`, `JWT_MODE=dev`, the same `DEV_JWT_SECRET` as core |
+| `dealer-web` | `VITE_GATEWAY_URL=http://localhost:8080` in `dealer-web/.env` |
+| MySQL | Port 3306, database `dealer_core`, user `dealer`. Flyway in `dealer-core` owns the schema |
 
-```yaml
-# === Target (not landed) dealer-platform/docker-compose.yml ===
-# Merge after the coding AI has all four repos; Gateway maps 8080; do not bind core/ai on 0.0.0.0 for the class to scan.
-services:
-  mysql:
-    image: mysql:8.4
-    environment:
-      MYSQL_DATABASE: dealer_core
-      MYSQL_USER: dealer
-      MYSQL_PASSWORD: dealer_dev_only
-      MYSQL_ROOT_PASSWORD: dealer_root_dev_only
-    ports:
-      - "3306:3306"
-    command: ["--character-set-server=utf8mb4", "--collation-server=utf8mb4_0900_ai_ci"]
+`INTERNAL_TOKEN` and `DEV_JWT_SECRET` must carry the **same value** in every process that reads them. A mismatch fails as a 404 on the AI path or a 401 on business calls, not as a clear error.
 
-  dealer-core:
-    build: ../dealer-core
-    environment:
-      CORE_PORT: "8081"
-      MYSQL_URL: jdbc:mysql://mysql:3306/dealer_core?useSSL=false&allowPublicKeyRetrieval=true
-      MYSQL_USER: dealer
-      MYSQL_PASSWORD: dealer_dev_only
-      INTERNAL_TOKEN: dealer-internal
-      ENTRA_ISSUER: ${ENTRA_ISSUER}
-      ENTRA_AUDIENCE: ${ENTRA_AUDIENCE:-api://dealer-api}
-    # Bind loopback only for local demo curl; do not use "8081:8081"
-    ports:
-      - "127.0.0.1:8081:8081"
-    depends_on:
-      - mysql
-
-  ai-service:
-    build: ../ai-service
-    environment:
-      AI_PORT: "8082"
-      SPRING_PROFILES_ACTIVE: dev
-      INTERNAL_TOKEN: dealer-internal
-      AIMANAGER_API_KEY: ${AIMANAGER_API_KEY}
-      AIMANAGER_GATEWAY_PROVIDER: ${AIMANAGER_GATEWAY_PROVIDER:-openai}
-      AIMANAGER_GATEWAY_MODEL: ${AIMANAGER_GATEWAY_MODEL}
-    ports:
-      - "127.0.0.1:8082:8082"
-
-  dealer-gateway:
-    build: ../dealer-gateway
-    environment:
-      GATEWAY_PORT: "8080"
-      CORE_URL: http://host.docker.internal:8081
-      AI_URL: http://host.docker.internal:8082
-      SPRING_PROFILES_ACTIVE: dev
-      INTERNAL_TOKEN: dealer-internal
-      CORS_ALLOWED_ORIGIN: http://localhost:5173
-      ENTRA_ISSUER: ${ENTRA_ISSUER}
-      ENTRA_AUDIENCE: ${ENTRA_AUDIENCE:-api://dealer-api}
-    ports:
-      - "8080:8080"
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
-
-  dealer-web:
-    build: ../dealer-web
-    environment:
-      VITE_GATEWAY_URL: http://localhost:8080
-      VITE_ENTRA_TENANT_ID: ${VITE_ENTRA_TENANT_ID}
-      VITE_ENTRA_CLIENT_ID: ${VITE_ENTRA_CLIENT_ID}
-      VITE_ENTRA_API_SCOPE: ${VITE_ENTRA_API_SCOPE:-api://dealer-api/access_as_user}
-    ports:
-      - "5173:5173"
-```
-
-`../dealer-*` is the agreed path of the four independent repos relative to `dealer-platform`; do not hard-code empty images when a repo is not checked out.
-
----
+The cloud equivalent of this table is `deploy/terraform/main.tf`: the same variable names become App Service app settings, with the secret ones as Key Vault references. Do not duplicate that mapping in a second file.
 
 ## 4. Gateway CORS and internal header (environment variable names pinned)
 
@@ -224,7 +166,7 @@ curl.exe -s -D - -o NUL -X OPTIONS http://127.0.0.1:8080/api/v1/vehicles ^
 
 ### 5.3 LAN IP direct to core / ai → cannot connect
 
-Target compose binds 8081/8082 to `127.0.0.1` only. Replace `127.0.0.1` with your LAN IPv4:
+`SERVER_ADDRESS=127.0.0.1` binds core and ai to loopback only. Replace `127.0.0.1` with your LAN IPv4:
 
 ```text
 curl.exe -s -o NUL -w "%{http_code}" --connect-timeout 3 http://<LAN_IP>:8081/actuator/health
@@ -239,51 +181,56 @@ curl.exe -s -o NUL -w "%{http_code}" --connect-timeout 3 http://<LAN_IP>:8080/ac
 
 If `curl` to local `127.0.0.1:8081` still returns 401: class may use that only to say “no CORS / not the product entry”; it **cannot** count as “direct-access failure already accepted.”
 
-Azure: core / ai use **internal** Ingress; the public FQDN is **only** web + gateway.
+Azure: `dealerops-core` and `dealerops-ai` set `ip_restriction_default_action = "Deny"` and allow only the `AzureCloud` service tag, so `dealerops-gateway` gets through and a browser on the public internet is refused by the platform. The usable public origins are **only** the Static Web App (SPA) and `dealerops-gateway` (API + Swagger). See `deploy/terraform/main.tf` and [deploy/README.md](../deploy/README.md) §2.
 
 ---
 
-## 6. Azure minimum resource name patterns
+## 6. Azure resource name patterns
 
-`main.bicep` `prefix` defaults to **`dealerops`**. Compose names as below; **do not invent a second nickname set**.
+`deploy/terraform` variable `prefix` defaults to **`dealerops`**. Use these names; **do not invent a second nickname set**. Set `name_suffix` when a global `azurewebsites.net` hostname is already taken.
 
-| Resource | Count | Name pattern | Example (`prefix=dealerops`) | `main.bicep` status |
-|---|---|---|---|---|
-| Azure Container Registry | 1 (Basic, admin off) | `${prefix}acr` | `dealeropsacr` | **This item only is written** |
-| Container Apps Environment | 1 | `${prefix}-cae` | `dealerops-cae` | Not written |
-| Container App | **4** | `${prefix}-web` `${prefix}-gateway` `${prefix}-core` `${prefix}-ai` | `dealerops-web` … `dealerops-ai` | Not written |
-| MySQL Flexible Server | 1, database name **`dealer_core`** | `${prefix}-mysql` | `dealerops-mysql` | Not written |
-| Key Vault | 1 | `${prefix}-kv` | `dealerops-kv` | Not written |
-| Application Insights | 1 | `${prefix}-appi` | `dealerops-appi` | Not written |
+| Resource | Count | Name pattern | Example (`prefix=dealerops`) |
+|---|---|---|---|
+| Resource group | 1 | `${prefix}-rg` | `dealerops-rg` |
+| App Service plan | 1 (Linux, `B2`) | `${prefix}-plan` | `dealerops-plan` |
+| Linux Web App (Java 21 SE) | **3** | `${prefix}-gateway` `${prefix}-core` `${prefix}-ai` | `dealerops-gateway` … `dealerops-ai` |
+| Static Web App (Free) | 1 | `${prefix}-web` | `dealerops-web` |
+| MySQL Flexible Server | 1, database **`dealer_core`** | `${prefix}-mysql` | `dealerops-mysql` |
+| Key Vault | 1 | `${prefix}-kv` | `dealerops-kv` |
+| User-assigned identity | 1 | `${prefix}-uai` | `dealerops-uai` |
+| Log Analytics + Application Insights | 1 each | `${prefix}-logs`, `${prefix}-appi` | `dealerops-logs`, `dealerops-appi` |
 
-Bicep **current state = ACR only**. Do not treat commented TODOs as deployed. Do not write a subscriptionId or plaintext secrets in Bicep.
+There is **no container registry and no Container Apps environment**: App Service runs the JAR that Maven produces. Key Vault holds `INTERNAL-TOKEN`, `MYSQL-PASSWORD`, `JWT-SIGNING-SECRET`, and, when configured, `AIMANAGER-API-KEY` and `ADMIN-PASSWORD`. App settings reference those secrets; they never contain a secret value. Do not write a subscription id, a `terraform.tfvars`, or a `terraform.tfstate` into Git.
 
 ### When cloud acceptance counts
 
 | Sprint | Cloud business? |
 |---|---|
-| **Sprint 1** | Cloud business is **not required**. Local four processes + architecture diagram + Entra two roles + “direct 8081/8082 fails” is enough to present. ACR placeholder is enough. |
-| **Sprint 2** | Cloud **must** be the real path: sign-in → Gateway → record one vehicle → **real AI** ad check. KV / MySQL / CAE / four Container Apps / Insights must be added to the same `main.bicep` before deploy. core/ai internal; gateway/web external + HTTPS. |
+| **Sprint 1** | Cloud business is **not required**. Local five processes + architecture diagram + two roles + "direct 8081/8082 fails" is enough to present. |
+| **Sprint 2** | Cloud **must** be the real path: sign-in → Gateway → record one vehicle → **real AI** ad check, on the Azure stack from `deploy/terraform`. |
 | **Sprint 3** | Do not add a bus/second database; finish isolation, CRM, three ad kinds, export, and audit. |
 
 ---
 
-## 7. Pipeline (GitHub Actions by default; no longer a choice)
+## 7. Pipeline (GitHub Actions, compile and validate only)
 
-**Default CI: GitHub Actions.** Each application has a compile workflow under `.github/workflows/`. `dealer-platform` validates Bicep and does not build business images.
+**Default CI: GitHub Actions.** Each application has a compile workflow under `.github/workflows/`. `.github/workflows/terraform.yml` runs `terraform fmt -check`, `terraform init -backend=false`, and `terraform validate` on changes under `deploy/terraform/`.
 
-**Automatic publish** is the container image push. The procedure is [deploy/README.md](../deploy/README.md). A push to `main` builds images and pushes them to GitHub Container Registry through `.github/workflows/publish-ghcr.yml`. That job does not open a public site. The current public demo is a Cloudflare quick tunnel started by an operator on a machine that is already running local Compose: `cloudflared tunnel --url` forwards HTTPS to web port 5173 and gateway port 8080. Those `trycloudflare.com` hostnames exist only while the process runs. CI does not start the tunnel. Railway is not a deploy target.
+**No workflow deploys anything.** CI holds no Azure credentials. The cloud deploy is two operator commands, documented in [deploy/README.md](../deploy/README.md):
 
-Azure remains the backup. The student VM `dealerops-demo` (`Standard_B2ms`, Canada Central) at `https://dealerops-sait.canadacentral.cloudapp.azure.com/` is recorded in [deploy/README.md](../deploy/README.md) and [deploy/publish-options.md](../deploy/publish-options.md) for use when the Cloudflare tunnel is not used. A push to `main` does not update that VM. `dealer-platform/infra/main.bicep` stays an optional course draft; `.github/workflows/dealer-platform.yml` compiles it and does not deploy it. Host comparison is [deploy/publish-options.md](../deploy/publish-options.md).
+1. `terraform apply` in `deploy/terraform` creates or updates the Azure resources.
+2. `deploy/terraform/deploy-apps.sh` packages the three JARs, uploads them with `az webapp deploy --type jar`, builds the SPA with `VITE_GATEWAY_URL` set to the gateway URL, and uploads `dist/` to the Static Web App.
 
-On `main`, `.github/workflows/publish-ghcr.yml` generates **one** UTC timestamp (`yyyy-MM-dd'T'HH:mm:ss'Z'`, second precision) per run. That same value is baked into `dealer-web` as `VITE_PUBLISHED_AT` (footer text `Published <timestamp>`) and into `dealer-core` as `PUBLISHED_AT` (Swagger info description on the gateway at `/swagger-ui/index.html`). Image tags `:sha` and `:main` come from that same run. A machine with no `VITE_PUBLISHED_AT` / `PUBLISHED_AT` shows `Published local`. The browser never uses core port `8081` for Swagger. A public HTTPS demo follows the quick-tunnel steps in [deploy/README.md](../deploy/README.md). `dealer-gateway` and `dealer-core` stay on Compose; they are not rewritten onto Cloudflare Workers.
+That script generates **one** UTC timestamp (`yyyy-MM-dd'T'HH:mm:ss'Z'`, second precision) per run. It becomes the `PUBLISHED_AT` app setting on `dealerops-core` (Swagger info description) and the `VITE_PUBLISHED_AT` build value for `dealer-web` (footer `Published <timestamp>`). A machine with neither shows `Published local`. Swagger is served through the gateway at `/swagger-ui/index.html`; the browser never uses core port `8081`.
 
-| Repo | JDK / Node | PR | `main` publish |
+| Repo | JDK / Node | PR and `main` | Cloud deploy |
 |---|---|---|---|
-| dealer-gateway | **Java 21** | `echo` repo name → `mvn -B -DskipTests compile` | Same image push as the others (`ghcr.io/yuandong-yang/dealer-gateway`) |
-| dealer-core | **Java 21** | Same, plus unit tests | Same; Swagger shows `PUBLISHED_AT` |
-| ai-service | **Java 21** | Stub compile; do not hit paid endpoints | Same stub image |
-| dealer-web | Node 20 | `echo` repo name → `npm ci && npm run build` | Same; footer shows `VITE_PUBLISHED_AT` |
+| dealer-gateway | **Java 21** | `mvn -B -DskipTests compile`, unit tests | JAR upload to `dealerops-gateway` |
+| dealer-core | **Java 21** | Same, plus unit tests and the Testcontainers ITs when a Docker engine is present on the runner | JAR upload to `dealerops-core`; Swagger shows `PUBLISHED_AT` |
+| ai-service | **Java 21** | Stub compile and tests; do not hit paid endpoints | Stub JAR upload to `dealerops-ai` |
+| dealer-web | Node 20 | `npm ci && npm run build` | `dist/` upload to the Static Web App; footer shows `VITE_PUBLISHED_AT` |
+
+The `dealer-core` integration tests are the **only** remaining use of a Docker engine, and only as a test fixture on a CI runner or a developer machine. Nothing that ships is a container.
 
 Minimal skeleton (Java repos; web replaces compile with `npm`):
 
@@ -304,16 +251,9 @@ jobs:
           java-version: "21"
       - run: echo "repo=${{ github.repository }}"
       - run: mvn -B -DskipTests compile
-  image:
-    if: github.ref == 'refs/heads/main'
-    needs: compile
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-      - run: echo "Images are published by .github/workflows/publish-ghcr.yml"
 ```
 
-The live publisher is `.github/workflows/publish-ghcr.yml`, documented in [deploy/README.md](../deploy/README.md). Do not change images by hand and call it a pipeline.
+Do not deploy by hand in the portal and call it a pipeline, and do not add an Azure login to a workflow without the subscription owner's decision.
 
 ---
 
@@ -321,14 +261,14 @@ The live publisher is `.github/workflows/publish-ghcr.yml`, documented in [deplo
 
 - The three Java repos (`dealer-gateway` / `dealer-core` / `ai-service`) are uniformly **21**. Ban one repo on 21 and another on 17.
 - `dealer-web` has no JDK. Upstream `ai-manager` remains a Java 17 bytecode JAR; **do not change that library**; a 21 runtime may depend on it.
-- **Secrets stay out of the repo:** `.env`, `AIMANAGER_API_KEY`, real MySQL passwords, and real `INTERNAL_TOKEN` values do not go into Git. Locally copy `dealer-platform/env.example`. Cloud uses Key Vault `secretRef`.
-- SPA has **no** Entra client secret (PKCE). `VITE_ENTRA_CLIENT_ID` is not a secret.
+- **Secrets stay out of the repo:** `.env`, `terraform.tfvars`, `terraform.tfstate`, `AIMANAGER_API_KEY`, real MySQL passwords, and real `INTERNAL_TOKEN` values do not go into Git. Locally copy `dealer-platform/env.example`. Cloud uses Key Vault references from `deploy/terraform`.
+- Sign-in is admin-issued username/password ([15](15-Data-Auth-and-Gateway.md) §8). The SPA holds no client secret of any kind.
 
 ---
 
 ## Coding AI must not
 
 - Change 13–19, BRIEF, `AI-CODING-BACKEND` / `AI-CODING-FRONTEND` / `AI-PROTOCOL`
-- Change `dealer-platform/infra/main.bicep` to pretend the cloud is complete
-- Change the existing compose as if the four services are implemented
+- Claim a `deploy/terraform` resource is live without an operator `terraform apply`
+- Add a Dockerfile, a Compose file, a container registry, or a container-based host back
 - Add a fifth auth repo / Service Bus / secrets in the repo / default to Azure DevOps

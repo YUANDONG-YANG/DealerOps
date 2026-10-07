@@ -23,8 +23,8 @@
 
 | Sprint | What tests may be written as | Acceptance environment |
 |---|---|---|
-| **Sprint 1** | **Compilable empty tests** (JUnit / Vite spec with class names and `@Test`/`it` skeletons) **or** direct-access failure tests (see TEST-14 / BE-14). Two-store data and a real ad run-through are not required. | **Local allowed** Docker / localhost Gateway |
-| **Sprint 2** | Cloud HTTPS + Entra → Gateway → business; ads use **real AI** (GitHub component; stubs do not count). Must at least support **CL-4 / CL-5** and BE-08 / BE-09. | **Must be cloud** |
+| **Sprint 1** | **Compilable empty tests** (JUnit / Vite spec with class names and `@Test`/`it` skeletons) **or** direct-access failure tests (see TEST-14 / BE-14). Two-store data and a real ad run-through are not required. | **Local allowed**: the five local processes and the localhost Gateway |
+| **Sprint 2** | Cloud HTTPS + login → Gateway → business; ads use **real AI** (GitHub component; stubs do not count). Must at least support **CL-4 / CL-5** and BE-08 / BE-09. | **Must be cloud** |
 | **Sprint 3** | BE-01–BE-16, FE-01–FE-10, CL-1–CL-6 on the same cloud Gateway; isolation / export / audit / assistant must not fall back to a local database. | **Must be cloud** |
 
 **Local-only cannot count as Sprint 2 / Sprint 3 (Review 2 / Review 3).** Local HTTP, local stub AI, and “cloud only opened empty Containers while business still hits localhost” all fail.
@@ -76,7 +76,7 @@ Dealership / vehicle premise (17 §1, shared by ad-related tasks): dealership `P
 
 ## 2. Backend tasks (dealer-core · via Gateway)
 
-Package names follow 18: `com.dealerops.core`. ITs go in `src/test/java/com/dealerops/core/it/`; units go in the matching subpackage. Interfaces are all `/api/v1/**`. Staff tenant comes only from JWT `oid` → active membership; **ignore** client `dealerId`.
+Package names follow 18: `com.dealerops.core`. ITs go in `src/test/java/com/dealerops/core/it/`; units go in the matching subpackage. Interfaces are all `/api/v1/**`. Staff tenant comes only from JWT `sub` (the username) → active membership; **ignore** client `dealerId`.
 
 ### TEST-01
 
@@ -267,7 +267,7 @@ UI in English. Failures **are not empty tables**. `409 VERSION_CONFLICT` → `Re
 - Repo / file path: `dealer-web` / `src/views/__tests__/AdminView.spec.ts`
 - Maps to 16: `FE-07`
 - Maps to 17: none
-- Must assert: Admin on the **same** `/admin`: tab **Dealerships** (Name, Contact, Staff count, Actions; filter by store name; `New dealership`) and **Members** (Entra ID/email, Dealership, Status, Actions; filter by staff email). Data = dealership list + each store’s members. Staff / Unbind use Admin APIs already in 14.
+- Must assert: Admin on the **same** `/admin`: tab **Dealerships** (Name, Contact, Staff count, Actions; filter by store name; `New dealership`) and **Members** (Username, Dealership, Status, Actions; filter by username). Data = dealership list + each store’s members. Staff / Unbind use Admin APIs already in 14.
 - Ban: a second Admin child route `/admin/members`; this-course UI Edit dealership; vehicles tab.
 
 ### TEST-24

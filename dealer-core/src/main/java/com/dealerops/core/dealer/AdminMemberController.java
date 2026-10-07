@@ -40,9 +40,9 @@ public class AdminMemberController {
     return membershipService.add(id, body);
   }
 
-  @DeleteMapping("/{entraOid}")
+  @DeleteMapping("/{username}")
   @ResponseStatus(HttpStatus.NO_CONTENT)
-  public void remove(@PathVariable Long id, @PathVariable String entraOid) {
-    membershipService.remove(id, entraOid);
+  public void remove(@PathVariable Long id, @PathVariable String username) {
+    membershipService.remove(id, username);
   }
 }

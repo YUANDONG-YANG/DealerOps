@@ -12,14 +12,14 @@
 
 
 1. Reader: another coding AI. Follow this document to create `dealer-web` and wire it to [14](14-Backend-API-Contract.md); fields/enums/DTOs follow handbook section 3 and 14. This document does not define extra columns.
-2. Stack pinned: Vue 3 + Vite + Element Plus + Vue Router + Pinia + `@azure/msal-browser` + axios. No Nuxt, no chart library, no generic CRUD generator.
+2. Stack pinned: Vue 3 + Vite + Element Plus + Vue Router + Pinia + axios. No third-party identity SDK; login is a username/password form ([15](15-Data-Auth-and-Gateway.md) §8). No Nuxt, no chart library, no generic CRUD generator.
 3. Browser HTTP **only hits** `import.meta.env.VITE_GATEWAY_URL` (local `http://localhost:8080`), path prefix `/api/v1`. Ban axios pointing at 8081/8082. Ban requests to `/internal/v1/**`.
 4. Routes are only six pages: `/login` `/admin` `/dms` `/crm` `/ads` `/assistant`. No seventh business route; ban `/audit` `/tickets` `/leads` `/dashboard` / buyer pages.
 5. Admin: **one route** `/admin` + in-page dual tabs (Dealerships | Members). Ban `/admin/members`. This course UI **does not** Edit a dealership (even though 14 has `GET/PATCH /admin/dealers/{id}`).
 6. Assistant model down but still HTTP 200: explanation area is the fixed English **`Smart summary unavailable`** (follow [12](12-Frontend-UI-Conventions.md); do not use the Chinese assistant-failure sentence from [10](10-Web-AI-Assistant.md)). Whole-page failure: `Could not ask assistant`.
-7. Unlisted features are not built: work orders, leads, consumer/buyer site, standalone Audit page, KPI home, password login, dealership switcher, external ad publish.
+7. Unlisted features are not built: work orders, leads, consumer/buyer site, standalone Audit page, KPI home, self-registration, forgot password, dealership switcher, external ad publish.
 8. UI is all English. Error body `{code,message}`. Failures are not empty tables. Optimistic-lock writes carry `version`; `409 VERSION_CONFLICT` → `Refresh and retry`. Ignore client `dealerId`.
-9. **Implementation order locked:** FE-T01 shell → FE-T02 guards → FE-T03 MSAL/HTTP → FE-T04 layout four states → FE-T05 Login → FE-T06 Admin → FE-T07 DMS → FE-T08 CRM → FE-T09 Ads → FE-T10 Assistant → FE-T11 against 16.
+9. **Implementation order locked:** FE-T01 shell → FE-T02 guards → FE-T03 auth/HTTP → FE-T04 layout four states → FE-T05 Login → FE-T06 Admin → FE-T07 DMS → FE-T08 CRM → FE-T09 Ads → FE-T10 Assistant → FE-T11 against 16.
 10. Acceptance cites only [16](16-Acceptance-and-Test.md) `FE-01`–`FE-10`, `CL-1`–`CL-6` (and classroom `BE-*` frontend behavior). Do not invent paths / error codes / an ad overall status outside the five.
 
 Authority conflicts: course PPT > specification fields > BRIEF / 00 > 15 / **14 (HTTP)** > 13 > 12 > this document. This document splits files into tasks; it is not a business implementation.
@@ -32,9 +32,9 @@ Authority conflicts: course PPT > specification fields > BRIEF / 00 > 15 / **14 
 |---|---|---|
 | 1 | FE-T01 scaffold | `npm run dev` starts Vite :5173 |
 | 2 | FE-T02 route table + guards | Unauthenticated business path must go to `/login` |
-| 3 | FE-T03 MSAL+axios | Every request hits 8080 only and carries Bearer |
+| 3 | FE-T03 login token + axios | Every request hits 8080 only and carries Bearer |
 | 4 | FE-T04 shell + four-state components | `AppLayout`/`PageState` can mount empty pages |
-| 5 | FE-T05 Login | `Sign in with Microsoft` + `GET /me` routing |
+| 5 | FE-T05 Login | Username + password `Sign in` + `GET /me` routing |
 | 6 | FE-T06 Admin | Dual tabs fully wired; no business menu |
 | 7 | FE-T07 DMS | List/create-update/sell/audit drawer |
 | 8 | FE-T08 CRM | List/create-update/link/**Unlink second confirmation** |
@@ -61,7 +61,7 @@ Authority conflicts: course PPT > specification fields > BRIEF / 00 > 15 / **14 
 
 `beforeEach` order (13 §3; do not reorder):
 
-1. Not signed in (MSAL has no account) and not `meta.public` → `/login`, remember `redirect`.
+1. Not signed in (no stored login token) and not `meta.public` → `/login`, remember `redirect`.
 2. Signed in and on `/login` → after `GET /api/v1/me` go to `/admin` or `/dms` by role.
 3. `Platform.Admin` visiting `/dms` `/crm` `/ads` `/assistant` → send back to `/admin`; do not render business tables. `Dealer.User` visiting `/admin` → send back to `/dms`.
 4. `GET /me` fails 401 → clear session, return `/login`.
@@ -75,24 +75,21 @@ Authority conflicts: course PPT > specification fields > BRIEF / 00 > 15 / **14 
 - **Files:**
   - `dealer-web/package.json`
   - `dealer-web/vite.config.ts` (dev server **5173**)
-  - `dealer-web/.env.example` (copy only the four frontend items from `dealer-platform/env.example`, see below)
+  - `dealer-web/.env.example` (copy only the frontend item from `dealer-platform/env.example`, see below)
   - `dealer-web/src/main.ts`
   - `dealer-web/src/App.vue`
-  - Empty placeholders (this task may start with empty components): `src/router/index.ts`, `src/auth/msal.ts`, `src/api/http.ts`, `src/api/me.ts`, `src/api/admin.ts`, `src/api/vehicles.ts`, `src/api/customers.ts`, `src/api/listings.ts`, `src/api/audit.ts`, `src/api/assistant.ts`, `src/stores/session.ts`, `src/layouts/AppLayout.vue`, `src/components/AppMenu.vue`, `src/components/DataTable.vue`, `src/components/FormDrawer.vue`, `src/components/ConfirmDialog.vue`, `src/components/PageState.vue`, `src/components/AdWorkspace.vue`, `src/components/AssistantCard.vue`, `src/views/LoginView.vue`, `src/views/AdminView.vue`, `src/views/DmsView.vue`, `src/views/CrmView.vue`, `src/views/AdsView.vue`, `src/views/AssistantView.vue`
+  - Empty placeholders (this task may start with empty components): `src/router/index.ts`, `src/auth/login.ts`, `src/api/http.ts`, `src/api/me.ts`, `src/api/admin.ts`, `src/api/vehicles.ts`, `src/api/customers.ts`, `src/api/listings.ts`, `src/api/audit.ts`, `src/api/assistant.ts`, `src/stores/session.ts`, `src/layouts/AppLayout.vue`, `src/components/AppMenu.vue`, `src/components/DataTable.vue`, `src/components/FormDrawer.vue`, `src/components/ConfirmDialog.vue`, `src/components/PageState.vue`, `src/components/AdWorkspace.vue`, `src/components/AssistantCard.vue`, `src/views/LoginView.vue`, `src/views/AdminView.vue`, `src/views/DmsView.vue`, `src/views/CrmView.vue`, `src/views/AdsView.vue`, `src/views/AssistantView.vue`
 - **Must include:**
-  - Dependencies: `vue` `vue-router` `pinia` `element-plus` `axios` `@azure/msal-browser`; `vite` `@vitejs/plugin-vue`.
+  - Dependencies: `vue` `vue-router` `pinia` `element-plus` `axios`; `vite` `@vitejs/plugin-vue`.
   - Directories that must exist: `src/views` `src/api` `src/stores` `src/auth` `src/layouts` (also `src/router` `src/components`).
-  - `.env.example` four keys, values matching `dealer-platform/env.example`:
+  - `.env.example` one key, value matching `dealer-platform/env.example`:
 
     | Key | Local default |
     |---|---|
-    | `VITE_ENTRA_TENANT_ID` | empty (fill after copy) |
-    | `VITE_ENTRA_CLIENT_ID` | empty |
-    | `VITE_ENTRA_API_SCOPE` | `api://dealer-api/access_as_user` |
     | `VITE_GATEWAY_URL` | `http://localhost:8080` |
 
   - `stores` keeps **only** `session.ts` (account, `role`, dealership display name). List state lives in each View.
-- **Ban:** Nuxt; extra `AuditView` / tickets / leads / dashboard; committing a real tenant/client in `.env`; writing Vue source into `design/`.
+- **Ban:** Nuxt; extra `AuditView` / tickets / leads / dashboard; committing real credentials in `.env`; writing Vue source into `design/`.
 - **Acceptance:** `npm install && npm run dev` listens on `http://localhost:5173`. Directory tree matches the file list above one-for-one. No seventh business View.
 
 ---
@@ -107,20 +104,18 @@ Authority conflicts: course PPT > specification fields > BRIEF / 00 > 15 / **14 
 
 ---
 
-## FE-T03 · MSAL + axios (8080 only)
+## FE-T03 · Login token + axios (8080 only)
 
 - **Repo:** `dealer-web`
-- **Files:** `src/auth/msal.ts`; `src/api/http.ts`; `src/main.ts` (`handleRedirectPromise` at startup); `src/stores/session.ts`.
+- **Files:** `src/auth/login.ts` ([15](15-Data-Auth-and-Gateway.md) §8); `src/api/http.ts`; `src/main.ts`; `src/stores/session.ts`.
 - **Must include:**
-  - `PublicClientApplication`. authority = `https://login.microsoftonline.com/${VITE_ENTRA_TENANT_ID}`. `clientId` = `VITE_ENTRA_CLIENT_ID`.
-  - **PKCE:** keep SPA / `@azure/msal-browser` default PKCE. Ban confidential client, ban client secret.
-  - **Redirect URI (dev):** origin `http://localhost:5173`. `redirectUri` and `postLogoutRedirectUri` both point at same-origin **`/login`** (full URL: `http://localhost:5173/login`). Primary login path: `loginRedirect` (not popup). `loginRequest.scopes` / `acquireTokenSilent` **only** use `VITE_ENTRA_API_SCOPE` (default `api://dealer-api/access_as_user`).
+  - `signIn(username, password)`: `POST /api/v1/auth/login` with `{ username, password }`; store the returned `accessToken` in `sessionStorage`. `signOut` removes it and returns to `/login`.
   - `api/http.ts`: `baseURL = import.meta.env.VITE_GATEWAY_URL`. Request paths written as `/api/v1/...`.
-  - Request interceptor: `acquireTokenSilent({ scopes: [VITE_ENTRA_API_SCOPE], account })`, then `acquireTokenRedirect` on failure; header `Authorization: Bearer <accessToken>`.
+  - Request interceptor: read the stored token; header `Authorization: Bearer <accessToken>`. No silent refresh (the token expires after 1 hour; sign in again).
   - Response: 401 → clear session, return `/login`. 403/404/409/400/502 → throw to in-page `PageState` or `ElMessage`, **not an empty table**.
   - Ban putting `dealerId` in query/body/header as a tenant switch.
-- **Ban:** password box; axios pointing at `8081`/`8082`; browser hitting `/internal/v1/ad-check` or `/internal/v1/assistant`; a second API root.
-- **Acceptance:** network panel: every XHR host is Gateway (local **8080**). Requests without a token must not be sent (except the login page). Entra callback lands on `http://localhost:5173`. Against 16 **FE-01** (Microsoft button only).
+- **Ban:** storing the password; axios pointing at `8081`/`8082`; browser hitting `/internal/v1/ad-check` or `/internal/v1/assistant`; a second API root.
+- **Acceptance:** network panel: every XHR host is Gateway (local **8080**). Requests without a token must not be sent (except the login call). Against 16 **FE-01**.
 
 ---
 
@@ -142,7 +137,7 @@ Authority conflicts: course PPT > specification fields > BRIEF / 00 > 15 / **14 
 
 | Page | loading | empty | error | 403 / no access |
 |---|---|---|---|---|
-| Login | `Signing you in…` | (no list; login card only) | `Sign-in failed. Try again.` | Signed-in wrong role does not stay here; guard routes away |
+| Login | `Signing you in…` | (no list; login card only) | `Invalid username or password.` | Signed-in wrong role does not stay here; guard routes away |
 | Admin | `Loading dealerships…` | `No dealerships yet.` | `Could not load dealerships.` | `You do not have access to Admin.` |
 | DMS | `Loading vehicles…` | `No vehicles match.` | `Could not load vehicles.` | `You do not have access to DMS.` |
 | CRM | `Loading customers…` | `No customers match.` | `Could not load customers.` | `You do not have access to CRM.` |
@@ -156,20 +151,20 @@ Staff signed in but without a valid membership: business APIs **403** `FORBIDDEN
 ## FE-T05 · Login wiring table
 
 - **Repo:** `dealer-web`
-- **Files:** `src/views/LoginView.vue` (centered single card, no sidebar); `src/api/me.ts`; `src/stores/session.ts`; `src/auth/msal.ts`.
-- **Must include:** only one button `Sign in with Microsoft`. No Forgot password. No username/password.
-- **Ban:** password login, a third button.
+- **Files:** `src/views/LoginView.vue` (centered single card, no sidebar); `src/api/me.ts`; `src/stores/session.ts`; `src/auth/login.ts`.
+- **Must include:** `Username` and `Password` fields and one `Sign in` button. No Forgot password, no self-registration.
+- **Ban:** a second sign-in method, a Microsoft button, a sign-up link.
 - **Acceptance:** 16 **FE-01**, **CL-1** step 1, **CL-2** step 1.
 
 ### Wiring table · Login `/login`
 
 | Control / timing | method + path | Success | Failure HTTP / code → English |
 |---|---|---|---|
-| `Sign in with Microsoft` | no business API; `loginRedirect` | redirect back to `/login` | MSAL failure → `Sign-in failed. Try again.` |
-| After redirect completes | `GET /api/v1/me` | Pinia writes `role` `dealerId` `dealerLegalName` `displayName` `entraOid`. `Platform.Admin`→`/admin`; `Dealer.User`→`/dms` (or the guard-remembered `redirect`, still constrained by the role table) | `401` → `Sign in required` and return to login; other → `Could not load profile` |
+| `Sign in` | `POST /api/v1/auth/login` `{username,password}` | store `accessToken`; go to the remembered `redirect` or `/` | blank field → `Enter your username and password.`; `401` / other → `Invalid username or password.` |
+| After sign-in | `GET /api/v1/me` | Pinia writes `role` `dealerId` `dealerLegalName` `displayName` `username`. `Platform.Admin`→`/admin`; `Dealer.User`→`/dms` (or the guard-remembered `redirect`, still constrained by the role table) | `401` → `Sign in required` and return to login; other → `Could not load profile` |
 | Entering any guarded page | `GET /api/v1/me` (if session has no role) | Same | Same |
 
-`/me` response shape (14 §2): `{ entraOid, displayName, role, dealerId, dealerLegalName }`. Admin last two fields are `null`.
+`/me` response shape (14 §2): `{ username, displayName, role, dealerId, dealerLegalName }`. Admin last two fields are `null`.
 
 ---
 
@@ -181,12 +176,12 @@ Staff signed in but without a valid membership: business APIs **403** `FORBIDDEN
   - Only route `/admin`. In-page `el-tabs`: `Dealerships` | `Members`.
   - **Dealerships columns (12):** Name, Contact, Staff count, Actions. Filter: dealership name, one row. Primary button top-right `New dealership`.
     - Name ← `legalName`. Contact ← `contactPhone` / `contactEmail` on one line. Staff count ← `staffCount` (show `—` if missing).
-  - **Members columns (12):** Entra ID / email, Dealership, Status, Actions. Filter: staff email (API **has no email column**: send `q` against `displayName`/`entraOid`, 14 §3.5).
+  - **Members columns:** Username, Dealership, Status, Actions. Filter: username (`q` matches `displayName`/`username`, 14 §3.5; the API has no email column).
   - Members data: **ban** inventing `GET /admin/members`. Algorithm: `GET /api/v1/admin/dealers` then for each `items[]` `GET /api/v1/admin/dealers/{id}/members`, flatten on the frontend, attach store `legalName`.
   - Row `Staff`: drawer shows only that store’s members; `Bind staff` / `Unbind` both live in the drawer. Members tab `Unbind` hits the same DELETE.
   - `New dealership` drawer four fields: `legalName` `contactPhone` `contactEmail` `contactAddress` (all required).
-  - `Bind staff` body: `{ entraOid, displayName }`.
-- **Ban:** a second Admin child route; Edit dealership button (do not call `PATCH /admin/dealers/{id}`); vehicles tab; creating Entra accounts by email; DMS/CRM/Ads/Assistant appearing in the menu.
+  - `Bind staff` body: `{ username, displayName, password }` (temporary password, at least 8 characters).
+- **Ban:** a second Admin child route; Edit dealership button (do not call `PATCH /admin/dealers/{id}`); vehicles tab; creating accounts outside the Bind staff form; DMS/CRM/Ads/Assistant appearing in the menu.
 - **Acceptance:** 16 **FE-07**, **CL-1**, **CL-3** (changing the address bar to `/dms` is blocked back).
 
 ### Wiring table · Admin `/admin`
@@ -196,8 +191,8 @@ Staff signed in but without a valid membership: business APIs **403** `FORBIDDEN
 | Enter / Search / Reset (dealership tab) | `GET /api/v1/admin/dealers?q=&page=&size=` | Dealership table | `403` `FORBIDDEN` → `You cannot open Admin` / `You do not have access to Admin.`; other → `Could not load dealerships.` |
 | `New dealership` submit | `POST /api/v1/admin/dealers` → **201** | Dealership table; switch to Dealerships | `400` `VALIDATION` → `Check required contact fields` |
 | Open Staff drawer | `GET /api/v1/admin/dealers/{id}/members?page=&size=&q=` | Drawer table | `404` `NOT_FOUND` → `Dealership not found` |
-| `Bind staff` submit | `POST /api/v1/admin/dealers/{id}/members` → **201** | That store’s members + dealership table `staffCount` | `400` `VALIDATION` → `Check Entra ID`; `409` `DUP_MEMBER` → `Staff already bound` |
-| `Unbind` (after `ConfirmDialog`) | `DELETE /api/v1/admin/dealers/{id}/members/{entraOid}` → **204** no body | Same | `404` → `Member not found` |
+| `Bind staff` submit | `POST /api/v1/admin/dealers/{id}/members` → **201** | That store’s members + dealership table `staffCount` | `400` `VALIDATION` → `Check username, display name, and password`; `409` `DUP_MEMBER` → `Staff already bound` |
+| `Unbind` (after `ConfirmDialog`) | `DELETE /api/v1/admin/dealers/{id}/members/{username}` → **204** no body | Same | `404` → `Member not found` |
 | Members tab load | Combination of the two GETs above, flattened | Member table | Same as dealership / member GET |
 
 Staff hitting the URLs above: backend **403** `FORBIDDEN`; the frontend guard should already block and not render the table.
@@ -209,7 +204,7 @@ Staff hitting the URLs above: backend **403** `FORBIDDEN`; the frontend guard sh
 - **Repo:** `dealer-web`
 - **Files:** `src/views/DmsView.vue`; `src/api/vehicles.ts`; `src/api/audit.ts`; sell dialog may be embedded in this View.
 - **Must include:**
-  - Columns (12): Year Make Model, VIN, Source, Condition, Cost, Status, Actions.
+  - Columns (12): Year Make Model, VIN, Source, Condition, Cost, Date added, Status, Actions.
     - Year Make Model ← `modelYear` `make` `model`. Source ← `source`. Condition ← `conditionCode`. Cost ← `purchaseCost`. Status Tag ← `status`.
   - Filters in one row: `q` (VIN/Make/Model), `status`, `condition` (i.e. `conditionCode`), Search, Reset. 10 per page. Query: `q` `status` `condition` `page` `size`. `page` from 0. Envelope `{items,page,size,total}`.
   - Primary button `Add vehicle`. Row actions at most three links: `Edit` `Sell` (hide Sell when sold).
@@ -364,7 +359,7 @@ Staff hitting the URLs above: backend **403** `FORBIDDEN`; the frontend guard sh
 
 | 16 ID | Matching tasks | Frontend must see / must not see |
 |---|---|---|
-| **FE-01** | T02 T05 | Unauthenticated `/dms` → `/login`, only `Sign in with Microsoft`; no password box, no business table |
+| **FE-01** | T02 T05 | Unauthenticated `/dms` → `/login`, only the username + password `Sign in` card; no business table |
 | **FE-02** | T02 T06 | Staff open `/admin` → `/dms`; no Dealerships/bind staff |
 | **FE-03** | T02 T07 | Admin open `/dms` → `/admin`; no vehicle table |
 | **FE-04** | T02 T08 | Admin open `/crm` → `/admin` |
@@ -389,7 +384,7 @@ Backend codes the classroom will hit and the frontend only needs to display corr
 
 | Location | Copy |
 |---|---|
-| Login | `Sign in with Microsoft` |
+| Login | `Sign in` (fields `Username`, `Password`) |
 | Top bar | `Sign out` · Admin top bar `Platform Admin` |
 | Menu | `Admin` · `DMS` · `CRM` · `Ad compliance` · `Assistant` |
 | Admin | `New dealership` · `Bind staff` · `Unbind` |

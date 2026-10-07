@@ -13,10 +13,11 @@
 
 Version v6.0 · 2026-09-21
 
-Deliver only what the course requires: business per [DealerOps-Specification.pdf](DealerOps-Specification.pdf), technology per [Non-Negotiable-Project-Requirements.pptx](Non-Negotiable-Project-Requirements.pptx). Do not expand scope.
+Deliver only what the course requires: business per [DealerOps-Specification.pdf](../requirements/DealerOps-Specification.pdf), technology per [Non-Negotiable-Project-Requirements.pptx](../tech-stack/Non-Negotiable-Project-Requirements.pptx). Do not expand scope.
 
 - Backend Java 21 + Spring Boot, frontend Vue 3.
-- Four independent repositories: web, gateway, core, ai-service. A separate platform repository holds Bicep/pipeline notes.
+- Four independent repositories: web, gateway, core, ai-service. `dealer-platform` holds the shared contract and config surface; `deploy/` holds the Terraform stack and the deploy script.
+- Architecture diagrams (service boundaries, Azure deployment, AI workflow) are [07-Azure-Microservices-Architecture.md](07-Azure-Microservices-Architecture.md) and the SVG sources in [diagrams/](diagrams/). The PPT requires a diagram at the Sprint 1 review.
 - One MySQL database. The AI service is stateless and uses synchronous REST; no message queue and no second database.
 - Do not build AI from scratch: reuse the assistant library on your GitHub (default [YUANDONG-YANG/ai-manager](https://github.com/YUANDONG-YANG/ai-manager)), embedded in ai-service.
 
@@ -35,7 +36,7 @@ Humans still confirm scope first via `SCOPE-BASELINE` and the BRIEF.
 - **Frontend:** still [13-Frontend-Engineering.md](13-Frontend-Engineering.md) + [AI-CODING-FRONTEND.md](AI-CODING-FRONTEND.md).
 - **Conflict order:** PPT > specification fields > DEVELOPMENT-DESIGN / PROTOCOL > 14 / 15 > task lists.
 
-- [AI-CODING-FRONTEND.md](AI-CODING-FRONTEND.md) — `dealer-web` task list FE-T01–11 (shell, guards, MSAL, six-page wiring).
+- [AI-CODING-FRONTEND.md](AI-CODING-FRONTEND.md) — `dealer-web` task list FE-T01–11 (shell, guards, login, six-page wiring).
 - [AI-CODING-BACKEND.md](AI-CODING-BACKEND.md) — backend task list BE-T01–23 (core / Gateway / ai-service).
 - [AI-PROTOCOL-AND-RULES.md](AI-PROTOCOL-AND-RULES.md) — internal JSON and rule details.
 - [AI-CODING-LOCAL-AND-CLOUD.md](AI-CODING-LOCAL-AND-CLOUD.md) — how to start the four local services, ports, and minimum cloud resource names.
@@ -45,8 +46,8 @@ Humans still confirm scope first via `SCOPE-BASELINE` and the BRIEF.
 ## Effective documents
 
 0. [Implementation brief (coding entry)](IMPLEMENTATION-BRIEF.md)
-1. [Business specification PDF](DealerOps-Specification.pdf)
-2. [Course hard-requirements PPT](Non-Negotiable-Project-Requirements.pptx)
+1. [Business specification PDF](../requirements/DealerOps-Specification.pdf)
+2. [Course hard-requirements PPT](../tech-stack/Non-Negotiable-Project-Requirements.pptx)
 3. [Approved scope (instructor/client sign-off)](SCOPE-BASELINE.md) **currently in force** — one-page In/Out and six hard items; confirm with the instructor before starting; re-sign if scope changes.
 4. [Business and pages](00-Current-Development-Design.md)
 5. [Architecture](07-Azure-Microservices-Architecture.md)
@@ -58,17 +59,18 @@ Humans still confirm scope first via `SCOPE-BASELINE` and the BRIEF.
 11. [Frontend engineering (file split)](13-Frontend-Engineering.md) **currently in force** — routes, file split, page↔API; frontend still follows this document + `AI-CODING-FRONTEND`.
 12. [Backend development design](DEVELOPMENT-DESIGN.md) **backend design document** — scope, phases, invariants.
 13. [Backend API contract (DTOs/error codes)](14-Backend-API-Contract.md) **currently in force** — public HTTP, DTOs, pagination envelope, error codes; align with OpenAPI.
-14. [Data / auth / gateway rulings](15-Data-Auth-and-Gateway.md) **currently in force** — tables, tenant/membership, Gateway, JWT, **dealer Entra auth (§8)**, rule pseudocode.
+14. [Data / auth / gateway rulings](15-Data-Auth-and-Gateway.md) **currently in force** — tables, tenant/membership, Gateway, JWT, **dealer username/password auth (§8)**, rule pseudocode.
 15. [Acceptance and test](16-Acceptance-and-Test.md) **currently in force** — 32 cases + 6 classroom scripts, mapped to NN-19; does not change contracts.
 16. [Ad-check fixtures](17-Ad-Check-Fixtures.md) **currently in force** — 22 ad samples and expected states; classroom priority FX-01 / FX-03 / FX-10 / FX-11 / FX-12.
 17. [Backend core engineering](18-Backend-Core-Engineering.md) **currently in force** — `dealer-core` packaging reference.
 18. [Gateway and AI engineering](19-Gateway-and-AI-Engineering.md) **currently in force** — Gateway / ai-service packaging reference.
+19. [Observability](20-Observability.md) **currently in force** — logback file logging (`log-sum/`) and local-only SkyWalking tracing; scope addendum to `SCOPE-BASELINE`.
 
 `01`–`06` are withdrawn; do not implement them. See [archive/](archive/). Path summary is in `../dealer-platform/API.md` (points at 14, not withdrawn `04`).
 
 ## Course hard items that must remain
 
-Independent microservices + independent repos/pipelines, Spring Cloud Gateway, Azure Container Apps + Bicep + CI/CD, Entra OAuth/JWT/RBAC, HTTPS and Key Vault, real Azure OpenAI scanning ads, board and three all-hands Reviews.
+Independent microservices + independent repos/pipelines, Spring Cloud Gateway, Azure App Service + Terraform + CI/CD, JWT/RBAC, HTTPS and Key Vault, real AI scanning ads, board and three all-hands Reviews. Containerization (NN-05) is dropped; see [SCOPE-BASELINE.md](SCOPE-BASELINE.md) errata item 5. NN-06 names Terraform explicitly, so infrastructure as code is still met.
 
 ## Explicitly out of scope
 

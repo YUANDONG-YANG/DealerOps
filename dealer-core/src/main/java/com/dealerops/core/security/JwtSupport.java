@@ -11,7 +11,7 @@ import org.springframework.security.oauth2.jwt.Jwt;
 
 /**
  * Issuer / audience / HMAC-secret helpers shared by the JWT decoder and issuer.
- * Admin-issued username/password auth (design/15-Data-Auth-and-Gateway.md S8); no Entra.
+ * Admin-issued username/password auth (design/15-Data-Auth-and-Gateway.md S8).
  */
 public final class JwtSupport {
 

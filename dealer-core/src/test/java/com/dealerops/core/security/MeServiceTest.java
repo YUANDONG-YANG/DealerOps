@@ -29,11 +29,11 @@ class MeServiceTest {
   void adminHasNullDealer() {
     AppUserEntity user = new AppUserEntity();
     user.setDisplayName("Platform Admin");
-    when(appUserRepository.findByEntraTenantIdAndEntraOid(TestTokens.TID, TestTokens.ADMIN_OID))
+    when(appUserRepository.findByUsername(TestTokens.ADMIN_USERNAME))
         .thenReturn(Optional.of(user));
 
     MeResponse me =
-        meService.me(new CurrentUser(TestTokens.ADMIN_OID, TestTokens.TID, AppRole.PLATFORM_ADMIN, null));
+        meService.me(new CurrentUser(TestTokens.ADMIN_USERNAME, AppRole.PLATFORM_ADMIN, null));
     assertThat(me.role()).isEqualTo("Platform.Admin");
     assertThat(me.dealerId()).isNull();
     assertThat(me.dealerLegalName()).isNull();
@@ -44,14 +44,14 @@ class MeServiceTest {
     AppUserEntity user = new AppUserEntity();
     user.setDisplayName("Staff A");
     user.setDealerId(9L);
-    when(appUserRepository.findByEntraTenantIdAndEntraOid(TestTokens.TID, TestTokens.STAFF_A_OID))
+    when(appUserRepository.findByUsername(TestTokens.STAFF_A_USERNAME))
         .thenReturn(Optional.of(user));
     DealerEntity dealer = new DealerEntity();
     dealer.setLegalName(AdFixtures.PRAIRIE_NAME);
     when(dealerRepository.findById(1L)).thenReturn(Optional.of(dealer));
 
     MeResponse me =
-        meService.me(new CurrentUser(TestTokens.STAFF_A_OID, TestTokens.TID, AppRole.DEALER_USER, 1L));
+        meService.me(new CurrentUser(TestTokens.STAFF_A_USERNAME, AppRole.DEALER_USER, 1L));
     assertThat(me.role()).isEqualTo("Dealer.User");
     assertThat(me.dealerId()).isEqualTo(1L);
     assertThat(me.dealerLegalName()).isEqualTo(AdFixtures.PRAIRIE_NAME);
@@ -61,11 +61,11 @@ class MeServiceTest {
   void unboundStaffHasNullDealer() {
     AppUserEntity user = new AppUserEntity();
     user.setDisplayName("Unbound");
-    when(appUserRepository.findByEntraTenantIdAndEntraOid(TestTokens.TID, TestTokens.UNBOUND_OID))
+    when(appUserRepository.findByUsername(TestTokens.UNBOUND_USERNAME))
         .thenReturn(Optional.of(user));
 
     MeResponse me =
-        meService.me(new CurrentUser(TestTokens.UNBOUND_OID, TestTokens.TID, AppRole.DEALER_USER, null));
+        meService.me(new CurrentUser(TestTokens.UNBOUND_USERNAME, AppRole.DEALER_USER, null));
     assertThat(me.role()).isEqualTo("Dealer.User");
     assertThat(me.dealerId()).isNull();
     assertThat(me.dealerLegalName()).isNull();

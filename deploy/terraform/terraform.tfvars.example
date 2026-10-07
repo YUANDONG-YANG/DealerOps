@@ -1,0 +1,31 @@
+# Copy to terraform.tfvars (git-ignored) and fill in. Secret values belong in a local
+# file or in TF_VAR_* environment variables, never in git.
+# Procedure: deploy/README.md
+
+location                = "canadacentral"
+static_web_app_location = "eastus2"
+prefix                  = "dealerops"
+
+# Set this when dealerops-core.azurewebsites.net or a sibling hostname is already taken.
+name_suffix = ""
+
+# B1 is 1.75 GB for all three JVMs. B2 is 3.5 GB and is the safer demo default.
+service_plan_sku = "B2"
+
+# Public IPv4 addresses that may reach MySQL directly, for a SQL client or a manual
+# Flyway run. App Service reaches the server through the Azure services rule.
+operator_ip_addresses = []
+
+# --- Secrets: fill locally, do not commit ---
+# MySQL administrator password, >= 12 characters. Key Vault secret MYSQL-PASSWORD.
+mysql_admin_password = ""
+# Shared X-Dealer-Internal value. Must not be the local default dealer-internal.
+internal_token = ""
+# HS256 signing secret, >= 32 bytes. Key Vault secret JWT-SIGNING-SECRET.
+jwt_signing_secret = ""
+# Leave empty to deploy ai-service without a model key.
+aimanager_api_key = ""
+
+# Seeds the one platform admin on the first dealer-core start. Both or neither.
+admin_username = ""
+admin_password = ""

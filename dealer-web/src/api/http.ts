@@ -1,5 +1,5 @@
 ﻿import axios from 'axios'
-import { accessToken, clearAccount } from '../auth/msal'
+import { accessToken, clearAccount } from '../auth/login'
 import { useSessionStore } from '../stores/session'
 import { resolveGatewayUrl } from './gateway'
 
@@ -92,4 +92,16 @@ export function codeOf(error: unknown): string | undefined {
 
 export function messageOf(error: unknown, fallback = 'Request failed.'): string {
   return apiError(error).message || fallback
+}
+
+/** Per-field messages from a `400 VALIDATION` body (`fieldErrors: { field: message }`). */
+export function fieldErrorsOf(error: unknown): Record<string, string> {
+  const fields = (responseOf(error)?.data as { fieldErrors?: unknown } | undefined)?.fieldErrors
+  const result: Record<string, string> = {}
+  if (fields && typeof fields === 'object') {
+    for (const [field, text] of Object.entries(fields)) {
+      if (typeof text === 'string' && text.trim()) result[field] = text.trim()
+    }
+  }
+  return result
 }

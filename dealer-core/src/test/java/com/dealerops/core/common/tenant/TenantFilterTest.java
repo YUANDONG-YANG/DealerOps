@@ -55,7 +55,7 @@ class TenantFilterTest extends CoreItSupport {
   @Test
   void adminCanBindMembersAndStaffCannot() throws Exception {
     String body =
-        "{\"entraOid\":\"" + TestTokens.UNBOUND_OID + "\",\"displayName\":\"Unbound Staff\"}";
+        "{\"username\":\"" + TestTokens.UNBOUND_USERNAME + "\",\"displayName\":\"Unbound Staff\",\"password\":\"TempPass123\"}";
     MvcResult created =
         mockMvc.perform(postJson("/api/v1/admin/dealers/" + dealerAId + "/members", TestTokens.admin(), body)).andReturn();
     assertThat(created.getResponse().getStatus()).isEqualTo(201);
@@ -66,7 +66,7 @@ class TenantFilterTest extends CoreItSupport {
                 postJson(
                     "/api/v1/admin/dealers/" + dealerAId + "/members",
                     TestTokens.admin(),
-                    "{\"entraOid\":\"" + TestTokens.STAFF_A_OID + "\",\"displayName\":\"Staff A\"}"))
+                    "{\"username\":\"" + TestTokens.STAFF_A_USERNAME + "\",\"displayName\":\"Staff A\",\"password\":\"TempPass123\"}"))
             .andReturn();
     assertThat(dup.getResponse().getStatus()).isEqualTo(409);
     assertThat(errorCode(dup)).isEqualTo("DUP_MEMBER");
@@ -77,7 +77,7 @@ class TenantFilterTest extends CoreItSupport {
                 postJson(
                     "/api/v1/admin/dealers/" + dealerBId + "/members",
                     TestTokens.admin(),
-                    "{\"entraOid\":\"" + TestTokens.STAFF_A_OID + "\",\"displayName\":\"Staff A\"}"))
+                    "{\"username\":\"" + TestTokens.STAFF_A_USERNAME + "\",\"displayName\":\"Staff A\",\"password\":\"TempPass123\"}"))
             .andReturn();
     assertThat(otherStore.getResponse().getStatus()).isEqualTo(409);
     assertThat(errorCode(otherStore)).isEqualTo("DUP_MEMBER");
@@ -91,7 +91,7 @@ class TenantFilterTest extends CoreItSupport {
         mockMvc
             .perform(
                 authed(
-                    delete("/api/v1/admin/dealers/" + dealerAId + "/members/" + TestTokens.UNBOUND_OID),
+                    delete("/api/v1/admin/dealers/" + dealerAId + "/members/" + TestTokens.UNBOUND_USERNAME),
                     TestTokens.admin()))
             .andReturn();
     assertThat(unbound.getResponse().getStatus()).isEqualTo(204);

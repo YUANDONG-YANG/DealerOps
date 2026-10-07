@@ -17,7 +17,7 @@ Conflict priority: **PPT > specification fields > [DEVELOPMENT-DESIGN.md](DEVELO
 Source design: sibling checkout named `DealerOS-Design`  
 Implementation skeleton: this repository
 
-This repository already contains four apps (`dealer-web`, `dealer-gateway`, `dealer-core`, `ai-service`) plus `dealer-platform` (compose, OpenAPI, Bicep/pipeline notes). Each app has source, a build file (`pom.xml` / `package.json`), and a Dockerfile. Platform Compose wires MySQL and the three Java services. Do not scaffold these projects again.
+This repository already contains four apps (`dealer-web`, `dealer-gateway`, `dealer-core`, `ai-service`) plus `dealer-platform` (OpenAPI, API notes, `env.example`) and `deploy/` (the Terraform stack and the app upload script). Each app has source and a build file (`pom.xml` / `package.json`); none has a Dockerfile, and there is no Compose file. Local startup is five processes ([README](../README.md)). Do not scaffold these projects again.
 
 ### Coding-AI reading order
 
@@ -60,15 +60,15 @@ A multi-tenant back office for independent dealers: each dealership has its own 
 
 | Item | Must |
 |---|---|
-| Languages | Backend **Java 21** (may align with ai-manager on 17, but the four course repos share one version; prefer 21). Frontend **Vue 3 + Element Plus + MSAL.js**. UI in English. |
-| Repositories | **Four independent application repos**: `dealer-web`, `dealer-gateway`, `dealer-core`, `ai-service`. Plus `dealer-platform` for Bicep/compose/pipeline notes. Ban a monorepo. |
+| Languages | Backend **Java 21** (may align with ai-manager on 17, but the four course repos share one version; prefer 21). Frontend **Vue 3 + Element Plus** (no third-party identity SDK). UI in English. |
+| Repositories | **Four independent application repos**: `dealer-web`, `dealer-gateway`, `dealer-core`, `ai-service`. Plus `dealer-platform` for contract and config notes and `deploy/` for the Terraform stack. Ban a monorepo. |
 | Entry | Browser-to-service HTTP **only through Spring Cloud Gateway**. core / ai-service are not public. Bypassing Gateway must fail. |
-| Identity | **Microsoft Entra ID** OAuth/OIDC + PKCE + JWT. Roles only `Platform.Admin`, `Dealer.User`. Do not build a password table. Admin “issues an account” = bind `entra_oid` → `dealer_id` (unbind = soft deactivate). Spec PDF username/password is **superseded** — see [SCOPE-BASELINE.md](SCOPE-BASELINE.md) errata. **Authoritative design:** [15-Data-Auth-and-Gateway.md](15-Data-Auth-and-Gateway.md) §8 (product surface, JWT mapping, classroom SPA/API registration, `JWT_MODE` / `VITE_ENTRA_*` / `ENTRA_*`). |
+| Identity | **Admin-issued username/password** (spec PDF §2/§8; see [SCOPE-BASELINE.md](SCOPE-BASELINE.md) errata 1). `POST /api/v1/auth/login` checks a BCrypt hash on `app_user.password_hash`; dealer-core issues an HS256 JWT (`sub`=username, `name`, `roles`). Roles only `Platform.Admin`, `Dealer.User`. Admin “issues an account” = bind `{username, displayName, password}` → `dealer_id` (unbind = soft deactivate). No self-registration. **Authoritative design:** [15-Data-Auth-and-Gateway.md](15-Data-Auth-and-Gateway.md) §8. |
 | Data | **One MySQL** database `dealer_core`. Flyway owns tables. The AI service has no database. |
 | AI | `ai-service` embeds `YUANDONG-YANG/ai-manager` **in-process**. Synchronous REST. The adapter guarantees a **15s** timeout. |
 | Calls | Synchronous REST. |
 
-The specification PDF describes username/password; **PPT forbids homemade auth**, so Entra wins. The specification has no Assistant page; **PPT requires a real-AI core feature**, so build the read-only assistant per v6/10/12.
+Sign-in follows the specification PDF (admin-issued username/password). The specification has no Assistant page; **PPT requires a real-AI core feature**, so build the read-only assistant per v6/10/12.
 
 ---
 
@@ -76,7 +76,7 @@ The specification PDF describes username/password; **PPT forbids homemade auth**
 
 | Page | Role | What they do | Landing |
 |---|---|---|---|
-| Login | Everyone | Only `Sign in with Microsoft`; no sidebar, no password box | `/login` (sole sign-in page) |
+| Login | Everyone | Username + password, one `Sign in` button; no sidebar, no self-registration | `/login` (sole sign-in page) |
 | Admin | Platform.Admin only | Open dealerships; bind/unbind staff. **Zero** vehicle/customer/ad data | After sign-in → `/admin` |
 | DMS | Dealer.User only | This-dealership vehicle create/update/read; paired sale | After sign-in with `dealerId` → `/dms` |
 | CRM | Dealer.User only | This-dealership customer create/update/read; link this-store in-stock unbound vehicles | — |
@@ -84,7 +84,7 @@ The specification PDF describes username/password; **PPT forbids homemade auth**
 | Assistant | Dealer.User only | This-dealership read-only Q&A, at most 5 resource cards | — |
 | No access | Signed in, unbound / no business role | Shell with Sign out only; no business tables | `/` (not a third App Role) |
 
-Multiple staff at one dealership see the same data. Dealership A cannot see dealership B. After opening a store, admin still cannot see business data. No KPI home page. Unauthorized routes are blocked directly. Classroom bind + isolation demos: [16-Acceptance-and-Test.md](16-Acceptance-and-Test.md) **CL-1** / **CL-2**. Full Entra classroom wiring: [15](15-Data-Auth-and-Gateway.md) §8.4.
+Multiple staff at one dealership see the same data. Dealership A cannot see dealership B. After opening a store, admin still cannot see business data. No KPI home page. Unauthorized routes are blocked directly. Classroom bind + isolation demos: [16-Acceptance-and-Test.md](16-Acceptance-and-Test.md) **CL-1** / **CL-2**. Sign-in design: [15](15-Data-Auth-and-Gateway.md) §8.
 
 ---
 
@@ -100,8 +100,8 @@ Ad “dealership name and contacts” use these four public fields; do not creat
 
 ### Users and members
 
-`app_user`: `entraTenantId` `entraOid` `displayName` `role`=`Platform.Admin`\|`Dealer.User` `dealerId` (null for Admin) `active`  
-`membership`: `dealerId` `entraOid` `active` `createdBy`  
+`app_user`: `username` `passwordHash` `displayName` `role`=`Platform.Admin`\|`Dealer.User` `dealerId` (null for Admin) `active`  
+`membership`: `dealerId` `username` `active` `createdBy`  
 Each staff request: JWT role + local membership. **Ignore any dealership ID sent by the frontend.**
 
 ### Vehicle DMS (specification required/optional)
@@ -146,7 +146,7 @@ Changing vehicle **price-related public information or condition**, or changing 
 
 ### Audit `audit_event` (every DMS/CRM change)
 
-`actorOid` `entityType`=`VEHICLE`\|`CUSTOMER`\|`CUSTOMER_VEHICLE` `entityId` `action`=`CREATE`\|`UPDATE`\|`SELL`\|`LINK`\|`UNLINK` `fieldSummary` (JSON, **do not** write full customer phone/email/address) `createdAt`  
+`actorUsername` `entityType`=`VEHICLE`\|`CUSTOMER`\|`CUSTOMER_VEHICLE` `entityId` `action`=`CREATE`\|`UPDATE`\|`SELL`\|`LINK`\|`UNLINK` `fieldSummary` (JSON, **do not** write full customer phone/email/address) `createdAt`  
 Admin actions may record `DEALER`/`MEMBERSHIP`; `dealerId` may be null.
 
 ---
@@ -160,7 +160,7 @@ Follow the skeleton; **do not invent another table set**:
 | Table | Purpose |
 |---|---|
 | `dealer` | Dealership |
-| `app_user` | Entra user cache + role |
+| `app_user` | Login account (`username`, BCrypt `password_hash`) + role |
 | `membership` | Staff binding |
 | `vehicle` | DMS |
 | `customer` | CRM |
@@ -169,12 +169,12 @@ Follow the skeleton; **do not invent another table set**:
 | `compliance_check` | Check snapshot |
 | `audit_event` | Audit |
 
-Gaps (fill with entities/validation while coding; do not change SQL if possible; if unavoidable, use `V2__*.sql`):
+Gaps (fill with entities/validation while coding; do not change SQL if possible; if unavoidable, add `V{YYYYMMDD}_{n}__{action}.sql` — current: `V20260930_1__add_password_hash`, `V20261007_2__widen_customer_email`):
 
 - `vehicle.status` allows only `IN_STOCK`/`SOLD`.
 - `listing` has no FK on `last_check_id` (the column exists in SQL without an FK) — application-layer maintenance is enough.
 - No “prior use / warranty / APR” columns — that is correct.
-- Indexes: `vehicle(dealer_id,status)`, `customer(dealer_id)` may be added in V2; they do not block start.
+- Indexes: `vehicle(dealer_id,status)`, `customer(dealer_id)` may be added in a later dated migration; they do not block start.
 
 Flyway only; ban `ddl-auto=update`.
 
@@ -188,12 +188,13 @@ Unified error body: `{"code":"VIN_DUP","message":"..."}`. Cross-dealership id �
 
 | Method | Path | Who | Key checks | Error codes |
 |---|---|---|---|---|
+| POST | `/auth/login` | Anonymous | `{username,password}` → `{accessToken,role,displayName}` | 400 VALIDATION; 401 UNAUTHORIZED |
 | GET | `/me` | Signed in | Returns `role`, `dealerId` (empty for Admin) | 401 |
 | GET | `/admin/dealers` | Admin | — | 403 |
 | POST | `/admin/dealers` | Admin | Four contact fields required | 400 VALIDATION |
 | GET | `/admin/dealers/{id}/members` | Admin | — | 404 |
-| POST | `/admin/dealers/{id}/members` | Admin | `{entraOid,displayName}`; write `membership`+`app_user` | 400 409 DUP_MEMBER |
-| DELETE | `/admin/dealers/{id}/members/{entraOid}` | Admin | Unbind; do not delete the Entra account | 404 |
+| POST | `/admin/dealers/{id}/members` | Admin | `{username,displayName,password}`; write `membership`+`app_user` (BCrypt hash) | 400 409 DUP_MEMBER |
+| DELETE | `/admin/dealers/{id}/members/{username}` | Admin | Unbind; do not delete the `app_user` account | 404 |
 | GET | `/vehicles` | Staff | This dealership; query `q`(VIN/Make/Model) `status` `condition`; page size 10 | 403 |
 | POST | `/vehicles` | Staff | Required fields; VIN unique in this dealership | 400 VIN_DUP |
 | GET/PATCH | `/vehicles/{id}` | Staff | Sold forbids changing purchase fields | 404; `409 SOLD_LOCKED` |
@@ -266,7 +267,7 @@ Key: `AIMANAGER_API_KEY` on ai-service only (environment / Key Vault). The libra
 ## 7. Frontend UI convention summary
 
 - Stack: Vue 3 + **Element Plus**. English. 6 pages. Do not fork an entire dealer repo.  
-- Login: centered single card, one Microsoft button.  
+- Login: centered single card, username + password, one `Sign in` button.  
 - Others: left menu + top bar (dealership name or `Platform Admin`, role, `Sign out`). Admin sees only Admin; staff see only DMS/CRM/Ad/Assistant.  
 - Primary button top-right; sell/unlink require a second confirmation.  
 - **Every page must** have loading / empty / error. Failures are not empty tables. AI failure cannot show Pass.  
@@ -274,7 +275,7 @@ Key: `AIMANAGER_API_KEY` on ai-service only (environment / Key Vault). The libra
 - Filters in one row: search + 1–3 dropdowns + Search + Reset. No price sliders/maps.  
   - DMS: VIN/Make/Model; Status; Condition  
   - CRM: Name/Email/Phone; whether linked  
-  - Admin: dealership name / staff email  
+  - Admin: dealership name / username  
 - Forms: drawer or Dialog; enums as Select. Sell dialog: Sold date + Sold price. CRM link: searchable Select, only this-store unbound in-stock; already taken disabled.  
 
 **Table columns**
@@ -282,8 +283,8 @@ Key: `AIMANAGER_API_KEY` on ai-service only (environment / Key Vault). The libra
 | Page | Columns |
 |---|---|
 | Admin dealerships | Name, Contact, Staff count, Actions |
-| Admin members | Entra ID / email, Dealership, Status, Actions |
-| DMS | Year Make Model, VIN, Source, Condition, Cost, Status, Actions |
+| Admin members | Username, Dealership, Status, Actions |
+| DMS | Year Make Model, VIN, Source, Condition, Cost, Date added, Status, Actions |
 | CRM | Name, Email, Phone, Linked vehicle, Actions |
 | Ad | Vehicle, Type, Medium, Check status, Actions |
 
@@ -296,16 +297,17 @@ Key: `AIMANAGER_API_KEY` on ai-service only (environment / Key Vault). The libra
 
 | Directory | Tech | Who | Duty |
 |---|---|---|---|
-| `dealer-web` | Vue3 + MSAL + Dockerfile + its own pipeline | **A** | 6 pages, sign-in, web pipeline |
-| `dealer-gateway` | Spring Cloud Gateway + Dockerfile + pipeline | **C** (A reviews) | Route/verify JWT and forward only; block `/internal` from the browser |
-| `dealer-core` | Boot + Flyway + one database + Dockerfile + pipeline | **C** | Tenant isolation, business API, call AI |
-| `ai-service` | Boot, no database + embedded JAR + Dockerfile + pipeline | **B** | Adapter, OMVIC checklist copy, real model, ai pipeline can pull the private package |
-| `dealer-platform` | Bicep, compose, pipeline YAML notes | **B** first draft / all certify | Does not run business code |
+| `dealer-web` | Vue3, built to `dist/` + its own pipeline | **A** | 6 pages, sign-in, web pipeline |
+| `dealer-gateway` | Spring Cloud Gateway, packaged as a JAR + pipeline | **C** (A reviews) | Route/verify JWT and forward only; block `/internal` from the browser |
+| `dealer-core` | Boot + Flyway + one database, packaged as a JAR + pipeline | **C** | Tenant isolation, business API, call AI |
+| `ai-service` | Boot, no database + embedded `ai-manager` JAR + pipeline | **B** | Adapter, OMVIC checklist copy, real model, ai pipeline can pull the private package |
+| `dealer-platform` | `env.example`, OpenAPI, API notes | **B** first draft / all certify | Does not run business code |
+| `deploy/` | Terraform for the Azure resources + `deploy-apps.sh` | **B** first draft / all certify | Applied by one operator, never by CI |
 
 Team members A/B/C **names are still missing**; write cards by role for now.
 
 **Sprint 1 (Review 1)**  
-Four empty repos build independently; explain the 07 architecture diagram; Entra two roles configured; direct core fails, traffic only through Gateway. Maps to NN-01–03.
+Four empty repos build independently; explain the 07 architecture diagram; two roles in the JWT; direct core fails, traffic only through Gateway. Maps to NN-01–03.
 
 **Sprint 2 (Review 2)**  
 On Azure: sign-in → Gateway → record one vehicle → **real AI** scans an ad. No plaintext secrets; HTTPS; Key Vault. NN-04–11, NN-15. Local-only demos do not count in class.
@@ -323,13 +325,10 @@ Copied from `dealer-platform/env.example`; split by repo while coding; **do not 
 
 | Variable | Who | Notes |
 |---|---|---|
-| `VITE_ENTRA_TENANT_ID` | web | |
-| `VITE_ENTRA_CLIENT_ID` | web | SPA; no client secret |
-| `VITE_ENTRA_API_SCOPE` | web | Default `api://dealer-api/access_as_user` |
 | `VITE_GATEWAY_URL` | web | `http://localhost:8080` |
 | `GATEWAY_PORT` | gateway | `8080` |
-| `CORE_URL` | gateway | Local compose uses `http://host.docker.internal:8081` |
-| `AI_URL` | gateway | `http://host.docker.internal:8082` |
+| `CORE_URL` | gateway | Local `http://localhost:8081`; cloud the `dealerops-core` HTTPS origin |
+| `AI_URL` | gateway | Local `http://localhost:8082`; cloud the `dealerops-ai` HTTPS origin |
 | `CORE_PORT` | core | `8081` |
 | `MYSQL_URL` | core | `jdbc:mysql://localhost:3306/dealer_core?...` |
 | `MYSQL_USER` / `MYSQL_PASSWORD` | core | Local sample `dealer` / `dealer_dev_only` |
@@ -337,11 +336,11 @@ Copied from `dealer-platform/env.example`; split by repo while coding; **do not 
 | `AIMANAGER_API_KEY` | **ai-service only** | Real key, in Key Vault |
 | `AIMANAGER_GATEWAY_PROVIDER` | ai | `openai` and other providers the library already supports |
 | `AIMANAGER_GATEWAY_MODEL` | ai | |
-| `JWT_MODE` | gateway+core | `entra` for real Entra JWKS; `dev` for local HS256 ITs |
-| `ENTRA_ISSUER` | gateway+core | `https://login.microsoftonline.com/<tenant>/v2.0` |
-| `ENTRA_AUDIENCE` | gateway+core | `api://dealer-api` |
+| `JWT_MODE` | gateway+core | Must be `dev` (the HS256 login-token mode is the only mode) |
+| `DEV_JWT_SECRET` | gateway+core | HS256 signing secret, ≥32 UTF-8 bytes; cloud: Key Vault `JWT-SIGNING-SECRET` |
+| `ADMIN_USERNAME` / `ADMIN_PASSWORD` | core | Seed the first `Platform.Admin` account |
 
-Classroom SPA + API registration and App Role assignment: [15-Data-Auth-and-Gateway.md](15-Data-Auth-and-Gateway.md) §8.4 (ops mirror: [README.md](../README.md) § Classroom Entra). Do not paste subscription passwords, secrets, or model-key bodies in chat.
+Sign-in wiring: [15-Data-Auth-and-Gateway.md](15-Data-Auth-and-Gateway.md) §8.4 (ops mirror: [README.md](../README.md) § Sign-in). Do not paste subscription passwords, secrets, or model-key bodies in chat.
 
 ---
 
@@ -364,15 +363,15 @@ Classroom SPA + API registration and App Role assignment: [15-Data-Auth-and-Gate
 
 Each step can be its own PR. Do not jump to a “full frontend” before prior steps are done.
 
-**Note:** This brief’s “empty repo” coding order is **historical**. The four apps and platform already exist in this checkout — agents must **not** re-scaffold them. Status below is only for tasks proven by present source/CI/compose; unmarked rows are not claimed done.
+**Note:** This brief’s “empty repo” coding order is **historical**. The four apps and platform already exist in this checkout — agents must **not** re-scaffold them. Status below is only for tasks proven by present source and CI; unmarked rows are not claimed done.
 
 | # | Repo | Task | Status | Done when |
 |---|---|---|---|---|
 | 1 | Local machine | Raise JDK 17/21, set `JAVA_HOME` | | `java -version` is 17 or 21 |
-| 2 | web/gateway/core/ai four repos | Empty projects + Dockerfile + `mvn/npm` builds | **done** | Each repo CI green (compile is enough) |
+| 2 | web/gateway/core/ai four repos | Empty projects + `mvn/npm` builds | **done** | Each repo CI green (compile is enough) |
 | 3 | core | Wire existing `V1__init.sql`, entities and enums | **done** | Flyway can create tables on an empty database; no extra business columns |
 | 4 | gateway | Route `/api/v1/**`→core, `/internal/v1/**`→ai; reject browser internal; reject direct-access demo | **done** | 8080 works; 8081 fails for the browser |
-| 5 | gateway+core | Entra JWT + two roles; `GET /me` | **done** | No token 401; fake dealerId has no effect |
+| 5 | gateway+core | Login JWT (HS256) + two roles; `GET /me` | **done** | No token 401; fake dealerId has no effect |
 | 6 | core | Admin open dealership / bind staff | **done** | Two stores and two staff can be verified in the database |
 | 7 | core | Vehicle CRUD + sell + audit | **done** | VIN unique; sold locks purchase; sale as a pair; `audit_event` exists |
 | 8 | core | Customers + link + audit | **done** | Cross-dealership 404; one vehicle one customer 409 |
@@ -382,7 +381,7 @@ Each step can be its own PR. Do not jump to a “full frontend” before prior s
 | 12 | core | ready + export TXT | **done** | Reject if not Passed or Stale |
 | 13 | core+ai | `POST /assistant/ask`: at most 5, verify this-store IDs, no DB write | **done** | Invented paths discarded; model down returns list only |
 | 14 | web | 6 pages per section 7; login routing | **done** | Admin cannot see DMS; empty/error/loading complete |
-| 15 | platform | compose starts MySQL+four services; fill Bicep/pipeline after Azure permissions | **done** (local compose) | Local can record a vehicle end to end; cloud is a Sprint 2 item |
+| 15 | platform | Five local processes start against local MySQL; `deploy/terraform` is applied once Azure permissions exist | **done** (local) | Local can record a vehicle end to end; cloud is a Sprint 2 item |
 
 ---
 
@@ -393,18 +392,17 @@ Each step can be its own PR. Do not jump to a “full frontend” before prior s
 | Item | Current | Who is blocked |
 |---|---|---|
 | JDK 17/21 | **Missing**; local JDK 11; Boot 3 will not compile | All Java repos |
-| Docker Desktop | **Missing** | Local MySQL container, image builds |
+| MySQL 8.4 locally | **Missing** | `dealer-core` datasource and Flyway |
 | Team A/B/C names | **Missing** | Assignment cards, Review signatures |
-| Azure subscription | **Missing** | Sprint 2 cloud demo (Container Apps, MySQL, ACR, Key Vault) |
-| Entra permissions | **Missing** | Sign-in, two roles, bind users — [15](15-Data-Auth-and-Gateway.md) §8.4 |
+| Azure subscription | **Missing** | Sprint 2 cloud demo (App Service, Static Web Apps, MySQL, Key Vault) |
 | Model key | **Missing** | Sprint 2 real AI (`AIMANAGER_API_KEY`) |
 | ai-manager fixed version | **Unpublished** | Publish an immutable version from `c07e1f2`, or local `mvn install` |
 
 Already have: specification PDF, PPT, this brief, `SCOPE-BASELINE`, backend design **DEVELOPMENT-DESIGN**, **13/14/15**, packaging 18/19, acceptance 16, ad fixtures 17, Node 20, Maven 3.6, Git, `gh` signed in as `YUANDONG-YANG`, Flyway V1, API/env drafts.
 
-Before Sprint 1, also preferably: two staff Entra accounts + one admin; callback `http://localhost:5173`; choose Azure DevOps or GitHub Actions; budget cap (MySQL + Container Apps bill continuously).
+Before Sprint 1, also preferably: one admin (`ADMIN_USERNAME` / `ADMIN_PASSWORD`) who binds two staff logins; choose Azure DevOps or GitHub Actions; budget cap (the App Service plan and MySQL bill continuously).
 
-**Can write now without cloud:** tasks 2–9, task 10 stub, task 14 static pages. Skip task 1 and Java will not compile. Task 5 may use a test JWT, but Sprint 2 must switch to real Entra.
+**Can write now without cloud:** tasks 2–9, task 10 stub, task 14 static pages. Skip task 1 and Java will not compile. Task 5 uses the HS256 login token in every environment; only the secret differs.
 
 ---
 
@@ -417,4 +415,4 @@ Before Sprint 1, also preferably: two staff Entra accounts + one admin; callback
 5. Real ad copy goes through real AI once and can point out gaps.  
 6. After changing price/condition/copy, the old check cannot be used to export.
 
-Course six hard items: independent repos+pipelines; Gateway; Azure+containers+Bicep+CI/CD; Entra+JWT+RBAC+HTTPS+Key Vault; real model scanning ads; Scrum board and three all-hands Reviews.
+Course six hard items: independent repos+pipelines; Gateway; Azure+infrastructure as code+CI/CD; JWT+RBAC+HTTPS+Key Vault; real model scanning ads; Scrum board and three all-hands Reviews. Containerization (NN-05) is dropped and sign-in follows the client specification; see [SCOPE-BASELINE.md](SCOPE-BASELINE.md) errata items 5 and 1. NN-06 names Terraform explicitly, so infrastructure as code is still met.

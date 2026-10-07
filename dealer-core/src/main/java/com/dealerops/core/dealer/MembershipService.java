@@ -16,6 +16,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -47,11 +48,10 @@ public class MembershipService {
   public PageResponse<MemberResponse> list(Long dealerId, String q, int page, int size) {
     TenantGuard.requireAdmin();
     requireDealer(dealerId);
-    String tid = currentTid();
     List<MemberResponse> items =
         membershipRepository.findByDealerId(dealerId, Pageable.unpaged()).getContent().stream()
-            .sorted(Comparator.comparing(MembershipEntity::getEntraOid))
-            .map(row -> toResponse(row, lookupUser(tid, row.getEntraOid())))
+            .sorted(Comparator.comparing(MembershipEntity::getUsername))
+            .map(row -> toResponse(row, appUserRepository.findByUsername(row.getUsername())))
             .filter(item -> matches(item, q))
             .toList();
     int p = Paging.page(page);
@@ -65,44 +65,54 @@ public class MembershipService {
   public MemberResponse add(Long dealerId, CreateMemberRequest body) {
     TenantGuard.requireAdmin();
     requireDealer(dealerId);
-    String oid = body.entraOid().trim();
-    List<MembershipEntity> active = membershipRepository.findByEntraOidAndActiveTrue(oid);
-    if (active.stream().anyMatch(row -> dealerId.equals(row.getDealerId()))) {
-      throw new ApiException(ErrorCode.DUP_MEMBER, "Membership already exists");
+    String username = body.username().trim();
+    // Row lock serializes concurrent binds of the same existing account, so the
+    // one-active-membership check below cannot be raced into two active rows.
+    Optional<AppUserEntity> existing = appUserRepository.findWithLockByUsername(username);
+    if (existing.filter(user -> user.getRole() == AppRole.PLATFORM_ADMIN).isPresent()) {
+      throw new ApiException(ErrorCode.DUP_MEMBER, "Username belongs to a platform admin");
     }
-    if (active.stream().anyMatch(row -> !dealerId.equals(row.getDealerId()))) {
+    if (!membershipRepository.findByUsernameAndActiveTrue(username).isEmpty()) {
       throw new ApiException(ErrorCode.DUP_MEMBER, "Membership already exists");
     }
     MembershipEntity membership =
-        membershipRepository.findByDealerIdAndEntraOid(dealerId, oid).orElseGet(MembershipEntity::new);
+        membershipRepository.findByDealerIdAndUsername(dealerId, username).orElseGet(MembershipEntity::new);
     membership.setDealerId(dealerId);
-    membership.setEntraOid(oid);
+    membership.setUsername(username);
     membership.setActive(true);
-    membership.setCreatedBy(actorOid());
+    membership.setCreatedBy(actorUsername());
     membership = membershipRepository.save(membership);
-    AppUserEntity user = upsertStaffUser(oid, body.displayName().trim(), body.password(), dealerId);
+    AppUserEntity user = existing.orElseGet(AppUserEntity::new);
+    user.setUsername(username);
+    user.setPasswordHash(passwordEncoder.encode(body.password()));
+    user.setDisplayName(body.displayName().trim());
+    user.setRole(AppRole.DEALER_USER);
+    user.setDealerId(dealerId);
+    user.setActive(true);
+    user = appUserRepository.save(user);
     auditService.record(
         EntityType.MEMBERSHIP.name(),
         membership.getId(),
         AuditAction.CREATE.name(),
         dealerId,
-        actorOid(),
-        Map.of("entraOid", oid));
+        actorUsername(),
+        Map.of("username", username));
     return toResponse(membership, user);
   }
 
   @Transactional
-  public void remove(Long dealerId, String entraOid) {
+  public void remove(Long dealerId, String username) {
     TenantGuard.requireAdmin();
     requireDealer(dealerId);
     MembershipEntity membership =
         membershipRepository
-            .findByDealerIdAndEntraOid(dealerId, entraOid)
+            .findByDealerIdAndUsername(dealerId, username)
             .filter(MembershipEntity::isActive)
             .orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND, "Not found"));
     membership.setActive(false);
     membershipRepository.save(membership);
-    lookupUser(currentTid(), entraOid)
+    appUserRepository
+        .findByUsername(username)
         .ifPresent(
             user -> {
               user.setDealerId(null);
@@ -113,26 +123,8 @@ public class MembershipService {
         membership.getId(),
         AuditAction.UPDATE.name(),
         dealerId,
-        actorOid(),
-        Map.of("entraOid", entraOid, "unbound", true));
-  }
-
-  private AppUserEntity upsertStaffUser(String oid, String displayName, String password, Long dealerId) {
-    String tid = AppUserEntity.LOCAL_TENANT_ID;
-    AppUserEntity user =
-        appUserRepository.findByEntraTenantIdAndEntraOid(tid, oid).orElseGet(AppUserEntity::new);
-    user.setEntraTenantId(tid);
-    user.setEntraOid(oid);
-    user.setPasswordHash(passwordEncoder.encode(password));
-    user.setDisplayName(displayName);
-    user.setRole(AppRole.DEALER_USER);
-    user.setDealerId(dealerId);
-    user.setActive(true);
-    return appUserRepository.save(user);
-  }
-
-  private java.util.Optional<AppUserEntity> lookupUser(String tid, String oid) {
-    return appUserRepository.findByEntraTenantIdAndEntraOid(tid, oid);
+        actorUsername(),
+        Map.of("username", username, "unbound", true));
   }
 
   private void requireDealer(Long dealerId) {
@@ -147,26 +139,21 @@ public class MembershipService {
     }
     String needle = q.trim().toLowerCase(Locale.ROOT);
     String name = item.displayName() == null ? "" : item.displayName().toLowerCase(Locale.ROOT);
-    String oid = item.entraOid() == null ? "" : item.entraOid().toLowerCase(Locale.ROOT);
-    return name.contains(needle) || oid.contains(needle);
+    String username = item.username() == null ? "" : item.username().toLowerCase(Locale.ROOT);
+    return name.contains(needle) || username.contains(needle);
   }
 
-  private static MemberResponse toResponse(MembershipEntity row, java.util.Optional<AppUserEntity> user) {
+  private static MemberResponse toResponse(MembershipEntity row, Optional<AppUserEntity> user) {
     return toResponse(row, user.orElse(null));
   }
 
   private static MemberResponse toResponse(MembershipEntity row, AppUserEntity user) {
     String displayName = user == null ? "" : user.getDisplayName();
-    return new MemberResponse(row.getEntraOid(), displayName, AppRole.DEALER_USER.getValue(), row.isActive());
+    return new MemberResponse(row.getUsername(), displayName, AppRole.DEALER_USER.getValue(), row.isActive());
   }
 
-  private static String currentTid() {
+  private static String actorUsername() {
     CurrentUser user = TenantContext.get();
-    return user == null || user.tid() == null ? "" : user.tid();
-  }
-
-  private static String actorOid() {
-    CurrentUser user = TenantContext.get();
-    return user == null ? "" : user.oid();
+    return user == null ? "" : user.username();
   }
 }

@@ -12,7 +12,7 @@ export type Dealer = {
 }
 
 export type Member = {
-  entraOid: string
+  username: string
   displayName: string
   role: string
   active: boolean
@@ -27,7 +27,7 @@ export type CreateDealerBody = {
   contactAddress: string
 }
 
-export type BindMemberBody = { entraOid: string; displayName: string }
+export type BindMemberBody = { username: string; displayName: string; password: string }
 
 export type AdminErrorCode = 'DUP_MEMBER' | 'VALIDATION' | 'FORBIDDEN' | 'NOT_FOUND' | string
 
@@ -50,6 +50,6 @@ export const adminApi = {
     }),
   bind: (id: number, body: BindMemberBody) =>
     http.post<Member>(`/api/v1/admin/dealers/${id}/members`, body),
-  unbind: (id: number, oid: string) =>
-    http.delete(`/api/v1/admin/dealers/${id}/members/${encodeURIComponent(oid)}`),
+  unbind: (id: number, username: string) =>
+    http.delete(`/api/v1/admin/dealers/${id}/members/${encodeURIComponent(username)}`),
 }

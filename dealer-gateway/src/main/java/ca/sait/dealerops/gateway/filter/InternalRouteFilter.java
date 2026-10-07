@@ -1,6 +1,8 @@
 package ca.sait.dealerops.gateway.filter;
 
 import java.util.Locale;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -16,7 +18,10 @@ import reactor.core.publisher.Mono;
 
 /**
  * Browser or any client hitting {@code /internal/**} without the correct
- * {@code X-Dealer-Internal} header → 404 (not 401).
+ * {@code X-Dealer-Internal} header → 404 (not 401). A request to any other path that carries
+ * that header is also 404, so a client can never pass the internal credential on to core.
+ * (Rejecting here instead of a {@code RemoveRequestHeader} route filter: that filter fails on
+ * read-only headers in Spring Cloud Gateway 4.1.5 with Spring Framework 6.1.14.)
  *
  * <p>The well-known local default token is a credential only when the process
  * explicitly runs the {@code dev} or {@code local} Spring profile. Any other
@@ -25,6 +30,8 @@ import reactor.core.publisher.Mono;
 @Component
 @Order(Ordered.HIGHEST_PRECEDENCE)
 public class InternalRouteFilter implements WebFilter, InitializingBean {
+
+  private static final Logger log = LoggerFactory.getLogger(InternalRouteFilter.class);
 
   static final String WELL_KNOWN_DEFAULT_TOKEN = "dealer-internal";
 
@@ -50,13 +57,19 @@ public class InternalRouteFilter implements WebFilter, InitializingBean {
   @Override
   public Mono<Void> filter(ServerWebExchange exchange, WebFilterChain chain) {
     String path = exchange.getRequest().getPath().value();
-    if (!isInternal(path)) {
-      return chain.filter(exchange);
-    }
     String header = exchange.getRequest().getHeaders().getFirst(headerName);
-    if (!wellKnownDefaultBlocked() && expectedToken.equals(header)) {
+    if (!isInternal(path)) {
+      if (header == null) {
+        return chain.filter(exchange);
+      }
+    } else if (!wellKnownDefaultBlocked() && expectedToken.equals(header)) {
       return chain.filter(exchange);
     }
+    log.warn(
+        "Rejecting {} {} (missing or invalid {})",
+        exchange.getRequest().getMethod(),
+        path,
+        headerName);
     exchange.getResponse().setStatusCode(HttpStatus.NOT_FOUND);
     return exchange.getResponse().setComplete();
   }

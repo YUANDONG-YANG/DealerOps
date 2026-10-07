@@ -11,7 +11,6 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.manager.AiManager;
 import com.manager.core.AIResponse;
-import com.manager.session.Conversation;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -38,14 +37,22 @@ public class AdCheckAdapter {
     String conversationId = UUID.randomUUID().toString();
     AiManager mgr = factory.create();
     try {
-      Conversation conversation = mgr.startConversation(conversationId, SystemPrompts.AD_CHECK);
       String userJson = toJson(req);
-      AIResponse response = timedModelCall.request(() -> conversation.request(userJson).send());
+      AIResponse response =
+          timedModelCall.request(
+              () ->
+                  mgr.startConversation(conversationId, SystemPrompts.AD_CHECK)
+                      .request(userJson)
+                      .send());
       if (response == null || !response.isSuccess()) {
         throw ModelFailureException.providerFailed();
       }
-      // PROTOCOL B.2: notes may be []; empty array is success, not provider failure.
-      return new AdCheckOkResponse(true, notesFrom(response.getContent()));
+      List<AiNote> notes = notesFrom(response.getContent());
+      // PROTOCOL B.2: a blank model reply is not a review; 200 + empty notes would be a fake pass.
+      if (notes.isEmpty()) {
+        throw ModelFailureException.providerFailed();
+      }
+      return new AdCheckOkResponse(true, notes);
     } finally {
       try {
         mgr.closeConversation(conversationId);

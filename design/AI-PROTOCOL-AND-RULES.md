@@ -41,7 +41,7 @@ Conflict order (only the fine points this document touches): **this document > 1
 
 **Adopt 15 §2.2; 14 must add this layer (this document is that add).**
 
-The same `entraOid` **may have only one** `membership.active=1` at a time.
+The same `username` **may have only one** `membership.active=1` at a time.
 
 `POST /api/v1/admin/dealers/{id}/members`:
 
@@ -52,7 +52,7 @@ The same `entraOid` **may have only one** `membership.active=1` at a time.
 | This store previously unbound `active=0` | **Reactivate** that row; no 409; do not insert a second row |
 | No row | INSERT, 201 |
 
-V1 `uk_membership (dealer_id, entra_oid)` cannot block dual active across stores; **application-layer check is required**. If a read path finds ≥2 active rows → configuration error at 500 level; reject business (15 §2.4). Do not build a dealership switcher.
+V1 `uk_membership (dealer_id, username)` cannot block dual active across stores; **application-layer check is required**. If a read path finds ≥2 active rows → configuration error at 500 level; reject business (15 §2.4). Do not build a dealership switcher.
 
 ### A.3 Sale price: `soldPrice > 0` and paired with `soldOn`
 
@@ -107,7 +107,7 @@ Request-body shape remains 14 §11 (`listing` + `vehiclePublic` without cost + `
 | Field | Type | Rule |
 |---|---|---|
 | `success` | boolean | Must be `true` |
-| `notes` | array | May be `[]`; each element at least `{ "message": string }`. core writes `aiNotes` as-is |
+| `notes` | array | Non-empty; each element at least `{ "message": string }`. A blank model reply is `502 AI_PROVIDER_FAILED`, not `200` + `[]`. core writes `aiNotes` as-is |
 
 Ban inventing `recommendation` / `checkStatus` / `ruleFindings` in the success body. The five states are written by core. On success and the model does not require a hard block → core: `recommendation=PASSED`, `aiStatus=SUCCESS`.
 
@@ -232,8 +232,9 @@ Input: `listing` (title, body, adKind, medium), `vehicle` public fields, `dealer
 
 ```java
 static final Pattern PRICE = Pattern.compile(
-    "(?:cad|c\\$|\\$)\\s*\\d[\\d,]*(?:\\.\\d{2})?|\\d[\\d,]*(?:\\.\\d{2})?\\s*(?:cad|dollars?)",
+    "(?:cad|c\\$|\\$)\\s*\\d[\\d,]*(?:\\.\\d{2})?|\\d[\\d,]*(?:\\.\\d{2})?\\s*(?:cad|dollars?)\\b",
     Pattern.CASE_INSENSITIVE);
+// Trailing \b: "2019 Cadillac" must not count as a price.
 
 static final Pattern PHONE = Pattern.compile("\\d{3}[-.\\s]?\\d{3}[-.\\s]?\\d{4}");
 static final Pattern EMAIL = Pattern.compile("\\S+@\\S+\\.\\S+");
@@ -258,16 +259,17 @@ static final Pattern LEASE_DOWN = Pattern.compile(
     "down payment|due at signing|\\$\\d[\\d,]*.{0,12}down",
     Pattern.CASE_INSENSITIVE);
 
-/** Overrides 15’s unfinished capturedKm: must accept FX-09 “15000 km per year” and FX-16 “20,000 km per year”. */
+/** Overrides 15’s unfinished capturedKm: must accept FX-09 “15000 km per year” and FX-16 “20,000 km per year”.
+ *  The match never starts inside a number, so “100,000 km per year” reads as 100000, not 0. */
 static final Pattern LEASE_KM_ALLOWANCE = Pattern.compile(
-    "(\\d{1,2}[, ]?\\d{3}|\\d{1,5})\\s*(?:km|kilomet(?:er|re)s?)\\s*(?:per|/)?\\s*(?:year|yr|annual)",
+    "(?<![\\d,.])(\\d{1,3}(?:[, ]\\d{3})+|\\d{1,6})\\s*(?:km|kilomet(?:er|re)s?)\\s*(?:per|/)?\\s*(?:year|yr|annual)",
     Pattern.CASE_INSENSITIVE);
 static final Pattern LEASE_EXCESS = Pattern.compile(
     "excess|overage|additional.{0,20}(?:km|kilomet)",
     Pattern.CASE_INSENSITIVE);
 
 static final Pattern CERTIFIED = Pattern.compile("certified|cpo|certifi", Pattern.CASE_INSENSITIVE);
-static final Pattern AS_IS = Pattern.compile("as[\\s-]?is", Pattern.CASE_INSENSITIVE);
+static final Pattern AS_IS = Pattern.compile("\\bas[\\s-]?is\\b", Pattern.CASE_INSENSITIVE);
 static final Pattern UNFIT = Pattern.compile("unfit|not roadworthy|not fit", Pattern.CASE_INSENSITIVE);
 static final Pattern IRREP = Pattern.compile("irreparable|salvage|write[\\s-]?off", Pattern.CASE_INSENSITIVE);
 

@@ -1,5 +1,5 @@
 ﻿<script setup lang="ts">
-import { nextTick, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import AppLayout from '../layouts/AppLayout.vue'
@@ -7,9 +7,10 @@ import DataTable from '../components/DataTable.vue'
 import FormDrawer from '../components/FormDrawer.vue'
 import PageState from '../components/PageState.vue'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
-import { messageOf } from '../api/http'
+import { fieldErrorsOf, messageOf } from '../api/http'
 import { errorCode, errorStatus, vehiclesApi } from '../api/vehicles'
 import { auditApi } from '../api/audit'
+import { checkStatusLabel, listingsApi } from '../api/listings'
 
 const SOURCES = ['TRADE_IN', 'AUCTION', 'PRIVATE_PURCHASE', 'OTHER']
 const CONDITIONS = ['CERTIFIED', 'AS_IS', 'UNFIT', 'IRREPARABLE']
@@ -35,8 +36,11 @@ const drawer = ref(false)
 const sellOpen = ref(false)
 const edit = ref<any>(null)
 const formError = ref('')
+const saving = ref(false)
 const sellError = ref('')
 const audit = ref<any[]>([])
+const adStatus = ref('')
+const serverErrors = ref<Record<string, string>>({})
 const filters = ref({ q: '', status: '', condition: '' })
 const form = ref(blankForm())
 const sellForm = ref({ soldOn: '', soldPrice: '' })
@@ -47,20 +51,85 @@ const vehicleFormRef = ref<{
 let listRequest = 0
 let detailRequest = 0
 
-function requiredRule(trigger: 'blur' | 'change') {
-  return [{ required: true, whitespace: true, message: 'Required', trigger }]
+type FieldCheck = (value: string) => string | undefined
+
+const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/
+const VIN_PATTERN = /^[A-HJ-NPR-Z0-9]{17}$/
+const MONEY_PATTERN = /^\d+(\.\d{1,2})?$/
+const URL_PATTERN = /^https?:\/\/\S+$/i
+const CAD = new Intl.NumberFormat('en-CA', { style: 'currency', currency: 'CAD' })
+
+function cad(value: unknown) {
+  return value == null || value === '' ? '—' : CAD.format(Number(value))
 }
 
-const formRules = {
-  make: requiredRule('blur'),
-  model: requiredRule('blur'),
-  modelYear: requiredRule('blur'),
-  vin: requiredRule('blur'),
-  purchaseCost: requiredRule('blur'),
-  addedOn: requiredRule('blur'),
-  source: requiredRule('change'),
-  conditionCode: requiredRule('change'),
+// DMS-16: derived on the detail only, never stored.
+function profit(v: { soldPrice?: unknown; purchaseCost?: unknown; repairCost?: unknown }) {
+  if (v.soldPrice == null || v.soldPrice === '' || v.purchaseCost == null || v.purchaseCost === '') return null
+  return Number(v.soldPrice) - Number(v.purchaseCost) - Number(v.repairCost || 0)
 }
+
+function todayIso() {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+const anyValue: FieldCheck = () => undefined
+
+const textCheck: FieldCheck = (v) => (v.length <= 50 ? undefined : 'At most 50 characters')
+
+const urlCheck: FieldCheck = (v) =>
+  v.length <= 500 && URL_PATTERN.test(v) ? undefined : 'Must be an http(s) URL of at most 500 characters'
+
+const vinCheck: FieldCheck = (v) =>
+  VIN_PATTERN.test(v.toUpperCase()) ? undefined : 'VIN must be 17 letters or digits, without I, O or Q'
+
+const yearCheck: FieldCheck = (v) => {
+  const year = Number(v)
+  const max = new Date().getFullYear() + 1
+  return Number.isInteger(year) && year >= 1900 && year <= max ? undefined : `Year must be 1900 to ${max}`
+}
+
+const moneyCheck: FieldCheck = (v) =>
+  MONEY_PATTERN.test(v) ? undefined : 'Must be an amount of 0 or more with at most 2 decimals'
+
+const pastDateCheck: FieldCheck = (v) => {
+  if (!DATE_PATTERN.test(v) || Number.isNaN(Date.parse(v))) return 'Use the format YYYY-MM-DD'
+  return v > todayIso() ? 'Date cannot be in the future' : undefined
+}
+
+function fieldRule(check: FieldCheck, required = true, trigger: 'blur' | 'change' = 'blur') {
+  return [
+    {
+      required,
+      trigger,
+      validator: (_rule: unknown, raw: unknown, callback: (error?: Error) => void) => {
+        const value = raw == null ? '' : String(raw).trim()
+        if (!value) return required ? callback(new Error('Required')) : callback()
+        const message = check(value)
+        return message ? callback(new Error(message)) : callback()
+      },
+    },
+  ]
+}
+
+const conditionRules = { conditionCode: fieldRule(anyValue, true, 'change') }
+
+const purchaseRules = {
+  make: fieldRule(textCheck),
+  model: fieldRule(textCheck),
+  modelYear: fieldRule(yearCheck),
+  vin: fieldRule(vinCheck),
+  purchaseCost: fieldRule(moneyCheck),
+  addedOn: fieldRule(pastDateCheck),
+  repairCost: fieldRule(moneyCheck, false),
+  carfaxUrl: fieldRule(urlCheck, false),
+  source: fieldRule(anyValue, true, 'change'),
+  ...conditionRules,
+}
+
+// Sold vehicles keep purchase fields read-only, so only the editable condition is validated.
+const formRules = computed(() => (edit.value?.status === 'SOLD' ? conditionRules : purchaseRules))
 
 function blankForm() {
   return {
@@ -95,7 +164,10 @@ function mapWrite(e: unknown) {
   const code = errorCode(e)
   const status = errorStatus(e)
   if (code === 'VIN_DUP') return 'VIN already in this dealership'
-  if (code === 'VALIDATION') return messageOf(e, 'Check required fields')
+  if (code === 'VALIDATION') {
+    serverErrors.value = fieldErrorsOf(e)
+    return messageOf(e, 'Check required fields')
+  }
   if (code === 'SOLD_LOCKED') return 'Purchase fields are locked'
   if (code === 'VERSION_CONFLICT') return 'Refresh and retry'
   if (code === 'SOLD_PAIR_REQUIRED') return 'Sold date and price are required together'
@@ -120,6 +192,18 @@ const load = async () => {
     rows.value = []
   } finally {
     if (seq === listRequest) loading.value = false
+  }
+}
+
+async function loadAdStatus(id: number, seq: number) {
+  adStatus.value = ''
+  try {
+    const r = await listingsApi.get(id)
+    if (seq !== detailRequest) return
+    adStatus.value = checkStatusLabel(r.data.checkStatus) || 'Not checked'
+  } catch {
+    if (seq !== detailRequest) return
+    adStatus.value = 'Could not load ad check status.'
   }
 }
 
@@ -156,6 +240,7 @@ async function openCreate() {
   edit.value = null
   form.value = blankForm()
   formError.value = ''
+  serverErrors.value = {}
   audit.value = []
   drawer.value = true
   await nextTick()
@@ -165,6 +250,7 @@ async function openCreate() {
 async function openEdit(id: number) {
   const seq = ++detailRequest
   formError.value = ''
+  serverErrors.value = {}
   audit.value = []
   try {
     const r = await vehiclesApi.get(id)
@@ -175,7 +261,7 @@ async function openEdit(id: number) {
     await nextTick()
     if (seq !== detailRequest) return
     vehicleFormRef.value?.clearValidate()
-    await loadAudit(id)
+    await Promise.all([loadAdStatus(id, seq), loadAudit(id)])
   } catch (e) {
     if (seq !== detailRequest) return
     edit.value = null
@@ -188,6 +274,7 @@ async function openEdit(id: number) {
 
 async function save() {
   formError.value = ''
+  serverErrors.value = {}
   const seq = detailRequest
   if (vehicleFormRef.value) {
     const ok = await vehicleFormRef.value.validate().then(() => true).catch(() => false)
@@ -195,7 +282,11 @@ async function save() {
   }
   if (seq !== detailRequest) return
   const current = edit.value
-  const payload = { ...form.value }
+  // Sold VINs are locked; only normalize the VIN while it is still editable.
+  const payload =
+    current?.status === 'SOLD' ? { ...form.value } : { ...form.value, vin: String(form.value.vin).trim().toUpperCase() }
+  if (saving.value) return
+  saving.value = true
   try {
     if (current) {
       const saved = await vehiclesApi.update(current.id, { ...payload, version: current.version })
@@ -205,7 +296,7 @@ async function save() {
       }
       edit.value = saved.data
       form.value = vehicleForm(saved.data)
-      await loadAudit(saved.data.id, seq)
+      await Promise.all([loadAdStatus(saved.data.id, seq), loadAudit(saved.data.id, seq)])
     } else {
       await vehiclesApi.create(payload)
       if (seq !== detailRequest) {
@@ -218,6 +309,8 @@ async function save() {
   } catch (e) {
     if (seq !== detailRequest) return
     formError.value = mapWrite(e)
+  } finally {
+    saving.value = false
   }
 }
 
@@ -241,9 +334,19 @@ async function openSell(id: number) {
 async function sell() {
   sellError.value = ''
   const soldOn = String(sellForm.value.soldOn || '').trim()
-  const price = Number(sellForm.value.soldPrice)
-  if (!soldOn || sellForm.value.soldPrice === '' || !Number.isFinite(price) || price <= 0) {
+  const priceText = String(sellForm.value.soldPrice).trim()
+  const price = Number(priceText)
+  if (!soldOn || !priceText) {
     sellError.value = 'Sold date and price are required together'
+    return
+  }
+  if (!MONEY_PATTERN.test(priceText) || price <= 0) {
+    sellError.value = 'Sold price must be more than 0 with at most 2 decimals'
+    return
+  }
+  const dateProblem = pastDateCheck(soldOn)
+  if (dateProblem || soldOn < String(edit.value.addedOn || '')) {
+    sellError.value = dateProblem || 'Sold date cannot be before the date added'
     return
   }
   const seq = detailRequest
@@ -337,7 +440,10 @@ watch(
           <el-table-column label="Condition">
             <template #default="{ row }">{{ enumLabel(row.conditionCode) }}</template>
           </el-table-column>
-          <el-table-column prop="purchaseCost" label="Cost" />
+          <el-table-column label="Cost">
+            <template #default="{ row }">{{ cad(row.purchaseCost) }}</template>
+          </el-table-column>
+          <el-table-column prop="addedOn" label="Date added" />
           <el-table-column label="Status">
             <template #default="{ row }">
               <el-tag>{{ enumLabel(row.status) }}</el-tag>
@@ -352,30 +458,46 @@ watch(
     </div>
     <FormDrawer :title="edit ? 'Edit vehicle' : 'Add vehicle'" :visible="drawer" @close="drawer = false">
       <el-form ref="vehicleFormRef" :model="form" :rules="formRules" label-position="top">
-        <el-form-item v-for="field in PURCHASE_FIELDS" :key="field.key" :label="field.label" :prop="field.key">
+        <el-form-item
+          v-for="field in PURCHASE_FIELDS"
+          :key="field.key"
+          :label="field.label"
+          :prop="field.key"
+          :error="serverErrors[field.key]"
+        >
           <el-input v-model="form[field.key]" :disabled="edit?.status === 'SOLD'" />
         </el-form-item>
-        <el-form-item label="Source" prop="source">
+        <el-form-item label="Source" prop="source" :error="serverErrors.source">
           <el-select v-model="form.source" :disabled="edit?.status === 'SOLD'">
             <el-option v-for="v in SOURCES" :key="v" :label="enumLabel(v)" :value="v" />
           </el-select>
         </el-form-item>
-        <el-form-item label="Condition" prop="conditionCode">
-          <el-select v-model="form.conditionCode" :disabled="edit?.status === 'SOLD'">
+        <el-form-item label="Condition" prop="conditionCode" :error="serverErrors.conditionCode">
+          <el-select v-model="form.conditionCode">
             <el-option v-for="v in CONDITIONS" :key="v" :label="enumLabel(v)" :value="v" />
           </el-select>
         </el-form-item>
         <template v-if="edit?.status === 'SOLD'">
           <el-form-item label="Sold date"><span>{{ edit.soldOn }}</span></el-form-item>
-          <el-form-item label="Sold price (CAD)"><span>{{ Number(edit.soldPrice).toFixed(2) }}</span></el-form-item>
+          <el-form-item label="Sold price"><span>{{ cad(edit.soldPrice) }}</span></el-form-item>
+          <el-form-item label="Profit (sold price − purchase cost − repair cost)">
+            <span :class="{ 'danger-text': (profit(edit) ?? 0) < 0 }">{{ cad(profit(edit)) }}</span>
+          </el-form-item>
         </template>
+        <el-form-item v-if="edit?.id" label="Linked customer">
+          <router-link v-if="edit.linkedCustomer" :to="{ path: '/crm', query: { customerId: edit.linkedCustomer.id } }">
+            {{ edit.linkedCustomer.name }}
+          </router-link>
+          <span v-else>—</span>
+        </el-form-item>
+        <el-form-item v-if="edit?.id" label="Ad check status"><span>{{ adStatus || '—' }}</span></el-form-item>
         <p v-if="formError" class="danger-text">{{ formError }}</p>
-        <el-button type="primary" @click="save">Save</el-button>
+        <el-button type="primary" :loading="saving" @click="save">Save</el-button>
         <div v-if="edit?.id" class="detail-audit">
           <div class="muted">Audit</div>
           <el-table :data="audit">
             <el-table-column prop="action" label="Action" width="110" />
-            <el-table-column prop="actorOid" label="Actor" />
+            <el-table-column prop="actorUsername" label="Actor" />
             <el-table-column prop="createdAt" label="When" />
             <el-table-column label="Summary">
               <template #default="{ row }">{{ summaryText(row.fieldSummary) }}</template>

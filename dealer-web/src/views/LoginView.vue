@@ -1,7 +1,7 @@
 ﻿<script setup lang="ts">
 import { ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { rememberPostLoginRedirect, signIn, takePostLoginRedirect } from '../auth/msal'
+import { rememberPostLoginRedirect, signIn, takePostLoginRedirect } from '../auth/login'
 import PageState from '../components/PageState.vue'
 
 const route = useRoute()

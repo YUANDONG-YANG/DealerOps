@@ -16,6 +16,15 @@ public final class TenantGuard {
     }
   }
 
+  public static void requireBusinessAccess() {
+    CurrentUser user = TenantContext.get();
+    if (user == null
+        || (user.role() != AppRole.PLATFORM_ADMIN
+            && (user.role() != AppRole.DEALER_USER || user.tenantDealerId() == null))) {
+      throw new ApiException(ErrorCode.FORBIDDEN, "Forbidden");
+    }
+  }
+
   public static void requireAdmin() {
     CurrentUser user = TenantContext.get();
     if (user == null || user.role() != AppRole.PLATFORM_ADMIN) {

@@ -8,14 +8,11 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface MembershipRepository extends JpaRepository<MembershipEntity, Long> {
 
-  List<MembershipEntity> findByEntraOidAndActiveTrue(String entraOid);
+  List<MembershipEntity> findByUsernameAndActiveTrue(String username);
 
-  Optional<MembershipEntity> findByDealerIdAndEntraOid(Long dealerId, String entraOid);
+  Optional<MembershipEntity> findByDealerIdAndUsername(Long dealerId, String username);
 
   long countByDealerIdAndActiveTrue(Long dealerId);
 
   Page<MembershipEntity> findByDealerId(Long dealerId, Pageable pageable);
-
-  Page<MembershipEntity> findByDealerIdAndEntraOidContainingIgnoreCase(
-      Long dealerId, String entraOid, Pageable pageable);
 }

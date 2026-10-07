@@ -3,10 +3,13 @@ package com.dealerops.core.common.exception;
 import com.dealerops.core.common.ErrorBody;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
+import org.springframework.web.ErrorResponse;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -15,6 +18,8 @@ import org.springframework.web.method.annotation.MethodArgumentTypeMismatchExcep
 
 @RestControllerAdvice
 public class ApiExceptionHandler {
+
+  private static final Logger log = LoggerFactory.getLogger(ApiExceptionHandler.class);
 
   @ExceptionHandler(ApiException.class)
   public ResponseEntity<ErrorBody> handleApi(ApiException ex) {
@@ -68,11 +73,34 @@ public class ApiExceptionHandler {
     } else if (constraint.contains("uk_cv_vehicle")) {
       code = ErrorCode.VEHICLE_ALREADY_LINKED;
       message = "Vehicle is already linked";
-    } else if (constraint.contains("uk_membership")) {
+    } else if (constraint.contains("uk_membership") || constraint.contains("uk_user_username")) {
       code = ErrorCode.DUP_MEMBER;
       message = "Membership already exists";
     }
     return ResponseEntity.status(code.getHttpStatus()).body(new ErrorBody(code.name(), message, null));
+  }
+
+  /**
+   * Last resort. Remaining Spring MVC errors (unknown path, wrong method or media type) keep their
+   * status; anything else is logged server-side and returned without stack, SQL, or model text.
+   */
+  @ExceptionHandler(Exception.class)
+  public ResponseEntity<ErrorBody> handleUnexpected(Exception ex) {
+    if (ex instanceof ErrorResponse framework && framework.getStatusCode().value() < 500) {
+      int status = framework.getStatusCode().value();
+      ErrorBody body =
+          switch (status) {
+            case 404 -> new ErrorBody(ErrorCode.NOT_FOUND.name(), "Not found", null);
+            case 405 -> new ErrorBody(ErrorCode.METHOD_NOT_ALLOWED.name(), "Method not allowed.", null);
+            case 415 ->
+                new ErrorBody(ErrorCode.UNSUPPORTED_MEDIA_TYPE.name(), "Unsupported media type.", null);
+            default -> new ErrorBody(ErrorCode.VALIDATION.name(), "Request is invalid.", null);
+          };
+      return ResponseEntity.status(status).body(body);
+    }
+    log.error("Unhandled request error", ex);
+    return ResponseEntity.status(ErrorCode.INTERNAL_ERROR.getHttpStatus())
+        .body(new ErrorBody(ErrorCode.INTERNAL_ERROR.name(), "Unexpected server error.", null));
   }
 
   private static String constraintHint(DataIntegrityViolationException ex) {

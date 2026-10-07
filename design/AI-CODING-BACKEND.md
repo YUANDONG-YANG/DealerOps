@@ -13,7 +13,7 @@
 
 You are the coding AI. Implement only the numbered tasks in this document (BE-Txx). Do not read withdrawn `01`–`06`. Do not implement work orders / leads / password login / Service Bus / a fifth auth repo.
 Contract conflicts: HTTP JSON / paths / error codes follow `design/14-Backend-API-Contract.md`; data columns / tenant / membership / empty draft / SOLD / Gateway behavior follow `design/15-Data-Auth-and-Gateway.md`. `18`/`19` only fix file locations; they do not invent another contract.
-Stack pinned: Java 21, Spring Boot 3.3.5, four independent repos (`dealer-core` / `dealer-gateway` / `ai-service` / `dealer-web`; `dealer-platform` holds env/compose only and does not run business). Ban merging into a monorepo. Ban core 21 + ai-service 17.
+Stack pinned: Java 21, Spring Boot 3.3.5, four independent repos (`dealer-core` / `dealer-gateway` / `ai-service` / `dealer-web`; `dealer-platform` holds the shared env and contract files only and does not run business). Ban merging into a monorepo. Ban core 21 + ai-service 17.
 The browser only hits Gateway `http://localhost:8080` prefix `/api/v1/**`. core listens only on `8081`, ai-service only on `8082`; neither configures browser CORS or public Ingress.
 Ignore `dealerId` in the client body/query/header (including `X-Dealer-Id`). Cross-store or this store has no such id → **404** `NOT_FOUND` (not 403). Staff without `membership.active=1` calling a business API → **403** `FORBIDDEN` (not 401/404). `GET /me` is still 200 with `dealerId=null`.
 Roles come only from JWT `roles[]`: `Platform.Admin`, `Dealer.User`. If Admin and staff appear together → Admin wins. Admin hitting `/vehicles` `/customers` `/listings/**` `/audit` `/assistant` → 403; response body has no vin/cost/customer fields.
@@ -108,14 +108,14 @@ Shared by all three repos:
 | `spring-boot-starter-web` | HTTP `/api/v1/**` |
 | `spring-boot-starter-validation` | Bean Validation |
 | `spring-boot-starter-data-jpa` | Entity |
-| `spring-boot-starter-oauth2-resource-server` | Verify Entra JWT |
+| `spring-boot-starter-oauth2-resource-server` | Verify the HS256 login JWT (15 §8) |
 | `org.flywaydb:flyway-core` | Migrations |
 | `org.flywaydb:flyway-mysql` | MySQL dialect (required for Flyway 10+) |
 | `com.mysql:mysql-connector-j` | Driver |
 | `org.springframework.boot:spring-boot-starter-webflux` | `WebClient` outbound to Gateway only (do not start another Netty business port) |
 | `spring-boot-starter-test` | test scope |
 
-core **must not** depend on: `spring-cloud-starter-gateway`, `com.aimanager:aimanager`, any password/session starter.
+core **must not** depend on: `spring-cloud-starter-gateway`, `com.aimanager:aimanager`, any session starter (password hashing uses `BCryptPasswordEncoder` from Spring Security, already present).
 
 **dealer-gateway required dependencies:**
 
@@ -180,7 +180,6 @@ ai-service **must not** depend on: `spring-boot-starter-data-jpa`, `flyway-*`, `
 - Create/change files:
   - `dealer-core/src/main/java/com/dealerops/core/DealerCoreApplication.java`
   - `dealer-core/src/main/resources/application.yml`
-  - `dealer-core/Dockerfile`
 - Must include:
 
 ```java
@@ -211,27 +210,24 @@ spring:
   flyway:
     enabled: true
     locations: classpath:db/migration
-  security:
-    oauth2:
-      resourceserver:
-        jwt:
-          issuer-uri: ${ENTRA_ISSUER:https://login.microsoftonline.com/<tenant-id>/v2.0}
-          audiences: ${ENTRA_AUDIENCE:api://dealer-api}
 dealerops:
   gateway-base-url: ${GATEWAY_BASE_URL:http://localhost:8080}
   internal-token: ${INTERNAL_TOKEN:dealer-internal}
   ai-timeout-ms: 15000
+  jwt:
+    # dealer-core issues and validates its own HS256 tokens at /api/v1/auth/login.
+    dev-secret: ${DEV_JWT_SECRET:dealer-dev-jwt-secret-change-me}
 ```
 
 **Do not** write `spring.web.cors` / `allowedOrigins: http://localhost:5173`.
-`Dockerfile`: `EXPOSE 8081`; `ENTRYPOINT` runs the fat jar.
+Packaging is a plain Spring Boot fat JAR; there is no Dockerfile. Cloud: App Service runs `app.jar` ([deploy/README.md](../deploy/README.md)).
 
 - Ban: listening on 8080; browser CORS; `ddl-auto=update`; implementing `/internal/v1/**`; changing `V1__init.sql`.
 - Later Flyway scripts (do not rename `V1__init.sql`): `V{YYYYMMDD}_{n}__{action}.sql`, for example `V20260923_1__add_listing_search_index.sql`. `{n}` restarts at `1` each calendar day. Two underscores before the action. Do not use `V2__...`.
 - Acceptance:
   1. `rg "ddl-auto" dealer-core/src/main/resources/application.yml` is only `validate`.
   2. `rg "allowedOrigins|localhost:5173" dealer-core` none.
-  3. When MySQL `dealer_core` is up (compose database only): `mvn -f dealer-core/pom.xml spring-boot:run` logs contain `Tomcat started on port 8081`.
+  3. When MySQL `dealer_core` is up: `mvn -f dealer-core/pom.xml spring-boot:run` logs contain `Tomcat started on port 8081`.
   4. `curl -s -o NUL -w "%{http_code}" http://127.0.0.1:8081/api/v1/me` → `401` (before Security is configured 403/401 is allowed; after this task + T08 it must be 401).
 
 ---
@@ -241,7 +237,6 @@ dealerops:
 - Create/change files:
   - `dealer-gateway/src/main/java/ca/sait/dealerops/gateway/GatewayApplication.java`
   - `dealer-gateway/src/main/resources/application.yaml`
-  - `dealer-gateway/Dockerfile`
 - Must include:
 
 ```java
@@ -260,12 +255,6 @@ server:
 spring:
   application:
     name: dealer-gateway
-  security:
-    oauth2:
-      resourceserver:
-        jwt:
-          issuer-uri: ${ENTRA_ISSUER:https://login.microsoftonline.com/<tenant-id>/v2.0}
-          audiences: ${ENTRA_AUDIENCE:api://dealer-api}
   cloud:
     gateway:
       routes:
@@ -294,8 +283,7 @@ dealerops:
   internal-token: ${INTERNAL_TOKEN:dealer-internal}
 ```
 
-When not in compose, `CORE_URL`/`AI_URL` default to `127.0.0.1` (table above). In compose, override to `http://host.docker.internal:8081` / `8082` (same as `env.example`).
-`Dockerfile`: `EXPOSE 8080`.
+`CORE_URL` / `AI_URL` default to `127.0.0.1` (table above), which is what local runs use. The Azure stack overrides both with the HTTPS origins of `dealerops-core` and `dealerops-ai`.
 
 - Ban: routing `/api/v1/**` to ai-service; listing `X-Dealer-Internal` in `Access-Control-Allow-Headers`; connecting MySQL; issuing JWT; package name `com.gateway`.
 - Acceptance:
@@ -315,7 +303,6 @@ When not in compose, `CORE_URL`/`AI_URL` default to `127.0.0.1` (table above). I
   - `ai-service/src/main/resources/application.yaml`
   - `ai-service/src/main/java/ca/sait/dealerops/aiservice/config/AiTimeoutConfig.java`
   - `ai-service/src/main/java/ca/sait/dealerops/aiservice/config/InternalGuardFilter.java`
-  - `ai-service/Dockerfile`
 - Must include:
 
 ```java
@@ -385,13 +372,10 @@ When the adapter calls the model, wrap again with `java.util.concurrent.Completa
 
 | Variable | Who | Local default (pinned) |
 |---|---|---|
-| `VITE_ENTRA_TENANT_ID` | web (this spec does not implement web) | empty string `""` (fill in Sprint 2) |
-| `VITE_ENTRA_CLIENT_ID` | web | empty string `""` |
-| `VITE_ENTRA_API_SCOPE` | web | `api://dealer-api/access_as_user` |
 | `VITE_GATEWAY_URL` | web | `http://localhost:8080` |
 | `GATEWAY_PORT` | gateway | `8080` |
-| `CORE_URL` | gateway | compose: `http://host.docker.internal:8081`; host process: `http://127.0.0.1:8081` (yaml default is the latter) |
-| `AI_URL` | gateway | compose: `http://host.docker.internal:8082`; host: `http://127.0.0.1:8082` |
+| `CORE_URL` | gateway | local: `http://127.0.0.1:8081` (the yaml default); cloud: the `dealerops-core` HTTPS origin |
+| `AI_URL` | gateway | local: `http://127.0.0.1:8082`; cloud: the `dealerops-ai` HTTPS origin |
 | `CORE_PORT` | core | `8081` |
 | `MYSQL_URL` | core | `jdbc:mysql://localhost:3306/dealer_core?useSSL=false&allowPublicKeyRetrieval=true` |
 | `MYSQL_USER` | core | `dealer` |
@@ -400,8 +384,9 @@ When the adapter calls the model, wrap again with `java.util.concurrent.Completa
 | `AIMANAGER_API_KEY` | **ai-service only** | empty string; if empty the first model call fails immediately and does not wait 15s |
 | `AIMANAGER_GATEWAY_PROVIDER` | ai-service | `openai` |
 | `AIMANAGER_GATEWAY_MODEL` | ai-service | empty string; must be the deployment name when hitting a real model |
-| `ENTRA_ISSUER` | gateway + core | `https://login.microsoftonline.com/<tenant-id>/v2.0` |
-| `ENTRA_AUDIENCE` | gateway + core | `api://dealer-api` |
+| `JWT_MODE` | gateway + core | `dev` (the only accepted value; anything else stops startup) |
+| `DEV_JWT_SECRET` | gateway + core | `dealer-dev-jwt-secret-change-me` locally only; ≥32 UTF-8 bytes and unique outside local (cloud: Key Vault `JWT-SIGNING-SECRET`) |
+| `ADMIN_USERNAME` / `ADMIN_PASSWORD` | core | seed the first `Platform.Admin` account |
 | `INTERNAL_TOKEN` | gateway + core outbound + ai-service | `dealer-internal`, accepted only when the Spring profile is `dev` or `local`. Any other profile must set a non-default value shared by gateway, ai-service, and dealer-core. Web **does not read** it. |
 | `GATEWAY_BASE_URL` | core outbound | `http://localhost:8080` |
 
@@ -513,15 +498,14 @@ Enums (`@Enumerated(EnumType.STRING)`; stored strings match the table exactly):
 | Column | Java field |
 |---|---|
 | `id` | `Long id` |
-| `entra_tenant_id` | `String entraTenantId` length 64 NOT NULL |
-| `entra_oid` | `String entraOid` length 64 NOT NULL |
+| `username` | `String username` length 64 NOT NULL |
 | `display_name` | `String displayName` length 120 NOT NULL |
 | `role` | `AppRole role` VARCHAR(32) NOT NULL |
 | `dealer_id` | `Long dealerId` **nullable** (Admin must be null; **not** tenant authority) |
 | `active` | `boolean active` default true |
 | `created_at` | `Instant createdAt` |
 
-No `version` column. UK: `(entraTenantId, entraOid)`.
+No `version` column. UK: `uk_user_username (username)`.
 
 `MembershipEntity` ↔ `membership`:
 
@@ -529,12 +513,12 @@ No `version` column. UK: `(entraTenantId, entraOid)`.
 |---|---|
 | `id` | `Long id` |
 | `dealer_id` | `Long dealerId` NOT NULL |
-| `entra_oid` | `String entraOid` NOT NULL |
+| `username` | `String username` NOT NULL |
 | `active` | `boolean active` default true |
-| `created_by` | `String createdBy` NOT NULL (binder JWT `oid`) |
+| `created_by` | `String createdBy` NOT NULL (binder JWT `sub` (the username)) |
 | `created_at` | `Instant createdAt` |
 
-UK: `(dealerId, entraOid)`.
+UK: `(dealerId, username)`.
 
 `VehicleEntity` ↔ `vehicle`:
 
@@ -568,7 +552,7 @@ UK: `(dealerId, vin)`.
 | `id` | `Long id` |
 | `dealer_id` | `Long dealerId` NOT NULL |
 | `name` | `String name` length 160 NOT NULL |
-| `email` | `String email` length 160 NOT NULL |
+| `email` | `String email` length 254 NOT NULL (`V20261007_2__widen_customer_email.sql`) |
 | `phone` | `String phone` length 40 NOT NULL |
 | `home_address` | `String homeAddress` length 300 NOT NULL |
 | `version` | `int version` `@Version` |
@@ -627,7 +611,7 @@ UK: `vehicleId`.
 |---|---|
 | `id` | `Long id` |
 | `dealer_id` | `Long dealerId` **nullable** |
-| `actor_oid` | `String actorOid` NOT NULL |
+| `actor_username` | `String actorUsername` NOT NULL |
 | `entity_type` | `String entityType` NOT NULL |
 | `entity_id` | `long entityId` NOT NULL |
 | `action` | `String action` NOT NULL |
@@ -638,12 +622,12 @@ Repository interfaces: `JpaRepository<Entity, Long>`; names already listed above
 
 ```java
 public interface MembershipRepository extends JpaRepository<MembershipEntity, Long> {
-  java.util.List<MembershipEntity> findByEntraOidAndActiveTrue(String entraOid);
-  java.util.Optional<MembershipEntity> findByDealerIdAndEntraOid(Long dealerId, String entraOid);
+  java.util.List<MembershipEntity> findByUsernameAndActiveTrue(String username);
+  java.util.Optional<MembershipEntity> findByDealerIdAndUsername(Long dealerId, String username);
   long countByDealerIdAndActiveTrue(Long dealerId);
 }
 public interface AppUserRepository extends JpaRepository<AppUserEntity, Long> {
-  java.util.Optional<AppUserEntity> findByEntraTenantIdAndEntraOid(String tid, String oid);
+  java.util.Optional<AppUserEntity> findByUsername(String username);
 }
 public interface VehicleRepository extends JpaRepository<VehicleEntity, Long> {
   boolean existsByDealerIdAndVin(Long dealerId, String vin);
@@ -718,14 +702,13 @@ JWT claim names (recognize only these):
 
 | Claim | Use |
 |---|---|
-| `iss` | Must = `ENTRA_ISSUER` |
-| `aud` | = `ENTRA_AUDIENCE` (`api://dealer-api` or API GUID) |
-| `oid` | → `app_user.entra_oid` / `membership.entra_oid` |
-| `tid` | → `app_user.entra_tenant_id` |
-| `name` or `preferred_username` | write back `display_name` (update if present) |
+| `iss` | Must = `dealerops-core` (set by `JwtIssuer`) |
+| `aud` | = `api://dealer-api` |
+| `sub` | → `app_user.username` / `membership.username` |
+| `name` | write back `display_name` (update if present) |
 | `roles` | **sole RBAC source** (array) |
-| `scp` / `scope` | only proves `access_as_user`, **not** a role |
-| `groups` | **ignore** |
+
+Signature: HS256 with `DEV_JWT_SECRET` (15 §8.3). There are no `oid`, `tid`, `scp`, or `groups` claims.
 
 ```java
 public final class JwtRoleMapper {
@@ -738,7 +721,7 @@ public final class JwtRoleMapper {
   }
 }
 
-public record CurrentUser(String oid, String tid, AppRole role, Long tenantDealerId) {}
+public record CurrentUser(String username, AppRole role, Long tenantDealerId) {}
 
 public final class TenantContext {
   private static final ThreadLocal<CurrentUser> H = new ThreadLocal<>();
@@ -786,14 +769,14 @@ public class SecurityConfig {
 ```
 1. No Authentication or not Jwt → leave to Security (401)
 2. role = JwtRoleMapper.mapRole(jwt); null and path is not GET /api/v1/me → 403 FORBIDDEN
-3. upsert app_user by (tid, oid); displayName may update; authorization follows this JWT; DB role cannot elevate
+3. upsert app_user by username (JWT sub); displayName may update; authorization follows this JWT; DB role cannot elevate
 4. If role == Platform.Admin:
      app_user.dealer_id must be written NULL (self-heal to null if not empty)
-     TenantContext = (oid,tid,ADMIN,null)
+     TenantContext = (username,ADMIN,null)
      If path matches /api/v1/vehicles** /customers** /listings** /assistant** or GET /audit → 403 FORBIDDEN (body only {code,message})
      Allow /api/v1/admin/** and GET /api/v1/me
 5. If role == Dealer.User:
-     rows = membershipRepo.findByEntraOidAndActiveTrue(oid)
+     rows = membershipRepo.findByUsernameAndActiveTrue(username)
      rows.size>=2 → 500 (configuration error; do not continue business)
      path is GET /api/v1/me: allow even with 0 rows, tenantDealerId=null
      other /api/v1/**: 0 rows → 403 FORBIDDEN
@@ -807,8 +790,8 @@ public class SecurityConfig {
 - Ban: using `app_user.dealer_id` for `WHERE` isolation; client `dealerId` overriding tenant; cross-store 403; a fifth auth repo.
 - Acceptance:
   1. `rg "getClaimAsStringList\\(\"roles\"\\)" dealer-core`.
-  2. `rg "\"oid\"|getSubject|getClaimAsString\\(\"oid\"\\)" dealer-core/src/main/java/com/dealerops/core`.
-  3. `rg "findByEntraOidAndActiveTrue" dealer-core`.
+  2. `rg "getSubject" dealer-core/src/main/java/com/dealerops/core/common/tenant/TenantFilter.java`.
+  3. `rg "findByUsernameAndActiveTrue" dealer-core`.
   4. `rg "groups" dealer-core/src/main/java/com/dealerops/core/security/JwtRoleMapper.java` does not authorize with groups.
   5. No JWT: `curl -s http://127.0.0.1:8081/api/v1/vehicles` → JSON `{"code":"UNAUTHORIZED",...}` HTTP 401 (same 401 via Gateway).
 
@@ -829,7 +812,7 @@ public class MeController {
   @GetMapping("/me")
   public MeResponse me() { return meService.me(TenantContext.get()); }
 }
-public record MeResponse(String entraOid, String displayName, String role, Long dealerId, String dealerLegalName) {}
+public record MeResponse(String username, String displayName, String role, Long dealerId, String dealerLegalName) {}
 ```
 
 `role` JSON must be `Platform.Admin` or `Dealer.User`. Admin: `dealerId=null`, `dealerLegalName=null`. Staff with no membership: still 200, last two null. With membership: `dealerId` comes from membership (if it disagrees with `app_user`, membership wins and write back), `dealerLegalName` = that store’s `legalName`.
@@ -912,15 +895,15 @@ public class AdminMemberController {
   @PostMapping
   @ResponseStatus(HttpStatus.CREATED)
   public MemberResponse add(@PathVariable Long id, @Valid @RequestBody CreateMemberRequest body) {}
-  @DeleteMapping("/{entraOid}")
+  @DeleteMapping("/{username}")
   @ResponseStatus(HttpStatus.NO_CONTENT)
-  public void remove(@PathVariable Long id, @PathVariable String entraOid) {}
+  public void remove(@PathVariable Long id, @PathVariable String username) {}
 }
-public record MemberResponse(String entraOid, String displayName, String role, boolean active) {}
-public record CreateMemberRequest(@NotBlank String entraOid, @NotBlank String displayName) {}
+public record MemberResponse(String username, String displayName, String role, boolean active) {}
+public record CreateMemberRequest(@NotBlank @Size(max = 64) String username, @NotBlank @Size(max = 120) String displayName, @NotBlank @Size(min = 8) String password) {}
 ```
 
-Bind: write/update `app_user` (`role=Dealer.User`, `dealer_id=this store`) + `membership`. This store already **active** → `409 DUP_MEMBER`. This oid still active at **another store** → `409 DUP_MEMBER`. Re-bind after unbind: reactivate `active=1`, do not INSERT a second row. Do not invent email. Do not delete Entra.
+Bind: write/update `app_user` (`role=Dealer.User`, `dealer_id=this store`) + `membership`. This store already **active** → `409 DUP_MEMBER`. This username still active at **another store** → `409 DUP_MEMBER`. Re-bind after unbind: reactivate `active=1`, do not INSERT a second row. Do not invent email. Do not delete the `app_user` account. A username that belongs to a `Platform.Admin` account → `409 DUP_MEMBER`.
 
 Unbind: `membership.active=0`; `app_user.dealer_id=NULL`; **do not change** `app_user.role`; do not delete `app_user`. Audit `entityType=MEMBERSHIP`.
 
@@ -928,10 +911,10 @@ Unbind: `membership.active=0`; `app_user.dealer_id=NULL`; **do not change** `app
 |---|---|---|---|
 | `list` | GET | `/api/v1/admin/dealers/{id}/members` | 404 store missing; 403 |
 | `add` | POST | same | 400 VALIDATION; 404; 409 DUP_MEMBER; 403 |
-| `remove` | DELETE | `/api/v1/admin/dealers/{id}/members/{entraOid}` | 404 no binding; 403; 204 no body |
+| `remove` | DELETE | `/api/v1/admin/dealers/{id}/members/{username}` | 404 no binding; 403; 204 no body |
 
-- Ban: deleting Entra; changing `role` on unbind; a dealership switcher; two `active=1` rows for one person.
-- Acceptance: same oid POST twice in a row → second 409 `DUP_MEMBER`. DELETE → 204. That staff GET `/api/v1/vehicles` → 403. `GET /me` → 200 `dealerId=null`.
+- Ban: deleting the `app_user` account; changing `role` on unbind; a dealership switcher; two `active=1` rows for one person.
+- Acceptance: same username POST twice in a row → second 409 `DUP_MEMBER`. DELETE → 204. That staff GET `/api/v1/vehicles` → 403. `GET /me` → 200 `dealerId=null`.
 
 ---
 
@@ -1376,7 +1359,7 @@ public class AuditController {
       @RequestParam(defaultValue="10") int size) {}
 }
 public record AuditItem(Long id, String entityType, Long entityId, String action,
-    java.util.Map<String, Object> fieldSummary, String actorOid, Instant createdAt) {}
+    java.util.Map<String, Object> fieldSummary, String actorUsername, Instant createdAt) {}
 ```
 
 `entityType`+`entityId` are **required**; missing → `400 VALIDATION`. Staff only this store; entity not in this store → 404. Staff querying `DEALER`/`MEMBERSHIP` → 403. Admin querying `VEHICLE`/`CUSTOMER`/`CUSTOMER_VEHICLE`/`LISTING` → 403, no `fieldSummary` business content. This course has no Admin audit page: Admin hitting this API is **always 403**.
@@ -1385,7 +1368,7 @@ Write path (called by Vehicle/Customer/Membership):
 
 ```java
 public void record(String entityType, long entityId, String action, Long dealerId,
-    String actorOid, java.util.Map<String, Object> fieldSummary) {}
+    String actorUsername, java.util.Map<String, Object> fieldSummary) {}
 ```
 
 | Method | HTTP | path | Error codes |
@@ -1639,11 +1622,11 @@ ai-service **must not** write `compliance_check` itself, must not return the fiv
 | 12 | BRIEF-12 | core | T17 | not Passed/Stale → 409; export `text/plain` |
 | 13 | BRIEF-13 | core+ai | T19 T20 T22 | ≤5 cards; invented ids discarded; model down 200 `summaryAvailable=false` |
 | — | BRIEF-14 | web | **do not** (this document does not cover frontend) | — |
-| — | BRIEF-15 | platform | T05 read-only env | **do not change** env.example / Bicep / SQL |
+| — | BRIEF-15 | platform | T05 read-only env | **do not change** env.example / `deploy/terraform` / SQL |
 
 Local integration start order: MySQL:3306 → core:8081 → ai-service:8082 → gateway:8080. Product curls always hit `http://localhost:8080`.
 
-- Ban: doing assistant before `/me`; putting rules into ai-service first; doing cloud Bicep before an empty repo starts; doing BRIEF-14 frontend.
+- Ban: doing assistant before `/me`; putting rules into ai-service first; touching `deploy/terraform` before an empty repo starts; doing BRIEF-14 frontend.
 - Acceptance: commit message or PR title contains `BE-Txx`. `rg "BRIEF-14|dealer-web" ` in this backend commit fails. git diff does not include `design/13`–`19`, `IMPLEMENTATION-BRIEF.md`, `V1__init.sql`, `README`.
 
 ---

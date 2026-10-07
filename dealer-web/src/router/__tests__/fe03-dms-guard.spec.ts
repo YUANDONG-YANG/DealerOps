@@ -4,15 +4,15 @@
  */
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { account } from '../../auth/msal'
+import { account } from '../../auth/login'
 import { getMe } from '../../api/me'
 import router from '../index'
 
-vi.mock('../../auth/msal', () => ({ account: vi.fn() }))
+vi.mock('../../auth/login', () => ({ account: vi.fn() }))
 vi.mock('../../api/me', () => ({ getMe: vi.fn() }))
 
 const admin = {
-  entraOid: 'admin',
+  username: 'admin',
   displayName: 'Pat Admin',
   role: 'Platform.Admin' as const,
   dealerId: null,

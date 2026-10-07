@@ -7,6 +7,7 @@ import FormDrawer from '../components/FormDrawer.vue'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 import PageState from '../components/PageState.vue'
 import { adminApi, adminErrorCode, adminErrorStatus, type Dealer, type Member } from '../api/admin'
+import { apiError, fieldErrorsOf } from '../api/http'
 
 type FlatMember = Member & { dealerId: number; legalName: string }
 
@@ -30,6 +31,7 @@ const drawer = ref(false)
 const dealerFormRef = ref<FormInstance>()
 const form = ref({ legalName: '', contactPhone: '', contactEmail: '', contactAddress: '' })
 const formError = ref('')
+const creating = ref(false)
 const dealerRules: FormRules = {
   legalName: [{ required: true, message: 'Legal name is required', trigger: 'blur' }],
   contactPhone: [{ required: true, message: 'Contact phone is required', trigger: 'blur' }],
@@ -42,11 +44,18 @@ const memberDrawer = ref(false)
 const memberFormRef = ref<FormInstance>()
 const drawerMembers = ref<Member[]>([])
 const drawerError = ref('')
-const member = ref({ entraOid: '', displayName: '', password: '' })
+const member = ref({ username: '', displayName: '', password: '' })
 const bindError = ref('')
+const binding = ref(false)
 const memberRules: FormRules = {
-  entraOid: [{ required: true, message: 'Username is required', trigger: 'blur' }],
-  displayName: [{ required: true, message: 'Display name is required', trigger: 'blur' }],
+  username: [
+    { required: true, message: 'Username is required', trigger: 'blur' },
+    { max: 64, message: 'At most 64 characters', trigger: 'blur' },
+  ],
+  displayName: [
+    { required: true, message: 'Display name is required', trigger: 'blur' },
+    { max: 120, message: 'At most 120 characters', trigger: 'blur' },
+  ],
   password: [
     { required: true, message: 'Temporary password is required', trigger: 'blur' },
     { min: 8, message: 'At least 8 characters', trigger: 'blur' },
@@ -58,7 +67,7 @@ let membersLoadSeq = 0
 let drawerMembersLoadSeq = 0
 
 const confirm = ref(false)
-const pendingUnbind = ref<{ dealerId: number; entraOid: string } | null>(null)
+const pendingUnbind = ref<{ dealerId: number; username: string } | null>(null)
 const unbindError = ref('')
 
 const pagedMembers = computed(() =>
@@ -75,18 +84,10 @@ function loadErrorMessage(e: unknown) {
 }
 
 function serverDetail(error: unknown): string | undefined {
-  const data = (error as { response?: { data?: { message?: unknown; fieldErrors?: unknown } } })
-    .response?.data
-  if (!data || typeof data !== 'object') return undefined
   const parts: string[] = []
-  const message = typeof data.message === 'string' ? data.message.trim() : ''
+  const message = apiError(error).message?.trim()
   if (message) parts.push(message)
-  const fields = data.fieldErrors
-  if (fields && typeof fields === 'object') {
-    for (const [field, text] of Object.entries(fields)) {
-      if (typeof text === 'string' && text.trim()) parts.push(`${field}: ${text.trim()}`)
-    }
-  }
+  for (const [field, text] of Object.entries(fieldErrorsOf(error))) parts.push(`${field}: ${text}`)
   return parts.length ? parts.join(' ') : undefined
 }
 
@@ -227,6 +228,8 @@ async function create() {
     return
   }
   const body = form.value
+  if (creating.value) return
+  creating.value = true
   try {
     await adminApi.createDealer(body)
     drawer.value = false
@@ -243,6 +246,8 @@ async function create() {
     } else {
       formError.value = serverDetail(e) || 'Could not create dealership.'
     }
+  } finally {
+    creating.value = false
   }
 }
 
@@ -253,13 +258,15 @@ async function bind() {
   if (memberForm) {
     const valid = await memberForm.validate().then(() => true).catch(() => false)
     if (!valid) return
-  } else if (!member.value.entraOid || !member.value.displayName || !member.value.password) {
+  } else if (!member.value.username || !member.value.displayName || !member.value.password) {
     bindError.value = 'Check username, display name, and password'
     return
   }
+  if (binding.value) return
+  binding.value = true
   try {
     await adminApi.bind(staffDealer.value.id, member.value)
-    member.value = { entraOid: '', displayName: '', password: '' }
+    member.value = { username: '', displayName: '', password: '' }
     memberFormRef.value?.clearValidate()
     await refreshDrawerMembers()
     await loadDealers()
@@ -277,20 +284,22 @@ async function bind() {
     } else {
       bindError.value = serverDetail(e) || 'Could not bind staff.'
     }
+  } finally {
+    binding.value = false
   }
 }
 
-function askUnbind(dealerId: number, entraOid: string) {
-  pendingUnbind.value = { dealerId, entraOid }
+function askUnbind(dealerId: number, username: string) {
+  pendingUnbind.value = { dealerId, username }
   unbindError.value = ''
   confirm.value = true
 }
 
 async function unbind() {
   if (!pendingUnbind.value) return
-  const { dealerId, entraOid } = pendingUnbind.value
+  const { dealerId, username } = pendingUnbind.value
   try {
-    await adminApi.unbind(dealerId, entraOid)
+    await adminApi.unbind(dealerId, username)
     confirm.value = false
     pendingUnbind.value = null
     if (staffDealer.value?.id === dealerId) await refreshDrawerMembers()
@@ -312,7 +321,8 @@ function staffCount(row: Dealer) {
 }
 
 function onTab(name: string | number) {
-  if (name === 'members' && !flatMembers.value.length && !membersLoading.value) {
+  // Always reload: binds and unbinds from the Staff drawer happen while this tab is hidden.
+  if (name === 'members') {
     loadFlatMembers()
   }
 }
@@ -362,7 +372,7 @@ onMounted(loadDealers)
         </el-tab-pane>
         <el-tab-pane label="Members" name="members">
           <div class="filters">
-            <el-input v-model="memberQ" placeholder="Staff email" clearable />
+            <el-input v-model="memberQ" placeholder="Username" clearable />
             <el-button @click="memberPage = 0; loadFlatMembers()">Search</el-button>
             <el-button @click="memberQ = ''; memberPage = 0; loadFlatMembers()">Reset</el-button>
           </div>
@@ -371,8 +381,8 @@ onMounted(loadDealers)
             :error="membersError"
             :forbidden="membersForbidden"
             :empty="!membersLoading && !membersError && !membersForbidden && !flatMembers.length"
-            empty-text="No dealerships yet."
-            loading-text="Loading dealerships…"
+            empty-text="No members yet."
+            loading-text="Loading members…"
             forbidden-text="You do not have access to Admin."
           >
             <DataTable
@@ -382,7 +392,7 @@ onMounted(loadDealers)
               @page="p => { memberPage = p }"
             >
               <el-table-column label="Username">
-                <template #default="{ row }">{{ row.entraOid }}</template>
+                <template #default="{ row }">{{ row.username }}</template>
               </el-table-column>
               <el-table-column prop="legalName" label="Dealership" />
               <el-table-column label="Status">
@@ -394,7 +404,7 @@ onMounted(loadDealers)
                 <el-button
                   v-if="row.active"
                   link
-                  @click="askUnbind(row.dealerId, row.entraOid)"
+                  @click="askUnbind(row.dealerId, row.username)"
                 >Unbind</el-button>
               </template>
             </DataTable>
@@ -417,15 +427,15 @@ onMounted(loadDealers)
         <el-form-item label="Contact address" prop="contactAddress">
           <el-input v-model="form.contactAddress" />
         </el-form-item>
-        <el-button type="primary" @click="create">Create</el-button>
+        <el-button type="primary" :loading="creating" @click="create">Create</el-button>
       </el-form>
     </FormDrawer>
     <FormDrawer :title="staffDealer ? `Staff · ${staffDealer.legalName}` : 'Staff'" :visible="memberDrawer" @close="memberDrawer = false">
       <el-form ref="memberFormRef" :model="member" :rules="memberRules" label-position="top">
         <p v-if="drawerError" class="danger-text">{{ drawerError }}</p>
         <p v-if="bindError" class="danger-text">{{ bindError }}</p>
-        <el-form-item label="Username" prop="entraOid">
-          <el-input v-model="member.entraOid" />
+        <el-form-item label="Username" prop="username">
+          <el-input v-model="member.username" />
         </el-form-item>
         <el-form-item label="Display name" prop="displayName">
           <el-input v-model="member.displayName" />
@@ -433,10 +443,10 @@ onMounted(loadDealers)
         <el-form-item label="Temporary password" prop="password">
           <el-input v-model="member.password" type="password" show-password />
         </el-form-item>
-        <el-button type="primary" @click="bind">Bind staff</el-button>
+        <el-button type="primary" :loading="binding" @click="bind">Bind staff</el-button>
       </el-form>
       <el-table :data="drawerMembers" style="margin-top:20px">
-        <el-table-column prop="entraOid" label="Username" />
+        <el-table-column prop="username" label="Username" />
         <el-table-column prop="displayName" label="Name" />
         <el-table-column label="Status">
           <template #default="{ row }">
@@ -448,7 +458,7 @@ onMounted(loadDealers)
             <el-button
               v-if="staffDealer && row.active"
               link
-              @click="askUnbind(staffDealer.id, row.entraOid)"
+              @click="askUnbind(staffDealer.id, row.username)"
             >Unbind</el-button>
           </template>
         </el-table-column>

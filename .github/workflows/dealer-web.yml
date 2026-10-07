@@ -1,4 +1,4 @@
-# Compile only. Image publish is .github/workflows/publish-ghcr.yml (see deploy/README.md).
+# Compile only. The cloud deploy uploads dist/ to Azure Static Web Apps (deploy/README.md).
 name: dealer-web
 on:
   pull_request:

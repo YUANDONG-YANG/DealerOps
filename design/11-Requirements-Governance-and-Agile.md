@@ -2,8 +2,8 @@
 
 Version v6.0 · 2026-09-21
 
-Business: [DealerOps-Specification.pdf](DealerOps-Specification.pdf)  
-Hard requirements: [Non-Negotiable-Project-Requirements.pptx](Non-Negotiable-Project-Requirements.pptx)
+Business: [DealerOps-Specification.pdf](../requirements/DealerOps-Specification.pdf)  
+Hard requirements: [Non-Negotiable-Project-Requirements.pptx](../tech-stack/Non-Negotiable-Project-Requirements.pptx)
 
 Scope changes need written client/instructor approval. Out of scope: a homemade model SDK, a queue, a second database, work orders, leads, a buyer site. The assistant reuses the existing GitHub library.
 
@@ -12,8 +12,9 @@ Scope changes need written client/instructor approval. Out of scope: a homemade 
 | NN-01 | Four repositories, four pipelines; ai-service can deploy alone | PPT 1 | B/C | S1 |
 | NN-02 | All requests go through the Gateway; direct access fails | PPT 1 | C | S1 |
 | NN-03 | Walk through the diagram in 07 | PPT 1 | All | S1 |
-| NN-04–07 | Runs on Azure; Docker; Bicep; automatic deploy | PPT 2 | B | S2 |
-| NN-08–11 | Entra + JWT; Admin / dealership isolation; no plaintext secrets; HTTPS | PPT 3 | C | S2 |
+| NN-04, NN-06, NN-07 | Runs on Azure; infrastructure as code is `deploy/terraform` (NN-06 allows Terraform); operator-run deploy with compile/validate CI | PPT 2 | B | S2 |
+| ~~NN-05~~ | ~~Containerization~~ — dropped, see [SCOPE-BASELINE.md](SCOPE-BASELINE.md) errata item 5 | PPT 2 | B | — |
+| NN-08–11 | Username/password login + JWT; Admin / dealership isolation; no plaintext secrets; HTTPS | PPT 3 | C | S2 |
 | NN-12 | Open two dealerships and bind people | Spec | C | S3 |
 | NN-13 | DMS fields and sale | Spec | A | S3 |
 | NN-14 | CRM four fields + attach a vehicle | Spec | C | S3 |

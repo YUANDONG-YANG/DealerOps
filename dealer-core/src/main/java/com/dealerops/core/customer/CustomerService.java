@@ -17,11 +17,13 @@ import com.dealerops.core.customer.dto.LinkedVehicleBrief;
 import com.dealerops.core.customer.dto.LinkedVehicleItem;
 import com.dealerops.core.customer.dto.PatchCustomerRequest;
 import com.dealerops.core.security.CurrentUser;
+import com.dealerops.core.dealer.AppRole;
 import com.dealerops.core.vehicle.VehicleEntity;
 import com.dealerops.core.vehicle.VehicleRepository;
 import com.dealerops.core.vehicle.VehicleStatus;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import org.springframework.data.domain.Page;
@@ -50,11 +52,14 @@ public class CustomerService {
 
   @Transactional(readOnly = true)
   public PageResponse<CustomerListItem> list(String q, Boolean linked, int page, int size) {
-    Long tenant = requireTenant();
+    Long tenant = readTenant();
     String query = q == null ? null : q.trim();
     Page<CustomerEntity> result =
-        customerRepository.search(
-            tenant, query, linked, Paging.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt")));
+        tenant == null
+            ? customerRepository.searchAll(
+                query, linked, Paging.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt", "id")))
+            : customerRepository.search(
+                tenant, query, linked, Paging.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt", "id")));
     List<CustomerListItem> items =
         result.getContent().stream().map(customer -> toListItem(customer, tenant)).toList();
     return new PageResponse<>(items, result.getNumber(), result.getSize(), result.getTotalElements());
@@ -63,10 +68,11 @@ public class CustomerService {
   @Transactional
   public CustomerDetail create(CreateCustomerRequest body) {
     Long tenant = requireTenant();
+    String email = normalizeEmail(body.email());
     CustomerEntity customer = new CustomerEntity();
     customer.setDealerId(tenant);
     customer.setName(body.name());
-    customer.setEmail(body.email());
+    customer.setEmail(email);
     customer.setPhone(body.phone());
     customer.setHomeAddress(body.homeAddress());
     customer = customerRepository.save(customer);
@@ -75,15 +81,19 @@ public class CustomerService {
         customer.getId(),
         AuditAction.CREATE.name(),
         tenant,
-        actorOid(),
+        actorUsername(),
         contactFieldChanges(
-            null, null, null, null, body.name(), body.email(), body.phone(), body.homeAddress()));
+            null, null, null, null, body.name(), email, body.phone(), body.homeAddress()));
     return toDetail(customer);
   }
 
   @Transactional(readOnly = true)
   public CustomerDetail get(Long id) {
-    return toDetail(loadThisDealer(id));
+    TenantGuard.requireBusinessAccess();
+    CustomerEntity customer = TenantContext.get().role() == AppRole.PLATFORM_ADMIN
+        ? customerRepository.findById(id).orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND, "Not found"))
+        : loadThisDealer(id);
+    return toDetail(customer);
   }
 
   @Transactional
@@ -93,6 +103,7 @@ public class CustomerService {
     if (!body.version().equals(customer.getVersion())) {
       throw new ApiException(ErrorCode.VERSION_CONFLICT, "Version conflict.");
     }
+    String email = normalizeEmail(body.email());
     Map<String, Object> fieldSummary =
         contactFieldChanges(
             customer.getName(),
@@ -100,11 +111,11 @@ public class CustomerService {
             customer.getPhone(),
             customer.getHomeAddress(),
             body.name(),
-            body.email(),
+            email,
             body.phone(),
             body.homeAddress());
     customer.setName(body.name());
-    customer.setEmail(body.email());
+    customer.setEmail(email);
     customer.setPhone(body.phone());
     customer.setHomeAddress(body.homeAddress());
     customer = customerRepository.save(customer);
@@ -113,7 +124,7 @@ public class CustomerService {
         customer.getId(),
         AuditAction.UPDATE.name(),
         tenant,
-        actorOid(),
+        actorUsername(),
         fieldSummary);
     return toDetail(customer);
   }
@@ -142,7 +153,7 @@ public class CustomerService {
         row.getId(),
         AuditAction.LINK.name(),
         tenant,
-        actorOid(),
+        actorUsername(),
         Map.of("customerId", customer.getId(), "vehicleId", vehicle.getId()));
     return new LinkResponse(row.getId(), row.getCustomerId(), row.getVehicleId(), row.getLinkedAt());
   }
@@ -171,7 +182,7 @@ public class CustomerService {
         entityId,
         AuditAction.UNLINK.name(),
         tenant,
-        actorOid(),
+        actorUsername(),
         Map.of("customerId", customerId, "vehicleId", vehicleId));
   }
 
@@ -182,7 +193,7 @@ public class CustomerService {
     if (!links.isEmpty()) {
       brief =
           vehicleRepository
-              .findByIdAndDealerId(links.get(0).getVehicleId(), tenant)
+              .findById(links.get(0).getVehicleId())
               .map(
                   vehicle ->
                       new LinkedVehicleBrief(
@@ -196,6 +207,7 @@ public class CustomerService {
         customer.getPhone(),
         customer.getHomeAddress(),
         brief,
+        links.size(),
         customer.getVersion());
   }
 
@@ -245,6 +257,10 @@ public class CustomerService {
     return changed;
   }
 
+  private static String normalizeEmail(String email) {
+    return email.trim().toLowerCase(Locale.ROOT);
+  }
+
   private CustomerEntity loadThisDealer(Long id) {
     Long tenant = requireTenant();
     return customerRepository
@@ -257,8 +273,15 @@ public class CustomerService {
     return TenantContext.get().tenantDealerId();
   }
 
-  private static String actorOid() {
+  private static Long readTenant() {
+    TenantGuard.requireBusinessAccess();
+    return TenantContext.get().role() == AppRole.PLATFORM_ADMIN
+        ? null
+        : TenantContext.get().tenantDealerId();
+  }
+
+  private static String actorUsername() {
     CurrentUser user = TenantContext.get();
-    return user == null ? "" : user.oid();
+    return user == null ? "" : user.username();
   }
 }

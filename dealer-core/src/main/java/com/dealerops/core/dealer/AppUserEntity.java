@@ -14,22 +14,16 @@ import org.hibernate.annotations.CreationTimestamp;
 @Entity
 @Table(
     name = "app_user",
-    uniqueConstraints = @UniqueConstraint(name = "uk_user_oid", columnNames = {"entra_tenant_id", "entra_oid"}))
+    uniqueConstraints = @UniqueConstraint(name = "uk_user_username", columnNames = "username"))
 public class AppUserEntity {
-
-  /** Fixed value for {@link #entraTenantId} since S8's 2026-09-30 reversal to local username/password auth. */
-  public static final String LOCAL_TENANT_ID = "local";
 
   @Id
   @GeneratedValue(strategy = GenerationType.IDENTITY)
   @Column(name = "id")
   private Long id;
 
-  @Column(name = "entra_tenant_id", nullable = false, length = 64)
-  private String entraTenantId;
-
-  @Column(name = "entra_oid", nullable = false, length = 64)
-  private String entraOid;
+  @Column(name = "username", nullable = false, length = 64)
+  private String username;
 
   @Column(name = "password_hash", nullable = false, length = 100)
   private String passwordHash;
@@ -55,20 +49,12 @@ public class AppUserEntity {
     return id;
   }
 
-  public String getEntraTenantId() {
-    return entraTenantId;
+  public String getUsername() {
+    return username;
   }
 
-  public void setEntraTenantId(String entraTenantId) {
-    this.entraTenantId = entraTenantId;
-  }
-
-  public String getEntraOid() {
-    return entraOid;
-  }
-
-  public void setEntraOid(String entraOid) {
-    this.entraOid = entraOid;
+  public void setUsername(String username) {
+    this.username = username;
   }
 
   public String getPasswordHash() {

@@ -26,6 +26,7 @@ function summaryText() {
 }
 
 async function ask() {
+  if (loading.value) return
   if (!text.value.trim()) {
     error.value = 'Please enter a question.'
     forbidden.value = false
@@ -83,7 +84,7 @@ function open(card: AssistantCardDto) {
       <el-card>
         <el-input v-model="text" placeholder="Ask a question about this dealership." @keyup.enter="ask">
           <template #append>
-            <el-button @click="ask">Ask</el-button>
+            <el-button :loading="loading" :disabled="loading" @click="ask">Ask</el-button>
           </template>
         </el-input>
       </el-card>

@@ -2,13 +2,13 @@
 
 Version: current (v6) · 2026-09-23  
 Status: fills gaps for the `dealer-core` entity layer and `dealer-gateway` configuration; **not** OpenAPI, **not** a business implementation.  
-**Dealer auth (admin-issued username/password, reversed from Entra 2026-09-30)** is owned here in §8; keep [README.md](../README.md) § Classroom Entra updated to match or remove it if stale.
+**Dealer auth (admin-issued username/password)** is owned here in §8; keep [README.md](../README.md) § Sign-in (admin-issued username/password) consistent with it.
 
 ## Conflict order and SQL baseline
 
 On conflict, decide in this order and **do not reverse it**:
 
-1. Course PPT (independent repos, Gateway, JWT/RBAC, Container Apps, Bicep, HTTPS, Key Vault, real AI) — **except Auth**, where the client specification's username/password wins per [SCOPE-BASELINE.md](SCOPE-BASELINE.md) errata item 1 (reversed 2026-09-30) and §8 below
+1. Course PPT (independent repos, Gateway, JWT/RBAC, Azure hosting, infrastructure as code, HTTPS, Key Vault, real AI) — **except Auth**, where the client specification's username/password wins per [SCOPE-BASELINE.md](SCOPE-BASELINE.md) errata item 1 (reversed 2026-09-30) and §8 below
 2. DealerOps spec PDF fields and enums (do not add or remove columns)
 3. `IMPLEMENTATION-BRIEF.md` / `00`
 4. **This document owns data, tenant, and gateway behavior**; **[14](14-Backend-API-Contract.md) owns HTTP JSON**; **[13](13-Frontend-Engineering.md) owns frontend engineering**
@@ -56,21 +56,21 @@ Entity convention: `Listing.title` / `Listing.body` are non-null Java `String`s 
 
 **Ruling: staff tenant authority is `membership` (the row with `active=1`). `app_user.dealer_id` is only a cache for `GET /me`; write paths must stay in sync with membership and must not be used as the isolation key.**
 
-Column note (since §8's 2026-09-30 reversal): `entra_oid` below holds the **username**, and `entra_tenant_id` is the fixed literal `'local'` for every row — see §8.3. The column names are unchanged from `V1__init.sql` (locked); only their meaning changed from an Entra claim to a local credential.
+Column note: the person identifier is the admin-issued **username** (`app_user.username`, `membership.username`, `audit_event.actor_username`). There is no tenant-id column; see §8.3 for the migration that replaced the original V1 identity columns.
 
 ### 2.1 Division of labor
 
 | Table | Authoritative for | Not authoritative for |
 |---|---|---|
-| JWT `roles` + `oid`/`tid` | whether the user is signed in, Admin vs staff | cannot tell you the dealership ID |
-| `membership` | **whether this dealership may touch business data** | does not replace Entra roles |
+| JWT `roles` + `sub` (username) | whether the user is signed in, Admin vs staff | cannot tell you the dealership ID |
+| `membership` | **whether this dealership may touch business data** | does not replace JWT roles |
 | `app_user` | display name, role cache, `GET /me` `dealerId` | **forbidden** to use `WHERE vehicle.dealer_id = app_user.dealer_id` without checking membership |
 
 Each staff request:
 
 1. Map the JWT to `Dealer.User` (see section 8)
-2. Find `app_user` by `(entra_tenant_id, entra_oid)`
-3. Load **exactly one** `membership.entra_oid = :oid AND active = 1`
+2. Find `app_user` by `username`; no row or `active=0` → **401** `UNAUTHORIZED` (accounts are only created by the admin, never provisioned from a token)
+3. Load **exactly one** `membership.username = :username AND active = 1`
 4. This request `tenantDealerId = membership.dealer_id`
 5. Ignore any `dealerId` in body / query / header
 6. If `app_user.dealer_id` disagrees with membership: membership wins; write back `app_user.dealer_id` (self-heal, not 500)
@@ -83,23 +83,25 @@ Admin:
 ### 2.2 One person, many dealerships?
 
 **Only one `active=1` membership is allowed at a time.**  
-V1 `uk_membership (dealer_id, entra_oid)` **cannot** stop the same oid from hanging on two dealerships; the application layer must:
+V1 `uk_membership (dealer_id, username)` **cannot** stop the same username from hanging on two dealerships; the application layer must:
 
-- `POST .../members`: if that `entraOid` already has an active row at another dealership → `409 DUP_MEMBER` (or unbind first, then bind)
+- `POST .../members`: if that `username` already has an active row at another dealership → `409 DUP_MEMBER` (or unbind first, then bind)
+- `POST .../members`: if that `username` is an existing `Platform.Admin` account → `409 DUP_MEMBER`; never overwrite the admin's role or password
+- The bind locks the existing `app_user` row (`SELECT ... FOR UPDATE`) before the active-membership check, so two concurrent binds of the same account cannot both succeed
 - Do not build a "dealership switcher" in this Sprint
 
-History rows: after unbind, `active=0` may remain for audit; binding the same `(dealer_id, entra_oid)` again reactivates that row — do not insert a second row (unique-key collision).
+History rows: after unbind, `active=0` may remain for audit; binding the same `(dealer_id, username)` again reactivates that row — do not insert a second row (unique-key collision).
 
 ### 2.3 Clearing role after unbind
 
-`DELETE /admin/dealers/{id}/members/{entraOid}`:
+`DELETE /admin/dealers/{id}/members/{username}`:
 
-1. Target row becomes `membership.active=0` (do not delete the Entra account, do not delete the `app_user` row)
+1. Target row becomes `membership.active=0` (do not delete the `app_user` row or its password hash)
 2. `app_user.dealer_id = NULL`
-3. **`app_user.role` stays `Dealer.User`** (the role lives in the Entra App Role; locally you cannot clear the JWT)
+3. **`app_user.role` stays `Dealer.User`** (an already-issued JWT keeps its role until it expires)
 4. `GET /me`: `role=Dealer.User`, `dealerId=null`
 5. After that, business APIs: no active membership → **403** `FORBIDDEN` (signed in but no dealership). **Not** 401, **not** 404 (404 is only for "this id is not in this dealership / cross-dealership id")
-6. Do not change Entra role assignment at unbind time (this course assumes no Graph write permission); if the JWT is still `Dealer.User` but unbound, that is "can enter the post-login empty shell"
+6. If the JWT is still `Dealer.User` but unbound, that is "can enter the post-login empty shell"
 
 Admin operations may write `audit_event`: `entityType=MEMBERSHIP`, `dealerId` may be empty or the unbound dealership.
 
@@ -108,7 +110,7 @@ Admin operations may write `audit_event`: `entityType=MEMBERSHIP`, `dealerId` ma
 | JWT mapped role | active membership | Result |
 |---|---|---|
 | none / cannot map | — | Gateway 401; never reaches core business |
-| `Platform.Admin` | present or absent, ignored | `/api/v1/admin/**` and `/me` only; `dealerId` forced empty |
+| `Platform.Admin` | present or absent, ignored | All `/api/v1/**` routes and `/me`; business reads are cross-dealer. Mutations that create a dealer-owned record still require an explicit dealer context |
 | `Platform.Admin` and `Dealer.User` both present | — | **Admin wins** (when a staff token is accidentally elevated, trust Admin in the token) |
 | `Dealer.User` | exactly 1 active | business allowed; tenant = that row's `dealer_id` |
 | `Dealer.User` | 0 | **403** `FORBIDDEN`, no dealership (same wording as 14) |
@@ -211,7 +213,7 @@ V2__indexes.sql (suggested; not landed in this document)
 Additional suggestions in this document (still V2; may merge with the file above):
 
 ```text
-- KEY idx_membership_oid_active (entra_oid, active)
+- KEY idx_membership_username_active (username, active)
 - KEY idx_listing_dealer (dealer_id)
 - KEY idx_check_listing_ver (listing_id, content_version)
 - KEY idx_audit_dealer (dealer_id)
@@ -244,7 +246,7 @@ function runFixedOmvic(listing, vehicle, dealer) -> { hardBlocks[], softGaps[], 
       return blocked(hard)
 
   // --- price (always) ---
-  hasPrice = match(text, /(?:cad|c\$|\$)\s*\d[\d,]*(?:\.\d{2})?|\d[\d,]*(?:\.\d{2})?\s*(?:cad|dollars?)/i)
+  hasPrice = match(text, /(?:cad|c\$|\$)\s*\d[\d,]*(?:\.\d{2})?|\d[\d,]*(?:\.\d{2})?\s*(?:cad|dollars?)\b/i)
   if !hasPrice:
       hard += PRICE_MISSING
 
@@ -359,12 +361,12 @@ Browser-to-service HTTP **only** goes through `dealer-gateway`. core / ai-servic
 
 | Match | Upstream | Who may call | Failure shape |
 |---|---|---|---|
-| `/api/v1/**` | `CORE_URL` (local `http://host.docker.internal:8081`) | browser and user JWTs obtained via MSAL | missing/bad JWT → 401 |
-| `/swagger-ui.html`, `/swagger-ui/**`, `/v3/api-docs`, `/v3/api-docs/**` | `CORE_URL` | browser with **no JWT** only when `dealerops.jwt.mode` is `dev` and every active Spring profile is local (`dev`, `local`, `test`, or `default`). `JWT_MODE=entra`, or any other profile, **denies** these paths | denied, not the schema |
-| `/internal/v1/**` | `AI_URL` (local `http://host.docker.internal:8082`) | **core only** (see below) | browser → **404** (do not use 401, which would acknowledge the path) |
+| `/api/v1/**` | `CORE_URL` (local `http://localhost:8081`) | browser; `POST /api/v1/auth/login` is anonymous, every other path needs the JWT that login issued, with a mapped role | missing/bad JWT or unmapped role → 401 |
+| `/swagger-ui.html`, `/swagger-ui/**`, `/v3/api-docs`, `/v3/api-docs/**` | `CORE_URL` | browser with **no JWT** only when `dealerops.jwt.mode` is `dev` and every active Spring profile is local (`dev`, `local`, `test`, or `default`). Any other profile **denies** these paths | denied, not the schema |
+| `/internal/v1/**` | `AI_URL` (local `http://localhost:8082`) | **core only** (see below) | browser → **404** (do not use 401, which would acknowledge the path) |
 | other | — | — | 404 |
 
-Swagger UI and its OpenAPI JSON are part of the gateway origin. Anonymous access is only the local classroom case above. `JWT_MODE=entra`, or any active profile other than `dev`, `local`, `test`, or `default`, denies `/swagger-ui.html`, `/swagger-ui/**`, `/v3/api-docs`, and `/v3/api-docs/**`. When that case is open, acceptance uses `http://localhost:8080/swagger-ui/index.html`, or the same path on a public HTTPS gateway. Do not send the browser to core port `8081`. The info description still reads `Published <PUBLISHED_AT>` from dealer-core. Business `/api/v1/**` stays authenticated. The gateway preserves the browser `Host` so Swagger's script and spec URLs stay on the gateway.
+Swagger UI and its OpenAPI JSON are part of the gateway origin. Anonymous access is only the local classroom case above. Any active profile other than `dev`, `local`, `test`, or `default`, denies `/swagger-ui.html`, `/swagger-ui/**`, `/v3/api-docs`, and `/v3/api-docs/**`. When that case is open, acceptance uses `http://localhost:8080/swagger-ui/index.html`, or the same path on a public HTTPS gateway. Do not send the browser to core port `8081`. The info description still reads `Published <PUBLISHED_AT>` from dealer-core. Business `/api/v1/**` stays authenticated. The gateway preserves the browser `Host` so Swagger's script and spec URLs stay on the gateway.
 
 The two internal paths (same as the handbook; this section only defines entry, not OpenAPI bodies):
 
@@ -382,26 +384,39 @@ Do all three; missing one will be torn apart in defense:
 `/api/v1/**` **must not** be forwarded to ai-service.  
 core **must not** be configured with browser-reachable public Ingress.
 
-Gateway responsibility ends here: routing, user-JWT validation, blocking internal, stripping sensitive headers. No business writes, no MySQL, no model SDK.
+Gateway responsibility ends here: routing, user-JWT validation, blocking internal, and rejecting a client-supplied `X-Dealer-Internal` on any non-internal path with **404** (`InternalRouteFilter`; a `RemoveRequestHeader` route filter fails on read-only headers in Spring Cloud Gateway 4.1.5 with Spring Framework 6.1.14). No business writes, no MySQL, no model SDK.
 
 ---
 
 ## 8. Dealer auth (client spec: admin-issued username/password) — product surface, JWT roles
 
-**Reversed (2026-09-30):** this section previously specified Microsoft Entra ID sign-in, following a PPT-hard-requirement errata over the client specification. The developer decided to satisfy the client specification directly instead: `DealerOps-Specification.pdf` §2 ("platform admin... issues login credentials"; "every dealer user signs in with their own username and password") and §8 ("hash and salt passwords server-side"). See [SCOPE-BASELINE.md](SCOPE-BASELINE.md) **Specification errata** item 1 (now marked reversed). This section is the **authoritative dealer-auth design**. Frontend route details stay in [13](13-Frontend-Engineering.md); acceptance scripts stay in [16](16-Acceptance-and-Test.md).
+**Source:** `DealerOps-Specification.pdf` §2 ("platform admin... issues login credentials"; "every dealer user signs in with their own username and password") and §8 ("hash and salt passwords server-side"). See [SCOPE-BASELINE.md](SCOPE-BASELINE.md) **Specification errata** item 1. This section is the **authoritative dealer-auth design**. Frontend route details stay in [13](13-Frontend-Engineering.md); acceptance scripts stay in [16](16-Acceptance-and-Test.md).
 
 ### 8.1 Why this is still not a fifth microservice
 
-Login is one endpoint on `dealer-core` (`POST /api/v1/auth/login`), reusing the JWT issuance/validation machinery already built for the former Entra path (§8.3's `roles[]`-based RBAC, Gateway + core double validation, `TenantFilter`). Only the token **issuer** changes: `dealer-core` signs the token itself after checking a password hash, instead of forwarding a token Entra already signed. No second database, no fifth repo, no fifth pipeline.
+Login is one endpoint on `dealer-core` (`POST /api/v1/auth/login`): it checks the password hash and signs the JWT itself. The gateway and core then validate that token (§8.3's `roles[]`-based RBAC, Gateway + core double validation, `TenantFilter`). No second database, no fifth repo, no fifth pipeline.
+
+### Swagger authentication flow
+
+The local gateway Swagger UI is the browser-facing API test entry point at `/swagger-ui/index.html`; core port `8081` is not a frontend or acceptance URL. The gateway proxies the core-generated OpenAPI document, which declares the `bearerAuth` HTTP Bearer/JWT security scheme for protected public operations. `POST /api/v1/auth/login` is the only anonymous business operation and is marked without a security requirement in OpenAPI.
+
+To test protected APIs in Swagger:
+
+1. Execute `POST /api/v1/auth/login` with the configured local username and password.
+2. Copy the `accessToken` value from the response.
+3. Select **Authorize** in Swagger UI and paste only the token value. Swagger adds the `Bearer` prefix to the `Authorization` header.
+4. Execute the protected `/api/v1/**` operation. The browser calls only the gateway; the gateway and core both validate the token.
+
+Swagger UI and its OpenAPI JSON may be anonymous in the local `JWT_MODE=dev` classroom profile, but that does not make business APIs anonymous. Every public `/api/v1/**` operation except login still requires the token. The internal `/internal/v1/**` AI routes are core-to-AI routes protected by `X-Dealer-Internal`, not user-token endpoints and not browser Swagger operations.
 
 ### 8.2 Product surface (locked)
 
 | Topic | Ruling |
 |---|---|
 | Login route | **One** public page: `/login`. Username + password fields, **Sign in** button. |
-| Identity | `dealer-core` verifies the password and issues an HS256 JWT (existing `JWT_MODE=dev` signing path in [18](18-Backend-Core-Engineering.md), now the **only** mode — `JWT_MODE=entra` and its JWKS client are dead code to remove). |
+| Identity | `dealer-core` verifies the password and issues an HS256 JWT (existing `JWT_MODE=dev` signing path in [18](18-Backend-Core-Engineering.md), now the **only** mode: gateway and core refuse to start unless `JWT_MODE=dev`). |
 | Roles (`roles[]` in the JWT) | Exactly `Platform.Admin` and `Dealer.User`, same as before. |
-| Issuing access | Per spec §2, **only the platform admin** creates dealer businesses and issues each staff login (username + a temporary password the admin sets and communicates out of band). Staff cannot self-register (matches spec "Dealer users cannot create or remove logins"). Admin on `/admin` **creates** a staff credential (`POST .../members` with `username`, `tempPassword`) bound to a dealership; that creates/reactivates `membership` and `app_user`, same flow as the old "bind," except it also sets `password_hash`. |
+| Issuing access | Per spec §2, **only the platform admin** creates dealer businesses and issues each staff login (username + a temporary password the admin sets and communicates out of band). Staff cannot self-register (matches spec "Dealer users cannot create or remove logins"). Admin on `/admin` **creates** a staff credential (`POST .../members` with `username`, `displayName`, and the temporary `password`; see [14](14-Backend-API-Contract.md) §3.6) bound to a dealership; that creates/reactivates `membership` and `app_user`, same flow as the old "bind," except it also sets `password_hash`. |
 | Revoking access | **Unbind** = soft deactivate: `membership.active=0`, `app_user.dealer_id=NULL`; keep the `app_user` row and its password hash (see §2.3), consistent with "do not delete the account." |
 | Post-sign-in landings | Unchanged: **`Platform.Admin` → `/admin`**; **`Dealer.User` with `dealerId` set → `/dms`**; **signed-in but unbound → `/` no-access shell**. |
 
@@ -410,8 +425,19 @@ Role guards and redirect rules: [13](13-Frontend-Engineering.md) § routes / gua
 ### 8.3 Password storage and JWT issuance (locked)
 
 - **Password hashing:** BCrypt (Spring Security `BCryptPasswordEncoder`), never plaintext, never logged. This satisfies the client spec's own §8 production note ("hash and salt passwords server-side") without adding a new dependency — `dealer-core` already depends on `spring-boot-starter-security`.
-- **Schema:** `V1__init.sql` stays unchanged (locked). A new migration `V20260930_1__add_password_hash.sql` adds `app_user.password_hash VARCHAR(100) NOT NULL`. The existing `entra_oid` column is repurposed to hold the **username** (unique per `entra_tenant_id`); `entra_tenant_id` is fixed to the literal `'local'` for every row so the existing `uk_user_oid (entra_tenant_id, entra_oid)` unique key still enforces "one username, one account." `membership.entra_oid` likewise holds the username. Column names stay as V1 defined them (renaming a locked-migration column is not allowed); new code reads them as "user identifier," not as an Entra claim.
-- **Token issuance:** `POST /api/v1/auth/login` takes `{username, password}`, loads `app_user` by `(entra_tenant_id='local', entra_oid=username)`, verifies the BCrypt hash, then issues the same HS256 JWT shape the old Entra path produced: `roles: [app_user.role]`, `oid: app_user.entra_oid` (the username), `tid: 'local'`, `name: app_user.display_name`. Gateway and core validate it exactly as they validated the local HS256 token in the old `JWT_MODE=dev` path — no change to `TenantFilter` or role mapping.
+- **Schema:** identity columns are defined in `V1__init.sql`: `app_user.username` (unique key `uk_user_username`), `membership.username` (`uk_membership (dealer_id, username)`), `audit_event.actor_username`. Later migrations change the schema forward.
+  - `V20260930_1__add_password_hash.sql` adds `app_user.password_hash VARCHAR(100) NOT NULL`.
+  - `V20261007_2__widen_customer_email.sql` widens `customer.email` to `VARCHAR(254)`.
+  - **One-time history repair (2026-10-07).** `V1__init.sql` and `V20260930_1` were rewritten once to define the username columns directly, and the separate rename script `V20261007_1` was removed. A database that already ran the old scripts already has the final schema; only its Flyway history must be realigned, or dealer-core fails Flyway validation at startup. Run once per such database (local, shared development, Azure):
+
+    ```sql
+    UPDATE flyway_schema_history SET checksum = -1940675249 WHERE version = '1';
+    UPDATE flyway_schema_history SET checksum = -181900521 WHERE version = '20260930.1';
+    DELETE FROM flyway_schema_history WHERE version = '20261007.1';
+    ```
+
+    A new, empty database needs nothing: Flyway builds it from the current scripts.
+- **Token issuance:** `POST /api/v1/auth/login` takes `{username, password}`, loads `app_user` by `username`, verifies the BCrypt hash, then issues an HS256 JWT: `sub: app_user.username`, `name: app_user.display_name`, `roles: [app_user.role]`. There are no `oid` or `tid` claims. `TenantFilter` reads the identity from `sub`; role mapping is unchanged. API fields follow the column names: `username` in `/me`, members, and the member path; `actorUsername` in audit items.
 
 ```
 function mapRole(claims):
@@ -421,17 +447,16 @@ function mapRole(claims):
   return NONE          // Gateway 401, or 403 everywhere except core /me
 ```
 
-- **Secret:** the JWT signing secret (`DEV_JWT_SECRET`, ≥32 UTF-8 bytes) becomes the one and only signing secret for every environment, not a classroom-only fallback. Generate a real secret per environment (local `.env`, VM `.env`, future Container Apps Key Vault secret `JWT-SIGNING-SECRET`); do not ship the committed placeholder `dealer-dev-jwt-secret-change-me` past local development.
+- **Secret:** the JWT signing secret (`DEV_JWT_SECRET`, ≥32 UTF-8 bytes) becomes the one and only signing secret for every environment, not a classroom-only fallback. Generate a real secret per environment (local `.env` or run configuration, and the Azure Key Vault secret `JWT-SIGNING-SECRET` created by `deploy/terraform`); do not ship the committed placeholder `dealer-dev-jwt-secret-change-me` past local development.
 
 ### 8.4 Env wiring
 
 | Variable | Where | Notes |
 |---|---|---|
-| `JWT_SIGNING_SECRET` (replaces `DEV_JWT_SECRET` as the real-environment name) | `dealer-platform/.env` (compose → gateway + core) | ≥32 UTF-8 bytes; unique per environment, never committed |
-| `VITE_*_ENTRA_*` | removed from `dealer-web/.env` | no longer read; MSAL.js dependency removed from `dealer-web/package.json` |
-| `ENTRA_ISSUER` / `ENTRA_AUDIENCE` / `ENTRA_JWKS_URI` | removed from gateway/core config | Entra JWKS validation path deleted as dead code |
+| `DEV_JWT_SECRET` (the only signing-secret variable in every environment) | Local: the gateway and core run configurations. Cloud: app setting referencing Key Vault `JWT-SIGNING-SECRET` | ≥32 UTF-8 bytes; unique per environment, never committed |
+| `ADMIN_USERNAME` / `ADMIN_PASSWORD` | dealer-core only. Local: run configuration. Cloud: app setting; the password references Key Vault `ADMIN-PASSWORD` | Seeds the platform admin account on first startup (no self-registration); no-op once that username exists |
 
-No App Registration, no tenant, no Microsoft account of any kind is part of this auth path anymore. [design/15-Data-Auth-and-Gateway.md] §8.5/§8.6 (personal-Microsoft-account sign-in, MFA policy) are historical — superseded by this section, kept in git history, not repeated here.
+No external identity provider, app registration, or Microsoft account is part of this auth path.
 
 ---
 
@@ -457,38 +482,57 @@ One defense sentence: the proposal's async was scope creep; this course uses syn
 
 | Process | Port | Browser |
 |---|---|---|
-| dealer-web (Vite) | 5173 | static only + Entra redirect |
+| dealer-web (Vite) | 5173 | static only; login posts to the gateway |
 | dealer-gateway | **8080** (`GATEWAY_PORT`) | **sole API origin**, `VITE_GATEWAY_URL=http://localhost:8080` |
 | dealer-core | **8081** (`CORE_PORT`) | must fail |
 | ai-service | **8082** (`AI_PORT`) | must fail |
 | MySQL | 3306 | not for the browser |
 
-Existing `dealer-platform/docker-compose.yml` has **MySQL only**. After the four services join compose: map Gateway 8080; **do not** map core/ai to `0.0.0.0` for the whole class to scan (if a local demo needs curl, bind `127.0.0.1:8081` only — that still counts as "browser cross-origin fail").
+There is no orchestrator locally: each process is started by hand. Gateway binds `0.0.0.0:8080`; core and ai set `SERVER_ADDRESS=127.0.0.1` so they are **not** on `0.0.0.0` for the whole class to scan. Loopback-only still counts as "browser cross-origin fail".
 
 ### 10.2 Configuration principles (demo-able in Sprint 1)
 
 1. core / ai **do not** configure CORS for `http://localhost:5173`. Browser `fetch('http://localhost:8081/api/v1/vehicles')` from the page → browser blocks (no ACAO).
 2. The same request via `http://localhost:8080/api/v1/vehicles` + Bearer → 200 or a business error.
-3. Azure: core / ai-service Ingress is **internal** (Container Apps environment only); public FQDNs are web + gateway only.
+3. Azure: `dealerops-core` and `dealerops-ai` set `ip_restriction_default_action = "Deny"` and allow only the `AzureCloud` service tag (`deploy/terraform/main.tf`), so `dealerops-gateway` reaches them and a browser on the public internet is refused by the platform before the request reaches the JVM. The usable public origins are the Static Web App and `dealerops-gateway` only. This is coarser than a private ingress — any Azure-hosted caller passes the network rule — so `X-Dealer-Internal` and the JWT checks remain the real authorization, exactly as they are locally.
 4. Classroom backup: if `curl` 8081 still works, show "no CORS / no public DNS / needs intranet" and stress that **the product entry is not 8081**. Do not rely on "firewall off but we forgot" as the only evidence.
 
 ---
 
-## 11. Minimal Azure resource list and current Bicep gaps
+## 11. Minimal Azure resource list
 
-Minimum set required by 07 (one demo resource group):
+Minimum set required by 07 (one demo resource group), written as Terraform in `deploy/terraform`:
 
-| Resource | Count | Status (`dealer-platform/infra/main.bicep`) |
+| Resource | Count | Role |
 |---|---|---|
-| Azure Container Registry | 1 (Basic, admin off) | **placeholder exists** |
-| Container Apps Environment | 1 | **not written** |
-| Container Apps | **4**: web, gateway, core, ai-service | **not written** |
-| MySQL Flexible Server | 1 database `dealer_core`, private network | **not written** |
-| Key Vault | 1 | **not written** |
-| Application Insights | 1 | **not written** |
-| User-assigned or system-assigned identity | pull ACR, read KV | **not written** |
+| App Service plan (Linux, `B2`) | 1 | Hosts the three Java apps |
+| Linux Web App, Java 21 SE | **3**: gateway, core, ai | `az webapp deploy --type jar`. No image, no registry |
+| Static Web App (Free) | 1 | The built SPA |
+| MySQL Flexible Server | 1, database `dealer_core`, TLS required | Flyway in core owns the schema |
+| Key Vault | 1 | `INTERNAL-TOKEN`, `MYSQL-PASSWORD`, `JWT-SIGNING-SECRET`, optional `AIMANAGER-API-KEY` and `ADMIN-PASSWORD` |
+| User-assigned identity | 1 | Resolves the Key Vault references in app settings |
+| Log Analytics + Application Insights | 1 each | Logs and telemetry |
 
-**Do not pretend Bicep is already complete.** The implementation group fills the same `main.bicep` by Sprint; this document only lists what must be added. Do not write subscriptionId or secret plaintext in Bicep.
+There is **no container registry**: containers were removed from this project ([SCOPE-BASELINE.md](SCOPE-BASELINE.md) errata item 5). **Nothing in `deploy/terraform` is live until an operator runs `terraform apply`** — do not present the files as a deployed environment. Do not write a subscription id, `terraform.tfvars`, or `terraform.tfstate` into Git.
+
+### Shared development database
+
+**Ruling: the team may move the development database off the local container onto one shared hosted MySQL. The engine stays MySQL 8. Nothing else changes.**
+
+`dealer-core` reads every datasource value from the environment (`application.yml`: `MYSQL_URL`, `MYSQL_USER`, `MYSQL_PASSWORD`). Pointing at a hosted server is therefore an environment change: no Java change, no entity change, no new migration. Flyway still owns the schema, so `V1__init.sql` plus the dated scripts build the shared database exactly as they build the local one.
+
+Connection string difference: a hosted server requires TLS, so the local `useSSL=false&allowPublicKeyRetrieval=true` pair is replaced by `sslMode=REQUIRED` (see `dealer-platform/env.example`). This is the same JDBC URL shape `deploy/terraform` writes into the `dealerops-core` app settings. The local MySQL server is then unused and can be stopped.
+
+Host choice: prefer **Azure Database for MySQL Flexible Server**, the same resource the table above lists and `deploy/terraform` creates, so development and the graded deploy share one engine and one driver. Do not pick a "MySQL-compatible" store that does not enforce foreign keys: `V1__init.sql` defines nine tables whose tenant isolation rests on `FOREIGN KEY ... REFERENCES dealer(id)`, and `ddl-auto: validate` will not catch a silently ignored constraint.
+
+Rules for a shared instance:
+
+- **One Flyway history for the whole team.** A migration merged to `main` reaches everyone's next startup. A script that drops or rewrites data is not a local experiment any more; land schema changes the same way as code.
+- **Credentials never enter Git.** Host, user, and password live in each member's local `.env` and, for cloud, in Key Vault as `MYSQL-PASSWORD` (core only, per the table below).
+- **Not public.** Firewall the server to the team's addresses plus the App Service egress — in `deploy/terraform` that is `operator_ip_addresses` plus the Azure services rule. The "MySQL is not public" constraint below applies to the development instance too.
+- **Shared dev data is not demo data.** Seed the graded demo from a known state; do not rely on whatever the team left in the shared schema.
+
+**Why not Firestore / Firebase, or any document store.** Rejected, consistent with §9. Three reasons: (1) the single-commit ruling in §9 — locking sale fields, incrementing `contentVersion`, and writing `audit_event` in one transaction — has no equivalent across document collections, and §9 already rules out an outbox; (2) the browser never reaches the database directly in this architecture (§10), so `dealer-core` would hold the Admin SDK credential, which bypasses security rules and leaves tenancy entirely in application code; (3) it would delete the JPA and Flyway layer that `V1__init.sql` and the `V{YYYYMMDD}_{n}__` convention are built on, for no behavior the course requires. "A cloud database" is a hosting question, and hosted MySQL answers it.
 
 ### Who holds which key / secret
 
@@ -497,28 +541,27 @@ Minimum set required by 07 (one demo resource group):
 | `AIMANAGER-API-KEY` | **ai-service only** | web / gateway / core |
 | `MYSQL-PASSWORD` (or connection string) | **core only** | everyone else |
 | `INTERNAL-TOKEN` (Gateway↔AI) | gateway + **core** (outbound) + ai-service | web |
-| Entra `client secret` | **do not create** (SPA + PKCE) | — |
-| `VITE_ENTRA_CLIENT_ID` / tenant | web build parameters, **not** secrets; may go in pipeline variables | do not put the API Key in the frontend |
+| `JWT-SIGNING-SECRET` (app setting `DEV_JWT_SECRET`) | gateway + core | web, ai-service |
+| `ADMIN-PASSWORD` (optional first-admin seed, app setting `ADMIN_PASSWORD`) | core | everyone else |
 
-Platform disk encryption may use defaults. MySQL is not public (if the course subscription cannot do VNet, at least firewall only the Container Apps egress and state the limit in Review).
+Platform disk encryption may use defaults. MySQL is not open to the internet: the course stack has no VNet, so the firewall admits only Azure services plus named operator addresses, and TLS is required. State that limit in Review.
 
-### What each Sprint should add (Bicep / pipeline)
+### What each Sprint should add (Terraform / pipeline)
 
 **Sprint 1 (pass the NN architecture oral; may stay local):**
 
-- Keep the ACR placeholder
-- Explain the four images, Gateway, two Entra roles, and direct-core failure
+- Explain the four apps, the Gateway, the two roles, and direct-core failure
 - Do not force a subscription just for Review 1
 
 **Sprint 2 (real cloud path; must add):**
 
-- Key Vault + access policy / RBAC
-- MySQL Flexible Server + database + core-only identity connection
-- Container Apps Environment
-- Four Container Apps: env vars via KV references; core/ai **internal ingress**; gateway/web **external + HTTPS**
+- `terraform apply` run against a real subscription, with the state held by one operator
+- Key Vault + access policy, and every secret reaching an app as a Key Vault reference, never as an app-setting value
+- MySQL Flexible Server + database + core-only credentials
+- Three Linux Web Apps plus the Static Web App: core and ai denied to everything but Azure-internal callers, gateway and web public over HTTPS
 - Application Insights (gateway + core first is acceptable)
-- Per-repo pipeline: compile → image tag=SHA → push ACR → deploy **that** app
-- Demo release needs human approval; do not hand-click portal image changes and call it a pipeline
+- Per-repo pipeline: compile and test. Release is the documented operator commands, not a CI job
+- Demo release needs human approval; do not hand-click portal changes and call it a pipeline
 
 **Sprint 3:** do not add a bus/second database; finish isolation, CRM, three ad kinds, export, and audit.
 
@@ -553,15 +596,15 @@ The handbook allows "align with ai-manager on 17" only as a fallback when the ma
 
 ### HTTPS
 
-- On Azure, gateway / web must be HTTPS (Container Apps default certificates are fine).
+- On Azure, gateway / web must be HTTPS (the default App Service and Static Web Apps certificates are fine; `https_only` is set in Terraform).
 - Local HTTP is localhost only; Review 2 must not treat "local HTTP" as a cloud security item.
-- Cookies are not this course's approach; tokens live in memory / MSAL and travel as `Authorization: Bearer`.
+- Cookies are not this course's approach; the SPA keeps the login `accessToken` in `sessionStorage` and sends it as `Authorization: Bearer`.
 
 ### Key Vault reference principles
 
-- The repo has only empty `env.example` values and Bicep parameter names. `.env`, real connection strings, and `AIMANAGER_API_KEY` **do not enter Git**.
-- Container Apps use `secretRef` → KV; do not write secret `value:` plaintext in Bicep.
-- Chat, boards, and screenshots are redacted. Rotating a key = change KV only, not the image.
+- The repo has only empty `env.example` values and Terraform variable names. `.env`, `terraform.tfvars`, `terraform.tfstate`, real connection strings, and `AIMANAGER_API_KEY` **do not enter Git**.
+- App settings use `@Microsoft.KeyVault(SecretUri=...)` resolved through the user-assigned identity; do not write a secret value into an app setting or a `.tf` file.
+- Chat, boards, and screenshots are redacted. Rotating a key = change the Key Vault secret only; no rebuild and no redeploy.
 - Flyway uses the core data-plane account; do not put a subscription Owner key into the app.
 
 ---

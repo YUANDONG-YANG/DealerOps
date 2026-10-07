@@ -29,11 +29,11 @@ Twelve findings: 1 high, 8 medium, 3 low.
 - Evidence: On `dealer-core`, a JWT whose `roles` contain neither `Platform.Admin` nor `Dealer.User` is forbidden except `GET /api/v1/me`. That `/me` path falls through to `upsertAppUser` with a null JWT role. When the `app_user` row has no role yet, the filter writes `AppRole.DEALER_USER` and leaves `dealer_id` null. Later authorization still uses the JWT, so this write does not by itself open business APIs. The gateway returns 401 for the same unmapped token on every `/api/v1` path, including `/me`, so the write happens when a client reaches core directly.
 - Direction: Persist a role only when `JwtRoleMapper` returns one. Leave an unmapped token unmapped in `app_user` (or skip the upsert) on the `/me` path.
 
-### B-03 Entra JWT helpers are copied between core and gateway
+### B-03 JWT helpers are copied between core and gateway
 - Severity: medium
 - Category: duplication
-- Location: `dealer-core/src/main/java/com/dealerops/core/security/EntraJwtSupport.java` lines 15-94 and `dealer-gateway/src/main/java/ca/sait/dealerops/gateway/security/EntraJwtSupport.java` lines 15-94; `dealer-core/src/main/java/com/dealerops/core/config/JwtDecoderConfig.java` lines 19-61 and `dealer-gateway/src/main/java/ca/sait/dealerops/gateway/config/JwtDecoderConfig.java` lines 20-62; `dealer-core/src/main/java/com/dealerops/core/security/JwtRoleMapper.java` lines 12-24 and `dealer-gateway/src/main/java/ca/sait/dealerops/gateway/security/JwtRoleMapper.java` lines 11-24
-- Evidence: The two `EntraJwtSupport` classes match, including issuer checks, JWKS URL rewriting, HS256 key padding, and audience validation. Both `JwtDecoderConfig` classes branch the same way (`useEntraJwks`, placeholder-issuer failure, dev HMAC decoder); only the decoder type differs (`JwtDecoder` vs `ReactiveJwtDecoder`). Both `JwtRoleMapper` classes scan `roles` for `Platform.Admin` then `Dealer.User` and return null otherwise. A fix in one module does not apply to the other.
+- Location: `dealer-core/src/main/java/com/dealerops/core/security/JwtSupport.java` lines 15-94 and `dealer-gateway/src/main/java/ca/sait/dealerops/gateway/security/JwtSupport.java` lines 15-94; `dealer-core/src/main/java/com/dealerops/core/config/JwtDecoderConfig.java` lines 19-61 and `dealer-gateway/src/main/java/ca/sait/dealerops/gateway/config/JwtDecoderConfig.java` lines 20-62; `dealer-core/src/main/java/com/dealerops/core/security/JwtRoleMapper.java` lines 12-24 and `dealer-gateway/src/main/java/ca/sait/dealerops/gateway/security/JwtRoleMapper.java` lines 11-24
+- Evidence: The two `JwtSupport` classes match, including issuer checks, JWKS URL rewriting, HS256 key padding, and audience validation. Both `JwtDecoderConfig` classes branch the same way (the earlier JWKS-mode flag, placeholder-issuer failure, dev HMAC decoder); only the decoder type differs (`JwtDecoder` vs `ReactiveJwtDecoder`). Both `JwtRoleMapper` classes scan `roles` for `Platform.Admin` then `Dealer.User` and return null otherwise. A fix in one module does not apply to the other.
 - Direction: Put the shared issuer, audience, HMAC, and role-name rules in one small library both modules depend on. Keep the reactive vs servlet decoder beans in each module, calling that library.
 
 ### B-04 Gateway CORS is configured twice
@@ -47,14 +47,14 @@ Twelve findings: 1 high, 8 medium, 3 low.
 - Severity: medium
 - Category: dead-code
 - Location: `dealer-core/src/main/java/com/dealerops/core/dealer/MembershipRepository.java` lines 17-21; `dealer-core/src/main/java/com/dealerops/core/dealer/MembershipService.java` lines 43-57
-- Evidence: `findByDealerIdAndEntraOidContainingIgnoreCase` has no callers in main or test Java. `list` calls `findByDealerId(dealerId, Pageable.unpaged())`, sorts and filters in memory (`matches` on display name and oid, lines 139-147), then slices with `subList`. The repository already exposes a pageable dealer query, and `Paging` already caps page size, but this path bypasses both.
+- Evidence: `findByDealerIdAndUsernameContainingIgnoreCase` has no callers in main or test Java. `list` calls `findByDealerId(dealerId, Pageable.unpaged())`, sorts and filters in memory (`matches` on display name and user identifier, lines 139-147), then slices with `subList`. The repository already exposes a pageable dealer query, and `Paging` already caps page size, but this path bypasses both.
 - Direction: Delete the unused finder or use a pageable query that applies `q` in the database, and return that page through `Paging`.
 
 ### B-06 Tenant and actor lookups are copied into each service
 - Severity: medium
 - Category: duplication
 - Location: `dealer-core/src/main/java/com/dealerops/core/vehicle/VehicleService.java` lines 198-206; `dealer-core/src/main/java/com/dealerops/core/customer/CustomerService.java` lines 215-223; `dealer-core/src/main/java/com/dealerops/core/listing/ListingService.java` lines 194-197; `dealer-core/src/main/java/com/dealerops/core/compliance/ComplianceCheckService.java` lines 207-210; `dealer-core/src/main/java/com/dealerops/core/dealer/DealerAdminService.java` lines 122-125; `dealer-core/src/main/java/com/dealerops/core/dealer/MembershipService.java` lines 158-166
-- Evidence: `requireTenant()` is the same pair of calls in vehicle, customer, listing, and compliance (`TenantGuard.requireDealerUser()` then `TenantContext.get().tenantDealerId()`). `actorOid()` is the same null-safe `CurrentUser.oid()` read in vehicle, customer, dealer admin, and membership. `MembershipService.currentTid()` is the same pattern for `tid`.
+- Evidence: `requireTenant()` is the same pair of calls in vehicle, customer, listing, and compliance (`TenantGuard.requireDealerUser()` then `TenantContext.get().tenantDealerId()`). `actorUsername()` is the same null-safe current-user identifier read in vehicle, customer, dealer admin, and membership. `MembershipService.currentTid()` is the same pattern for `tid`.
 - Direction: Add those accessors once on `TenantGuard` or `CurrentUser` and call them from the services. Leave role checks in `TenantGuard`.
 
 ### B-07 Last-check ownership is implemented twice

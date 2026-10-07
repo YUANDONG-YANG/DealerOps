@@ -10,7 +10,6 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.manager.AiManager;
 import com.manager.core.AIResponse;
-import com.manager.session.Conversation;
 import java.util.UUID;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
@@ -36,9 +35,13 @@ public class AssistantAdapter {
     String conversationId = UUID.randomUUID().toString();
     AiManager mgr = factory.create();
     try {
-      Conversation conversation = mgr.startConversation(conversationId, SystemPrompts.ASSISTANT);
       String userJson = toJson(req);
-      AIResponse response = timedModelCall.request(() -> conversation.request(userJson).send());
+      AIResponse response =
+          timedModelCall.request(
+              () ->
+                  mgr.startConversation(conversationId, SystemPrompts.ASSISTANT)
+                      .request(userJson)
+                      .send());
       if (response == null || !response.isSuccess() || !StringUtils.hasText(response.getContent())) {
         throw ModelFailureException.providerFailed();
       }

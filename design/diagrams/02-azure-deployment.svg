@@ -1,0 +1,110 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1140 700" width="1140" height="700" role="img"
+     aria-label="DealerOps release path: a push to main runs compile, test and terraform validate in GitHub Actions, which holds no Azure credentials and never deploys; an operator runs terraform apply and deploy-apps.sh, which create the resource group and upload three JARs and the SPA bundle; secrets stay in Key Vault and are read by the apps through a user-assigned identity.">
+  <rect x="0" y="0" width="1140" height="700" fill="#ffffff"/>
+  <defs>
+    <marker id="ink" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0,0 L10,5 L0,10 Z" fill="#334155"/>
+    </marker>
+    <marker id="blue" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0,0 L10,5 L0,10 Z" fill="#1d4ed8"/>
+    </marker>
+    <marker id="amber" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0,0 L10,5 L0,10 Z" fill="#b45309"/>
+    </marker>
+  </defs>
+
+  <g font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif">
+    <text x="40" y="30" font-size="17" font-weight="700" fill="#0f172a">DealerOps — Azure deployment and release path</text>
+
+    <!-- source and CI -->
+    <rect x="40" y="80" width="220" height="56" rx="8" fill="#ffffff" stroke="#334155" stroke-width="1.5"/>
+    <text x="150" y="104" font-size="13" font-weight="700" fill="#0f172a" text-anchor="middle">GitHub — DealerOps</text>
+    <text x="150" y="122" font-size="11" fill="#475569" text-anchor="middle">four apps · one branch: main</text>
+
+    <rect x="380" y="70" width="330" height="76" rx="8" fill="#ffffff" stroke="#334155" stroke-width="1.5"/>
+    <text x="545" y="94" font-size="13" font-weight="700" fill="#0f172a" text-anchor="middle">GitHub Actions</text>
+    <text x="545" y="112" font-size="11" fill="#475569" text-anchor="middle">compile · unit tests · Testcontainers ITs</text>
+    <text x="545" y="129" font-size="11" fill="#475569" text-anchor="middle">terraform fmt -check · terraform validate</text>
+
+    <!-- operator -->
+    <rect x="40" y="196" width="330" height="86" rx="8" fill="#fffbeb" stroke="#b45309" stroke-width="1.8"/>
+    <text x="205" y="220" font-size="13" font-weight="700" fill="#7c2d12" text-anchor="middle">Operator machine</text>
+    <text x="205" y="238" font-size="11" fill="#92400e" text-anchor="middle">az login · terraform · maven · npm</text>
+    <text x="205" y="255" font-size="11" fill="#92400e" text-anchor="middle">holds terraform.tfstate and terraform.tfvars</text>
+    <text x="205" y="272" font-size="11" fill="#92400e" text-anchor="middle">the only path that reaches Azure</text>
+
+    <!-- azure resource group -->
+    <rect x="40" y="336" width="1060" height="324" rx="12" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1.5" stroke-dasharray="6 5"/>
+    <text x="1084" y="356" font-size="10.5" font-weight="700" fill="#64748b" text-anchor="end" letter-spacing="0.8">AZURE RESOURCE GROUP · dealerops-rg</text>
+
+    <rect x="68" y="380" width="600" height="190" rx="10" fill="#ffffff" stroke="#94a3b8" stroke-width="1.4" stroke-dasharray="5 4"/>
+    <text x="88" y="400" font-size="10.5" font-weight="700" fill="#64748b" letter-spacing="0.6">APP SERVICE PLAN · dealerops-plan · LINUX B2</text>
+
+    <g stroke="#334155" stroke-width="1.5" fill="#ffffff">
+      <rect x="92" y="412" width="552" height="44" rx="7"/>
+      <rect x="92" y="466" width="552" height="44" rx="7"/>
+      <rect x="92" y="520" width="552" height="44" rx="7"/>
+    </g>
+    <g font-size="12.5" font-weight="700" fill="#0f172a">
+      <text x="108" y="440">dealerops-gateway</text>
+      <text x="108" y="494">dealerops-core</text>
+      <text x="108" y="548">dealerops-ai</text>
+    </g>
+    <g font-size="11" fill="#475569" text-anchor="end">
+      <text x="628" y="440">Java 21 SE · JAR · public HTTPS · only API origin</text>
+      <text x="628" y="494">Java 21 SE · JAR · deny by default</text>
+      <text x="628" y="548">Java 21 SE · JAR · deny by default</text>
+    </g>
+
+    <g stroke="#334155" stroke-width="1.5" fill="#ffffff">
+      <rect x="760" y="380" width="312" height="52" rx="7"/>
+      <rect x="760" y="448" width="312" height="52" rx="7"/>
+      <rect x="760" y="516" width="312" height="52" rx="7"/>
+    </g>
+    <g font-size="12.5" font-weight="700" fill="#0f172a" text-anchor="middle">
+      <text x="916" y="402">dealerops-web — Static Web App</text>
+      <text x="916" y="470">dealerops-kv — Key Vault</text>
+      <text x="916" y="538">dealerops-mysql — Flexible Server</text>
+    </g>
+    <g font-size="11" fill="#475569" text-anchor="middle">
+      <text x="916" y="420">dist/ upload · Free tier · public HTTPS</text>
+      <text x="916" y="488">read via dealerops-uai, never inlined</text>
+      <text x="916" y="556">reached by dealerops-core · TLS required</text>
+    </g>
+
+    <rect x="68" y="592" width="600" height="48" rx="7" fill="#eff6ff" stroke="#1d4ed8" stroke-width="1.5"/>
+    <text x="368" y="612" font-size="12" font-weight="700" fill="#1e3a8a" text-anchor="middle">dealerops-uai — user-assigned identity</text>
+    <text x="368" y="629" font-size="11" fill="#1e40af" text-anchor="middle">the one principal with Key Vault get/list</text>
+
+    <rect x="760" y="592" width="312" height="48" rx="7" fill="#ffffff" stroke="#334155" stroke-width="1.5"/>
+    <text x="916" y="612" font-size="12" font-weight="700" fill="#0f172a" text-anchor="middle">dealerops-appi · dealerops-logs</text>
+    <text x="916" y="629" font-size="11" fill="#475569" text-anchor="middle">telemetry from all three apps</text>
+
+    <!-- flows -->
+    <g fill="none" stroke="#334155" stroke-width="1.6" marker-end="url(#ink)">
+      <line x1="260" y1="108" x2="374" y2="108"/>
+    </g>
+    <text x="317" y="98" font-size="11" fill="#334155" text-anchor="middle">push to main</text>
+
+    <g stroke="#b91c1c" stroke-width="1.8" fill="none">
+      <line x1="710" y1="108" x2="784" y2="108" stroke-dasharray="5 4"/>
+      <line x1="788" y1="100" x2="804" y2="116"/>
+      <line x1="804" y1="100" x2="788" y2="116"/>
+    </g>
+    <text x="816" y="104" font-size="11" fill="#b91c1c">CI holds no Azure credentials</text>
+    <text x="816" y="119" font-size="11" fill="#b91c1c">and never deploys</text>
+
+    <g fill="none" stroke="#b45309" stroke-width="2" marker-end="url(#amber)">
+      <line x1="120" y1="282" x2="120" y2="330"/>
+    </g>
+    <g font-size="11.5" fill="#92400e">
+      <text x="136" y="300">1 · terraform apply — creates and updates every resource below</text>
+      <text x="136" y="318">2 · deploy-apps.sh — uploads three JARs and the SPA bundle</text>
+    </g>
+
+    <g fill="none" stroke="#1d4ed8" stroke-width="1.8" marker-end="url(#blue)">
+      <line x1="754" y1="474" x2="650" y2="474"/>
+      <polyline points="644,490 712,490 712,542 754,542"/>
+    </g>
+  </g>
+</svg>

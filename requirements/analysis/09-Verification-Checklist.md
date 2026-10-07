@@ -31,7 +31,7 @@ Fill in the **Verdict** column: `Confirmed` / `Rejected` / `Partly` + a note.
 
 | ID | Claim | Spec | Evidence | What to look for | Verdict |
 |---|---|---|---|---|---|
-| B1–B3 | Entra, Ready + TXT, Assistant page are signed errata | PDF §2, §5, §7 | `design/SCOPE-BASELINE.md:64–68` | Three numbered errata. | |
+| B1–B3 | Earlier external sign-in plan, Ready + TXT, Assistant page are signed errata | PDF §2, §5, §7 | `design/SCOPE-BASELINE.md:64–68` | Three numbered errata. | |
 | B4 | Several "always required" disclosures are soft only, and this is **not** in the signed errata | PDF §5 lists | `design/AI-PROTOCOL-AND-RULES.md:310–327` vs `design/SCOPE-BASELINE.md:64–68` | C.0a lists year, new/used, warranty, prior use, finance term, cost of borrowing, lease term/rent/down as soft. SCOPE-BASELINE has only errata 1–3. | |
 | B5 | Broadcast exemption waives proximity only; APR is still hard | PDF §5 "Exception: radio, TV and billboard ads are exempt from displaying these alongside the rate" | `design/15-Data-Auth-and-Gateway.md:298` onward · `design/17-Ad-Check-Fixtures.md:249` (FX-14) | `FINANCE_APR_MISSING` has no medium condition; FX-14 still includes an APR. Decide which reading of "these" is right. | |
 | B7 | Admin "view credentials" = member list without email | PDF §2 | `design/14-Backend-API-Contract.md:188` (§3.5) | Response fields; note at line 208 "does not invent email". | |

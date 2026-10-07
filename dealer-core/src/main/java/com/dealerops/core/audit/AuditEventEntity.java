@@ -25,8 +25,8 @@ public class AuditEventEntity {
   @Column(name = "dealer_id")
   private Long dealerId;
 
-  @Column(name = "actor_oid", nullable = false, length = 64)
-  private String actorOid;
+  @Column(name = "actor_username", nullable = false, length = 64)
+  private String actorUsername;
 
   @Column(name = "entity_type", nullable = false, length = 32)
   private String entityType;
@@ -56,12 +56,12 @@ public class AuditEventEntity {
     this.dealerId = dealerId;
   }
 
-  public String getActorOid() {
-    return actorOid;
+  public String getActorUsername() {
+    return actorUsername;
   }
 
-  public void setActorOid(String actorOid) {
-    this.actorOid = actorOid;
+  public void setActorUsername(String actorUsername) {
+    this.actorUsername = actorUsername;
   }
 
   public String getEntityType() {

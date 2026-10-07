@@ -1,0 +1,103 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1120 760" width="1120" height="760" role="img"
+     aria-label="DealerOps service boundaries: the browser reaches only dealer-gateway, which is the single API origin; dealer-gateway routes to dealer-core and ai-service, which deny every caller outside Azure; dealer-core also calls ai-service back through the gateway with the internal header; direct browser access to ports 8081 and 8082 is refused at the platform edge.">
+  <rect x="0" y="0" width="1120" height="760" fill="#ffffff"/>
+  <defs>
+    <marker id="ink" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0,0 L10,5 L0,10 Z" fill="#334155"/>
+    </marker>
+    <marker id="blue" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0,0 L10,5 L0,10 Z" fill="#1d4ed8"/>
+    </marker>
+  </defs>
+
+  <g font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif">
+    <text x="56" y="30" font-size="17" font-weight="700" fill="#0f172a">DealerOps — service boundaries and request paths</text>
+
+    <!-- trust zones -->
+    <g fill="#f8fafc" stroke="#cbd5e1" stroke-width="1.5" stroke-dasharray="6 5">
+      <rect x="90" y="48" width="1000" height="112" rx="10"/>
+      <rect x="90" y="208" width="1000" height="112" rx="10"/>
+      <rect x="90" y="424" width="1000" height="120" rx="10"/>
+      <rect x="90" y="592" width="1000" height="104" rx="10"/>
+    </g>
+    <g font-size="10.5" font-weight="700" fill="#64748b" text-anchor="end" letter-spacing="0.8">
+      <text x="1076" y="66">PUBLIC INTERNET</text>
+      <text x="1076" y="226">AZURE · PUBLIC HTTPS ENDPOINT</text>
+      <text x="1076" y="442">AZURE · DENY BY DEFAULT</text>
+      <text x="1076" y="610">STATE &amp; EXTERNAL MODEL</text>
+    </g>
+
+    <!-- browser -->
+    <rect x="130" y="74" width="280" height="62" rx="8" fill="#ffffff" stroke="#334155" stroke-width="1.5"/>
+    <text x="270" y="100" font-size="13.5" font-weight="700" fill="#0f172a" text-anchor="middle">Browser</text>
+    <text x="270" y="119" font-size="11" fill="#475569" text-anchor="middle">dealer staff · platform admin</text>
+
+    <!-- static web app -->
+    <rect x="740" y="74" width="310" height="62" rx="8" fill="#ffffff" stroke="#334155" stroke-width="1.5"/>
+    <text x="895" y="97" font-size="13.5" font-weight="700" fill="#0f172a" text-anchor="middle">dealer-web — static bundle</text>
+    <text x="895" y="115" font-size="11" fill="#475569" text-anchor="middle">Azure Static Web Apps · Vue 3 SPA</text>
+    <text x="895" y="130" font-size="10" fill="#64748b" text-anchor="middle">own repo + CI · deploys as dist/</text>
+
+    <!-- gateway (the one thing everything crosses) -->
+    <rect x="400" y="234" width="320" height="72" rx="8" fill="#eff6ff" stroke="#1d4ed8" stroke-width="2"/>
+    <text x="560" y="260" font-size="13.5" font-weight="700" fill="#1e3a8a" text-anchor="middle">dealer-gateway</text>
+    <text x="560" y="278" font-size="11" fill="#1e40af" text-anchor="middle">Spring Cloud Gateway · verifies JWT · CORS</text>
+    <text x="560" y="295" font-size="10" fill="#3b82f6" text-anchor="middle">own repo + CI · deploys as JAR</text>
+
+    <!-- core -->
+    <rect x="140" y="448" width="300" height="72" rx="8" fill="#ffffff" stroke="#334155" stroke-width="1.5"/>
+    <text x="290" y="474" font-size="13.5" font-weight="700" fill="#0f172a" text-anchor="middle">dealer-core</text>
+    <text x="290" y="492" font-size="11" fill="#475569" text-anchor="middle">business API · tenancy · JWT issuer · Flyway</text>
+    <text x="290" y="508" font-size="10" fill="#64748b" text-anchor="middle">own repo + CI · deploys as JAR</text>
+
+    <!-- ai -->
+    <rect x="740" y="448" width="300" height="72" rx="8" fill="#ffffff" stroke="#334155" stroke-width="1.5"/>
+    <text x="890" y="474" font-size="13.5" font-weight="700" fill="#0f172a" text-anchor="middle">ai-service</text>
+    <text x="890" y="492" font-size="11" fill="#475569" text-anchor="middle">OMVIC ad check · assistant · no database</text>
+    <text x="890" y="508" font-size="10" fill="#64748b" text-anchor="middle">own repo + CI · deploys as JAR</text>
+
+    <!-- state -->
+    <rect x="140" y="616" width="300" height="56" rx="8" fill="#f1f5f9" stroke="#334155" stroke-width="1.5"/>
+    <text x="290" y="639" font-size="13" font-weight="700" fill="#0f172a" text-anchor="middle">MySQL — dealer_core</text>
+    <text x="290" y="657" font-size="11" fill="#475569" text-anchor="middle">Flexible Server · encrypted at rest</text>
+
+    <rect x="740" y="616" width="300" height="56" rx="8" fill="#f1f5f9" stroke="#334155" stroke-width="1.5"/>
+    <text x="890" y="639" font-size="13" font-weight="700" fill="#0f172a" text-anchor="middle">model endpoint</text>
+    <text x="890" y="657" font-size="11" fill="#475569" text-anchor="middle">via ai-manager library, in-process</text>
+
+    <!-- flows -->
+    <g fill="none" stroke="#334155" stroke-width="1.6" marker-end="url(#ink)">
+      <line x1="410" y1="105" x2="734" y2="105"/>
+      <polyline points="290,520 290,610"/>
+      <polyline points="890,520 890,610"/>
+    </g>
+    <g fill="none" stroke="#1d4ed8" stroke-width="1.8" marker-end="url(#blue)">
+      <polyline points="270,136 270,190 480,190 480,228"/>
+      <polyline points="470,306 470,352 290,352 290,442"/>
+      <polyline points="350,448 350,388 560,388 560,312"/>
+      <polyline points="650,306 650,352 890,352 890,442"/>
+    </g>
+
+    <g font-size="11" fill="#1e40af">
+      <text x="572" y="97" text-anchor="middle" fill="#334155">1 · GET / — SPA bundle + config.json</text>
+      <text x="284" y="182">2 · HTTPS /api/v1/** · Authorization: Bearer &lt;JWT&gt;</text>
+      <text x="460" y="344" text-anchor="end">3 · /api/v1/** — role + dealer scope enforced in core</text>
+      <text x="425" y="368" text-anchor="middle">4 · core calls AI through the gateway</text>
+      <text x="425" y="382" text-anchor="middle">with the X-Dealer-Internal header</text>
+      <text x="664" y="344">5 · /internal/v1/** — route matches on the internal header</text>
+      <text x="300" y="578" fill="#334155">JDBC · sslMode=REQUIRED</text>
+      <text x="900" y="578" fill="#334155">HTTPS · key from Key Vault</text>
+    </g>
+
+    <!-- the bypass that must fail -->
+    <g stroke="#b91c1c" stroke-width="1.8" fill="none">
+      <line x1="134" y1="136" x2="134" y2="414" stroke-dasharray="5 4"/>
+      <line x1="126" y1="416" x2="142" y2="432"/>
+      <line x1="142" y1="416" x2="126" y2="432"/>
+    </g>
+    <g font-size="11" fill="#b91c1c">
+      <text x="150" y="396">direct :8081 / :8082</text>
+      <text x="150" y="410">refused at the edge</text>
+    </g>
+  </g>
+</svg>

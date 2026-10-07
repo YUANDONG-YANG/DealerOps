@@ -17,7 +17,7 @@
 
 | ID | Requirement |
 |---|---|
-| UI-01 | One "Sign in with Microsoft" entry shared by admins and dealer users |
+| UI-01 | One username + password sign-in form shared by admins and dealer users (reversed 2026-09-30, see design/SCOPE-BASELINE.md errata 1) |
 | UI-02 | After sign-in, route by role: admin → Admin, dealer user → DMS |
 | UI-03 | A user with no dealer binding sees "Not provisioned yet, contact your administrator" |
 | UI-04 | Unauthenticated access to any internal page redirects to Login |

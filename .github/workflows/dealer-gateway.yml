@@ -1,4 +1,4 @@
-# Compile and test only. Image publish is .github/workflows/publish-ghcr.yml (see deploy/README.md).
+# Compile and test only. The cloud deploy is a JAR upload run by an operator (deploy/README.md).
 name: dealer-gateway
 on:
   pull_request:

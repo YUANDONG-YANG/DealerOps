@@ -19,7 +19,7 @@
 
   <properties>
     <java.version>21</java.version>
-    <!-- Local / Packages coordinate. Install from the ai-manager checkout, do not vendor the source here. -->
+    <!-- Install this artifact from the ai-manager checkout before importing this project. -->
     <aimanager.groupId>com.aimanager</aimanager.groupId>
     <aimanager.artifactId>aimanager</aimanager.artifactId>
     <aimanager.version>1.0.0-SNAPSHOT</aimanager.version>
@@ -41,6 +41,11 @@
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-actuator</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>${aimanager.groupId}</groupId>
+      <artifactId>${aimanager.artifactId}</artifactId>
+      <version>${aimanager.version}</version>
     </dependency>
     <dependency>
       <groupId>org.springframework.boot</groupId>
@@ -65,58 +70,4 @@
     </plugins>
   </build>
 
-  <profiles>
-    <!-- Default: resolve com.aimanager:aimanager after `mvn -DskipTests install` in sibling checkout ai-manager. -->
-    <profile>
-      <id>aimanager</id>
-      <activation>
-        <property>
-          <name>!aimanager.stub</name>
-        </property>
-      </activation>
-      <dependencies>
-        <dependency>
-          <groupId>com.aimanager</groupId>
-          <artifactId>aimanager</artifactId>
-          <version>1.0.0-SNAPSHOT</version>
-        </dependency>
-      </dependencies>
-      <repositories>
-        <repository>
-          <id>github-ai-manager</id>
-          <url>https://maven.pkg.github.com/YUANDONG-YANG/ai-manager</url>
-        </repository>
-      </repositories>
-    </profile>
-
-    <!-- CI compile without a local JAR: mvn -Pstub,!aimanager -Daimanager.stub=true -->
-    <profile>
-      <id>stub</id>
-      <build>
-        <plugins>
-          <plugin>
-            <groupId>org.apache.maven.plugins</groupId>
-            <artifactId>maven-compiler-plugin</artifactId>
-            <configuration>
-              <release>21</release>
-              <compileSourceRoots>
-                <compileSourceRoot>${project.basedir}/src/main/java</compileSourceRoot>
-                <compileSourceRoot>${project.basedir}/src/main/java-stub</compileSourceRoot>
-              </compileSourceRoots>
-            </configuration>
-            <executions>
-              <execution>
-                <id>default-testCompile</id>
-                <configuration>
-                  <compileSourceRoots combine.self="override">
-                    <compileSourceRoot>${project.basedir}/src/test/java</compileSourceRoot>
-                  </compileSourceRoots>
-                </configuration>
-              </execution>
-            </executions>
-          </plugin>
-        </plugins>
-      </build>
-    </profile>
-  </profiles>
 </project>

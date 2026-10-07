@@ -32,8 +32,21 @@ management:
   endpoint:
     health:
       show-details: never
+      probes:
+        enabled: true
+      group:
+        readiness:
+          include: readinessState,db
+  health:
+    readinessstate:
+      enabled: true
+    livenessstate:
+      enabled: true
 
 dealerops:
+  # Relative to the process working directory. Run configurations use the repo root,
+  # so all services share one log-sum/ folder. Set LOG_DIR to override per environment.
+  log-dir: ${LOG_DIR:log-sum}
   gateway-base-url: ${GATEWAY_BASE_URL:http://localhost:8080}
   # Browser origin for OpenAPI "servers". Separate from gateway-base-url, which core uses to call the gateway.
   public-gateway-url: ${GATEWAY_PUBLIC_URL:http://localhost:8080}
@@ -42,9 +55,9 @@ dealerops:
   ai:
     connect-timeout-ms: 2000
     response-timeout-ms: 13000
-  # Set by the GHCR image (publish workflow). Local runs stay "local".
+  # Set as an App Service app setting by deploy/terraform/deploy-apps.sh. Local runs stay "local".
   published-at: ${PUBLISHED_AT:local}
   jwt:
-    # dealer-core issues and validates its own HS256 tokens at /api/v1/auth/login (no Entra).
+    # dealer-core issues and validates its own HS256 tokens at /api/v1/auth/login.
     # DEV_JWT_SECRET must be at least 32 bytes in any non-local environment.
     dev-secret: ${DEV_JWT_SECRET:dealer-dev-jwt-secret-change-me}

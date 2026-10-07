@@ -1,5 +1,4 @@
-# Compile and test only (stub profile). Image publish is .github/workflows/publish-ghcr.yml (see deploy/README.md).
-# Stub only: never call a paid model. The published image uses the same stub Maven profile.
+# Compile only. The cloud deploy is a JAR upload run by an operator (deploy/README.md).
 name: ai-service
 on:
   pull_request:
@@ -28,9 +27,14 @@ jobs:
           java-version: "21"
           cache: maven
       - run: echo "repo=${{ github.repository }}"
-      - name: Compile with AI stub
-        run: mvn -B -Pstub,!aimanager -Daimanager.stub=true -DskipTests compile
-      - name: Unit tests (stub, no paid model)
-        run: mvn -B -Pstub,!aimanager -Daimanager.stub=true test
-        env:
-          AIMANAGER_API_KEY: ""
+      - name: Install pinned ai-manager dependency
+        uses: actions/checkout@v7
+        with:
+          repository: YUANDONG-YANG/ai-manager
+          ref: 827196a
+          path: ai-manager
+      - name: Build ai-manager with Java 17
+        working-directory: ai-manager
+        run: mvn -B -DskipTests install
+      - name: Compile with the real AI dependency
+        run: mvn -B -DskipTests compile

@@ -23,3 +23,21 @@ Thumbs.db
 # Personal/working files that must not be published (incident: accidentally committed/pushed 2026-10-05, see deploy/README.md discussion)
 /review/industry-contracts-*/
 /screen/
+
+# Terraform working files (deploy/terraform). The provider lock file is committed.
+**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+*.tfvars.json
+crash.log
+crash.*.log
+
+# Local AI provider keys never enter Git; supply AIMANAGER_API_KEY through the environment.
+ai-service/src/main/resources/api-key.md
+
+# SkyWalking Java agent binary (fetched by deploy/skywalking/download-agent.sh, local dev only)
+deploy/skywalking/agent/
+
+# Service log files (log-sum/log.md is tracked)
+log-sum/*.log

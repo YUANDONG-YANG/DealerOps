@@ -12,7 +12,6 @@ spring:
     oauth2:
       resourceserver:
         jwt:
-          issuer-uri: https://login.microsoftonline.com/test-tenant/v2.0
           audiences: api://dealer-api
 
 dealerops:

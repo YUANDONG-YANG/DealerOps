@@ -1,4 +1,4 @@
--- Admin-issued username/password auth (design/15-Data-Auth-and-Gateway.md S8, reversed from Entra 2026-09-30).
--- entra_oid holds the username and entra_tenant_id is fixed to 'local'; see S8.3 for the rationale.
+-- Admin-issued username/password auth (design/15-Data-Auth-and-Gateway.md S8).
+-- Passwords are stored only as BCrypt hashes; see S8.3.
 ALTER TABLE app_user
-  ADD COLUMN password_hash VARCHAR(100) NOT NULL DEFAULT '' AFTER entra_oid;
+  ADD COLUMN password_hash VARCHAR(100) NOT NULL DEFAULT '' AFTER username;

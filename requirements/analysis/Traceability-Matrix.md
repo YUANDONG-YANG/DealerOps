@@ -8,7 +8,7 @@ Source item → requirement ID → design doc → acceptance case. Design docs a
 | PDF §2 | Admin sees no business data | AUTH-08 | 15, 14 | AT-03 |
 | PDF §2 | Dealer users cannot see other dealers | AUTH-07, SEC-05 | 15 | AT-01 |
 | PDF §2 | Admin creates / removes logins | AUTH-03–05 | 14, 15 | CL-1 (create/list members), AT-04 / BE-02 (remove access) |
-| PDF §2 | Username / password sign-in | AUTH-12, SEC-01 (changed to Entra) | 15, SCOPE erratum 1 | CL-1/CL-2 (Entra and landing), FE-01 (unsigned-in guard) |
+| PDF §2 | Username / password sign-in | AUTH-12, SEC-01 (reversed 2026-09-30, see design/SCOPE-BASELINE.md errata 1) | 15 §8, 14 §1.4 | CL-1/CL-2 (sign-in and landing), FE-01 (unsigned-in guard) |
 | PDF §3 | 8 required vehicle fields | DMS-01, DMS-05 | 00, 14 | AT-05 (missing VIN); CL-2 (valid create); manually try each required field and invalid enum |
 | PDF §3 | 4 optional vehicle fields | DMS-02, DMS-10 | 00, 14 | CL-2 create with repair cost/Carfax omitted; AT-07 / BE-15 sale pair |
 | SCOPE | VIN unique per dealer | DMS-03 | 14 | AT-06 |
@@ -26,7 +26,7 @@ Source item → requirement ID → design doc → acceptance case. Design docs a
 | PDF §7 | 5 pages | UI-01–46 | 12, 13 | FE-01–09, CL-1–6, AT-26/28; UI-46 deferred |
 | SCOPE | Assistant page | AI-03, AI-04, UI-50–51 | 10 | AT-21, AT-22 |
 | SCOPE (PPT) | Gateway | ARC-03 | 19 | AT-23 |
-| PDF §8 | Password security | SEC-01–04 | 15 | CL-1/2; Review 2 Azure HTTPS, Entra/JWT and Key Vault evidence |
+| PDF §8 | Password security | SEC-01–04 (reversed 2026-09-30, see design/SCOPE-BASELINE.md errata 1) | 15 §8 | CL-1/2; Review 2 Azure HTTPS, BCrypt hash + JWT and Key Vault evidence |
 | PDF §8 | Disclaimer / updatable rules | AD-14, AD-15 | 04 §5 / 07 Q-15 | Deferred; not demo acceptance gates |
 | PDF §8 | Own hosting, backups | NFR-04, NFR-05, ARC-07 | 08, deploy/README.md | Review 2/3 Azure deployment evidence; custom domain and restore exercise are not added gates |
 | DOC | Image Studio | AD-17 (Won't) | — | — |

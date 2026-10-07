@@ -7,4 +7,5 @@ public record CustomerListItem(
     String phone,
     String homeAddress,
     LinkedVehicleBrief linkedVehicle,
+    int linkedVehicleCount,
     int version) {}

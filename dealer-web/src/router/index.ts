@@ -1,6 +1,12 @@
 ﻿import { createRouter, createWebHistory, type RouteLocationNormalized } from 'vue-router'
 import axios from 'axios'
-import { account, clearAccount, rememberPostLoginRedirect, takePostLoginRedirect } from '../auth/msal'
+import {
+  account,
+  clearAccount,
+  rememberPostLoginRedirect,
+  safeRedirect,
+  takePostLoginRedirect,
+} from '../auth/login'
 import { getMe } from '../api/me'
 import { useSessionStore } from '../stores/session'
 import LoginView from '../views/LoginView.vue'
@@ -54,7 +60,9 @@ router.beforeEach(async (to) => {
     profileFailed = false
   }
 
-  if (a && !store.role && !profileFailed) {
+  // After a failed GET /me, skip the retry only on /login so the redirect there cannot loop;
+  // the next protected navigation (for example a fresh sign-in) tries again.
+  if (a && !store.role && !(profileFailed && to.path === '/login')) {
     try {
       store.setProfile(await getMe())
       profileFailed = false
@@ -75,12 +83,8 @@ router.beforeEach(async (to) => {
   if (to.path === '/login' && a) {
     if (profileFailed) return true
     if (!store.hasBusinessAccess) return '/'
-    const fromQuery = typeof to.query.redirect === 'string' ? to.query.redirect : ''
-    const redirect = fromQuery || takePostLoginRedirect()
-    if (redirect.startsWith('/') && !redirect.startsWith('//') && !redirect.startsWith('/login')) {
-      return redirect
-    }
-    return landingFor(store)
+    const fromQuery = typeof to.query.redirect === 'string' ? safeRedirect(to.query.redirect) : ''
+    return fromQuery || takePostLoginRedirect() || landingFor(store)
   }
 
   if (isLanding(to)) {

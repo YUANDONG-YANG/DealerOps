@@ -6,6 +6,9 @@ spring:
     name: ai-service
 
 dealerops:
+  # Relative to the process working directory. Run configurations use the repo root,
+  # so all services share one log-sum/ folder. Set LOG_DIR to override per environment.
+  log-dir: ${LOG_DIR:log-sum}
   ai:
     connect-timeout-ms: 2000
     response-timeout-ms: 13000
@@ -16,7 +19,7 @@ dealerops:
 
 aimanager:
   api-key: ${AIMANAGER_API_KEY:}
-  gateway-provider: ${AIMANAGER_GATEWAY_PROVIDER:openai}
+  gateway-provider: ${AIMANAGER_GATEWAY_PROVIDER:xai}
   gateway-model: ${AIMANAGER_GATEWAY_MODEL:}
 
 management:
@@ -27,3 +30,13 @@ management:
   endpoint:
     health:
       show-details: never
+      probes:
+        enabled: true
+      group:
+        readiness:
+          include: readinessState
+  health:
+    readinessstate:
+      enabled: true
+    livenessstate:
+      enabled: true

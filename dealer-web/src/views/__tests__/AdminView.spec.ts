@@ -1,7 +1,7 @@
 /**
  * 16 FE-07 / TEST-23 / classroom CL-1 (Admin dual tabs).
  * See: Dealerships (Name, Contact, Staff count, Actions; New dealership) and
- * Members (Entra ID/email, Dealership, Status, Actions). One /admin route only.
+ * Members (Username, Dealership, Status, Actions). One /admin route only.
  * Do not see: /admin/members, Edit dealership, vehicles tab, business menus.
  */
 import { readFileSync } from 'node:fs'
@@ -42,7 +42,7 @@ const dealer = {
 }
 
 const member = {
-  entraOid: '22222222-2222-2222-2222-222222222222',
+  username: '22222222-2222-2222-2222-222222222222',
   displayName: 'Alex Dealer',
   role: 'Dealer.User',
   active: true,
@@ -110,13 +110,13 @@ describe('FE-07 Admin dual tabs (TEST-23)', () => {
     expect(adminApi.dealers).toHaveBeenCalled()
     expect(adminApi.members).toHaveBeenCalledWith(1, expect.objectContaining({ q: '', page: 0, size: 10 }))
     expect(adminApi.members.mock.calls.every((c) => typeof c[0] === 'number')).toBe(true)
-    expect(wrapper.find('input[placeholder="Staff email"]').exists()).toBe(true)
+    expect(wrapper.find('input[placeholder="Username"]').exists()).toBe(true)
     const headers = headersOf(wrapper).join(' | ')
-    expect(headers).toContain('Entra ID / email')
+    expect(headers).toContain('Username')
     expect(headers).toContain('Dealership')
     expect(headers).toContain('Status')
     expect(headers).toContain('Actions')
-    expect(wrapper.text()).toContain(member.entraOid)
+    expect(wrapper.text()).toContain(member.username)
     expect(wrapper.text()).toContain('Prairie Auto Ltd.')
     expect(wrapper.text()).toContain('Unbind')
   })
@@ -131,7 +131,7 @@ describe('FE-07 Admin dual tabs (TEST-23)', () => {
     await flushPromises()
     await clickNamed(wrapper, 'Confirm')
     await flushPromises()
-    expect(adminApi.unbind).toHaveBeenCalledWith(1, member.entraOid)
+    expect(adminApi.unbind).toHaveBeenCalledWith(1, member.username)
   })
 
   it('bans a second Admin child route, Edit dealership, Vehicles tab, and invented /admin/members', () => {

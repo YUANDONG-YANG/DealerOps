@@ -41,6 +41,9 @@ public abstract class CoreItSupport {
   @Autowired protected MembershipRepository membershipRepository;
   @Autowired protected AppUserRepository appUserRepository;
 
+  /** Tokens are minted directly in tests, so the stored hash is never checked. */
+  private static final String FIXTURE_PASSWORD_HASH = "{noop}not-used-by-token-tests";
+
   protected Long dealerAId;
   protected Long dealerBId;
 
@@ -62,24 +65,30 @@ public abstract class CoreItSupport {
     foothills.setActive(true);
     dealerBId = dealerRepository.save(foothills).getId();
 
-    bind(dealerAId, TestTokens.STAFF_A_OID, "Staff A");
-    bind(dealerBId, TestTokens.STAFF_B_OID, "Staff B");
+    bind(dealerAId, TestTokens.STAFF_A_USERNAME, "Staff A");
+    bind(dealerBId, TestTokens.STAFF_B_USERNAME, "Staff B");
+    saveUser(TestTokens.ADMIN_USERNAME, "Platform Admin", AppRole.PLATFORM_ADMIN, null);
+    saveUser(TestTokens.UNBOUND_USERNAME, "Unbound Staff", AppRole.DEALER_USER, null);
   }
 
-  protected void bind(Long dealerId, String oid, String displayName) {
+  protected void bind(Long dealerId, String username, String displayName) {
     MembershipEntity membership = new MembershipEntity();
     membership.setDealerId(dealerId);
-    membership.setEntraOid(oid);
+    membership.setUsername(username);
     membership.setActive(true);
-    membership.setCreatedBy(TestTokens.ADMIN_OID);
+    membership.setCreatedBy(TestTokens.ADMIN_USERNAME);
     membershipRepository.save(membership);
 
-    AppUserEntity user =
-        appUserRepository.findByEntraTenantIdAndEntraOid(TestTokens.TID, oid).orElseGet(AppUserEntity::new);
-    user.setEntraTenantId(TestTokens.TID);
-    user.setEntraOid(oid);
+    saveUser(username, displayName, AppRole.DEALER_USER, dealerId);
+  }
+
+  /** TenantFilter only accepts tokens whose subject has an active app_user row (no lazy creation). */
+  private void saveUser(String username, String displayName, AppRole role, Long dealerId) {
+    AppUserEntity user = appUserRepository.findByUsername(username).orElseGet(AppUserEntity::new);
+    user.setUsername(username);
+    user.setPasswordHash(FIXTURE_PASSWORD_HASH);
     user.setDisplayName(displayName);
-    user.setRole(AppRole.DEALER_USER);
+    user.setRole(role);
     user.setDealerId(dealerId);
     user.setActive(true);
     appUserRepository.save(user);

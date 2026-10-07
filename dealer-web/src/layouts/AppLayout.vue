@@ -1,5 +1,5 @@
 ﻿<script setup lang="ts">
-import { signOut } from '../auth/msal'
+import { signOut } from '../auth/login'
 import AppMenu from '../components/AppMenu.vue'
 import { useSessionStore } from '../stores/session'
 const session=useSessionStore()

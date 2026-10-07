@@ -33,7 +33,7 @@ class TenantHibernateFilterIT extends CoreItSupport {
     VehicleEntity other = saveVehicle(dealerBId, "1HGCM82633A004002");
 
     TenantContext.set(
-        new CurrentUser(TestTokens.STAFF_A_OID, TestTokens.TID, AppRole.DEALER_USER, dealerAId));
+        new CurrentUser(TestTokens.STAFF_A_USERNAME, AppRole.DEALER_USER, dealerAId));
 
     List<VehicleEntity> scoped = vehicleRepository.findAll();
     assertThat(scoped).extracting(VehicleEntity::getId).containsExactly(mine.getId());
@@ -51,7 +51,7 @@ class TenantHibernateFilterIT extends CoreItSupport {
   @Test
   void persistListenerSetsDealerIdFromContext() {
     TenantContext.set(
-        new CurrentUser(TestTokens.STAFF_A_OID, TestTokens.TID, AppRole.DEALER_USER, dealerAId));
+        new CurrentUser(TestTokens.STAFF_A_USERNAME, AppRole.DEALER_USER, dealerAId));
 
     VehicleEntity row = newVehicle("1HGCM82633A004099");
     row.setDealerId(dealerBId); // client spoof; listener must overwrite

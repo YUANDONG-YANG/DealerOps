@@ -12,25 +12,24 @@ CREATE TABLE dealer (
 
 CREATE TABLE app_user (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
-  entra_tenant_id VARCHAR(64) NOT NULL,
-  entra_oid VARCHAR(64) NOT NULL,
+  username VARCHAR(64) NOT NULL,
   display_name VARCHAR(120) NOT NULL,
   role VARCHAR(32) NOT NULL,
   dealer_id BIGINT NULL,
   active TINYINT NOT NULL DEFAULT 1,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  UNIQUE KEY uk_user_oid (entra_tenant_id, entra_oid),
+  UNIQUE KEY uk_user_username (username),
   CONSTRAINT fk_user_dealer FOREIGN KEY (dealer_id) REFERENCES dealer(id)
 );
 
 CREATE TABLE membership (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
   dealer_id BIGINT NOT NULL,
-  entra_oid VARCHAR(64) NOT NULL,
+  username VARCHAR(64) NOT NULL,
   active TINYINT NOT NULL DEFAULT 1,
   created_by VARCHAR(64) NOT NULL,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  UNIQUE KEY uk_membership (dealer_id, entra_oid),
+  UNIQUE KEY uk_membership (dealer_id, username),
   CONSTRAINT fk_mem_dealer FOREIGN KEY (dealer_id) REFERENCES dealer(id)
 );
 
@@ -118,7 +117,7 @@ CREATE TABLE compliance_check (
 CREATE TABLE audit_event (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
   dealer_id BIGINT NULL,
-  actor_oid VARCHAR(64) NOT NULL,
+  actor_username VARCHAR(64) NOT NULL,
   entity_type VARCHAR(32) NOT NULL,
   entity_id BIGINT NOT NULL,
   action VARCHAR(32) NOT NULL,

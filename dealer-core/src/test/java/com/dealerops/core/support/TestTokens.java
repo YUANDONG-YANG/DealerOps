@@ -1,5 +1,6 @@
 package com.dealerops.core.support;
 
+import com.dealerops.core.security.JwtSupport;
 import com.nimbusds.jose.JOSEException;
 import com.nimbusds.jose.JWSAlgorithm;
 import com.nimbusds.jose.JWSHeader;
@@ -11,57 +12,54 @@ import java.time.Instant;
 import java.util.Date;
 import java.util.List;
 
-/** HS256 tokens for the local JWT_MODE=dev decoder. Not Entra-issued. */
+/** HS256 tokens shaped like the ones dealer-core issues at /api/v1/auth/login (sub = username). */
 public final class TestTokens {
 
-  public static final String TID = "test-tenant";
-  public static final String AUDIENCE = "api://dealer-api";
-  public static final String ISSUER = "https://login.microsoftonline.com/test-tenant/v2.0";
-  public static final String DEV_SECRET = "dealer-dev-jwt-secret-change-me";
+  public static final String AUDIENCE = JwtSupport.DEFAULT_AUDIENCE;
+  public static final String ISSUER = JwtSupport.ISSUER;
+  public static final String DEV_SECRET = JwtSupport.DEFAULT_DEV_SECRET;
 
-  public static final String ADMIN_OID = "00000000-0000-0000-0000-000000000001";
-  public static final String STAFF_A_OID = "11111111-1111-1111-1111-111111111111";
-  public static final String STAFF_B_OID = "22222222-2222-2222-2222-222222222222";
-  public static final String UNBOUND_OID = "33333333-3333-3333-3333-333333333333";
+  public static final String ADMIN_USERNAME = "test-admin";
+  public static final String STAFF_A_USERNAME = "staff-a";
+  public static final String STAFF_B_USERNAME = "staff-b";
+  public static final String UNBOUND_USERNAME = "unbound-staff";
 
   private TestTokens() {}
 
   public static String admin() {
-    return bearer(ADMIN_OID, "Platform Admin", List.of("Platform.Admin"));
+    return bearer(ADMIN_USERNAME, "Platform Admin", List.of("Platform.Admin"));
   }
 
   public static String staffA() {
-    return bearer(STAFF_A_OID, "Staff A", List.of("Dealer.User"));
+    return bearer(STAFF_A_USERNAME, "Staff A", List.of("Dealer.User"));
   }
 
   public static String staffB() {
-    return bearer(STAFF_B_OID, "Staff B", List.of("Dealer.User"));
+    return bearer(STAFF_B_USERNAME, "Staff B", List.of("Dealer.User"));
   }
 
   public static String unboundStaff() {
-    return bearer(UNBOUND_OID, "Unbound Staff", List.of("Dealer.User"));
+    return bearer(UNBOUND_USERNAME, "Unbound Staff", List.of("Dealer.User"));
   }
 
   public static String adminAndStaff() {
-    return bearer(ADMIN_OID, "Platform Admin", List.of("Platform.Admin", "Dealer.User"));
+    return bearer(ADMIN_USERNAME, "Platform Admin", List.of("Platform.Admin", "Dealer.User"));
   }
 
   public static String noRoles() {
-    return bearer(STAFF_A_OID, "No Role", List.of());
+    return bearer(STAFF_A_USERNAME, "No Role", List.of());
   }
 
-  public static String bearer(String oid, String name, List<String> roles) {
+  public static String bearer(String username, String name, List<String> roles) {
     try {
       Instant now = Instant.now();
       JWTClaimsSet claims =
           new JWTClaimsSet.Builder()
               .issuer(ISSUER)
               .audience(AUDIENCE)
-              .subject(oid)
+              .subject(username)
               .issueTime(Date.from(now))
               .expirationTime(Date.from(now.plusSeconds(3600)))
-              .claim("oid", oid)
-              .claim("tid", TID)
               .claim("name", name)
               .claim("roles", roles)
               .build();

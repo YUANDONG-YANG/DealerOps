@@ -21,4 +21,5 @@ public record VehicleResponse(
     LocalDate soldOn,
     BigDecimal soldPrice,
     VehicleStatus status,
+    LinkedCustomerBrief linkedCustomer,
     int version) {}

@@ -6,7 +6,7 @@ import PageState from '../components/PageState.vue'
 <template>
   <AppLayout>
     <div class="page">
-      <PageState forbidden forbidden-text="You do not have access." />
+      <PageState forbidden forbidden-text="Your account is not provisioned yet. Contact your administrator." />
     </div>
   </AppLayout>
 </template>

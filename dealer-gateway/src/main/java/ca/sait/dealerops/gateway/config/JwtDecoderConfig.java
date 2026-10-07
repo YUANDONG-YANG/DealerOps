@@ -16,7 +16,7 @@ import org.springframework.security.oauth2.jwt.ReactiveJwtDecoder;
 
 /**
  * Local HS256 decoder for tokens {@code dealer-core} issues itself at {@code /api/v1/auth/login}
- * (design/15-Data-Auth-and-Gateway.md S8, admin-issued username/password, no Entra).
+ * (design/15-Data-Auth-and-Gateway.md S8, admin-issued username/password).
  */
 @Configuration
 public class JwtDecoderConfig {
@@ -26,7 +26,7 @@ public class JwtDecoderConfig {
     String mode = explicitJwtMode(environment);
     if (mode == null || !"dev".equalsIgnoreCase(mode)) {
       throw new IllegalStateException(
-          "JWT_MODE must be 'dev'. The local HS256 decoder is the only mode since the Entra reversal.");
+          "JWT_MODE must be 'dev'. The local HS256 decoder is the only JWT mode.");
     }
     String audience =
         firstNonBlank(
@@ -131,7 +131,8 @@ public class JwtDecoderConfig {
             .build();
     decoder.setJwtValidator(
         new DelegatingOAuth2TokenValidator<>(
-            JwtValidators.createDefault(), JwtSupport.audienceValidator(audience)));
+            JwtValidators.createDefaultWithIssuer(JwtSupport.ISSUER),
+            JwtSupport.audienceValidator(audience)));
     return decoder;
   }
 }

@@ -1,0 +1,37 @@
+# Checks the Azure deployment stack in deploy/terraform.
+# Format and schema only: this job has no Azure credentials and never runs plan or apply.
+# An operator applies the stack by hand (deploy/README.md).
+name: terraform
+on:
+  pull_request:
+    paths:
+      - "deploy/terraform/**"
+      - ".github/workflows/terraform.yml"
+  push:
+    branches: [main]
+    paths:
+      - "deploy/terraform/**"
+      - ".github/workflows/terraform.yml"
+  workflow_dispatch:
+
+defaults:
+  run:
+    working-directory: deploy/terraform
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.16.5"
+          terraform_wrapper: false
+      - name: Check formatting
+        run: terraform fmt -check -recursive
+      - name: Initialize without a backend
+        run: terraform init -backend=false -input=false
+      - name: Validate
+        run: terraform validate
+      - name: Note
+        run: echo "Terraform validated. Not applied (no subscription credentials in this repository)."

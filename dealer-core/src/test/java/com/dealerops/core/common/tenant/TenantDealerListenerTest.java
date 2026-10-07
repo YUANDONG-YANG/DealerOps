@@ -18,7 +18,7 @@ class TenantDealerListenerTest {
 
   @Test
   void dealerUserPersistOverwritesClientDealerId() {
-    TenantContext.set(new CurrentUser("oid", "tid", AppRole.DEALER_USER, 42L));
+    TenantContext.set(new CurrentUser("test-user", AppRole.DEALER_USER, 42L));
     StubOwned row = new StubOwned();
     row.setDealerId(99L);
 
@@ -29,7 +29,7 @@ class TenantDealerListenerTest {
 
   @Test
   void adminPersistDoesNotTouchDealerId() {
-    TenantContext.set(new CurrentUser("oid", "tid", AppRole.PLATFORM_ADMIN, null));
+    TenantContext.set(new CurrentUser("test-user", AppRole.PLATFORM_ADMIN, null));
     StubOwned row = new StubOwned();
     row.setDealerId(7L);
 

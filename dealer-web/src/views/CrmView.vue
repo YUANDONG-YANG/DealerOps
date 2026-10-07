@@ -8,7 +8,7 @@ import DataTable from '../components/DataTable.vue'
 import FormDrawer from '../components/FormDrawer.vue'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 import PageState from '../components/PageState.vue'
-import { messageOf } from '../api/http'
+import { fieldErrorsOf, messageOf } from '../api/http'
 import { customersApi } from '../api/customers'
 import { errorCode, errorStatus, vehiclesApi } from '../api/vehicles'
 import { auditApi } from '../api/audit'
@@ -26,6 +26,10 @@ const selected = ref<any>(null)
 const vehicles = ref<any[]>([])
 const audit = ref<any[]>([])
 const formError = ref('')
+// CRM-13: a shared email is allowed (families share one), so this only warns.
+const emailWarning = ref('')
+const serverErrors = ref<Record<string, string>>({})
+const saving = ref(false)
 const linkError = ref('')
 const unlinkId = ref<number | null>(null)
 const linkId = ref<number | undefined>()
@@ -41,22 +45,33 @@ const CUSTOMER_FIELDS = [
   { key: 'homeAddress', label: 'Home address' },
 ] as const
 
-function requiredFieldRule() {
+// Mirrors the backend CustomerFieldRules (requirements/analysis/03-CRM-Customers.md field table).
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+$/
+const PHONE_PATTERN = /^(?=(?:\D*\d){7,20}\D*$)[0-9+\-() ]+$/
+
+function requiredFieldRule(max: number, check?: (value: string) => string | undefined) {
   return {
     required: true,
     trigger: 'blur' as const,
     validator: (_rule: unknown, value: unknown, callback: (error?: Error) => void) => {
-      if (typeof value !== 'string' || value.trim() === '') callback(new Error('Check required fields'))
-      else callback()
+      const text = typeof value === 'string' ? value.trim() : ''
+      if (!text) return callback(new Error('Check required fields'))
+      if (text.length > max) return callback(new Error(`At most ${max} characters`))
+      const message = check?.(text)
+      return message ? callback(new Error(message)) : callback()
     },
   }
 }
 
 const customerRules: FormRules = {
-  name: [requiredFieldRule()],
-  email: [requiredFieldRule()],
-  phone: [requiredFieldRule()],
-  homeAddress: [requiredFieldRule()],
+  name: [requiredFieldRule(100)],
+  email: [requiredFieldRule(254, (v) => (EMAIL_PATTERN.test(v) ? undefined : 'Enter a valid email'))],
+  phone: [
+    requiredFieldRule(40, (v) =>
+      PHONE_PATTERN.test(v) ? undefined : 'Use 7 to 20 digits; only + - ( ) and spaces are allowed',
+    ),
+  ],
+  homeAddress: [requiredFieldRule(300)],
 }
 
 function blankForm() {
@@ -77,23 +92,13 @@ function summaryText(raw: unknown) {
   return Object.keys(o).length ? JSON.stringify(o) : '—'
 }
 
-function validationMessage(error: unknown) {
-  const fieldErrors = (
-    error as { response?: { data?: { fieldErrors?: Record<string, unknown> | null } } }
-  ).response?.data?.fieldErrors
-  if (fieldErrors && typeof fieldErrors === 'object') {
-    const parts = Object.entries(fieldErrors)
-      .map(([field, detail]) => (typeof detail === 'string' && detail.trim() ? `${field}: ${detail.trim()}` : ''))
-      .filter((part) => part.length > 0)
-    if (parts.length) return parts.join('; ')
-  }
-  return messageOf(error, 'Check required fields')
-}
-
 function mapCustomerWrite(e: unknown) {
   const code = errorCode(e)
   const status = errorStatus(e)
-  if (code === 'VALIDATION') return validationMessage(e)
+  if (code === 'VALIDATION') {
+    serverErrors.value = fieldErrorsOf(e)
+    return messageOf(e, 'Check required fields')
+  }
   if (code === 'VERSION_CONFLICT') return 'Refresh and retry'
   if (status === 404 || code === 'NOT_FOUND') return 'Customer not found'
   return 'Could not save customer.'
@@ -169,51 +174,16 @@ async function collectPages(
   return collected
 }
 
-/**
- * Occupancy comes from full customer details; the list contains only the latest vehicle.
- * 14 VehicleResponse has no linkedCustomerId — do not invent that public field.
- * Current drawer already has full linkedVehicles[]; use that for this customer.
- */
-async function loadLinkedOwners(customer: any): Promise<Map<number, number>> {
-  const owners = new Map<number, number>()
-  const customerId = customer?.id
-  for (const v of customer?.linkedVehicles || []) {
-    if (customerId != null && v?.id != null) owners.set(v.id, customerId)
-  }
-  const items = await collectPages((pageIndex, size) => customersApi.list({ linked: true, page: pageIndex, size }))
-  for (const c of items) {
-    if (c.id === customerId) continue
-    const detail = (await customersApi.get(c.id)).data
-    for (const v of detail.linkedVehicles || []) {
-      if (v?.id != null) owners.set(v.id, c.id)
-    }
-  }
-  return owners
-}
-
-async function loadLinkOptions(seq: number, customer: any) {
+async function loadLinkOptions(seq: number) {
   try {
-    const [allVehicles, owners] = await Promise.all([
-      collectPages((pageIndex, size) => vehiclesApi.list({ page: pageIndex, size })),
-      loadLinkedOwners(customer),
-    ])
+    const allVehicles = await collectPages((pageIndex, size) => vehiclesApi.list({ page: pageIndex, size }))
     if (seq !== editSeq) return
-    const ownIds = new Set((customer?.linkedVehicles || []).map((x: any) => x.id))
-    // Only offer unlinked vehicles, including same-dealer sold vehicles.
-    vehicles.value = allVehicles
-      .filter((x: any) => !ownIds.has(x.id) && !owners.has(x.id))
-      .map((x: any) => ({
-        ...x,
-        linkedCustomerId: owners.get(x.id) ?? null,
-      }))
+    // VehicleResponse.linkedCustomer marks occupancy; offer only unlinked vehicles, in stock or sold.
+    vehicles.value = allVehicles.filter((x: any) => !x.linkedCustomer)
   } catch {
     if (seq !== editSeq) return
     vehicles.value = []
   }
-}
-
-function isTaken(v: any) {
-  return Boolean(v.linkedCustomerId) && v.linkedCustomerId !== selected.value?.id
 }
 
 function closeDrawer() {
@@ -227,6 +197,8 @@ async function openCreate() {
   selected.value = null
   form.value = blankForm()
   formError.value = ''
+  emailWarning.value = ''
+  serverErrors.value = {}
   linkError.value = ''
   audit.value = []
   vehicles.value = []
@@ -239,6 +211,8 @@ async function openCreate() {
 async function openEdit(id: number) {
   const seq = ++editSeq
   formError.value = ''
+  emailWarning.value = ''
+  serverErrors.value = {}
   linkError.value = ''
   audit.value = []
   try {
@@ -255,7 +229,7 @@ async function openEdit(id: number) {
     await nextTick()
     if (seq !== editSeq) return
     formRef.value?.clearValidate()
-    await loadLinkOptions(seq, r.data)
+    await loadLinkOptions(seq)
     await loadAudit(id, seq)
   } catch (e) {
     if (seq !== editSeq) return
@@ -267,11 +241,31 @@ async function openEdit(id: number) {
   }
 }
 
+async function checkSharedEmail() {
+  const email = String(form.value.email || '').trim().toLowerCase()
+  emailWarning.value = ''
+  if (!EMAIL_PATTERN.test(email)) return
+  try {
+    const r = await customersApi.list({ q: email })
+    const shared = (r.data.items || []).some(
+      (c: { id: number; email?: string }) => c.email?.toLowerCase() === email && c.id !== selected.value?.id,
+    )
+    if (shared && String(form.value.email || '').trim().toLowerCase() === email) {
+      emailWarning.value = 'Another customer at this dealership already uses this email. You can still save.'
+    }
+  } catch {
+    // The warning is advisory; a failed lookup must not block or interrupt editing.
+  }
+}
+
 async function save() {
   formError.value = ''
+  serverErrors.value = {}
   if (!formRef.value) return
   const ok = await formRef.value.validate().then((passed) => passed !== false).catch(() => false)
-  if (!ok) return
+  if (!ok || saving.value) return
+  saving.value = true
+  await checkSharedEmail()
   try {
     if (selected.value) {
       const saved = await customersApi.update(selected.value.id, { ...form.value, version: selected.value.version })
@@ -285,6 +279,8 @@ async function save() {
     }
   } catch (e) {
     formError.value = mapCustomerWrite(e)
+  } finally {
+    saving.value = false
   }
 }
 
@@ -385,6 +381,7 @@ watch(
           <el-table-column label="Linked vehicle">
             <template #default="{ row }">{{ linkedLabel(row.linkedVehicle) }}</template>
           </el-table-column>
+          <el-table-column prop="linkedVehicleCount" label="Vehicles purchased" width="160" />
           <template #actions="{ row }">
             <el-button link @click="openEdit(row.id)">Edit</el-button>
           </template>
@@ -393,11 +390,18 @@ watch(
     </div>
     <FormDrawer title="Customer" :visible="drawer" @close="closeDrawer">
       <el-form ref="formRef" :model="form" :rules="customerRules" label-position="top">
-        <el-form-item v-for="field in CUSTOMER_FIELDS" :key="field.key" :label="field.label" :prop="field.key">
-          <el-input v-model="form[field.key]" />
+        <el-form-item
+          v-for="field in CUSTOMER_FIELDS"
+          :key="field.key"
+          :label="field.label"
+          :prop="field.key"
+          :error="serverErrors[field.key]"
+        >
+          <el-input v-model="form[field.key]" @blur="field.key === 'email' && checkSharedEmail()" />
         </el-form-item>
+        <p v-if="emailWarning" class="warning-text">{{ emailWarning }}</p>
         <p v-if="formError" class="danger-text">{{ formError }}</p>
-        <el-button type="primary" @click="save">Save</el-button>
+        <el-button type="primary" :loading="saving" @click="save">Save</el-button>
         <template v-if="selected">
           <el-divider />
           <el-select v-model="linkId" filterable placeholder="Link vehicle" style="width: 100%">
@@ -406,7 +410,6 @@ watch(
               :key="v.id"
               :label="`${linkedLabel(v)} · ${v.vin}`"
               :value="v.id"
-              :disabled="isTaken(v)"
             />
           </el-select>
           <el-button style="margin-top: 10px" @click="link">Link vehicle</el-button>
@@ -421,7 +424,7 @@ watch(
             <div class="muted">Audit</div>
             <el-table :data="audit">
               <el-table-column prop="action" label="Action" width="110" />
-              <el-table-column prop="actorOid" label="Actor" />
+              <el-table-column prop="actorUsername" label="Actor" />
               <el-table-column prop="createdAt" label="When" />
               <el-table-column label="Summary">
                 <template #default="{ row }">{{ summaryText(row.fieldSummary) }}</template>

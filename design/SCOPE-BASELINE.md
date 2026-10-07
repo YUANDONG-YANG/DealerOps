@@ -6,7 +6,7 @@ Conflict order (read-only): **PPT hard requirements > specification PDF fields >
 ## Approved-scope formula
 
 **Specification PDF fields** (DMS / CRM / Ad: do not add or remove)  
-**+ PPT six hard requirements** (four repos and four pipelines; Gateway; Azure+Docker+Bicep+CI/CD; Entra+JWT+RBAC+HTTPS+Key Vault; real AI; Scrum board and three all-hands Reviews)  
+**+ PPT six hard requirements** (four repos and four pipelines; Gateway; Azure+Docker+Bicep+CI/CD; JWT+RBAC+HTTPS+Key Vault (sign-in per errata 1); real AI; Scrum board and three all-hands Reviews)  
 **+ v6 six pages** (Login / Admin / DMS / CRM / Ad compliance / Assistant)  
 **− v6 out-of-scope list** (see Out of Scope).  
 Scope changes require a re-sign of this page or email confirmation.
@@ -22,7 +22,7 @@ Scope changes require a re-sign of this page or email confirmation.
 | Audit | Every DMS/CRM change: who, what, when |
 | Assistant | In-dealership read-only Q&A; same AI component; no database writes |
 | Four repos | `dealer-web` / `dealer-gateway` / `dealer-core` / `ai-service` (plus `dealer-platform` for IaC) |
-| Auth | Admin-issued username/password per dealer user (client spec, reversed from Entra 2026-09-30); JWT roles only `Platform.Admin` / `Dealer.User`; bind `app_user`→dealership. See [15-Data-Auth-and-Gateway.md](15-Data-Auth-and-Gateway.md) §8 |
+| Auth | Admin-issued username/password per dealer user (client spec; errata 1); JWT roles only `Platform.Admin` / `Dealer.User`; bind `app_user`→dealership. See [15-Data-Auth-and-Gateway.md](15-Data-Auth-and-Gateway.md) §8 |
 | Gateway | Browser traffic only through Gateway; direct core / ai-service access must fail |
 | Real AI | `ai-service` embeds the GitHub component in-process; failure must not display Pass |
 
@@ -49,24 +49,27 @@ The following appeared in early proposals or superseded drafts now under [archiv
 | Proposal / `01`–`06` had | v6 does not do / does instead |
 |---|---|
 | Visitor buyer site, public ad pages, inquiry form | No buyer site |
-| Staff / Manager; password-hash login | Entra; Admin / Dealer.User |
+| Staff / Manager roles | Admin / Dealer.User only |
 | Recon work orders, sale-ready gates, archive | No work orders; stock is only IN_STOCK / SOLD |
 | Lead funnel, follow-up, deal transactions, sales page | CRM four fields + vehicle link; DMS paired sale |
 | Dashboard / KPI | No KPI home page |
 | In-app Publish / Unpublish to visitor pages | **Ready + export TXT** (not an external site, not an in-app buyer page) |
 | stock #, mileage, color, list price/fees, preset images | Specification PDF fields only |
 | Single store, no row-level isolation | **Multi-tenant** (specification requires all three modules in the same dealership) |
-| Single repo / password session | Four repos + Gateway + Entra |
+| Single repo / server-side session | Four repos + Gateway + JWT |
 | Async domain events / queues (easy to expand in the proposal) | Sync REST + single database; no Service Bus |
 
 Already deferred in the proposal and still out of this version: Image Studio, OCR, VIN decode, third-party ad sync, payments/contracts, SMS/email, vector store and model training.
 
 ## Specification errata (PPT / v6 win)
 
-1. ~~**Auth = Entra** (not the specification username/password).~~ **Reversed (2026-09-30):** the developer chose to satisfy the client specification directly — admin-issued username/password per dealer user (PDF §2, §8), not Entra. This specific point no longer follows the "PPT hard requirements > specification PDF" conflict order stated above; every other PPT hard requirement (four repos/pipelines, Gateway, Azure+Docker+Bicep+CI/CD, real AI, Scrum board) is unaffected. See [15-Data-Auth-and-Gateway.md](15-Data-Auth-and-Gateway.md) §8 for the reversed design. KAN-5 (client/instructor sign-off) is still open, so this scope is not yet formally re-confirmed in writing.  
+1. **Auth = admin-issued username/password** per dealer user, as the client specification requires (PDF §2, §8); decided 2026-09-30. This point does not follow the "PPT hard requirements > specification PDF" conflict order stated above; every other PPT hard requirement (four repos/pipelines, Gateway, Azure+infrastructure as code+CI/CD, real AI, Scrum board) is unaffected by *this* item; the container and Bicep wording is reversed separately in item 5. See [15-Data-Auth-and-Gateway.md](15-Data-Auth-and-Gateway.md) §8 for the design. KAN-5 (client/instructor sign-off) is still open, so this scope is not yet formally re-confirmed in writing.  
 2. **Add Assistant as specification section 7** (the specification has no such page; PPT requires a real-AI core feature → in-dealership read-only assistant).  
 3. **publish = Ready + TXT export** (not external publishing, and not listing on a buyer site).  
 4. **Some OMVIC disclosures are review hints, not blockers** (year, new/used, warranty terms, prior use, finance term, lease term/payment/down). See [AI-PROTOCOL-AND-RULES.md](AI-PROTOCOL-AND-RULES.md) §C.0a.
+5. ~~**Containerization** (NN-05: Docker images for the four apps, pushed to a registry, run as Container Apps).~~ **Dropped (2026-10-07):** the developer chose **Terraform + Azure App Service**, so there is no Dockerfile, Compose file, container registry, or container host in this project. The three Java services deploy as Spring Boot JARs to App Service and the SPA as static files to Static Web Apps. Rationale and the trade-offs accepted: [deploy/publish-options.md](../deploy/publish-options.md).
+
+   **What is *not* affected.** NN-06 names "Bicep/Terraform/ARM", so `deploy/terraform` satisfies infrastructure as code on its own terms — that requirement is met, not reversed. NN-04 (live public cloud), NN-07 (CI/CD), and NN-08–11 (JWT/RBAC, HTTPS, Key Vault, no plaintext secrets) are unaffected. **NN-05 is the single item given up.** Like item 1, this is a developer decision and is **not yet re-signed**; raise NN-05 with the instructor if containerization is graded on its own.
 
 ## Signature / email confirmation
 

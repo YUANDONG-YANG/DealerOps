@@ -33,7 +33,7 @@ public class CustomerEntity implements TenantOwned {
   @Column(name = "name", nullable = false, length = 160)
   private String name;
 
-  @Column(name = "email", nullable = false, length = 160)
+  @Column(name = "email", nullable = false, length = 254)
   private String email;
 
   @Column(name = "phone", nullable = false, length = 40)

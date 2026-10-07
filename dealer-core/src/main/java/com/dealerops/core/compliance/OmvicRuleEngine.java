@@ -22,7 +22,7 @@ public class OmvicRuleEngine {
 
   static final Pattern PRICE =
       Pattern.compile(
-          "(?:cad|c\\$|\\$)\\s*\\d[\\d,]*(?:\\.\\d{2})?|\\d[\\d,]*(?:\\.\\d{2})?\\s*(?:cad|dollars?)",
+          "(?:cad|c\\$|\\$)\\s*\\d[\\d,]*(?:\\.\\d{2})?|\\d[\\d,]*(?:\\.\\d{2})?\\s*(?:cad|dollars?)\\b",
           Pattern.CASE_INSENSITIVE);
   static final Pattern PHONE = Pattern.compile("\\d{3}[-.\\s]?\\d{3}[-.\\s]?\\d{4}");
   static final Pattern EMAIL = Pattern.compile("\\S+@\\S+\\.\\S+");
@@ -39,12 +39,12 @@ public class OmvicRuleEngine {
       Pattern.compile("down payment|due at signing|\\$\\d[\\d,]*.{0,12}down", Pattern.CASE_INSENSITIVE);
   static final Pattern LEASE_KM_ALLOWANCE =
       Pattern.compile(
-          "(\\d{1,2}[, ]?\\d{3}|\\d{1,5})\\s*(?:km|kilomet(?:er|re)s?)\\s*(?:per|/)?\\s*(?:year|yr|annual)",
+          "(?<![\\d,.])(\\d{1,3}(?:[, ]\\d{3})+|\\d{1,6})\\s*(?:km|kilomet(?:er|re)s?)\\s*(?:per|/)?\\s*(?:year|yr|annual)",
           Pattern.CASE_INSENSITIVE);
   static final Pattern LEASE_EXCESS =
       Pattern.compile("excess|overage|additional.{0,20}(?:km|kilomet)", Pattern.CASE_INSENSITIVE);
   static final Pattern CERTIFIED = Pattern.compile("certified|cpo|certifi", Pattern.CASE_INSENSITIVE);
-  static final Pattern AS_IS = Pattern.compile("as[\\s-]?is", Pattern.CASE_INSENSITIVE);
+  static final Pattern AS_IS = Pattern.compile("\\bas[\\s-]?is\\b", Pattern.CASE_INSENSITIVE);
   static final Pattern UNFIT = Pattern.compile("unfit|not roadworthy|not fit", Pattern.CASE_INSENSITIVE);
   static final Pattern IRREP = Pattern.compile("irreparable|salvage|write[\\s-]?off", Pattern.CASE_INSENSITIVE);
   static final Pattern BRAND_NEW =

@@ -1,0 +1,94 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1140 860" width="1140" height="860" role="img"
+     aria-label="DealerOps AI ad-check flow: a check posted through the gateway is guarded by dealer-core for dealer scope and content version, then the deterministic OMVIC rule engine runs first; a hard block is persisted without calling the model, otherwise core calls ai-service back through the gateway with the internal header, ai-manager calls the model under a 13 second budget, and a failure returns 502 AI_UNAVAILABLE; core persists the result in one transaction and export is allowed only while the latest check is passed and not stale.">
+  <rect x="0" y="0" width="1140" height="860" fill="#ffffff"/>
+  <defs>
+    <marker id="ink" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0,0 L10,5 L0,10 Z" fill="#334155"/>
+    </marker>
+    <marker id="blue" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0,0 L10,5 L0,10 Z" fill="#1d4ed8"/>
+    </marker>
+    <marker id="amber" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0,0 L10,5 L0,10 Z" fill="#b45309"/>
+    </marker>
+  </defs>
+
+  <g font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif">
+    <text x="40" y="30" font-size="17" font-weight="700" fill="#0f172a">DealerOps — AI ad-check workflow, rules first and model second</text>
+
+    <g stroke="#334155" stroke-width="1.5" fill="#ffffff">
+      <rect x="150" y="76" width="360" height="56" rx="8"/>
+      <rect x="150" y="160" width="360" height="56" rx="8"/>
+      <rect x="150" y="244" width="360" height="56" rx="8"/>
+      <rect x="150" y="328" width="360" height="56" rx="8"/>
+    </g>
+    <g font-size="12.5" font-weight="700" fill="#0f172a" text-anchor="middle">
+      <text x="330" y="100">1 · staff clicks Check on /ads</text>
+      <text x="330" y="184">2 · dealer-gateway</text>
+      <text x="330" y="268">3 · dealer-core guards the request</text>
+      <text x="330" y="352">4 · OMVIC rule engine, inside core</text>
+    </g>
+    <g font-size="11" fill="#475569" text-anchor="middle">
+      <text x="330" y="118">POST /api/v1/listings/{id}/checks · Bearer JWT</text>
+      <text x="330" y="202">verifies the JWT, forwards /api/v1/**</text>
+      <text x="330" y="286">dealer scope · listing contentVersion</text>
+      <text x="330" y="370">deterministic checklist · no model call yet</text>
+    </g>
+
+    <polygon points="170,470 330,410 490,470 330,530" fill="#fffbeb" stroke="#b45309" stroke-width="1.8"/>
+    <text x="330" y="466" font-size="13" font-weight="700" fill="#7c2d12" text-anchor="middle">hard block?</text>
+    <text x="330" y="485" font-size="10.5" fill="#92400e" text-anchor="middle">an OMVIC hard rule failed</text>
+
+    <rect x="150" y="566" width="360" height="66" rx="8" fill="#fffbeb" stroke="#b45309" stroke-width="1.8"/>
+    <text x="330" y="590" font-size="12.5" font-weight="700" fill="#7c2d12" text-anchor="middle">5a · persist BLOCKED, skip the model</text>
+    <text x="330" y="608" font-size="11" fill="#92400e" text-anchor="middle">recommendation BLOCKED · aiStatus SKIPPED</text>
+    <text x="330" y="624" font-size="10.5" fill="#b45309" text-anchor="middle">no token spent on an ad that cannot pass · case CL-4</text>
+
+    <g stroke="#1d4ed8" stroke-width="1.8" fill="#eff6ff">
+      <rect x="630" y="380" width="360" height="56" rx="8"/>
+      <rect x="630" y="464" width="360" height="66" rx="8"/>
+      <rect x="630" y="562" width="360" height="56" rx="8"/>
+      <rect x="630" y="646" width="360" height="66" rx="8"/>
+    </g>
+    <g font-size="12.5" font-weight="700" fill="#1e3a8a" text-anchor="middle">
+      <text x="810" y="404">5b · back out through dealer-gateway</text>
+      <text x="810" y="488">6 · ai-service</text>
+      <text x="810" y="586">7 · model endpoint</text>
+      <text x="810" y="670">8 · reply travels the same path back</text>
+    </g>
+    <g font-size="11" fill="#1e40af" text-anchor="middle">
+      <text x="810" y="422">POST /internal/v1/ad-check · X-Dealer-Internal</text>
+      <text x="810" y="506">ai-manager library, in-process · no database</text>
+      <text x="810" y="522">connect 2s · read 13s · core waits 15s at most</text>
+      <text x="810" y="604">key resolved from Key Vault at startup</text>
+      <text x="810" y="688">success: {success, notes[]} · aiStatus SUCCESS</text>
+      <text x="810" y="704">timeout or error: 502 AI_UNAVAILABLE, row still written</text>
+    </g>
+
+    <rect x="150" y="744" width="840" height="82" rx="8" fill="#f1f5f9" stroke="#334155" stroke-width="1.5"/>
+    <text x="570" y="770" font-size="12.5" font-weight="700" fill="#0f172a" text-anchor="middle">9 · core writes compliance_check and the audit row in one transaction</text>
+    <text x="570" y="790" font-size="11" fill="#475569" text-anchor="middle">page state BLOCKED · NEEDS_AI · PASSED · AI_UNAVAILABLE — editing the ad bumps contentVersion, which derives STALE</text>
+    <text x="570" y="808" font-size="11" fill="#475569" text-anchor="middle">Ready and TXT export unlock only while the latest check is PASSED and not STALE</text>
+
+    <!-- flow -->
+    <g fill="none" stroke="#334155" stroke-width="1.6" marker-end="url(#ink)">
+      <line x1="330" y1="132" x2="330" y2="154"/>
+      <line x1="330" y1="216" x2="330" y2="238"/>
+      <line x1="330" y1="300" x2="330" y2="322"/>
+      <line x1="330" y1="384" x2="330" y2="404"/>
+    </g>
+    <g fill="none" stroke="#b45309" stroke-width="1.8" marker-end="url(#amber)">
+      <line x1="330" y1="530" x2="330" y2="560"/>
+      <line x1="330" y1="632" x2="330" y2="738"/>
+    </g>
+    <g fill="none" stroke="#1d4ed8" stroke-width="1.8" marker-end="url(#blue)">
+      <polyline points="490,470 560,470 560,408 624,408"/>
+      <line x1="810" y1="436" x2="810" y2="458"/>
+      <line x1="810" y1="530" x2="810" y2="556"/>
+      <line x1="810" y1="618" x2="810" y2="640"/>
+      <line x1="810" y1="712" x2="810" y2="738"/>
+    </g>
+    <text x="344" y="552" font-size="11" font-weight="700" fill="#b45309">yes</text>
+    <text x="525" y="462" font-size="11" font-weight="700" fill="#1d4ed8" text-anchor="middle">no</text>
+  </g>
+</svg>

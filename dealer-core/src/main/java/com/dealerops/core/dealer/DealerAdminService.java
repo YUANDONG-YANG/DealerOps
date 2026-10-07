@@ -66,7 +66,7 @@ public class DealerAdminService {
         dealer.getId(),
         AuditAction.CREATE.name(),
         dealer.getId(),
-        actorOid(),
+        actorUsername(),
         Map.of("legalNameChanged", true));
     return toResponse(dealer);
   }
@@ -95,7 +95,7 @@ public class DealerAdminService {
         dealer.getId(),
         AuditAction.UPDATE.name(),
         dealer.getId(),
-        actorOid(),
+        actorUsername(),
         Map.of("contactFieldsChanged", true));
     return toResponse(dealer);
   }
@@ -119,8 +119,8 @@ public class DealerAdminService {
         dealer.getVersion());
   }
 
-  private static String actorOid() {
+  private static String actorUsername() {
     CurrentUser user = TenantContext.get();
-    return user == null ? "" : user.oid();
+    return user == null ? "" : user.username();
   }
 }

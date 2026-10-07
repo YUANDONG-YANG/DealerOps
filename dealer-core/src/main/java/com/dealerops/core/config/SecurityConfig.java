@@ -17,6 +17,7 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.server.resource.web.authentication.BearerTokenAuthenticationFilter;
+import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.security.web.SecurityFilterChain;
 
 @Configuration
@@ -33,7 +34,11 @@ public class SecurityConfig {
       throws Exception {
     http.csrf(csrf -> csrf.disable());
     http.sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
-    http.oauth2ResourceServer(o -> o.jwt(Customizer.withDefaults()));
+    AuthenticationEntryPoint unauthorized =
+        (req, res, ex) -> write(res, objectMapper, ErrorCode.UNAUTHORIZED, "Unauthorized");
+    // The resource server keeps its own entry point for a bad, expired, or wrong-audience token;
+    // without this it answers 401 with an empty body instead of {code, message}.
+    http.oauth2ResourceServer(o -> o.jwt(Customizer.withDefaults()).authenticationEntryPoint(unauthorized));
     http.authorizeHttpRequests(
         a ->
             a.requestMatchers("/error")
@@ -51,7 +56,7 @@ public class SecurityConfig {
                 .denyAll());
     http.exceptionHandling(
         e ->
-            e.authenticationEntryPoint((req, res, ex) -> write(res, objectMapper, ErrorCode.UNAUTHORIZED, "Unauthorized"))
+            e.authenticationEntryPoint(unauthorized)
                 .accessDeniedHandler((req, res, ex) -> write(res, objectMapper, ErrorCode.FORBIDDEN, "Forbidden")));
     http.addFilterAfter(tenantFilter, BearerTokenAuthenticationFilter.class);
     return http.build();

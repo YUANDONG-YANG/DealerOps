@@ -26,7 +26,7 @@ Six findings: 1 high, 2 medium, 3 low.
 - Severity: medium
 - Category: correctness
 - Location: `dealer-web/src/views/DmsView.vue` line 148; `dealer-web/src/views/CrmView.vue` line 190; `dealer-web/src/views/AdminView.vue` lines 168-175, 188-200, and 220-227
-- Evidence: DMS `openEdit` toasts `'Vehicle not found'` on both sides of the 404 check. CRM `openEdit` does the same with `'Customer not found'`. Admin create maps both `VALIDATION` / 400 and the final else to `'Check required contact fields'`. Bind maps both validation and the final else to `'Check Entra ID'`. Unbind maps both 404 and the final else to `'Member not found'`. A timeout or 500 is labeled as a missing record or a validation miss.
+- Evidence: DMS `openEdit` toasts `'Vehicle not found'` on both sides of the 404 check. CRM `openEdit` does the same with `'Customer not found'`. Admin create maps both `VALIDATION` / 400 and the final else to `'Check required contact fields'`. Bind maps both validation and the final else to `'Check username'`. Unbind maps both 404 and the final else to `'Member not found'`. A timeout or 500 is labeled as a missing record or a validation miss.
 - Direction: Keep the documented code-specific strings, and give the remaining branch a generic failure string so it is not identical to the 400 or 404 case.
 
 ### F-03 Four copies of Axios error extraction

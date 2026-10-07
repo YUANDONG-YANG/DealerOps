@@ -10,6 +10,7 @@ import com.dealerops.core.compliance.ComplianceCheckService;
 import com.dealerops.core.compliance.Recommendation;
 import com.dealerops.core.dealer.DealerEntity;
 import com.dealerops.core.dealer.DealerRepository;
+import com.dealerops.core.dealer.AppRole;
 import com.dealerops.core.listing.dto.ListingResponse;
 import com.dealerops.core.listing.dto.PatchListingRequest;
 import com.dealerops.core.listing.dto.VersionBody;
@@ -42,10 +43,11 @@ public class ListingService {
 
   @Transactional(readOnly = true)
   public ListingResponse getByVehicle(Long vehicleId) {
-    Long tenant = requireTenant();
+    Long tenant = readTenant();
     requireVehicle(vehicleId, tenant);
-    return listingRepository
-        .findByVehicleIdAndDealerId(vehicleId, tenant)
+    return (tenant == null
+            ? listingRepository.findByVehicleId(vehicleId)
+            : listingRepository.findByVehicleIdAndDealerId(vehicleId, tenant))
         .map(this::toResponse)
         .orElseGet(() -> virtualDraft(vehicleId));
   }
@@ -108,7 +110,8 @@ public class ListingService {
   public ListingResponse ready(Long listingId, VersionBody body) {
     ListingEntity listing = assertExportable(listingId, body.version());
     listing.setStatus(ListingStatus.READY);
-    listingRepository.save(listing);
+    // Flush so the response carries the bumped optimistic-lock version the client sends to export.
+    listingRepository.saveAndFlush(listing);
     return toResponse(listing);
   }
 
@@ -196,8 +199,9 @@ public class ListingService {
   }
 
   private VehicleEntity requireVehicle(Long vehicleId, Long tenant) {
-    return vehicleRepository
-        .findByIdAndDealerId(vehicleId, tenant)
+    return (tenant == null
+            ? vehicleRepository.findById(vehicleId)
+            : vehicleRepository.findByIdAndDealerId(vehicleId, tenant))
         .orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND, "Not found"));
   }
 
@@ -208,5 +212,12 @@ public class ListingService {
   private static Long requireTenant() {
     TenantGuard.requireDealerUser();
     return TenantContext.get().tenantDealerId();
+  }
+
+  private static Long readTenant() {
+    TenantGuard.requireBusinessAccess();
+    return TenantContext.get().role() == AppRole.PLATFORM_ADMIN
+        ? null
+        : TenantContext.get().tenantDealerId();
   }
 }

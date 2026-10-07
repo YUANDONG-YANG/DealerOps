@@ -26,13 +26,13 @@ Source: every modification to a DMS or CRM record is stamped with the acting use
 | ARC-04 | Repo split: `dealer-web` / `dealer-gateway` / `dealer-core` / `ai-service` + `dealer-platform` (IaC) | SCOPE | Must |
 | ARC-05 | Synchronous REST + single database; no message queue | SCOPE | Must |
 | ARC-06 | APIs under `/api/v1`; error body `{code, message}` | SCOPE | Must |
-| ARC-07 | Deploy to Azure: Docker + Bicep + CI/CD | SCOPE (PPT) | Must |
+| ARC-07 | Deploy to Azure: Terraform (`deploy/terraform`) + App Service JARs + Static Web App + CI. Containers and Bicep dropped (2026-10-07, see design/SCOPE-BASELINE.md errata 5) | SCOPE (PPT) | Must |
 
 ## 3. Security (PDF §8, SCOPE)
 
 | ID | Requirement | Source | Priority |
 |---|---|---|---|
-| SEC-01 | No home-grown username/password; sign in with Entra ID; the front end never handles passwords | PDF §8, SCOPE | Must |
+| SEC-01 | Admin-issued username/password; passwords are hashed and salted server-side (BCrypt), never stored in plain text, logged, or returned to the client (reversed 2026-09-30, see design/SCOPE-BASELINE.md errata 1) | PDF §2, §8, SCOPE | Must |
 | SEC-02 | The back end validates JWT signature, audience, and expiry, and authorizes by role | SCOPE | Must |
 | SEC-03 | HTTPS everywhere | SCOPE | Must |
 | SEC-04 | Secrets (DB connection string, AI key) live in Key Vault, never in the repo | SCOPE | Must |

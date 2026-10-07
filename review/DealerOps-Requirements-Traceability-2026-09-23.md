@@ -9,11 +9,11 @@
 |---|---|---|
 | Business specification | `requirements/DealerOps-Specification.pdf` (4 pages, 2026-09-21) | Fields, roles, OMVIC checklist, pages, audit, multi-tenancy |
 | Course hard requirements | `tech-stack/Non-Negotiable-Project-Requirements.pptx` | Six PPT pillars (microservices, cloud, security, full scope, AI, PM) |
-| Approved scope | `design/SCOPE-BASELINE.md` | In/out scope; errata (Entra, Assistant, Ready+TXT); deferred NFRs |
+| Approved scope | `design/SCOPE-BASELINE.md` | In/out scope; errata (earlier external sign-in plan, Assistant, Ready+TXT); deferred NFRs |
 | Course ID matrix | `design/11-Requirements-Governance-and-Agile.md` | NN-01…NN-24 demo IDs |
 | Design / API / rules | `design/IMPLEMENTATION-BRIEF.md`, `design/14-Backend-API-Contract.md`, `design/15-Data-Auth-and-Gateway.md`, `design/16-Acceptance-and-Test.md`, `design/18-Backend-Core-Engineering.md`, `design/AI-PROTOCOL-AND-RULES.md` (§C.0a severity), `design/AI-CODING-BACKEND.md`, `dealer-platform/API.md` / OpenAPI | Implementation contracts |
 
-Conflict order (course): **PPT > specification PDF fields > design docs**. Spec username/password and “publish” wording are superseded by SCOPE errata (Entra; Ready + TXT export).
+Conflict order (course): **PPT > specification PDF fields > design docs**. Spec username/password and “publish” wording are superseded by SCOPE errata (earlier external sign-in plan; Ready + TXT export).
 
 Withdrawn `design/01`–`06` (now under `design/archive/`) are **not** grading criteria.
 
@@ -47,7 +47,7 @@ Withdrawn `design/01`–`06` (now under `design/archive/`) are **not** grading c
 | Multi-tenancy / Hibernate filter | **Confirmed implemented** (`TenantFilters`, `@Filter` on five business entities, `TenantHibernateFilterBinder`, `TenantDealerListener`). Aligns with design-review item #12 being **done in code**. `audit_event` correctly **excluded** (nullable `dealer_id`). |
 | Design review #10 “only manual dealerId” | **Superseded** by Hibernate filter + existing `findByIdAndDealerId` / `TenantGuard`. |
 
-Also note: `IMPLEMENTATION-BRIEF.md` §12 still lists env blockers (Azure subscription, Entra permissions, model key) as **Missing** — those remain **course/PPT gaps**, not missing Java classes.
+Also note: `IMPLEMENTATION-BRIEF.md` §12 still lists env blockers (Azure subscription, external sign-in permissions, model key) as **Missing** — those remain **course/PPT gaps**, not missing Java classes.
 
 ---
 
@@ -60,12 +60,12 @@ Legend for **Code status**: `implemented` · `partial` · `design-only` · `miss
 | ID | Statement | Design | Code | Gap |
 |---|---|---|---|---|
 | SPEC-01 | Multi-tenant web app for independent dealers | `SCOPE-BASELINE` In Scope; BRIEF §1 | Shared MySQL + `dealer_id` + tenant filter binder | — |
-| SPEC-02 | Platform admin provisions dealers / credentials | BRIEF §2; 14 admin APIs | `AdminDealerController`, `AdminMemberController`, `DealerAdminService`, `MembershipService` | Credentials = Entra bind (errata), not passwords |
+| SPEC-02 | Platform admin provisions dealers / credentials | BRIEF §2; 14 admin APIs | `AdminDealerController`, `AdminMemberController`, `DealerAdminService`, `MembershipService` | Credentials = user-identifier bind under the earlier external sign-in plan (errata), not passwords |
 | SPEC-03 | Multiple staff share one dealer dataset | SCOPE; 15 §2 membership | `membership` table; same `tenantDealerId` | — |
 | SPEC-04 | DMS + CRM + Ad share one backend store | SCOPE; 07; BRIEF §4 | Single `dealer-core` + `V1__init.sql` | — |
 | SPEC-05 | Admin cannot view/edit dealer DMS/CRM/ad | SCOPE; 15; 16 | `TenantGuard.requireDealerUser()` on business services; Admin → 403 | — |
 | SPEC-06 | Dealer user R/W own data only; cannot manage logins | SCOPE; 15 | Services + Admin gated by `requireAdmin()` | — |
-| SPEC-07 | Username/password per user | **Errata:** Entra wins (`SCOPE-BASELINE` Specification errata) | `LoginView.vue` MSAL only; JWT security on gateway/core | Deferred raw-spec auth; **Entra implemented** |
+| SPEC-07 | Username/password per user | **Errata:** the earlier external sign-in plan wins (`SCOPE-BASELINE` Specification errata) | `LoginView.vue` earlier sign-in SDK only; JWT security on gateway/core | Deferred raw-spec auth; **earlier external sign-in plan implemented** |
 | SPEC-29 | Shared backend, not three apps | 07; BRIEF | `dealer-core` only business DB | — |
 | SPEC-30 | One dealer, many logins, admin no business visibility | SCOPE; 15; 18 tenantFilter | Filter + role guards | — |
 
@@ -124,7 +124,7 @@ Course severity is pinned in **`AI-PROTOCOL-AND-RULES.md` §C.0a** and mirrored 
 | SPEC-34 | Ad compliance page | same | `AdsView.vue` `/ads` | — |
 | SPEC-35 | Admin page | same | `AdminView.vue` `/admin` | — |
 | SCOPE-UI-01 | Assistant page (PPT real-AI feature) | SCOPE errata; 10; BRIEF | `AssistantView.vue` `/assistant`; `AssistantController`/`AssistantService` | — |
-| SPEC-36 | Known limitation: plain passwords (discussion) | Errata → Entra | N/A | **Deferred** as build req |
+| SPEC-36 | Known limitation: plain passwords (discussion) | Errata → earlier external sign-in plan | N/A | **Deferred** as build req |
 | SPEC-37 | Rules updatable without code change (discussion) | Spec §8; not SCOPE in-scope | Hardcoded `OmvicRuleEngine` | **Deferred** (discussion only) |
 | SPEC-38 | Real hosting vs artifact host | PPT cloud; SCOPE | Local compose + Bicep draft | See NN cloud rows |
 
@@ -139,7 +139,7 @@ Course severity is pinned in **`AI-PROTOCOL-AND-RULES.md` §C.0a** and mirrored 
 | NN-05 | Containerization | 07; Dockerfiles | Dockerfiles for web/gateway/core/ai; compose | Images buildable; cloud run **partial** until Azure |
 | NN-06 | IaC (Bicep/Terraform/ARM) | 07; `main.bicep` | Bicep with ACR, Container Apps, MySQL, Key Vault, App Insights | Template only until deploy |
 | NN-07 | CI/CD automated | LOCAL-AND-CLOUD §7 | GitHub Actions per app; image push steps largely commented | **Partial** — compile/test yes; production deploy not wired |
-| NN-08 | OAuth2 / JWT / Azure AD only | SCOPE; 15 | MSAL SPA; gateway/core JWT (`JWT_MODE=entra`/`dev`) | Classroom Entra app registration still an env blocker |
+| NN-08 | OAuth2 / JWT / Azure AD only | SCOPE; 15 | Earlier sign-in SDK in the SPA; gateway/core JWT (`JWT_MODE` external/`dev`) | Classroom external sign-in app registration still an env blocker |
 | NN-09 | HTTPS / encryption in transit & at rest | 15 §13; SCOPE out-of-scope PIPEDA extras | Designed for Azure HTTPS; local HTTP OK for Sprint 1 | **Partial** until live Azure HTTPS |
 | NN-10 | No hardcoded secrets; Key Vault | 15; Bicep Key Vault secrets | Env vars + Bicep `@secure()`; default local tokens in yaml for dev | Live Key Vault **design-only** until deploy |
 | NN-11 | RBAC on features/endpoints | 15; 14 | Roles `Platform.Admin` / `Dealer.User`; router + `TenantGuard` | — |
@@ -173,7 +173,7 @@ From `SCOPE-BASELINE.md` Out of Scope / deferred NFRs:
 2. **NN-16 / NN-17** — Real AI path end-to-end with non-stub `aimanager` + live `AIMANAGER_API_KEY` (CI currently builds with stub profile).
 3. **NN-07 image/deploy** — Pipeline image push / ACA deploy still placeholder comments.
 4. **NN-01** — Split (or prove) four independent git remotes if graders enforce “own repository” literally; today path-filtered monorepo CI.
-5. **NN-08 env** — Classroom Entra app registration / roles / demo accounts (code ready; [design/PREP-CHECKLIST.md](../design/PREP-CHECKLIST.md) Missing).
+5. **NN-08 env** — Classroom external sign-in app registration / roles / demo accounts (code ready; [design/PREP-CHECKLIST.md](../design/PREP-CHECKLIST.md) Missing).
 6. **NN-19–24** — Scrum board + Review speaking evidence + client minutes (process, not code).
 7. **SPEC-20 residual** — No dedicated “cost of borrowing” finding (only if instructor rejects §C.0a ruling).
 8. **SPEC-14 residual** — No explicit used/new disclosure field (only if instructor rejects §C.0a).

@@ -72,13 +72,13 @@
 
 ## 三、已在当前源码确认的主要需求
 
-- **角色/多租户（AUTH-01–14 核心流程）**：TenantFilter 按 JWT 身份查有效 membership，不用客户端 dealerId；每次请求重新查绑定；Admin 在业务路径被拒绝，Dealer.User 不能调用 admin 路径；JwtRoleMapper 对双角色优先按 Admin 处理，不会因此获得经销商业务权限。TenantGuard、按 dealerId 查询及 Hibernate filter 共同提供隔离。真实 Entra 租户登录和跨店集成仍需现场验收。
+- **Roles / multi-tenancy (AUTH-01–14 core flows)**: TenantFilter looks up the active membership by JWT identity and does not use a client-supplied dealerId; the binding is re-checked on every request; Admin is rejected on business paths, and Dealer.User cannot call admin paths; JwtRoleMapper treats a dual-role user as Admin first, which does not grant dealer business permissions. TenantGuard, dealerId-scoped queries, and the Hibernate filter together provide isolation. Real sign-in under the earlier external sign-in plan and cross-dealer integration still need live acceptance.
 - **DMS（DMS-01/02/03/05/06/07/09–15）**：字段存在；必填 DTO、每店 VIN 唯一索引、搜索分页、sale pair/正价、重复售出拒绝、采购字段锁、version 检查、审计、condition 使广告版本失效均有实现。严格格式校验不计入已完成，详情展示见 V-01。
 - **CRM（CRM-01/02/03/05/07/08/09/11/12）**：四项必填；创建编辑搜索；同店库存/已售车都可关联；一车一客户唯一索引；已售不可解绑；跨店 id 不存在；联系字段不作为审计值。关联选择器和可见历史见 V-02/03。
 - **广告（AD-01–13 的核心后端流程）**：一车一稿唯一约束；CASH 含 APR/PAYMENT 进入融资规则；LEASE 独立分支；20,000 km 边界；硬规则跳过 AI；成功保留软提示与 AI notes；失败保存 UNAVAILABLE 并返回 AI_UNAVAILABLE；检查保存开始时评估的内容版本；Ready/TXT 校验当前 pass 与版本。文本导出读取公共车辆/门店数据，不主动附加客户资料或采购成本。前端清单为展示用途，按 kind/medium 切换。
-- **审计基本属性（AUD-01/02/03/05/07）**：创建/编辑/销售/关联操作写事件，有 actorOid/action/createdAt，业务服务事务包含审计写入；无对外审计编辑/删除接口。可见历史并未全部完成，见 V-02。
+- **Basic audit properties (AUD-01/02/03/05/07)**: create/edit/sale/link operations write events with actorUsername/action/createdAt, and business service transactions include the audit write; there is no external audit edit/delete API. Visible history is not fully complete; see V-02.
 - **六页面与架构（UI 页面列表、ARC-01/02/05/06）**：六个 Vue 路由存在，角色守卫存在；一个 core 业务数据库，九表；公开 API 为 /api/v1，错误体含 code/message，可带 fieldErrors。
-- **JWT/AI/隐私的实现部分（SEC-01/02/05/07、AI-01/02/04）**：MSAL 登录与 token 获取、Entra issuer/audience/expiry 校验路径存在；AI 适配器调用 GitHub 组件 API；广告请求只构造公共车辆/门店 DTO，助手资源卡不含客户联系字段或采购成本。模型密钥、真实响应、部署隔离、HTTPS/Key Vault 的现场证据不由源码存在自动证明。
+- **Implemented parts of JWT/AI/privacy (SEC-01/02/05/07, AI-01/02/04)**: login and token acquisition through the earlier sign-in SDK, and issuer/audience/expiry validation paths for the earlier external sign-in plan, exist; the AI adapters call the GitHub component API; ad requests build only public vehicle/dealership DTOs, and assistant resource cards contain no customer contact fields or purchase cost. Live evidence for the model key, real responses, deployment isolation, and HTTPS/Key Vault is not automatically proven by the presence of source code.
 - **延期/排除项**：不恢复 leads、work orders、Image Studio、外部发布、复杂规则配置、额外车辆字段、配额/限流或完整生产级审计。修改其他车辆/门店字段触发更多失效仍是延期 A5。
 
 ## 四、本轮执行的验证
@@ -96,7 +96,7 @@
 1. .github/workflows/dealer-core.yml:39 的集成步骤使用 mvn verify -DskipTests，会跳过测试；不能用此步骤名称声称数据库集成已执行。应使用现有 Failsafe 正常运行方式并确认报告，不需要扩充测试框架。
 2. dealer-platform/infra/main.bicep:2 明确是未从本仓库部署的模板。私有 core/AI ingress、HTTPS、Key Vault 引用和 MySQL 备份设置均有定义，但实际 Azure 状态本轮未核实。
 3. Compose 默认 AI 构建使用 stub；ChainableRequest.send 始终返回 stubFailure。真实 AI 验收必须使用真实组件构建及有效配置。只填 key 不能让 stub 变成真实模型。
-4. 四个模块目录、四份 workflow 不等于四个远程仓库已交付；真实 Entra 配置、远程 repo/pipeline、Scrum 材料、Review 和客户/教师确认均需已有实际证据。本次不替它们标完成。
+4. Four module directories and four workflows do not mean four remote repositories have been delivered; real external sign-in configuration, remote repos/pipelines, Scrum materials, Review, and customer/instructor confirmation all need actual evidence. This pass does not mark them complete on their behalf.
 
 ## 建议的最小收尾顺序
 

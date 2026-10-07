@@ -9,15 +9,20 @@ import com.dealerops.core.common.exception.ApiException;
 import com.dealerops.core.common.exception.ErrorCode;
 import com.dealerops.core.common.tenant.TenantContext;
 import com.dealerops.core.common.tenant.TenantGuard;
+import com.dealerops.core.customer.CustomerRepository;
 import com.dealerops.core.listing.ListingRepository;
 import com.dealerops.core.listing.ListingStatus;
 import com.dealerops.core.security.CurrentUser;
+import com.dealerops.core.dealer.AppRole;
 import com.dealerops.core.vehicle.dto.CreateVehicleRequest;
+import com.dealerops.core.vehicle.dto.LinkedCustomerBrief;
 import com.dealerops.core.vehicle.dto.PatchVehicleRequest;
 import com.dealerops.core.vehicle.dto.SellVehicleRequest;
 import com.dealerops.core.vehicle.dto.VehicleResponse;
 import java.math.BigDecimal;
+import java.time.Year;
 import java.util.LinkedHashMap;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import org.springframework.data.domain.Page;
@@ -30,22 +35,30 @@ public class VehicleService {
 
   private final VehicleRepository vehicleRepository;
   private final ListingRepository listingRepository;
+  private final CustomerRepository customerRepository;
   private final AuditService auditService;
 
   public VehicleService(
-      VehicleRepository vehicleRepository, ListingRepository listingRepository, AuditService auditService) {
+      VehicleRepository vehicleRepository,
+      ListingRepository listingRepository,
+      CustomerRepository customerRepository,
+      AuditService auditService) {
     this.vehicleRepository = vehicleRepository;
     this.listingRepository = listingRepository;
+    this.customerRepository = customerRepository;
     this.auditService = auditService;
   }
 
   @Transactional(readOnly = true)
   public PageResponse<VehicleResponse> list(String q, VehicleStatus status, ConditionCode condition, int page, int size) {
-    Long tenant = requireTenant();
+    Long tenant = readTenant();
     String query = q == null ? null : q.trim();
     Page<VehicleEntity> result =
-        vehicleRepository.search(
-            tenant, query, status, condition, Paging.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt")));
+        tenant == null
+            ? vehicleRepository.searchAll(
+                query, status, condition, Paging.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt")))
+            : vehicleRepository.search(
+                tenant, query, status, condition, Paging.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt")));
     return new PageResponse<>(
         result.map(this::toResponse).getContent(), result.getNumber(), result.getSize(), result.getTotalElements());
   }
@@ -53,15 +66,17 @@ public class VehicleService {
   @Transactional
   public VehicleResponse create(CreateVehicleRequest body) {
     Long tenant = requireTenant();
-    if (vehicleRepository.existsByDealerIdAndVin(tenant, body.vin())) {
+    requireModelYearInRange(body.modelYear());
+    String vin = normalizeVin(body.vin());
+    if (vehicleRepository.existsByDealerIdAndVin(tenant, vin)) {
       throw new ApiException(ErrorCode.VIN_DUP, "VIN already exists in this dealership.");
     }
     VehicleEntity vehicle = new VehicleEntity();
     vehicle.setDealerId(tenant);
-    vehicle.setMake(body.make());
-    vehicle.setModel(body.model());
+    vehicle.setMake(body.make().trim());
+    vehicle.setModel(body.model().trim());
     vehicle.setModelYear(body.modelYear());
-    vehicle.setVin(body.vin());
+    vehicle.setVin(vin);
     vehicle.setSource(body.source());
     vehicle.setPurchaseCost(body.purchaseCost());
     vehicle.setAddedOn(body.addedOn());
@@ -77,14 +92,18 @@ public class VehicleService {
         vehicle.getId(),
         AuditAction.CREATE.name(),
         tenant,
-        actorOid(),
+        actorUsername(),
         createdVehicleFields(body));
     return toResponse(vehicle);
   }
 
   @Transactional(readOnly = true)
   public VehicleResponse get(Long id) {
-    return toResponse(loadThisDealer(id));
+    TenantGuard.requireBusinessAccess();
+    VehicleEntity vehicle = TenantContext.get().role() == AppRole.PLATFORM_ADMIN
+        ? vehicleRepository.findById(id).orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND, "Not found"))
+        : loadThisDealer(id);
+    return toResponse(vehicle);
   }
 
   @Transactional
@@ -94,17 +113,21 @@ public class VehicleService {
     if (!body.version().equals(vehicle.getVersion())) {
       throw new ApiException(ErrorCode.VERSION_CONFLICT, "Version conflict.");
     }
-    Map<String, Object> changed = changedVehicleFields(vehicle, body);
+    requireModelYearInRange(body.modelYear());
+    String make = body.make().trim();
+    String model = body.model().trim();
+    String vin = normalizeVin(body.vin());
+    Map<String, Object> changed = changedVehicleFields(vehicle, body, make, model, vin);
     if (vehicle.getStatus() == VehicleStatus.SOLD && purchaseFieldsChanged(changed)) {
       throw new ApiException(ErrorCode.SOLD_LOCKED, "Sold vehicle is locked.");
     }
-    if (changed.containsKey("vin") && vehicleRepository.existsByDealerIdAndVin(tenant, body.vin())) {
+    if (changed.containsKey("vin") && vehicleRepository.existsByDealerIdAndVin(tenant, vin)) {
       throw new ApiException(ErrorCode.VIN_DUP, "VIN already exists in this dealership.");
     }
-    vehicle.setMake(body.make());
-    vehicle.setModel(body.model());
+    vehicle.setMake(make);
+    vehicle.setModel(model);
     vehicle.setModelYear(body.modelYear());
-    vehicle.setVin(body.vin());
+    vehicle.setVin(vin);
     vehicle.setSource(body.source());
     vehicle.setPurchaseCost(body.purchaseCost());
     vehicle.setAddedOn(body.addedOn());
@@ -126,7 +149,7 @@ public class VehicleService {
         vehicle.getId(),
         AuditAction.UPDATE.name(),
         tenant,
-        actorOid(),
+        actorUsername(),
         changed);
     return toResponse(vehicle);
   }
@@ -134,8 +157,8 @@ public class VehicleService {
   @Transactional
   public VehicleResponse sell(Long id, SellVehicleRequest body) {
     Long tenant = requireTenant();
-    if (body.soldOn() == null || body.soldPrice() == null || body.soldPrice().compareTo(BigDecimal.ZERO) <= 0) {
-      throw new ApiException(ErrorCode.SOLD_PAIR_REQUIRED, "Sold date and a positive sold price are required.");
+    if (body.soldOn() == null || body.soldPrice() == null) {
+      throw new ApiException(ErrorCode.SOLD_PAIR_REQUIRED, "Sold date and sold price are both required.");
     }
     VehicleEntity vehicle = loadThisDealer(id);
     if (!body.version().equals(vehicle.getVersion())) {
@@ -143,6 +166,9 @@ public class VehicleService {
     }
     if (vehicle.getStatus() == VehicleStatus.SOLD) {
       throw new ApiException(ErrorCode.SOLD_LOCKED, "Sold vehicle is locked.");
+    }
+    if (body.soldOn().isBefore(vehicle.getAddedOn())) {
+      throw new ApiException(ErrorCode.VALIDATION, "Sold date must not be before the date added.");
     }
     Map<String, Object> changed = changedSellFields(vehicle, body);
     vehicle.setStatus(VehicleStatus.SOLD);
@@ -154,7 +180,7 @@ public class VehicleService {
         vehicle.getId(),
         AuditAction.SELL.name(),
         tenant,
-        actorOid(),
+        actorUsername(),
         changed);
     return toResponse(vehicle);
   }
@@ -186,18 +212,19 @@ public class VehicleService {
     return fields;
   }
 
-  private static Map<String, Object> changedVehicleFields(VehicleEntity vehicle, PatchVehicleRequest body) {
+  private static Map<String, Object> changedVehicleFields(
+      VehicleEntity vehicle, PatchVehicleRequest body, String make, String model, String vin) {
     Map<String, Object> changed = new LinkedHashMap<>();
-    if (!Objects.equals(vehicle.getMake(), body.make())) {
+    if (!Objects.equals(vehicle.getMake(), make)) {
       changed.put("make", true);
     }
-    if (!Objects.equals(vehicle.getModel(), body.model())) {
+    if (!Objects.equals(vehicle.getModel(), model)) {
       changed.put("model", true);
     }
     if (vehicle.getModelYear() != body.modelYear()) {
       changed.put("modelYear", true);
     }
-    if (!Objects.equals(vehicle.getVin(), body.vin())) {
+    if (!Objects.equals(vehicle.getVin(), vin)) {
       changed.put("vin", true);
     }
     if (vehicle.getSource() != body.source()) {
@@ -212,7 +239,7 @@ public class VehicleService {
     if (vehicle.getConditionCode() != body.conditionCode()) {
       changed.put("conditionCode", true);
     }
-    if (!Objects.equals(vehicle.getRepairCost(), body.repairCost())) {
+    if (moneyChanged(vehicle.getRepairCost(), body.repairCost())) {
       changed.put("repairCost", true);
     }
     if (!Objects.equals(vehicle.getCarfaxUrl(), body.carfaxUrl())) {
@@ -254,6 +281,16 @@ public class VehicleService {
     return current.compareTo(next) != 0;
   }
 
+  private static void requireModelYearInRange(int modelYear) {
+    if (modelYear > Year.now().getValue() + 1) {
+      throw new ApiException(ErrorCode.VALIDATION, "Model year must not be later than next year.");
+    }
+  }
+
+  private static String normalizeVin(String vin) {
+    return vin.toUpperCase(Locale.ROOT);
+  }
+
   private VehicleResponse toResponse(VehicleEntity vehicle) {
     return new VehicleResponse(
         vehicle.getId(),
@@ -270,6 +307,10 @@ public class VehicleService {
         vehicle.getSoldOn(),
         vehicle.getSoldPrice(),
         vehicle.getStatus(),
+        customerRepository
+            .findLinkedToVehicle(vehicle.getDealerId(), vehicle.getId())
+            .map(customer -> new LinkedCustomerBrief(customer.getId(), customer.getName()))
+            .orElse(null),
         vehicle.getVersion());
   }
 
@@ -278,8 +319,15 @@ public class VehicleService {
     return TenantContext.get().tenantDealerId();
   }
 
-  private static String actorOid() {
+  private static Long readTenant() {
+    TenantGuard.requireBusinessAccess();
+    return TenantContext.get().role() == AppRole.PLATFORM_ADMIN
+        ? null
+        : TenantContext.get().tenantDealerId();
+  }
+
+  private static String actorUsername() {
     CurrentUser user = TenantContext.get();
-    return user == null ? "" : user.oid();
+    return user == null ? "" : user.username();
   }
 }

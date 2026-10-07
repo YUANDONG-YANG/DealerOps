@@ -50,13 +50,13 @@ Most of the design matches the source: roles, tenant isolation (404 vs 403), DMS
 
 | # | Source says | Design ruling | Where | Signed in SCOPE-BASELINE? |
 |---|---|---|---|---|
-| B1 | Username / password | Entra only | 15 §8 | ✅ Erratum 1 |
+| B1 | Username / password | Earlier external sign-in plan only | 15 §8 | ✅ Erratum 1 |
 | B2 | "Before published" | Ready + TXT export | 14 §8 | ✅ Erratum 3 |
 | B3 | 5 pages | + Assistant page | 10 | ✅ Erratum 2 |
 | B4 | Always required: status (new/used), year, extended-warranty terms, previous use; finance: loan term, cost of borrowing; lease: term, payment, upfront amount | **Soft only** (never blocks Ready). Cost of borrowing has no rule at all. New/used is only a contradiction check. | PROTOCOL §C.0a | ❌ **Not in SCOPE-BASELINE.** C.0a says "do not fix without instructor sign-off", but no sign-off is recorded. Add it as erratum 4, or promote the finance term and lease term / payment / upfront amount to hard. |
 | B5 | Radio / TV / billboard "exempt from displaying **these** alongside the rate" (these = APR, loan term, cash price) | Only the proximity check is waived; APR is still hard for broadcast FINANCE | 15 §6, FX-14 | ❌ An interpretation choice. The wording can also mean all three disclosures are waived. Confirm with the instructor. |
 | B6 | Car source "etc." | Fixed four values incl. `OTHER` | 00 | Implicit; acceptable |
-| B7 | Admin "view credentials" | Members list shows Entra oid + display name; no email column | 14 §3.5 | Implicit; acceptable |
+| B7 | Admin "view credentials" | Members list shows user identifier + display name; no email column | 14 §3.5 | Implicit; acceptable |
 
 ---
 

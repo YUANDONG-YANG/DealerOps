@@ -35,11 +35,9 @@ public class JwtIssuer {
           new JWTClaimsSet.Builder()
               .issuer(JwtSupport.ISSUER)
               .audience(JwtSupport.DEFAULT_AUDIENCE)
-              .subject(user.getEntraOid())
+              .subject(user.getUsername())
               .issueTime(Date.from(now))
               .expirationTime(Date.from(now.plusSeconds(EXPIRY_SECONDS)))
-              .claim("oid", user.getEntraOid())
-              .claim("tid", user.getEntraTenantId())
               .claim("name", user.getDisplayName())
               .claim("roles", List.of(user.getRole().getValue()))
               .build();

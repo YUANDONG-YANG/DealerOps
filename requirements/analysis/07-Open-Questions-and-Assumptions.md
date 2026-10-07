@@ -5,7 +5,7 @@
 | Topic | PDF specification | DOCX brief | Resolution |
 |---|---|---|---|
 | Product name | Dealer Ops | DealerOS | Use Dealer Ops |
-| Sign-in | Username + password | Not mentioned | Entra (SCOPE erratum 1) |
+| Sign-in | Username + password | Not mentioned | Username + password, admin-issued, BCrypt-hashed (reversed 2026-09-30, see design/SCOPE-BASELINE.md errata 1) |
 | CRM scope | Four fields + purchase link | Lead and customer lifecycle | Follow the PDF; no leads |
 | Compliance check | Checklist + system flags missing items | AI screens automatically | Both: fixed rules first, then AI review |
 | Publishing | "Before a listing is published" | "flagging before publication" | Ready + TXT export (SCOPE erratum 3) |

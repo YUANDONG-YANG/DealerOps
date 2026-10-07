@@ -21,7 +21,7 @@ This is a "lean and highly convergent" design set for a capstone course: a clear
 
 **1. IMPLEMENTATION-BRIEF.md's description of repo state is stale, yet it is positioned as the "AI coding entry document"**
 - Line 9 reads: "The current skeleton has only `dealer-core`... There is **not yet** a `dealer-web` / `dealer-gateway` / `ai-service` project."
-- The actual latest commit `dda4b09` ("Land the Entra-ready local stack so SPA, gateway, core, and AI share Compose, CI, and tests...") and the repo directory listing show `dealer-web` (with dist/e2e), `dealer-gateway`, and `ai-service` already each have `src`/`pom.xml`/`Dockerfile`/`target`.
+- The actual latest commit `dda4b09` ("Land the [earlier external sign-in plan]-ready local stack so SPA, gateway, core, and AI share Compose, CI, and tests...") and the repo directory listing show `dealer-web` (with dist/e2e), `dealer-gateway`, and `ai-service` already each have `src`/`pom.xml`/`Dockerfile`/`target`.
 - **Impact**: Brief §11 "Coding order" still numbers tasks as if starting from an empty repo (task 2 "Empty projects"). If this stays the sole entry point for a coding agent, it will misdirect re-scaffolding or misjudge current progress.
 - **Fix**: Refresh IMPLEMENTATION-BRIEF.md's repo-state description and §11 task table, marking which tasks are already done.
 

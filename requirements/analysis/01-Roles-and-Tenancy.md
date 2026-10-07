@@ -44,7 +44,7 @@ The source does not distinguish managers from salespeople; all users inside a de
 | AUTH-09 | The server derives the dealer from the signed-in identity and **ignores** any client-supplied `dealerId` | Derived | Must |
 | AUTH-10 | Dealer users cannot create or remove logins | PDF §2 | Must |
 | AUTH-11 | Each user signs in with their own identity; no shared accounts | PDF §2 | Must |
-| AUTH-12 | Sign-in uses Microsoft Entra ID (OIDC + PKCE + JWT) instead of the source's username / password | SCOPE erratum 1 | Must |
+| AUTH-12 | Sign-in uses the admin-issued username and password from the source; the server checks a BCrypt hash and issues a signed JWT. | PDF §2, §8, SCOPE erratum 1 | Must |
 | AUTH-13 | A signed-in user with no dealer binding gets 403 on business APIs | SCOPE | Should |
 | AUTH-14 | The same person cannot be bound to the same dealer twice (`DUP_MEMBER`) | SCOPE | Should |
 | AUTH-15 | The admin can view / edit a single dealer's basic info | SCOPE (added in design doc 14) | Should |
@@ -65,7 +65,7 @@ The source gives no dealer fields, but ad compliance requires "dealer's register
 ## 6. Account lifecycle
 
 ```
-Admin creates dealer → Admin binds account (Entra user ↔ dealer) → User signs in → Accesses own dealer data
+Admin creates dealer → Admin issues login (username + temporary password ↔ dealer) → User signs in → Accesses own dealer data
                                             ↓
                               Admin removes binding → User calls business API → 403
 ```

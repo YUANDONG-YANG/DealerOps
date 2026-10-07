@@ -6,7 +6,7 @@
 - This document covers only: **how the `dealer-core` repo splits Java files, application-service responsibilities, tenant intercept, exception mapping, outbound AI calls, audit, and test-class mapping**. Team members can write from the directory and class names.
 - Authority on conflict: course PPT hard items > spec PDF fields > [IMPLEMENTATION-BRIEF.md](IMPLEMENTATION-BRIEF.md) / [00](00-Current-Development-Design.md) > **15 / 14 / [13](13-Frontend-Engineering.md)** > this document (core engineering) > [12](12-Frontend-UI-Conventions.md). `16` / `17` are acceptance and fixtures and **do not change the contract**.
 - Repo duties align [08-DevOps-and-Implementation.md](08-DevOps-and-Implementation.md): core = Spring Boot + Flyway + one database + tenant isolation + business API + AI via Gateway. Gateway writes no business; ai-service has no database.
-- Out of scope: tickets / leads / password tables / Service Bus / a second database / opening 8081 to the browser. Do not change SQL. Do not write Java business-code bodies here (class names and duties only).
+- Out of scope: tickets / leads / a separate password table (the hash lives on `app_user`) / Service Bus / a second database / opening 8081 to the browser. Do not change SQL. Do not write Java business-code bodies here (class names and duties only).
 
 Coding repo: `dealer-core` (currently only `src/main/resources/db/migration/V1__init.sql`). **core is not open to the browser**; it listens on intranet port **8081** only (15 §10).
 
@@ -18,10 +18,10 @@ Coding repo: `dealer-core` (currently only `src/main/resources/db/migration/V1__
 |---|---|
 | Language | **Java 21** (unified across the four Java course repos; 15 §12. Do not mix core 21 and ai-service 17) |
 | Framework | **Spring Boot 3** (Web, Validation, Security Resource Server, Data JPA) |
-| Migration | **Flyway only**. `V1__init.sql` already exists. Do not use `ddl-auto=update`. Non-start-blocker indexes go in later `V2__*.sql` (15); this document does not land them |
+| Migration | **Flyway only**. `V1__init.sql` already exists. Do not use `ddl-auto=update`. Later scripts use `V{YYYYMMDD}_{n}__{action}.sql` (repo `CLAUDE.md`); current ones are `V20260930_1__add_password_hash.sql`, `V20261007_2__widen_customer_email.sql` (history repair for databases created before 2026-10-07: [15](15-Data-Auth-and-Gateway.md) §8.3) |
 | Database | **one MySQL**, database name `dealer_core`. Connection string / account in platform `env.example` (`MYSQL_*`). core **owns** the data plane exclusively |
 | Port | `CORE_PORT=8081`. No browser CORS; no ACAO for `5173` (15 §10 / §13) |
-| Identity | validate Entra JWT (the **same** `ENTRA_ISSUER` / `ENTRA_AUDIENCE` as Gateway). No password table, no token issuance |
+| Identity | admin-issued username/password (15 §8). `POST /api/v1/auth/login` checks the BCrypt `app_user.password_hash` and issues an HS256 JWT (`sub`=username, `name`, `roles`) signed with `DEV_JWT_SECRET`; core and Gateway both validate it with the same secret. `JWT_MODE` must be `dev`. No separate password table |
 | Calls | synchronous REST. No queue, no outbox |
 
 Suggested root package: `com.dealerops.core`. Subpackages as below. **Do not** add `ticket` / `lead` / a standalone `auth` service / `bus`.
@@ -52,7 +52,7 @@ The current repo has no `src/main/java` yet; create it as follows. Test director
 ```
 dealer-core/
   pom.xml                          # Java 21, Boot 3, Flyway, mysql, spring-boot-starter-oauth2-resource-server
-  Dockerfile                       # listen 8081; do not map 8081 as public Ingress
+  # No Dockerfile: Maven packages a JAR, App Service runs it (deploy/README.md)
   src/main/resources/
     application.yml                # server.port=8081; flyway; datasource; jwk; no CORS
     db/migration/V1__init.sql      # already landed; this document does not change it
@@ -65,10 +65,13 @@ dealer-core/
       AiClientConfig.java          # WebClient: Gateway base URL + internal header
     security/
       JwtRoleMapper.java           # claims.roles → Platform.Admin | Dealer.User | NONE (15 §8)
+      JwtIssuer.java               # signs the HS256 login token (sub=username, name, roles)
       MeController.java            # GET /api/v1/me (14 §2)
       MeService.java               # return role / dealerId / dealerLegalName; Admin last two null
-      CurrentUser.java             # oid, tid, role, tenantDealerId (nullable)
+      CurrentUser.java             # username, role, tenantDealerId (nullable)
     dealer/
+      AuthController.java          # POST /api/v1/auth/login (14 §1.4), anonymous
+      AuthService.java             # BCrypt check against app_user.password_hash
       AdminDealerController.java   # 14 §3 dealership CRUD
       AdminMemberController.java   # 14 §3 members
       DealerAdminService.java
@@ -144,8 +147,8 @@ Follow `V1__init.sql`: **one entity class + one Repository per table**. Column n
 | Table | Entity | Repository | Write-path notes (behavior is in 15) |
 |---|---|---|---|
 | `dealer` | `DealerEntity` | `DealerRepository` | optimistic lock `version`. Four contacts non-empty. No DELETE dealership |
-| `app_user` | `AppUserEntity` | `AppUserRepository` | `uk_user_oid (entra_tenant_id, entra_oid)`. `dealer_id` **is not** tenant authority |
-| `membership` | `MembershipEntity` | `MembershipRepository` | tenant authority: `entra_oid` + `active=1` **exactly one row**. Two active rows at once → 500-class config error (15 §2.4) |
+| `app_user` | `AppUserEntity` | `AppUserRepository` | `uk_user_username (username)`. `dealer_id` **is not** tenant authority |
+| `membership` | `MembershipEntity` | `MembershipRepository` | tenant authority: `username` + `active=1` **exactly one row**. Two active rows at once → 500-class config error (15 §2.4) |
 | `vehicle` | `VehicleEntity` | `VehicleRepository` | `uk_vehicle_vin (dealer_id, vin)`. `status` only `IN_STOCK`/`SOLD`. Sell as a pair |
 | `customer` | `CustomerEntity` | `CustomerRepository` | this-dealership isolation. Optimistic lock `version` |
 | `customer_vehicle` | `CustomerVehicleEntity` | `CustomerVehicleRepository` | `uk_cv_vehicle` one vehicle one customer. No `version` column: link/unlink have no optimistic lock (14) |
@@ -190,9 +193,9 @@ Each service maps to a 14 endpoint group. Implementations cite paths only and co
 
 ### 4.2 `MembershipService`
 
-- **Endpoints (14 §3.5–3.7):** `GET/POST /admin/dealers/{id}/members`, `DELETE .../members/{entraOid}`.
-- **Duties:** bind writes `membership` + `app_user` (display name, `role=Dealer.User`, `dealer_id` synced with membership). Already **active** at that dealership → `409 DUP_MEMBER`. Same oid already active at **another dealership** → also `409 DUP_MEMBER` (15: only one active at a time). Binding an unbound same-row again → **reactivate**, do not insert a second row (hits `uk_membership`).
-- **Unbind:** `membership.active=0`; `app_user.dealer_id=NULL`; **do not change** `app_user.role`; do not delete Entra or `app_user`. Business APIs then 403 (see section 5).
+- **Endpoints (14 §3.5–3.7):** `GET/POST /admin/dealers/{id}/members`, `DELETE .../members/{username}`.
+- **Duties:** bind writes `membership` + `app_user` (display name, `role=Dealer.User`, `dealer_id` synced with membership). Already **active** at that dealership → `409 DUP_MEMBER`. Same username already active at **another dealership** → also `409 DUP_MEMBER` (15: only one active at a time). Binding an unbound same-row again → **reactivate**, do not insert a second row (hits `uk_membership`).
+- **Unbind:** `membership.active=0`; `app_user.dealer_id=NULL`; **do not change** `app_user.role`; do not delete `app_user`. Business APIs then 403 (see section 5).
 - **Audit:** `entityType=MEMBERSHIP`.
 
 ### 4.3 `VehicleService`
@@ -229,7 +232,7 @@ Each service maps to a 14 endpoint group. Implementations cite paths only and co
 ### 4.7 `AuditService`
 
 - **Endpoints (14 §9):** `GET /audit?entityType=&entityId=` (required), pagination optional.
-- **Write:** called by DMS/CRM (and optional Admin) services. Record **who** (`actorOid`) **did what** (`entityType`+`action`+`entityId`) **when** (`createdAt`).
+- **Write:** called by DMS/CRM (and optional Admin) services. Record **who** (`actorUsername`) **did what** (`entityType`+`action`+`entityId`) **when** (`createdAt`).
 - **Read:** staff this dealership only; entity not in this dealership → 404. Admin querying business entities → **403**, no `fieldSummary` business content. Staff cannot query `DEALER`/`MEMBERSHIP`.
 - **Summary:** see section 8.
 
@@ -257,8 +260,8 @@ Every `/api/v1/**` (business paths other than `/me`) resolves tenant before the 
 
 1. Gateway already validated the JWT; **core validates again** (issuer/audience). Missing/bad JWT → `401 UNAUTHORIZED`.
 2. `JwtRoleMapper`: `roles` contains `Platform.Admin` → Admin (**Admin wins**, even if `Dealer.User` is also present); `Dealer.User` only → staff; otherwise 403 except `/me`.
-3. Find or lazily insert `app_user` by JWT `tid`+`oid` (display name may be written back). **Authorization compares the current JWT**; an expired `role` in the database cannot elevate.
-4. Staff: load **exactly one** `membership.entra_oid=:oid AND active=1`. `TenantContext.tenantDealerId = membership.dealer_id`. 0 rows → **403 `FORBIDDEN`** (signed in, no dealership, **not** 401/404). ≥2 rows → 500-class configuration error; reject business.
+3. Find or lazily insert `app_user` by JWT `sub` (username) (display name may be written back). **Authorization compares the current JWT**; an expired `role` in the database cannot elevate.
+4. Staff: load **exactly one** `membership.username=:username AND active=1`. `TenantContext.tenantDealerId = membership.dealer_id`. 0 rows → **403 `FORBIDDEN`** (signed in, no dealership, **not** 401/404). ≥2 rows → 500-class configuration error; reject business.
 5. **Ignore** request-body / query / header `dealerId` (including invented `X-Dealer-Id`). Writes always use `tenantDealerId`.
 6. Admin: do not set a business `tenantDealerId`; allow only `/api/v1/admin/**` and `/me`. Hitting `/vehicles` `/customers` `/listings/**` `/audit` (business entities) `/assistant` → **403 `FORBIDDEN`**, response has **no** vin/cost/customer or other business fields.
 7. After loading a resource by path id: `resource.dealerId != tenantDealerId` → **404 `NOT_FOUND`** (anti-probing, not 403). Missing id in this dealership is also 404.
@@ -283,7 +286,7 @@ Every `/api/v1/**` (business paths other than `/me`) resolves tenant before the 
 | Role hitting the wrong prefix; staff 0 active memberships | `FORBIDDEN` | 403 |
 | No id in this dealership / **cross-dealership id** / no association | `NOT_FOUND` | 404 |
 | `version` ≠ current row | `VERSION_CONFLICT` | 409 |
-| This dealership already has an active member; or this oid is still active at another dealership | `DUP_MEMBER` | 409 |
+| This dealership already has an active member; or this username is still active at another dealership | `DUP_MEMBER` | 409 |
 | Vehicle already linked (including to this customer) | `VEHICLE_ALREADY_LINKED` | 409 |
 | Sold purchase edit, sell again, **sold unlink** | `SOLD_LOCKED` | 409 |
 | Ready/Export: previously passed but version incremented / lastCheck version ≠ listing | `CHECK_STALE` | 409 |
@@ -305,7 +308,7 @@ core **does not** treat a direct `8082` call as the product path; outbound hits 
 
 `AiGatewayClient`:
 
-1. Base URL = Gateway (local `http://localhost:8080` or the compose Gateway service name), **not** the browser origin.
+1. Base URL = Gateway (local `http://localhost:8080`, cloud `GATEWAY_BASE_URL`), **not** the browser origin.
 2. Request header **`X-Dealer-Internal: <INTERNAL_TOKEN>`** (env / Key Vault). **Do not** forward the user JWT to ai-service.
 3. Body field names match 14 §11: `listing` + `vehiclePublic` (year/make/model/vin/condition/source, **no** purchase/repair/sold price) + `dealerPublic` (dealership name + three contacts). Assistant: `question` + filtered `resources`.
 4. Adapter timeout **≤15s** (handbook; set connect/response yourself).
@@ -322,7 +325,7 @@ Every DMS/CRM write (and optional Admin create/bind) inserts one `audit_event` r
 
 | Column | Meaning |
 |---|---|
-| `actor_oid` | **who**: JWT `oid` |
+| `actor_username` | **who**: JWT `sub` (the username) |
 | `entity_type` + `action` + `entity_id` | **did what** |
 | `created_at` | **when** |
 | `dealer_id` | staff = this dealership; Admin may be empty |
@@ -371,7 +374,7 @@ Align 15 §10 / 08: browser-to-service HTTP **only** goes through Gateway `8080`
 
 | Item | Requirement |
 |---|---|
-| Listen | bind **8081** only (`CORE_PORT`). compose / Azure: **internal**; no public Ingress |
+| Listen | bind **8081** only (`CORE_PORT`), on `127.0.0.1` locally (`SERVER_ADDRESS`). Azure: App Service access restrictions deny every caller but Azure-internal ones |
 | CORS | **do not** configure `http://localhost:5173`. Direct `fetch(8081)` must be blocked by the browser |
 | Routes | implement `/api/v1/**` business only. Do not implement `/internal/v1/**` for the browser |
 | Outbound | AI calls add the internal header only; see section 7 |

@@ -30,4 +30,20 @@ public interface VehicleRepository extends JpaRepository<VehicleEntity, Long> {
       @Param("status") VehicleStatus status,
       @Param("condition") ConditionCode condition,
       Pageable pageable);
+
+  @Query(
+      """
+      select v from VehicleEntity v
+      where (:status is null or v.status = :status)
+        and (:condition is null or v.conditionCode = :condition)
+        and (:q is null or :q = ''
+             or lower(v.vin) like lower(concat('%', :q, '%'))
+             or lower(v.make) like lower(concat('%', :q, '%'))
+             or lower(v.model) like lower(concat('%', :q, '%')))
+      """)
+  Page<VehicleEntity> searchAll(
+      @Param("q") String q,
+      @Param("status") VehicleStatus status,
+      @Param("condition") ConditionCode condition,
+      Pageable pageable);
 }

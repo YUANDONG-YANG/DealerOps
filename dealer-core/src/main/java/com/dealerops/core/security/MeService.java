@@ -24,25 +24,34 @@ public class MeService {
 
   @Transactional
   public MeResponse me(CurrentUser user) {
-    if (user == null || user.oid() == null) {
+    if (user == null || user.username() == null) {
       throw new ApiException(ErrorCode.UNAUTHORIZED, "Unauthorized");
     }
     AppUserEntity appUser =
-        appUserRepository.findByEntraTenantIdAndEntraOid(user.tid(), user.oid()).orElse(null);
+        appUserRepository.findByUsername(user.username()).orElse(null);
     String displayName = appUser != null ? appUser.getDisplayName() : "";
     if (user.role() == AppRole.PLATFORM_ADMIN) {
-      return new MeResponse(user.oid(), displayName, AppRole.PLATFORM_ADMIN.getValue(), null, null);
+      return new MeResponse(
+          user.username(), displayName, AppRole.PLATFORM_ADMIN.getValue(), null, null, null, null, null);
     }
     String roleJson = user.role() == AppRole.DEALER_USER ? AppRole.DEALER_USER.getValue() : null;
     Long dealerId = user.tenantDealerId();
-    String legalName = null;
+    DealerEntity dealer = null;
     if (dealerId != null) {
-      legalName = dealerRepository.findById(dealerId).map(DealerEntity::getLegalName).orElse(null);
+      dealer = dealerRepository.findById(dealerId).orElse(null);
       if (appUser != null && !dealerId.equals(appUser.getDealerId())) {
         appUser.setDealerId(dealerId);
         appUserRepository.save(appUser);
       }
     }
-    return new MeResponse(user.oid(), displayName, roleJson, dealerId, legalName);
+    return new MeResponse(
+        user.username(),
+        displayName,
+        roleJson,
+        dealerId,
+        dealer == null ? null : dealer.getLegalName(),
+        dealer == null ? null : dealer.getContactPhone(),
+        dealer == null ? null : dealer.getContactEmail(),
+        dealer == null ? null : dealer.getContactAddress());
   }
 }

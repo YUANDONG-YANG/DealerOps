@@ -23,7 +23,7 @@ This development-phase gate takes precedence over conflicting test-writing instr
 
 ## Language and path rules
 
-- Reply to the user in **English only**. Do not use Chinese in chat, commits, comments, or project files.
+- Chat may use Chinese or English according to the user's language and preference. All content written into the repository must remain English-only.
 - All new or edited project text must be English: Markdown, YAML/JSON comments, Java/JS comments, OpenAPI descriptions, commit messages, and pull request descriptions.
 - Do not leave leftover Chinese in files you touch. Translate it; do not delete meaning.
 
@@ -33,7 +33,7 @@ Never write a machine-specific absolute path in `*.md`. Use repo-relative paths 
 
 Major or important design decisions must be documented under `design/`. That folder is the source of truth. Do not leave the design only in chat, only in a README, or only in code comments.
 
-Document or update a design doc when the change affects auth or identity (including Entra / MSAL), tenancy and multi-dealer boundaries, roles and permissions, API contracts, gateway routing and BFF behavior, or classroom acceptance and demo flows. Other cross-cutting product or architecture choices that the team must not diverge on also belong in `design/`.
+Document or update a design doc when the change affects auth or identity (login, passwords, JWT), tenancy and multi-dealer boundaries, roles and permissions, API contracts, gateway routing and BFF behavior, or classroom acceptance and demo flows. Other cross-cutting product or architecture choices that the team must not diverge on also belong in `design/`.
 
 Canonical text is Markdown under `design/` (English only; repo-relative paths). Root `README`, `design/PREP-CHECKLIST.md`, `env.example`, and similar entry points may summarize or link, and must point at the `design/` doc.
 
@@ -56,7 +56,7 @@ Use these people when creating, assigning, or mentioning JIRA work for this proj
 
 ## Flyway migration names
 
-Leave `dealer-core/src/main/resources/db/migration/V1__init.sql` unchanged.
+Leave `dealer-core/src/main/resources/db/migration/V1__init.sql` unchanged, and never edit a migration that has already run; add a new dated script instead. (V1 was rewritten once on 2026-10-07 to define the username identity columns; databases created before that need the Flyway history repair in `design/15-Data-Auth-and-Gateway.md` §8.3.)
 
 Every later versioned migration in that folder uses `V{YYYYMMDD}_{n}__{action}.sql`.
 

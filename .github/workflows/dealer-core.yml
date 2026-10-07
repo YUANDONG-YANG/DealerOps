@@ -1,4 +1,4 @@
-# Compile and test only. Image publish is .github/workflows/publish-ghcr.yml (see deploy/README.md).
+# Compile and test only. The cloud deploy is a JAR upload run by an operator (deploy/README.md).
 # If the course later splits four git remotes, copy this file to that repo as .github/workflows/ci.yml
 # and set working-directory to ".".
 name: dealer-core

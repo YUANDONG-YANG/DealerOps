@@ -14,8 +14,8 @@
 - Status: **current (v6 acceptance)**
 - **Conflict order (do not reverse):** course PPT hard items > spec PDF fields and enums > [IMPLEMENTATION-BRIEF.md](IMPLEMENTATION-BRIEF.md) / [00-Current-Development-Design.md](00-Current-Development-Design.md) > [15-Data-Auth-and-Gateway.md](15-Data-Auth-and-Gateway.md) / [14-Backend-API-Contract.md](14-Backend-API-Contract.md) / [13-Frontend-Engineering.md](13-Frontend-Engineering.md) > **this document**
 - This document is **use cases and live scripts**. **It does not change the contract**: paths, HTTP, error codes, five states, tenant, and fields follow 14 / 15 / the spec; routes and English copy follow 13. On contradiction, decide in the order above; do not invent new DTOs / routes / error codes here.
-- Out of scope: tickets, leads, consumer buyer site, password login, standalone Audit page, KPI, CSV import. The assistant only reuses the GitHub component and is read-only.
-- **Local-only cannot pass Sprint 2 / Sprint 3 (Review 2 / Review 3) acceptance.** Sprint 1 may explain architecture and four-repo builds on a local machine; S2/S3 must be a **cloud demo** (Entra → Gateway → business → real AI on Azure). See section 5.
+- Out of scope: tickets, leads, consumer buyer site, self-registration / forgot password, standalone Audit page, KPI, CSV import. The assistant only reuses the GitHub component and is read-only.
+- **Local-only cannot pass Sprint 2 / Sprint 3 (Review 2 / Review 3) acceptance.** Sprint 1 may explain architecture and four-repo builds on a local machine; S2/S3 must be a **cloud demo** (username/password sign-in → Gateway → business → real AI on Azure). See section 5.
 
 Numbering: classroom scripts `CL-*`, backend `BE-*` (may serve as [11](11-Requirements-Governance-and-Agile.md) **NN-19** key test table), frontend `FE-*`. Total **26** use cases + 6 classroom scripts (the scripts themselves are not counted in the 32).
 
@@ -23,7 +23,7 @@ Numbering: classroom scripts `CL-*`, backend `BE-*` (may serve as [11](11-Requir
 
 ## 1. Demo accounts and six-page paths (align 00 / 13)
 
-Class uses Entra only; no password box. Routes are these six only (13):
+Class signs in with admin-issued username/password (15 §8). Routes are these six only (13):
 
 | path | Who enters | Default landing |
 |---|---|---|
@@ -36,9 +36,9 @@ Class uses Entra only; no password box. Routes are these six only (13):
 
 Do not show `/tickets` `/leads` `/dashboard` `/audit` or buyer pages. Audit lives only at the bottom of the DMS/CRM detail drawer.
 
-| Account (prepare for class) | Entra role | Bound dealership | Used to demo |
+| Account (prepare for class) | Role (`app_user.role`, JWT `roles`) | Bound dealership | Used to demo |
 |---|---|---|---|
-| Admin | `Platform.Admin` | no membership; `/me` `dealerId` is `null` | create dealerships, bind staff, business calls rejected |
+| Admin (seeded from `ADMIN_USERNAME` / `ADMIN_PASSWORD`) | `Platform.Admin` | no membership; `/me` `dealerId` is `null` | create dealerships, bind staff, business calls rejected |
 | Staff A | `Dealer.User` | dealership A active only | DMS/CRM/ads/assistant, isolation "can see" |
 | Staff B | `Dealer.User` | dealership B active only | isolation "cannot see" |
 
@@ -52,11 +52,11 @@ Each script states: who signs in, which page, what they must see / must not see.
 
 ### CL-1 · Admin creates two dealerships and binds one person each (00 item 1 · NN-12)
 
-1. As **Admin**, open `/login` → `Sign in with Microsoft` → land on **`/admin`**.
+1. As **Admin**, open `/login` → enter username + password → `Sign in` → land on **`/admin`**.
 2. **See:** top bar `Platform Admin`; menu is **Admin only**; two in-page Tabs: **Dealerships**, **Members**.
 3. **Do not see:** DMS / CRM / Ad compliance / Assistant in the menu; any vehicle VIN, customer-name table, or ad body.
 4. Dealerships: `New dealership` creates dealership A and dealership B (four contact fields non-empty).
-5. Each dealership Staff drawer: `Bind staff` binds Staff A and Staff B `entraOid` + display name. Members Tab can flatten both people, each under one dealership.
+5. Each dealership Staff drawer: `Bind staff` binds Staff A and Staff B `username` + display name + temporary password. Members Tab can flatten both people, each under one dealership.
 6. **Failure shape (optional):** binding the same person again to the same dealership while active → in-page `Staff already bound` (`409 DUP_MEMBER`), not a silent second row.
 
 ### CL-2 · Dealership A records a vehicle and customer and links them; dealership B cannot see them (00 item 2 · NN-13/14)
@@ -104,7 +104,7 @@ Spec / 00: changing vehicle price, condition, or ad body voids the old check. In
 
 ## 3. Backend use-case table (NN-19)
 
-All APIs go through Gateway `/api/v1/**`. Staff tenant comes only from JWT `oid` → **active membership** (15); **ignore** client `dealerId`. Cross-dealership resources are **404 not 403**. Error body `{code,message}`; no stack/SQL/raw model text.
+All APIs go through Gateway `/api/v1/**`. Staff tenant comes only from JWT `sub` (the username) → **active membership** (15); **ignore** client `dealerId`. Cross-dealership resources are **404 not 403**. Error body `{code,message}`; no stack/SQL/raw model text.
 
 | ID | Name | Steps (who / which call) | Expect | Not |
 |---|---|---|---|---|
@@ -138,13 +138,13 @@ UI is English. Failures **must not look like empty tables**. Optimistic lock `40
 
 | ID | Name | Steps | Expect to see | Expect not to see |
 |---|---|---|---|---|
-| **FE-01** | Guard `/login` | unsigned-in open `/dms` | go to `/login`, `Sign in with Microsoft` only | password box, business tables |
+| **FE-01** | Guard `/login` | unsigned-in open `/dms` | go to `/login`, username + password card with one `Sign in` button | Microsoft button, sign-up link, business tables |
 | **FE-02** | Guard `/admin` | Staff A opens `/admin` | sent back to `/dms` | Dealerships table, bind-staff buttons |
 | **FE-03** | Guard `/dms` | Admin opens `/dms` | sent back to `/admin` | vehicle table |
 | **FE-04** | Guard `/crm` | Admin opens `/crm` | sent back to `/admin` | customer four-field table |
 | **FE-05** | Guard `/ads` | Admin opens `/ads` | sent back to `/admin` | ad form / five states |
 | **FE-06** | Guard `/assistant` | Admin opens `/assistant` | sent back to `/admin` | Ask, resource cards |
-| **FE-07** | Admin dual Tabs | Admin on `/admin` | one route, two Tabs: Dealerships (Name, Contact, Staff count, Actions; filter dealership name; `New dealership`); Members (Entra ID/email, Dealership, Status, Actions; filter staff email; data = dealer list + each dealer's members, **no** invented `/admin/members`). Staff / Unbind use the same API set | second Admin sub-route; Edit dealership (this course UI does not); Vehicles tab |
+| **FE-07** | Admin dual Tabs | Admin on `/admin` | one route, two Tabs: Dealerships (Name, Contact, Staff count, Actions; filter dealership name; `New dealership`); Members (Username, Dealership, Status, Actions; filter username; data = dealer list + each dealer's members, **no** invented `/admin/members`). Staff / Unbind use the same API set | second Admin sub-route; Edit dealership (this course UI does not); Vehicles tab |
 | **FE-08** | Unlink second confirmation | Staff A clicks `Unlink` on `/crm` detail | `ConfirmDialog` first; cancel sends no request; confirm then `DELETE .../vehicles/{vehicleId}`. Sold: `Sold vehicles cannot be unlinked`. In stock: list Linked vehicle clears | click-to-delete; empty PUT pretending to unlink; copy still says "not provided yet" even though 14 DELETE exists |
 | **FE-09** | Empty / error / loading states | walk all six pages through loading, empty list, API failure, no access | copy follows 13 §10: e.g. `Loading vehicles…` / `No vehicles match.` / `Could not load vehicles.` / `You do not have access to DMS.`; ad AI failure uses the right pane **AI unavailable** | paint 403/502 as empty tables; paint AI failure as Passed |
 | **FE-10** | Assistant failure English | `/assistant`: model down but HTTP 200 (`summaryAvailable=false`, cards still present); whole-page 5xx/network failure | summary area fixed **`Smart summary unavailable`**; whole-page failure **`Could not ask assistant`**; cards ≤5, read-only, navigate `/dms` `/crm` `/ads` | document 10 Chinese wording; phone/email/homeAddress on cards; mutate data on this page |
@@ -159,13 +159,13 @@ Align [08](08-DevOps-and-Implementation.md) Sprint definition of done and [11](1
 
 | Review / Sprint | Definition of done (08) | Must demo live | Matching IDs | Environment |
 |---|---|---|---|---|
-| **Review 1 · Sprint 1** | four repos build independently; architecture diagram; two Entra roles configured | four repos, four pipelines can ship ai-service alone; requests go through Gateway only, direct access fails; explain figure 07; Entra already has `Platform.Admin` / `Dealer.User`. **Local is allowed.** Two-dealership data and a real ad run are not required | NN-01, NN-02, NN-03; evidence toward BE-14 | **local allowed** |
-| **Review 2 · Sprint 2** | **On Azure** sign-in → Gateway → record one vehicle → **real AI** scans one ad; no plaintext secrets | open web over cloud HTTPS; Entra sign-in; record one vehicle on `/dms` via Gateway; `/ads` runs **CL-4** (Blocked does not call AI) + **CL-5** (real model); Bicep/Container Apps/Docker; pipeline release (human approval, no portal image click); KV with no secrets in the repo; core/ai **internal** | NN-04–07, NN-08–11, NN-15/18 (S2+); CL-4, CL-5; BE-08, BE-09 | **must be cloud** |
+| **Review 1 · Sprint 1** | four repos build independently; architecture diagram; two roles in the JWT | four repos, four pipelines can ship ai-service alone; requests go through Gateway only, direct access fails; explain figure 07; login issues `Platform.Admin` / `Dealer.User` tokens. **Local is allowed.** Two-dealership data and a real ad run are not required | NN-01, NN-02, NN-03; evidence toward BE-14 | **local allowed** |
+| **Review 2 · Sprint 2** | **On Azure** sign-in → Gateway → record one vehicle → **real AI** scans one ad; no plaintext secrets | open web over cloud HTTPS; username/password sign-in; record one vehicle on `/dms` via Gateway; `/ads` runs **CL-4** (Blocked does not call AI) + **CL-5** (real model); the stack exists as `deploy/terraform` and was applied, not clicked together in the portal; release is the documented operator commands with human approval; KV with no secrets in the repo; core/ai unreachable from a browser | NN-04–07, NN-08–11, NN-15/18 (S2+); CL-4, CL-5; BE-08, BE-09 | **must be cloud** |
 | **Review 3 · Sprint 3** | two-dealership isolation, CRM links, three-kind checklist ads, export, audit; freeze features | **CL-1–CL-6 full set in the cloud**; CASH / FINANCE / LEASE checklist at least once each (FINANCE missing APR still Blocked; LEASE has statement/APR per 15 pseudocode); `/crm` link + Unlink confirm; export TXT; DMS/CRM drawer audit (no full PII); `/assistant` this-dealership Q&A, at most 5 read-only cards. Customer walkthrough signed (NN-20) | NN-12, NN-13, NN-14, NN-16, NN-17, NN-19/20; CL-1–6; BE-01–BE-16; FE-01–FE-10 | **must be cloud** |
 
 ### Local-only cannot pass Sprint 2 / 3 acceptance
 
-- Sprint 1: local Docker / localhost Gateway **may** pass Review 1 (15: do not force a subscription just for Review 1).
+- Sprint 1: the five local processes and the localhost Gateway **may** pass Review 1 (15: do not force a subscription just for Review 1).
 - Sprint 2 / 3: **local HTTP only, local stub AI, or "cloud opened empty Containers while business still hits localhost" all fail.**
 - Review 2 must not treat "local HTTP" as a cloud security item (15). No plaintext secrets, HTTPS, and Key Vault references must be pointed out to judges on the **Azure demo resource group**.
 - Review 3 isolation / export / audit / assistant must hit **the same cloud Gateway**; do not switch back to a local database "because the cloud has no data".

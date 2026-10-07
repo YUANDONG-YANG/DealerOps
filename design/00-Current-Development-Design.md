@@ -2,17 +2,17 @@
 
 Version v6.0 · 2026-09-21
 
-Scope comes only from [DealerOps-Specification.pdf](DealerOps-Specification.pdf). See 07/08/09/11 for technical design.
+Scope comes only from [DealerOps-Specification.pdf](../requirements/DealerOps-Specification.pdf). See 07/08/09/11 for technical design.
 
-The specification requires three modules to write data for the same dealership: DMS, CRM, and Ad Compliance. This version meets that with one `dealer_core` database; it is not three disconnected systems. Login uses Entra as required by the course; there is no homemade password table. An administrator “issuing an account” means binding an Entra user to a dealership.
+The specification requires three modules to write data for the same dealership: DMS, CRM, and Ad Compliance. This version meets that with one `dealer_core` database; it is not three disconnected systems. Login is admin-issued username/password (spec PDF §2, §8); passwords are stored only as BCrypt hashes. An administrator “issuing an account” means creating a username and temporary password bound to one dealership.
 
-**Authoritative dealer-auth design:** [15-Data-Auth-and-Gateway.md](15-Data-Auth-and-Gateway.md) §8 (spec PDF password login superseded per [SCOPE-BASELINE.md](SCOPE-BASELINE.md) errata; one `/login` with Sign in with Microsoft; App Roles; bind/unbind; landings; classroom Entra env). Classroom demos: [16-Acceptance-and-Test.md](16-Acceptance-and-Test.md) **CL-1** / **CL-2**. Coding entry still [IMPLEMENTATION-BRIEF.md](IMPLEMENTATION-BRIEF.md).
+**Authoritative dealer-auth design:** [15-Data-Auth-and-Gateway.md](15-Data-Auth-and-Gateway.md) §8 (one `/login` with username + password; two JWT roles; bind/unbind; landings; env). Classroom demos: [16-Acceptance-and-Test.md](16-Acceptance-and-Test.md) **CL-1** / **CL-2**. Coding entry still [IMPLEMENTATION-BRIEF.md](IMPLEMENTATION-BRIEF.md).
 
 ## Screens and roles
 
 | Screen | Who uses it | What they do |
 |---|---|---|
-| Login | Everyone | Entra sign-in (`/login` only; Sign in with Microsoft) |
+| Login | Everyone | Username + password sign-in (`/login` only) |
 | Admin | Platform.Admin | Open dealerships; bind/unbind staff. Cannot see any vehicles, customers, or ads. Lands on `/admin` |
 | DMS | Dealer.User | Create, update, and view this dealership’s vehicles; record a sale. Lands on `/dms` when bound |
 | CRM | Dealer.User | Create, update, and view this dealership’s customers; associate this dealership’s vehicles |

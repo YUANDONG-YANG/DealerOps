@@ -1,5 +1,5 @@
 # Routes are pinned here (override with CORE_URL / AI_URL / INTERNAL_TOKEN / JWT_MODE).
-# JWT: dealer-core issues and validates its own HS256 tokens at /api/v1/auth/login (no Entra).
+# JWT: dealer-core issues its own HS256 tokens at /api/v1/auth/login; gateway and core validate them.
 # CORS policy is only in CorsConfig. Do not add spring.cloud.gateway.globalcors.
 server:
   port: ${GATEWAY_PORT:8080}
@@ -25,7 +25,9 @@ spring:
             connect-timeout: 2000
             response-timeout: 18000
           filters:
+            # A client-supplied X-Dealer-Internal is rejected by InternalRouteFilter before routing.
             - PreserveHostHeader
+            - CacheRequestBody=String
         # Proxied for local/dev classroom only. SecurityConfig denies these paths
         # unless dealerops.jwt.mode is dev and no non-local Spring profile is active.
         - id: dealer-core-swagger
@@ -41,19 +43,21 @@ spring:
           uri: ${AI_URL:http://localhost:8082}
           predicates:
             - Path=/internal/v1/**
-            - Header=X-Dealer-Internal, ${INTERNAL_TOKEN:dealer-internal}
+            # Header values are regular expressions. \Q...\E keeps a base64 token with '+' literal.
+            - Header=X-Dealer-Internal, \Q${INTERNAL_TOKEN:dealer-internal}\E
           # Covers ai-service response-timeout-ms (13000) plus a small margin.
           metadata:
             connect-timeout: 2000
             response-timeout: 16000
           filters:
-            - RemoveRequestHeader=Authorization
+            - CacheRequestBody=String
         - id: not-found
           uri: no://op
           order: 100
           predicates:
             - Path=/**
             - Not=Path=/actuator/health
+            - Not=Path=/actuator/health/**
           filters:
             - SetStatus=404
 
@@ -65,8 +69,21 @@ management:
   endpoint:
     health:
       show-details: never
+      probes:
+        enabled: true
+      group:
+        readiness:
+          include: readinessState,downstream
+  health:
+    readinessstate:
+      enabled: true
+    livenessstate:
+      enabled: true
 
 dealerops:
+  # Relative to the process working directory. Run configurations use the repo root,
+  # so all services share one log-sum/ folder. Set LOG_DIR to override per environment.
+  log-dir: ${LOG_DIR:log-sum}
   internal-header-name: X-Dealer-Internal
   # PROTOCOL §B.1 default, same literal on gateway, core, and ai-service
   internal-token: ${INTERNAL_TOKEN:dealer-internal}

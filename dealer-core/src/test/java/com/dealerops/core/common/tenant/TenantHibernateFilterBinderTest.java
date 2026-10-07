@@ -23,7 +23,7 @@ class TenantHibernateFilterBinderTest {
 
   @Test
   void dealerUserEnablesFilterWithTenantDealerId() {
-    TenantContext.set(new CurrentUser("oid", "tid", AppRole.DEALER_USER, 11L));
+    TenantContext.set(new CurrentUser("test-user", AppRole.DEALER_USER, 11L));
     EntityManager em = mock(EntityManager.class);
     Session session = mock(Session.class);
     Filter filter = mock(Filter.class);
@@ -40,7 +40,7 @@ class TenantHibernateFilterBinderTest {
 
   @Test
   void adminDisablesFilter() {
-    TenantContext.set(new CurrentUser("oid", "tid", AppRole.PLATFORM_ADMIN, null));
+    TenantContext.set(new CurrentUser("test-user", AppRole.PLATFORM_ADMIN, null));
     EntityManager em = mock(EntityManager.class);
     Session session = mock(Session.class);
     when(em.unwrap(Session.class)).thenReturn(session);

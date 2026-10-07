@@ -21,11 +21,11 @@
 
 1. KAN-67 已进入 Review。CustomerService 允许同店未关联的 IN_STOCK/SOLD 车辆首次关联，重复关联 409，跨店 404，SOLD 解绑 409。当前 A3 决定明确允许售后首次关联。KAN-23、KAN-50、KAN-67 的 Jira 描述已保存纠正，撤销旧的 sold-link 400 要求；历史评论保留，新的描述明确覆盖旧结论。KAN-23 仍待测试执行证据。
 2. KAN-51/52/53/64/69/74/75/76 等接口已逐项阅读 Controller/Service，进入 Review。对应证据为 MeService、DealerAdminService、MembershipService、CustomerService、ListingService、AuditService、AssistantService。KAN-77/78/79 的内部调用与安全实现进入 Review；不等于 KAN-86 的真实模型接入完成。
-3. 前端已有路由、PageState、管理/DMS/CRM/广告/助手实现。KAN-28/33/60 进入 Review。MSAL 与登录任务 KAN-32/41 保留 In Progress；代码中的占位默认值不能单独证明实际 Entra 注册缺失，亦不能证明登录已通过。
+3. The frontend already has routing, PageState, and the Admin/DMS/CRM/Ads/Assistant implementations. KAN-28/33/60 move to Review. The sign-in SDK and login tasks KAN-32/41 stay In Progress; the placeholder defaults in code alone neither prove that the external sign-in registration is missing nor prove that login has passed.
 4. dealer-web/package.json 缺少测试脚本及 vitest、@vue/test-utils 等运行依赖，web CI 仅构建。AdminView.spec.ts 有实际挂载测试，不能误称为空测试；但干净环境不可复现运行，因此 KAN-65 调回 In Progress，其余已有前端测试源文件也进入 In Progress。
 5. core CI 的普通 mvn test 与 IT 分离，而集成测试步骤使用 mvn verify -DskipTests，不能作为 IT 实际通过的证据。所有测试卡暂留 In Progress，包含此前 Review 的 KAN-16/21/22/37。需要恢复执行入口并保存报告，本次未运行测试、未声称通过。
 6. CoreNotPublicIT 与 CL-4/CL-5 存在源码/配置扫描，不能代替实际网络隔离和浏览器演示。KAN-43/72/73 保留 In Progress。
-7. deploy/README.md 记录已部署 Azure VM、Caddy TLS 和 Compose 服务，AI 仍为 stub；main.bicep 未部署，publish-ghcr 只推镜像、不更新 VM。KAN-19/81/87 为 In Progress。KAN-86 的真实 AI、KAN-88 的 Entra 实际验收、KAN-89 的仓库组织决定保留 To Do。不得用 VM 部署替代尚未确认豁免的课程 Container Apps 要求。
+7. deploy/README.md records the deployed Azure VM, Caddy TLS, and Compose services; AI is still a stub. main.bicep is not deployed, and publish-ghcr only pushes images and does not update the VM. KAN-19/81/87 are In Progress. KAN-86 (real AI), KAN-88 (live acceptance of the earlier external sign-in plan), and KAN-89 (repository organization decision) stay To Do. The VM deployment must not replace the course Container Apps requirement unless an exemption is confirmed.
 8. KAN-11 README、KAN-82 文档一致性、KAN-84 发布卫生、KAN-85 隔离测试与文档收尾进入 In Progress。当前工作树审查不代表全部内容已提交或部署。
 9. KAN-83 的复杂 NFR 与当前学生演示范围有偏差，保留 To Do 待范围收敛，不扩建限流、性能 SLO、保留策略等功能。KAN-91 待教师决定。KAN-5 签字、KAN-20/61 实际走查、KAN-92 图示验收未获得完成证据，保留 To Do；KAN-7 已有图附件不等于本次验证图中所有内容。
 
@@ -165,7 +165,7 @@ Explicit keep. The rest of the To Do column stays To Do. Stories whose controlle
 | --- | --- | --- |
 | KAN-19 | Architecture: minimum Azure set | `dealer-platform/infra/main.bicep` is a draft (`targetScope = 'resourceGroup'`, comment: not deployed from this repo). Azure draft is not Finished. |
 | KAN-23 | TEST-05 CustomerVehicleLinkIT | Historical In Progress status; the alleged sold-link defect is withdrawn. BE-05/06 and AT-25 define the correct stock/sold link and sold-unlink behavior. Acceptance execution remains to be recorded. |
-| KAN-32 | FE-T03 MSAL and axios to port 8080 only | `dealer-web/src/auth/msal.ts` is wired, but the client id falls back to `dealer-web-placeholder`. Done condition still open. |
+| KAN-32 | FE-T03 sign-in SDK and axios to port 8080 only | `dealer-web/src/auth/login.ts` (then the earlier sign-in SDK wrapper) is wired, but the client id falls back to `dealer-web-placeholder`. Done condition still open. |
 | KAN-67 | BE-T14 Link, unlink, and sold lock | Historical In Progress status; current intended behavior allows an unlinked same-dealer SOLD vehicle to link, while unlink throws SOLD_LOCKED. This is not a defect. Do not change code to reject sold links; record acceptance before changing the live board. |
 | KAN-72 | TEST-27 CL-4 ads blocked e2e | `dealer-web/e2e/cl4-ads-blocked.spec.ts` only reads source files. That is not a live classroom run. Source-scan-only tests are not Finished. |
 

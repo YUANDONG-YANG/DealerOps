@@ -12,7 +12,7 @@ Do not copy this library into DealerOps and do not change its business source. C
 |---|---|
 | Repo | https://github.com/YUANDONG-YANG/ai-manager (private) |
 | Local checkout | sibling directory named `ai-manager` (same parent as this repo) |
-| Pinned commit | `c07e1f2afe5dd692c20f3567ad3a42a90d31a87a` |
+| Pinned commit | `827196a` (xAI/Grok provider support) |
 | Maven | `com.aimanager:aimanager:1.0.0-SNAPSHOT` |
 | Packages | https://maven.pkg.github.com/YUANDONG-YANG/ai-manager |
 | Library Java | 17 bytecode / Boot parent 3.2.5 (this service stays Java 21) |
@@ -20,28 +20,20 @@ Do not copy this library into DealerOps and do not change its business source. C
 
 ## Local install
 
-Use JDK 21 for this service. In the sibling `ai-manager` checkout (do not edit that repo):
+Build `ai-manager` with JDK 17, then build this service with JDK 21. The pinned source now includes the xAI/Grok provider used by the local `grok:` key format.
 
 ```powershell
-git checkout c07e1f2afe5dd692c20f3567ad3a42a90d31a87a
-mvn -DskipTests install
+git checkout 827196a
+JAVA_HOME=/path/to/jdk-17 mvn -DskipTests install
 ```
 
 Then in `ai-service`:
 
 ```powershell
-mvn -DskipTests compile
+mvn -DskipTests -Dmaven.test.skip=true -Daimanager.real=true package
 ```
 
-The default Maven profile `aimanager` resolves `com.aimanager:aimanager:1.0.0-SNAPSHOT` from the local `.m2` (or GitHub Packages if configured).
-
-## CI stub (no paid model)
-
-```powershell
-mvn "-Pstub,!aimanager" "-Daimanager.stub=true" test
-```
-
-That compile path uses `src/main/java-stub` only. A stub call with a key still returns **502** `AI_PROVIDER_FAILED`. Do not treat stub success as Sprint 2 real AI.
+The POM uses the real `com.aimanager:aimanager:1.0.0-SNAPSHOT` dependency directly. There is no stub profile in the local development path, so IntelliJ and Maven compile the same source and cannot silently start a fake AI implementation.
 
 ## Environment
 
@@ -51,8 +43,10 @@ That compile path uses `src/main/java-stub` only. A stub call with a key still r
 | `INTERNAL_TOKEN` | `dealer-internal` | `X-Dealer-Internal` (PROTOCOL §B.1). Accepted only when the Spring profile is `dev` or `local`; otherwise set a non-default token shared with gateway and dealer-core. |
 | `SPRING_PROFILES_ACTIVE` | unset | Local classroom: `dev`. Do not set `dev` on Azure. |
 | `AIMANAGER_API_KEY` | empty | this service only |
-| `AIMANAGER_GATEWAY_PROVIDER` | `openai` | `groq` / `openai` / `claude` / `deepseek` |
+| `AIMANAGER_GATEWAY_PROVIDER` | `xai` | `xai` / `groq` / `openai` / `claude` / `deepseek` |
 | `AIMANAGER_GATEWAY_MODEL` | empty → `current` | this service |
+
+For an xAI/Grok key, set `AIMANAGER_GATEWAY_PROVIDER=xai`. Use an explicit supported model such as `grok-3-mini` when the account does not accept the `current` alias. Do not label an xAI key as `openai` or `groq`; those providers use different vendor endpoints.
 
 Missing key: immediate **503** `{ "success": false, "code": "AI_KEY_MISSING", "message": "AIMANAGER_API_KEY is missing or invalid." }` (do not wait 15s).
 

@@ -362,8 +362,8 @@ Each item: `id`, `offerType` (= `adKind`), `channel` (= `medium`), `title`, `bod
 | **body** | 2020 Toyota Camry. Cash price $18,900. Sold as-is by Prairie Auto Ltd. Call 403-555-0100. |
 | **Vehicle/dealership premises** | V-ASIS. Dealership name, price, `as-is`, year present. Phone only; **no** email or address. |
 | **Fixed rules** | **Needs AI** · soft `DEALER_CONTACT_INCOMPLETE` · **not** `DEALER_CONTACT_MISSING` (hard block only when there is no contact at all) · call AI |
-| **If AI is entered** | still expect **Block** (model should note missing email/address). `recommendation` must not become Pass only because rules passed; evaluation note: AI should produce locatable remarks. If a run wrongly Passes, record FP; UI still must not be hand-edited into certification copy. |
-| **Ready/export** | No (this fixture expects non-Pass) |
+| **If AI is entered** | expect **Pass** (`PASSED` / `SUCCESS` / HTTP 200) with the soft `DEALER_CONTACT_INCOMPLETE` finding retained. AI notes do not veto Ready (requirements/analysis/04-Ad-Compliance.md §4 item 3, AT-27); evaluation note: the model should produce a locatable remark about the missing email/address. If it does not, record it as a review miss; UI still must not be hand-edited into certification copy. |
+| **Ready/export** | Yes (after Pass; the REVIEW hint does not block) |
 | **Classroom demo** | No |
 
 ### FX-22 · LEASE with no lease statement

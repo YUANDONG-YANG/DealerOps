@@ -40,10 +40,20 @@ let vehicleListSeq = 0
 let listingLoadSeq = 0
 let loadedListingVehicleId: number | null = null
 
+function contentKey(row: Listing) {
+  return JSON.stringify([row.title ?? '', row.body ?? '', row.adKind, row.medium])
+}
+
+// Check, Ready and Export act on the saved draft, so unsaved edits must be saved first.
+const savedContent = ref(contentKey(listing.value))
+const unsaved = computed(() => contentKey(listing.value) !== savedContent.value)
+
 const sold = computed(() => selected.value?.status === 'SOLD')
-const canRunCheck = computed(() => !!listing.value.id && !sold.value)
-const canMarkReady = computed(() => !!listing.value.id && listing.value.checkStatus === 'PASSED' && !sold.value)
-const canExport = computed(() => !!listing.value.id && listing.value.checkStatus === 'PASSED')
+const canRunCheck = computed(() => !!listing.value.id && !sold.value && !unsaved.value)
+const canMarkReady = computed(
+  () => !!listing.value.id && listing.value.checkStatus === 'PASSED' && !sold.value && !unsaved.value,
+)
+const canExport = computed(() => !!listing.value.id && listing.value.checkStatus === 'PASSED' && !unsaved.value)
 
 function rememberSummary(row: Listing) {
   if (!row.vehicleId) return
@@ -100,10 +110,12 @@ async function select(vehicle: any) {
   listingLoading.value = true
   loadedListingVehicleId = null
   listing.value = emptyListing(vehicle.id)
+  savedContent.value = contentKey(listing.value)
   try {
     const r = await listingsApi.get(vehicle.id)
     if (request !== listingLoadSeq) return
     listing.value = { ...emptyListing(vehicle.id), ...r.data, vehicleId: vehicle.id }
+    savedContent.value = contentKey(listing.value)
     loadedListingVehicleId = vehicle.id
     rememberSummary(listing.value)
   } catch (e) {
@@ -140,6 +152,7 @@ async function refreshListing() {
   const r = await listingsApi.get(vehicleId)
   if (request !== listingLoadSeq || selected.value?.id !== vehicleId) return
   listing.value = { ...emptyListing(vehicleId), ...r.data, vehicleId }
+  savedContent.value = contentKey(listing.value)
   loadedListingVehicleId = vehicleId
   rememberSummary(listing.value)
 }
@@ -160,6 +173,7 @@ async function save() {
     })
     if (selected.value?.id !== vehicleId) return
     listing.value = { ...emptyListing(vehicleId), ...r.data, vehicleId }
+    savedContent.value = contentKey(listing.value)
     loadedListingVehicleId = vehicleId
     rememberSummary(listing.value)
   } catch (e) {
@@ -271,7 +285,7 @@ watch(
           <span class="muted">Check an advertisement before export</span>
         </div>
       </div>
-      <AdWorkspace v-model="listing" :has-selection="!!selected" :read-only="sold">
+      <AdWorkspace v-model="listing" :vehicle="selected" :read-only="sold">
         <template #picker>
           <el-card>
             <template #header>Vehicles</template>
@@ -320,6 +334,7 @@ watch(
           />
           <p v-else-if="listingError" class="danger-text">{{ listingError }}</p>
           <p v-if="actionError" class="danger-text">{{ actionError }}</p>
+          <p v-if="unsaved && listing.id && !sold" class="muted">Save the draft before running a check or exporting.</p>
           <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:12px">
             <el-button :loading="saving" :disabled="!selected || sold" @click="save">Save draft</el-button>
             <el-button :loading="checking" :disabled="!canRunCheck" @click="runCheck">Run check</el-button>

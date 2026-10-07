@@ -9,5 +9,5 @@ public record AuditItem(
     Long entityId,
     String action,
     Map<String, Object> fieldSummary,
-    String actorOid,
+    String actorUsername,
     Instant createdAt) {}

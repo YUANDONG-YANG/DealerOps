@@ -4,13 +4,14 @@ The browser only calls `http://localhost:8080`. core=8081 and ai-service=8082 ar
 
 **Full request/response/error codes:** [design/14-Backend-API-Contract.md](../design/14-Backend-API-Contract.md) (current v6). Do not use the retired [design/archive/04-API-Contract.md](../design/archive/04-API-Contract.md).
 
-Shared rules: pagination `{items,page,size,total}` (default size=10); errors `{code,message}`; writes carry `version`; cross-dealership id → **404** (not 403); ignore client `dealerId`. Staff without valid `membership.active=1` → **403**. `SOLD_LOCKED` = **409**.
+Shared rules: every path except login needs the Bearer token from login; pagination `{items,page,size,total}` (default size=10); errors `{code,message}`; writes carry `version`; cross-dealership id → **404** (not 403); ignore client `dealerId`. Staff without valid `membership.active=1` → **403**. `SOLD_LOCKED` = **409**.
 
 ## Public
 
 | Method | Path | Who |
 |---|---|---|
-| GET | `/api/v1/me` | Authenticated |
+| POST | `/api/v1/auth/login` | Anonymous; `{username,password}` → `{accessToken,role,displayName}`; bad credentials → **401** `UNAUTHORIZED` |
+| GET | `/api/v1/me` | Authenticated (`Authorization: Bearer <accessToken>`) |
 
 ## Admin (Platform.Admin)
 
@@ -22,7 +23,7 @@ Shared rules: pagination `{items,page,size,total}` (default size=10); errors `{c
 | PATCH | `/api/v1/admin/dealers/{id}` |
 | GET | `/api/v1/admin/dealers/{id}/members` |
 | POST | `/api/v1/admin/dealers/{id}/members` |
-| DELETE | `/api/v1/admin/dealers/{id}/members/{entraOid}` |
+| DELETE | `/api/v1/admin/dealers/{id}/members/{username}` |
 
 There is no `DELETE /admin/dealers/{id}`. Admin hitting the business URLs below gets 403/404 and no business fields.
 

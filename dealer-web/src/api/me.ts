@@ -1,11 +1,14 @@
 ﻿import { http } from './http'
 
 export type Profile = {
-  entraOid: string
+  username: string
   displayName: string
   role: 'Platform.Admin' | 'Dealer.User'
   dealerId: number | null
   dealerLegalName: string | null
+  dealerContactPhone: string | null
+  dealerContactEmail: string | null
+  dealerContactAddress: string | null
 }
 
 export async function getMe() {
