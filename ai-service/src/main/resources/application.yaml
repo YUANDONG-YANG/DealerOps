@@ -3,7 +3,7 @@ server:
 
 spring:
   application:
-    name: ai-service
+    name: ${SPRING_APPLICATION_NAME:ai-service}
 
 dealerops:
   # Relative to the process working directory. Run configurations use the repo root,
