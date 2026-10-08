@@ -1,6 +1,7 @@
 package ca.sait.dealerops.aiservice.support;
 
 import com.manager.AiManager;
+import com.manager.core.AIConfig;
 import jakarta.annotation.PostConstruct;
 import org.springframework.beans.factory.annotation.Value;
 import org.slf4j.Logger;
@@ -21,6 +22,9 @@ public class AiManagerFactory {
 
   @Value("${aimanager.gateway-model:}")
   private String model;
+
+  @Value("${aimanager.gateway-max-tokens:800}")
+  private int maxTokens;
 
   @PostConstruct
   void logApiKeyStatus() {
@@ -49,7 +53,9 @@ public class AiManagerFactory {
     }
     String resolvedModel = StringUtils.hasText(model) ? model : "current";
     try {
-      return new AiManager(apiKey.trim(), provider, resolvedModel);
+      AIConfig config =
+          AIConfig.builder().maxTokens(maxTokens).maxHistoryLength(20).build();
+      return new AiManager(apiKey.trim(), provider, resolvedModel, config);
     } catch (RuntimeException ex) {
       // e.g. unknown provider: map to the fixed 502 body instead of a bare 500
       throw ModelFailureException.providerFailed();

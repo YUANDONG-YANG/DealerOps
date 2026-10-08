@@ -20,7 +20,8 @@ dealerops:
 aimanager:
   api-key: ${AIMANAGER_API_KEY:}
   gateway-provider: ${AIMANAGER_GATEWAY_PROVIDER:groq}
-  gateway-model: ${AIMANAGER_GATEWAY_MODEL:openai/gpt-oss-20b}
+  gateway-model: ${AIMANAGER_GATEWAY_MODEL:qwen/qwen3.8-27b}
+  gateway-max-tokens: ${AIMANAGER_GATEWAY_MAX_TOKENS:800}
 
 management:
   endpoints:

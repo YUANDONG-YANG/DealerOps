@@ -44,7 +44,8 @@ The POM uses the real `com.aimanager:aimanager:1.0.0-SNAPSHOT` dependency direct
 | `SPRING_PROFILES_ACTIVE` | unset | Local classroom: `dev`. Do not set `dev` on Azure. |
 | `AIMANAGER_API_KEY` | empty | this service only |
 | `AIMANAGER_GATEWAY_PROVIDER` | `groq` | `groq` / `xai` / `openai` / `claude` / `deepseek` |
-| `AIMANAGER_GATEWAY_MODEL` | `openai/gpt-oss-20b` | this service |
+| `AIMANAGER_GATEWAY_MODEL` | `qwen/qwen3.8-27b` | this service |
+| `AIMANAGER_GATEWAY_MAX_TOKENS` | `800` | Keep below free-tier provider output limits |
 
 For an xAI/Grok key, set `AIMANAGER_GATEWAY_PROVIDER=xai`. Use an explicit supported model such as `grok-3-mini` when the account does not accept the `current` alias. Do not label an xAI key as `openai` or `groq`; those providers use different vendor endpoints.
 

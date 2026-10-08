@@ -12,6 +12,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
 
@@ -28,6 +30,8 @@ import org.springframework.web.reactive.function.client.WebClient;
  */
 @Component
 public class TimedModelCall {
+
+  private static final Logger log = LoggerFactory.getLogger(TimedModelCall.class);
 
   /**
    * Bounds platform threads stuck in a provider call that ignores interruption. Sixteen covers
@@ -94,6 +98,10 @@ public class TimedModelCall {
     if (cause instanceof ModelFailureException modelFailure) {
       return modelFailure;
     }
+    log.error(
+        "AI provider call failed: type={}, message={}",
+        cause.getClass().getName(),
+        cause.getMessage());
     return ModelFailureException.providerFailed();
   }
 
