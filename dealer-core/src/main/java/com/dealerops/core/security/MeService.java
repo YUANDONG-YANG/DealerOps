@@ -32,7 +32,7 @@ public class MeService {
     String displayName = appUser != null ? appUser.getDisplayName() : "";
     if (user.role() == AppRole.PLATFORM_ADMIN) {
       return new MeResponse(
-          user.username(), displayName, AppRole.PLATFORM_ADMIN.getValue(), null, null, null, null, null);
+          user.username(), displayName, AppRole.PLATFORM_ADMIN.getValue(), null, null, null, null, null, null);
     }
     String roleJson = user.role() == AppRole.DEALER_USER ? AppRole.DEALER_USER.getValue() : null;
     Long dealerId = user.tenantDealerId();
@@ -52,6 +52,7 @@ public class MeService {
         dealer == null ? null : dealer.getLegalName(),
         dealer == null ? null : dealer.getContactPhone(),
         dealer == null ? null : dealer.getContactEmail(),
-        dealer == null ? null : dealer.getContactAddress());
+        dealer == null ? null : dealer.getContactAddress(),
+        dealer == null ? null : dealer.getLogoDataUrl());
   }
 }

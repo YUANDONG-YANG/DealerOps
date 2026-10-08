@@ -32,6 +32,10 @@ const dealerFormRef = ref<FormInstance>()
 const form = ref({ legalName: '', contactPhone: '', contactEmail: '', contactAddress: '' })
 const formError = ref('')
 const creating = ref(false)
+// Set while the drawer edits an existing dealership; null means New dealership.
+const editingDealer = ref<Dealer | null>(null)
+const logoDataUrl = ref<string | null>(null)
+const LOGO_MAX_PX = 160
 const dealerRules: FormRules = {
   legalName: [{ required: true, message: 'Legal name is required', trigger: 'blur' }],
   contactPhone: [{ required: true, message: 'Contact phone is required', trigger: 'blur' }],
@@ -212,9 +216,50 @@ async function refreshDrawerMembers() {
 }
 
 function openDealer() {
+  editingDealer.value = null
+  form.value = { legalName: '', contactPhone: '', contactEmail: '', contactAddress: '' }
   formError.value = ''
   drawer.value = true
   dealerFormRef.value?.clearValidate()
+}
+
+function openEdit(row: Dealer) {
+  editingDealer.value = row
+  form.value = {
+    legalName: row.legalName,
+    contactPhone: row.contactPhone,
+    contactEmail: row.contactEmail,
+    contactAddress: row.contactAddress,
+  }
+  logoDataUrl.value = row.logoDataUrl
+  formError.value = ''
+  drawer.value = true
+  dealerFormRef.value?.clearValidate()
+}
+
+/** Downscale the chosen image to a small PNG data URL so the stored logo stays light. */
+function pickLogo(file: File) {
+  if (!file.type.startsWith('image/')) {
+    formError.value = 'Logo must be an image file'
+    return false
+  }
+  const url = URL.createObjectURL(file)
+  const img = new Image()
+  img.onload = () => {
+    const scale = Math.min(1, LOGO_MAX_PX / Math.max(img.width, img.height))
+    const canvas = document.createElement('canvas')
+    canvas.width = Math.max(1, Math.round(img.width * scale))
+    canvas.height = Math.max(1, Math.round(img.height * scale))
+    canvas.getContext('2d')?.drawImage(img, 0, 0, canvas.width, canvas.height)
+    logoDataUrl.value = canvas.toDataURL('image/png')
+    URL.revokeObjectURL(url)
+  }
+  img.onerror = () => {
+    formError.value = 'Could not read that image'
+    URL.revokeObjectURL(url)
+  }
+  img.src = url
+  return false
 }
 
 async function create() {
@@ -230,21 +275,35 @@ async function create() {
   const body = form.value
   if (creating.value) return
   creating.value = true
+  const editing = editingDealer.value
   try {
-    await adminApi.createDealer(body)
+    if (editing) {
+      await adminApi.patchDealer(editing.id, {
+        ...body,
+        version: editing.version,
+        active: editing.active,
+        logoDataUrl: logoDataUrl.value,
+      })
+    } else {
+      await adminApi.createDealer(body)
+    }
     drawer.value = false
+    editingDealer.value = null
     form.value = { legalName: '', contactPhone: '', contactEmail: '', contactAddress: '' }
     dealerFormRef.value?.clearValidate()
     tab.value = 'dealers'
-    page.value = 0
+    if (!editing) page.value = 0
     await loadDealers()
   } catch (e) {
     if (adminErrorCode(e) === 'VALIDATION' || adminErrorStatus(e) === 400) {
       formError.value = serverDetail(e) || 'Check required contact fields'
+    } else if (adminErrorCode(e) === 'VERSION_CONFLICT' || adminErrorStatus(e) === 409) {
+      formError.value = 'This dealership changed elsewhere. Close and reopen Edit.'
+      await loadDealers()
     } else if (isForbidden(e)) {
       formError.value = 'You do not have access to Admin.'
     } else {
-      formError.value = serverDetail(e) || 'Could not create dealership.'
+      formError.value = serverDetail(e) || (editing ? 'Could not save dealership.' : 'Could not create dealership.')
     }
   } finally {
     creating.value = false
@@ -357,7 +416,11 @@ onMounted(loadDealers)
             forbidden-text="You do not have access to Admin."
           >
             <DataTable :rows="rows" :total="total" :page="page" @page="p => { page = p; loadDealers() }">
-              <el-table-column prop="legalName" label="Name" />
+              <el-table-column label="Name">
+                <template #default="{ row }">
+                  <img v-if="row.logoDataUrl" :src="row.logoDataUrl" alt="" class="dealer-logo-sm" />{{ row.legalName }}
+                </template>
+              </el-table-column>
               <el-table-column label="Contact">
                 <template #default="{ row }">{{ row.contactPhone }} / {{ row.contactEmail }}</template>
               </el-table-column>
@@ -365,7 +428,8 @@ onMounted(loadDealers)
                 <template #default="{ row }">{{ staffCount(row) }}</template>
               </el-table-column>
               <template #actions="{ row }">
-                <el-button link @click="openMembers(row)">Staff</el-button>
+                <el-button link type="primary" @click="openEdit(row)">Edit</el-button>
+                <el-button link type="primary" @click="openMembers(row)">Staff</el-button>
               </template>
             </DataTable>
           </PageState>
@@ -404,6 +468,7 @@ onMounted(loadDealers)
                 <el-button
                   v-if="row.active"
                   link
+                  type="danger"
                   @click="askUnbind(row.dealerId, row.username)"
                 >Unbind</el-button>
               </template>
@@ -412,7 +477,7 @@ onMounted(loadDealers)
         </el-tab-pane>
       </el-tabs>
     </div>
-    <FormDrawer title="New dealership" :visible="drawer" @close="drawer = false">
+    <FormDrawer :title="editingDealer ? 'Edit dealership' : 'New dealership'" :visible="drawer" @close="drawer = false">
       <el-form ref="dealerFormRef" :model="form" :rules="dealerRules" label-position="top">
         <p v-if="formError" class="danger-text">{{ formError }}</p>
         <el-form-item label="Legal name" prop="legalName">
@@ -427,7 +492,16 @@ onMounted(loadDealers)
         <el-form-item label="Contact address" prop="contactAddress">
           <el-input v-model="form.contactAddress" />
         </el-form-item>
-        <el-button type="primary" :loading="creating" @click="create">Create</el-button>
+        <el-form-item v-if="editingDealer" label="Logo">
+          <div class="logo-field">
+            <img v-if="logoDataUrl" :src="logoDataUrl" alt="Dealership logo" class="dealer-logo" />
+            <el-upload :show-file-list="false" accept="image/png,image/jpeg,image/webp" :before-upload="pickLogo">
+              <el-button>{{ logoDataUrl ? 'Replace logo' : 'Upload logo' }}</el-button>
+            </el-upload>
+            <el-button v-if="logoDataUrl" link type="danger" @click="logoDataUrl = null">Remove</el-button>
+          </div>
+        </el-form-item>
+        <el-button type="primary" :loading="creating" @click="create">{{ editingDealer ? 'Save' : 'Create' }}</el-button>
       </el-form>
     </FormDrawer>
     <FormDrawer :title="staffDealer ? `Staff · ${staffDealer.legalName}` : 'Staff'" :visible="memberDrawer" @close="memberDrawer = false">
@@ -458,6 +532,7 @@ onMounted(loadDealers)
             <el-button
               v-if="staffDealer && row.active"
               link
+              type="danger"
               @click="askUnbind(staffDealer.id, row.username)"
             >Unbind</el-button>
           </template>

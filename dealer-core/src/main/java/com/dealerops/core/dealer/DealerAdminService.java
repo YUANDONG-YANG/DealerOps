@@ -89,6 +89,7 @@ public class DealerAdminService {
     dealer.setContactEmail(body.contactEmail());
     dealer.setContactAddress(body.contactAddress());
     dealer.setActive(body.active());
+    dealer.setLogoDataUrl(body.logoDataUrl());
     dealer = dealerRepository.save(dealer);
     auditService.record(
         EntityType.DEALER.name(),
@@ -114,6 +115,7 @@ public class DealerAdminService {
         dealer.getContactPhone(),
         dealer.getContactEmail(),
         dealer.getContactAddress(),
+        dealer.getLogoDataUrl(),
         dealer.isActive(),
         staffCount,
         dealer.getVersion());

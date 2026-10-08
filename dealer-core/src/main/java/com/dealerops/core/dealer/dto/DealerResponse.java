@@ -6,6 +6,7 @@ public record DealerResponse(
     String contactPhone,
     String contactEmail,
     String contactAddress,
+    String logoDataUrl,
     boolean active,
     long staffCount,
     int version) {}

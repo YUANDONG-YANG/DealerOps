@@ -9,6 +9,7 @@ export type Profile = {
   dealerContactPhone: string | null
   dealerContactEmail: string | null
   dealerContactAddress: string | null
+  dealerLogoDataUrl: string | null
 }
 
 export async function getMe() {

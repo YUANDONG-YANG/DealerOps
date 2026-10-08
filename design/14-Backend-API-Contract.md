@@ -75,7 +75,7 @@ Do not return SQL, stack traces, or raw model text to the browser.
 | 409 | `VERSION_CONFLICT`, `DUP_MEMBER`, `VEHICLE_ALREADY_LINKED`, `SOLD_LOCKED`, `CHECK_STALE`, `NOT_PASSED` |
 | 415 | `UNSUPPORTED_MEDIA_TYPE` (body is not `application/json`) |
 | 500 | `INTERNAL_ERROR` (unexpected error; details logged server-side only) |
-| 502 | `AI_UNAVAILABLE` (rules passed, model timeout/failure; check row already written) |
+| 502 | `AI_UNAVAILABLE` (rules passed, model timeout/failure; check row already written); `CATALOG_UNAVAILABLE` (vehicle catalog upstream failed, §4.6) |
 
 ### 1.3 Identity, tenant, optimistic lock
 
@@ -122,11 +122,12 @@ The token carries `sub` (username), `name`, and `roles`; send it as `Authorizati
   "dealerLegalName": "Prairie Auto Ltd.",
   "dealerContactPhone": "403-555-0100",
   "dealerContactEmail": "sales@prairieauto.ca",
-  "dealerContactAddress": "100 Main St, Calgary"
+  "dealerContactAddress": "100 Main St, Calgary",
+  "dealerLogoDataUrl": "data:image/png;base64,iVBORw0KGgo..."
 }
 ```
 
-Admin: `dealerId`, `dealerLegalName` and the three `dealerContact*` fields are `null`. They are display-only derived fields (the ad page shows them, UI-41), not a second set of dealership data.
+Admin: `dealerId`, `dealerLegalName`, the three `dealerContact*` fields, and `dealerLogoDataUrl` are `null`. They are display-only derived fields (the ad page shows the contact fields, UI-41; the app header shows the legal name and logo), not a second set of dealership data. `dealerLogoDataUrl` is `null` when the dealership has no logo.
 
 ---
 
@@ -147,6 +148,7 @@ Query: `q` (matches `legalName`), `page`, `size`.
       "contactPhone": "403-555-0100",
       "contactEmail": "desk@prairie.example",
       "contactAddress": "100 1 Ave SW, Calgary",
+      "logoDataUrl": null,
       "active": true,
       "staffCount": 2,
       "version": 0
@@ -158,7 +160,7 @@ Query: `q` (matches `legalName`), `page`, `size`.
 }
 ```
 
-`staffCount`: count of that dealership's **active memberships** (derived; column definition is in 15).
+`staffCount`: count of that dealership's **active memberships** (derived; column definition is in 15). `logoDataUrl`: the dealership logo as an image data URL, or `null` (set only through 3.4).
 
 ### 3.2 `POST /api/v1/admin/dealers` → 201
 
@@ -184,6 +186,7 @@ The handbook has no single-dealership GET. **New ruling:** add this read-only en
   "contactPhone": "403-555-0100",
   "contactEmail": "desk@prairie.example",
   "contactAddress": "100 1 Ave SW, Calgary",
+  "logoDataUrl": null,
   "active": true,
   "staffCount": 2,
   "version": 0
@@ -192,7 +195,7 @@ The handbook has no single-dealership GET. **New ruling:** add this read-only en
 
 ### 3.4 `PATCH /api/v1/admin/dealers/{id}`
 
-The handbook has no update. **New ruling:** allow changing the four contact fields and `active`; `version` is required. Do not add `DELETE /admin/dealers/{id}` (the spec does not require deleting dealerships).
+The handbook has no update. **New ruling:** allow changing the four contact fields, `active`, and the dealership logo; `version` is required. The Admin page uses this for its `Edit` dealership drawer (13 §5.3). Do not add `DELETE /admin/dealers/{id}` (the spec does not require deleting dealerships).
 
 ```json
 {
@@ -201,11 +204,12 @@ The handbook has no update. **New ruling:** allow changing the four contact fiel
   "contactPhone": "403-555-0101",
   "contactEmail": "desk@prairie.example",
   "contactAddress": "100 1 Ave SW, Calgary",
-  "active": true
+  "active": true,
+  "logoDataUrl": "data:image/png;base64,iVBORw0KGgo..."
 }
 ```
 
-Every field in the example is required (full replacement; the four strings are non-blank). Response matches 3.3. Errors: `400`, `404`, `409 VERSION_CONFLICT`. Ignore body.`id`.
+Every field in the example except `logoDataUrl` is required (full replacement; the four strings are non-blank). `logoDataUrl` is optional: `null` or missing removes the logo. When present it must be a `data:image/(png|jpeg|webp);base64,...` URL of at most 200,000 characters, else `400 VALIDATION`. The logo is stored in the database (no file storage service); the web client downscales the uploaded file to at most 160 px on the long side and sends PNG. Response matches 3.3. Errors: `400`, `404`, `409 VERSION_CONFLICT`. Ignore body.`id`.
 
 ### 3.5 `GET /api/v1/admin/dealers/{id}/members`
 
@@ -249,7 +253,7 @@ Unbind; do not delete the `app_user` account. No such binding → 404.
 
 Admin hitting any URL in this section → **403** `FORBIDDEN` (same as CRM/ads/assistant; the body must not contain vin/cost or other business fields). Staff sees this dealership only. Staff with no valid membership → **403** (see §1.3).
 
-List query: `q` (VIN / make / model), `status`=`IN_STOCK`\|`SOLD`, `condition` (that is `conditionCode`), `page`, `size`. Default `createdAt` descending.
+List query: `q` (substring of VIN / make / model), `make` and `model` (exact match, ignoring case), `modelYear` (exact), `status`=`IN_STOCK`\|`SOLD`, `condition` (that is `conditionCode`), `page`, `size`. Blank values are ignored and the filters combine with AND. Default `createdAt` descending.
 
 ### 4.1 `GET /api/v1/vehicles`
 
@@ -343,6 +347,16 @@ Audit `VEHICLE`/`UPDATE`. Other errors: `404`, `409 VERSION_CONFLICT`.
 
 Both values must be present together. Server sets `status=SOLD`. Response = detail.  
 `400 SOLD_PAIR_REQUIRED` (date or price missing); `400 VALIDATION` (`soldOn` in the future or before `addedOn`, `soldPrice` ≤ 0); selling again after sold → `409 SOLD_LOCKED`; `409 VERSION_CONFLICT`; `404`. Audit `VEHICLE`/`SELL`.
+
+### 4.6 Vehicle catalog: `GET /api/v1/vehicle-catalog/makes` and `GET /api/v1/vehicle-catalog/models?make=`
+
+Option lists for the DMS Make → Model → Year filter (13 §5.4). Data comes from the free NHTSA vPIC API (no key). dealer-core calls it at `VPIC_BASE_URL` (default `https://vpic.nhtsa.dot.gov/api/vehicles`) so the browser still talks only to the Gateway. Makes are the union of the vPIC `car` and `mpv` vehicle types; models come from `GetModelsForMake`. Both return a JSON array of names, trimmed, de-duplicated ignoring case, and sorted:
+
+```json
+["Camry", "Corolla", "RAV4"]
+```
+
+Who: any user with business access (§1.3). Successful lookups are cached in memory until dealer-core restarts. Errors: missing `make` → `400 VALIDATION`; vPIC unreachable or malformed → `502 CATALOG_UNAVAILABLE` (the web filter then lets the user type a make and model).
 
 ---
 
@@ -762,6 +776,7 @@ Gateway forwards to ai-service. core calls these; the browser does not.
 | `UNSUPPORTED_MEDIA_TYPE` | 415 | request body is not `application/json` |
 | `INTERNAL_ERROR` | 500 | unexpected server error; details are logged server-side only |
 | `AI_UNAVAILABLE` | 502 | ad-check AI failure/timeout |
+| `CATALOG_UNAVAILABLE` | 502 | NHTSA vPIC vehicle catalog unreachable or malformed (§4.6) |
 
 ---
 

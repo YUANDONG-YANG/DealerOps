@@ -8,6 +8,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatusCode;
@@ -24,7 +25,7 @@ public class AiGatewayClient {
   private final long responseTimeoutMs;
 
   public AiGatewayClient(
-      WebClient aiGatewayWebClient,
+      @Qualifier("aiServiceWebClient") WebClient aiGatewayWebClient,
       @Value("${dealerops.ai.response-timeout-ms:13000}") long responseTimeoutMs) {
     this.webClient = aiGatewayWebClient;
     this.responseTimeoutMs = responseTimeoutMs;

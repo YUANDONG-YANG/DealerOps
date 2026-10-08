@@ -9,4 +9,5 @@ public record MeResponse(
     String dealerLegalName,
     String dealerContactPhone,
     String dealerContactEmail,
-    String dealerContactAddress) {}
+    String dealerContactAddress,
+    String dealerLogoDataUrl) {}

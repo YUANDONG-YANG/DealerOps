@@ -176,7 +176,7 @@ deploy/terraform/deploy-apps.sh
 That script reads every name and URL from `terraform output` and then, for one UTC timestamp:
 
 1. stamps `PUBLISHED_AT` on `dealerops-core`, packages `dealer-core`, and uploads the JAR
-2. packages `ai-service` with the stub Maven profile and uploads the JAR
+2. packages `ai-service` (real `ai-manager` dependency, installed locally from the sibling checkout) and uploads the JAR
 3. packages `dealer-gateway` and uploads the JAR
 4. builds `dealer-web` with `VITE_GATEWAY_URL` set to the gateway URL and `VITE_PUBLISHED_AT` set to the same timestamp, then uploads `dist/` to the Static Web App
 

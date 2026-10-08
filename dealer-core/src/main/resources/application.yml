@@ -54,6 +54,9 @@ dealerops:
   ai-base-url: ${AI_BASE_URL:http://127.0.0.1:8082}
   internal-token: ${INTERNAL_TOKEN:dealer-internal}
   ai-timeout-ms: 15000
+  # Free NHTSA vPIC catalog (no key) for the DMS make/model filter options.
+  vpic:
+    base-url: ${VPIC_BASE_URL:https://vpic.nhtsa.dot.gov/api/vehicles}
   ai:
     connect-timeout-ms: 2000
     response-timeout-ms: 13000

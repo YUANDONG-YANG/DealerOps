@@ -29,6 +29,9 @@ export const vehiclesApi = {
     if (p.q) params.q = p.q
     if (p.status) params.status = p.status
     if (p.condition) params.condition = p.condition
+    if (p.make) params.make = p.make
+    if (p.model) params.model = p.model
+    if (p.modelYear) params.modelYear = p.modelYear
     return http.get('/api/v1/vehicles', { params })
   },
   get: (id: number) => http.get(`/api/v1/vehicles/${id}`),

@@ -268,7 +268,7 @@ UI in English. Failures **are not empty tables**. `409 VERSION_CONFLICT` → `Re
 - Maps to 16: `FE-07`
 - Maps to 17: none
 - Must assert: Admin on the **same** `/admin`: tab **Dealerships** (Name, Contact, Staff count, Actions; filter by store name; `New dealership`) and **Members** (Username, Dealership, Status, Actions; filter by username). Data = dealership list + each store’s members. Staff / Unbind use Admin APIs already in 14.
-- Ban: a second Admin child route `/admin/members`; this-course UI Edit dealership; vehicles tab.
+- Ban: a second Admin child route `/admin/members`; vehicles tab.
 
 ### TEST-24
 

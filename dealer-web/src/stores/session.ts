@@ -10,6 +10,7 @@ export const useSessionStore = defineStore('session', {
     dealerContactPhone: null as string | null,
     dealerContactEmail: null as string | null,
     dealerContactAddress: null as string | null,
+    dealerLogoDataUrl: null as string | null,
     displayName: '',
     username: '',
   }),
@@ -24,6 +25,7 @@ export const useSessionStore = defineStore('session', {
       this.dealerContactPhone = p.dealerContactPhone ?? null
       this.dealerContactEmail = p.dealerContactEmail ?? null
       this.dealerContactAddress = p.dealerContactAddress ?? null
+      this.dealerLogoDataUrl = p.dealerLogoDataUrl ?? null
       this.displayName = p.displayName ?? ''
       this.username = p.username ?? ''
     },
@@ -35,6 +37,7 @@ export const useSessionStore = defineStore('session', {
       this.dealerContactPhone = null
       this.dealerContactEmail = null
       this.dealerContactAddress = null
+      this.dealerLogoDataUrl = null
       this.displayName = ''
       this.username = ''
     },

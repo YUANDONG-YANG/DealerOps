@@ -23,12 +23,18 @@ public interface VehicleRepository extends JpaRepository<VehicleEntity, Long> {
              or lower(v.vin) like lower(concat('%', :q, '%'))
              or lower(v.make) like lower(concat('%', :q, '%'))
              or lower(v.model) like lower(concat('%', :q, '%')))
+        and (:make is null or lower(v.make) = lower(:make))
+        and (:model is null or lower(v.model) = lower(:model))
+        and (:modelYear is null or v.modelYear = :modelYear)
       """)
   Page<VehicleEntity> search(
       @Param("dealerId") Long dealerId,
       @Param("q") String q,
       @Param("status") VehicleStatus status,
       @Param("condition") ConditionCode condition,
+      @Param("make") String make,
+      @Param("model") String model,
+      @Param("modelYear") Integer modelYear,
       Pageable pageable);
 
   @Query(
@@ -40,10 +46,16 @@ public interface VehicleRepository extends JpaRepository<VehicleEntity, Long> {
              or lower(v.vin) like lower(concat('%', :q, '%'))
              or lower(v.make) like lower(concat('%', :q, '%'))
              or lower(v.model) like lower(concat('%', :q, '%')))
+        and (:make is null or lower(v.make) = lower(:make))
+        and (:model is null or lower(v.model) = lower(:model))
+        and (:modelYear is null or v.modelYear = :modelYear)
       """)
   Page<VehicleEntity> searchAll(
       @Param("q") String q,
       @Param("status") VehicleStatus status,
       @Param("condition") ConditionCode condition,
+      @Param("make") String make,
+      @Param("model") String model,
+      @Param("modelYear") Integer modelYear,
       Pageable pageable);
 }

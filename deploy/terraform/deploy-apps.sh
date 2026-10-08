@@ -33,9 +33,8 @@ fi
 
 deploy_jar() {
   local module="$1" app="$2"
-  shift 2
   echo "==> ${module}: package"
-  (cd "${repo}/${module}" && mvn -B -DskipTests "$@" package)
+  (cd "${repo}/${module}" && mvn -B -DskipTests clean package)
   echo "==> ${module}: upload to ${app}"
   az webapp deploy \
     --resource-group "${resource_group}" \
@@ -56,8 +55,8 @@ for target in "$@"; do
       deploy_jar dealer-core "${core_app}"
       ;;
     ai)
-      # Same stub profile as CI. A real model key is a Key Vault value, not a build flag.
-      deploy_jar ai-service "${ai_app}" -Pstub,'!aimanager' -Daimanager.stub=true
+      # The model key is a Key Vault value, not a build flag.
+      deploy_jar ai-service "${ai_app}"
       ;;
     gateway)
       deploy_jar dealer-gateway "${gateway_app}"

@@ -164,7 +164,7 @@ public class AssistantResourceQuery {
 
   private List<VehicleEntity> searchVehicles(Long dealerId, String term, VehicleStatus status) {
     if (dealerId != null) {
-      return vehicleRepository.search(dealerId, term, status, null, PageRequest.of(0, 5)).getContent();
+      return vehicleRepository.search(dealerId, term, status, null, null, null, null, PageRequest.of(0, 5)).getContent();
     }
     String normalized = term.toLowerCase(Locale.ROOT);
     return vehicleRepository.findAll().stream()

@@ -390,6 +390,7 @@ When the adapter calls the model, wrap again with `java.util.concurrent.Completa
 | `ADMIN_USERNAME` / `ADMIN_PASSWORD` | core | seed the first `Platform.Admin` account |
 | `INTERNAL_TOKEN` | gateway + core outbound + ai-service | `dealer-internal`, accepted only when the Spring profile is `dev` or `local`. Any other profile must set a non-default value shared by gateway, ai-service, and dealer-core. Web **does not read** it. |
 | `AI_BASE_URL` | core outbound to ai-service | `http://127.0.0.1:8082` |
+| `VPIC_BASE_URL` | core outbound to the NHTSA vPIC vehicle catalog (14 §4.6) | `https://vpic.nhtsa.dot.gov/api/vehicles` |
 | `GATEWAY_BASE_URL` | core OpenAPI/public-link origin | `http://localhost:8080` |
 
 Who does not read: web does not read `AIMANAGER_*` / `MYSQL_*` / `INTERNAL_TOKEN`; gateway/core do not read `AIMANAGER_API_KEY`; ai-service does not read `MYSQL_*`.

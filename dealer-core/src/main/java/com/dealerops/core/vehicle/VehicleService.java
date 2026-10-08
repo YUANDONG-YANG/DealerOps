@@ -26,6 +26,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -50,15 +51,18 @@ public class VehicleService {
   }
 
   @Transactional(readOnly = true)
-  public PageResponse<VehicleResponse> list(String q, VehicleStatus status, ConditionCode condition, int page, int size) {
+  public PageResponse<VehicleResponse> list(VehicleFilter filter, int page, int size) {
     Long tenant = readTenant();
-    String query = q == null ? null : q.trim();
+    Pageable pageable = Paging.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+    String q = trimToNull(filter.q());
+    String make = trimToNull(filter.make());
+    String model = trimToNull(filter.model());
     Page<VehicleEntity> result =
         tenant == null
             ? vehicleRepository.searchAll(
-                query, status, condition, Paging.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt")))
+                q, filter.status(), filter.condition(), make, model, filter.modelYear(), pageable)
             : vehicleRepository.search(
-                tenant, query, status, condition, Paging.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt")));
+                tenant, q, filter.status(), filter.condition(), make, model, filter.modelYear(), pageable);
     return new PageResponse<>(
         result.map(this::toResponse).getContent(), result.getNumber(), result.getSize(), result.getTotalElements());
   }
@@ -279,6 +283,10 @@ public class VehicleService {
       return current != next;
     }
     return current.compareTo(next) != 0;
+  }
+
+  private static String trimToNull(String value) {
+    return value == null || value.isBlank() ? null : value.trim();
   }
 
   private static void requireModelYearInRange(int modelYear) {

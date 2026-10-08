@@ -32,9 +32,13 @@ public class VehicleController {
       @RequestParam(required = false) String q,
       @RequestParam(required = false) VehicleStatus status,
       @RequestParam(required = false) ConditionCode condition,
+      @RequestParam(required = false) String make,
+      @RequestParam(required = false) String model,
+      @RequestParam(required = false) Integer modelYear,
       @RequestParam(defaultValue = "0") int page,
       @RequestParam(defaultValue = "10") int size) {
-    return vehicleService.list(q, status, condition, page, size);
+    return vehicleService.list(
+        new VehicleFilter(q, status, condition, make, model, modelYear), page, size);
   }
 
   @PostMapping

@@ -383,7 +383,7 @@ watch(
           </el-table-column>
           <el-table-column prop="linkedVehicleCount" label="Vehicles purchased" width="160" />
           <template #actions="{ row }">
-            <el-button link @click="openEdit(row.id)">Edit</el-button>
+            <el-button link type="primary" @click="openEdit(row.id)">Edit</el-button>
           </template>
         </DataTable>
       </PageState>
@@ -417,7 +417,7 @@ watch(
           <div v-for="v in selected.linkedVehicles || []" :key="v.id" style="margin-top: 12px">
             <router-link :to="{ path: '/dms', query: { vehicleId: v.id } }">{{ linkedLabel(v) }}</router-link>
             <span class="muted"> · {{ v.vin }} · {{ v.status === 'SOLD' ? 'Sold' : 'In stock' }}</span>
-            <el-button v-if="v.status !== 'SOLD'" link @click="requestUnlink(v.id)">Unlink</el-button>
+            <el-button v-if="v.status !== 'SOLD'" link type="danger" @click="requestUnlink(v.id)">Unlink</el-button>
             <span v-else class="muted"> Sold vehicles cannot be unlinked</span>
           </div>
           <div class="detail-audit">

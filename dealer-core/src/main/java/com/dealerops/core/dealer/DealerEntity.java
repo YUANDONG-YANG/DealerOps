@@ -32,6 +32,9 @@ public class DealerEntity {
   @Column(name = "contact_address", nullable = false, length = 300)
   private String contactAddress;
 
+  @Column(name = "logo_data_url", columnDefinition = "MEDIUMTEXT")
+  private String logoDataUrl;
+
   @Column(name = "active", nullable = false)
   private boolean active = true;
 
@@ -81,6 +84,14 @@ public class DealerEntity {
 
   public void setContactAddress(String contactAddress) {
     this.contactAddress = contactAddress;
+  }
+
+  public String getLogoDataUrl() {
+    return logoDataUrl;
+  }
+
+  public void setLogoDataUrl(String logoDataUrl) {
+    this.logoDataUrl = logoDataUrl;
   }
 
   public boolean isActive() {

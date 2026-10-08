@@ -17,7 +17,8 @@ public enum ErrorCode {
   NOT_PASSED(409),
   UNSUPPORTED_MEDIA_TYPE(415),
   INTERNAL_ERROR(500),
-  AI_UNAVAILABLE(502);
+  AI_UNAVAILABLE(502),
+  CATALOG_UNAVAILABLE(502);
 
   private final int httpStatus;
 

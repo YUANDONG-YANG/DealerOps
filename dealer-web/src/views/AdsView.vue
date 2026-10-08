@@ -318,7 +318,7 @@ watch(
                   <template #default="{ row }">{{ checkStatusLabel(summaries[row.id]?.checkStatus) || '—' }}</template>
                 </el-table-column>
                 <template #actions="{ row }">
-                  <el-button link @click="select(row)">Open</el-button>
+                  <el-button link type="primary" @click="select(row)">Open</el-button>
                 </template>
               </DataTable>
             </PageState>

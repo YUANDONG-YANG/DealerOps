@@ -9,6 +9,7 @@ import PageState from '../components/PageState.vue'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 import { fieldErrorsOf, messageOf } from '../api/http'
 import { errorCode, errorStatus, vehiclesApi } from '../api/vehicles'
+import { catalogApi } from '../api/catalog'
 import { auditApi } from '../api/audit'
 import { checkStatusLabel, listingsApi } from '../api/listings'
 
@@ -41,7 +42,13 @@ const sellError = ref('')
 const audit = ref<any[]>([])
 const adStatus = ref('')
 const serverErrors = ref<Record<string, string>>({})
-const filters = ref({ q: '', status: '', condition: '' })
+const blankFilters = () => ({ make: '', model: '', modelYear: '' as number | '', q: '', status: '', condition: '' })
+const filters = ref(blankFilters())
+const makeOptions = ref<string[]>([])
+const modelOptions = ref<string[]>([])
+const catalogError = ref('')
+const yearOptions = Array.from({ length: new Date().getFullYear() + 2 - 1900 }, (_, i) => new Date().getFullYear() + 1 - i)
+let modelsRequest = 0
 const form = ref(blankForm())
 const sellForm = ref({ soldOn: '', soldPrice: '' })
 const vehicleFormRef = ref<{
@@ -379,8 +386,40 @@ function openDeepLink(raw: unknown) {
   void openEdit(id)
 }
 
+async function loadMakes() {
+  try {
+    makeOptions.value = (await catalogApi.makes()).data
+  } catch {
+    catalogError.value = 'Vehicle catalog unavailable; type a make and model instead.'
+  }
+}
+
+// Make → Model → Year: changing a broader level clears the narrower ones.
+async function onMakeChange() {
+  filters.value.model = ''
+  filters.value.modelYear = ''
+  modelOptions.value = []
+  const make = filters.value.make
+  const seq = ++modelsRequest
+  if (!make) return
+  try {
+    const models = (await catalogApi.models(make)).data
+    if (seq === modelsRequest) modelOptions.value = models
+  } catch {
+    if (seq === modelsRequest) catalogError.value = 'Vehicle catalog unavailable; type a make and model instead.'
+  }
+}
+
+function resetFilters() {
+  filters.value = blankFilters()
+  modelOptions.value = []
+  page.value = 0
+  void load()
+}
+
 onMounted(() => {
   void load()
+  void loadMakes()
 })
 
 watch(
@@ -403,7 +442,24 @@ watch(
         <el-button type="primary" @click="openCreate">Add vehicle</el-button>
       </div>
       <div class="filters">
-        <el-input v-model="filters.q" placeholder="VIN / Make / Model" />
+        <el-select v-model="filters.make" placeholder="Make" filterable allow-create clearable @change="onMakeChange">
+          <el-option v-for="m in makeOptions" :key="m" :label="m" :value="m" />
+        </el-select>
+        <el-select
+          v-model="filters.model"
+          placeholder="Model"
+          filterable
+          allow-create
+          clearable
+          :disabled="!filters.make"
+          @change="filters.modelYear = ''"
+        >
+          <el-option v-for="m in modelOptions" :key="m" :label="m" :value="m" />
+        </el-select>
+        <el-select v-model="filters.modelYear" placeholder="Year" filterable clearable :disabled="!filters.model">
+          <el-option v-for="y in yearOptions" :key="y" :label="String(y)" :value="y" />
+        </el-select>
+        <el-input v-model="filters.q" placeholder="VIN" clearable />
         <el-select v-model="filters.status" placeholder="Status" clearable>
           <el-option label="In stock" value="IN_STOCK" />
           <el-option label="Sold" value="SOLD" />
@@ -412,8 +468,9 @@ watch(
           <el-option v-for="v in CONDITIONS" :key="v" :label="enumLabel(v)" :value="v" />
         </el-select>
         <el-button @click="page = 0; load()">Search</el-button>
-        <el-button @click="filters = { q: '', status: '', condition: '' }; page = 0; load()">Reset</el-button>
+        <el-button @click="resetFilters">Reset</el-button>
       </div>
+      <p v-if="catalogError" class="warning-text">{{ catalogError }}</p>
       <PageState
         :loading="loading"
         :error="error"
@@ -450,8 +507,8 @@ watch(
             </template>
           </el-table-column>
           <template #actions="{ row }">
-            <el-button link @click="openEdit(row.id)">Edit</el-button>
-            <el-button v-if="row.status !== 'SOLD'" link @click="openSell(row.id)">Sell</el-button>
+            <el-button link type="primary" @click="openEdit(row.id)">Edit</el-button>
+            <el-button v-if="row.status !== 'SOLD'" link type="primary" @click="openSell(row.id)">Sell</el-button>
           </template>
         </DataTable>
       </PageState>

@@ -302,7 +302,21 @@ paths:
           in: query
           schema:
             type: string
-          description: VIN / make / model
+          description: Substring of VIN / make / model
+        - name: make
+          in: query
+          schema:
+            type: string
+          description: Exact make, ignoring case
+        - name: model
+          in: query
+          schema:
+            type: string
+          description: Exact model, ignoring case
+        - name: modelYear
+          in: query
+          schema:
+            type: integer
         - name: status
           in: query
           schema:
@@ -365,6 +379,70 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
+
+  /api/v1/vehicle-catalog/makes:
+    get:
+      tags: [Vehicles]
+      operationId: listCatalogMakes
+      summary: Make options for the DMS filter
+      description: Union of NHTSA vPIC `car` and `mpv` makes, proxied and cached by dealer-core. Sorted, de-duplicated ignoring case.
+      responses:
+        "200":
+          description: Make names
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "502":
+          description: CATALOG_UNAVAILABLE (vPIC unreachable or malformed)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/v1/vehicle-catalog/models:
+    get:
+      tags: [Vehicles]
+      operationId: listCatalogModels
+      summary: Model options for one make
+      description: NHTSA vPIC `GetModelsForMake`, proxied and cached by dealer-core. Sorted, de-duplicated ignoring case.
+      parameters:
+        - name: make
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Model names
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
+        "400":
+          description: VALIDATION (make missing)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "502":
+          description: CATALOG_UNAVAILABLE (vPIC unreachable or malformed)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
 
   /api/v1/vehicles/{id}:
     parameters:
@@ -1222,6 +1300,7 @@ components:
         - UNSUPPORTED_MEDIA_TYPE
         - INTERNAL_ERROR
         - AI_UNAVAILABLE
+        - CATALOG_UNAVAILABLE
 
     PageMeta:
       type: object
@@ -1351,6 +1430,10 @@ components:
           type: string
           nullable: true
           description: The bound dealership's public contact fields (shown on the ad page); null for Admin or unbound staff
+        dealerLogoDataUrl:
+          type: string
+          nullable: true
+          description: The bound dealership's logo as an image data URL (shown in the app header); null when no logo is set
 
     Dealer:
       type: object
@@ -1367,6 +1450,10 @@ components:
           type: string
         contactAddress:
           type: string
+        logoDataUrl:
+          type: string
+          nullable: true
+          description: Dealership logo as a downscaled image data URL; null when no logo is set
         active:
           type: boolean
         staffCount:
@@ -1393,7 +1480,7 @@ components:
     DealerPatch:
       type: object
       required: [version, legalName, contactPhone, contactEmail, contactAddress, active]
-      description: Full replacement of the four contact fields and `active`; every field is required and the strings are non-blank.
+      description: Full replacement of the four contact fields, `active`, and the optional logo. Every field except `logoDataUrl` is required and the strings are non-blank; a null or missing `logoDataUrl` removes the logo.
       properties:
         version:
           type: integer
@@ -1408,6 +1495,12 @@ components:
           type: string
         active:
           type: boolean
+        logoDataUrl:
+          type: string
+          nullable: true
+          maxLength: 200000
+          pattern: "^data:image/(png|jpeg|webp);base64,[A-Za-z0-9+/]+={0,2}$"
+          description: PNG, JPEG, or WebP data URL. The web client downscales the uploaded file before sending it.
 
     PageDealer:
       allOf:

@@ -147,11 +147,13 @@ The CRM link picker uses each vehicle’s `linkedCustomer` (`{id, name}` or `nul
 | Members Tab load | the two GETs above combined | member table | same as dealership/member GET |
 
 `staffCount`: already returned by the 14 list (count of that dealership's active memberships). Show `—` when missing. Fields follow the handbook/14.  
-14 also has `GET/PATCH /admin/dealers/{id}`; **this course UI still does not provide Edit** (the handbook has no update-dealership UI). Bind staff issues the username and temporary password directly in that one form; there is no separate account-creation step.
+| `Edit` (row action) → `Save` | `PATCH /admin/dealers/{id}` with the row's `version` and `active`, the four contact fields, and `logoDataUrl` | dealership table | `400` server detail; `409 VERSION_CONFLICT` This dealership changed elsewhere. Close and reopen Edit. |
+
+`Edit` reuses the `New dealership` drawer, filled from the table row, and adds a `Logo` field (upload, replace, remove). The chosen image is downscaled in the browser to a PNG of at most 160 px before it is sent (14 §3.4). The logo shows next to the dealership name in the table and, for bound staff, in the app header next to the legal name (from `GET /me` `dealerLogoDataUrl`; staff see a change after their next page load). Bind staff issues the username and temporary password directly in that one form; there is no separate account-creation step.
 
 ### 5.4 DMS `/dms` (Dealer.User only)
 
-Filter row: `q` (VIN/Make/Model), `status`, `condition`; 10 per page. Query: `q` `status` `condition` `page` `size`. **Pagination envelope `{items,page,size,total}`, `page` starts at 0** (14). Fields follow the handbook/14.
+Filter row, broad to narrow: `Make` → `Model` → `Year` cascading selects, then `VIN` text, `status`, `condition`; 10 per page. Make and model options come from `GET /vehicle-catalog/makes` and `GET /vehicle-catalog/models?make=` (14 §4.6). Year options run from next year down to 1900. Model is disabled until a make is chosen and Year until a model is chosen; changing a broader level clears the narrower ones. Make and model selects allow typed values, so the filter still works when the catalog is unavailable (a warning line says so). Query: `make` `model` `modelYear` `q` `status` `condition` `page` `size`. **Pagination envelope `{items,page,size,total}`, `page` starts at 0** (14). Fields follow the handbook/14.
 
 | Control | Handbook path | Success refresh | Failure |
 |---|---|---|---|

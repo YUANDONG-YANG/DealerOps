@@ -15,7 +15,7 @@
 2. Stack pinned: Vue 3 + Vite + Element Plus + Vue Router + Pinia + axios. No third-party identity SDK; login is a username/password form ([15](15-Data-Auth-and-Gateway.md) §8). No Nuxt, no chart library, no generic CRUD generator.
 3. Browser HTTP **only hits** `import.meta.env.VITE_GATEWAY_URL` (local `http://localhost:8080`), path prefix `/api/v1`. Ban axios pointing at 8081/8082. Ban requests to `/internal/v1/**`.
 4. Routes are only six pages: `/login` `/admin` `/dms` `/crm` `/ads` `/assistant`. No seventh business route; ban `/audit` `/tickets` `/leads` `/dashboard` / buyer pages.
-5. Admin: **one route** `/admin` + in-page dual tabs (Dealerships | Members). Ban `/admin/members`. This course UI **does not** Edit a dealership (even though 14 has `GET/PATCH /admin/dealers/{id}`).
+5. Admin: **one route** `/admin` + in-page dual tabs (Dealerships | Members). Ban `/admin/members`. Dealership `Edit` (contact fields + logo) uses `PATCH /admin/dealers/{id}` per 13 §5.3.
 6. Assistant model down but still HTTP 200: explanation area is the fixed English **`Smart summary unavailable`** (follow [12](12-Frontend-UI-Conventions.md); do not use the Chinese assistant-failure sentence from [10](10-Web-AI-Assistant.md)). Whole-page failure: `Could not ask assistant`.
 7. Unlisted features are not built: work orders, leads, consumer/buyer site, standalone Audit page, KPI home, self-registration, forgot password, dealership switcher, external ad publish.
 8. UI is all English. Error body `{code,message}`. Failures are not empty tables. Optimistic-lock writes carry `version`; `409 VERSION_CONFLICT` → `Refresh and retry`. Ignore client `dealerId`.
@@ -181,7 +181,8 @@ Staff signed in but without a valid membership: business APIs **403** `FORBIDDEN
   - Row `Staff`: drawer shows only that store’s members; `Bind staff` / `Unbind` both live in the drawer. Members tab `Unbind` hits the same DELETE.
   - `New dealership` drawer four fields: `legalName` `contactPhone` `contactEmail` `contactAddress` (all required).
   - `Bind staff` body: `{ username, displayName, password }` (temporary password, at least 8 characters).
-- **Ban:** a second Admin child route; Edit dealership button (do not call `PATCH /admin/dealers/{id}`); vehicles tab; creating accounts outside the Bind staff form; DMS/CRM/Ads/Assistant appearing in the menu.
+  - `Edit` reuses that drawer and adds the `Logo` upload; body per 14 §3.4.
+- **Ban:** a second Admin child route; vehicles tab; creating accounts outside the Bind staff form; DMS/CRM/Ads/Assistant appearing in the menu.
 - **Acceptance:** 16 **FE-07**, **CL-1**, **CL-3** (changing the address bar to `/dms` is blocked back).
 
 ### Wiring table · Admin `/admin`
@@ -365,7 +366,7 @@ Staff hitting the URLs above: backend **403** `FORBIDDEN`; the frontend guard sh
 | **FE-04** | T02 T08 | Admin open `/crm` → `/admin` |
 | **FE-05** | T02 T09 | Admin open `/ads` → `/admin` |
 | **FE-06** | T02 T10 | Admin open `/assistant` → `/admin` |
-| **FE-07** | T06 | Single route, dual tabs + columns/filters/buttons match 12; no invented `/admin/members`; no Edit dealership |
+| **FE-07** | T06 | Single route, dual tabs + columns/filters/buttons match 12; no invented `/admin/members`; Edit dealership per 13 §5.3 |
 | **FE-08** | T08 | Unlink confirms first; `DELETE .../vehicles/{vehicleId}`; sold copy `Sold vehicles cannot be unlinked` |
 | **FE-09** | T04 all pages | Six-page loading/empty/error/403 copy = this document T04 table; ad 502 → right rail AI unavailable, not empty table/Passed |
 | **FE-10** | T10 | `Smart summary unavailable`; whole-page failure `Could not ask assistant`; cards ≤5 read-only jumps |
