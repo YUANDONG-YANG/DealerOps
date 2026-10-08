@@ -4,6 +4,8 @@
 
 location                = "canadacentral"
 static_web_app_location = "eastus2"
+# Azure for Students cannot create MySQL in canadacentral.
+mysql_location          = "canadaeast"
 prefix                  = "dealerops"
 
 # Set this when dealerops-core.azurewebsites.net or a sibling hostname is already taken.

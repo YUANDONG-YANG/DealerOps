@@ -126,7 +126,7 @@ resource "azurerm_key_vault_secret" "admin_password" {
 resource "azurerm_mysql_flexible_server" "mysql" {
   name                   = "${var.prefix}-mysql"
   resource_group_name    = azurerm_resource_group.rg.name
-  location               = azurerm_resource_group.rg.location
+  location               = var.mysql_location
   administrator_login    = var.mysql_admin_username
   administrator_password = var.mysql_admin_password
   sku_name               = var.mysql_sku_name

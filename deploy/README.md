@@ -111,6 +111,7 @@ MY_IP=$(curl -s https://api.ipify.org)
 cat > terraform.tfvars <<EOF
 location                = "canadacentral"
 static_web_app_location = "eastus2"
+mysql_location          = "canadaeast"
 prefix                  = "dealerops"
 name_suffix             = ""
 service_plan_sku        = "B2"
@@ -140,6 +141,24 @@ terraform apply tfplan
 
 ```text
 terraform output
+```
+
+Check the real result, not the shell exit code of a pipe: `terraform apply ... | tail` reports `0` even when Terraform failed. Look for `Apply complete!` or an `Error:` block.
+
+If MySQL fails with `ProvisionNotSupportedForRegion`, the subscription has no MySQL capacity in that region. Azure for Students hits this in `canadacentral`, which is why MySQL has its own `mysql_location` (default `canadaeast`). Find a region that works, set `mysql_location`, and run `plan` / `apply` again; the resources that already exist are kept and only the missing ones are created:
+
+```text
+az mysql flexible-server list-skus --location canadaeast \
+  --query "[0].supportedFlexibleServerEditions[?name=='Burstable'].supportedServerVersions[].name"
+```
+
+A region that answers with a version list (and not `InternalServerError`) can host the server. The apps stay in `location`; `dealer-core` reaches MySQL across regions over TLS, which adds a few milliseconds per query and is fine for a classroom demo.
+
+The failed create leaves a hidden `dealerops-mysql` record behind in the old region. It does not show up in `az resource list`, but the next apply fails with `409 InvalidResourceLocation: The resource 'dealerops-mysql' already exists in location 'canadacentral'`. Delete that record through the ARM API, wait until it is gone, then `plan` and `apply` again:
+
+```text
+SUB=$(az account show --query id -o tsv)
+az rest --method delete --url "https://management.azure.com/subscriptions/$SUB/resourceGroups/dealerops-rg/providers/Microsoft.DBforMySQL/flexibleServers/dealerops-mysql?api-version=2023-12-30"
 ```
 
 If apply fails with a name conflict, `dealerops-core.azurewebsites.net` or a sibling hostname is already taken globally. Set `name_suffix` in `terraform.tfvars` (for example `-sait`) and apply again.

@@ -30,6 +30,9 @@ Thumbs.db
 *.tfstate.*
 *.tfvars
 *.tfvars.json
+# Saved plans embed secret values in plain form.
+tfplan
+*.tfplan
 crash.log
 crash.*.log
 

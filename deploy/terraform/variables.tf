@@ -13,6 +13,12 @@ variable "static_web_app_location" {
   default     = "eastus2"
 }
 
+variable "mysql_location" {
+  description = "MySQL Flexible Server region. Azure for Students cannot provision MySQL in Canada Central (ProvisionNotSupportedForRegion); check another region with az mysql flexible-server list-skus --location <region>."
+  type        = string
+  default     = "canadaeast"
+}
+
 variable "prefix" {
   description = "Pinned name prefix from design/AI-CODING-LOCAL-AND-CLOUD.md section 6. Example dealerops -> dealerops-core."
   type        = string
