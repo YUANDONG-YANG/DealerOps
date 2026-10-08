@@ -82,6 +82,14 @@
       <plugin>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-maven-plugin</artifactId>
+        <executions>
+          <execution>
+            <!-- META-INF/build-info.properties: the release time when PUBLISHED_AT is not set. -->
+            <goals>
+              <goal>build-info</goal>
+            </goals>
+          </execution>
+        </executions>
       </plugin>
     </plugins>
   </build>

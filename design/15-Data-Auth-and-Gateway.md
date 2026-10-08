@@ -366,7 +366,7 @@ Browser-to-service HTTP **only** goes through `dealer-gateway`. core / ai-servic
 | `/internal/v1/**` | `AI_URL` (local `http://localhost:8082`) | **core only** (see below) | browser → **404** (do not use 401, which would acknowledge the path) |
 | other | — | — | 404 |
 
-Swagger UI and its OpenAPI JSON are part of the gateway origin. Anonymous access is only the local classroom case above. Any active profile other than `dev`, `local`, `test`, or `default`, denies `/swagger-ui.html`, `/swagger-ui/**`, `/v3/api-docs`, and `/v3/api-docs/**`. When that case is open, acceptance uses `http://localhost:8080/swagger-ui/index.html`, or the same path on a public HTTPS gateway. Do not send the browser to core port `8081`. The info description still reads `Published <PUBLISHED_AT>` from dealer-core. Business `/api/v1/**` stays authenticated. The gateway preserves the browser `Host` so Swagger's script and spec URLs stay on the gateway.
+Swagger UI and its OpenAPI JSON are part of the gateway origin. Anonymous access is only the local classroom case above. Any active profile other than `dev`, `local`, `test`, or `default`, denies `/swagger-ui.html`, `/swagger-ui/**`, `/v3/api-docs`, and `/v3/api-docs/**`. When that case is open, acceptance uses `http://localhost:8080/swagger-ui/index.html`, or the same path on a public HTTPS gateway. Do not send the browser to core port `8081`. The info description reads `dealer-core published <time>` (release time rules: [20-Observability.md](20-Observability.md) §5). Business `/api/v1/**` stays authenticated. The gateway preserves the browser `Host` so Swagger's script and spec URLs stay on the gateway.
 
 The two internal paths (same as the handbook; this section only defines entry, not OpenAPI bodies):
 

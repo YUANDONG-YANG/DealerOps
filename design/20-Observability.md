@@ -1,4 +1,4 @@
-# 20. Observability: application logging and local tracing
+# 20. Observability: application logging, release time, and local tracing
 
 Status: **currently in force**, scope addendum to [SCOPE-BASELINE.md](SCOPE-BASELINE.md) — see "Scope note" below.
 
@@ -133,3 +133,34 @@ mvn -f dealer-core/pom.xml spring-boot:run
 Repeat with `SW_AGENT_NAME=dealer-gateway` / `ai-service` for the other two services.
 `dealer-web` is not instrumented (SkyWalking's Java agent does not apply to a Vite/Vue
 frontend; browser RUM instrumentation was judged out of scope for this addendum).
+
+## 5. Release time on every app
+
+Every deploy must be visible: each of the four apps reports when it was published, so a tester or the project manager can confirm which release is running without opening the Azure portal.
+
+**Value.** One UTC string per app, `yyyy-MM-ddTHH:mm:ssZ` (second precision), resolved once at startup:
+
+1. `PUBLISHED_AT` (Java apps) or `VITE_PUBLISHED_AT` (web) when set. `deploy/terraform/deploy-apps.sh` generates one timestamp per run and stamps it on every app it deploys, so a full deploy shows the same time on all four. A partial deploy (`deploy-apps.sh core web`) changes only the apps it touched.
+2. Otherwise the build time. The Java apps read `build.time` from `META-INF/build-info.properties`, which the `spring-boot-maven-plugin` `build-info` goal writes on every Maven build. The web app uses the Vite build time, or the dev-server start time under `npm run dev`. Because every local start begins with a clean build ([AGENTS.md](../AGENTS.md)), a local run shows its own build time.
+3. Otherwise `local` (a Java app built without Maven, for example by an IDE compiler alone).
+
+**Where it appears.**
+
+| Place | What it shows | Source |
+|---|---|---|
+| Startup log of each Java app | `Release: <service> published <time>`, one INFO line at `ApplicationReadyEvent` | `ReleaseInfo` (core, ai-service), `ReleaseEndpoint` (gateway) |
+| `GET /actuator/info` on core and ai-service | `release.publishedAt` plus Spring's `build` block | `ReleaseInfo` `InfoContributor` |
+| `GET /actuator/release` on the gateway | `{"gateway","core","ai"}`. Core and ai-service are read from their `/actuator/info` with a 2 s timeout; an unreachable app shows `unavailable` | `ReleaseEndpoint` |
+| Swagger description (served through the gateway) | `dealer-core published <time>`, plus a pointer to `/actuator/release` | core `OpenApiConfig` |
+| Web app, fixed at the bottom left of every page, including `/login` | `Published (UTC)` with one line each for web, gateway, core and ai | `dealer-web/src/App.vue` |
+
+**Access.**
+- `GET /actuator/release` is anonymous on the gateway because the footer is shown before sign-in. It returns only timestamps.
+- Core and ai-service expose `info` alongside `health`. Core permits only `/actuator/health` and `/actuator/info` anonymously. Neither app is reachable from a browser (design/15 §10), so only the gateway reads them.
+- Every other actuator path stays closed, and the catch-all 404 route on the gateway excludes `/actuator/release`.
+
+**Terraform.**
+- `PUBLISHED_AT` is part of `common_app_settings`, so it is set on all three Java apps.
+- Each app ignores later changes to it, so the value written by the deploy step survives the next `terraform apply`.
+- The variable `published_at` (default `cloud`) is only the value before the first deploy.
+

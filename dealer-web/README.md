@@ -36,7 +36,7 @@ After sign-in, the SPA calls `GET /api/v1/me`. Admin lands on `/admin`. Staff wi
 
 ## Cloud build
 
-The SPA is static files on Azure Static Web Apps. `deploy/terraform/deploy-apps.sh` runs the build with the gateway URL and the publish timestamp injected, then uploads `dist/`:
+The SPA is static files on Azure Static Web Apps. `deploy/terraform/deploy-apps.sh` runs the build with the gateway URL and the publish timestamp injected, then uploads `dist/`. The footer at the bottom left shows `VITE_PUBLISHED_AT` for web (the build time when unset) and the gateway, core and ai release times from `GET /actuator/release` ([design/20-Observability.md](../design/20-Observability.md) §5):
 
 ```text
 VITE_GATEWAY_URL=https://<gateway-host> VITE_PUBLISHED_AT=<utc timestamp> npm run build

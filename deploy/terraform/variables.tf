@@ -149,7 +149,7 @@ variable "admin_password" {
 }
 
 variable "published_at" {
-  description = "Footer and Swagger stamp before the first JAR deploy. The deploy step overwrites it with a UTC timestamp, and Terraform then leaves it alone."
+  description = "Release-time stamp on the gateway, core and ai-service before the first JAR deploy. The deploy step overwrites it with a UTC timestamp, and Terraform then leaves it alone."
   type        = string
   default     = "cloud"
 }

@@ -24,7 +24,8 @@ ai_app="$(tf ai_app_name)"
 gateway_app="$(tf gateway_app_name)"
 gateway_url="$(tf gateway_public_url)"
 
-# One UTC stamp per run, shown in the web footer and in the Swagger description.
+# One UTC stamp per run: PUBLISHED_AT on each Java app and VITE_PUBLISHED_AT on the web build.
+# The web footer lists all four; Swagger shows dealer-core's (design/20-Observability.md).
 published_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 
 if [ "$#" -eq 0 ]; then
@@ -33,6 +34,10 @@ fi
 
 deploy_jar() {
   local module="$1" app="$2"
+  echo "==> ${module}: stamp PUBLISHED_AT=${published_at}"
+  az webapp config appsettings set \
+    --resource-group "${resource_group}" --name "${app}" \
+    --settings "PUBLISHED_AT=${published_at}" --output none
   echo "==> ${module}: package"
   (cd "${repo}/${module}" && mvn -B -DskipTests clean package)
   echo "==> ${module}: upload to ${app}"
@@ -48,10 +53,6 @@ deploy_jar() {
 for target in "$@"; do
   case "${target}" in
     core)
-      echo "==> dealer-core: stamp PUBLISHED_AT=${published_at}"
-      az webapp config appsettings set \
-        --resource-group "${resource_group}" --name "${core_app}" \
-        --settings "PUBLISHED_AT=${published_at}" --output none
       deploy_jar dealer-core "${core_app}"
       ;;
     ai)
@@ -84,4 +85,5 @@ echo
 echo "Published ${published_at}"
 echo "Web     $(tf web_public_url)"
 echo "Gateway ${gateway_url}/actuator/health"
+echo "Release ${gateway_url}/actuator/release"
 echo "Swagger $(tf swagger_url)"

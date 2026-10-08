@@ -176,9 +176,11 @@ deploy/terraform/deploy-apps.sh
 That script reads every name and URL from `terraform output` and then, for one UTC timestamp:
 
 1. stamps `PUBLISHED_AT` on `dealerops-core`, packages `dealer-core`, and uploads the JAR
-2. packages `ai-service` (real `ai-manager` dependency, installed locally from the sibling checkout) and uploads the JAR
-3. packages `dealer-gateway` and uploads the JAR
+2. stamps `PUBLISHED_AT` on `dealerops-ai`, packages `ai-service` (real `ai-manager` dependency, installed locally from the sibling checkout) and uploads the JAR
+3. stamps `PUBLISHED_AT` on `dealerops-gateway`, packages `dealer-gateway`, and uploads the JAR
 4. builds `dealer-web` with `VITE_GATEWAY_URL` set to the gateway URL and `VITE_PUBLISHED_AT` set to the same timestamp, then uploads `dist/` to the Static Web App
+
+After the run, the web app's bottom-left footer and `<gateway>/actuator/release` show the new time for every deployed app ([design/20-Observability.md](../design/20-Observability.md) §5).
 
 Pass names to redeploy one app: `deploy/terraform/deploy-apps.sh core web`.
 

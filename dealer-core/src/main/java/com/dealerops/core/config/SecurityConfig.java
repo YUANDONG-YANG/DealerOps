@@ -43,7 +43,7 @@ public class SecurityConfig {
         a ->
             a.requestMatchers("/error")
                 .permitAll()
-                .requestMatchers("/actuator/health")
+                .requestMatchers("/actuator/health", "/actuator/info")
                 .permitAll()
                 .requestMatchers(
                     "/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs", "/v3/api-docs/**")

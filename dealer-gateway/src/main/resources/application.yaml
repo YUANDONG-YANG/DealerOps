@@ -58,6 +58,7 @@ spring:
             - Path=/**
             - Not=Path=/actuator/health
             - Not=Path=/actuator/health/**
+            - Not=Path=/actuator/release
           filters:
             - SetStatus=404
 
@@ -65,7 +66,8 @@ management:
   endpoints:
     web:
       exposure:
-        include: health
+        # release lists the release time of gateway, core and ai-service for the web footer.
+        include: health,release
   endpoint:
     health:
       show-details: never
@@ -81,6 +83,9 @@ management:
       enabled: true
 
 dealerops:
+  # Release time. deploy/terraform/deploy-apps.sh stamps PUBLISHED_AT on every Azure deploy;
+  # when it is unset, the Maven build time is used (design/20-Observability.md).
+  published-at: ${PUBLISHED_AT:}
   # Relative to the process working directory. Run configurations use the repo root,
   # so all services share one log-sum/ folder. Set LOG_DIR to override per environment.
   log-dir: ${LOG_DIR:log-sum}

@@ -30,6 +30,8 @@ locals {
   common_app_settings = {
     WEBSITES_PORT                         = tostring(local.app_port)
     APPLICATIONINSIGHTS_CONNECTION_STRING = azurerm_application_insights.appi.connection_string
+    # Release time on every Java app; deploy-apps.sh overwrites it on each deploy.
+    PUBLISHED_AT = var.published_at
   }
 }
 
@@ -226,6 +228,11 @@ resource "azurerm_linux_web_app" "gateway" {
     INTERNAL_TOKEN      = "@Microsoft.KeyVault(SecretUri=${azurerm_key_vault_secret.internal_token.versionless_id})"
     DEV_JWT_SECRET      = "@Microsoft.KeyVault(SecretUri=${azurerm_key_vault_secret.jwt_signing_secret.versionless_id})"
   })
+
+  lifecycle {
+    # The deploy step stamps the real publish timestamp after the JAR upload.
+    ignore_changes = [app_settings["PUBLISHED_AT"]]
+  }
 }
 
 # dealer-core: business APIs, Flyway, JWT issuing. Reachable only from this plan.
@@ -279,7 +286,6 @@ resource "azurerm_linux_web_app" "core" {
       GATEWAY_PUBLIC_URL = local.gateway_public_url
       AI_BASE_URL        = local.ai_internal_url
       JWT_MODE           = "dev"
-      PUBLISHED_AT       = var.published_at
       MYSQL_PASSWORD     = "@Microsoft.KeyVault(SecretUri=${azurerm_key_vault_secret.mysql_password.versionless_id})"
       INTERNAL_TOKEN     = "@Microsoft.KeyVault(SecretUri=${azurerm_key_vault_secret.internal_token.versionless_id})"
       DEV_JWT_SECRET     = "@Microsoft.KeyVault(SecretUri=${azurerm_key_vault_secret.jwt_signing_secret.versionless_id})"
@@ -351,4 +357,9 @@ resource "azurerm_linux_web_app" "ai" {
       AIMANAGER_API_KEY = "@Microsoft.KeyVault(SecretUri=${azurerm_key_vault_secret.aimanager_api_key[0].versionless_id})"
     } : {}
   )
+
+  lifecycle {
+    # The deploy step stamps the real publish timestamp after the JAR upload.
+    ignore_changes = [app_settings["PUBLISHED_AT"]]
+  }
 }

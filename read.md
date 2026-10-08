@@ -276,6 +276,7 @@ The spec PDF has no such page. It is added by scope erratum 2 to meet the course
 | NFR-05 | Custom domain. It is not configured yet; the default Azure host names are used | Should |
 | NFR-06 | Desktop first, usable at phone width | Could |
 | NFR-07 | Rate limits, throughput SLOs and PIPEDA retention | Won't |
+| NFR-08 | After every deploy, the release time (UTC) of all four apps is visible. Each Java service logs one startup line. The Swagger description shows dealer-core's time. The bottom left of every web page lists web / gateway / core / ai, read from the gateway's anonymous `GET /actuator/release`. The deploy step stamps `PUBLISHED_AT`; without it, the build time is used ([design/20-Observability.md](design/20-Observability.md) §5) | Must |
 
 ### 8. Pages
 
@@ -313,7 +314,7 @@ The spec PDF has no such page. It is added by scope erratum 2 to meet the course
 
 This guide tells every role on the team how to accept the work against the requirements above.
 
-- **The contract:** acceptance cases AT-01..AT-38 are defined in [requirements/DealerOps-Requirements-zh.html](requirements/DealerOps-Requirements-zh.html) §10. Their IDs, steps and expected results are what acceptance is measured against.
+- **The contract:** acceptance cases AT-01..AT-39 are defined in [requirements/DealerOps-Requirements-zh.html](requirements/DealerOps-Requirements-zh.html) §10. Their IDs, steps and expected results are what acceptance is measured against.
 - **Test-level detail:** the checklist and the classroom cases (CL-1..CL-6) are in [design/16-Acceptance-and-Test.md](design/16-Acceptance-and-Test.md).
 - **Ad copy fixtures:** FX-01..FX-22 are in [design/17-Ad-Check-Fixtures.md](design/17-Ad-Check-Fixtures.md). They use the dealer "Prairie Auto Ltd." and the vehicles V-ASIS / V-CERT / V-UNFIT / V-IRREP.
 - **Classroom minimum demo set:** AT-01, AT-03, AT-12, AT-13, AT-17, AT-19.
@@ -387,6 +388,7 @@ A requirement counts as accepted only after step 4 passes for every AT that cove
   - `AI_UNAVAILABLE` never shows the ad as passed.
   - 401 returns to login.
   - 403 shows the no-access state.
+- **Release footer (NFR-08):** every page, including `/login`, shows `Published (UTC)` at the bottom left with web, gateway, core and ai lines. It must not cover the menu or form controls.
 - **Formatting:** money shows as CAD with two decimals, dates as `YYYY-MM-DD`, and all UI text is in English (NFR-02, NFR-03). Pages stay usable at phone width (NFR-06).
 
 ### AI and integration developers (`ai-service`, gateway AI route)
@@ -406,6 +408,7 @@ A requirement counts as accepted only after step 4 passes for every AT that cove
 - **Deploy:** an operator runs `terraform plan`, reviews it, then applies it and runs `deploy/terraform/deploy-apps.sh`.
 - **After deploy:**
   - All three readiness endpoints return 200.
+  - `<gateway>/actuator/release` shows the timestamp of this run for every app deployed (NFR-08).
   - The SPA loads over HTTPS.
   - Core and ai-service refuse direct browser access (AT-23, ARC-03).
   - Secrets come from Key Vault (SEC-03, SEC-04).
@@ -416,7 +419,7 @@ A requirement counts as accepted only after step 4 passes for every AT that cove
 
 ### Testers (QA)
 
-- **Run all cases:** execute AT-01..AT-38 in order on the local stack, then the minimum demo set on Azure. For each case record:
+- **Run all cases:** execute AT-01..AT-39 in order on the local stack, then the minimum demo set on Azure. For each case record:
   - pass or fail
   - the HTTP status
   - the error `code`
@@ -429,6 +432,11 @@ A requirement counts as accepted only after step 4 passes for every AT that cove
   - Run the design/17 fixtures and record each reason code and its severity.
   - For AT-18, stop ai-service and use an ad with no BLOCK hit; otherwise AI is never called.
 - **Privacy checks:** customer phone, email and address must never appear in audit history, assistant answers or the TXT export (AT-20, AT-22, AT-26).
+- **Release time check (AT-39):** after each deploy, check three places.
+  - The bottom-left footer shows web, gateway, core and ai times that match the deploy run (the `Published` line printed by `deploy-apps.sh`).
+  - The Swagger description shows dealer-core's time.
+  - Each Java service's startup log has `Release: <service> published <time>`.
+  - With ai-service stopped, the ai line shows `unavailable` and the page still works.
 - **Gateway check (AT-23):** open `http://<host>:8081` and `http://<host>:8082` from another machine, or use the cloud core and AI URLs. Both must fail.
 - **Defects:** file a JIRA issue with:
   - the AT ID and the requirement ID

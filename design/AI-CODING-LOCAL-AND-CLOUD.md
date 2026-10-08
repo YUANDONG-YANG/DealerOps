@@ -221,14 +221,14 @@ There is **no container registry and no Container Apps environment**: App Servic
 1. `terraform apply` in `deploy/terraform` creates or updates the Azure resources.
 2. `deploy/terraform/deploy-apps.sh` packages the three JARs, uploads them with `az webapp deploy --type jar`, builds the SPA with `VITE_GATEWAY_URL` set to the gateway URL, and uploads `dist/` to the Static Web App.
 
-That script generates **one** UTC timestamp (`yyyy-MM-dd'T'HH:mm:ss'Z'`, second precision) per run. It becomes the `PUBLISHED_AT` app setting on `dealerops-core` (Swagger info description) and the `VITE_PUBLISHED_AT` build value for `dealer-web` (footer `Published <timestamp>`). A machine with neither shows `Published local`. Swagger is served through the gateway at `/swagger-ui/index.html`; the browser never uses core port `8081`.
+That script generates **one** UTC timestamp (`yyyy-MM-dd'T'HH:mm:ss'Z'`, second precision) per run. It becomes the `PUBLISHED_AT` app setting on every Java app the run deploys and the `VITE_PUBLISHED_AT` build value for `dealer-web`. Without a stamp, each app falls back to its build time. The web footer (bottom left) lists the release time of all four apps, and the Swagger description shows dealer-core's. The rules are in [20-Observability.md](20-Observability.md) §5. Swagger is served through the gateway at `/swagger-ui/index.html`; the browser never uses core port `8081`.
 
 | Repo | JDK / Node | PR and `main` | Cloud deploy |
 |---|---|---|---|
-| dealer-gateway | **Java 21** | `mvn -B -DskipTests compile`, unit tests | JAR upload to `dealerops-gateway` |
-| dealer-core | **Java 21** | Same, plus unit tests and the Testcontainers ITs when a Docker engine is present on the runner | JAR upload to `dealerops-core`; Swagger shows `PUBLISHED_AT` |
-| ai-service | **Java 21** | Stub compile and tests; do not hit paid endpoints | Stub JAR upload to `dealerops-ai` |
-| dealer-web | Node 20 | `npm ci && npm run build` | `dist/` upload to the Static Web App; footer shows `VITE_PUBLISHED_AT` |
+| dealer-gateway | **Java 21** | `mvn -B -DskipTests compile`, unit tests | JAR upload to `dealerops-gateway`; `/actuator/release` lists the release times |
+| dealer-core | **Java 21** | Same, plus unit tests and the Testcontainers ITs when a Docker engine is present on the runner | JAR upload to `dealerops-core`; Swagger shows its release time |
+| ai-service | **Java 21** | Stub compile and tests; do not hit paid endpoints | Stub JAR upload to `dealerops-ai`; release time on `/actuator/info` |
+| dealer-web | Node 20 | `npm ci && npm run build` | `dist/` upload to the Static Web App; the bottom-left footer shows the release time of all four apps |
 
 The `dealer-core` integration tests are the **only** remaining use of a Docker engine, and only as a test fixture on a CI runner or a developer machine. Nothing that ships is a container.
 

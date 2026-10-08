@@ -11,7 +11,10 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-/** Swagger UI reads info.description. The value is the same string the web footer shows. */
+/**
+ * Swagger UI reads info.description: dealer-core's release time ({@link ReleaseInfo}), the same
+ * value the web footer lists for core.
+ */
 @Configuration
 public class OpenApiConfig {
 
@@ -19,14 +22,16 @@ public class OpenApiConfig {
 
   @Bean
   OpenAPI dealerCoreOpenApi(
-      @Value("${dealerops.published-at:local}") String publishedAt,
+      ReleaseInfo releaseInfo,
       @Value("${dealerops.public-gateway-url:http://localhost:8080}") String gatewayBaseUrl) {
-    String value = publishedAt == null || publishedAt.isBlank() ? "local" : publishedAt.trim();
     String server = gatewayBaseUrl == null || gatewayBaseUrl.isBlank()
         ? "http://localhost:8080"
         : gatewayBaseUrl.trim().replaceAll("/+$", "");
     return new OpenAPI()
-        .info(new Info().title("dealer-core").version("v1").description("Published " + value))
+        .info(new Info().title("dealer-core").version("v1").description(
+            "dealer-core published " + releaseInfo.publishedAt()
+                + ". Release times of all services: GET /actuator/release on this gateway, also shown"
+                + " at the bottom left of the web app."))
         .servers(List.of(new Server().url(server).description("dealer-gateway")))
         .components(
             new Components()

@@ -541,6 +541,7 @@ PASSED 且版本一致 ──► 可“标记 Ready”并“导出 TXT”</div>
           <tr><td class="id">NFR-05</td><td>独立域名部署（当前 Terraform 未配置自定义域名，使用 Azure 默认域名）</td><td>PDF §8</td><td><span class="pri should">应该</span></td></tr>
           <tr><td class="id">NFR-06</td><td>桌面浏览器优先，手机宽度可用</td><td>推导</td><td><span class="pri could">可选</span></td></tr>
           <tr><td class="id">NFR-07</td><td>限流、吞吐 SLO、PIPEDA 数据保留</td><td>SCOPE</td><td><span class="pri wont">不做</span></td></tr>
+          <tr><td class="id">NFR-08</td><td>每次发布后可看到四个应用的发布时间（UTC）：各 Java 服务启动日志打印一行；Swagger 描述显示 dealer-core 的发布时间；Web 每个页面左下角列出 web / gateway / core / ai 四个发布时间（来自 Gateway 匿名接口 <code>GET /actuator/release</code>）。部署时写入 <code>PUBLISHED_AT</code>，未写入时用构建时间（见 <code>design/20-Observability.md</code> §5）</td><td>团队要求（2026-10-07）</td><td><span class="pri must">必须</span></td></tr>
         </tbody>
       </table></div>
     </section>
@@ -638,6 +639,7 @@ PASSED 且版本一致 ──► 可“标记 Ready”并“导出 TXT”</div>
           <tr><td class="id">AT-36</td><td>关联选择与他行 id</td><td>打开关联下拉框；通过接口用他行车辆 id 关联</td><td>下拉框不含他行或已关联车辆；他行 id 返回 404</td><td>CRM-06、CRM-09</td></tr>
           <tr><td class="id">AT-37</td><td>车行资料与车况拦截</td><td>车行资料缺电话和邮箱；DMS 为 UNFIT 而广告未写车况；LEASE 广告未声明租赁、无 APR</td><td>分别得到 <code>DEALER_CONTACT_INCOMPLETE</code>（REVIEW）、BLOCKED <code>CONDITION_UNDISCLOSED</code>、BLOCKED <code>LEASE_STATEMENT_MISSING</code> + <code>LEASE_APR_MISSING</code></td><td>AD-R02、AD-R08、AD-R20、AD-R23</td></tr>
           <tr><td class="id">AT-38</td><td>管理员不可读业务数据</td><td>管理员调用车辆、客户、广告、助手的列表与详情接口</td><td>全部 403，无业务字段</td><td>AUTH-08、ARC-03</td></tr>
+          <tr><td class="id">AT-39</td><td>发布时间可见</td><td>部署（或本地清理重建）后打开任意页面与 Swagger；查看三个 Java 服务启动日志；停掉 ai-service 后刷新页面</td><td>左下角显示 web / gateway / core / ai 四个与本次发布一致的 UTC 时间；Swagger 描述显示 core 发布时间；每个服务日志有 <code>Release: &lt;service&gt; published &lt;time&gt;</code>；ai 停止后显示 <code>unavailable</code>，页面仍可用</td><td>NFR-08</td></tr>
         </tbody>
       </table></div>
     </section>
