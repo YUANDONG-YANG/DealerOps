@@ -16,7 +16,7 @@ public class AiManagerFactory {
   @Value("${aimanager.api-key:}")
   private String apiKey;
 
-  @Value("${aimanager.gateway-provider:xai}")
+  @Value("${aimanager.gateway-provider:groq}")
   private String provider;
 
   @Value("${aimanager.gateway-model:}")

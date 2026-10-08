@@ -19,8 +19,8 @@ dealerops:
 
 aimanager:
   api-key: ${AIMANAGER_API_KEY:}
-  gateway-provider: ${AIMANAGER_GATEWAY_PROVIDER:xai}
-  gateway-model: ${AIMANAGER_GATEWAY_MODEL:}
+  gateway-provider: ${AIMANAGER_GATEWAY_PROVIDER:groq}
+  gateway-model: ${AIMANAGER_GATEWAY_MODEL:llama-3.3-70b-versatile}
 
 management:
   endpoints:

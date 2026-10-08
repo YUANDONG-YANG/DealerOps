@@ -43,8 +43,8 @@ The POM uses the real `com.aimanager:aimanager:1.0.0-SNAPSHOT` dependency direct
 | `INTERNAL_TOKEN` | `dealer-internal` | `X-Dealer-Internal` (PROTOCOL §B.1). Accepted only when the Spring profile is `dev` or `local`; otherwise set a non-default token shared with gateway and dealer-core. |
 | `SPRING_PROFILES_ACTIVE` | unset | Local classroom: `dev`. Do not set `dev` on Azure. |
 | `AIMANAGER_API_KEY` | empty | this service only |
-| `AIMANAGER_GATEWAY_PROVIDER` | `xai` | `xai` / `groq` / `openai` / `claude` / `deepseek` |
-| `AIMANAGER_GATEWAY_MODEL` | empty → `current` | this service |
+| `AIMANAGER_GATEWAY_PROVIDER` | `groq` | `groq` / `xai` / `openai` / `claude` / `deepseek` |
+| `AIMANAGER_GATEWAY_MODEL` | `llama-3.3-70b-versatile` | this service |
 
 For an xAI/Grok key, set `AIMANAGER_GATEWAY_PROVIDER=xai`. Use an explicit supported model such as `grok-3-mini` when the account does not accept the `current` alias. Do not label an xAI key as `openai` or `groq`; those providers use different vendor endpoints.
 
