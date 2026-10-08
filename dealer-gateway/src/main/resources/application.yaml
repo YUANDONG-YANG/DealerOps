@@ -24,9 +24,11 @@ spring:
           metadata:
             connect-timeout: 2000
             response-timeout: 18000
+          # No PreserveHostHeader: Azure App Service routes by Host, so the gateway's own
+          # host on a request to dealerops-core is refused with 400. Core reads
+          # X-Forwarded-Host instead (forward-headers-strategy: framework).
           filters:
             # A client-supplied X-Dealer-Internal is rejected by InternalRouteFilter before routing.
-            - PreserveHostHeader
             - CacheRequestBody=String
         # Proxied for local/dev classroom only. SecurityConfig denies these paths
         # unless dealerops.jwt.mode is dev and no non-local Spring profile is active.
@@ -37,8 +39,6 @@ spring:
           metadata:
             connect-timeout: 2000
             response-timeout: 5000
-          filters:
-            - PreserveHostHeader
         - id: ai-service-internal
           uri: ${AI_URL:http://localhost:8082}
           predicates:

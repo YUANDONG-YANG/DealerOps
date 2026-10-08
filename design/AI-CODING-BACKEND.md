@@ -263,8 +263,6 @@ spring:
           uri: ${CORE_URL:http://127.0.0.1:8081}
           predicates:
             - Path=/api/v1/**
-          filters:
-            - PreserveHostHeader
         - id: ai-service-internal
           uri: ${AI_URL:http://127.0.0.1:8082}
           predicates:
