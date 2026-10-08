@@ -59,12 +59,13 @@ Humans still confirm scope first via `SCOPE-BASELINE` and the BRIEF.
 11. [Frontend engineering (file split)](13-Frontend-Engineering.md) **currently in force** — routes, file split, page↔API; frontend still follows this document + `AI-CODING-FRONTEND`.
 12. [Backend development design](DEVELOPMENT-DESIGN.md) **backend design document** — scope, phases, invariants.
 13. [Backend API contract (DTOs/error codes)](14-Backend-API-Contract.md) **currently in force** — public HTTP, DTOs, pagination envelope, error codes; align with OpenAPI.
-14. [Data / auth / gateway rulings](15-Data-Auth-and-Gateway.md) **currently in force** — tables, tenant/membership, Gateway, JWT, **dealer username/password auth (§8)**, rule pseudocode.
+14. [Data / auth / gateway rulings](15-Data-Auth-and-Gateway.md) **currently in force** — tables, tenant/membership, Gateway, JWT, **password auth by email, username, or phone (§8)**, rule pseudocode.
 15. [Acceptance and test](16-Acceptance-and-Test.md) **currently in force** — 32 cases + 6 classroom scripts, mapped to NN-19; does not change contracts.
 16. [Ad-check fixtures](17-Ad-Check-Fixtures.md) **currently in force** — 22 ad samples and expected states; classroom priority FX-01 / FX-03 / FX-10 / FX-11 / FX-12.
 17. [Backend core engineering](18-Backend-Core-Engineering.md) **currently in force** — `dealer-core` packaging reference.
 18. [Gateway and AI engineering](19-Gateway-and-AI-Engineering.md) **currently in force** — Gateway / ai-service packaging reference.
 19. [Observability](20-Observability.md) **currently in force** — logback file logging (`log-sum/`) and local-only SkyWalking tracing; scope addendum to `SCOPE-BASELINE`.
+20. [Feature extensions](21-Feature-Extensions.md) — implementation complete for VIN decode, lead follow-up, work orders, self sign-up and sign-in by email, username, or phone, and Image Studio; manual acceptance remains pending. Instructor scope confirmation is tracked separately.
 
 `01`–`06` are withdrawn; do not implement them. See [archive/](archive/). Path summary is in `../dealer-platform/API.md` (points at 14, not withdrawn `04`).
 

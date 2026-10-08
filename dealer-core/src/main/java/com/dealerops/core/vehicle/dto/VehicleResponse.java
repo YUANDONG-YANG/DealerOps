@@ -22,4 +22,6 @@ public record VehicleResponse(
     BigDecimal soldPrice,
     VehicleStatus status,
     LinkedCustomerBrief linkedCustomer,
+    /** OPEN and IN_PROGRESS work orders (design/21-Feature-Extensions.md WO-07). */
+    long openWorkOrders,
     int version) {}

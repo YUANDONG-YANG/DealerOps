@@ -14,5 +14,9 @@ public interface MembershipRepository extends JpaRepository<MembershipEntity, Lo
 
   long countByDealerIdAndActiveTrue(Long dealerId);
 
+  boolean existsByDealerIdAndUsernameAndActiveTrue(Long dealerId, String username);
+
+  List<MembershipEntity> findByDealerIdAndActiveTrueOrderByUsernameAsc(Long dealerId);
+
   Page<MembershipEntity> findByDealerId(Long dealerId, Pageable pageable);
 }

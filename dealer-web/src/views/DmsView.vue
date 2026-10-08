@@ -7,9 +7,11 @@ import DataTable from '../components/DataTable.vue'
 import FormDrawer from '../components/FormDrawer.vue'
 import PageState from '../components/PageState.vue'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
+import WorkOrderPanel from '../components/WorkOrderPanel.vue'
+import PhotoStudioPanel from '../components/PhotoStudioPanel.vue'
 import { fieldErrorsOf, messageOf } from '../api/http'
 import { errorCode, errorStatus, vehiclesApi } from '../api/vehicles'
-import { catalogApi } from '../api/catalog'
+import { catalogApi, vinDecodeError } from '../api/catalog'
 import { auditApi } from '../api/audit'
 import { checkStatusLabel, listingsApi } from '../api/listings'
 
@@ -178,6 +180,7 @@ function mapWrite(e: unknown) {
   if (code === 'SOLD_LOCKED') return 'Purchase fields are locked'
   if (code === 'VERSION_CONFLICT') return 'Refresh and retry'
   if (code === 'SOLD_PAIR_REQUIRED') return 'Sold date and price are required together'
+  if (code === 'WORK_ORDERS_OPEN') return 'Finish or cancel open work orders before selling'
   if (status === 404 || code === 'NOT_FOUND') return 'Vehicle not found'
   return 'Could not save vehicle.'
 }
@@ -246,6 +249,7 @@ async function openCreate() {
   detailRequest += 1
   edit.value = null
   form.value = blankForm()
+  vinFacts.value = ''
   formError.value = ''
   serverErrors.value = {}
   audit.value = []
@@ -321,6 +325,24 @@ async function save() {
   }
 }
 
+// A finished work order adds to the repair cost and bumps the vehicle version, so take both from
+// the server; other unsaved form edits stay as they are.
+async function refreshAfterWorkOrder() {
+  const seq = detailRequest
+  const id = edit.value?.id
+  if (!id) return
+  try {
+    const r = await vehiclesApi.get(id)
+    if (seq !== detailRequest) return
+    edit.value = r.data
+    form.value.repairCost = r.data.repairCost ?? ''
+    await loadAudit(id, seq)
+  } catch {
+    // The panel already shows its own error; the next drawer open reloads everything.
+  }
+  await load()
+}
+
 async function openSell(id: number) {
   const seq = ++detailRequest
   sellError.value = ''
@@ -384,6 +406,29 @@ function openDeepLink(raw: unknown) {
     return
   }
   void openEdit(id)
+}
+
+const decoding = ref(false)
+// Shown for reference only; the vehicle record keeps the eight specification fields (VIN-03).
+const vinFacts = ref('')
+
+// Prefill make, model and year from the VIN (NHTSA vPIC via dealer-core).
+async function decodeVin() {
+  if (decoding.value) return
+  decoding.value = true
+  vinFacts.value = ''
+  try {
+    const d = (await catalogApi.decodeVin(String(form.value.vin).trim())).data
+    form.value.make = d.make
+    if (d.model) form.value.model = d.model
+    if (d.modelYear) form.value.modelYear = String(d.modelYear)
+    vinFacts.value = [d.bodyClass, d.engine, d.country, d.manufacturer].filter(Boolean).join(' · ')
+    ElMessage.success(`Decoded ${[d.modelYear, d.make, d.model].filter(Boolean).join(' ')}`)
+  } catch (err) {
+    ElMessage.error(vinDecodeError(err))
+  } finally {
+    decoding.value = false
+  }
 }
 
 async function loadMakes() {
@@ -501,6 +546,9 @@ watch(
             <template #default="{ row }">{{ cad(row.purchaseCost) }}</template>
           </el-table-column>
           <el-table-column prop="addedOn" label="Date added" />
+          <el-table-column label="Open work orders" width="100">
+            <template #default="{ row }">{{ row.openWorkOrders || '—' }}</template>
+          </el-table-column>
           <el-table-column label="Status">
             <template #default="{ row }">
               <el-tag>{{ enumLabel(row.status) }}</el-tag>
@@ -522,7 +570,12 @@ watch(
           :prop="field.key"
           :error="serverErrors[field.key]"
         >
-          <el-input v-model="form[field.key]" :disabled="edit?.status === 'SOLD'" />
+          <el-input v-model="form[field.key]" :disabled="edit?.status === 'SOLD'">
+            <template v-if="field.key === 'vin' && !edit" #append>
+              <el-button :loading="decoding" @click="decodeVin">Decode</el-button>
+            </template>
+          </el-input>
+          <div v-if="field.key === 'vin' && !edit && vinFacts" class="muted">{{ vinFacts }}</div>
         </el-form-item>
         <el-form-item label="Source" prop="source" :error="serverErrors.source">
           <el-select v-model="form.source" :disabled="edit?.status === 'SOLD'">
@@ -550,6 +603,13 @@ watch(
         <el-form-item v-if="edit?.id" label="Ad check status"><span>{{ adStatus || '—' }}</span></el-form-item>
         <p v-if="formError" class="danger-text">{{ formError }}</p>
         <el-button type="primary" :loading="saving" @click="save">Save</el-button>
+        <WorkOrderPanel
+          v-if="edit?.id"
+          :vehicle-id="edit.id"
+          :sold="edit.status === 'SOLD'"
+          @changed="refreshAfterWorkOrder"
+        />
+        <PhotoStudioPanel v-if="edit?.id" :vehicle-id="edit.id" />
         <div v-if="edit?.id" class="detail-audit">
           <div class="muted">Audit</div>
           <el-table :data="audit">

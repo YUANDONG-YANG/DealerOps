@@ -8,7 +8,7 @@ const route = useRoute()
 const router = useRouter()
 const loading = ref(false)
 const error = ref('')
-const username = ref('')
+const identifier = ref('')
 const password = ref('')
 
 watch(
@@ -32,22 +32,23 @@ watch(
 
 async function login() {
   error.value = ''
-  if (!username.value.trim() || !password.value) {
-    error.value = 'Enter your username and password.'
+  if (!identifier.value.trim() || !password.value) {
+    error.value = 'Enter your email, username or phone number and password.'
     return
   }
   loading.value = true
   try {
     const redirect = typeof route.query.redirect === 'string' ? route.query.redirect : ''
     rememberPostLoginRedirect(redirect)
-    await signIn(username.value.trim(), password.value)
+    await signIn(identifier.value.trim(), password.value)
     await router.push(takePostLoginRedirect() || '/')
   } catch {
-    error.value = 'Invalid username or password.'
+    error.value = 'Invalid sign-in name or password.'
   } finally {
     loading.value = false
   }
 }
+
 </script>
 
 <template>
@@ -60,7 +61,7 @@ async function login() {
         <el-alert v-if="error" type="error" :title="error" show-icon style="margin-bottom:12px" />
         <el-form @submit.prevent="login">
           <el-form-item>
-            <el-input v-model="username" placeholder="Username" autocomplete="username" />
+          <el-input v-model="identifier" placeholder="Email, username or phone number" autocomplete="username" />
           </el-form-item>
           <el-form-item>
             <el-input
@@ -73,7 +74,16 @@ async function login() {
           </el-form-item>
           <el-button type="primary" native-type="submit" style="width:100%" :loading="loading">Sign in</el-button>
         </el-form>
+        <p class="auth-switch">New here? <router-link to="/register">Create account</router-link></p>
       </el-card>
     </PageState>
   </div>
 </template>
+
+<style scoped>
+.auth-switch {
+  margin: 16px 0 0;
+  text-align: center;
+  color: var(--muted-fg);
+}
+</style>

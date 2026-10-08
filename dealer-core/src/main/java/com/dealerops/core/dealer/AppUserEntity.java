@@ -14,7 +14,12 @@ import org.hibernate.annotations.CreationTimestamp;
 @Entity
 @Table(
     name = "app_user",
-    uniqueConstraints = @UniqueConstraint(name = "uk_user_username", columnNames = "username"))
+    uniqueConstraints = {
+      @UniqueConstraint(name = "uk_user_username", columnNames = "username"),
+      @UniqueConstraint(name = "uk_app_user_email", columnNames = "email"),
+      @UniqueConstraint(name = "uk_app_user_phone", columnNames = "phone"),
+      @UniqueConstraint(name = "uk_app_user_display_name", columnNames = "display_name")
+    })
 public class AppUserEntity {
 
   @Id
@@ -40,6 +45,13 @@ public class AppUserEntity {
 
   @Column(name = "active", nullable = false)
   private boolean active = true;
+
+  /** Normalized login email, when email was chosen as the login identifier. */
+  @Column(name = "email", length = 254)
+  private String email;
+
+  @Column(name = "phone", length = 40)
+  private String phone;
 
   @CreationTimestamp
   @Column(name = "created_at", nullable = false, updatable = false)
@@ -100,4 +112,21 @@ public class AppUserEntity {
   public Instant getCreatedAt() {
     return createdAt;
   }
+
+  public String getEmail() {
+    return email;
+  }
+
+  public void setEmail(String email) {
+    this.email = email;
+  }
+
+  public String getPhone() {
+    return phone;
+  }
+
+  public void setPhone(String phone) {
+    this.phone = phone;
+  }
+
 }

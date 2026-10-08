@@ -1,6 +1,7 @@
 package com.dealerops.core.common.exception;
 
 import com.dealerops.core.common.ErrorBody;
+import com.dealerops.core.photo.VehiclePhotoService;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import org.slf4j.Logger;
@@ -15,6 +16,7 @@ import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
 @RestControllerAdvice
 public class ApiExceptionHandler {
@@ -25,7 +27,7 @@ public class ApiExceptionHandler {
   public ResponseEntity<ErrorBody> handleApi(ApiException ex) {
     ErrorCode code = ex.getCode();
     return ResponseEntity.status(code.getHttpStatus())
-        .body(new ErrorBody(code.name(), ex.getMessage(), null));
+        .body(new ErrorBody(code.name(), ex.getMessage(), ex.getFieldErrors()));
   }
 
   @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -54,6 +56,17 @@ public class ApiExceptionHandler {
                 ErrorCode.VALIDATION.name(),
                 "Request is invalid.",
                 fieldErrors.isEmpty() ? null : fieldErrors));
+  }
+
+  /** Upload over spring.servlet.multipart limits (Image Studio photos). */
+  @ExceptionHandler(MaxUploadSizeExceededException.class)
+  public ResponseEntity<ErrorBody> handleUploadSize(MaxUploadSizeExceededException ex) {
+    String message =
+        ex.getMaxUploadSize() > 0
+            ? VehiclePhotoService.tooLargeMessage(ex.getMaxUploadSize())
+            : "Upload is too large.";
+    return ResponseEntity.status(ErrorCode.VALIDATION.getHttpStatus())
+        .body(new ErrorBody(ErrorCode.VALIDATION.name(), message, null));
   }
 
   @ExceptionHandler(ObjectOptimisticLockingFailureException.class)

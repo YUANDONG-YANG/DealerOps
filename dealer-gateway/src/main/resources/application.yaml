@@ -1,5 +1,5 @@
 # Routes are pinned here (override with CORE_URL / AI_URL / INTERNAL_TOKEN / JWT_MODE).
-# JWT: dealer-core issues its own HS256 tokens at /api/v1/auth/login; gateway and core validate them.
+# JWT: dealer-core issues its own HS256 tokens after password sign-in; gateway and core validate them.
 # CORS policy is only in CorsConfig. Do not add spring.cloud.gateway.globalcors.
 server:
   port: ${GATEWAY_PORT:8080}
@@ -9,12 +9,30 @@ spring:
     name: dealer-gateway
   cloud:
     gateway:
+      # dealer-core builds absolute URLs (Swagger servers) from these headers, so
+      # they must name the gateway's public origin. Host and Proto come first in each list, which is
+      # the value core reads. No X-Forwarded-Port: behind Azure the gateway's internal port would be
+      # sent, so core falls back to the scheme default (443); locally Host already carries :8080.
+      x-forwarded:
+        enabled: true
+        host-enabled: true
+        proto-enabled: true
+        port-enabled: false
       # Backstop if a route omits metadata. Per-route metadata below overrides this.
       # response-timeout here is a duration; route metadata values are milliseconds.
       httpclient:
         connect-timeout: 2000
         response-timeout: 18s
       routes:
+        # Image Studio photo uploads and downloads are binary. They skip CacheRequestBody, which
+        # decodes the body as a String for request logging and is capped at 256 KB in memory.
+        - id: dealer-core-photos
+          uri: ${CORE_URL:http://localhost:8081}
+          predicates:
+            - Path=/api/v1/vehicles/*/photos,/api/v1/vehicles/*/photos/**
+          metadata:
+            connect-timeout: 2000
+            response-timeout: 18000
         - id: dealer-core-public
           uri: ${CORE_URL:http://localhost:8081}
           predicates:
@@ -35,7 +53,7 @@ spring:
         - id: dealer-core-swagger
           uri: ${CORE_URL:http://localhost:8081}
           predicates:
-            - Path=/swagger-ui.html,/swagger-ui/**,/v3/api-docs,/v3/api-docs/**
+            - Path=/swagger-ui.html,/swagger-ui/**,/v1/api-docs,/v1/api-docs/**
           metadata:
             connect-timeout: 2000
             response-timeout: 5000

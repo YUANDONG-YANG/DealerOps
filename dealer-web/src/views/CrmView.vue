@@ -12,6 +12,7 @@ import { fieldErrorsOf, messageOf } from '../api/http'
 import { customersApi } from '../api/customers'
 import { errorCode, errorStatus, vehiclesApi } from '../api/vehicles'
 import { auditApi } from '../api/audit'
+import { leadsApi, stageLabel } from '../api/leads'
 
 const route = useRoute()
 const rows = ref<any[]>([])
@@ -25,6 +26,7 @@ const confirm = ref(false)
 const selected = ref<any>(null)
 const vehicles = ref<any[]>([])
 const audit = ref<any[]>([])
+const customerLeads = ref<any[]>([])
 const formError = ref('')
 // CRM-13: a shared email is allowed (families share one), so this only warns.
 const emailWarning = ref('')
@@ -154,6 +156,17 @@ async function loadAudit(id: number, seq: number) {
   }
 }
 
+// Latest leads for this customer (design/21-Feature-Extensions.md §3); the full list lives on /leads.
+async function loadCustomerLeads(id: number, seq: number) {
+  customerLeads.value = []
+  try {
+    const r = await leadsApi.list({ customerId: id, size: 10 })
+    if (seq === editSeq) customerLeads.value = r.data.items || []
+  } catch {
+    if (seq === editSeq) customerLeads.value = []
+  }
+}
+
 async function collectPages(
   loadPage: (page: number, size: number) => Promise<{ data: { items?: any[]; total?: number; size?: number } }>,
 ): Promise<any[]> {
@@ -230,6 +243,7 @@ async function openEdit(id: number) {
     if (seq !== editSeq) return
     formRef.value?.clearValidate()
     await loadLinkOptions(seq)
+    await loadCustomerLeads(id, seq)
     await loadAudit(id, seq)
   } catch (e) {
     if (seq !== editSeq) return
@@ -419,6 +433,15 @@ watch(
             <span class="muted"> · {{ v.vin }} · {{ v.status === 'SOLD' ? 'Sold' : 'In stock' }}</span>
             <el-button v-if="v.status !== 'SOLD'" link type="danger" @click="requestUnlink(v.id)">Unlink</el-button>
             <span v-else class="muted"> Sold vehicles cannot be unlinked</span>
+          </div>
+          <el-divider />
+          <div class="muted">Leads</div>
+          <p v-if="!customerLeads.length" class="muted">No leads for this customer.</p>
+          <div v-for="l in customerLeads" :key="l.id" style="margin-top: 8px">
+            <router-link :to="{ path: '/leads', query: { leadId: l.id } }">
+              {{ stageLabel(l.stage) }} · {{ l.vehicle ? linkedLabel(l.vehicle) : 'No vehicle' }}
+            </router-link>
+            <span class="muted"> · Follow-up {{ l.nextFollowUpOn || '—' }}</span>
           </div>
           <div class="detail-audit">
             <div class="muted">Audit</div>

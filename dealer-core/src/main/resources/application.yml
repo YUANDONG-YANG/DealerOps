@@ -6,6 +6,12 @@ server:
 spring:
   main:
     web-application-type: servlet
+  # Image Studio upload limits (design/21-Feature-Extensions.md §6). The photo service reads
+  # max-file-size, so the per-file limit and its error message stay in one place.
+  servlet:
+    multipart:
+      max-file-size: ${PHOTO_MAX_FILE_SIZE:2MB}
+      max-request-size: ${PHOTO_MAX_REQUEST_SIZE:3MB}
   application:
     name: dealer-core
   datasource:
@@ -24,6 +30,10 @@ spring:
   flyway:
     enabled: true
     locations: classpath:db/migration
+# OpenAPI JSON path matches the /api/v1 API version instead of springdoc's default /v3/api-docs.
+springdoc:
+  api-docs:
+    path: /v1/api-docs
 management:
   endpoints:
     web:
@@ -58,6 +68,10 @@ dealerops:
   # Free NHTSA vPIC catalog (no key) for the DMS make/model filter options.
   vpic:
     base-url: ${VPIC_BASE_URL:https://vpic.nhtsa.dot.gov/api/vehicles}
+  # Image Studio: photos per vehicle and the long edge of enhanced copies, in pixels.
+  photos:
+    max-per-vehicle: ${PHOTO_MAX_PER_VEHICLE:10}
+    max-edge-px: ${PHOTO_MAX_EDGE_PX:1600}
   ai:
     connect-timeout-ms: 2000
     response-timeout-ms: 13000

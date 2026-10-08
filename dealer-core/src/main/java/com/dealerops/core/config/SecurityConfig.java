@@ -30,7 +30,8 @@ public class SecurityConfig {
   }
 
   @Bean
-  SecurityFilterChain filterChain(HttpSecurity http, TenantFilter tenantFilter, ObjectMapper objectMapper)
+  SecurityFilterChain filterChain(
+      HttpSecurity http, TenantFilter tenantFilter, ObjectMapper objectMapper)
       throws Exception {
     http.csrf(csrf -> csrf.disable());
     http.sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
@@ -46,9 +47,11 @@ public class SecurityConfig {
                 .requestMatchers("/actuator/health", "/actuator/info")
                 .permitAll()
                 .requestMatchers(
-                    "/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs", "/v3/api-docs/**")
+                    "/swagger-ui.html", "/swagger-ui/**", "/v1/api-docs", "/v1/api-docs/**")
                 .permitAll()
-                .requestMatchers(HttpMethod.POST, "/api/v1/auth/login")
+                .requestMatchers(HttpMethod.POST, "/api/v1/auth/login", "/api/v1/auth/register")
+                .permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/v1/vehicle-catalog/vin/*")
                 .permitAll()
                 .requestMatchers("/api/v1/**")
                 .authenticated()

@@ -148,6 +148,18 @@ variable "admin_password" {
   }
 }
 
+variable "admin_email" {
+  description = "Optional email the seeded platform admin can also sign in with (the username always works)."
+  type        = string
+  default     = ""
+}
+
+variable "admin_phone" {
+  description = "Optional phone, with country code, the seeded platform admin can also sign in with (the username always works)."
+  type        = string
+  default     = ""
+}
+
 variable "published_at" {
   description = "Release-time stamp on the gateway, core and ai-service before the first JAR deploy. The deploy step overwrites it with a UTC timestamp, and Terraform then leaves it alone."
   type        = string

@@ -19,6 +19,8 @@ import com.dealerops.core.vehicle.dto.LinkedCustomerBrief;
 import com.dealerops.core.vehicle.dto.PatchVehicleRequest;
 import com.dealerops.core.vehicle.dto.SellVehicleRequest;
 import com.dealerops.core.vehicle.dto.VehicleResponse;
+import com.dealerops.core.workorder.WorkOrderRepository;
+import com.dealerops.core.workorder.WorkOrderStatus;
 import java.math.BigDecimal;
 import java.time.Year;
 import java.util.LinkedHashMap;
@@ -37,16 +39,19 @@ public class VehicleService {
   private final VehicleRepository vehicleRepository;
   private final ListingRepository listingRepository;
   private final CustomerRepository customerRepository;
+  private final WorkOrderRepository workOrderRepository;
   private final AuditService auditService;
 
   public VehicleService(
       VehicleRepository vehicleRepository,
       ListingRepository listingRepository,
       CustomerRepository customerRepository,
+      WorkOrderRepository workOrderRepository,
       AuditService auditService) {
     this.vehicleRepository = vehicleRepository;
     this.listingRepository = listingRepository;
     this.customerRepository = customerRepository;
+    this.workOrderRepository = workOrderRepository;
     this.auditService = auditService;
   }
 
@@ -171,6 +176,9 @@ public class VehicleService {
     if (vehicle.getStatus() == VehicleStatus.SOLD) {
       throw new ApiException(ErrorCode.SOLD_LOCKED, "Sold vehicle is locked.");
     }
+    if (countOpenWorkOrders(vehicle) > 0) {
+      throw new ApiException(ErrorCode.WORK_ORDERS_OPEN, "Finish or cancel open work orders before selling.");
+    }
     if (body.soldOn().isBefore(vehicle.getAddedOn())) {
       throw new ApiException(ErrorCode.VALIDATION, "Sold date must not be before the date added.");
     }
@@ -187,6 +195,37 @@ public class VehicleService {
         actorUsername(),
         changed);
     return toResponse(vehicle);
+  }
+
+  /**
+   * Adds a finished work order's cost to the repair cost. The sold lock stays here: a sold
+   * vehicle's repair cost cannot change.
+   */
+  @Transactional
+  public void addRepairCost(Long vehicleId, BigDecimal cost) {
+    Long tenant = requireTenant();
+    VehicleEntity vehicle = loadThisDealer(vehicleId);
+    if (vehicle.getStatus() == VehicleStatus.SOLD) {
+      throw new ApiException(ErrorCode.SOLD_LOCKED, "Sold vehicle is locked.");
+    }
+    if (cost.signum() == 0) {
+      return;
+    }
+    BigDecimal current = vehicle.getRepairCost() == null ? BigDecimal.ZERO : vehicle.getRepairCost();
+    vehicle.setRepairCost(current.add(cost));
+    vehicleRepository.save(vehicle);
+    auditService.record(
+        EntityType.VEHICLE.name(),
+        vehicle.getId(),
+        AuditAction.UPDATE.name(),
+        tenant,
+        actorUsername(),
+        Map.of("repairCost", true));
+  }
+
+  private long countOpenWorkOrders(VehicleEntity vehicle) {
+    return workOrderRepository.countByVehicleIdAndDealerIdAndStatusIn(
+        vehicle.getId(), vehicle.getDealerId(), WorkOrderStatus.OPEN_STATUSES);
   }
 
   private VehicleEntity loadThisDealer(Long id) {
@@ -319,6 +358,7 @@ public class VehicleService {
             .findLinkedToVehicle(vehicle.getDealerId(), vehicle.getId())
             .map(customer -> new LinkedCustomerBrief(customer.getId(), customer.getName()))
             .orElse(null),
+        countOpenWorkOrders(vehicle),
         vehicle.getVersion());
   }
 

@@ -30,7 +30,7 @@ public class SecurityConfig {
   private static final Logger log = LoggerFactory.getLogger(SecurityConfig.class);
 
   private static final String[] OPENAPI_PATHS = {
-    "/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs", "/v3/api-docs/**"
+    "/swagger-ui.html", "/swagger-ui/**", "/v1/api-docs", "/v1/api-docs/**"
   };
 
   @Bean
@@ -53,7 +53,11 @@ public class SecurityConfig {
           a.pathMatchers(HttpMethod.OPTIONS, "/**").permitAll();
           a.pathMatchers("/actuator/health", "/actuator/health/**").permitAll();
           a.pathMatchers(HttpMethod.GET, "/actuator/release").permitAll();
-          a.pathMatchers(HttpMethod.POST, "/api/v1/auth/login").permitAll();
+          // Password sign-in and self sign-up; sign-up creates unbound accounts (design/21-Feature-Extensions.md §5).
+          a.pathMatchers(HttpMethod.POST, "/api/v1/auth/login", "/api/v1/auth/register")
+              .permitAll();
+          // VIN decode is public: the signed-out landing page uses it (design/14-Backend-API-Contract.md §4.6).
+          a.pathMatchers(HttpMethod.GET, "/api/v1/vehicle-catalog/vin/*").permitAll();
           // Local/dev classroom only. Any other mode or a non-local profile denies the schema.
           if (anonymousOpenApi) {
             a.pathMatchers(OPENAPI_PATHS).permitAll();

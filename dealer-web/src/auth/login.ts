@@ -1,4 +1,4 @@
-/** Admin-issued username/password session (design/15-Data-Auth-and-Gateway.md S8). */
+/** Email-or-phone/password sessions; dealer-core issues every token. */
 import axios from 'axios'
 import { resolveGatewayUrl } from '../api/gateway'
 
@@ -62,18 +62,23 @@ export function takePostLoginRedirect(): string {
 
 type LoginResponse = { accessToken: string; role: string; displayName: string }
 
-export async function signIn(username: string, password: string) {
+async function postAuth(path: string, body: object) {
   const baseURL = await resolveGatewayUrl()
-  const { data } = await axios.post<LoginResponse>(`${baseURL}/api/v1/auth/login`, {
-    username,
-    password,
-  })
+  const { data } = await axios.post<LoginResponse>(`${baseURL}/api/v1/auth/${path}`, body)
   try {
     sessionStorage.setItem(TOKEN_KEY, data.accessToken)
   } catch {
     /* ignore quota / private mode */
   }
   return data
+}
+
+export function signIn(identifier: string, password: string) {
+  return postAuth('login', { identifier, password })
+}
+
+export function register(username: string, displayName: string, email: string, phone: string, password: string) {
+  return postAuth('register', { username, displayName, email: email || null, phone: phone || null, password })
 }
 
 export async function signOut() {

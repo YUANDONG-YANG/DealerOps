@@ -14,30 +14,33 @@
 - Status: **current (v6 acceptance)**
 - **Conflict order (do not reverse):** course PPT hard items > spec PDF fields and enums > [IMPLEMENTATION-BRIEF.md](IMPLEMENTATION-BRIEF.md) / [00-Current-Development-Design.md](00-Current-Development-Design.md) > [15-Data-Auth-and-Gateway.md](15-Data-Auth-and-Gateway.md) / [14-Backend-API-Contract.md](14-Backend-API-Contract.md) / [13-Frontend-Engineering.md](13-Frontend-Engineering.md) > **this document**
 - This document is **use cases and live scripts**. **It does not change the contract**: paths, HTTP, error codes, five states, tenant, and fields follow 14 / 15 / the spec; routes and English copy follow 13. On contradiction, decide in the order above; do not invent new DTOs / routes / error codes here.
-- Out of scope: tickets, leads, consumer buyer site, self-registration / forgot password, standalone Audit page, KPI, CSV import. The assistant only reuses the GitHub component and is read-only.
-- **Local-only cannot pass Sprint 2 / Sprint 3 (Review 2 / Review 3) acceptance.** Sprint 1 may explain architecture and four-repo builds on a local machine; S2/S3 must be a **cloud demo** (username/password sign-in → Gateway → business → real AI on Azure). See section 5.
+- Extension scenarios are documented in [21-Feature-Extensions.md](21-Feature-Extensions.md) EXT-01–EXT-10: VIN decode, leads, work orders, email/phone registration and sign-in, and Image Studio. These are manual acceptance scripts, not authorization to write test code.
+- Out of scope: tickets, consumer buyer site, standalone Audit page, KPI, CSV import, and forgot password. The assistant only reuses the GitHub component and is read-only.
+- **Local-only cannot pass Sprint 2 / Sprint 3 (Review 2 / Review 3) acceptance.** Sprint 1 may explain architecture and four-repo builds on a local machine; S2/S3 must be a **cloud demo** (password sign-in → Gateway → business → real AI on Azure). See section 5.
 
 Numbering: classroom scripts `CL-*`, backend `BE-*` (may serve as [11](11-Requirements-Governance-and-Agile.md) **NN-19** key test table), frontend `FE-*`. Total **26** use cases + 6 classroom scripts (the scripts themselves are not counted in the 32).
 
 ---
 
-## 1. Demo accounts and six-page paths (align 00 / 13)
+## 1. Demo accounts and application paths (align 00 / 13)
 
-Class signs in with admin-issued username/password (15 §8). Routes are these six only (13):
+Class signs in with an email, username, or phone plus password (15 §8); self sign-up is an extension. Routes (13 §2):
 
 | path | Who enters | Default landing |
 |---|---|---|
-| `/login` | not signed in | — |
+| `/` | not signed in (public landing page) | — |
+| `/login`, `/register` | public auth flow | email/phone sign-in and registration |
+| `/no-access` | signed in, no dealership yet | — |
 | `/admin` | `Platform.Admin` | Admin |
 | `/dms` | `Dealer.User` | staff |
-| `/crm` | `Dealer.User` | — |
+| `/crm`, `/leads` | `Dealer.User` | — |
 | `/ads` | `Dealer.User` (page title **Ad compliance**) | — |
 
-Do not show `/tickets` `/leads` `/dashboard` `/audit` or buyer pages. Audit lives only at the bottom of the DMS/CRM detail drawer.
+Do not show `/tickets` `/dashboard` `/audit` or buyer pages. Audit lives only at the bottom of the DMS/CRM detail drawer.
 
 | Account (prepare for class) | Role (`app_user.role`, JWT `roles`) | Bound dealership | Used to demo |
 |---|---|---|---|
-| Admin (seeded from `ADMIN_USERNAME` / `ADMIN_PASSWORD`) | `Platform.Admin` | no membership; `/me` `dealerId` is `null` | create dealerships, bind staff, business calls rejected |
+| Admin (seeded from `ADMIN_USERNAME` / `ADMIN_PASSWORD`, optional `ADMIN_EMAIL` / `ADMIN_PHONE`) | `Platform.Admin` | no membership; `/me` `dealerId` is `null` | create dealerships, bind staff, business calls rejected |
 | Staff A | `Dealer.User` | dealership A active only | DMS/CRM/ads/assistant, isolation "can see" |
 | Staff B | `Dealer.User` | dealership B active only | isolation "cannot see" |
 
@@ -51,7 +54,7 @@ Each script states: who signs in, which page, what they must see / must not see.
 
 ### CL-1 · Admin creates two dealerships and binds one person each (00 item 1 · NN-12)
 
-1. As **Admin**, open `/login` → enter username + password → `Sign in` → land on **`/admin`**.
+1. As **Admin**, open `/login` → enter the email, username, or phone + password → `Sign in` → land on **`/admin`**.
 2. **See:** top bar `Platform Admin`; menu is **Admin only**; two in-page Tabs: **Dealerships**, **Members**.
 3. **Do not see:** DMS / CRM / Ad compliance / Assistant in the menu; any vehicle VIN, customer-name table, or ad body.
 4. Dealerships: `New dealership` creates dealership A and dealership B (four contact fields non-empty).
@@ -137,7 +140,7 @@ UI is English. Failures **must not look like empty tables**. Optimistic lock `40
 
 | ID | Name | Steps | Expect to see | Expect not to see |
 |---|---|---|---|---|
-| **FE-01** | Guard `/login` | unsigned-in open `/dms` | go to `/login`, username + password card with one `Sign in` button | Microsoft button, sign-up link, business tables |
+| **FE-01** | Guard `/login` | unsigned-in open `/dms` | go to `/login`, email/username/phone + password form and `Create account` link | business tables or direct access to core |
 | **FE-02** | Guard `/admin` | Staff A opens `/admin` | sent back to `/dms` | Dealerships table, bind-staff buttons |
 | **FE-03** | Guard `/dms` | Admin opens `/dms` | sent back to `/admin` | vehicle table |
 | **FE-04** | Guard `/crm` | Admin opens `/crm` | sent back to `/admin` | customer four-field table |
@@ -159,7 +162,7 @@ Align [08](08-DevOps-and-Implementation.md) Sprint definition of done and [11](1
 | Review / Sprint | Definition of done (08) | Must demo live | Matching IDs | Environment |
 |---|---|---|---|---|
 | **Review 1 · Sprint 1** | four repos build independently; architecture diagram; two roles in the JWT | four repos, four pipelines can ship ai-service alone; requests go through Gateway only, direct access fails; explain figure 07; login issues `Platform.Admin` / `Dealer.User` tokens. **Local is allowed.** Two-dealership data and a real ad run are not required | NN-01, NN-02, NN-03; evidence toward BE-14 | **local allowed** |
-| **Review 2 · Sprint 2** | **On Azure** sign-in → Gateway → record one vehicle → **real AI** scans one ad; no plaintext secrets | open web over cloud HTTPS; username/password sign-in; record one vehicle on `/dms` via Gateway; `/ads` runs **CL-4** (Blocked does not call AI) + **CL-5** (real model); the stack exists as `deploy/terraform` and was applied, not clicked together in the portal; release is the documented operator commands with human approval; KV with no secrets in the repo; core/ai unreachable from a browser | NN-04–07, NN-08–11, NN-15/18 (S2+); CL-4, CL-5; BE-08, BE-09 | **must be cloud** |
+| **Review 2 · Sprint 2** | **On Azure** sign-in → Gateway → record one vehicle → **real AI** scans one ad; no plaintext secrets | open web over cloud HTTPS; password sign-in; record one vehicle on `/dms` via Gateway; `/ads` runs **CL-4** (Blocked does not call AI) + **CL-5** (real model); the stack exists as `deploy/terraform` and was applied, not clicked together in the portal; release is the documented operator commands with human approval; KV with no secrets in the repo; core/ai unreachable from a browser | NN-04–07, NN-08–11, NN-15/18 (S2+); CL-4, CL-5; BE-08, BE-09 | **must be cloud** |
 | **Review 3 · Sprint 3** | two-dealership isolation, CRM links, three-kind checklist ads, export, audit; freeze features | **CL-1–CL-6 full set in the cloud**; CASH / FINANCE / LEASE checklist at least once each (FINANCE missing APR still Blocked; LEASE has statement/APR per 15 pseudocode); `/crm` link + Unlink confirm; export TXT; DMS/CRM drawer audit (no full PII); floating assistant this-dealership Q&A, at most 5 read-only cards. Customer walkthrough signed (NN-20) | NN-12, NN-13, NN-14, NN-16, NN-17, NN-19/20; CL-1–6; BE-01–BE-16; FE-01–FE-10 | **must be cloud** |
 
 ### Local-only cannot pass Sprint 2 / 3 acceptance
@@ -171,9 +174,28 @@ Align [08](08-DevOps-and-Implementation.md) Sprint definition of done and [11](1
 
 ---
 
+## 5a. Extension cases EXT-01–EXT-10 ([21](21-Feature-Extensions.md))
+
+Manual checks through the gateway (local or cloud). Ids and codes follow [14](14-Backend-API-Contract.md).
+
+| Case | Steps | Expected |
+|---|---|---|
+| **EXT-01** VIN decode | Signed out on `/`, decode `1HGCM82633A004352`; then on `/dms` **Add vehicle**, decode the same VIN; then a VIN containing `I`; then `GET /api/v1/vehicles` without a token | Facts shown on `/`; the form gets make, model, year, and shows body class, engine, country, manufacturer as reference; nothing saved before `Save`; `I` → "VIN must be 17 letters or digits, without I, O or Q."; vehicles without a token → 401 |
+| **EXT-02** Lead | Staff A: **Add lead** with a new customer (four fields), an in-stock vehicle, owner, and a note; set `CONTACTED` with a past follow-up date; then `LOST` without and with a reason; add a note | Customer appears on `/crm`; first note shown; list shows overdue (red) and the **Overdue only** filter returns it; no reason → "A lost lead needs a reason"; with reason → read-only drawer; note still accepted; further PATCH → `409 LEAD_CLOSED`; audit `CREATE` / `UPDATE` / `NOTE` with no note text |
+| **EXT-03** Lead isolation | Staff B `GET /api/v1/leads/{A's id}`; admin `GET /api/v1/leads`; create a lead with a sold vehicle id | 404; 403; `400 WRONG_DEALER_OR_SOLD` |
+| **EXT-04** Work order | On an in-stock vehicle: add a work order with an assignee, `Start`, try `Sell`, then `Done` with note and cost 150; PATCH the done order; sell; add a work order on the sold vehicle | List column shows 1; sell → `409 WORK_ORDERS_OPEN`; after done `repairCost` +150 with a `VEHICLE` `UPDATE` audit row and the column back to —; PATCH → `409 WORK_ORDER_CLOSED`; sell succeeds; new order → `409 SOLD_LOCKED`; Staff B on A's ids → 404 |
+| **EXT-05** Self sign-up | `/register` with username, name, email and phone, and password; then sign in with the email, the username, and the phone in turn | Each lands on `/no-access`; business APIs → 403; duplicate username/email/phone → 409 `USERNAME_TAKEN`, `DISPLAY_NAME_TAKEN`, `EMAIL_TAKEN`, or `PHONE_TAKEN` (one code per field, with `fieldErrors`) copy |
+| **EXT-06** Binding | Admin → Members → **Pending accounts** → **Add to dealership** for `newuser`, no password | `newuser` signs in with the original password and lands on `/dms`; the pending list no longer shows it |
+| **EXT-07** Sign-in name rules | Register with neither email nor phone, a digits-only username, malformed email/phone, and a duplicate username; sign in with a phone written with spaces and dashes | Invalid registration → 400; duplicate → 409; the formatted phone signs in; wrong password → 401 `Invalid sign-in name or password` |
+| **EXT-08** Photo upload | Staff A uploads a 1 MB JPEG, a PNG, a 3 MB file, and a text file renamed `.jpg` to an in-stock vehicle; then an 11th photo | First two appear as thumbnails; 3 MB → "Photo must be 2 MB or smaller."; fake JPEG → 415 copy; 11th → 400 |
+| **EXT-09** Photo enhance | Select the JPEG, **Auto fix**, toggle Original / Enhanced, then **Sharpen** | Enhanced differs and is at most 1600 px on the long edge; original unchanged; Sharpen replaces the enhanced copy; audit `VEHICLE_PHOTO` `UPDATE` |
+| **EXT-10** Photo isolation and delete | Staff B `GET /api/v1/vehicles/{A's id}/photos/{photoId}/content`; Staff A deletes a photo | B → 404; after delete the thumbnail disappears and its content → 404; admin on any photo URL → 403 |
+
+---
+
 ## 6. Explicitly out of scope (anti-regression)
 
-- Do not restore tickets, leads, buyer `/public/**`, password tables, CSRF sessions, Service Bus, a second database, or a dealership switcher.
+- Do not restore social-provider authentication, tickets, buyer `/public/**`, CSRF sessions, Service Bus, a second database, or a dealership switcher. Leads exist only in the design/21 form (no visitor enquiry, no sales funnel).
 - This document does not add test-code files; the implementation group may land `BE-*` as JUnit / a frontend manual list, using codes from 14.
 - Retired `01`–`06` (including old archived `06-Delivery-and-Test-Plan.md` under [archive/](archive/)) are not current acceptance.
 
@@ -188,4 +210,6 @@ Align [08](08-DevOps-and-Implementation.md) Sprint definition of done and [11](1
 | Backend extras BE-13–BE-16 | 4 | S1 leans BE-14; S3 leans BE-13/16 |
 | Frontend FE-01–FE-10 | 10 | S3 guards, five pages and the assistant widget; S2 at least `/login`+`/dms`+`/ads` four states |
 
-**26 use cases total** (16 backend + 10 frontend), plus 6 classroom scripts. The focused manual checks in requirements/analysis/06 (AT-24–28) reuse these flows and are not new implementation features.
+| Extension cases EXT-01–EXT-10 | 10 | Manual, after design/21 lands |
+
+**26 use cases total** (16 backend + 10 frontend), plus 6 classroom scripts and 10 extension cases. The focused manual checks in requirements/analysis/06 (AT-24–28) reuse these flows and are not new implementation features.

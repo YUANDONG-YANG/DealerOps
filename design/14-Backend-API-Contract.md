@@ -20,6 +20,7 @@ Nullability of data columns, whether `membership` / `app_user` is authoritative,
 |---|---|
 | **Handbook restatement only** | two roles; ignore frontend `dealerId`; cross-dealership **404 not 403**; Admin hitting business URLs gets no business fields; error body `{code,message}`; writes carry `version` → `409 VERSION_CONFLICT`; ad five-state conditions; check rules then AI (≤15s); Ready/Export only when Passed and not Stale; assistant does not write business tables; internal `vehiclePublic` has no purchase cost; assistant `resources` have no phone/email/address; lists default to 10 per page; VIN unique per dealership; sell as a pair; sold locks purchase fields; one vehicle one customer |
 | **New rulings here** | pagination envelope `{items,page,size,total}` (handbook says 10 per page but not the envelope); **unlink** `DELETE /customers/{id}/vehicles/{vehicleId}` → 204; Admin **GET/PATCH** single dealership (handbook has list+create only); `SOLD_LOCKED` is always **409**; Blocked checks are **200**; `AI_UNAVAILABLE` is **502** and already persisted; derived fields `checkStatus` / `staffCount` / list `linkedVehicle`; 400 `VALIDATION` may include `fieldErrors`; JSON `id` is a number (do not use string ids from the retired draft); money is a JSON number; Admin↔business URL role mismatch is **403** `FORBIDDEN`; HTTP semantics of bind/unbind (whether the row is soft-deleted is left to 15) |
+| **Extensions (design/21)** | self sign-up and sign-in by email, username, or phone (§1.4–1.5), pending accounts and binding without a password (§3.6, §3.8), staff member directory (§5.6), lead follow-up (§5.5), work orders (§4.7), Image Studio photos (§4.8), public VIN decode (§4.6.1), `openWorkOrders` on vehicles, sell blocked by open work orders. Requirement IDs and rationale live in [21](21-Feature-Extensions.md) |
 | **Aligned with 15** | GET listing with no row: **do not persist**, virtual empty draft; first PATCH uses `''` to satisfy `title`/`body` NOT NULL. Tenant authority is `membership.active=1`; ignore client `dealerId`. Cross-dealership id → **404**. Staff with no valid membership calling business APIs → **403** `FORBIDDEN` (signed in, no dealership — not 401/404). Sold vehicles: a new link is allowed when the vehicle is not already linked; unlink stays **409** `SOLD_LOCKED` |
 
 ---
@@ -89,10 +90,10 @@ Do not return SQL, stack traces, or raw model text to the browser.
 
 ### 1.4 `POST /api/v1/auth/login` (anonymous)
 
-The only `/api/v1` operation without a token. Auth design is owned by [15](15-Data-Auth-and-Gateway.md) §8.
+One of the anonymous `/api/v1` operations. Auth design is owned by [15](15-Data-Auth-and-Gateway.md) §8. `identifier` is the account's email, username, or phone, paired with the password.
 
 ```json
-{ "username": "alex.dealer", "password": "temporary-pass-1" }
+{ "identifier": "alex@example.com", "password": "temporary-pass-1" }
 ```
 
 Response **200**:
@@ -101,7 +102,27 @@ Response **200**:
 { "accessToken": "<HS256 JWT>", "role": "Dealer.User", "displayName": "Alex Dealer" }
 ```
 
-The token carries `sub` (username), `name`, and `roles`; send it as `Authorization: Bearer <accessToken>` on every other call. Blank `username` or `password` → `400 VALIDATION`. Unknown username, inactive account, or wrong password → `401 UNAUTHORIZED` with one message (`Invalid username or password`).
+The token carries `sub` (the username), `name`, and `roles`; send it as `Authorization: Bearer <accessToken>` on every other call. Resolution order: a value containing `@` is an email (case-insensitive); otherwise an active account with that exact username; otherwise, if it is a valid phone number with country code (spaces, dashes, and brackets ignored), the account with that phone. Blank identifier or password → `400 VALIDATION`. Unknown identifier, inactive account, or wrong password → `401 UNAUTHORIZED` with one message (`Invalid sign-in name or password`).
+
+### 1.5 `POST /api/v1/auth/register` (anonymous)
+
+Self sign-up (AUTH-16). Creates an active `Dealer.User` with **no dealership**; the platform admin must bind it (§3.6, §3.8) before any business API works (until then business calls return **403**). Requires `username` (3–64 of letters, digits, `.`, `_`, `-`, with at least one letter), `displayName` (1–120), at least one of a valid `email` (≤ 254) or an international `phone` with country code (both allowed), and `password` (8–72). The user can then sign in with any of username, email, or phone. Audited as `APP_USER` / `CREATE` (actor = the username, no `dealerId`).
+
+```json
+{ "username": "alex.dealer", "displayName": "Alex Dealer", "email": "alex@example.com", "phone": "+14035550100", "password": "temporary-pass-1" }
+```
+
+Response **201**: same `LoginResponse` as §1.4. Every error names its field in `fieldErrors` (keys `username`, `displayName`, `email`, `phone`, `password`; messages in English):
+
+| Case | Status and code |
+|---|---|
+| Missing or malformed field; invalid email; phone without a valid country code; neither email nor phone (both keys set) | **400** `VALIDATION` |
+| Username already used | **409** `USERNAME_TAKEN` |
+| Full name already used (trimmed, case-insensitive; unique key `uk_app_user_display_name`) | **409** `DISPLAY_NAME_TAKEN` |
+| Email already used (canonical lower case) | **409** `EMAIL_TAKEN` |
+| Phone already used (canonical `+digits`) | **409** `PHONE_TAKEN` |
+
+When several values are taken, `code` is the first in the order above and `fieldErrors` lists all of them. Admin bind of a new user (§3.6) applies the same rules.
 
 ---
 
@@ -236,16 +257,28 @@ The table has no staff-email column: the API **does not invent email**. The UI "
 ### 3.6 `POST /api/v1/admin/dealers/{id}/members` → 201
 
 ```json
-{ "username": "alex.dealer", "displayName": "Alex Dealer", "password": "temporary-pass-1" }
+{ "username": "user_9d20…", "displayName": "Alex Dealer", "password": "temporary-pass-1", "email": "alex@example.com" }
 ```
 
 Write `membership` + `app_user` (column authority is in 15). Response matches a member item.  
+**Existing account** (for example a self sign-up from §3.8): identify the account by its username for binding; `displayName`, `password`, and contact fields may be omitted, and they are never changed — the person keeps signing in with their own email, username, or phone and password. **New account:** the admin supplies a username, display name, temporary password, and an email and/or phone (at least one); the person can sign in with any of them. Missing or invalid details → `400 VALIDATION`.
 `400 VALIDATION`; dealership 404; already an **active** member of that dealership, still active at another dealership, or the username belongs to a `Platform.Admin` account → **409** `DUP_MEMBER` (an admin account is never overwritten or demoted).  
 Binding an already-unbound person again is treated as **reactivation**, not 409 (whether the same row is updated is left to 15). Do not delete the `app_user` account.
 
 ### 3.7 `DELETE /api/v1/admin/dealers/{id}/members/{username}` → 204
 
 Unbind; do not delete the `app_user` account. No such binding → 404.
+
+### 3.8 `GET /api/v1/admin/pending-users`
+
+Platform.Admin only (staff → 403). Active `Dealer.User` accounts with no active membership — self sign-ups and unbound former staff — newest first. Query `q` (username, display name, email, or phone contains), `page`, `size`.
+
+```json
+{ "items": [ { "username": "user_9d20…", "displayName": "Ada Lee", "email": "ada@example.com", "phone": null, "createdAt": "2026-10-08T21:59:51Z" } ],
+  "page": 0, "size": 10, "total": 1 }
+```
+
+The Admin Members tab lists these under **Pending accounts** with `Add to dealership`, which calls §3.6 without a password.
 
 ---
 
@@ -286,6 +319,8 @@ List query: `q` (substring of VIN / make / model), `make` and `model` (exact mat
 ```
 
 `linkedCustomer` is `{ "id": 4, "name": "Jane Doe" }` when the vehicle is linked to a customer, otherwise `null` (DMS-08, CRM-10). It never carries customer contact fields (CRM-12).
+
+Every vehicle response (list, detail, create, patch, sell) also carries `openWorkOrders`: the number of `OPEN` + `IN_PROGRESS` work orders (§4.7, WO-07), placed before `version`.
 
 Errors: `401`, `403` (not staff).
 
@@ -346,7 +381,7 @@ Audit `VEHICLE`/`UPDATE`. Other errors: `404`, `409 VERSION_CONFLICT`.
 ```
 
 Both values must be present together. Server sets `status=SOLD`. Response = detail.  
-`400 SOLD_PAIR_REQUIRED` (date or price missing); `400 VALIDATION` (`soldOn` in the future or before `addedOn`, `soldPrice` ≤ 0); selling again after sold → `409 SOLD_LOCKED`; `409 VERSION_CONFLICT`; `404`. Audit `VEHICLE`/`SELL`.
+`400 SOLD_PAIR_REQUIRED` (date or price missing); `400 VALIDATION` (`soldOn` in the future or before `addedOn`, `soldPrice` ≤ 0); selling again after sold → `409 SOLD_LOCKED`; an `OPEN` or `IN_PROGRESS` work order exists → `409 WORK_ORDERS_OPEN` ("Finish or cancel open work orders before selling."); `409 VERSION_CONFLICT`; `404`. Audit `VEHICLE`/`SELL`.
 
 ### 4.6 Vehicle catalog: `GET /api/v1/vehicle-catalog/makes` and `GET /api/v1/vehicle-catalog/models?make=`
 
@@ -357,6 +392,53 @@ Option lists for the DMS Make → Model → Year filter (13 §5.4). Data comes f
 ```
 
 Who: any user with business access (§1.3). Successful lookups are cached in memory until dealer-core restarts. Errors: missing `make` → `400 VALIDATION`; vPIC unreachable or malformed → `502 CATALOG_UNAVAILABLE` (the web filter then lets the user type a make and model).
+
+#### 4.6.1 VIN decode: `GET /api/v1/vehicle-catalog/vin/{vin}` (public)
+
+Decodes one VIN through vPIC `DecodeVinValues`. Used by the signed-out landing page VIN decoder and by the DMS **Add vehicle** form (`Decode` prefills make, model, and year). **Anonymous:** no JWT required; the gateway and core both permit `GET` on this path only. Response (blank vPIC values become `null`; `engine` is built from displacement, cylinders, and primary fuel):
+
+```json
+{ "vin": "1HGCM82633A004352", "make": "HONDA", "model": "Accord", "modelYear": 2003,
+  "bodyClass": "Coupe", "engine": "3.0L 6-cyl Gasoline", "country": "UNITED STATES (USA)",
+  "manufacturer": "AMERICAN HONDA MOTOR CO., INC." }
+```
+
+Successful decodes are cached in memory until dealer-core restarts. Errors: VIN not 17 characters or contains I/O/Q → `400 VALIDATION`; vPIC returns no make → `404 NOT_FOUND`; vPIC unreachable or malformed → `502 CATALOG_UNAVAILABLE`. Nothing is stored; the decode never creates a vehicle. The DMS form shows body class, engine, country, and manufacturer under the VIN field for reference; they are not saved (VIN-03).
+
+### 4.7 Work orders (Dealer.User)
+
+Reconditioning tasks on one vehicle ([21](21-Feature-Extensions.md) §4). Admin or unbound → 403; another dealership's vehicle or work order → 404.
+
+```json
+{ "id": 7, "vehicleId": 12, "task": "Replace front brake pads", "assigneeUsername": "a1",
+  "status": "OPEN", "dueOn": "2026-10-20", "cost": null, "completionNote": null,
+  "completedOn": null, "createdAt": "2026-10-08T21:40:00Z", "version": 0 }
+```
+
+| Method and path | Body | Result |
+|---|---|---|
+| `GET /api/v1/vehicles/{vehicleId}/work-orders` | — | 200 array: `OPEN`/`IN_PROGRESS` first, then closed, each newest first. Works for sold vehicles (history) |
+| `POST /api/v1/vehicles/{vehicleId}/work-orders` | `task` (1–200), `assigneeUsername?`, `dueOn?` | 201. Sold vehicle → `409 SOLD_LOCKED`; assignee not an active member of this dealership → `400 VALIDATION` |
+| `PATCH /api/v1/work-orders/{id}` | full editable state: `status`, `task`, `assigneeUsername`, `dueOn`, `cost` and `completionNote` (read for `DONE` only), `version` | 200 |
+
+Transitions: `OPEN → IN_PROGRESS | DONE | CANCELLED`; `IN_PROGRESS → DONE | CANCELLED`; keeping the same status edits task, assignee, or due date. Errors: stale `version` → `409 VERSION_CONFLICT`; already `DONE`/`CANCELLED` → `409 WORK_ORDER_CLOSED`; other transitions → `400 VALIDATION`; `DONE` without a completion note (≤ 500) or a cost ≥ 0 → `400 VALIDATION`; sold vehicle → `409 SOLD_LOCKED`.
+`DONE` sets `completedOn` to today and adds `cost` to the vehicle's `repairCost` in the same transaction (vehicle `version` increments, audit `VEHICLE`/`UPDATE` `{repairCost}`). Audit `WORK_ORDER`/`CREATE` and `WORK_ORDER`/`UPDATE` with the changed keys.
+
+### 4.8 Image Studio photos (Dealer.User)
+
+Vehicle photos with automatic enhancement ([21](21-Feature-Extensions.md) §6). Photos are stored in MySQL; the original never changes. Admin → 403; another dealership's vehicle or photo → 404. Sold vehicles may still have photos.
+
+`PhotoItem`: `{ "id", "vehicleId", "contentType", "enhancement": null | "AUTO" | "BRIGHTEN" | "SHARPEN", "uploadedBy", "createdAt" }`.
+
+| Method and path | Request | Result |
+|---|---|---|
+| `GET /api/v1/vehicles/{vehicleId}/photos` | — | 200 `PhotoItem[]`, oldest first, metadata only |
+| `POST /api/v1/vehicles/{vehicleId}/photos` | `multipart/form-data`, part `file` | 201 `PhotoItem` |
+| `GET /api/v1/vehicles/{vehicleId}/photos/{photoId}/content?variant=original\|enhanced` | — | 200 image bytes (`image/jpeg` or `image/png` for the original, always `image/jpeg` enhanced), `Cache-Control: no-store` |
+| `POST /api/v1/vehicles/{vehicleId}/photos/{photoId}/enhance` | `{ "preset": "AUTO" \| "BRIGHTEN" \| "SHARPEN" }` | 200 `PhotoItem`; replaces the previous enhanced copy |
+| `DELETE /api/v1/vehicles/{vehicleId}/photos/{photoId}` | — | 204 |
+
+Errors: not JPEG/PNG (checked from the bytes, not the declared type) → `415 UNSUPPORTED_MEDIA_TYPE`; over 2 MB → `400 VALIDATION` "Photo must be 2 MB or smaller."; an 11th photo → `400 VALIDATION`; empty `file` → `400 VALIDATION`; image over 40 megapixels → `400 VALIDATION`; `variant=enhanced` before any enhancement → 404; other `variant` or missing `preset` → `400 VALIDATION`. Limits are configuration (`PHOTO_MAX_FILE_SIZE`, `PHOTO_MAX_REQUEST_SIZE`, `PHOTO_MAX_PER_VEHICLE`, `PHOTO_MAX_EDGE_PX`). Audit `VEHICLE_PHOTO`: `CREATE`, `UPDATE` (`enhancement`), `DELETE`.
 
 ---
 
@@ -441,6 +523,33 @@ Cross-dealership **404**.
 ```
 
 All fields are required (full replacement, same rules as 5.2). Ignore `dealerId`. `400 VALIDATION`, `409 VERSION_CONFLICT`. Audit `CUSTOMER`/`UPDATE`. `fieldSummary` **must not** contain full phone/email/address text.
+
+---
+
+### 5.5 Leads (Dealer.User)
+
+Lead follow-up ([21](21-Feature-Extensions.md) §3). Admin or unbound → 403; another dealership's lead or customer → 404.
+
+| Method and path | Body / query | Result |
+|---|---|---|
+| `GET /api/v1/leads` | `q` (customer name contains), `stage`, `owner` (exact username), `customerId`, `overdue` (`true` = open stage and `nextFollowUpOn` before today, server date), `page`, `size` | page of list rows, newest first |
+| `POST /api/v1/leads` | exactly one of `customerId` or `newCustomer{name,email,phone,homeAddress}` (same rules as §5.2; the customer is created and audited in the same transaction); `vehicleId?`, `ownerUsername?`, `nextFollowUpOn?`, `note?` (first note) | 201 detail; stage starts `NEW` |
+| `GET /api/v1/leads/{id}` | — | detail with notes newest first |
+| `PATCH /api/v1/leads/{id}` | full editable state: `stage`, `ownerUsername`, `nextFollowUpOn`, `vehicleId`, `lostReason`, `version` (null clears a field) | 200 detail |
+| `POST /api/v1/leads/{id}/notes` | `{ "body": "1–2000 chars" }` | 201 `{ id, authorUsername, body, createdAt }`; closed leads still accept notes |
+
+List row: `{ id, customerId, customerName, vehicle: { id, vin, modelYear, make, model, status } | null, stage, ownerUsername, nextFollowUpOn, overdue, version }`. Detail adds `lostReason`, `notes`, `createdAt`.
+Stages `NEW`, `CONTACTED`, `QUALIFIED`, `WON`, `LOST`; any stage may be chosen while the lead is open; `WON` and `LOST` are final. `WON` does not sell the vehicle or link it — those stay §4.5 and §6.
+Errors: both or neither customer source → `400 VALIDATION`; owner not an active member → `400 VALIDATION`; vehicle not `IN_STOCK` in this dealership → `400 WRONG_DEALER_OR_SOLD`; `LOST` without a reason → `400 VALIDATION` (`lostReason` is cleared for other stages); changing a `WON`/`LOST` lead → `409 LEAD_CLOSED`; stale `version` → `409 VERSION_CONFLICT`.
+Audit `LEAD`: `CREATE` (`customerId`, `stage`, `vehicleId?`), `UPDATE` (changed keys), `NOTE` (`noteId` only — note text is never copied into the audit). Lead data is never sent to AI.
+
+### 5.6 `GET /api/v1/members` (Dealer.User)
+
+The caller's dealership's active members, sorted by username, for the lead owner and work-order assignee pickers. Admin or unbound → 403. `displayName` falls back to the username.
+
+```json
+[ { "username": "a1", "displayName": "Alice Staff" }, { "username": "a2", "displayName": "a2" } ]
+```
 
 ---
 
@@ -633,7 +742,7 @@ Query: `entityType`, `entityId` required; `page`, `size` optional.
 Staff: this dealership only. Entity not in this dealership → **404**.  
 Admin: **do not** serve business entities (`VEHICLE`/`CUSTOMER`/`CUSTOMER_VEHICLE`/`LISTING`) → **403** `FORBIDDEN`, no `fieldSummary` business content.
 
-`entityType`: `VEHICLE`\|`CUSTOMER`\|`CUSTOMER_VEHICLE` (staff query). Admin writes may use `DEALER`/`MEMBERSHIP`; **this query API does not open those two types to staff** (avoid treating bind-staff as business browsing). If Admin queries their own dealership-creation audit, they may use only `DEALER`/`MEMBERSHIP` and `dealerId` may be empty — if no Admin audit page is built, a uniform 403 for that role is acceptable.
+`entityType`: `VEHICLE`\|`CUSTOMER`\|`CUSTOMER_VEHICLE`\|`LEAD`\|`WORK_ORDER`\|`VEHICLE_PHOTO` (staff query). A deleted photo's id stays queryable while its audit rows exist in this dealership. Admin writes may use `DEALER`/`MEMBERSHIP`; **this query API does not open those two types to staff** (avoid treating bind-staff as business browsing). If Admin queries their own dealership-creation audit, they may use only `DEALER`/`MEMBERSHIP` and `dealerId` may be empty — if no Admin audit page is built, a uniform 403 for that role is acceptable.
 
 ```json
 {
@@ -654,7 +763,7 @@ Admin: **do not** serve business entities (`VEHICLE`/`CUSTOMER`/`CUSTOMER_VEHICL
 }
 ```
 
-`action`: `CREATE`\|`UPDATE`\|`SELL`\|`LINK`\|`UNLINK`. `fieldSummary` has no full customer phone/email/address.
+`action`: `CREATE`\|`UPDATE`\|`SELL`\|`LINK`\|`UNLINK`\|`NOTE`\|`DELETE`. `fieldSummary` has no full customer phone/email/address.
 
 ---
 
@@ -769,11 +878,18 @@ Gateway forwards to ai-service. core calls these; the browser does not.
 | `METHOD_NOT_ALLOWED` | 405 | HTTP method not supported on this path |
 | `VERSION_CONFLICT` | 409 | `version` mismatch |
 | `DUP_MEMBER` | 409 | this dealership already has this active member |
+| `USERNAME_TAKEN` | 409 | self sign-up (§1.5) or new member (§3.6) with a username already in use |
+| `DISPLAY_NAME_TAKEN` | 409 | same, with a full name already in use (trimmed, case-insensitive) |
+| `EMAIL_TAKEN` | 409 | same, with an email already in use |
+| `PHONE_TAKEN` | 409 | same, with a phone number already in use |
+| `LEAD_CLOSED` | 409 | change to a `WON` or `LOST` lead (§5.5) |
+| `WORK_ORDER_CLOSED` | 409 | change to a `DONE` or `CANCELLED` work order (§4.7) |
+| `WORK_ORDERS_OPEN` | 409 | sell while `OPEN`/`IN_PROGRESS` work orders exist (§4.5) |
 | `VEHICLE_ALREADY_LINKED` | 409 | vehicle already linked to a customer |
 | `SOLD_LOCKED` | 409 | sold purchase edit, sell again, or **unlink a sold vehicle** |
 | `CHECK_STALE` | 409 | check expired at Ready/Export |
 | `NOT_PASSED` | 409 | not Passed at Ready/Export |
-| `UNSUPPORTED_MEDIA_TYPE` | 415 | request body is not `application/json` |
+| `UNSUPPORTED_MEDIA_TYPE` | 415 | request body is not `application/json`; or an uploaded photo is not JPEG/PNG (§4.8) |
 | `INTERNAL_ERROR` | 500 | unexpected server error; details are logged server-side only |
 | `AI_UNAVAILABLE` | 502 | ad-check AI failure/timeout |
 | `CATALOG_UNAVAILABLE` | 502 | NHTSA vPIC vehicle catalog unreachable or malformed (§4.6) |
@@ -782,4 +898,4 @@ Gateway forwards to ai-service. core calls these; the browser does not.
 
 ## 13. Do not build (do not bring the retired draft back)
 
-CSRF cookie sessions, tickets, leads, sales orders, KPI dashboard, buyer `/public/**`, Service Bus, arbitrary `dealerId` dealership switching, Admin reading/writing vehicles/customers/ads.
+Social-provider authentication, tickets, sales orders, sales-funnel reports, KPI dashboard, buyer `/public/**`, Service Bus, arbitrary `dealerId` dealership switching, Admin reading/writing vehicles/customers/ads.

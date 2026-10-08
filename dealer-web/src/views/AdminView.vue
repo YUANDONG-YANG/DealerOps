@@ -1,11 +1,12 @@
 ﻿<script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import type { FormInstance, FormRules } from 'element-plus'
+import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
 import AppLayout from '../layouts/AppLayout.vue'
 import DataTable from '../components/DataTable.vue'
 import FormDrawer from '../components/FormDrawer.vue'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 import PageState from '../components/PageState.vue'
+import PendingAccounts from '../components/PendingAccounts.vue'
 import { adminApi, adminErrorCode, adminErrorStatus, type Dealer, type Member } from '../api/admin'
 import { apiError, fieldErrorsOf } from '../api/http'
 
@@ -48,8 +49,10 @@ const memberDrawer = ref(false)
 const memberFormRef = ref<FormInstance>()
 const drawerMembers = ref<Member[]>([])
 const drawerError = ref('')
-const member = ref({ username: '', displayName: '', password: '' })
+const member = ref({ username: '', displayName: '', password: '', email: '', phone: '' })
 const bindError = ref('')
+// Per-field messages from the bind response's fieldErrors, shown under each input.
+const memberErrors = ref<Record<string, string>>({})
 const binding = ref(false)
 const memberRules: FormRules = {
   username: [
@@ -182,6 +185,7 @@ async function openMembers(row: Dealer) {
   staffDealer.value = row
   memberDrawer.value = true
   bindError.value = ''
+  memberErrors.value = {}
   drawerError.value = ''
   drawerMembers.value = []
   try {
@@ -312,30 +316,37 @@ async function create() {
 
 async function bind() {
   bindError.value = ''
+  memberErrors.value = {}
   if (!staffDealer.value) return
   const memberForm = memberFormRef.value
   if (memberForm) {
     const valid = await memberForm.validate().then(() => true).catch(() => false)
     if (!valid) return
-  } else if (!member.value.username || !member.value.displayName || !member.value.password) {
-    bindError.value = 'Check username, display name, and password'
+  }
+  if (!member.value.username || !member.value.displayName || !member.value.password
+    || (!member.value.email.trim() && !member.value.phone.trim())) {
+    bindError.value = 'Enter the account details and an email or phone number.'
     return
   }
   if (binding.value) return
   binding.value = true
   try {
     await adminApi.bind(staffDealer.value.id, member.value)
-    member.value = { username: '', displayName: '', password: '' }
+    member.value = { username: '', displayName: '', password: '', email: '', phone: '' }
     memberFormRef.value?.clearValidate()
     await refreshDrawerMembers()
     await loadDealers()
     if (tab.value === 'members') await loadFlatMembers()
   } catch (e) {
     const code = adminErrorCode(e)
-    if (code === 'DUP_MEMBER' || adminErrorStatus(e) === 409) {
+    // VALIDATION and USERNAME/DISPLAY_NAME/EMAIL/PHONE_TAKEN carry fieldErrors keyed by form field.
+    const fields = fieldErrorsOf(e)
+    if (Object.keys(fields).length) {
+      memberErrors.value = fields
+    } else if (code === 'DUP_MEMBER') {
       bindError.value = 'Staff already bound'
     } else if (code === 'VALIDATION' || adminErrorStatus(e) === 400) {
-      bindError.value = serverDetail(e) || 'Check username'
+      bindError.value = apiError(e).message || 'Check the account details.'
     } else if (code === 'NOT_FOUND' || adminErrorStatus(e) === 404) {
       bindError.value = 'Dealership not found'
     } else if (isForbidden(e)) {
@@ -345,6 +356,34 @@ async function bind() {
     }
   } finally {
     binding.value = false
+  }
+}
+
+const statusBusy = ref('')
+
+// Status switch: on re-activates the membership through the bind endpoint (existing account, username only);
+// off deactivates it through Unbind after the confirmation dialog.
+async function setStatus(dealerId: number, username: string, active: boolean) {
+  if (!active) {
+    askUnbind(dealerId, username)
+    return
+  }
+  statusBusy.value = `${dealerId}:${username}`
+  try {
+    await adminApi.bind(dealerId, { username })
+    if (staffDealer.value?.id === dealerId) await refreshDrawerMembers()
+    await loadDealers()
+    if (tab.value === 'members') await loadFlatMembers()
+  } catch (e) {
+    if (adminErrorCode(e) === 'DUP_MEMBER' || adminErrorStatus(e) === 409) {
+      ElMessage.error('Already active at another dealership. Deactivate it there first.')
+    } else if (isForbidden(e)) {
+      ElMessage.error('You do not have access to Admin.')
+    } else {
+      ElMessage.error(serverDetail(e) || 'Could not activate staff.')
+    }
+  } finally {
+    statusBusy.value = ''
   }
 }
 
@@ -461,19 +500,20 @@ onMounted(loadDealers)
               <el-table-column prop="legalName" label="Dealership" />
               <el-table-column label="Status">
                 <template #default="{ row }">
-                  <el-tag>{{ row.active ? 'Active' : 'Inactive' }}</el-tag>
+                  <el-switch
+                    :model-value="row.active"
+                    :loading="statusBusy === `${row.dealerId}:${row.username}`"
+                    inline-prompt
+                    active-text="Active"
+                    inactive-text="Inactive"
+                    class="status-switch"
+                    @change="(v: string | number | boolean) => setStatus(row.dealerId, row.username, Boolean(v))"
+                  />
                 </template>
               </el-table-column>
-              <template #actions="{ row }">
-                <el-button
-                  v-if="row.active"
-                  link
-                  type="danger"
-                  @click="askUnbind(row.dealerId, row.username)"
-                >Unbind</el-button>
-              </template>
             </DataTable>
           </PageState>
+          <PendingAccounts @bound="loadFlatMembers()" />
         </el-tab-pane>
       </el-tabs>
     </div>
@@ -508,14 +548,20 @@ onMounted(loadDealers)
       <el-form ref="memberFormRef" :model="member" :rules="memberRules" label-position="top">
         <p v-if="drawerError" class="danger-text">{{ drawerError }}</p>
         <p v-if="bindError" class="danger-text">{{ bindError }}</p>
-        <el-form-item label="Username" prop="username">
+        <el-form-item label="Username" prop="username" :error="memberErrors.username">
           <el-input v-model="member.username" />
         </el-form-item>
-        <el-form-item label="Display name" prop="displayName">
+        <el-form-item label="Display name" prop="displayName" :error="memberErrors.displayName">
           <el-input v-model="member.displayName" />
         </el-form-item>
-        <el-form-item label="Temporary password" prop="password">
+        <el-form-item label="Temporary password" prop="password" :error="memberErrors.password">
           <el-input v-model="member.password" type="password" show-password />
+        </el-form-item>
+        <el-form-item label="Login email" :error="memberErrors.email">
+          <el-input v-model="member.email" type="email" autocomplete="email" />
+        </el-form-item>
+        <el-form-item label="Login phone with country code (email, phone, or both)" :error="memberErrors.phone">
+          <el-input v-model="member.phone" type="tel" autocomplete="tel" />
         </el-form-item>
         <el-button type="primary" :loading="binding" @click="bind">Bind staff</el-button>
       </el-form>
@@ -524,25 +570,24 @@ onMounted(loadDealers)
         <el-table-column prop="displayName" label="Name" />
         <el-table-column label="Status">
           <template #default="{ row }">
-            <el-tag>{{ row.active ? 'Active' : 'Inactive' }}</el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column label="Actions">
-          <template #default="{ row }">
-            <el-button
-              v-if="staffDealer && row.active"
-              link
-              type="danger"
-              @click="askUnbind(staffDealer.id, row.username)"
-            >Unbind</el-button>
+            <el-switch
+              v-if="staffDealer"
+              :model-value="row.active"
+              :loading="statusBusy === `${staffDealer.id}:${row.username}`"
+              inline-prompt
+              active-text="Active"
+              inactive-text="Inactive"
+              class="status-switch"
+              @change="(v: string | number | boolean) => setStatus(staffDealer!.id, row.username, Boolean(v))"
+            />
           </template>
         </el-table-column>
       </el-table>
     </FormDrawer>
     <ConfirmDialog
       :visible="confirm"
-      title="Unbind staff"
-      :message="unbindError || 'Remove this staff membership?'"
+      title="Deactivate staff"
+      :message="unbindError || 'Deactivate this staff membership? They lose access to this dealership until reactivated.'"
       @cancel="confirm = false; pendingUnbind = null"
       @confirm="unbind"
     />

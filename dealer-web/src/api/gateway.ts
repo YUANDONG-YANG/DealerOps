@@ -21,6 +21,18 @@ function accept(value: unknown): string | undefined {
   return url
 }
 
+type RuntimeConfig = { gatewayUrl?: string }
+
+/** public/config.json, read once per page load; a missing or broken file is allowed. */
+let runtimeConfig: Promise<RuntimeConfig> | undefined
+
+function loadRuntimeConfig(): Promise<RuntimeConfig> {
+  runtimeConfig ??= fetch('/config.json', { cache: 'no-store' })
+    .then((response) => (response.ok ? (response.json() as Promise<RuntimeConfig>) : {}))
+    .catch(() => ({}))
+  return runtimeConfig
+}
+
 /**
  * Gateway origin for `/api/v1/**` only.
  * 1. Runtime window.__DEALER_GATEWAY_URL__ and/or public/config.json `gatewayUrl`
@@ -31,16 +43,8 @@ export async function resolveGatewayUrl(): Promise<string> {
   const fromWindow = accept(window.__DEALER_GATEWAY_URL__)
   if (fromWindow) return fromWindow
 
-  try {
-    const response = await fetch('/config.json', { cache: 'no-store' })
-    if (response.ok) {
-      const body = (await response.json()) as { gatewayUrl?: string }
-      const fromFile = accept(body.gatewayUrl)
-      if (fromFile) return fromFile
-    }
-  } catch {
-    /* missing config.json is allowed */
-  }
+  const fromFile = accept((await loadRuntimeConfig()).gatewayUrl)
+  if (fromFile) return fromFile
 
   const fromEnv = accept(import.meta.env.VITE_GATEWAY_URL)
   if (fromEnv) return fromEnv

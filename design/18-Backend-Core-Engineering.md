@@ -21,7 +21,7 @@ Coding repo: `dealer-core` (currently only `src/main/resources/db/migration/V1__
 | Migration | **Flyway only**. `V1__init.sql` already exists. Do not use `ddl-auto=update`. Later scripts use `V{YYYYMMDD}_{n}__{action}.sql` (repo `CLAUDE.md`); current ones are `V20260930_1__add_password_hash.sql`, `V20261007_2__widen_customer_email.sql` (history repair for databases created before 2026-10-07: [15](15-Data-Auth-and-Gateway.md) §8.3) |
 | Database | **one MySQL**, database name `dealer_core`. Connection string / account in platform `env.example` (`MYSQL_*`). core **owns** the data plane exclusively |
 | Port | `CORE_PORT=8081`. No browser CORS; no ACAO for `5173` (15 §10 / §13) |
-| Identity | admin-issued username/password (15 §8). `POST /api/v1/auth/login` checks the BCrypt `app_user.password_hash` and issues an HS256 JWT (`sub`=username, `name`, `roles`) signed with `DEV_JWT_SECRET`; core and Gateway both validate it with the same secret. `JWT_MODE` must be `dev`. No separate password table |
+| Identity | email, username, or phone + password (15 §8). `POST /api/v1/auth/login` resolves the sign-in name (`@` → email, else username, else phone), checks the BCrypt `app_user.password_hash`, and issues an HS256 JWT (`sub`=username, `name`, `roles`) signed with `DEV_JWT_SECRET`; core and Gateway both validate it with the same secret. `JWT_MODE` must be `dev`. No separate password table |
 | Calls | synchronous REST. No queue, no outbox |
 
 Suggested root package: `com.dealerops.core`. Subpackages as below. **Do not** add `ticket` / `lead` / a standalone `auth` service / `bus`.

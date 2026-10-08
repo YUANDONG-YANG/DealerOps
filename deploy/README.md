@@ -7,11 +7,12 @@ The cloud path is **Terraform + Azure App Service**. There are no container imag
 | Piece | Where |
 |---|---|
 | Infrastructure as code | [deploy/terraform/](terraform/) (`main.tf`, `variables.tf`, `outputs.tf`) |
-| App upload script | [deploy/terraform/deploy-apps.sh](terraform/deploy-apps.sh) |
+| One-command deploy (recommended) | [deploy/deploy.sh](deploy.sh): `terraform init` + `apply`, then `deploy-apps.sh`, then a gateway health and `/actuator/release` check |
+| App upload script | [deploy/terraform/deploy-apps.sh](terraform/deploy-apps.sh) — also the way to redeploy a single app |
 | CI check | `.github/workflows/terraform.yml` — `fmt`, `init -backend=false`, `validate`. It never runs `plan` or `apply` |
 | Compile CI | `.github/workflows/dealer-{web,core,gateway}.yml` and `ai-service.yml` |
 
-CI does not deploy. An operator with the Azure subscription runs `terraform apply` and `deploy-apps.sh` by hand. There are no Azure credentials in this repository and no GitHub environment secrets for Azure.
+CI does not deploy. An operator with the Azure subscription runs `deploy/deploy.sh` (or `terraform apply` and `deploy-apps.sh` separately) by hand. There are no Azure credentials in this repository and no GitHub environment secrets for Azure.
 
 ## 1. What a push to `main` does
 
@@ -93,7 +94,7 @@ The Azure for Students subscription keeps its spending limit on, so the subscrip
 | `mysql_admin_password` | 12 characters or more |
 | `internal_token` | The shared `X-Dealer-Internal` value. Must not be the local default `dealer-internal` |
 | `jwt_signing_secret` | 32 bytes or more. `dealer-core` signs with it and `dealer-gateway` validates with it |
-| `admin_username` / `admin_password` | Both or neither. Seeds the one platform admin on the first `dealer-core` start |
+| `admin_username` / `admin_password`, optional `admin_email` / `admin_phone` | Seeds the one platform admin on the first `dealer-core` start; sign in with the username, or the email/phone when set |
 | `aimanager_api_key` | Optional. Empty deploys `ai-service` with no model key |
 | `operator_ip_addresses` | Optional. Public IPv4 addresses that may reach MySQL directly |
 
@@ -167,6 +168,15 @@ State is a local `terraform.tfstate` next to the `.tf` files and is git-ignored,
 
 ## 5. Upload the apps
 
+The recommended path is one command from the repository root:
+
+```text
+deploy/deploy.sh             # terraform init + apply (asks for approval), all four apps, health + release check
+deploy/deploy.sh core web    # same, but uploads only these apps
+```
+
+The rest of this section describes the upload step it runs, which can also be used on its own.
+
 From the repository root, after `terraform apply`:
 
 ```text
@@ -214,7 +224,7 @@ terraform -chdir=deploy/terraform output
 | Core direct | `https://dealerops-core.azurewebsites.net/actuator/health` → refused by App Service, not 200 |
 | AI direct | `https://dealerops-ai.azurewebsites.net/actuator/health` → refused by App Service, not 200 |
 
-Sign in with the seeded `admin_username` / `admin_password`, create a dealership, bind a staff login, record one vehicle, and run one ad check. That is the graded path.
+Sign in with the seeded administrator's username (or email/phone) and password, create a dealership, bind a staff login, record one vehicle, and run one ad check. That is the graded path.
 
 Live logs while a service starts:
 

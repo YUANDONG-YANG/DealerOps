@@ -219,7 +219,7 @@ UI in English. Failures **are not empty tables**. `409 VERSION_CONFLICT` → `Re
 - Repo / file path: `dealer-web` / `src/router/__tests__/fe01-login-guard.spec.ts`
 - Maps to 16: `FE-01`
 - Maps to 17: none
-- Must assert: unauthenticated open `/dms` → `/login`; the login page has a username field, a password field and a **`Sign in`** button (admin-issued credentials, spec §2).
+- Must assert: unauthenticated open `/dms` → `/login`; the login page has an email/username/phone field, a password field and a **`Sign in`** button.
 - Ban: self-service sign-up or "Forgot password" (only the admin issues logins), business table, direct 8081.
 
 ### TEST-18

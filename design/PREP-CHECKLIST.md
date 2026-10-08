@@ -20,7 +20,7 @@ Items marked **Missing** block the matching module. Do not paste passwords into 
 
 | Item | Notes |
 |---|---|
-| Two demo staff usernames/passwords plus one admin account | Used to demo isolation between two dealerships; admin creates staff logins on `/admin` |
+| Two demo staff accounts (sign in by email, username, or phone + password) plus one admin account | Used to demo isolation between two dealerships; admin creates staff logins on `/admin` |
 | Azure DevOps or GitHub Actions | The course requires independent CI/CD; you choose which |
 | Budget cap | The App Service plan and MySQL Flexible Server bill continuously. `terraform destroy` is the off switch |
 

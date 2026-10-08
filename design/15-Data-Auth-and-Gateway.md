@@ -2,13 +2,13 @@
 
 Version: current (v6) · 2026-09-23  
 Status: fills gaps for the `dealer-core` entity layer and `dealer-gateway` configuration; **not** OpenAPI, **not** a business implementation.  
-**Dealer auth (admin-issued username/password)** is owned here in §8; keep [README.md](../README.md) § Sign-in (admin-issued username/password) consistent with it.
+**Password auth (email, username, or phone as the sign-in name)** is owned here in §8; keep [README.md](../README.md) § Sign-in consistent with it.
 
 ## Conflict order and SQL baseline
 
 On conflict, decide in this order and **do not reverse it**:
 
-1. Course PPT (independent repos, Gateway, JWT/RBAC, Azure hosting, infrastructure as code, HTTPS, Key Vault, real AI) — **except Auth**, where the client specification's username/password wins per [SCOPE-BASELINE.md](SCOPE-BASELINE.md) errata item 1 (reversed 2026-09-30) and §8 below
+1. Course PPT (independent repos, Gateway, JWT/RBAC, Azure hosting, infrastructure as code, HTTPS, Key Vault, real AI) — **except Auth**, where password-based authentication is retained from the client specification and the user-directed sign-in names (email, username, or phone) are defined in [SCOPE-BASELINE.md](SCOPE-BASELINE.md) errata item 1 and §8 below
 2. DealerOps spec PDF fields and enums (do not add or remove columns)
 3. `IMPLEMENTATION-BRIEF.md` / `00`
 4. **This document owns data, tenant, and gateway behavior**; **[14](14-Backend-API-Contract.md) owns HTTP JSON**; **[13](13-Frontend-Engineering.md) owns frontend engineering**
@@ -361,12 +361,12 @@ Browser-to-service HTTP **only** goes through `dealer-gateway`. core / ai-servic
 
 | Match | Upstream | Who may call | Failure shape |
 |---|---|---|---|
-| `/api/v1/**` | `CORE_URL` (local `http://localhost:8081`) | browser; `POST /api/v1/auth/login` is anonymous, every other path needs the JWT that login issued, with a mapped role | missing/bad JWT or unmapped role → 401 |
-| `/swagger-ui.html`, `/swagger-ui/**`, `/v3/api-docs`, `/v3/api-docs/**` | `CORE_URL` | browser with **no JWT** only when `dealerops.jwt.mode` is `dev` and every active Spring profile is local (`dev`, `local`, `test`, or `default`). Any other profile **denies** these paths | denied, not the schema |
+| `/api/v1/**` | `CORE_URL` (local `http://localhost:8081`) | browser; email/phone login, registration, and public VIN decode are anonymous; other paths need a DealerOps JWT with a mapped role | missing/bad JWT or unmapped role → 401 |
+| `/swagger-ui.html`, `/swagger-ui/**`, `/v1/api-docs`, `/v1/api-docs/**` | `CORE_URL` | browser with **no JWT** only when `dealerops.jwt.mode` is `dev` and every active Spring profile is local (`dev`, `local`, `test`, or `default`). Any other profile **denies** these paths | denied, not the schema |
 | `/internal/v1/**` | `AI_URL` (local `http://localhost:8082`) | **core only** (see below) | browser → **404** (do not use 401, which would acknowledge the path) |
 | other | — | — | 404 |
 
-Swagger UI and its OpenAPI JSON are part of the gateway origin. Anonymous access is only the local classroom case above. Any active profile other than `dev`, `local`, `test`, or `default`, denies `/swagger-ui.html`, `/swagger-ui/**`, `/v3/api-docs`, and `/v3/api-docs/**`. When that case is open, acceptance uses `http://localhost:8080/swagger-ui/index.html`, or the same path on a public HTTPS gateway. Do not send the browser to core port `8081`. The info description reads `dealer-core published <time>` (release time rules: [20-Observability.md](20-Observability.md) §5). Business `/api/v1/**` stays authenticated. The gateway preserves the browser `Host` so Swagger's script and spec URLs stay on the gateway.
+Swagger UI and its OpenAPI JSON are part of the gateway origin. Anonymous access is only the local classroom case above. Any active profile other than `dev`, `local`, `test`, or `default`, denies `/swagger-ui.html`, `/swagger-ui/**`, `/v1/api-docs`, and `/v1/api-docs/**`. When that case is open, acceptance uses `http://localhost:8080/swagger-ui/index.html`, or the same path on a public HTTPS gateway. Do not send the browser to core port `8081`. The info description reads title `DealerOps Gateway API`, version `v1`, `API published <time>` (the dealer-core release time) (release time rules: [20-Observability.md](20-Observability.md) §5). Business `/api/v1/**` stays authenticated. The gateway preserves the browser `Host` so Swagger's script and spec URLs stay on the gateway.
 
 The two internal paths (same as the handbook; this section only defines entry, not OpenAPI bodies):
 
@@ -388,46 +388,47 @@ Gateway responsibility ends here: routing, user-JWT validation, blocking interna
 
 ---
 
-## 8. Dealer auth (client spec: admin-issued username/password) — product surface, JWT roles
+## 8. Dealer auth (email, username, or phone + password) — product surface, JWT roles
 
-**Source:** `DealerOps-Specification.pdf` §2 ("platform admin... issues login credentials"; "every dealer user signs in with their own username and password") and §8 ("hash and salt passwords server-side"). See [SCOPE-BASELINE.md](SCOPE-BASELINE.md) **Specification errata** item 1. This section is the **authoritative dealer-auth design**. Frontend route details stay in [13](13-Frontend-Engineering.md); acceptance scripts stay in [16](16-Acceptance-and-Test.md).
+**Source:** `DealerOps-Specification.pdf` §2–§8 (admin-provisioned accounts and server-side password hashing), plus the user's explicit 2026-10-08 direction: accounts register with a username and an email and/or phone, and sign in with any of the three plus the password. The username is also the key for membership, audit, and the JWT subject. See [SCOPE-BASELINE.md](SCOPE-BASELINE.md) **Specification errata** item 1. This section is the **authoritative dealer-auth design**. Frontend route details stay in [13](13-Frontend-Engineering.md); acceptance scripts stay in [16](16-Acceptance-and-Test.md).
 
 ### 8.1 Why this is still not a fifth microservice
 
-Login is one endpoint on `dealer-core` (`POST /api/v1/auth/login`): it checks the password hash and signs the JWT itself. The gateway and core then validate that token (§8.3's `roles[]`-based RBAC, Gateway + core double validation, `TenantFilter`). No second database, no fifth repo, no fifth pipeline.
+Authentication uses a sign-in name (email, username, or phone) plus password (`POST /api/v1/auth/login` and `/register`). No Google, Entra ID, or other social-provider login is included. Core issues DealerOps JWTs; the gateway and core validate those tokens (§8.3's `roles[]`-based RBAC, Gateway + core double validation, `TenantFilter`).
 
 ### Swagger authentication flow
 
-The local gateway Swagger UI is the browser-facing API test entry point at `/swagger-ui/index.html`; core port `8081` is not a frontend or acceptance URL. The gateway proxies the core-generated OpenAPI document, which declares the `bearerAuth` HTTP Bearer/JWT security scheme for protected public operations. `POST /api/v1/auth/login` is the only anonymous business operation and is marked without a security requirement in OpenAPI.
+The local gateway Swagger UI is the browser-facing API test entry point at `/swagger-ui/index.html`; core port `8081` is not a frontend or acceptance URL. The gateway proxies the core-generated OpenAPI document, which declares the `bearerAuth` HTTP Bearer/JWT security scheme for protected public operations. `POST /api/v1/auth/login`, `POST /api/v1/auth/register`, and public VIN decode are the anonymous business operations and are marked without a security requirement in OpenAPI.
 
 To test protected APIs in Swagger:
 
-1. Execute `POST /api/v1/auth/login` with the configured local username and password.
+1. Execute `POST /api/v1/auth/login` with an email, username, or phone and the password.
 2. Copy the `accessToken` value from the response.
 3. Select **Authorize** in Swagger UI and paste only the token value. Swagger adds the `Bearer` prefix to the `Authorization` header.
 4. Execute the protected `/api/v1/**` operation. The browser calls only the gateway; the gateway and core both validate the token.
 
-Swagger UI and its OpenAPI JSON may be anonymous in the local `JWT_MODE=dev` classroom profile, but that does not make business APIs anonymous. Every public `/api/v1/**` operation except login still requires the token. The internal `/internal/v1/**` AI routes are core-to-AI routes protected by `X-Dealer-Internal`, not user-token endpoints and not browser Swagger operations.
+Swagger UI and its OpenAPI JSON may be anonymous in the local `JWT_MODE=dev` classroom profile, but that does not make business APIs anonymous. Every public `/api/v1/**` operation except login, registration, and VIN decode still requires the token. The internal `/internal/v1/**` AI routes are core-to-AI routes protected by `X-Dealer-Internal`, not user-token endpoints and not browser Swagger operations.
 
-### 8.2 Product surface (locked)
+### 8.2 Product surface
 
 | Topic | Ruling |
 |---|---|
-| Login route | **One** public page: `/login`. Username + password fields, **Sign in** button. |
-| Identity | `dealer-core` verifies the password and issues an HS256 JWT (existing `JWT_MODE=dev` signing path in [18](18-Backend-Core-Engineering.md), now the **only** mode: gateway and core refuse to start unless `JWT_MODE=dev`). |
+| Login routes | `/login` accepts the account's email, username, or phone and the password. `/register` accepts a username, a display name, an email and/or phone (at least one), and a password. Contract: [14](14-Backend-API-Contract.md) §1.4–1.5; design: [21](21-Feature-Extensions.md) §5. |
+| Identity | `dealer-core` verifies local passwords and issues the application's existing HS256 JWT. |
 | Roles (`roles[]` in the JWT) | Exactly `Platform.Admin` and `Dealer.User`, same as before. |
-| Issuing access | Per spec §2, **only the platform admin** creates dealer businesses and issues each staff login (username + a temporary password the admin sets and communicates out of band). Staff cannot self-register (matches spec "Dealer users cannot create or remove logins"). Admin on `/admin` **creates** a staff credential (`POST .../members` with `username`, `displayName`, and the temporary `password`; see [14](14-Backend-API-Contract.md) §3.6) bound to a dealership; that creates/reactivates `membership` and `app_user`, same flow as the old "bind," except it also sets `password_hash`. |
+| Issuing access | The platform admin alone grants dealership access. Self-registered accounts begin as unbound `Dealer.User` identities; `/admin` lists pending accounts and binds an existing account without replacing its credential. Admin-created accounts also need an email and/or phone (at least one); their username works for sign-in as well. |
 | Revoking access | **Unbind** = soft deactivate: `membership.active=0`, `app_user.dealer_id=NULL`; keep the `app_user` row and its password hash (see §2.3), consistent with "do not delete the account." |
-| Post-sign-in landings | Unchanged: **`Platform.Admin` → `/admin`**; **`Dealer.User` with `dealerId` set → `/dms`**; **signed-in but unbound → `/` no-access shell**. |
+| Post-sign-in landings | **`Platform.Admin` → `/admin`**; **`Dealer.User` with `dealerId` set → `/dms`**; **signed-in but unbound → `/no-access`** ("waiting for a dealership" with the username). |
 
 Role guards and redirect rules: [13](13-Frontend-Engineering.md) § routes / guards. Classroom demos: **[16](16-Acceptance-and-Test.md) CL-1** / **CL-2** (dealership isolation), unchanged.
 
-### 8.3 Password storage and JWT issuance (locked)
+### 8.3 Password storage and JWT issuance
 
 - **Password hashing:** BCrypt (Spring Security `BCryptPasswordEncoder`), never plaintext, never logged. This satisfies the client spec's own §8 production note ("hash and salt passwords server-side") without adding a new dependency — `dealer-core` already depends on `spring-boot-starter-security`.
 - **Schema:** identity columns are defined in `V1__init.sql`: `app_user.username` (unique key `uk_user_username`), `membership.username` (`uk_membership (dealer_id, username)`), `audit_event.actor_username`. Later migrations change the schema forward.
   - `V20260930_1__add_password_hash.sql` adds `app_user.password_hash VARCHAR(100) NOT NULL`.
   - `V20261007_2__widen_customer_email.sql` widens `customer.email` to `VARCHAR(254)`.
+  - `V20261008_3__add_google_identity.sql` adds the `app_user.email` field used for account contact; `V20261008_6__add_email_phone_login_identifiers.sql` adds phone and unique nullable email/phone login identifiers. `V20261008_7__drop_user_identity.sql` removes the now-unused external-provider identity table after social sign-in was removed.
   - **One-time history repair (2026-10-07).** `V1__init.sql` and `V20260930_1` were rewritten once to define the username columns directly, and the separate rename script `V20261007_1` was removed. A database that already ran the old scripts already has the final schema; only its Flyway history must be realigned, or dealer-core fails Flyway validation at startup. Run once per such database (local, shared development, Azure):
 
     ```sql
@@ -437,7 +438,8 @@ Role guards and redirect rules: [13](13-Frontend-Engineering.md) § routes / gua
     ```
 
     A new, empty database needs nothing: Flyway builds it from the current scripts.
-- **Token issuance:** `POST /api/v1/auth/login` takes `{username, password}`, loads `app_user` by `username`, verifies the BCrypt hash, then issues an HS256 JWT: `sub: app_user.username`, `name: app_user.display_name`, `roles: [app_user.role]`. There are no `oid` or `tid` claims. `TenantFilter` reads the identity from `sub`; role mapping is unchanged. API fields follow the column names: `username` in `/me`, members, and the member path; `actorUsername` in audit items.
+- **Token issuance:** `POST /api/v1/auth/login` resolves the sign-in name: a value with `@` is an email (case-insensitive); otherwise an active account with that exact username wins; otherwise a valid phone number with country code (spaces, dashes, and brackets ignored) is looked up. It then verifies the BCrypt password; every failure is `401` with one message. `POST /register` requires a username (3–64 letters, digits, `.`, `_`, `-`, with at least one letter so it can never be read as a phone number) and an email and/or phone, rejects any duplicate with 409 `USERNAME_TAKEN`, `DISPLAY_NAME_TAKEN`, `EMAIL_TAKEN`, or `PHONE_TAKEN` (one code per field, with `fieldErrors`), and creates an unbound Dealer.User. Admin-created staff need an email and/or phone; the seeded Platform.Admin needs only a username, with optional email/phone as extra sign-in names. Each path issues the same HS256 DealerOps JWT: `sub: app_user.username`, `name: app_user.display_name`, `roles: [app_user.role]`. `TenantFilter` reads the identity from `sub`; role mapping is unchanged.
+- **Unique sign-in names:** `app_user.email` and `app_user.phone` are unique (`V20261008_6`). Every write and lookup goes through `dealer/LoginIdentifiers.java`: email is trimmed and lower-cased; phone keeps only digits and is stored as `+digits`, so `+1 (403) 555-0142`, `14035550142`, and `+14035550142` are the same number. Sign-up, admin-created users, and the admin seed all use it; `V20261008_8__canonicalize_login_identifiers.sql` rewrote existing rows into this form. A phone must already include its country code; digits without one are read as if they start with it.
 
 ```
 function mapRole(claims):
@@ -454,9 +456,11 @@ function mapRole(claims):
 | Variable | Where | Notes |
 |---|---|---|
 | `DEV_JWT_SECRET` (the only signing-secret variable in every environment) | Local: the gateway and core run configurations. Cloud: app setting referencing Key Vault `JWT-SIGNING-SECRET` | ≥32 UTF-8 bytes; unique per environment, never committed |
-| `ADMIN_USERNAME` / `ADMIN_PASSWORD` | dealer-core only. Local: run configuration. Cloud: app setting; the password references Key Vault `ADMIN-PASSWORD` | Seeds the platform admin account on first startup (no self-registration); no-op once that username exists |
+| `ADMIN_USERNAME` / `ADMIN_PASSWORD`, optional `ADMIN_EMAIL` / `ADMIN_PHONE` | dealer-core only. Local: run configuration. Cloud: app settings; password references Key Vault `ADMIN-PASSWORD` | Seeds the platform admin account on first startup; the admin signs in with the username, or the email/phone when set |
 
-No external identity provider, app registration, or Microsoft account is part of this auth path.
+Gateway anonymous permits for sign-in (both `dealer-gateway` and `dealer-core` security configs): `POST /api/v1/auth/login`, `POST /api/v1/auth/register`, plus the public `GET /api/v1/vehicle-catalog/vin/*`. Every other `/api/v1/**` path needs the bearer JWT.
+
+Azure Terraform continues to deploy the web app, gateway, core, and MySQL. No social-provider credentials or callback settings are required.
 
 ---
 
@@ -532,7 +536,7 @@ Rules for a shared instance:
 - **Not public.** Firewall the server to the team's addresses plus the App Service egress — in `deploy/terraform` that is `operator_ip_addresses` plus the Azure services rule. The "MySQL is not public" constraint below applies to the development instance too.
 - **Shared dev data is not demo data.** Seed the graded demo from a known state; do not rely on whatever the team left in the shared schema.
 
-**Why not Firestore / Firebase, or any document store.** Rejected, consistent with §9. Three reasons: (1) the single-commit ruling in §9 — locking sale fields, incrementing `contentVersion`, and writing `audit_event` in one transaction — has no equivalent across document collections, and §9 already rules out an outbox; (2) the browser never reaches the database directly in this architecture (§10), so `dealer-core` would hold the Admin SDK credential, which bypasses security rules and leaves tenancy entirely in application code; (3) it would delete the JPA and Flyway layer that `V1__init.sql` and the `V{YYYYMMDD}_{n}__` convention are built on, for no behavior the course requires. "A cloud database" is a hosting question, and hosted MySQL answers it.
+**Why not Firestore or any document store.** Rejected, consistent with §9. Three reasons: (1) the single-commit ruling in §9 — locking sale fields, incrementing `contentVersion`, and writing `audit_event` in one transaction — has no equivalent across document collections, and §9 already rules out an outbox; (2) the browser never reaches the database directly in this architecture (§10), so `dealer-core` would hold the Admin SDK credential, which bypasses security rules and leaves tenancy entirely in application code; (3) it would delete the JPA and Flyway layer that `V1__init.sql` and the `V{YYYYMMDD}_{n}__` convention are built on, for no behavior the course requires. Hosted MySQL remains the database.
 
 ### Who holds which key / secret
 

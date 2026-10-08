@@ -13,7 +13,7 @@ info:
     Internal AI **success/failure JSON** is pinned by `design/AI-PROTOCOL-AND-RULES.md` §B.2–B.3 (`{success,notes[]}` and `{success,summary}`). That protocol wins over older OpenAPI or 14 §11 wording that only said “notes” / “short text”.
 
     **Tenant / auth (behavior aligned with 15; fields still come only from 14):**
-    - `POST /api/v1/auth/login` is the only anonymous `/api/v1` operation. It returns an HS256 `accessToken` (claims `sub`=username, `name`, `roles`); every other operation needs `Authorization: Bearer <accessToken>`.
+    - `POST /api/v1/auth/login`, `POST /api/v1/auth/register`, and public VIN decode are anonymous. Login accepts an email, username, or phone as `identifier`; both return a DealerOps HS256 `accessToken` (claims `sub`=username, `name`, `roles`); every other protected operation needs `Authorization: Bearer <accessToken>`.
     - Roles are only `Platform.Admin` and `Dealer.User`. Ignore client `dealerId` in body / query / header.
     - Staff tenant comes only from the JWT `sub` (the username) → exactly one `membership.active=1` row.
     - Cross-dealership or unknown id in this dealership → **404** `NOT_FOUND` (anti-probing; not 403).
@@ -34,7 +34,7 @@ servers:
 
 tags:
   - name: Auth
-    description: Anonymous login with an admin-issued username and password
+    description: Anonymous password sign-in (email, username, or phone) and self sign-up
   - name: Me
     description: Current authenticated identity
   - name: AdminDealers
@@ -51,6 +51,14 @@ tags:
     description: One listing draft per vehicle
   - name: Checks
     description: Compliance check, Ready, Export
+  - name: Leads
+    description: Dealer.User lead follow-up (design/21 §3)
+  - name: WorkOrders
+    description: Dealer.User reconditioning work orders (design/21 §4)
+  - name: Photos
+    description: Dealer.User Image Studio vehicle photos (design/21 §6)
+  - name: Members
+    description: Dealer.User directory of this dealership's active members
   - name: Audit
     description: This-dealership audit query
   - name: Assistant
@@ -71,9 +79,9 @@ paths:
       operationId: login
       summary: Login
       description: |
-        Anonymous. Loads the active `app_user` by `username` and verifies the BCrypt password hash.
-        Unknown username, inactive account, or wrong password → **401** `UNAUTHORIZED` with the same message.
-        Blank `username` or `password` → **400** `VALIDATION`.
+        Anonymous. Resolves `identifier`: a value with `@` is an email (case-insensitive); otherwise an active account with that exact username; otherwise a valid phone with country code (spaces, dashes, brackets ignored). Then verifies the BCrypt password hash.
+        Unknown identifier, inactive account, or wrong password → **401** `UNAUTHORIZED` with the same message.
+        Blank identifier or password → **400** `VALIDATION`.
       security: []
       requestBody:
         required: true
@@ -91,14 +99,70 @@ paths:
         "400":
           $ref: "#/components/responses/Validation"
         "401":
-          description: Invalid username or password. code=`UNAUTHORIZED`
+          description: Invalid sign-in name or password. code=`UNAUTHORIZED`
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
               example:
                 code: UNAUTHORIZED
-                message: Invalid username or password
+                message: Invalid sign-in name or password
+
+  /api/v1/auth/register:
+    post:
+      tags: [Auth]
+      operationId: register
+      summary: Create a local account
+      description: Anonymous. Creates an unbound Dealer.User account; an administrator must bind it to a dealership before business access.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [username, displayName, password]
+              anyOf:
+                - required: [email]
+                - required: [phone]
+              properties:
+                username:
+                  type: string
+                  pattern: "^(?=.*[A-Za-z])[A-Za-z0-9._-]{3,64}$"
+                  description: Sign-in name; 3–64 letters, digits, dots, dashes, or underscores with at least one letter.
+                displayName:
+                  type: string
+                  minLength: 1
+                  maxLength: 120
+                email:
+                  type: string
+                  format: email
+                  maxLength: 254
+                  description: Email and/or phone is required (at least one); either can be used to sign in.
+                phone:
+                  type: string
+                  maxLength: 40
+                  pattern: "^\\+?[1-9][0-9]{6,14}$"
+                  description: E.164-style phone with country code; email and/or phone is required (at least one).
+                password:
+                  type: string
+                  minLength: 8
+                  maxLength: 72
+      responses:
+        "201":
+          description: Registered DealerOps session
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LoginResponse"
+        "400":
+          $ref: "#/components/responses/Validation"
+        "409":
+          description: A value is already registered. code is `USERNAME_TAKEN`, `DISPLAY_NAME_TAKEN`, `EMAIL_TAKEN`, or `PHONE_TAKEN`; `fieldErrors` names every taken field.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
 
   /api/v1/me:
     get:
@@ -291,6 +355,34 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
 
+  /api/v1/admin/pending-users:
+    get:
+      tags: [AdminMemberships]
+      operationId: listPendingUsers
+      summary: Accounts waiting for a dealership
+      description: |
+        Platform.Admin only. Active Dealer.User accounts with no active membership (self sign-ups,
+        unbound former staff), newest first. `q` matches username, display name, or email. Bind one with
+        `POST /api/v1/admin/dealers/{id}/members` without a password.
+      parameters:
+        - name: q
+          in: query
+          required: false
+          schema: { type: string }
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/Size"
+      responses:
+        "200":
+          description: Paged pending accounts
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PagePendingUser"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
   /api/v1/vehicles:
     get:
       tags: [Vehicles]
@@ -444,6 +536,46 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
 
+  /api/v1/vehicle-catalog/vin/{vin}:
+    get:
+      tags: [Vehicles]
+      operationId: decodeVin
+      summary: Decode a VIN (public)
+      description: NHTSA vPIC `DecodeVinValues`, proxied and cached by dealer-core. Anonymous; used by the landing page and the DMS Add vehicle form. Stores nothing.
+      security: []
+      parameters:
+        - name: vin
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: "^[A-HJ-NPR-Za-hj-npr-z0-9]{17}$"
+      responses:
+        "200":
+          description: Decoded vehicle facts; blank vPIC values are null
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VinDecode"
+        "400":
+          description: VALIDATION (VIN not 17 characters or contains I, O, Q)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: NOT_FOUND (vPIC returned no make for this VIN)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "502":
+          description: CATALOG_UNAVAILABLE (vPIC unreachable or malformed)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
   /api/v1/vehicles/{id}:
     parameters:
       - $ref: "#/components/parameters/VehicleId"
@@ -523,6 +655,7 @@ paths:
         `soldOn` and `soldPrice` must both be present. Server sets `status=SOLD`.
         Missing either → **400** `SOLD_PAIR_REQUIRED`. `soldOn` in the future or before `addedOn`,
         or `soldPrice` ≤ 0 → **400** `VALIDATION`. Selling again → **409** `SOLD_LOCKED`.
+        Open (`OPEN`/`IN_PROGRESS`) work orders → **409** `WORK_ORDERS_OPEN`.
       parameters:
         - $ref: "#/components/parameters/VehicleId"
       requestBody:
@@ -554,11 +687,258 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
         "409":
-          description: SOLD_LOCKED or VERSION_CONFLICT
+          description: SOLD_LOCKED, WORK_ORDERS_OPEN, or VERSION_CONFLICT
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+
+  /api/v1/vehicles/{vehicleId}/work-orders:
+    parameters:
+      - $ref: "#/components/parameters/VehicleIdPath"
+    get:
+      tags: [WorkOrders]
+      operationId: listWorkOrders
+      summary: Work orders of one vehicle
+      description: Open (OPEN, IN_PROGRESS) first, then closed; each group newest first. Works for sold vehicles.
+      responses:
+        "200":
+          description: Work orders
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/WorkOrder"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    post:
+      tags: [WorkOrders]
+      operationId: createWorkOrder
+      summary: Add a work order to an in-stock vehicle
+      description: Sold vehicle → **409** `SOLD_LOCKED`. Assignee must be an active member of this dealership → else **400** `VALIDATION`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WorkOrderCreate"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkOrder"
+        "400":
+          $ref: "#/components/responses/Validation"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: SOLD_LOCKED
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/v1/work-orders/{id}:
+    patch:
+      tags: [WorkOrders]
+      operationId: patchWorkOrder
+      summary: Change a work order (full editable state)
+      description: |
+        Transitions OPEN → IN_PROGRESS | DONE | CANCELLED; IN_PROGRESS → DONE | CANCELLED; the same status edits fields.
+        DONE requires `completionNote` and `cost` ≥ 0, sets `completedOn`, and adds `cost` to the vehicle `repairCost`
+        in the same transaction. Closed → **409** `WORK_ORDER_CLOSED`; other transitions → **400** `VALIDATION`;
+        sold vehicle → **409** `SOLD_LOCKED`.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WorkOrderPatch"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkOrder"
+        "400":
+          $ref: "#/components/responses/Validation"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: WORK_ORDER_CLOSED, SOLD_LOCKED, or VERSION_CONFLICT
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/v1/vehicles/{vehicleId}/photos:
+    parameters:
+      - $ref: "#/components/parameters/VehicleIdPath"
+    get:
+      tags: [Photos]
+      operationId: listPhotos
+      summary: Photo metadata of one vehicle (oldest first, no bytes)
+      responses:
+        "200":
+          description: Photos
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Photo"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    post:
+      tags: [Photos]
+      operationId: uploadPhoto
+      summary: Upload a JPEG or PNG photo
+      description: |
+        At most 2 MB (`PHOTO_MAX_FILE_SIZE`) and 10 photos per vehicle (`PHOTO_MAX_PER_VEHICLE`) → else **400** `VALIDATION`.
+        The type is checked from the bytes; anything else → **415** `UNSUPPORTED_MEDIA_TYPE`.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        "201":
+          description: Uploaded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Photo"
+        "400":
+          $ref: "#/components/responses/Validation"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "415":
+          description: Not a JPEG or PNG image. code=`UNSUPPORTED_MEDIA_TYPE`
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/v1/vehicles/{vehicleId}/photos/{photoId}:
+    parameters:
+      - $ref: "#/components/parameters/VehicleIdPath"
+      - $ref: "#/components/parameters/PhotoId"
+    delete:
+      tags: [Photos]
+      operationId: deletePhoto
+      summary: Delete a photo (original and enhanced copy)
+      responses:
+        "204":
+          description: Deleted
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/v1/vehicles/{vehicleId}/photos/{photoId}/content:
+    parameters:
+      - $ref: "#/components/parameters/VehicleIdPath"
+      - $ref: "#/components/parameters/PhotoId"
+    get:
+      tags: [Photos]
+      operationId: getPhotoContent
+      summary: Image bytes
+      description: "`variant=enhanced` before any enhancement → **404**; any other variant value → **400**. `Cache-Control: no-store`."
+      parameters:
+        - name: variant
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [original, enhanced]
+            default: original
+      responses:
+        "200":
+          description: Image
+          content:
+            image/jpeg:
+              schema: { type: string, format: binary }
+            image/png:
+              schema: { type: string, format: binary }
+        "400":
+          $ref: "#/components/responses/Validation"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/v1/vehicles/{vehicleId}/photos/{photoId}/enhance:
+    parameters:
+      - $ref: "#/components/parameters/VehicleIdPath"
+      - $ref: "#/components/parameters/PhotoId"
+    post:
+      tags: [Photos]
+      operationId: enhancePhoto
+      summary: Apply an enhancement preset (replaces the enhanced copy; the original never changes)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [preset]
+              properties:
+                preset:
+                  $ref: "#/components/schemas/PhotoPreset"
+      responses:
+        "200":
+          description: Enhanced
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Photo"
+        "400":
+          $ref: "#/components/responses/Validation"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
 
   /api/v1/customers:
     get:
@@ -919,6 +1299,182 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
 
+  /api/v1/leads:
+    get:
+      tags: [Leads]
+      operationId: listLeads
+      summary: Leads of this dealership (newest first)
+      parameters:
+        - name: q
+          in: query
+          description: Customer name contains (case-insensitive)
+          schema: { type: string }
+        - name: stage
+          in: query
+          schema:
+            $ref: "#/components/schemas/LeadStage"
+        - name: owner
+          in: query
+          description: Exact owner username
+          schema: { type: string }
+        - name: customerId
+          in: query
+          schema: { type: integer, format: int64 }
+        - name: overdue
+          in: query
+          description: true = open stage and nextFollowUpOn before today (server date)
+          schema: { type: boolean }
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/Size"
+      responses:
+        "200":
+          description: Paged leads
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PageLeadListItem"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+    post:
+      tags: [Leads]
+      operationId: createLead
+      summary: Create a lead (existing customer or new customer)
+      description: |
+        Exactly one of `customerId` or `newCustomer` → else **400** `VALIDATION`. Owner must be an active member → else **400**.
+        Vehicle must be IN_STOCK in this dealership → else **400** `WRONG_DEALER_OR_SOLD`. Starts at NEW; `note` becomes the first note.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LeadCreate"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeadDetail"
+        "400":
+          $ref: "#/components/responses/Validation"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/v1/leads/{id}:
+    parameters:
+      - $ref: "#/components/parameters/LeadId"
+    get:
+      tags: [Leads]
+      operationId: getLead
+      summary: Lead detail with notes (newest first)
+      responses:
+        "200":
+          description: Detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeadDetail"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    patch:
+      tags: [Leads]
+      operationId: patchLead
+      summary: Change a lead (full editable state; null clears a field)
+      description: |
+        WON and LOST are final → **409** `LEAD_CLOSED`. LOST needs `lostReason` → else **400**; `lostReason` is cleared for other stages.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LeadPatch"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeadDetail"
+        "400":
+          $ref: "#/components/responses/Validation"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: LEAD_CLOSED or VERSION_CONFLICT
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/v1/leads/{id}/notes:
+    parameters:
+      - $ref: "#/components/parameters/LeadId"
+    post:
+      tags: [Leads]
+      operationId: addLeadNote
+      summary: Add a note (closed leads still accept notes)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [body]
+              properties:
+                body: { type: string, minLength: 1, maxLength: 2000 }
+      responses:
+        "201":
+          description: Note
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeadNote"
+        "400":
+          $ref: "#/components/responses/Validation"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/v1/members:
+    get:
+      tags: [Members]
+      operationId: listDealershipMembers
+      summary: Active members of the caller's dealership (owner and assignee pickers)
+      responses:
+        "200":
+          description: Members sorted by username
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  required: [username, displayName]
+                  properties:
+                    username: { type: string }
+                    displayName: { type: string, description: Falls back to the username }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
   /api/v1/audit:
     get:
       tags: [Audit]
@@ -927,7 +1483,7 @@ paths:
       description: |
         `entityType` and `entityId` are required. Staff see this dealership only; entity not in this dealership → 404.
         Admin querying business entities (VEHICLE/CUSTOMER/CUSTOMER_VEHICLE/LISTING) → **403** `FORBIDDEN`.
-        Staff may query `VEHICLE`|`CUSTOMER`|`CUSTOMER_VEHICLE`. This query does not open `DEALER`/`MEMBERSHIP` to staff.
+        Staff may query `VEHICLE`|`CUSTOMER`|`CUSTOMER_VEHICLE`|`LEAD`|`WORK_ORDER`|`VEHICLE_PHOTO`. This query does not open `DEALER`/`MEMBERSHIP` to staff.
         `fieldSummary` has no full customer phone/email/home address.
       parameters:
         - name: entityType
@@ -1130,6 +1686,20 @@ components:
       schema:
         type: integer
         format: int64
+    PhotoId:
+      name: photoId
+      in: path
+      required: true
+      schema:
+        type: integer
+        format: int64
+    LeadId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: integer
+        format: int64
     CustomerId:
       name: id
       in: path
@@ -1243,6 +1813,18 @@ components:
             message: Model did not return a usable result.
 
   schemas:
+    VinDecode:
+      type: object
+      required: [vin, make]
+      properties:
+        vin: { type: string }
+        make: { type: string }
+        model: { type: string, nullable: true }
+        modelYear: { type: integer, nullable: true }
+        bodyClass: { type: string, nullable: true }
+        engine: { type: string, nullable: true, example: "3.0L 6-cyl Gasoline" }
+        country: { type: string, nullable: true }
+        manufacturer: { type: string, nullable: true }
     Error:
       type: object
       required: [code, message]
@@ -1275,13 +1857,21 @@ components:
         | METHOD_NOT_ALLOWED | 405 | HTTP method not supported on this path |
         | VERSION_CONFLICT | 409 | version mismatch |
         | DUP_MEMBER | 409 | This dealership already has this active member |
+        | USERNAME_TAKEN | 409 | Sign-up or new member with a username already in use |
+        | DISPLAY_NAME_TAKEN | 409 | Sign-up or new member with a full name already in use (trimmed, case-insensitive) |
+        | EMAIL_TAKEN | 409 | Sign-up or new member with an email already in use |
+        | PHONE_TAKEN | 409 | Sign-up or new member with a phone number already in use |
+        | LEAD_CLOSED | 409 | Change to a WON or LOST lead |
+        | WORK_ORDER_CLOSED | 409 | Change to a DONE or CANCELLED work order |
+        | WORK_ORDERS_OPEN | 409 | Sell while open work orders exist |
         | VEHICLE_ALREADY_LINKED | 409 | Vehicle already linked to a customer |
         | SOLD_LOCKED | 409 | Sold purchase edit, sell again, or unlink a sold vehicle |
         | CHECK_STALE | 409 | Check is stale on Ready/Export |
         | NOT_PASSED | 409 | Check is not Passed on Ready/Export |
-        | UNSUPPORTED_MEDIA_TYPE | 415 | Request body is not `application/json` |
+        | UNSUPPORTED_MEDIA_TYPE | 415 | Request body is not `application/json`, or an uploaded photo is not JPEG/PNG |
         | INTERNAL_ERROR | 500 | Unexpected server error; details are logged server-side only |
         | AI_UNAVAILABLE | 502 | Ad-check AI failed/timed out (check row already written) |
+        | CATALOG_UNAVAILABLE | 502 | NHTSA vPIC unreachable or malformed |
       enum:
         - VALIDATION
         - VIN_DUP
@@ -1293,6 +1883,13 @@ components:
         - METHOD_NOT_ALLOWED
         - VERSION_CONFLICT
         - DUP_MEMBER
+        - USERNAME_TAKEN
+        - DISPLAY_NAME_TAKEN
+        - EMAIL_TAKEN
+        - PHONE_TAKEN
+        - LEAD_CLOSED
+        - WORK_ORDER_CLOSED
+        - WORK_ORDERS_OPEN
         - VEHICLE_ALREADY_LINKED
         - SOLD_LOCKED
         - CHECK_STALE
@@ -1370,11 +1967,11 @@ components:
 
     AuditEntityType:
       type: string
-      enum: [VEHICLE, CUSTOMER, CUSTOMER_VEHICLE, LISTING, DEALER, MEMBERSHIP]
+      enum: [VEHICLE, CUSTOMER, CUSTOMER_VEHICLE, LISTING, DEALER, MEMBERSHIP, LEAD, WORK_ORDER, VEHICLE_PHOTO, APP_USER]
 
     AuditAction:
       type: string
-      enum: [CREATE, UPDATE, SELL, LINK, UNLINK]
+      enum: [CREATE, UPDATE, SELL, LINK, UNLINK, NOTE, DELETE]
 
     AssistantCardKind:
       type: string
@@ -1382,11 +1979,11 @@ components:
 
     LoginRequest:
       type: object
-      required: [username, password]
+      required: [identifier, password]
       properties:
-        username:
+        identifier:
           type: string
-          description: Admin-issued login; leading/trailing spaces are trimmed
+          description: The account's email address, username, or phone number (with country code).
         password:
           type: string
 
@@ -1527,7 +2124,9 @@ components:
 
     MemberBind:
       type: object
-      required: [username, displayName, password]
+      required: [username]
+      description: |
+        A new account needs `displayName`, `password`, and an `email` and/or `phone` (at least one); it can sign in with its username, email, or phone. For an existing account (such as a pending self sign-up), these fields may be omitted and its credentials are never changed.
       properties:
         username:
           type: string
@@ -1538,7 +2137,17 @@ components:
         password:
           type: string
           minLength: 8
-          description: Temporary password the admin issues; stored only as a BCrypt hash.
+          description: Temporary password for a new account; stored only as a BCrypt hash.
+        email:
+          type: string
+          format: email
+          maxLength: 254
+          description: Login email for a new account; email and/or phone is required (at least one).
+        phone:
+          type: string
+          maxLength: 40
+          pattern: "^\\+?[1-9][0-9]{6,14}$"
+          description: International login phone number for a new account; email and/or phone is required (at least one).
 
     PageMember:
       allOf:
@@ -1612,6 +2221,10 @@ components:
               format: int64
             name:
               type: string
+        openWorkOrders:
+          type: integer
+          format: int64
+          description: Number of OPEN and IN_PROGRESS work orders (WO-07)
         version:
           type: integer
           format: int64
@@ -2055,6 +2668,175 @@ components:
               type: array
               items:
                 $ref: "#/components/schemas/AuditEvent"
+
+    PendingUser:
+      type: object
+      required: [username, displayName, email, phone, createdAt]
+      properties:
+        username: { type: string }
+        displayName: { type: string }
+        email: { type: string, nullable: true }
+        phone: { type: string, nullable: true }
+        createdAt: { type: string, format: date-time }
+
+    PagePendingUser:
+      allOf:
+        - $ref: "#/components/schemas/PageMeta"
+        - type: object
+          properties:
+            items:
+              type: array
+              items:
+                $ref: "#/components/schemas/PendingUser"
+
+    WorkOrderStatus:
+      type: string
+      enum: [OPEN, IN_PROGRESS, DONE, CANCELLED]
+
+    WorkOrder:
+      type: object
+      required: [id, vehicleId, task, status, createdAt, version]
+      properties:
+        id: { type: integer, format: int64 }
+        vehicleId: { type: integer, format: int64 }
+        task: { type: string, maxLength: 200 }
+        assigneeUsername: { type: string, nullable: true }
+        status:
+          $ref: "#/components/schemas/WorkOrderStatus"
+        dueOn: { type: string, format: date, nullable: true }
+        cost: { type: number, nullable: true }
+        completionNote: { type: string, nullable: true, maxLength: 500 }
+        completedOn: { type: string, format: date, nullable: true }
+        createdAt: { type: string, format: date-time }
+        version: { type: integer }
+
+    WorkOrderCreate:
+      type: object
+      required: [task]
+      properties:
+        task: { type: string, minLength: 1, maxLength: 200 }
+        assigneeUsername: { type: string, nullable: true, maxLength: 64 }
+        dueOn: { type: string, format: date, nullable: true }
+
+    WorkOrderPatch:
+      type: object
+      required: [status, task, version]
+      properties:
+        status:
+          $ref: "#/components/schemas/WorkOrderStatus"
+        task: { type: string, minLength: 1, maxLength: 200 }
+        assigneeUsername: { type: string, nullable: true, maxLength: 64 }
+        dueOn: { type: string, format: date, nullable: true }
+        cost: { type: number, minimum: 0, nullable: true, description: Read only when status is DONE }
+        completionNote: { type: string, nullable: true, maxLength: 500, description: Required when status is DONE }
+        version: { type: integer }
+
+    PhotoPreset:
+      type: string
+      enum: [AUTO, BRIGHTEN, SHARPEN]
+      description: AUTO = contrast stretch (1st–99th luminance percentile); BRIGHTEN = gamma 0.8; SHARPEN = 3x3 kernel.
+
+    Photo:
+      type: object
+      required: [id, vehicleId, contentType, uploadedBy, createdAt]
+      properties:
+        id: { type: integer, format: int64 }
+        vehicleId: { type: integer, format: int64 }
+        contentType: { type: string, enum: [image/jpeg, image/png] }
+        enhancement:
+          allOf:
+            - $ref: "#/components/schemas/PhotoPreset"
+          nullable: true
+        uploadedBy: { type: string }
+        createdAt: { type: string, format: date-time }
+
+    LeadStage:
+      type: string
+      enum: [NEW, CONTACTED, QUALIFIED, WON, LOST]
+
+    LeadVehicle:
+      type: object
+      nullable: true
+      properties:
+        id: { type: integer, format: int64 }
+        vin: { type: string }
+        modelYear: { type: integer }
+        make: { type: string }
+        model: { type: string }
+        status:
+          $ref: "#/components/schemas/VehicleStatus"
+
+    LeadListItem:
+      type: object
+      required: [id, customerId, customerName, stage, overdue, version]
+      properties:
+        id: { type: integer, format: int64 }
+        customerId: { type: integer, format: int64 }
+        customerName: { type: string }
+        vehicle:
+          $ref: "#/components/schemas/LeadVehicle"
+        stage:
+          $ref: "#/components/schemas/LeadStage"
+        ownerUsername: { type: string, nullable: true }
+        nextFollowUpOn: { type: string, format: date, nullable: true }
+        overdue: { type: boolean }
+        version: { type: integer }
+
+    PageLeadListItem:
+      allOf:
+        - $ref: "#/components/schemas/PageMeta"
+        - type: object
+          properties:
+            items:
+              type: array
+              items:
+                $ref: "#/components/schemas/LeadListItem"
+
+    LeadNote:
+      type: object
+      required: [id, authorUsername, body, createdAt]
+      properties:
+        id: { type: integer, format: int64 }
+        authorUsername: { type: string }
+        body: { type: string }
+        createdAt: { type: string, format: date-time }
+
+    LeadDetail:
+      allOf:
+        - $ref: "#/components/schemas/LeadListItem"
+        - type: object
+          required: [notes, createdAt]
+          properties:
+            lostReason: { type: string, nullable: true }
+            notes:
+              type: array
+              items:
+                $ref: "#/components/schemas/LeadNote"
+            createdAt: { type: string, format: date-time }
+
+    LeadCreate:
+      type: object
+      description: Exactly one of customerId or newCustomer.
+      properties:
+        customerId: { type: integer, format: int64, nullable: true }
+        newCustomer:
+          $ref: "#/components/schemas/CustomerWrite"
+        vehicleId: { type: integer, format: int64, nullable: true }
+        ownerUsername: { type: string, nullable: true, maxLength: 64 }
+        nextFollowUpOn: { type: string, format: date, nullable: true }
+        note: { type: string, nullable: true, maxLength: 2000 }
+
+    LeadPatch:
+      type: object
+      required: [stage, version]
+      properties:
+        stage:
+          $ref: "#/components/schemas/LeadStage"
+        ownerUsername: { type: string, nullable: true, maxLength: 64 }
+        nextFollowUpOn: { type: string, format: date, nullable: true }
+        vehicleId: { type: integer, format: int64, nullable: true }
+        lostReason: { type: string, nullable: true, maxLength: 300 }
+        version: { type: integer }
 
     AssistantAsk:
       type: object

@@ -5,5 +5,7 @@ public enum AuditAction {
   UPDATE,
   SELL,
   LINK,
-  UNLINK
+  UNLINK,
+  NOTE,
+  DELETE
 }

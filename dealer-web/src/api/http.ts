@@ -28,7 +28,9 @@ http.interceptors.request.use(async (config) => {
   }
   config.baseURL = await applyGatewayUrl()
   config.headers = config.headers || {}
-  config.headers.Authorization = `Bearer ${await accessToken()}`
+  // Signed-out pages (landing VIN decode) call public endpoints without a token.
+  const token = await accessToken().catch(() => '')
+  if (token) config.headers.Authorization = `Bearer ${token}`
   return config
 })
 

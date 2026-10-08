@@ -8,6 +8,7 @@ const icons = {
   dms: 'M3 16h18M5 16l1.8-5.5h10.4L19 16M7.5 10.5L9 7h6l1.5 3.5M7 19a1.5 1.5 0 100-3 1.5 1.5 0 000 3zM17 19a1.5 1.5 0 100-3 1.5 1.5 0 000 3z',
   crm: 'M16 19v-1a4 4 0 00-4-4H7a4 4 0 00-4 4v1M9.5 10a3 3 0 100-6 3 3 0 000 6zM21 19v-1a4 4 0 00-3-3.9M16 4.1a3 3 0 010 5.8',
   ads: 'M4 5h16v11H8l-4 4V5zM9 10.5l2 2 4-4',
+  leads: 'M3 5h18l-7 8v6l-4-2v-4L3 5z',
 }
 
 const session = useSessionStore()
@@ -17,6 +18,7 @@ const items = computed(() => {
   return [
     { label: 'DMS', to: '/dms', icon: icons.dms },
     { label: 'CRM', to: '/crm', icon: icons.crm },
+    { label: 'Leads', to: '/leads', icon: icons.leads },
     { label: 'Ad compliance', to: '/ads', icon: icons.ads },
   ]
 })

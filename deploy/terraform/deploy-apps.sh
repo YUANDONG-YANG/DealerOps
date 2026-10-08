@@ -67,7 +67,9 @@ for target in "$@"; do
       (
         cd "${repo}/dealer-web"
         npm ci
-        VITE_GATEWAY_URL="${gateway_url}" VITE_PUBLISHED_AT="${published_at}" npm run build
+        VITE_GATEWAY_URL="${gateway_url}" \
+        VITE_PUBLISHED_AT="${published_at}" \
+          npm run build
         echo "==> dealer-web: upload dist/ to Static Web Apps"
         npx -y @azure/static-web-apps-cli@2 deploy ./dist \
           --deployment-token "$(tf static_web_app_deployment_token)" \

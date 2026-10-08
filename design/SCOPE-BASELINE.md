@@ -22,7 +22,7 @@ Scope changes require a re-sign of this page or email confirmation.
 | Audit | Every DMS/CRM change: who, what, when |
 | Assistant | In-dealership read-only Q&A; same AI component; no database writes |
 | Four repos | `dealer-web` / `dealer-gateway` / `dealer-core` / `ai-service` (plus `dealer-platform` for IaC) |
-| Auth | Admin-issued username/password per dealer user (client spec; errata 1); JWT roles only `Platform.Admin` / `Dealer.User`; bind `app_user`→dealership. See [15-Data-Auth-and-Gateway.md](15-Data-Auth-and-Gateway.md) §8 |
+| Auth | Password per account; sign in with email, username, or phone; no social sign-in; username is also the key for memberships and the JWT subject; JWT roles only `Platform.Admin` / `Dealer.User`; bind `app_user`→dealership. See [15-Data-Auth-and-Gateway.md](15-Data-Auth-and-Gateway.md) §8 |
 | Gateway | Browser traffic only through Gateway; direct core / ai-service access must fail |
 | Real AI | `ai-service` embeds the GitHub component in-process; failure must not display Pass |
 
@@ -30,7 +30,7 @@ Classroom demo: two dealerships and two staff isolated; Admin hitting vehicle AP
 
 ## Out of Scope (do not write back into scope)
 
-Work Orders · Leads / follow-up · buyer site / public inventory / visitor inquiry · OEM portal · KPI dashboards · CSV import · Service Bus / outbox / DLQ / second database / vector store · third-party auto-listing · payments · Image Studio · custom model SDK · C# / standalone contracts repo · mileage / color / fuel and other fields outside the specification. Username/password auth is **no longer** out of scope — see errata item 1.
+Garage / service billing · buyer site / public inventory / visitor inquiry · OEM portal · KPI dashboards · CSV import · Service Bus / outbox / DLQ / second database / vector store · third-party auto-listing · payments · custom model SDK · C# / standalone contracts repo · mileage / color / fuel and other fields outside the specification. Password auth is **no longer** out of scope — see errata item 1. Reconditioning work orders, lead follow-up, VIN decode, and email/phone self sign-up are feature extensions — see errata item 7.
 
 ### Explicitly out of scope (do not design these features)
 
@@ -59,17 +59,19 @@ The following appeared in early proposals or superseded drafts now under [archiv
 | Single repo / server-side session | Four repos + Gateway + JWT |
 | Async domain events / queues (easy to expand in the proposal) | Sync REST + single database; no Service Bus |
 
-Already deferred in the proposal and still out of this version: Image Studio, OCR, VIN decode, third-party ad sync, payments/contracts, SMS/email, vector store and model training.
+Already deferred in the proposal and still out of this version: OCR, third-party ad sync, payments/contracts, SMS/email, vector store and model training.
 
 ## Specification errata (PPT / v6 win)
 
-1. **Auth = admin-issued username/password** per dealer user, as the client specification requires (PDF §2, §8); decided 2026-09-30. This point does not follow the "PPT hard requirements > specification PDF" conflict order stated above; every other PPT hard requirement (four repos/pipelines, Gateway, Azure+infrastructure as code+CI/CD, real AI, Scrum board) is unaffected by *this* item; the container and Bicep wording is reversed separately in item 5. See [15-Data-Auth-and-Gateway.md](15-Data-Auth-and-Gateway.md) §8 for the design. KAN-5 (client/instructor sign-off) is still open, so this scope is not yet formally re-confirmed in writing.  
+1. **Auth = password, with email, username, or phone as the sign-in name**; the user chose this on 2026-10-08. Accounts register with a username plus an email and/or phone. Password hashing and admin-controlled dealership binding remain; the username also keys membership, audit, and the JWT subject. No Google, Entra ID, or other social login is in scope. See [15-Data-Auth-and-Gateway.md](15-Data-Auth-and-Gateway.md) §8. KAN-5 (client/instructor sign-off) is still open, so this scope is not yet formally re-confirmed in writing.
 2. **Add Assistant as specification section 7** (the specification has no such page; PPT requires a real-AI core feature → in-dealership read-only assistant).  
 3. **publish = Ready + TXT export** (not external publishing, and not listing on a buyer site).  
 4. **Some OMVIC disclosures are review hints, not blockers** (year, new/used, warranty terms, prior use, finance term, lease term/payment/down). See [AI-PROTOCOL-AND-RULES.md](AI-PROTOCOL-AND-RULES.md) §C.0a.
 5. ~~**Containerization** (NN-05: Docker images for the four apps, pushed to a registry, run as Container Apps).~~ **Dropped (2026-10-07):** the developer chose **Terraform + Azure App Service**, so there is no Dockerfile, Compose file, container registry, or container host in this project. The three Java services deploy as Spring Boot JARs to App Service and the SPA as static files to Static Web Apps. Rationale and the trade-offs accepted: [deploy/publish-options.md](../deploy/publish-options.md).
 
    **What is *not* affected.** NN-06 names "Bicep/Terraform/ARM", so `deploy/terraform` satisfies infrastructure as code on its own terms — that requirement is met, not reversed. NN-04 (live public cloud), NN-07 (CI/CD), and NN-08–11 (JWT/RBAC, HTTPS, Key Vault, no plaintext secrets) are unaffected. **NN-05 is the single item given up.** Like item 1, this is a developer decision and is **not yet re-signed**; raise NN-05 with the instructor if containerization is graded on its own.
+6. **Public landing page and VIN decode (added 2026-10-08).** Signed-out visitors at `/` see the product landing page, `Sign in`, `Create account`, and a public VIN decoder. The decoder and DMS Add vehicle form use dealer-core's vPIC proxy ([14](14-Backend-API-Contract.md) §4.6.1); it stores nothing. No inventory or buyer enquiry is exposed, so this is not the out-of-scope buyer site. Design: [13-Frontend-Engineering.md](13-Frontend-Engineering.md) §2. The requested implementation is complete; instructor scope confirmation remains administrative follow-up.
+7. **Feature extensions from the client notes (added 2026-10-08).** `requirements/Dos Car dealership2.docx` raised five items. Per the user's explicit implementation direction, [21-Feature-Extensions.md](21-Feature-Extensions.md) records VIN decode, lead follow-up, reconditioning work orders without garage billing, local self-registration (username plus email and/or phone, password; sign in with any of them) with admin-bound access, and Image Studio with MySQL-backed photos and automatic enhancement. No social-provider sign-in is in scope. The client notes' C#, React, and Firebase application/database stack is not adopted; no Firebase service is used. DealerOps remains on Java, Vue, and MySQL. The instructor scope signature remains a separate course-administration follow-up and does not block this implementation.
 
 ## Signature / email confirmation
 

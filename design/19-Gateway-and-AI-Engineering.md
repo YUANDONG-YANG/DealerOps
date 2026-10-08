@@ -75,6 +75,15 @@ spring:
         connect-timeout: 2000
         response-timeout: 18s
       routes:
+        # Image Studio photos are binary: no CacheRequestBody (it decodes bodies as String, 256 KB cap).
+        # Listed first so it wins over dealer-core-public (design/21-Feature-Extensions.md §6).
+        - id: dealer-core-photos
+          uri: ${CORE_URL}
+          predicates:
+            - Path=/api/v1/vehicles/*/photos,/api/v1/vehicles/*/photos/**
+          metadata:
+            connect-timeout: 2000
+            response-timeout: 18000
         - id: dealer-core-public
           uri: ${CORE_URL}
           predicates:
@@ -89,7 +98,7 @@ spring:
         - id: dealer-core-swagger
           uri: ${CORE_URL}
           predicates:
-            - Path=/swagger-ui.html,/swagger-ui/**,/v3/api-docs,/v3/api-docs/**
+            - Path=/swagger-ui.html,/swagger-ui/**,/v1/api-docs,/v1/api-docs/**
           metadata:
             connect-timeout: 2000
             response-timeout: 5000
@@ -114,6 +123,8 @@ spring:
 
 Route metadata timeouts are finite: the AI route is connect 2s and response 16s; dealer-core `/api/v1/**` is connect 2s and response 18s; Swagger is connect 2s and response 5s. The httpclient backstop is connect 2s and response 18s.
 
+**Extension API routing (verified against `dealer-gateway/src/main/resources/application.yaml`):** every public browser API added for VIN decode, email/phone registration, pending-account administration, member options, leads, work orders, and vehicle photos is under `/api/v1/**` and is proxied to dealer-core. No per-feature route is needed for JSON APIs: `dealer-core-public` is the single catch-all for that namespace. The earlier `dealer-core-photos` route intentionally matches only `/api/v1/vehicles/*/photos` and descendants, runs before the catch-all, and omits `CacheRequestBody` so multipart uploads and image bytes are not buffered as log strings. Both routes stay behind the same Gateway JWT policy: only login/register and public VIN decode are anonymous; all new business data routes require a DealerOps JWT, with role and tenant checks enforced again by core. Never add direct browser routes to `CORE_URL` or send these APIs to ai-service.
+
 **Browser calls to `/internal/v1/**` must fail (15 §7; missing one of the three will be torn apart in defense):**
 
 1. Gateway predicate: no header `X-Dealer-Internal: <INTERNAL_TOKEN>` → **404** (do not use 401, which would acknowledge the path). Without the header the table above never enters `ai-service-internal` and falls through to 404.
@@ -122,7 +133,7 @@ Route metadata timeouts are finite: the AI route is connect 2s and response 16s;
 
 `Access-Control-Allow-Headers` **must not** list `X-Dealer-Internal` (15 §13). CORS is **only** on Gateway (and Vite for 5173); core / ai-service do not configure browser CORS.
 
-**Swagger (classroom acceptance).** Anonymous Swagger and OpenAPI are available only when `dealerops.jwt.mode` is `dev` and every active Spring profile is local (`dev`, `local`, `test`, or `default`). Any other JWT mode or Spring profile denies `/swagger-ui.html`, `/swagger-ui/**`, `/v3/api-docs`, and `/v3/api-docs/**`. When that local case is open, the browser opens Swagger on the gateway, path `/swagger-ui/index.html`, with no Bearer token. `/api/v1/**` stays authenticated. Core `server.forward-headers-strategy=framework` reads the `X-Forwarded-Host` / `X-Forwarded-Proto` headers the gateway adds by default, which keeps the UI and the spec on the gateway host. The gateway does not use `PreserveHostHeader`: Azure App Service routes by `Host`, so forwarding the gateway's own host to `dealerops-core` is refused with a bare 400. The OpenAPI `servers` entry is `GATEWAY_PUBLIC_URL` (default `http://localhost:8080`, or the public gateway origin). Core's outbound AI client uses `AI_BASE_URL` directly (`http://127.0.0.1:8082` locally, the `dealerops-ai` HTTPS origin in Azure); it must never use the Gateway origin. `GATEWAY_BASE_URL` is reserved for the Gateway origin used by OpenAPI/public-link configuration. The description is `dealer-core published <time>`, and the gateway's anonymous `GET /actuator/release` lists the gateway, core and ai-service release times ([20-Observability.md](20-Observability.md) §5). Core port `8081` is not an acceptance URL.
+**Swagger (classroom acceptance).** Anonymous Swagger and OpenAPI are available only when `dealerops.jwt.mode` is `dev` and every active Spring profile is local (`dev`, `local`, `test`, or `default`). Any other JWT mode or Spring profile denies `/swagger-ui.html`, `/swagger-ui/**`, `/v1/api-docs`, and `/v1/api-docs/**`. When that local case is open, the browser opens Swagger on the gateway, path `/swagger-ui/index.html`, with no Bearer token. `/api/v1/**` stays authenticated. Core `server.forward-headers-strategy=framework` reads the `X-Forwarded-Host` / `X-Forwarded-Proto` headers the gateway adds by default, which keeps the UI and the spec on the gateway host. The gateway does not use `PreserveHostHeader`: Azure App Service routes by `Host`, so forwarding the gateway's own host to `dealerops-core` is refused with a bare 400. The OpenAPI `servers` entry is `GATEWAY_PUBLIC_URL` (default `http://localhost:8080`, or the public gateway origin). Core's outbound AI client uses `AI_BASE_URL` directly (`http://127.0.0.1:8082` locally, the `dealerops-ai` HTTPS origin in Azure); it must never use the Gateway origin. `GATEWAY_BASE_URL` is reserved for the Gateway origin used by OpenAPI/public-link configuration. The description is title `DealerOps Gateway API`, version `v1`, `API published <time>` (the dealer-core release time), and the gateway's anonymous `GET /actuator/release` lists the gateway, core and ai-service release times ([20-Observability.md](20-Observability.md) §5). Core port `8081` is not an acceptance URL.
 
 The runtime OpenAPI document declares the `bearerAuth` HTTP security scheme globally, so Swagger UI provides an **Authorize** button for protected `/api/v1/**` operations. `POST /api/v1/auth/login` is explicitly anonymous; paste the token returned by that operation into Swagger's Authorize dialog before trying other business APIs. The internal `/internal/v1/**` AI routes remain core-only and are not user-token APIs.
 
@@ -140,7 +151,7 @@ Mapping is locked, same function as 15 §8.1; this document does not change the 
 
 Gateway and core **both** validate signatures. After Gateway validates, it must still forward **`Authorization: Bearer`** to core (core validates again in case 8081 is later opened by mistake).
 
-SPA: username/password form; dealer-core issues the token at `POST /api/v1/auth/login`. Gateway does not issue tokens.
+SPA: one email/username/phone field + password form; dealer-core issues the token at `POST /api/v1/auth/login`. Gateway does not issue tokens.
 
 The gateway and core decoders read `JWT_MODE` from the process environment, a JVM system property, or the command line. An unset `JWT_MODE` does not select local HMAC and does not accept the committed secret `dealer-dev-jwt-secret-change-me`; startup fails. Explicit `JWT_MODE=dev` still accepts that classroom secret when every active Spring profile is local (`dev`, `local`, `test`, `default`, or `classroom`), including when no profile is active. A custom `DEV_JWT_SECRET` shorter than 32 UTF-8 bytes fails startup and is not zero-padded. The exact classroom secret may still be padded to 32 bytes.
 
@@ -181,7 +192,7 @@ Local binding: Gateway on 8080; core and ai set `SERVER_ADDRESS=127.0.0.1` so th
 
 ### 1.6 Half-page defense pointer (Auth domain)
 
-The client specification requires admin-issued usernames and passwords (PDF §2, §8). The Auth unit is one login endpoint on `dealer-core` plus **JWT + RBAC** validated by gateway and core, **not** a fifth Java repo and not a GitHub-component container ([SCOPE-BASELINE.md](SCOPE-BASELINE.md) errata 1).
+Authentication uses an email, username, or phone plus password. The Auth unit is one login endpoint on `dealer-core` plus **JWT + RBAC** validated by gateway and core, **not** a fifth Java repo and not a GitHub-component container ([SCOPE-BASELINE.md](SCOPE-BASELINE.md) errata 1).
 
 Classroom wrap (full "why no Service Bus" section is in **15 §8.2 / §9**; do not repeat it here):
 

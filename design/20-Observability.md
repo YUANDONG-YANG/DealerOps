@@ -151,8 +151,8 @@ Every deploy must be visible: each of the four apps reports when it was publishe
 | Startup log of each Java app | `Release: <service> published <time>`, one INFO line at `ApplicationReadyEvent` | `ReleaseInfo` (core, ai-service), `ReleaseEndpoint` (gateway) |
 | `GET /actuator/info` on core and ai-service | `release.publishedAt` plus Spring's `build` block | `ReleaseInfo` `InfoContributor` |
 | `GET /actuator/release` on the gateway | `{"gateway","core","ai"}`. Core and ai-service are read from their `/actuator/info` with a 2 s timeout; an unreachable app shows `unavailable` | `ReleaseEndpoint` |
-| Swagger description (served through the gateway) | `dealer-core published <time>`, plus a pointer to `/actuator/release` | core `OpenApiConfig` |
-| Web app, fixed at the bottom left of every page, including `/login` | `Published (UTC)` with one line each for web, gateway, core and ai | `dealer-web/src/App.vue` |
+| Swagger description (served through the gateway) | title `DealerOps Gateway API`, version `v1`, `API published <time>` (the dealer-core release time), plus a pointer to `/actuator/release` | core `OpenApiConfig` |
+| Web app, fixed at the bottom left of every page, including `/login`, except the public landing page `/` | `Published (UTC)` with one line each for web, gateway, core and ai | `dealer-web/src/App.vue` |
 
 **Access.**
 - `GET /actuator/release` is anonymous on the gateway because the footer is shown before sign-in. It returns only timestamps.

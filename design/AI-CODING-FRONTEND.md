@@ -12,7 +12,7 @@
 
 
 1. Reader: another coding AI. Follow this document to create `dealer-web` and wire it to [14](14-Backend-API-Contract.md); fields/enums/DTOs follow handbook section 3 and 14. This document does not define extra columns.
-2. Stack pinned: Vue 3 + Vite + Element Plus + Vue Router + Pinia + axios. No third-party identity SDK; login is a username/password form ([15](15-Data-Auth-and-Gateway.md) §8). No Nuxt, no chart library, no generic CRUD generator.
+2. Stack pinned: Vue 3 + Vite + Element Plus + Vue Router + Pinia + axios. No third-party identity SDK; login uses an email, username, or phone plus password ([15](15-Data-Auth-and-Gateway.md) §8). No Nuxt, no chart library, no generic CRUD generator.
 3. Browser HTTP **only hits** `import.meta.env.VITE_GATEWAY_URL` (local `http://localhost:8080`), path prefix `/api/v1`. Ban axios pointing at 8081/8082. Ban requests to `/internal/v1/**`.
 4. Routes are only five pages: `/login` `/admin` `/dms` `/crm` `/ads`. The assistant is a floating widget (FE-T10), not a route. No other business route; ban `/audit` `/tickets` `/leads` `/dashboard` / buyer pages.
 5. Admin: **one route** `/admin` + in-page dual tabs (Dealerships | Members). Ban `/admin/members`. Dealership `Edit` (contact fields + logo) uses `PATCH /admin/dealers/{id}` per 13 §5.3.
@@ -34,7 +34,7 @@ Authority conflicts: course PPT > specification fields > BRIEF / 00 > 15 / **14 
 | 2 | FE-T02 route table + guards | Unauthenticated business path must go to `/login` |
 | 3 | FE-T03 login token + axios | Every request hits 8080 only and carries Bearer |
 | 4 | FE-T04 shell + four-state components | `AppLayout`/`PageState` can mount empty pages |
-| 5 | FE-T05 Login | Username + password `Sign in` + `GET /me` routing |
+| 5 | FE-T05 Login | Email/username/phone + password `Sign in` + `GET /me` routing |
 | 6 | FE-T06 Admin | Dual tabs fully wired; no business menu |
 | 7 | FE-T07 DMS | List/create-update/sell/audit drawer |
 | 8 | FE-T08 CRM | List/create-update/link/**Unlink second confirmation** |
@@ -48,15 +48,19 @@ Authority conflicts: course PPT > specification fields > BRIEF / 00 > 15 / **14 
 
 | path | name | Component file | `meta` | Post-login landing |
 |---|---|---|---|---|
+| `/` | `home` | `src/views/LandingView.vue` | `{ public: true }` | Public landing page for signed-out visitors |
 | `/login` | `login` | `src/views/LoginView.vue` | `{ public: true }` | — |
+| `/register` | `register` | `src/views/RegisterView.vue` | `{ public: true }` | Self sign-up ([21](21-Feature-Extensions.md) §5) |
 | `/admin` | `admin` | `src/views/AdminView.vue` | `{ roles: ['Platform.Admin'] }` | Admin default page |
 | `/dms` | `dms` | `src/views/DmsView.vue` | `{ roles: ['Dealer.User'] }` | Staff default page |
 | `/crm` | `crm` | `src/views/CrmView.vue` | `{ roles: ['Dealer.User'] }` | — |
+| `/leads` | `leads` | `src/views/LeadsView.vue` | `{ roles: ['Dealer.User'] }` | — |
 | `/ads` | `ads` | `src/views/AdsView.vue` | `{ roles: ['Dealer.User'] }` | Page title **Ad compliance** |
+| `/no-access` | `no-access` | `src/layouts/NoAccessLanding.vue` | — | Signed-in user without business access |
 
-- `/` and unknown paths: if signed in, by `role` → `/admin` or `/dms`; if not signed in → `/login`. No 404 marketing page.
-- Optional deep links: `/dms?vehicleId=`, `/crm?customerId=`, `/ads?vehicleId=` (assistant card jumps). **Ban** putting `dealerId` on the route as authority.
-- Menu and guards share one set: Admin **renders only** Admin; staff **renders only** DMS / CRM / Ad compliance. The assistant is not a menu item; staff reach it from the floating button (FE-T10).
+- `/`: signed out → public landing page; signed in → `/admin`, `/dms`, or `/no-access` by role. Unknown paths: signed out → `/login`, signed in → same role landing. No 404 page.
+- Optional deep links: `/dms?vehicleId=`, `/crm?customerId=`, `/ads?vehicleId=` (assistant card jumps), `/leads?leadId=` (CRM customer drawer). **Ban** putting `dealerId` on the route as authority.
+- Menu and guards share one set: Admin **renders only** Admin; staff **renders only** DMS / CRM / Leads / Ad compliance. The assistant is not a menu item; staff reach it from the floating button (FE-T10).
 
 `beforeEach` order (13 §3; do not reorder):
 
@@ -108,7 +112,7 @@ Authority conflicts: course PPT > specification fields > BRIEF / 00 > 15 / **14 
 - **Repo:** `dealer-web`
 - **Files:** `src/auth/login.ts` ([15](15-Data-Auth-and-Gateway.md) §8); `src/api/http.ts`; `src/main.ts`; `src/stores/session.ts`.
 - **Must include:**
-  - `signIn(username, password)`: `POST /api/v1/auth/login` with `{ username, password }`; store the returned `accessToken` in `sessionStorage`. `signOut` removes it and returns to `/login`.
+  - `signIn(identifier, password)`: `POST /api/v1/auth/login` with `{ identifier, password }`, where `identifier` is the email, username, or phone; store the returned `accessToken` in `sessionStorage`. `signOut` removes it and returns to `/login`.
   - `api/http.ts`: `baseURL = import.meta.env.VITE_GATEWAY_URL`. Request paths written as `/api/v1/...`.
   - Request interceptor: read the stored token; header `Authorization: Bearer <accessToken>`. No silent refresh (the token expires after 1 hour; sign in again).
   - Response: 401 → clear session, return `/login`. 403/404/409/400/502 → throw to in-page `PageState` or `ElMessage`, **not an empty table**.
@@ -136,7 +140,7 @@ Authority conflicts: course PPT > specification fields > BRIEF / 00 > 15 / **14 
 
 | Page | loading | empty | error | 403 / no access |
 |---|---|---|---|---|
-| Login | `Signing you in…` | (no list; login card only) | `Invalid username or password.` | Signed-in wrong role does not stay here; guard routes away |
+| Login | `Signing you in…` | (no list; login card only) | `Invalid sign-in name or password.` | Signed-in wrong role does not stay here; guard routes away |
 | Admin | `Loading dealerships…` | `No dealerships yet.` | `Could not load dealerships.` | `You do not have access to Admin.` |
 | DMS | `Loading vehicles…` | `No vehicles match.` | `Could not load vehicles.` | `You do not have access to DMS.` |
 | CRM | `Loading customers…` | `No customers match.` | `Could not load customers.` | `You do not have access to CRM.` |
@@ -151,15 +155,15 @@ Staff signed in but without a valid membership: business APIs **403** `FORBIDDEN
 
 - **Repo:** `dealer-web`
 - **Files:** `src/views/LoginView.vue` (centered single card, no sidebar); `src/api/me.ts`; `src/stores/session.ts`; `src/auth/login.ts`.
-- **Must include:** `Username` and `Password` fields and one `Sign in` button. No Forgot password, no self-registration.
-- **Ban:** a second sign-in method, a Microsoft button, a sign-up link.
+- **Must include:** one `Email, username or phone number` field and a `Password` field and one `Sign in` button. No Forgot password or social-provider sign-in.
+- **Ban:** a second sign-in method or social-provider button. The registration link goes to `/register` and is required for self sign-up.
 - **Acceptance:** 16 **FE-01**, **CL-1** step 1, **CL-2** step 1.
 
 ### Wiring table · Login `/login`
 
 | Control / timing | method + path | Success | Failure HTTP / code → English |
 |---|---|---|---|
-| `Sign in` | `POST /api/v1/auth/login` `{username,password}` | store `accessToken`; go to the remembered `redirect` or `/` | blank field → `Enter your username and password.`; `401` / other → `Invalid username or password.` |
+| `Sign in` | `POST /api/v1/auth/login` `{identifier,password}` | store `accessToken`; go to the remembered `redirect` or `/` | blank field → `Enter your email, username or phone number and password.`; `401` / other → `Invalid sign-in name or password.` |
 | After sign-in | `GET /api/v1/me` | Pinia writes `role` `dealerId` `dealerLegalName` `displayName` `username`. `Platform.Admin`→`/admin`; `Dealer.User`→`/dms` (or the guard-remembered `redirect`, still constrained by the role table) | `401` → `Sign in required` and return to login; other → `Could not load profile` |
 | Entering any guarded page | `GET /api/v1/me` (if session has no role) | Same | Same |
 
@@ -177,7 +181,7 @@ Staff signed in but without a valid membership: business APIs **403** `FORBIDDEN
     - Name ← `legalName`. Contact ← `contactPhone` / `contactEmail` on one line. Staff count ← `staffCount` (show `—` if missing).
   - **Members columns:** Username, Dealership, Status, Actions. Filter: username (`q` matches `displayName`/`username`, 14 §3.5; the API has no email column).
   - Members data: **ban** inventing `GET /admin/members`. Algorithm: `GET /api/v1/admin/dealers` then for each `items[]` `GET /api/v1/admin/dealers/{id}/members`, flatten on the frontend, attach store `legalName`.
-  - Row `Staff`: drawer shows only that store’s members; `Bind staff` / `Unbind` both live in the drawer. Members tab `Unbind` hits the same DELETE.
+  - Row `Staff`: drawer shows only that store’s members; `Bind staff` lives in the drawer. Member rows (drawer and Members tab) carry a Status switch: off → `ConfirmDialog` → the Unbind DELETE; on → `POST .../members` with only `{username}` to re-activate (see 13 Admin).
   - `New dealership` drawer four fields: `legalName` `contactPhone` `contactEmail` `contactAddress` (all required).
   - `Bind staff` body: `{ username, displayName, password }` (temporary password, at least 8 characters).
   - `Edit` reuses that drawer and adds the `Logo` upload; body per 14 §3.4.
@@ -361,7 +365,7 @@ Staff hitting the URLs above: backend **403** `FORBIDDEN`; the frontend guard sh
 
 | 16 ID | Matching tasks | Frontend must see / must not see |
 |---|---|---|
-| **FE-01** | T02 T05 | Unauthenticated `/dms` → `/login`, only the username + password `Sign in` card; no business table |
+| **FE-01** | T02 T05 | Unauthenticated `/dms` → `/login`, only the email/username/phone + password `Sign in` card; no business table |
 | **FE-02** | T02 T06 | Staff open `/admin` → `/dms`; no Dealerships/bind staff |
 | **FE-03** | T02 T07 | Admin open `/dms` → `/admin`; no vehicle table |
 | **FE-04** | T02 T08 | Admin open `/crm` → `/admin` |
@@ -386,7 +390,7 @@ Backend codes the classroom will hit and the frontend only needs to display corr
 
 | Location | Copy |
 |---|---|
-| Login | `Sign in` (fields `Username`, `Password`) |
+| Login | `Sign in` (fields `Email, username or phone number`, `Password`) |
 | Top bar | `Sign out` · Admin top bar `Platform Admin` |
 | Menu | `Admin` · `DMS` · `CRM` · `Ad compliance` · `Assistant` |
 | Admin | `New dealership` · `Bind staff` · `Unbind` |

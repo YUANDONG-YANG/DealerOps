@@ -31,3 +31,5 @@ aimanager_api_key = ""
 # Seeds the one platform admin on the first dealer-core start. Both or neither.
 admin_username = ""
 admin_password = ""
+admin_email = ""
+admin_phone = ""

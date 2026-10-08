@@ -21,9 +21,11 @@ Private GitHub: [YUANDONG-YANG/DealerOps](https://github.com/YUANDONG-YANG/Deale
 
 Approved scope is [design/SCOPE-BASELINE.md](design/SCOPE-BASELINE.md). Change it only with a re-sign or confirming email.
 
-**In scope:** two roles (`Platform.Admin`, `Dealer.User`); admin-issued username/password + JWT (client spec); browser traffic only through the gateway; spec PDF vehicle/customer fields; VIN unique per store; paired sell; sold purchase fields locked; one customer per vehicle; OMVIC rule check then real AI; Ready + TXT export only when the latest check is Passed and not Stale; DMS/CRM audit (who / what / when); read-only in-store Assistant (same AI component, no writes).
+**In scope:** two roles (`Platform.Admin`, `Dealer.User`); password sign-in (email, username, or phone) and registration + JWT; browser traffic only through the gateway; spec PDF vehicle/customer fields; VIN unique per store; paired sell; sold purchase fields locked; one customer per vehicle; OMVIC rule check then real AI; Ready + TXT export only when the latest check is Passed and not Stale; DMS/CRM audit; read-only in-store Assistant; public VIN decode; lead follow-up; reconditioning work orders; and vehicle photo upload/enhancement. Implementation and delivery evidence: [project-plan/Implementation-Delivery-Status.md](project-plan/Implementation-Delivery-Status.md).
 
-**Out of scope:** work orders, leads/follow-up, buyer site / public inventory, OEM portal, KPI dashboard, CSV import, Service Bus / outbox / second DB / vector store, third-party listing publish, payments, Image Studio, homemade auth or model SDK, extra vehicle fields (mileage, color, fuel, and similar).
+**Client-requested extensions:** VIN decode, lead follow-up, reconditioning work orders, self sign-up (username plus email and/or phone), and Image Studio. Social-provider sign-in is not included. The course scope signature is a separate administrative follow-up. Design and delivery state: [design/21-Feature-Extensions.md](design/21-Feature-Extensions.md) and [project-plan/Implementation-Delivery-Status.md](project-plan/Implementation-Delivery-Status.md).
+
+**Out of scope:** garage/service billing, buyer site / public inventory, OEM portal, KPI dashboard, CSV import, Service Bus / outbox / second DB / vector store, third-party listing publish, payments, homemade auth or model SDK, extra vehicle fields (mileage, color, fuel, and similar).
 
 `design/01`–`06` are **withdrawn** (not for grading or coding); see [design/archive/](design/archive/).
 
@@ -31,16 +33,16 @@ Approved scope is [design/SCOPE-BASELINE.md](design/SCOPE-BASELINE.md). Change i
 
 | Path | Status |
 |---|---|
-| `dealer-web/` | Vue 3 + Element Plus. Six pages (`/login`, `/admin`, `/dms`, `/crm`, `/ads`, `/assistant`). Local: `npm run dev` on `5173`. Cloud: `npm run build`, then `dist/` is uploaded to Azure Static Web Apps. |
+| `dealer-web/` | Vue 3 + Element Plus. Public landing, email/phone login and registration, admin, DMS, CRM/leads, ads, and assistant routes. Local: `npm run dev` on `5173`. Cloud: `npm run build`, then `dist/` is uploaded to Azure Static Web Apps. |
 | `dealer-gateway/` | Spring Cloud Gateway on `8080`. Routes `/api/v1/**` to core and `/internal/v1/**` to AI (internal header required). |
-| `dealer-core/` | Java 21 + Spring Boot + Flyway (`V1__init.sql`) + MySQL. Business APIs and JWT/membership are present; treat as in-progress, not a finished product. |
+| `dealer-core/` | Java 21 + Spring Boot + Flyway + MySQL. Business APIs include DMS/CRM/ads, leads, work orders, photos, email/phone authentication, admin/member operations, and VIN decode. Source compile passes; manual acceptance remains outstanding. |
 | `ai-service/` | Java 21, no database. In-process adapter for the real `ai-manager` library; install that JAR before importing the module. |
 | `dealer-platform/` | Shared contract and configuration surface: `env.example`, `openapi.yaml`, `API.md`, pipeline notes. |
 | `deploy/` | Cloud deployment. Terraform for the Azure resources plus the app upload script: [deploy/README.md](deploy/README.md). |
 | `design/` | Current course design. Start here. Machine and account blockers: [design/PREP-CHECKLIST.md](design/PREP-CHECKLIST.md). |
 | `references/` | Research copies only, not runtime modules. Reuse notes: [references/REUSE-PLAN.md](references/REUSE-PLAN.md). |
 
-Browser calls only `http://localhost:8080` (`/api/v1`). Direct browser access to core (`8081`) or ai-service (`8082`) must fail. Every service runs as a plain process: three JVMs, Vite, and a MySQL 8 server. There is no container runtime and no Compose file; the only exception is the `dealer-core` Testcontainers integration tests, which start a throwaway MySQL container when a Docker engine is available.
+Browser calls only the Gateway (`http://localhost:8080`, `/api/v1`). The catch-all `/api/v1/**` route forwards feature APIs to dealer-core. Vehicle photo upload/content has a more-specific binary-safe route that bypasses request-body logging; both routes retain Gateway authentication. Direct browser access to core (`8081`) or ai-service (`8082`) must fail. Every service runs as a plain process: three JVMs, Vite, and a MySQL 8 server. There is no container runtime and no Compose file; the only exception is the `dealer-core` Testcontainers integration tests, which start a throwaway MySQL container when a Docker engine is available.
 
 ## How to read the docs
 
@@ -79,9 +81,10 @@ The classroom path is **IntelliJ IDEA + local MySQL + Vite**: five processes, no
 | Java service defaults and routes | `dealer-gateway/src/main/resources/application.yaml` | `dealer-gateway` |
 | IntelliJ local overrides | Each IntelliJ Spring Boot run configuration's **Environment variables** field | `dealer-core`, `ai-service`, `dealer-gateway` |
 | Frontend local gateway URL | `dealer-web/.env`, copied from `dealer-web/.env.example` | `dealer-web` |
-| Reference list of every local value | `dealer-platform/env.example` | Copy into a local `.env` or into IntelliJ run configurations |
+| Shared local account defaults | `dealer-platform/env.example` | Reference for service setup; the platform admin signs in with `ADMIN_USERNAME`; `ADMIN_EMAIL` / `ADMIN_PHONE` are optional extra sign-in names |
+| Other local overrides | IntelliJ Spring Boot run configurations or ignored `.env` files | Keep unrelated passwords and API keys out of Git |
 
-For IntelliJ startup, do not edit passwords, ports, or service URLs directly into Java source. Put the values from the run-configuration table below into each run configuration. Do not commit `.env` files or real API keys.
+For IntelliJ startup, do not edit passwords, ports, or service URLs directly into Java source. Put the values from the run-configuration table below into each run configuration. No external identity-provider credentials are needed. Do not commit unrelated `.env` files or API keys.
 
 ### IntelliJ IDEA + local MySQL: copy-ready setup
 
@@ -131,7 +134,7 @@ This is the standard path for a new developer. IntelliJ IDEA runs the three Java
 
    | Run configuration | Module | Main class | Required environment |
    |---|---|---|---|
-   | `dealer-core-local` | `dealer-core` | `com.dealerops.core.DealerCoreApplication` | `CORE_PORT=8081;SERVER_ADDRESS=127.0.0.1;LOG_DIR=$PROJECT_DIR$/log-sum;MYSQL_URL=jdbc:mysql://127.0.0.1:3306/dealer_core?useSSL=false&allowPublicKeyRetrieval=true;MYSQL_USER=dealer;MYSQL_PASSWORD=dealer_dev_only;GATEWAY_BASE_URL=http://localhost:8080;GATEWAY_PUBLIC_URL=http://localhost:8080;AI_BASE_URL=http://127.0.0.1:8082;INTERNAL_TOKEN=dealer-internal;JWT_MODE=dev;DEV_JWT_SECRET=dealer-dev-jwt-secret-change-me;ADMIN_USERNAME=admin;ADMIN_PASSWORD=admin123` |
+   | `dealer-core-local` | `dealer-core` | `com.dealerops.core.DealerCoreApplication` | `CORE_PORT=8081;SERVER_ADDRESS=127.0.0.1;LOG_DIR=$PROJECT_DIR$/log-sum;MYSQL_URL=jdbc:mysql://127.0.0.1:3306/dealer_core?useSSL=false&allowPublicKeyRetrieval=true;MYSQL_USER=dealer;MYSQL_PASSWORD=dealer_dev_only;GATEWAY_BASE_URL=http://localhost:8080;GATEWAY_PUBLIC_URL=http://localhost:8080;AI_BASE_URL=http://127.0.0.1:8082;INTERNAL_TOKEN=dealer-internal;JWT_MODE=dev;DEV_JWT_SECRET=dealer-dev-jwt-secret-change-me;ADMIN_USERNAME=admin;ADMIN_PASSWORD=admin123;ADMIN_EMAIL=admin@example.com` |
    | `ai-service-local` | `ai-service` | `ca.sait.dealerops.aiservice.AiServiceApplication` | `AI_PORT=8082;SERVER_ADDRESS=127.0.0.1;LOG_DIR=$PROJECT_DIR$/log-sum;SPRING_APPLICATION_NAME=ai-service;SPRING_PROFILES_ACTIVE=dev;INTERNAL_TOKEN=dealer-internal;AIMANAGER_API_KEY=;AIMANAGER_GATEWAY_PROVIDER=groq;AIMANAGER_GATEWAY_MODEL=qwen/qwen3.8-27b;AIMANAGER_GATEWAY_MAX_TOKENS=800` |
    | `dealer-gateway-local` | `dealer-gateway` | `ca.sait.dealerops.gateway.GatewayApplication` | `GATEWAY_PORT=8080;CORE_URL=http://127.0.0.1:8081;AI_URL=http://127.0.0.1:8082;LOG_DIR=$PROJECT_DIR$/log-sum;SPRING_PROFILES_ACTIVE=dev;INTERNAL_TOKEN=dealer-internal;CORS_ALLOWED_ORIGIN=http://localhost:5173;JWT_MODE=dev;DEV_JWT_SECRET=dealer-dev-jwt-secret-change-me` |
 
@@ -166,7 +169,7 @@ This is the standard path for a new developer. IntelliJ IDEA runs the three Java
    npm run dev
    ```
 
-   Open `http://localhost:5173/`. Swagger is available at `http://localhost:8080/swagger-ui/index.html` and its OpenAPI JSON is at `http://localhost:8080/v3/api-docs`.
+   Open `http://localhost:5173/`. Swagger is available at `http://localhost:8080/swagger-ui/index.html` and its OpenAPI JSON is at `http://localhost:8080/v1/api-docs`.
 
 ### Manual startup commands (cross-platform)
 
@@ -248,15 +251,15 @@ cd ../..
 deploy/terraform/deploy-apps.sh                # packages the three JARs, builds the SPA, uploads all four
 ```
 
-`terraform.tfvars` needs `mysql_admin_password`, `internal_token`, `jwt_signing_secret`, and the `admin_username` / `admin_password` pair that seeds the first platform admin. Generate the shared secrets with `openssl rand -base64 48`. Never commit that file, and never reuse the local development values.
+`terraform.tfvars` needs `mysql_admin_password`, `internal_token`, `jwt_signing_secret`, and the `admin_username` / `admin_password` pair to seed the first platform admin (`admin_email` / `admin_phone` are optional extra sign-in names). Generate the shared secrets with `openssl rand -base64 48`. Never commit that file, and never reuse the local development values.
 
 Review the plan before applying it. The default plan creates billable Azure resources, including a Linux App Service plan and MySQL Flexible Server. `terraform apply` creates infrastructure and app settings only; it does not upload application artifacts. Run `deploy/terraform/deploy-apps.sh` after the apply completes. The script packages the three Java services, builds the frontend, and uploads the four applications. The core app uses `AI_BASE_URL` to call ai-service directly; it must not be changed to the Gateway URL.
 
 `terraform output` prints the public URLs. `deploy/terraform/deploy-apps.sh core web` redeploys a subset. CI only runs `terraform fmt -check` and `terraform validate`; it holds no Azure credentials and never applies or deploys.
 
-## Sign-in (admin-issued username/password)
+## Sign-in
 
-As the client specification requires (`requirements/DealerOps-Specification.pdf` §2, §8), dealers and admins sign in with a username and password issued by the platform admin. Admin "issues access" by creating a staff username + temporary password bound to a dealership on `/admin`.
+Users and administrators sign in with their email, username, or phone plus password. Registration asks for a username, a display name, an email and/or phone, and a password. No Google/Entra ID/social-provider login or external provider credentials are used. New accounts land on `/no-access` until the admin binds them from **Admin → Members → Pending accounts**.
 
 **Authoritative design** (product surface, JWT roles, env wiring, landings): [design/15-Data-Auth-and-Gateway.md](design/15-Data-Auth-and-Gateway.md) §8. Scope errata: [design/SCOPE-BASELINE.md](design/SCOPE-BASELINE.md).
 
@@ -264,22 +267,22 @@ As the client specification requires (`requirements/DealerOps-Specification.pdf`
 
 Open `http://localhost:5173/login` and sign in as the platform admin seeded from `ADMIN_USERNAME` / `ADMIN_PASSWORD`. With the local development values in the run-configuration table above, that is:
 
-| Account | Username | Password | Lands on |
+| Account | Login identifier | Password | Lands on |
 |---|---|---|---|
-| Platform admin | `admin` | `admin123` | `/admin` |
+| Platform admin | `admin@example.com` | `admin123` | `/admin` |
 
 These are local-only defaults. Use a different password on any shared, VM, or public environment. The seed runs only when the username does not exist yet, so changing `ADMIN_PASSWORD` later does not change an existing admin's password.
 
-There are no built-in staff accounts. The admin creates a dealership on `/admin`, then uses **Bind staff** to issue a staff username and temporary password (at least 8 characters). Staff sign in with those values and land on `/dms`.
+There are no built-in staff accounts. The admin creates a dealership on `/admin`, then uses **Bind staff** to create a staff account with a username, an email and/or phone, and a temporary password (at least 8 characters). Staff sign in with any of those names and land on `/dms`.
 
 ### Env wiring
 
 | Variable | Where | Notes |
 |---|---|---|
 | `DEV_JWT_SECRET` | Local: each gateway and core run configuration. Cloud: Key Vault `JWT-SIGNING-SECRET` | ≥32 UTF-8 bytes; unique per environment |
-| `ADMIN_USERNAME` / `ADMIN_PASSWORD` | Local: the core run configuration. Cloud: `admin_username` plus Key Vault `ADMIN-PASSWORD` | Seeds the one platform admin on first startup; no-op once it exists |
+| `ADMIN_USERNAME` / `ADMIN_PASSWORD`, optional `ADMIN_EMAIL` / `ADMIN_PHONE` | Local: the core run configuration. Cloud: Terraform variables; password in Key Vault `ADMIN-PASSWORD` | Seeds the one platform admin on first startup; sign in with the username, or the email/phone when set |
 
-Copy [dealer-platform/env.example](dealer-platform/env.example) and [dealer-web/.env.example](dealer-web/.env.example). Do not commit real `.env` files. After the platform admin signs in, they create dealerships and use **Bind staff** to issue each person a username and temporary password.
+Use [dealer-platform/env.example](dealer-platform/env.example) as the local configuration reference. Keep passwords and other secrets out of Git. After the platform admin signs in, they create dealerships and use **Bind staff** to create accounts (username plus email and/or phone).
 
 `ai-service` uses the real `ai-manager` dependency directly. Install the pinned library before building the service. Ports and boot order: [design/AI-CODING-LOCAL-AND-CLOUD.md](design/AI-CODING-LOCAL-AND-CLOUD.md). The Azure stack is [deploy/terraform](deploy/terraform) — real infrastructure as code, not a draft.
 
@@ -416,7 +419,7 @@ Automated test authoring follows [design/16-Acceptance-and-Test.md](design/16-Ac
 
 This section is the English counterpart of [requirements/DealerOps-Requirements-zh.html](requirements/DealerOps-Requirements-zh.html) (v1.0, 2026-10-07). Requirement IDs are identical in both documents. Sources: [requirements/DealerOps-Specification.pdf](requirements/DealerOps-Specification.pdf) (2026-09-21, authoritative for fields and business rules), `requirements/Dos Car dealership.docx` (product vision only), and [design/SCOPE-BASELINE.md](design/SCOPE-BASELINE.md) (course scope and errata; decides conflicts). Per-topic analysis lives in [requirements/analysis/](requirements/analysis/). Sign-off status: KAN-5 client/instructor confirmation is still open.
 
-**Conflict priority:** course PPT hard items > specification PDF fields > v6 design > UI conventions. There are two exceptions. Since 2026-09-30, sign-in follows the PDF and uses username/password (erratum 1). Since 2026-10-07, the PPT containerization item has been dropped in favor of Terraform + App Service (erratum 5).
+**Conflict priority:** course PPT hard items > specification PDF fields > v6 design > UI conventions. There are two exceptions. Authentication remains password-based, and on 2026-10-08 the user chose email, username, or phone as the sign-in name (erratum 1). Since 2026-10-07, the PPT containerization item has been dropped in favor of Terraform + App Service (erratum 5).
 
 **Priority labels:** Must = explicitly required by a source. Should = needed by the implementation, not stated in the sources. Could = only if time allows. Won't = not in this release.
 
@@ -431,16 +434,17 @@ Dealer Ops is a multi-tenant platform for independent used-car dealers in Ontari
 - OMVIC fixed rules plus a real AI review, then Ready + TXT export.
 - An audit trail for DMS/CRM.
 - A read-only AI assistant.
-- Admin-issued username/password with two roles.
+- Password sign-in (email, username, or phone) with two roles.
 - Browser traffic only through the gateway.
 
+**Feature extensions** ([design/21-Feature-Extensions.md](design/21-Feature-Extensions.md)): VIN decode, lead follow-up, reconditioning work orders, email/phone self-registration and sign-in, Image Studio.
+
 **Out of scope:**
-- Leads, follow-ups and sales funnel.
-- Work orders, reconditioning and archive states.
+- Sales funnel reports, vehicle archive states and garage/service billing.
 - Buyer site, public inventory and inquiry forms.
 - KPI dashboard and CSV import.
 - Third-party ad publishing, payments and contracts.
-- Image Studio, OCR and VIN decoding.
+- OCR.
 - Extra vehicle fields such as mileage, color, fuel, stock number and list price.
 - Message queues, a second database and vector stores.
 - Rate limits, throughput SLOs and PIPEDA retention.
@@ -474,7 +478,7 @@ All dealer users have the same permissions; the sources do not distinguish manag
 |---|---|---|
 | AUTH-01 | Only two roles: platform admin and dealer user | Must |
 | AUTH-02 | Admin creates a dealership with at least a registered name, phone, email and address. The ad rule for dealer name and contact uses these fields | Must |
-| AUTH-03 | Admin creates a login for a dealership: username, display name and temporary password (at least 8 characters). One login belongs to one dealership | Must |
+| AUTH-03 | Admin creates a dealership login with username, display name, temporary password (at least 8 characters), and an email and/or phone. One login belongs to one dealership | Must |
 | AUTH-04 | Admin lists a dealership's logins | Must |
 | AUTH-05 | Admin removes a login, and its business access ends immediately. Removal is a soft unbind: the account and its history stay. A removed user can still sign in but sees only the no-access page | Must |
 | AUTH-06 | All logins of one dealership read and write the same data. A vehicle added by staff A is visible to staff B at once | Must |
@@ -482,15 +486,15 @@ All dealer users have the same permissions; the sources do not distinguish manag
 | AUTH-08 | The admin gets 403 on every business endpoint, and the response carries no business fields | Must |
 | AUTH-09 | The server derives the dealership from the signed-in identity and ignores any client-supplied `dealerId` | Must |
 | AUTH-10 | Dealer users cannot create or remove logins | Must |
-| AUTH-11 | Each person signs in with their own username and password (one account per staff member). Accounts are not shared | Must |
+| AUTH-11 | Each person signs in with their own email, username, or phone and password (one account per staff member); accounts are not shared | Must |
 | AUTH-12 | Passwords are stored as salted BCrypt hashes. A successful login issues a JWT that carries the role | Must |
 | AUTH-13 | A signed-in user with no dealership gets 403 on business endpoints | Should |
 | AUTH-14 | A username has at most one active dealership binding. A duplicate binding, or a username that belongs to the admin, returns 409 `DUP_MEMBER` | Should |
-| AUTH-15 | The admin account is seeded from environment variables on first start. Nobody can self-register | Should |
+| AUTH-15 | The platform-admin account is seeded from environment variables on first start; self-registration can only create Dealer.User accounts that await admin binding | Should |
 
 **Account lifecycle:**
 1. The admin creates a dealership.
-2. The admin binds staff to it (username + temporary password).
+2. The admin binds staff to it (username, email and/or phone, temporary password).
 3. Staff sign in and use their dealership's data.
 4. When the admin unbinds a staff member, that person gets 403 on business endpoints.
 
@@ -577,7 +581,7 @@ There are two statuses, `IN_STOCK` and `SOLD`, and the server derives them. A ve
 | CRM-12 | A customer's phone, email and address never reach AI prompts, audit summaries or assistant answers | Must |
 | CRM-13 | A duplicate email in the same dealership shows a warning but is saved | Could |
 | CRM-14 | Deleting customers | Won't |
-| CRM-15 | Leads, follow-up tasks and sales funnel | Won't |
+| CRM-15 | Sales funnel reports | Won't. Lead follow-up is implemented separately under LEAD-01–09 in design/21-Feature-Extensions.md. |
 
 ### 5. Ad compliance (OMVIC)
 
@@ -640,7 +644,7 @@ An ad is **finance-triggered** when its kind is `FINANCE`, or its kind is `CASH`
 | AD-14 | A dedicated disclaimer screen. It is deferred: the result panel shows a one-line disclaimer, and the limit is explained orally at the defense | Won't |
 | AD-15 | Configurable rules or a rule editor; the rules stay in `OmvicRuleEngine` | Won't |
 | AD-16 | Auto-publishing to external platforms | Won't |
-| AD-17 | Image Studio | Won't |
+| AD-17 | Image Studio (superseded by IMG-01–05 in design/21-Feature-Extensions.md) | Must |
 
 ### 6. Read-only AI assistant
 
@@ -694,12 +698,13 @@ The spec PDF has no such page. It is added by scope erratum 2 to meet the course
 
 | Page | Route | Access | Key requirements |
 |---|---|---|---|
-| Login | `/login` | Public | One username + password form (UI-01). It redirects by role: admin → `/admin`, bound staff → `/dms` (UI-02). An unbound user sees a not-provisioned message (UI-03). Every inner page redirects to login when signed out (UI-04) |
-| Admin | `/admin` | Admin | Dealership list: name, contact, staff count (UI-10). Create a dealership (UI-11). List and bind staff (username, display name, temporary password), with confirmation before unbinding (UI-12). No vehicle, customer or ad entry points (UI-13) |
-| DMS | `/dms` | Dealer user | List columns: year make model, VIN, source, condition, cost (CAD), date added, status, with search, filters and paging (UI-20). Add and edit with `*` on required fields, client-side validation and per-field server errors (UI-21). Detail with all fields, the customer, the ad check status and the history (UI-22). Sell as a separate action that takes the date and the price together (UI-23). Locked fields are read-only after sale (UI-24) |
-| CRM | `/crm` | Dealer user | List columns: name, email, phone, linked vehicle and purchase count, with search, a linked filter and paging (UI-30). Add and edit (UI-31). Detail with clickable linked vehicles, link and unlink, and the history (UI-32). A searchable link drop-down of this dealership's unlinked vehicles (UI-33) |
+| Landing | `/` | Public | Product landing with `Sign in`, `Create account`, and anonymous VIN decode; signed-in users go to their role landing |
+| Login / registration | `/login`, `/register` | Public | Email, username, or phone + password; unbound accounts wait for admin binding |
+| Admin | `/admin` | Admin | Dealership list: name, contact, staff count (UI-10). Create a dealership (UI-11). List and bind staff (username, display name, email and/or phone, temporary password), with confirmation before unbinding (UI-12). **Pending accounts** binds self sign-ups without a password. No vehicle, customer or ad entry points (UI-13) |
+| DMS | `/dms` | Dealer user | List columns: year make model, VIN, source, condition, cost (CAD), date added, status, with search, filters and paging (UI-20). Add and edit with `*` on required fields, client-side validation and per-field server errors (UI-21). Detail with all fields, the customer, the ad check status and the history (UI-22). Sell as a separate action that takes the date and the price together (UI-23). Locked fields are read-only after sale (UI-24). VIN `Decode` prefills make/model/year; the drawer adds **Work orders** (open count in the list; selling is blocked while any are open) and **Image Studio** photos with Auto fix / Brighten / Sharpen ([design/21](design/21-Feature-Extensions.md)) |
+| CRM / leads | `/crm`, `/leads` | Dealer user | CRM retains customer management and adds customer-linked leads; `/leads` supports follow-up pipeline, assignments, due dates, and append-only notes |
 | Ads | `/ads` | Dealer user | Pick a vehicle, edit title / body / kind / medium, and view the checklist with no answer fields (UI-40). DMS and dealer values shown (UI-41). A Check button with a loading state of up to 15 s (UI-42). A ✅ / ❌ / ⚠️ result per rule (UI-43). Status badges: Needs AI review / Blocked / AI unavailable / Passed / Stale (UI-44). Ready and Export TXT are enabled only when the ad is passed and not stale (UI-45). A one-line disclaimer, with the dedicated screen deferred (UI-46) |
-| Assistant | `/assistant` | Dealer user | An input box and answers with vehicle / customer cards (UI-50). A clear read-only notice (UI-51) |
+| Assistant | floating panel on staff pages (no route) | Dealer user | An input box and answers with vehicle / customer cards (UI-50). A clear read-only notice (UI-51) |
 
 ### 9. Open items
 
@@ -720,7 +725,7 @@ The spec PDF has no such page. It is added by scope erratum 2 to meet the course
   - Does a vehicle advertised both online and on a billboard need two ads?
   - Is an undo-sale demo needed?
   - Are the four dealer profile fields (legal name, phone, email, address) enough, and is an OMVIC registration number needed?
-  - Written sign-off is still needed on username/password login (KAN-5), and, per erratum 5 in the change log, on dropping containers.
+  - Written sign-off is still needed on password-based authentication with email/phone identifiers (KAN-5), and, per erratum 5 in the change log, on dropping containers.
 
 ## Team acceptance guide
 
@@ -868,7 +873,7 @@ A requirement counts as accepted only after step 4 passes for every AT that cove
   3. No Blocker or Critical defect is open, including the known gap below.
 - **Demo rehearsal:** walk the classroom storyline in §1 end to end on the cloud URLs. The cloud demo is required for course reviews 2 and 3.
 - **Scope control:** check every new request against the out-of-scope list in §1. If one is accepted, record it in [design/SCOPE-BASELINE.md](design/SCOPE-BASELINE.md) and in the Chinese document's change log (§12) before work starts.
-- **Sign-off:** chase the open items in §9, especially KAN-5 (username/password login) and erratum 5 (no containers), and file the written confirmation with the requirements.
+- **Sign-off:** chase the open items in §9, especially KAN-5 (email/phone plus password login) and erratum 5 (no containers), and file the written confirmation with the requirements.
 
 ### Keeping documents in step (everyone)
 

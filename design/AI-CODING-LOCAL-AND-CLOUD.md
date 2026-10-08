@@ -262,7 +262,7 @@ Do not deploy by hand in the portal and call it a pipeline, and do not add an Az
 - The three Java repos (`dealer-gateway` / `dealer-core` / `ai-service`) are uniformly **21**. Ban one repo on 21 and another on 17.
 - `dealer-web` has no JDK. Upstream `ai-manager` remains a Java 17 bytecode JAR; **do not change that library**; a 21 runtime may depend on it.
 - **Secrets stay out of the repo:** `.env`, `terraform.tfvars`, `terraform.tfstate`, `AIMANAGER_API_KEY`, real MySQL passwords, and real `INTERNAL_TOKEN` values do not go into Git. Locally copy `dealer-platform/env.example`. Cloud uses Key Vault references from `deploy/terraform`.
-- Sign-in is admin-issued username/password ([15](15-Data-Auth-and-Gateway.md) §8). The SPA holds no client secret of any kind.
+- Sign-in uses an email, username, or phone plus password ([15](15-Data-Auth-and-Gateway.md) §8). The SPA holds no client secret of any kind.
 
 ---
 

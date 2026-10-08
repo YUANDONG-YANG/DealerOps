@@ -293,6 +293,8 @@ resource "azurerm_linux_web_app" "core" {
     local.seed_platform_admin ? {
       ADMIN_USERNAME = var.admin_username
       ADMIN_PASSWORD = "@Microsoft.KeyVault(SecretUri=${azurerm_key_vault_secret.admin_password[0].versionless_id})"
+      ADMIN_EMAIL    = var.admin_email
+      ADMIN_PHONE    = var.admin_phone
     } : {}
   )
 
