@@ -48,6 +48,14 @@ The POM uses the real `com.aimanager:aimanager:1.0.0-SNAPSHOT` dependency direct
 
 For an xAI/Grok key, set `AIMANAGER_GATEWAY_PROVIDER=xai`. Use an explicit supported model such as `grok-3-mini` when the account does not accept the `current` alias. Do not label an xAI key as `openai` or `groq`; those providers use different vendor endpoints.
 
+If `src/main/resources/ai-key.md` exists locally, it may contain `XAI_API_KEY=...`. It is ignored by Git and must never be committed. IntelliJ should map it to the variables consumed by this service:
+
+```text
+AIMANAGER_API_KEY=$XAI_API_KEY
+AIMANAGER_GATEWAY_PROVIDER=xai
+AIMANAGER_GATEWAY_MODEL=grok-3-mini
+```
+
 Missing key: immediate **503** `{ "success": false, "code": "AI_KEY_MISSING", "message": "AIMANAGER_API_KEY is missing or invalid." }` (do not wait 15s).
 
 ## Internal HTTP
