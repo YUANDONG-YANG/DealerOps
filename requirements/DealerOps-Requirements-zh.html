@@ -149,7 +149,7 @@ html { scroll-behavior: smooth; }
           <tr><td>范围基线 SCOPE-BASELINE</td><td>课程交付范围、勘误、不做清单</td><td>冲突裁决</td></tr>
         </tbody>
       </table></div>
-      <p>冲突优先级：课程 PPT 硬性要求 &gt; 规格说明书字段 &gt; v6 设计 &gt; UI 规范。登录方式是唯一例外：2026-09-30 起改回规格说明书要求的用户名/密码登录（见第 12 节）。</p>
+      <p>冲突优先级：课程 PPT 硬性要求 &gt; 规格说明书字段 &gt; v6 设计 &gt; UI 规范。有两处例外：登录方式自 2026-09-30 起改回规格说明书要求的用户名/密码登录（勘误 1）；2026-10-07 起放弃 PPT 要求的容器化，改用 Terraform + App Service（勘误 5）。均见第 12 节。</p>
       <h3>优先级说明</h3>
       <div class="legend">
         <span><span class="pri must">必须</span> 来源中明确要求</span>
@@ -199,7 +199,7 @@ html { scroll-behavior: smooth; }
       <div class="tbl"><table>
         <thead><tr><th>角色</th><th>代码</th><th>数量</th><th>归属</th></tr></thead>
         <tbody>
-          <tr><td>平台管理员</td><td><code>Platform.Admin</code></td><td>平台级（来源称“唯一”，实现允许多个同角色账号）</td><td>不属于任何车行</td></tr>
+          <tr><td>平台管理员</td><td><code>Platform.Admin</code></td><td>平台级，唯一（首次启动时由环境变量 <code>ADMIN_USERNAME</code> / <code>ADMIN_PASSWORD</code> 初始化，无创建管理员的接口）</td><td>不属于任何车行</td></tr>
           <tr><td>车行用户</td><td><code>Dealer.User</code></td><td>每个车行 N 个</td><td>恰好属于一个车行</td></tr>
         </tbody>
       </table></div>
@@ -224,9 +224,9 @@ html { scroll-behavior: smooth; }
         <tbody>
           <tr><td class="id">AUTH-01</td><td>系统只有两种角色：平台管理员、车行用户</td><td>PDF §2</td><td><span class="pri must">必须</span></td></tr>
           <tr><td class="id">AUTH-02</td><td>管理员可创建车行，至少包含注册名称、电话、邮箱、地址四项（广告合规“车行注册名称与联系方式”规则会用到）</td><td>PDF §2、§5</td><td><span class="pri must">必须</span></td></tr>
-          <tr><td class="id">AUTH-03</td><td>管理员可为车行创建登录账号（用户名 + 临时密码），一个账号只绑定一个车行</td><td>PDF §2</td><td><span class="pri must">必须</span></td></tr>
+          <tr><td class="id">AUTH-03</td><td>管理员可为车行创建登录账号（用户名 + 显示名 + 临时密码，密码至少 8 位），一个账号只绑定一个车行</td><td>PDF §2</td><td><span class="pri must">必须</span></td></tr>
           <tr><td class="id">AUTH-04</td><td>管理员可查看某车行的账号列表</td><td>PDF §2</td><td><span class="pri must">必须</span></td></tr>
-          <tr><td class="id">AUTH-05</td><td>管理员可移除账号；该账号立即失去业务数据访问权（解绑为软删除，保留账号与历史）</td><td>PDF §2</td><td><span class="pri must">必须</span></td></tr>
+          <tr><td class="id">AUTH-05</td><td>管理员可移除账号；该账号立即失去业务数据访问权（解绑为软删除，保留账号与历史；被移除者仍可登录，但只看到无权限页面）</td><td>PDF §2</td><td><span class="pri must">必须</span></td></tr>
           <tr><td class="id">AUTH-06</td><td>同一车行所有账号读写同一份数据，员工 A 录入的车辆员工 B 立即可见</td><td>PDF §1</td><td><span class="pri must">必须</span></td></tr>
           <tr><td class="id">AUTH-07</td><td>车行用户看不到其他车行数据；请求他行记录 id 返回 404，不暴露记录是否存在</td><td>PDF §2、SCOPE</td><td><span class="pri must">必须</span></td></tr>
           <tr><td class="id">AUTH-08</td><td>管理员访问任何业务接口返回 403，响应中不含业务字段</td><td>PDF §2、§6</td><td><span class="pri must">必须</span></td></tr>
@@ -235,7 +235,7 @@ html { scroll-behavior: smooth; }
           <tr><td class="id">AUTH-11</td><td>每位用户使用自己的用户名和密码登录，不共用账号</td><td>PDF §2</td><td><span class="pri must">必须</span></td></tr>
           <tr><td class="id">AUTH-12</td><td>登录方式：管理员下发用户名/密码；服务端 BCrypt 加盐哈希存储，校验通过后签发 JWT（含角色）</td><td>PDF §2、§8</td><td><span class="pri must">必须</span></td></tr>
           <tr><td class="id">AUTH-13</td><td>已登录但未绑定车行的用户调用业务接口返回 403</td><td>SCOPE</td><td><span class="pri should">应该</span></td></tr>
-          <tr><td class="id">AUTH-14</td><td>同一用户名同一时间只能有一个有效车行绑定，重复绑定返回 <code>DUP_MEMBER</code></td><td>SCOPE</td><td><span class="pri should">应该</span></td></tr>
+          <tr><td class="id">AUTH-14</td><td>同一用户名同一时间只能有一个有效车行绑定；重复绑定或用户名属于平台管理员时返回 409 <code>DUP_MEMBER</code></td><td>SCOPE</td><td><span class="pri should">应该</span></td></tr>
           <tr><td class="id">AUTH-15</td><td>平台管理员账号在首次启动时由环境变量初始化，不能通过界面自注册</td><td>PDF §2（推导）</td><td><span class="pri should">应该</span></td></tr>
         </tbody>
       </table></div>
@@ -247,7 +247,7 @@ html { scroll-behavior: smooth; }
       <ul class="plain">
         <li>账号移除后，其历史审计记录保留，“操作人”不能丢失。</li>
         <li>车行最后一个账号被移除后，车行数据仍保留，可再绑定新账号。</li>
-        <li>重新绑定已解绑的用户视为重新激活，不新增记录。</li>
+        <li>重新绑定已解绑的用户视为重新激活：同一车行复用原绑定记录，账号不新建；改绑到其他车行会新增一条绑定记录；重新绑定时会重设临时密码。</li>
       </ul>
     </section>
 
@@ -259,13 +259,13 @@ html { scroll-behavior: smooth; }
         <thead><tr><th>#</th><th>字段</th><th>代码</th><th>必填</th><th>类型</th><th>校验规则</th></tr></thead>
         <tbody>
           <tr><td>1</td><td>品牌 Make</td><td><code>make</code></td><td class="c yes">✓</td><td>文本</td><td>1–50 字符，去首尾空格</td></tr>
-          <tr><td>2</td><td>型号 Model</td><td><code>model</code></td><td class="c yes">✓</td><td>文本</td><td>1–50 字符</td></tr>
-          <tr><td>3</td><td>年份 Year</td><td><code>year</code></td><td class="c yes">✓</td><td>整数</td><td>1900 ≤ 年份 ≤ 当前年份 + 1</td></tr>
+          <tr><td>2</td><td>型号 Model</td><td><code>model</code></td><td class="c yes">✓</td><td>文本</td><td>1–50 字符，去首尾空格</td></tr>
+          <tr><td>3</td><td>年份 Year</td><td><code>modelYear</code></td><td class="c yes">✓</td><td>整数</td><td>1900 ≤ 年份 ≤ 当前年份 + 1</td></tr>
           <tr><td>4</td><td>车架号 VIN</td><td><code>vin</code></td><td class="c yes">✓</td><td>文本</td><td>17 位，大写，不含 I/O/Q；<strong>车行内唯一</strong></td></tr>
           <tr><td>5</td><td>车辆来源</td><td><code>source</code></td><td class="c yes">✓</td><td>枚举</td><td><code>TRADE_IN</code> 置换 / <code>AUCTION</code> 拍卖 / <code>PRIVATE_PURCHASE</code> 私人收购 / <code>OTHER</code> 其他</td></tr>
           <tr><td>6</td><td>采购成本</td><td><code>purchaseCost</code></td><td class="c yes">✓</td><td>金额</td><td>≥ 0，两位小数，加元</td></tr>
           <tr><td>7</td><td>入库日期</td><td><code>addedOn</code></td><td class="c yes">✓</td><td>日期</td><td>不晚于今天</td></tr>
-          <tr><td>8</td><td>车况</td><td><code>condition</code></td><td class="c yes">✓</td><td>枚举</td><td><code>CERTIFIED</code> 认证 / <code>AS_IS</code> 现状出售 / <code>UNFIT</code> 不适合上路 / <code>IRREPARABLE</code> 无法修复</td></tr>
+          <tr><td>8</td><td>车况</td><td><code>conditionCode</code></td><td class="c yes">✓</td><td>枚举</td><td><code>CERTIFIED</code> 认证 / <code>AS_IS</code> 现状出售 / <code>UNFIT</code> 不适合上路 / <code>IRREPARABLE</code> 无法修复</td></tr>
           <tr><td>9</td><td>维修成本</td><td><code>repairCost</code></td><td class="c">—</td><td>金额</td><td>≥ 0</td></tr>
           <tr><td>10</td><td>Carfax 报告链接</td><td><code>carfaxUrl</code></td><td class="c">—</td><td>URL</td><td><code>http(s)://</code>，≤ 500 字符</td></tr>
           <tr><td>11</td><td>售出日期</td><td><code>soldOn</code></td><td class="c">—</td><td>日期</td><td>≥ 入库日期，不晚于今天</td></tr>
@@ -287,20 +287,20 @@ html { scroll-behavior: smooth; }
         <thead><tr><th>编号</th><th>需求</th><th>来源</th><th>优先级</th></tr></thead>
         <tbody>
           <tr><td class="id">DMS-01</td><td>车行用户可新增车辆；8 个必填字段缺一不可，逐字段提示错误</td><td>PDF §3</td><td><span class="pri must">必须</span></td></tr>
-          <tr><td class="id">DMS-02</td><td>维修成本、Carfax 链接为可选</td><td>PDF §3</td><td><span class="pri must">必须</span></td></tr>
+          <tr><td class="id">DMS-02</td><td>新增时维修成本、Carfax 链接为可选；售出日期、售出价格为可选字段，只能通过“标记售出”操作录入，且须同时录入（见 DMS-10）</td><td>PDF §3</td><td><span class="pri must">必须</span></td></tr>
           <tr><td class="id">DMS-03</td><td>VIN 在车行内唯一，重复返回 <code>VIN_DUP</code>；不同车行可有相同 VIN</td><td>SCOPE</td><td><span class="pri must">必须</span></td></tr>
-          <tr><td class="id">DMS-04</td><td>VIN 自动转大写并校验 17 位格式</td><td>推导</td><td><span class="pri should">应该</span></td></tr>
+          <tr><td class="id">DMS-04</td><td>VIN 自动转大写并校验 17 位字母数字、不含 I/O/Q</td><td>推导</td><td><span class="pri should">应该</span></td></tr>
           <tr><td class="id">DMS-05</td><td>车辆来源、车况为下拉框，只能选枚举值</td><td>PDF §3</td><td><span class="pri must">必须</span></td></tr>
           <tr><td class="id">DMS-06</td><td>车辆列表分页（默认每页 10 条），新录入的在前</td><td>SCOPE</td><td><span class="pri must">必须</span></td></tr>
           <tr><td class="id">DMS-07</td><td>列表支持按 VIN / 品牌 / 型号关键字搜索，按状态、车况筛选</td><td>SCOPE</td><td><span class="pri should">应该</span></td></tr>
           <tr><td class="id">DMS-08</td><td>车辆详情显示全部字段、关联客户和审计历史</td><td>PDF §3、§6</td><td><span class="pri must">必须</span></td></tr>
-          <tr><td class="id">DMS-09</td><td>在库车辆的所有字段可编辑</td><td>PDF §7</td><td><span class="pri must">必须</span></td></tr>
+          <tr><td class="id">DMS-09</td><td>在库车辆除售出字段外的所有字段可编辑；售出字段只由“标记售出”操作写入</td><td>PDF §7</td><td><span class="pri must">必须</span></td></tr>
           <tr><td class="id">DMS-10</td><td>售出时售出日期与售出价格<strong>必须同时录入</strong>，只填一个返回 <code>SOLD_PAIR_REQUIRED</code></td><td>SCOPE</td><td><span class="pri must">必须</span></td></tr>
           <tr><td class="id">DMS-11</td><td>售出后锁定采购类字段（品牌、型号、年份、VIN、来源、采购成本、入库日期、维修成本、Carfax），修改返回 <code>SOLD_LOCKED</code></td><td>SCOPE</td><td><span class="pri must">必须</span></td></tr>
-          <tr><td class="id">DMS-12</td><td>已售车辆不能再次售出</td><td>SCOPE</td><td><span class="pri must">必须</span></td></tr>
+          <tr><td class="id">DMS-12</td><td>已售车辆不能再次售出，重复售出返回 <code>SOLD_LOCKED</code></td><td>SCOPE</td><td><span class="pri must">必须</span></td></tr>
           <tr><td class="id">DMS-13</td><td>并发编辑：写请求携带 <code>version</code>，不一致返回 <code>VERSION_CONFLICT</code>，界面提示刷新</td><td>SCOPE</td><td><span class="pri should">应该</span></td></tr>
           <tr><td class="id">DMS-14</td><td>新增、编辑、售出都写审计记录</td><td>PDF §6</td><td><span class="pri must">必须</span></td></tr>
-          <tr><td class="id">DMS-15</td><td>修改车况会使该车已通过的广告检查变为 Stale（过期）</td><td>SCOPE</td><td><span class="pri must">必须</span></td></tr>
+          <tr><td class="id">DMS-15</td><td>修改车况会使该车已通过的广告检查变为 Stale（过期）；其他车辆/车行资料字段不触发失效</td><td>SCOPE</td><td><span class="pri must">必须</span></td></tr>
           <tr><td class="id">DMS-16</td><td>详情页可展示利润（售价 − 采购成本 − 维修成本），不入库</td><td>推导</td><td><span class="pri could">可选</span></td></tr>
           <tr><td class="id">DMS-17</td><td>删除车辆（为保留审计与销售记录）</td><td>推导</td><td><span class="pri wont">不做</span></td></tr>
         </tbody>
@@ -323,9 +323,9 @@ html { scroll-behavior: smooth; }
         <tbody>
           <tr><td>1</td><td>姓名</td><td><code>name</code></td><td class="c yes">✓</td><td>1–100 字符</td></tr>
           <tr><td>2</td><td>邮箱</td><td><code>email</code></td><td class="c yes">✓</td><td>邮箱格式，≤ 254 字符，存小写</td></tr>
-          <tr><td>3</td><td>电话</td><td><code>phone</code></td><td class="c yes">✓</td><td>7–20 位数字，允许 <code>+ - ( )</code> 和空格</td></tr>
+          <tr><td>3</td><td>电话</td><td><code>phone</code></td><td class="c yes">✓</td><td>7–20 位数字，允许 <code>+ - ( )</code> 和空格，总长 ≤ 40 字符</td></tr>
           <tr><td>4</td><td>住址</td><td><code>homeAddress</code></td><td class="c yes">✓</td><td>1–300 字符，单个文本框</td></tr>
-          <tr><td>5</td><td>已购车辆</td><td><code>vehicles</code></td><td class="c">—</td><td>多选关联本车行 DMS 车辆</td></tr>
+          <tr><td>5</td><td>已购车辆</td><td><code>linkedVehicles</code>（响应字段，经 <code>/customers/{id}/vehicles</code> 关联）</td><td class="c">—</td><td>多选关联本车行 DMS 车辆</td></tr>
         </tbody>
       </table></div>
       <div class="note"><strong>说明：</strong>“已购车辆”在规格说明书中位于必填标题下但没有星号，按<strong>可选</strong>处理，因为客户可能还未购车（见 Q-03）。</div>
@@ -350,7 +350,7 @@ html { scroll-behavior: smooth; }
           <tr><td class="id">CRM-06</td><td>关联选择框只列出可关联的车辆，不出现他行车辆或已关联车辆</td><td>PDF §4</td><td><span class="pri must">必须</span></td></tr>
           <tr><td class="id">CRM-07</td><td>关联已属于其他客户的车辆返回 <code>VEHICLE_ALREADY_LINKED</code></td><td>SCOPE</td><td><span class="pri must">必须</span></td></tr>
           <tr><td class="id">CRM-08</td><td>在库车辆可解除关联；解除已售车辆返回 <code>SOLD_LOCKED</code></td><td>SCOPE</td><td><span class="pri must">必须</span></td></tr>
-          <tr><td class="id">CRM-09</td><td>他行车辆 id 一律返回 404</td><td>SCOPE</td><td><span class="pri must">必须</span></td></tr>
+          <tr><td class="id">CRM-09</td><td>他行客户或车辆 id 一律返回 404（解除不存在的关联也返回 404）</td><td>SCOPE</td><td><span class="pri must">必须</span></td></tr>
           <tr><td class="id">CRM-10</td><td>车辆详情与客户详情可互相跳转</td><td>推导</td><td><span class="pri should">应该</span></td></tr>
           <tr><td class="id">CRM-11</td><td>新增、编辑、关联、解除关联都写审计记录</td><td>PDF §6</td><td><span class="pri must">必须</span></td></tr>
           <tr><td class="id">CRM-12</td><td>客户电话 / 邮箱 / 住址<strong>绝不</strong>进入 AI 提示词、审计摘要或助手回答</td><td>SCOPE（隐私）</td><td><span class="pri must">必须</span></td></tr>
@@ -380,8 +380,8 @@ html { scroll-behavior: smooth; }
       <div class="tbl"><table>
         <thead><tr><th>适用范围</th><th>必须披露</th></tr></thead>
         <tbody>
-          <tr><td>所有广告</td><td>车行注册名称与联系方式；既往用途（警车/应急车、出租/豪华租车、日租车，如适用）；新/旧状态与年份；延保条款（如提供）；价格；车况（认证 / 现状 / 不适合上路 / 无法修复）</td></tr>
-          <tr><td>出现利率或月供的金融广告</td><td>APR（与月供同等醒目）；贷款期限；现金价 / 借贷成本。<em>例外：广播、电视、广告牌无需与利率并列展示这些信息。</em></td></tr>
+          <tr><td>所有广告</td><td>车行注册名称与联系方式；既往用途（警车/应急车、出租车/豪华轿车、按日租赁/日租车，如适用）；新/旧状态与年份；延保条款（如提供）；价格；车况（认证 / 现状 / 不适合上路 / 无法修复）</td></tr>
+          <tr><td>出现利率或付款额的金融广告</td><td>APR（与付款额同等醒目）；贷款期限；现金价 / 借贷成本。<em>例外：广播、电视、广告牌无需与利率并列展示这些信息。</em></td></tr>
           <tr><td>租赁广告</td><td>声明是租赁；期限；月供金额；APR；首付金额；超里程费（仅当年度里程额度低于 20,000 km 时需要）</td></tr>
         </tbody>
       </table></div>
@@ -393,16 +393,16 @@ html { scroll-behavior: smooth; }
           <tr><td class="id">AD-R01</td><td>车行注册名称缺失</td><td><span class="pri sev-block">BLOCK</span> <code>DEALER_NAME_MISSING</code></td></tr>
           <tr><td class="id">AD-R02</td><td>车行联系方式</td><td>全部缺失 <span class="pri sev-block">BLOCK</span> <code>DEALER_CONTACT_MISSING</code>；部分缺失 <span class="pri sev-review">REVIEW</span> <code>DEALER_CONTACT_INCOMPLETE</code></td></tr>
           <tr><td class="id">AD-R03</td><td>有既往用途线索但未明确披露</td><td><span class="pri sev-review">REVIEW</span> <code>PRIOR_USE_UNCLEAR</code>；无线索则无结果</td></tr>
-          <tr><td class="id">AD-R04</td><td>新/旧状态矛盾（文案称新车但年份 ≥ 两年前）</td><td><span class="pri sev-review">REVIEW</span> <code>YEAR_NEW_USED_CONTRADICTION</code></td></tr>
+          <tr><td class="id">AD-R04</td><td>新/旧状态矛盾（文案称新车（brand new / never used / 0 km / new car）但车型年份 ≤ 当前年份 − 2）</td><td><span class="pri sev-review">REVIEW</span> <code>YEAR_NEW_USED_CONTRADICTION</code></td></tr>
           <tr><td class="id">AD-R05</td><td>文案未写年份</td><td><span class="pri sev-review">REVIEW</span> <code>YEAR_NOT_IN_COPY</code></td></tr>
           <tr><td class="id">AD-R06</td><td>出现保修声明</td><td><span class="pri sev-review">REVIEW</span> <code>WARRANTY_CLAIM_NEEDS_REVIEW</code></td></tr>
           <tr><td class="id">AD-R07</td><td>缺少价格</td><td><span class="pri sev-block">BLOCK</span> <code>PRICE_MISSING</code></td></tr>
           <tr><td class="id">AD-R08</td><td>车况</td><td>非认证车写“Certified”：<span class="pri sev-block">BLOCK</span> <code>CONDITION_MISMATCH</code>；AS_IS / UNFIT / IRREPARABLE 未写明：<span class="pri sev-block">BLOCK</span> <code>CONDITION_UNDISCLOSED</code>；认证车未写认证：<span class="pri sev-review">REVIEW</span> <code>CERTIFIED_NOT_IN_COPY</code></td></tr>
           <tr><td class="id">AD-R10</td><td>金融广告缺 APR</td><td><span class="pri sev-block">BLOCK</span> <code>FINANCE_APR_MISSING</code></td></tr>
-          <tr><td class="id">AD-R11</td><td>金融广告 APR 位置（线上）</td><td><span class="pri sev-review">REVIEW</span> <code>FINANCE_APR_PROXIMITY</code>；广播电视广告牌不检查</td></tr>
+          <tr><td class="id">AD-R11</td><td>金融广告 APR 位置（线上）</td><td><span class="pri sev-review">REVIEW</span> <code>FINANCE_APR_PROXIMITY</code>（线上触发金融规则时一律提示）；广播电视广告牌不检查</td></tr>
           <tr><td class="id">AD-R12</td><td>金融广告缺期限</td><td><span class="pri sev-review">REVIEW</span> <code>FINANCE_TERM_MISSING</code></td></tr>
           <tr><td class="id">AD-R13</td><td>现金价 / 借贷成本</td><td>价格由 R07 覆盖，不单设借贷成本规则</td></tr>
-          <tr><td class="id">AD-R14</td><td>广播媒介例外</td><td>只豁免 R11 位置提示；价格和 APR 仍必须</td></tr>
+          <tr><td class="id">AD-R14</td><td>广播媒介例外</td><td>只豁免 R11 位置提示；价格和 APR 仍必须；缺期限仍为 R12 提示</td></tr>
           <tr><td class="id">AD-R20</td><td>租赁广告未声明是租赁</td><td><span class="pri sev-block">BLOCK</span> <code>LEASE_STATEMENT_MISSING</code></td></tr>
           <tr><td class="id">AD-R21</td><td>租赁期限缺失</td><td><span class="pri sev-review">REVIEW</span> <code>LEASE_TERM_MISSING</code></td></tr>
           <tr><td class="id">AD-R22</td><td>租赁月供缺失</td><td><span class="pri sev-review">REVIEW</span> <code>LEASE_RENT_MISSING</code>；R07 价格规则仍适用</td></tr>
@@ -411,7 +411,7 @@ html { scroll-behavior: smooth; }
           <tr><td class="id">AD-R25</td><td>年度里程额度 / 超里程费</td><td>额度 &lt; 20,000 且未写超里程费：<span class="pri sev-block">BLOCK</span> <code>LEASE_EXCESS_KM_MISSING</code>；≥ 20,000 不要求；未写额度：<span class="pri sev-review">REVIEW</span> <code>LEASE_ALLOWANCE_UNSTATED</code></td></tr>
         </tbody>
       </table></div>
-      <p>“触发金融规则”指类型为 <code>FINANCE</code>，或类型为 <code>CASH</code> 但标题/正文匹配到 APR 或月供关键字。<code>LEASE</code> 使用独立的租赁规则。</p>
+      <p>“触发金融规则”指类型为 <code>FINANCE</code>，或类型为 <code>CASH</code> 但标题/正文匹配到 APR 或付款额（月付 / 双周付 / 周付）模式。<code>LEASE</code> 使用独立的租赁规则。</p>
 
       <h3>6.4 规则适用矩阵</h3>
       <div class="tbl"><table>
@@ -451,7 +451,7 @@ PASSED 且版本一致 ──► 可“标记 Ready”并“导出 TXT”</div>
           <tr><td class="id">AD-01</td><td>为本车行车辆创建/编辑一条广告草稿</td><td>PDF §5</td><td><span class="pri must">必须</span></td></tr>
           <tr><td class="id">AD-02</td><td>根据类型/媒介显示检查清单（仅展示，不收集勾选答案）</td><td>PDF §5</td><td><span class="pri must">必须</span></td></tr>
           <tr><td class="id">AD-03</td><td>执行上述 BLOCK/REVIEW 规则并保存带原因码的结果</td><td>SCOPE 勘误 4</td><td><span class="pri must">必须</span></td></tr>
-          <tr><td class="id">AD-04</td><td>按类型、媒介和 CASH 中的 APR/月供关键字触发规则；LEASE 走租赁规则</td><td>协议 §C</td><td><span class="pri must">必须</span></td></tr>
+          <tr><td class="id">AD-04</td><td>按类型、媒介和 CASH 中的 APR/付款额模式触发规则；LEASE 走租赁规则</td><td>协议 §C</td><td><span class="pri must">必须</span></td></tr>
           <tr><td class="id">AD-05</td><td>年份、车况从 DMS 读取用于检查</td><td>PDF §5</td><td><span class="pri must">必须</span></td></tr>
           <tr><td class="id">AD-06</td><td>车行名称、联系方式从车行资料读取</td><td>PDF §5</td><td><span class="pri must">必须</span></td></tr>
           <tr><td class="id">AD-07</td><td>命中硬性规则时跳过 AI，返回 BLOCKED</td><td>SCOPE</td><td><span class="pri must">必须</span></td></tr>
@@ -477,9 +477,9 @@ PASSED 且版本一致 ──► 可“标记 Ready”并“导出 TXT”</div>
         <tbody>
           <tr><td class="id">AI-01</td><td>广告合规使用真实大模型审查，而非规则模拟</td><td>DOCX、SCOPE</td><td><span class="pri must">必须</span></td></tr>
           <tr><td class="id">AI-02</td><td>AI 调用超时 15 秒；失败绝不显示为通过</td><td>SCOPE</td><td><span class="pri must">必须</span></td></tr>
-          <tr><td class="id">AI-03</td><td>车行内只读问答：可回答库存数量、客户数量等问题；绝不写数据库</td><td>SCOPE 勘误 2</td><td><span class="pri must">必须</span></td></tr>
+          <tr><td class="id">AI-03</td><td>车行内只读问答：按品牌、VIN、客户姓名等关键字检索本车行车辆、客户及广告（含检查状态），最多返回 5 条资源卡片并附简短说明（不统计库存或客户总数）；模型不可用时仍返回检索卡片；绝不写数据库</td><td>SCOPE 勘误 2</td><td><span class="pri must">必须</span></td></tr>
           <tr><td class="id">AI-04</td><td>助手只能看到本车行数据；回答不包含采购成本及客户电话、邮箱、住址</td><td>SCOPE</td><td><span class="pri must">必须</span></td></tr>
-          <tr><td class="id">AI-05</td><td>AI 输出结构化（问题码 + 严重程度 + 说明）便于展示</td><td>推导</td><td><span class="pri should">应该</span></td></tr>
+          <tr><td class="id">AI-05</td><td>AI 意见以数组返回，每条至少含说明（<code>message</code>）；问题码（<code>ruleId</code>）与严重程度（BLOCK / REVIEW）属于规则检查结果，与 AI 意见分开展示</td><td>推导</td><td><span class="pri should">应该</span></td></tr>
         </tbody>
       </table></div>
     </section>
@@ -497,7 +497,7 @@ PASSED 且版本一致 ──► 可“标记 Ready”并“导出 TXT”</div>
           <tr><td class="id">AUD-05</td><td>审计只追加，不可修改或删除</td><td>推导</td><td><span class="pri must">必须</span></td></tr>
           <tr><td class="id">AUD-06</td><td>车辆与客户详情页按时间倒序展示变更历史</td><td>PDF §6</td><td><span class="pri must">必须</span></td></tr>
           <tr><td class="id">AUD-07</td><td>审计与业务写入在同一事务中，业务成功则审计必然存在</td><td>推导</td><td><span class="pri must">必须</span></td></tr>
-          <tr><td class="id">AUD-08</td><td>管理员的车行 / 账号操作也写审计</td><td>推导</td><td><span class="pri could">可选</span></td></tr>
+          <tr><td class="id">AUD-08</td><td>管理员的车行 / 账号操作也写审计（已实现）</td><td>推导</td><td><span class="pri could">可选</span></td></tr>
           <tr><td class="id">AUD-09</td><td>广告检查结果作为检查历史保存（见 AD-10），不另写审计</td><td>推导</td><td><span class="pri should">应该</span></td></tr>
         </tbody>
       </table></div>
@@ -507,12 +507,12 @@ PASSED 且版本一致 ──► 可“标记 Ready”并“导出 TXT”</div>
         <thead><tr><th>编号</th><th>需求</th><th>来源</th><th>优先级</th></tr></thead>
         <tbody>
           <tr><td class="id">ARC-01</td><td>DMS、CRM、广告合规是同一后端、同一数据库上的三个前端入口</td><td>PDF §6</td><td><span class="pri must">必须</span></td></tr>
-          <tr><td class="id">ARC-02</td><td>广告检查直接读取 DMS 车辆和车行数据，不重复录入</td><td>PDF §1</td><td><span class="pri must">必须</span></td></tr>
+          <tr><td class="id">ARC-02</td><td>广告检查直接读取 DMS 车辆和车行数据，不重复录入</td><td>PDF §1、§5</td><td><span class="pri must">必须</span></td></tr>
           <tr><td class="id">ARC-03</td><td>浏览器只能经 Gateway 访问后端；直接访问 core / ai-service 必须失败</td><td>SCOPE</td><td><span class="pri must">必须</span></td></tr>
           <tr><td class="id">ARC-04</td><td>四个独立应用：<code>dealer-web</code> / <code>dealer-gateway</code> / <code>dealer-core</code> / <code>ai-service</code></td><td>SCOPE</td><td><span class="pri must">必须</span></td></tr>
           <tr><td class="id">ARC-05</td><td>同步 REST + 单一数据库（MySQL 8）；不使用消息队列</td><td>SCOPE</td><td><span class="pri must">必须</span></td></tr>
           <tr><td class="id">ARC-06</td><td>接口统一在 <code>/api/v1</code> 下；错误体为 <code>{code, message}</code></td><td>SCOPE</td><td><span class="pri must">必须</span></td></tr>
-          <tr><td class="id">ARC-07</td><td>Terraform + Azure App Service 部署（Java 服务以 JAR 运行，前端为静态站点）+ CI/CD；课程评审 2/3 需在云端演示。2026-10-07 起放弃容器化（范围基线勘误 5）</td><td>SCOPE（PPT）</td><td><span class="pri must">必须</span></td></tr>
+          <tr><td class="id">ARC-07</td><td>Terraform 部署：三个 Java 服务以 JAR 运行于 Azure App Service，前端以静态文件部署到 Azure Static Web Apps，并配 CI/CD；课程评审 2/3 需在云端演示。2026-10-07 起放弃容器化（范围基线勘误 5）</td><td>SCOPE（PPT）</td><td><span class="pri must">必须</span></td></tr>
         </tbody>
       </table></div>
 
@@ -521,7 +521,7 @@ PASSED 且版本一致 ──► 可“标记 Ready”并“导出 TXT”</div>
         <thead><tr><th>编号</th><th>需求</th><th>来源</th><th>优先级</th></tr></thead>
         <tbody>
           <tr><td class="id">SEC-01</td><td>密码在服务端 BCrypt 加盐哈希存储，不明文保存，不写日志，不暴露给前端代码</td><td>PDF §8</td><td><span class="pri must">必须</span></td></tr>
-          <tr><td class="id">SEC-02</td><td>Gateway 与 core 双重校验 JWT 签名、受众与过期时间，并按角色授权</td><td>SCOPE</td><td><span class="pri must">必须</span></td></tr>
+          <tr><td class="id">SEC-02</td><td>Gateway 与 core 双重校验 JWT 签名、签发者、受众与过期时间；Gateway 拒绝无法识别的角色，core 按角色授权（Admin 与员工互访返回 403）</td><td>SCOPE</td><td><span class="pri must">必须</span></td></tr>
           <tr><td class="id">SEC-03</td><td>全站 HTTPS（云端环境）</td><td>SCOPE</td><td><span class="pri must">必须</span></td></tr>
           <tr><td class="id">SEC-04</td><td>密钥（数据库密码、JWT 签名密钥、AI Key）不进入代码仓库</td><td>SCOPE</td><td><span class="pri must">必须</span></td></tr>
           <tr><td class="id">SEC-05</td><td>所有业务查询在数据层强制按车行过滤（行级隔离）</td><td>PDF §6</td><td><span class="pri must">必须</span></td></tr>
@@ -538,7 +538,7 @@ PASSED 且版本一致 ──► 可“标记 Ready”并“导出 TXT”</div>
           <tr><td class="id">NFR-02</td><td>金额以加元显示两位小数；日期格式 <code>YYYY-MM-DD</code></td><td>推导</td><td><span class="pri should">应该</span></td></tr>
           <tr><td class="id">NFR-03</td><td>界面语言为英文（面向安大略车行）</td><td>推导</td><td><span class="pri should">应该</span></td></tr>
           <tr><td class="id">NFR-04</td><td>数据库备份策略</td><td>PDF §8</td><td><span class="pri should">应该</span></td></tr>
-          <tr><td class="id">NFR-05</td><td>独立域名部署</td><td>PDF §8</td><td><span class="pri should">应该</span></td></tr>
+          <tr><td class="id">NFR-05</td><td>独立域名部署（当前 Terraform 未配置自定义域名，使用 Azure 默认域名）</td><td>PDF §8</td><td><span class="pri should">应该</span></td></tr>
           <tr><td class="id">NFR-06</td><td>桌面浏览器优先，手机宽度可用</td><td>推导</td><td><span class="pri could">可选</span></td></tr>
           <tr><td class="id">NFR-07</td><td>限流、吞吐 SLO、PIPEDA 数据保留</td><td>SCOPE</td><td><span class="pri wont">不做</span></td></tr>
         </tbody>
@@ -572,22 +572,22 @@ PASSED 且版本一致 ──► 可“标记 Ready”并“导出 TXT”</div>
           <tr><td class="id">UI-11</td><td>管理后台</td><td>新建车行表单（注册名称、电话、邮箱、地址）</td></tr>
           <tr><td class="id">UI-12</td><td>管理后台</td><td>车行员工列表；绑定员工（用户名、显示名、临时密码）；解绑需二次确认</td></tr>
           <tr><td class="id">UI-13</td><td>管理后台</td><td>不出现车辆、客户、广告入口</td></tr>
-          <tr><td class="id">UI-20</td><td>DMS</td><td>列表：年份 品牌 型号、VIN、车况、状态、入库日期；搜索 + 筛选 + 分页</td></tr>
+          <tr><td class="id">UI-20</td><td>DMS</td><td>列表：年份 品牌 型号、VIN、来源、车况、成本（CAD）、入库日期、状态；搜索 + 筛选 + 分页</td></tr>
           <tr><td class="id">UI-21</td><td>DMS</td><td>新增 / 编辑表单：必填项标 <code>*</code>，前端即时校验，服务端错误逐字段显示</td></tr>
           <tr><td class="id">UI-22</td><td>DMS</td><td>详情：全部字段、关联客户、广告检查状态、变更历史</td></tr>
           <tr><td class="id">UI-23</td><td>DMS</td><td>“标记售出”为独立操作，同时录入日期和价格</td></tr>
           <tr><td class="id">UI-24</td><td>DMS</td><td>已售车辆的锁定字段为只读</td></tr>
-          <tr><td class="id">UI-30</td><td>CRM</td><td>列表：姓名、邮箱、电话、已购车辆数；搜索 + 分页</td></tr>
+          <tr><td class="id">UI-30</td><td>CRM</td><td>列表：姓名、邮箱、电话、已关联车辆、已购车辆数；搜索 + “是否已关联”筛选 + 分页</td></tr>
           <tr><td class="id">UI-31</td><td>CRM</td><td>新增 / 编辑表单</td></tr>
           <tr><td class="id">UI-32</td><td>CRM</td><td>详情：基本信息、可点击的已关联车辆、关联 / 解除按钮、变更历史</td></tr>
-          <tr><td class="id">UI-33</td><td>CRM</td><td>关联对话框只列出本车行未关联车辆（在库或已售），可按 VIN / 型号搜索</td></tr>
+          <tr><td class="id">UI-33</td><td>CRM</td><td>关联下拉框（可搜索）只列出本车行未关联车辆（在库或已售），可按 VIN / 型号搜索</td></tr>
           <tr><td class="id">UI-40</td><td>广告合规</td><td>选择车辆 → 编辑标题、正文、类型、媒介；查看检查清单（无额外答题字段）</td></tr>
           <tr><td class="id">UI-41</td><td>广告合规</td><td>显示从 DMS / 车行资料带出的年份、车况、车行名称和联系方式</td></tr>
           <tr><td class="id">UI-42</td><td>广告合规</td><td>“检查”按钮带加载状态（最长 15 秒）</td></tr>
           <tr><td class="id">UI-43</td><td>广告合规</td><td>按规则逐条显示 ✅ / ❌ / ⚠️ 及原因</td></tr>
-          <tr><td class="id">UI-44</td><td>广告合规</td><td>状态徽标：Needs AI / Blocked / AI unavailable / Passed / Stale</td></tr>
+          <tr><td class="id">UI-44</td><td>广告合规</td><td>状态徽标：Needs AI review / Blocked / AI unavailable / Passed / Stale</td></tr>
           <tr><td class="id">UI-45</td><td>广告合规</td><td>Ready 与导出 TXT 按钮仅在已通过且未过期时可用</td></tr>
-          <tr><td class="id">UI-46</td><td>广告合规</td><td>专用免责声明界面延后（AD-14），答辩时说明“通过”不等于法律批准</td></tr>
+          <tr><td class="id">UI-46</td><td>广告合规</td><td>专用免责声明界面延后（AD-14）；结果面板已有一行提示“不构成法律意见/OMVIC 批准”，答辩时说明“通过”不等于法律批准</td></tr>
           <tr><td class="id">UI-50</td><td>AI 助手</td><td>输入框 + 回答区；回答可包含车辆 / 客户卡片链接</td></tr>
           <tr><td class="id">UI-51</td><td>AI 助手</td><td>明确提示助手只读，不会修改数据</td></tr>
         </tbody>
@@ -602,7 +602,7 @@ PASSED 且版本一致 ──► 可“标记 Ready”并“导出 TXT”</div>
         <tbody>
           <tr><td class="id">AT-01</td><td>租户隔离</td><td>车行 A 用户请求车行 B 的车辆 id</td><td>404</td><td>AUTH-07</td></tr>
           <tr><td class="id">AT-02</td><td>车行内共享</td><td>A1 新建车辆，A2 刷新列表</td><td>A2 可见</td><td>AUTH-06</td></tr>
-          <tr><td class="id">AT-03</td><td>管理员无业务数据</td><td>管理员调用车辆接口</td><td>403，无业务字段</td><td>AUTH-08</td></tr>
+          <tr><td class="id">AT-03</td><td>管理员无业务数据</td><td>管理员调用车辆列表接口</td><td>403，无业务字段</td><td>AUTH-08</td></tr>
           <tr><td class="id">AT-04</td><td>移除账号</td><td>管理员解绑 A2 → A2 请求车辆列表</td><td>403</td><td>AUTH-05</td></tr>
           <tr><td class="id">AT-05</td><td>必填校验</td><td>新建车辆不填 VIN</td><td>400，VIN 字段报错</td><td>DMS-01</td></tr>
           <tr><td class="id">AT-06</td><td>VIN 唯一</td><td>同车行重复 VIN</td><td><code>VIN_DUP</code>；他行同 VIN 成功</td><td>DMS-03</td></tr>
@@ -610,24 +610,34 @@ PASSED 且版本一致 ──► 可“标记 Ready”并“导出 TXT”</div>
           <tr><td class="id">AT-08</td><td>售出锁定</td><td>修改已售车辆的采购成本</td><td><code>SOLD_LOCKED</code></td><td>DMS-11</td></tr>
           <tr><td class="id">AT-09</td><td>一车一客户</td><td>客户 1 已关联车辆 X，客户 2 再关联 X</td><td><code>VEHICLE_ALREADY_LINKED</code></td><td>CRM-07</td></tr>
           <tr><td class="id">AT-10</td><td>已售关联锁定</td><td>解除已售车辆的关联</td><td><code>SOLD_LOCKED</code></td><td>CRM-08</td></tr>
-          <tr><td class="id">AT-11</td><td>审计</td><td>编辑车辆</td><td>历史显示用户、UPDATE、时间</td><td>AUD-01</td></tr>
+          <tr><td class="id">AT-11</td><td>审计</td><td>编辑车辆</td><td>历史显示用户、UPDATE、时间</td><td>AUD-01、AUD-03、AUD-06</td></tr>
           <tr><td class="id">AT-12</td><td>缺价格</td><td>CASH 广告不写价格</td><td>BLOCKED <code>PRICE_MISSING</code>，不调 AI</td><td>AD-R07、AD-07</td></tr>
           <tr><td class="id">AT-13</td><td>金融缺 APR</td><td>FINANCE 广告有月供无 APR</td><td>BLOCKED <code>FINANCE_APR_MISSING</code></td><td>AD-R10</td></tr>
           <tr><td class="id">AT-14</td><td>广播豁免</td><td>FINANCE + RADIO_TV_BILLBOARD，有价格/APR、缺期限、APR 远离价格；再删掉 APR</td><td>第一次无位置提示、缺期限仅 REVIEW；第二次 BLOCKED <code>FINANCE_APR_MISSING</code></td><td>AD-R10–R14</td></tr>
-          <tr><td class="id">AT-15</td><td>租赁 20,000 km 边界</td><td>文案写 20,000 km/年，不写超里程费</td><td>不要求 R25；改为 19,999 时要求</td><td>AD-R25</td></tr>
-          <tr><td class="id">AT-16</td><td>车况不符</td><td>DMS 为 AS_IS，广告写 Certified</td><td><code>CONDITION_MISMATCH</code></td><td>AD-R08</td></tr>
-          <tr><td class="id">AT-17</td><td>真实 AI 通过</td><td>完全合规的广告</td><td>PASSED；Ready 与 TXT 导出可用</td><td>AD-08、AD-12</td></tr>
-          <tr><td class="id">AT-18</td><td>AI 不可用</td><td>AI 服务停止时检查</td><td>AI_UNAVAILABLE；Ready 返回 <code>NOT_PASSED</code></td><td>AD-09</td></tr>
+          <tr><td class="id">AT-15</td><td>租赁 20,000 km 边界</td><td>其余租赁项齐全，文案写 20,000 km/年，不写超里程费</td><td>无 <code>LEASE_EXCESS_KM_MISSING</code>；改为 19,999 时 BLOCKED <code>LEASE_EXCESS_KM_MISSING</code></td><td>AD-R25</td></tr>
+          <tr><td class="id">AT-16</td><td>车况不符</td><td>DMS 为 AS_IS，广告写 Certified</td><td>BLOCKED <code>CONDITION_MISMATCH</code>，不调 AI</td><td>AD-R08</td></tr>
+          <tr><td class="id">AT-17</td><td>真实 AI 通过</td><td>完全合规的广告</td><td>PASSED；Ready 与 TXT 导出可用</td><td>AI-01、AD-08、AD-12</td></tr>
+          <tr><td class="id">AT-18</td><td>AI 不可用</td><td>硬性项全部合规的广告，在 AI 服务停止时检查</td><td>检查返回 502 <code>AI_UNAVAILABLE</code>，状态为 AI_UNAVAILABLE；Ready / 导出返回 <code>NOT_PASSED</code></td><td>AD-09、AI-02</td></tr>
           <tr><td class="id">AT-19</td><td>过期</td><td>通过后修改正文中的价格</td><td>STALE；导出返回 <code>CHECK_STALE</code></td><td>AD-11</td></tr>
           <tr><td class="id">AT-20</td><td>TXT 内容</td><td>导出文件</td><td>含车行与车辆公开信息；无客户和成本</td><td>AD-13</td></tr>
           <tr><td class="id">AT-21</td><td>助手只读</td><td>提问“把车辆 X 标记为已售”</td><td>拒绝；数据库不变</td><td>AI-03</td></tr>
           <tr><td class="id">AT-22</td><td>助手隐私</td><td>询问某客户电话</td><td>不返回电话</td><td>AI-04</td></tr>
-          <tr><td class="id">AT-23</td><td>网关</td><td>浏览器直接访问 core 端口</td><td>失败</td><td>ARC-03</td></tr>
-          <tr><td class="id">AT-24</td><td>CASH 含月供触发金融规则</td><td>CASH 文案含 “$299 per month” 且无 APR</td><td>BLOCKED <code>FINANCE_APR_MISSING</code>，跳过 AI</td><td>AD-04</td></tr>
+          <tr><td class="id">AT-23</td><td>网关</td><td>浏览器直接访问 core（8081）或 ai-service（8082）端口</td><td>失败</td><td>ARC-03</td></tr>
+          <tr><td class="id">AT-24</td><td>CASH 含月供触发金融规则</td><td>CASH 文案含 “$299 per month” 且无 APR；再补上 APR 重新检查</td><td>第一次 BLOCKED <code>FINANCE_APR_MISSING</code>，跳过 AI；补 APR 后仅有金融 REVIEW 提示</td><td>AD-04、AD-R10–R12</td></tr>
           <tr><td class="id">AT-25</td><td>先售出后关联</td><td>售出未关联车辆 → 关联客户 → 再次关联 / 解除</td><td>首次成功；再关联 <code>VEHICLE_ALREADY_LINKED</code>；解除 <code>SOLD_LOCKED</code></td><td>CRM-05–08</td></tr>
-          <tr><td class="id">AT-26</td><td>CRM 必填与编辑</td><td>逐个留空四个必填字段；再新建、编辑、重新打开</td><td>空值被拒；新建/编辑持久化；历史不含联系方式的值</td><td>CRM-01/02/11/12</td></tr>
-          <tr><td class="id">AT-27</td><td>提示项不否决</td><td>硬性项合规但缺年份和金融期限，AI 正常返回</td><td>PASSED；保存 REVIEW 结果与 AI 意见；Ready/导出成功</td><td>AD-03/08/12</td></tr>
+          <tr><td class="id">AT-26</td><td>CRM 必填与编辑</td><td>逐个留空四个必填字段；再新建、编辑、重新打开</td><td>空值被拒；新建/编辑持久化；历史不含联系方式的值</td><td>CRM-01/02/04/11/12、AUD-04</td></tr>
+          <tr><td class="id">AT-27</td><td>提示项不否决</td><td>硬性项合规但缺年份和金融期限，AI 正常返回</td><td>PASSED；保存 REVIEW 结果与 AI 意见；Ready/导出成功</td><td>AD-03/08/10/12、AD-R05、AD-R12</td></tr>
           <tr><td class="id">AT-28</td><td>清单仅展示</td><td>切换 CASH / FINANCE / LEASE 和媒介</td><td>清单随选择变化；无答题字段或必勾项</td><td>AD-02、UI-40</td></tr>
+          <tr><td class="id">AT-29</td><td>开通车行与员工</td><td>管理员新建车行（四项资料）并绑定员工；车行用户调用管理接口；再用同一用户名绑定第二个车行</td><td>车行与员工创建成功；车行用户调用管理接口 403；重复绑定 409 <code>DUP_MEMBER</code></td><td>AUTH-02/03/10/14</td></tr>
+          <tr><td class="id">AT-30</td><td>登录与跳转</td><td>未登录打开 /dms；管理员、已绑定员工、未绑定员工分别登录</td><td>未登录跳到 /login；管理员到 /admin；员工到 /dms；未绑定员工看到无权限提示，业务接口 403</td><td>AUTH-13、UI-02/03/04</td></tr>
+          <tr><td class="id">AT-31</td><td>忽略客户端 dealerId</td><td>车行 A 用户新建车辆时在请求体中带车行 B 的 dealerId</td><td>车辆归属车行 A；车行 B 不可见</td><td>AUTH-09</td></tr>
+          <tr><td class="id">AT-32</td><td>VIN 与年份校验</td><td>VIN 输入小写、16 位、含 I/O/Q；年份填当前年份 +1 与 +2</td><td>小写自动转大写；格式错误 400；+1 成功，+2 拒绝</td><td>DMS-04、§4.4</td></tr>
+          <tr><td class="id">AT-33</td><td>再次售出与并发</td><td>对已售车辆再次售出；两个窗口用同一 version 先后保存</td><td>再次售出 409 <code>SOLD_LOCKED</code>；后保存者 409 <code>VERSION_CONFLICT</code></td><td>DMS-12、DMS-13</td></tr>
+          <tr><td class="id">AT-34</td><td>车况变更使通过失效</td><td>广告 PASSED 后在 DMS 修改该车车况</td><td>广告状态变为 STALE；导出返回 <code>CHECK_STALE</code></td><td>DMS-15、AD-11</td></tr>
+          <tr><td class="id">AT-35</td><td>未通过时修改回到 NEEDS_AI</td><td>广告 BLOCKED 后修改正文</td><td>状态回到 NEEDS_AI（不是 STALE）</td><td>AD-11、§6.5</td></tr>
+          <tr><td class="id">AT-36</td><td>关联选择与他行 id</td><td>打开关联下拉框；通过接口用他行车辆 id 关联</td><td>下拉框不含他行或已关联车辆；他行 id 返回 404</td><td>CRM-06、CRM-09</td></tr>
+          <tr><td class="id">AT-37</td><td>车行资料与车况拦截</td><td>车行资料缺电话和邮箱；DMS 为 UNFIT 而广告未写车况；LEASE 广告未声明租赁、无 APR</td><td>分别得到 <code>DEALER_CONTACT_INCOMPLETE</code>（REVIEW）、BLOCKED <code>CONDITION_UNDISCLOSED</code>、BLOCKED <code>LEASE_STATEMENT_MISSING</code> + <code>LEASE_APR_MISSING</code></td><td>AD-R02、AD-R08、AD-R20、AD-R23</td></tr>
+          <tr><td class="id">AT-38</td><td>管理员不可读业务数据</td><td>管理员调用车辆、客户、广告、助手的列表与详情接口</td><td>全部 403，无业务字段</td><td>AUTH-08、ARC-03</td></tr>
         </tbody>
       </table></div>
     </section>
@@ -654,19 +664,19 @@ PASSED 且版本一致 ──► 可“标记 Ready”并“导出 TXT”</div>
         <thead><tr><th>编号</th><th>问题</th><th>假设</th><th>影响</th></tr></thead>
         <tbody>
           <tr><td class="id">Q-01</td><td>车辆来源的“等”还包括什么？</td><td>固定四个值：置换、拍卖、私人收购、其他</td><td>DMS-05</td></tr>
-          <tr><td class="id">Q-02</td><td>年份与 VIN 格式？</td><td>年份 1900 至当前 + 1；VIN 标准 17 位</td><td>DMS-04</td></tr>
+          <tr><td class="id">Q-02</td><td>年份与 VIN 格式？</td><td>年份 1900 至当前 + 1；VIN 标准 17 位</td><td>DMS-01（年份字段 §4.1、§4.4）、DMS-04</td></tr>
           <tr><td class="id">Q-03</td><td>“已购车辆”是否必填？</td><td>可选，客户可在购车前录入</td><td>CRM-01</td></tr>
           <tr><td class="id">Q-04</td><td>CRM 关联是否同时完成 DMS 售出？</td><td>否，两步操作，售出在 DMS 录入</td><td>CRM-05、DMS-10</td></tr>
-          <tr><td class="id">Q-05</td><td>能否撤销售出（退车）？</td><td>本版本不支持</td><td>DMS-12</td></tr>
+          <tr><td class="id">Q-05</td><td>能否撤销售出（退车）？</td><td>本版本不支持</td><td>§4.2、DMS-11、CRM-08（DMS-12 为禁止再次售出，非退车）</td></tr>
           <tr><td class="id">Q-06</td><td>能否删除车辆或客户？</td><td>不能（保护审计和销售记录）</td><td>DMS-17、CRM-14</td></tr>
           <tr><td class="id">Q-07</td><td>广告“价格”与 DMS 的关系？DMS 无标价字段</td><td>只在广告正文中检查价格，不增加 DMS 字段</td><td>AD-R07</td></tr>
           <tr><td class="id">Q-08</td><td>新/旧状态从哪里来？</td><td>在广告正文中检查；独立车行默认二手</td><td>AD-R04</td></tr>
           <tr><td class="id">Q-09</td><td>谁判断既往用途 / 保修“是否适用”？</td><td>不收集结构化答案；文案中的线索产生提示；文案完全不提则无法推断</td><td>AD-R03、AD-R06</td></tr>
           <tr><td class="id">Q-10</td><td>恰好 20,000 km/年是否需要披露超里程费？</td><td>不需要（来源写的是“低于 20,000”）</td><td>AD-R25</td></tr>
-          <tr><td class="id">Q-11</td><td>金融广告按类型还是内容触发？</td><td>FINANCE 类型，或 CASH 文案匹配 APR/月供</td><td>AD-R10–R13</td></tr>
+          <tr><td class="id">Q-11</td><td>金融广告按类型还是内容触发？</td><td>FINANCE 类型，或 CASH 文案匹配 APR/付款额</td><td>AD-04、AD-R10–R13</td></tr>
           <tr><td class="id">Q-12</td><td>一辆车能否有多条广告？</td><td>一车一广告</td><td>AD-01</td></tr>
           <tr><td class="id">Q-13</td><td>审计是否记录查看操作？</td><td>只记录修改</td><td>AUD-01–03</td></tr>
-          <tr><td class="id">Q-14</td><td>是否只有一个管理员？</td><td>允许多个管理员账号，同一角色</td><td>AUTH-01</td></tr>
+          <tr><td class="id">Q-14</td><td>是否只有一个管理员？</td><td>只有一个管理员，首次启动时由环境变量初始化，无创建管理员的接口</td><td>AUTH-01、AUTH-15</td></tr>
           <tr><td class="id">Q-15</td><td>“无需改代码即可更新规则”做到什么程度？</td><td>本版本不做，规则写在 <code>OmvicRuleEngine</code> 代码中</td><td>AD-15</td></tr>
         </tbody>
       </table></div>
@@ -696,7 +706,8 @@ PASSED 且版本一致 ──► 可“标记 Ready”并“导出 TXT”</div>
     <section id="changes">
       <h2><span class="num">12</span>需求变更记录</h2>
       <div class="note change"><strong>2026-09-30 登录方式确定：</strong>按规格说明书要求，平台管理员为每位员工下发用户名和临时密码，服务端 BCrypt 哈希存储并签发 JWT。不依赖任何外部身份服务或 Microsoft 账号。其他课程硬性要求（四个应用、Gateway、云部署、真实 AI、Scrum 看板）不变。</div>
-      <div class="note change"><strong>2026-10-07 身份数据模型调整：</strong>数据库中旧的身份列改为纯用户名：<code>app_user.username</code>（唯一）、<code>membership.username</code>、<code>audit_event.actor_username</code>，删除租户 id 列。接口字段同步改为 <code>username</code> / <code>actorUsername</code>，JWT 只携带 <code>sub</code>（用户名）、<code>name</code>、<code>roles</code>。</div>
+      <div class="note change"><strong>2026-10-07 身份数据模型调整：</strong>重写 <code>V1__init.sql</code>（及 <code>V20260930_1</code>），身份列直接定义为用户名：<code>app_user.username</code>（唯一）、<code>membership.username</code>、<code>audit_event.actor_username</code>，原 Entra 的 <code>entra_tenant_id</code> / <code>entra_oid</code> / <code>actor_oid</code> 列不再存在；此前已建库需按 <code>design/15-Data-Auth-and-Gateway.md</code> §8.3 修复 Flyway 历史。接口字段同步改为 <code>username</code> / <code>actorUsername</code>。JWT 除标准声明（<code>iss</code>、<code>aud</code>、<code>iat</code>、<code>exp</code>）外只携带 <code>sub</code>（用户名）、<code>name</code>、<code>roles</code>，不含 oid / tid。</div>
+      <div class="note change"><strong>2026-10-07 部署方式调整：</strong>放弃容器化（无 Dockerfile、镜像仓库或容器宿主），三个 Java 服务以 JAR 部署到 Azure App Service，前端部署到 Azure Static Web Apps，基础设施即代码使用 Terraform。仅放弃 PPT 的 NN-05，尚待讲师确认（勘误 5）。</div>
       <div class="tbl"><table>
         <thead><tr><th>勘误</th><th>内容</th></tr></thead>
         <tbody>

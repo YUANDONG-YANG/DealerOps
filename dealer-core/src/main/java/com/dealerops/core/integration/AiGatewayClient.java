@@ -1,6 +1,7 @@
 package com.dealerops.core.integration;
 
 import com.dealerops.core.compliance.dto.AiNote;
+import com.dealerops.core.config.RequestLoggingFilter;
 import com.dealerops.core.integration.dto.AdCheckInternalRequest;
 import com.dealerops.core.integration.dto.AssistantInternalRequest;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -8,8 +9,11 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.stereotype.Component;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 
@@ -51,6 +55,7 @@ public class AiGatewayClient {
       return webClient
           .post()
           .uri(path)
+          .headers(AiGatewayClient::forwardRequestId)
           .bodyValue(body)
           .retrieve()
           .onStatus(HttpStatusCode::isError, response -> response.createException())
@@ -61,6 +66,16 @@ public class AiGatewayClient {
       throw new AiCallFailed("AI call failed.", ex);
     } catch (RuntimeException ex) {
       throw new AiCallFailed("AI call failed.", ex);
+    }
+  }
+
+  /** Carries the gateway request ID to ai-service so both log lines correlate (design/20 §2). */
+  private static void forwardRequestId(HttpHeaders headers) {
+    if (RequestContextHolder.getRequestAttributes() instanceof ServletRequestAttributes attrs) {
+      String requestId = attrs.getRequest().getHeader(RequestLoggingFilter.REQUEST_ID);
+      if (requestId != null && !requestId.isBlank()) {
+        headers.set(RequestLoggingFilter.REQUEST_ID, requestId);
+      }
     }
   }
 

@@ -72,7 +72,17 @@ The gateway obtains `user` from the authenticated JWT principal; unauthenticated
 internal downstream calls are recorded as `anonymous`. JSON request bodies and query values
 are included for local debugging, while passwords, tokens, authorization values, secrets, and
 cookies are replaced with `[REDACTED]`. The request ID is forwarded across gateway hops so
-the external gateway line can be correlated with the internal AI-service line.
+the external gateway line can be correlated with the internal AI-service line. Core calls
+ai-service directly (`AI_BASE_URL`, see [18-Backend-Core-Engineering.md](18-Backend-Core-Engineering.md)),
+so `AiGatewayClient` copies the incoming `X-Request-ID` onto each `/internal/v1/**` call; the
+gateway, core, and ai-service lines for one browser request share one `requestId`.
+
+`ai-service` keeps its defaults in `application.yml`, not `application.yaml`. The `aimanager`
+dependency jar ships its own classpath `application.yml` (application name `ai-gateway`,
+default profile `full`). A same-named file in `ai-service` shadows it; with an `application.yaml`
+name, Spring loads the library file too and its `spring.application.name` wins, which writes the
+log as `ai-gateway-<date>.log`. The `ai-service` build also excludes the local, Git-ignored key
+notes (`ai-key.md`, `api-key.md`) from the jar.
 
 ## 3. Local tracing (SkyWalking) — scope note
 

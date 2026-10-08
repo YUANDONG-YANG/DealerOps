@@ -61,6 +61,16 @@
   </dependencies>
 
   <build>
+    <resources>
+      <resource>
+        <directory>src/main/resources</directory>
+        <!-- Local, Git-ignored key notes must never be packaged into the jar. -->
+        <excludes>
+          <exclude>ai-key.md</exclude>
+          <exclude>api-key.md</exclude>
+        </excludes>
+      </resource>
+    </resources>
     <plugins>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>

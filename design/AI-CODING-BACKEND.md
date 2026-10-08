@@ -301,7 +301,7 @@ dealerops:
 - Repo: ai-service
 - Create/change files:
   - `ai-service/src/main/java/ca/sait/dealerops/aiservice/AiServiceApplication.java`
-  - `ai-service/src/main/resources/application.yaml`
+  - `ai-service/src/main/resources/application.yml`
   - `ai-service/src/main/java/ca/sait/dealerops/aiservice/config/AiTimeoutConfig.java`
   - `ai-service/src/main/java/ca/sait/dealerops/aiservice/config/InternalGuardFilter.java`
 - Must include:
@@ -359,7 +359,7 @@ When the adapter calls the model, wrap again with `java.util.concurrent.Completa
 - Ban: scanning `com.gateway` or library web packages other than `com.manager`; starting `AIApplication`; exposing `/api/ai/request` `/chat` `/credentials` `/runtime`; configuring `5173` CORS; connecting a database; Flyway.
 - Acceptance:
   1. `rg "scanBasePackages" ai-service/src/main/java` does not contain `com.gateway`.
-  2. `rg "timeout-ms: 15000" ai-service/src/main/resources/application.yaml`.
+  2. `rg "timeout-ms: 15000" ai-service/src/main/resources/application.yml`.
   3. `rg "orTimeout|timeout-ms|responseTimeout" ai-service/src/main/java` has 15000 or `timeoutMs`.
   4. After start `curl -s -o NUL -w "%{http_code}" http://127.0.0.1:8082/internal/v1/ad-check` → `404`.
   5. `rg "localhost:5173" ai-service` none.

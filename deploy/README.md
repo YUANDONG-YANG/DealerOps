@@ -62,22 +62,31 @@ Install on the operator machine:
 | JDK + Maven | Java 21 |
 | Node + npm | Node 20 |
 
+On macOS, Homebrew installs both CLIs. Terraform was pulled from `homebrew-core` in 2023 over the BSL license change, so it comes from HashiCorp's own tap, not `brew install terraform`:
+
+```text
+brew install azure-cli
+brew tap hashicorp/tap
+brew install hashicorp/tap/terraform
+```
+
 ```text
 az login
 az account set --subscription "<subscription id>"
 az account show --query "{name:name, id:id}" -o table
 ```
 
+`az login` opens a browser on the operator's own machine. On a remote shell, an agent session, or anywhere a browser cannot pop up, use the device-code flow instead: it prints a URL and a one-time code, and the command keeps polling until that code is entered in any browser (phone included):
+
+```text
+az login --use-device-code
+```
+
 The Azure for Students subscription keeps its spending limit on, so the subscription stops rather than billing when the credit runs out.
 
 ## 4. Apply the infrastructure
 
-```text
-cd deploy/terraform
-cp terraform.tfvars.example terraform.tfvars
-```
-
-Fill `terraform.tfvars`. It is git-ignored; the secret values stay on the operator machine. The required ones:
+`terraform.tfvars` is git-ignored; the secret values stay on the operator machine. The required and optional variables:
 
 | Variable | Rule |
 |---|---|
@@ -88,11 +97,36 @@ Fill `terraform.tfvars`. It is git-ignored; the secret values stay on the operat
 | `aimanager_api_key` | Optional. Empty deploys `ai-service` with no model key |
 | `operator_ip_addresses` | Optional. Public IPv4 addresses that may reach MySQL directly |
 
-Generate the two shared secrets instead of inventing them:
+Generate the secrets instead of inventing them, and write the whole file in one pass. Writing it with a single heredoc, rather than `cp`-ing the example and appending to it, avoids defining the same variable twice (Terraform rejects a `.tfvars` file that assigns one name more than once):
 
 ```text
-openssl rand -base64 48
+cd deploy/terraform
+
+MYSQL_PW=$(openssl rand -base64 32 | tr -dc 'A-Za-z0-9' | cut -c1-24)
+INTERNAL_TOKEN=$(openssl rand -base64 48 | tr -dc 'A-Za-z0-9' | cut -c1-40)
+JWT_SECRET=$(openssl rand -base64 48)
+ADMIN_PW=$(openssl rand -base64 32 | tr -dc 'A-Za-z0-9' | cut -c1-16)
+MY_IP=$(curl -s https://api.ipify.org)
+
+cat > terraform.tfvars <<EOF
+location                = "canadacentral"
+static_web_app_location = "eastus2"
+prefix                  = "dealerops"
+name_suffix             = ""
+service_plan_sku        = "B2"
+operator_ip_addresses   = ["${MY_IP}"]
+
+mysql_admin_password = "${MYSQL_PW}"
+internal_token        = "${INTERNAL_TOKEN}"
+jwt_signing_secret    = "${JWT_SECRET}"
+aimanager_api_key     = ""
+
+admin_username = "admin"
+admin_password = "${ADMIN_PW}"
+EOF
 ```
+
+`tr -dc 'A-Za-z0-9'` strips punctuation that can otherwise break a JDBC connection string or a shell-quoted value. `aimanager_api_key` empty is a valid choice: it deploys `ai-service` without a model key, so the assistant and ad-check endpoints answer with the documented failure codes instead of a model reply ([09-AI-Agent-Integration.md](../design/09-AI-Agent-Integration.md)) until a real key is added and `terraform apply` runs again. Write down `admin_username` / `admin_password` before moving on — section 6 needs them to sign in, and nothing echoes them back later.
 
 Then:
 

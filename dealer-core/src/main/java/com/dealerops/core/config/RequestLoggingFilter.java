@@ -19,7 +19,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 public class RequestLoggingFilter extends OncePerRequestFilter {
 
   private static final Logger log = LoggerFactory.getLogger(RequestLoggingFilter.class);
-  private static final String REQUEST_ID = "X-Request-ID";
+  public static final String REQUEST_ID = "X-Request-ID";
 
   @Override
   protected void doFilterInternal(
