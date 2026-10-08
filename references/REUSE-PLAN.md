@@ -25,7 +25,7 @@ Most useful paths:
 Do not take these as-is:
 
 - PostgreSQL dialect, driver, and schema must become MySQL 8.4.
-- Home-grown email/password/JWT `AuthController`, `JwtAuthenticationFilter`, and `SecurityConfig` must not be copied. Use Entra JWT validation and local membership.
+- Home-grown email/password/JWT `AuthController`, `JwtAuthenticationFilter`, and `SecurityConfig` must not be copied. Auth follows `design/15-Data-Auth-and-Gateway.md` §8.
 - Do not port the React/Ant Design frontend. This project requires Vue 3 + Element Plus.
 - Do not port `booking`, `invoice`, `seller`, `buyer`, password reset, email verification, Cloudinary, Marketplace, or other out-of-scope modules.
 - The README claims production-ready, but the current history has few commits. Compile and test item by item before copying. Do not treat the README as acceptance evidence.
@@ -52,7 +52,7 @@ License note: `composer.json` marks MIT, but the repo root has no separately rev
 
 ## Requirement-to-reuse mapping
 
-- Dealer / membership / app_user: prefer the current `dealer-core` `V1__init.sql`. Use Carventory Company/User layering as a reading aid. Must become Entra OID. Do not store passwords.
+- Dealer / membership / app_user: prefer the current `dealer-core` `V1__init.sql`. Use Carventory Company/User layering as a reading aid. Identity is username + salted password hash per `design/15-Data-Auth-and-Gateway.md` §8.
 - Vehicle: current SQL already has most required fields. Use Carventory Car DTO, filters, and service methods as a reading aid. v6 fields do not fully match older SQL. Lock fields before coding. Do not add mileage, color, or extra price fields on your own.
 - Customer: use the four required fields in the current SQL. Use Carventory Buyer/Customer DTOs as a reading aid. Do not copy ID-document or other sensitive fields.
 - Customer-vehicle: keep the unique constraint that one vehicle links to at most one customer. In the service layer, verify customer and vehicle belong to the same dealer.

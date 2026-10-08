@@ -23,9 +23,9 @@ Adaptation notes for the local reference copies: [REUSE-PLAN.md](REUSE-PLAN.md).
 
 ## How to use this while coding
 
-- Stack is fixed: **Java + Vue 3 + Element Plus + Entra**. Four app repos: `dealer-web`, `dealer-gateway`, `dealer-core`, `ai-service` (the platform repo also stores Bicep/Compose). Do not treat any dealership course repo as the base.
-- Pages are only: **Login, Admin, DMS, CRM, Ad compliance, Assistant**. No buyer site. No KPI home page.
-- GitHub course projects: copy **interaction rhythm** only (tables, filters, drawers, confirms). Fields, state machines, isolation, Entra, and compliance follow the design docs.
+- Stack is fixed: **Java + Vue 3 + Element Plus**, username/password login per `design/15-Data-Auth-and-Gateway.md` §8. Four app repos: `dealer-web`, `dealer-gateway`, `dealer-core`, `ai-service` (the platform repo also stores Bicep/Compose). Do not treat any dealership course repo as the base.
+- Pages are only: **Login, Admin, DMS, CRM, Ad compliance**, plus a floating Assistant widget on staff pages (see `design/AI-CODING-FRONTEND.md` FE-T10). No buyer site. No KPI home page.
+- GitHub course projects: copy **interaction rhythm** only (tables, filters, drawers, confirms). Fields, state machines, isolation, auth, and compliance follow the design docs.
 - If this directory still has cloned source (for example `carventory/`), open it locally to inspect interaction only. Do not wire it into Compose. Do not use it as scaffolding.
 
 ## One-line conclusion

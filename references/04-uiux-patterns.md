@@ -1,15 +1,15 @@
 # Frontend interaction you may copy (condensed from 12)
 
 Authoritative source: `design/12-Frontend-UI-Conventions.md` (v6.1). **Do not invent new pages.**  
-This course has only: **Login, Admin, DMS, CRM, Ad compliance, Assistant**.
+This course has only: **Login, Admin, DMS, CRM, Ad compliance, plus a floating Assistant widget on staff pages** (`design/AI-CODING-FRONTEND.md` FE-T10).
 
 Stack: Vue 3 + **Element Plus**, English UI. Fields follow `design/00-Current-Development-Design.md` only.
 
 ## Global
 
-- **Login**: centered single card, no sidebar. One `Sign in with Microsoft` (Entra). No username/password.
+- **Login**: centered single card, no sidebar. Username + password + `Sign in` (`design/15-Data-Auth-and-Gateway.md` §8).
 - **Other pages**: left menu + top bar (dealership name or `Platform Admin`, role, `Sign out`).
-- Admin sees Admin only. Staff see DMS / CRM / Ad compliance / Assistant only. Block unauthorized routes.
+- Admin sees Admin only. Staff see DMS / CRM / Ad compliance only, plus the floating Assistant button. Block unauthorized routes.
 - Post-login landing: admin → Admin; staff → DMS. **No KPI home page.**
 - Primary actions at top right. Sell / unlink need a second confirm.
 - Every page needs loading, empty, and error states. Failures must not look like an empty table. AI failure must not show Pass.
@@ -18,13 +18,13 @@ Stack: Vue 3 + **Element Plus**, English UI. Fields follow `design/00-Current-De
 
 ### Login
 
-Centered card + Microsoft button. No sidebar, no register, no forgot-password.
+Centered card with username, password and `Sign in`. No sidebar, no register, no forgot-password.
 
 ### Admin
 
 - Dealership columns: Name, Contact, Staff count, Actions
-- Member columns: Entra ID / email, Dealership, Status, Actions
-- Filters: dealership name / staff email (one row: search + dropdown + Search + Reset)
+- Member columns: Username, Dealership, Status, Actions
+- Filters: dealership name / username (one row: search + dropdown + Search + Reset)
 
 Density reference: hyundai_dms Dealers.
 
@@ -54,9 +54,10 @@ No leads / work orders / test-drive funnel.
 
 No GitHub listing checker to copy. Rules: [02-omvic.md](02-omvic.md).
 
-### Assistant
+### Assistant (floating widget)
 
-- One question, one answer, plus at most 5 dealership resource cards that open normal pages (DMS/CRM/Ad)
+- Bottom-right robot button on every staff page opens a chat panel; no route, no menu item
+- Each answer has a summary plus at most 5 dealership resource cards that open normal pages (DMS/CRM/Ad)
 - Cards must not show phone / email / home address
 - If the model is down, still show the retrieval list and the text `Smart summary unavailable`
 
@@ -78,4 +79,4 @@ No GitHub listing checker to copy. Rules: [02-omvic.md](02-omvic.md).
 
 ## Do not copy into the UI
 
-Buyer site, KPI/chart wall, leads/test-drive/work orders, home-grown password login, dark glassmorphism, generic CRUD generators.
+Buyer site, KPI/chart wall, leads/test-drive/work orders, self-registration or password reset, dark glassmorphism, generic CRUD generators.

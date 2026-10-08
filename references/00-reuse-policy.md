@@ -2,7 +2,7 @@
 
 ## Conclusion
 
-The web has many dealership / DMS / CRM course projects. Against this course (Java + Vue 3 + Element Plus + Entra, four repos, six pages): **none of them can be a whole-repo base**.  
+The web has many dealership / DMS / CRM course projects. Against this course (Java + Vue 3 + Element Plus, admin-issued username/password, four repos, five pages + assistant widget): **none of them can be a whole-repo base**.  
 You may compare page rhythm. Do not pull someone else's domain model, login, buyer site, or scaffold into this course's repos.
 
 ## Course boundary (coding must not expand this)
@@ -10,10 +10,10 @@ You may compare page rhythm. Do not pull someone else's domain model, login, buy
 | Item | This course |
 |----|------|
 | Repos | `dealer-web` / `dealer-gateway` / `dealer-core` / `ai-service` (plus the platform repo) |
-| Frontend | Vue 3 + Element Plus + MSAL.js; English UI |
-| Identity | Entra JWT + local membership; **no home-grown password login** |
+| Frontend | Vue 3 + Element Plus; English UI |
+| Identity | Admin-issued username/password; `dealer-core` signs the JWT (`design/15-Data-Auth-and-Gateway.md` §8) |
 | Roles | `Platform.Admin`, `Dealer.User` |
-| Pages | Login, Admin, DMS, CRM, Ad compliance, Assistant |
+| Pages | Login, Admin, DMS, CRM, Ad compliance, plus a floating Assistant widget on staff pages |
 | AI | In-process reuse of the private `ai-manager` JAR; see [03-ai-manager.md](03-ai-manager.md) |
 | Compliance | Write our own fixed rules + AI review; OMVIC **has no ready-made checker to copy**; see [02-omvic.md](02-omvic.md) |
 
@@ -30,7 +30,7 @@ You may compare page rhythm. Do not pull someone else's domain model, login, buy
 - **Buyer site / marketplace / public storefront**
 - **KPI / chart wall / dashboard home**
 - **Leads, funnels, test drives, work orders, service tickets**
-- **Home-grown username/password, local JWT, email verification, password reset**
+- **Self-registration, email verification, password reset**; any login flow other than `design/15-Data-Auth-and-Gateway.md` §8
 - **Dark glassmorphism** and flashy dark dashboard skins
 - Whole-repo forks, generic CRUD generators, Odoo modules, C++ consoles, MERN packs unrelated to this stack
 - Copying a reference project's `com.gateway` / buyer APIs / password filters into this course

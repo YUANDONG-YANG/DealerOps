@@ -35,4 +35,4 @@ If `carventory/` is already cloned locally: open the staff console only to inspe
 4. Official Element Plus Table / Drawer / Result / Empty
 5. Watch the MEVN-MyCar video only if you need motion reference
 
-Then **rewrite** the six pages with Element Plus. Do not port JSX/React/Laravel.
+Then **rewrite** the five pages and the assistant widget with Element Plus. Do not port JSX/React/Laravel.
