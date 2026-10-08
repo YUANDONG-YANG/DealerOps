@@ -183,7 +183,7 @@ This is the standard path for a new developer. IntelliJ IDEA runs the three Java
    mvn spring-boot:run
    ```
 
-3. **ai-service** — install the pinned `ai-manager` JAR from the sibling checkout first, then configure `AI_PORT=8082`, `SERVER_ADDRESS=127.0.0.1`, `SPRING_PROFILES_ACTIVE=dev`, `INTERNAL_TOKEN=dealer-internal`, `AIMANAGER_API_KEY`, `AIMANAGER_GATEWAY_PROVIDER=xai`, and `AIMANAGER_GATEWAY_MODEL=grok-3-mini`. Run the normal Maven build and start it after core configuration is ready; wait for `http://127.0.0.1:8082/actuator/health` to return 200.
+3. **ai-service** — install the pinned `ai-manager` JAR from the sibling checkout first, then configure `AI_PORT=8082`, `SERVER_ADDRESS=127.0.0.1`, `SPRING_PROFILES_ACTIVE=dev`, `INTERNAL_TOKEN=dealer-internal`, `AIMANAGER_API_KEY`, `AIMANAGER_GATEWAY_PROVIDER=groq`, and `AIMANAGER_GATEWAY_MODEL=qwen/qwen3.8-27b`. Run the normal Maven build and start it after core configuration is ready; wait for `http://127.0.0.1:8082/actuator/health` to return 200.
 
    ```text
    cd ai-service
