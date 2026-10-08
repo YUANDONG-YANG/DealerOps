@@ -7,6 +7,7 @@ import FormDrawer from '../components/FormDrawer.vue'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 import PageState from '../components/PageState.vue'
 import PendingAccounts from '../components/PendingAccounts.vue'
+import PhoneInput from '../components/PhoneInput.vue'
 import { adminApi, adminErrorCode, adminErrorStatus, type Dealer, type Member } from '../api/admin'
 import { apiError, fieldErrorsOf } from '../api/http'
 
@@ -560,8 +561,8 @@ onMounted(loadDealers)
         <el-form-item label="Login email" :error="memberErrors.email">
           <el-input v-model="member.email" type="email" autocomplete="email" />
         </el-form-item>
-        <el-form-item label="Login phone with country code (email, phone, or both)" :error="memberErrors.phone">
-          <el-input v-model="member.phone" type="tel" autocomplete="tel" />
+        <el-form-item label="Login phone (email, phone, or both)" :error="memberErrors.phone">
+          <PhoneInput v-model="member.phone" />
         </el-form-item>
         <el-button type="primary" :loading="binding" @click="bind">Bind staff</el-button>
       </el-form>

@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import type { FormInstance, FormItemRule, FormRules } from 'element-plus'
 import { apiError, fieldErrorsOf } from '../api/http'
 import { register } from '../auth/login'
+import PhoneInput from '../components/PhoneInput.vue'
 
 type Field = 'username' | 'displayName' | 'email' | 'phone' | 'password'
 
@@ -46,7 +47,7 @@ const rules: FormRules = {
     { validator: emailOrPhone, trigger: 'blur' },
     {
       validator: (_r, v: string, cb) =>
-        cb(v.trim() && !PHONE.test(v.trim().replace(/[\s().-]/g, '')) ? new Error('Enter a valid phone number with country code, for example +1 403 555 0142.') : undefined),
+        cb(v.trim() && !PHONE.test(v.trim().replace(/[\s().-]/g, '')) ? new Error('Enter a valid phone number for the selected country.') : undefined),
       trigger: 'blur',
     },
   ],
@@ -100,7 +101,7 @@ async function submit() {
           <el-input v-model="form.email" type="email" placeholder="Email" autocomplete="email" @blur="formRef?.validateField('phone').catch(() => {})" />
         </el-form-item>
         <el-form-item prop="phone" :error="serverErrors.phone">
-          <el-input v-model="form.phone" type="tel" placeholder="Phone with country code (email, phone, or both)" autocomplete="tel" @blur="formRef?.validateField('email').catch(() => {})" />
+          <PhoneInput v-model="form.phone" placeholder="Phone (email, phone, or both)" @blur="formRef?.validateField('email').catch(() => {})" />
         </el-form-item>
         <el-form-item prop="password" :error="serverErrors.password">
           <el-input v-model="form.password" type="password" placeholder="Password (at least 8 characters)" autocomplete="new-password" show-password />
