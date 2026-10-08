@@ -50,14 +50,14 @@ Use these people when creating, assigning, or mentioning JIRA work for this proj
 
 | Display name | Initials | Notes |
 | --- | --- | --- |
-| Bedgel Fadhil Nda… | BW | Surname is truncated in the source list; do not invent the rest |
+| Bedgel Fadhil Ndam Woukouo | BW | |
 | Jackson Warga | JW | |
 | Logan Jones | — | Photo avatar |
-| Yuandong Yang | — | Current user ("You") |
+| Yuandong Yang | — | Current user ("You"); goes by Robin; full-stack developer |
 
 - Address Yuandong Yang as the person in this chat.
 - Do not add other assignees unless the user names them.
-- If a ticket needs the full spelling of Bedgel's surname, ask before writing it.
+- The canonical roster and roles are in `design/TEAM.md`.
 
 ## Flyway migration names
 

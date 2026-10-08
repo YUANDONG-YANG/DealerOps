@@ -32,7 +32,6 @@ Class signs in with admin-issued username/password (15 §8). Routes are these si
 | `/dms` | `Dealer.User` | staff |
 | `/crm` | `Dealer.User` | — |
 | `/ads` | `Dealer.User` (page title **Ad compliance**) | — |
-| `/assistant` | `Dealer.User` | — |
 
 Do not show `/tickets` `/leads` `/dashboard` `/audit` or buyer pages. Audit lives only at the bottom of the DMS/CRM detail drawer.
 
@@ -143,11 +142,11 @@ UI is English. Failures **must not look like empty tables**. Optimistic lock `40
 | **FE-03** | Guard `/dms` | Admin opens `/dms` | sent back to `/admin` | vehicle table |
 | **FE-04** | Guard `/crm` | Admin opens `/crm` | sent back to `/admin` | customer four-field table |
 | **FE-05** | Guard `/ads` | Admin opens `/ads` | sent back to `/admin` | ad form / five states |
-| **FE-06** | Guard `/assistant` | Admin opens `/assistant` | sent back to `/admin` | Ask, resource cards |
+| **FE-06** | Guard assistant | Admin opens `/assistant` (retired route) and browses `/admin` | sent back to `/admin`; no floating assistant button | Ask, resource cards |
 | **FE-07** | Admin dual Tabs | Admin on `/admin` | one route, two Tabs: Dealerships (Name, Contact, Staff count, Actions; filter dealership name; `New dealership`); Members (Username, Dealership, Status, Actions; filter username; data = dealer list + each dealer's members, **no** invented `/admin/members`). Staff / Unbind use the same API set | second Admin sub-route; Vehicles tab |
 | **FE-08** | Unlink second confirmation | Staff A clicks `Unlink` on `/crm` detail | `ConfirmDialog` first; cancel sends no request; confirm then `DELETE .../vehicles/{vehicleId}`. Sold: `Sold vehicles cannot be unlinked`. In stock: list Linked vehicle clears | click-to-delete; empty PUT pretending to unlink; copy still says "not provided yet" even though 14 DELETE exists |
-| **FE-09** | Empty / error / loading states | walk all six pages through loading, empty list, API failure, no access | copy follows 13 §10: e.g. `Loading vehicles…` / `No vehicles match.` / `Could not load vehicles.` / `You do not have access to DMS.`; ad AI failure uses the right pane **AI unavailable** | paint 403/502 as empty tables; paint AI failure as Passed |
-| **FE-10** | Assistant failure English | `/assistant`: model down but HTTP 200 (`summaryAvailable=false`, cards still present); whole-page 5xx/network failure | summary area fixed **`Smart summary unavailable`**; whole-page failure **`Could not ask assistant`**; cards ≤5, read-only, navigate `/dms` `/crm` `/ads` | document 10 Chinese wording; phone/email/homeAddress on cards; mutate data on this page |
+| **FE-09** | Empty / error / loading states | walk all five pages and the assistant widget through loading, empty list, API failure, no access | copy follows 13 §10: e.g. `Loading vehicles…` / `No vehicles match.` / `Could not load vehicles.` / `You do not have access to DMS.`; ad AI failure uses the right pane **AI unavailable** | paint 403/502 as empty tables; paint AI failure as Passed |
+| **FE-10** | Assistant failure English | Floating assistant panel on any staff page: model down but HTTP 200 (`summaryAvailable=false`, cards still present); whole-page 5xx/network failure | summary area fixed **`Smart summary unavailable`**; whole-page failure **`Could not ask assistant`**; cards ≤5, read-only, navigate `/dms` `/crm` `/ads` | document 10 Chinese wording; phone/email/homeAddress on cards; mutate data on this page |
 
 FE-01–FE-06 match the menu: Admin **renders** Admin only; staff **renders** the four business pages only. Unauthorized access is blocked by the route first, not by hiding buttons.
 
@@ -161,7 +160,7 @@ Align [08](08-DevOps-and-Implementation.md) Sprint definition of done and [11](1
 |---|---|---|---|---|
 | **Review 1 · Sprint 1** | four repos build independently; architecture diagram; two roles in the JWT | four repos, four pipelines can ship ai-service alone; requests go through Gateway only, direct access fails; explain figure 07; login issues `Platform.Admin` / `Dealer.User` tokens. **Local is allowed.** Two-dealership data and a real ad run are not required | NN-01, NN-02, NN-03; evidence toward BE-14 | **local allowed** |
 | **Review 2 · Sprint 2** | **On Azure** sign-in → Gateway → record one vehicle → **real AI** scans one ad; no plaintext secrets | open web over cloud HTTPS; username/password sign-in; record one vehicle on `/dms` via Gateway; `/ads` runs **CL-4** (Blocked does not call AI) + **CL-5** (real model); the stack exists as `deploy/terraform` and was applied, not clicked together in the portal; release is the documented operator commands with human approval; KV with no secrets in the repo; core/ai unreachable from a browser | NN-04–07, NN-08–11, NN-15/18 (S2+); CL-4, CL-5; BE-08, BE-09 | **must be cloud** |
-| **Review 3 · Sprint 3** | two-dealership isolation, CRM links, three-kind checklist ads, export, audit; freeze features | **CL-1–CL-6 full set in the cloud**; CASH / FINANCE / LEASE checklist at least once each (FINANCE missing APR still Blocked; LEASE has statement/APR per 15 pseudocode); `/crm` link + Unlink confirm; export TXT; DMS/CRM drawer audit (no full PII); `/assistant` this-dealership Q&A, at most 5 read-only cards. Customer walkthrough signed (NN-20) | NN-12, NN-13, NN-14, NN-16, NN-17, NN-19/20; CL-1–6; BE-01–BE-16; FE-01–FE-10 | **must be cloud** |
+| **Review 3 · Sprint 3** | two-dealership isolation, CRM links, three-kind checklist ads, export, audit; freeze features | **CL-1–CL-6 full set in the cloud**; CASH / FINANCE / LEASE checklist at least once each (FINANCE missing APR still Blocked; LEASE has statement/APR per 15 pseudocode); `/crm` link + Unlink confirm; export TXT; DMS/CRM drawer audit (no full PII); floating assistant this-dealership Q&A, at most 5 read-only cards. Customer walkthrough signed (NN-20) | NN-12, NN-13, NN-14, NN-16, NN-17, NN-19/20; CL-1–6; BE-01–BE-16; FE-01–FE-10 | **must be cloud** |
 
 ### Local-only cannot pass Sprint 2 / 3 acceptance
 
@@ -187,6 +186,6 @@ Align [08](08-DevOps-and-Implementation.md) Sprint definition of done and [11](1
 | Classroom scripts CL-1–CL-6 | 6 | S2 first CL-4/5; S3 full set |
 | Backend BE-01–BE-12 | 12 | NN-19 core; S3 live sample, S2 samples BE-08/09 |
 | Backend extras BE-13–BE-16 | 4 | S1 leans BE-14; S3 leans BE-13/16 |
-| Frontend FE-01–FE-10 | 10 | S3 guards and six pages; S2 at least `/login`+`/dms`+`/ads` four states |
+| Frontend FE-01–FE-10 | 10 | S3 guards, five pages and the assistant widget; S2 at least `/login`+`/dms`+`/ads` four states |
 
 **26 use cases total** (16 backend + 10 frontend), plus 6 classroom scripts. The focused manual checks in requirements/analysis/06 (AT-24–28) reuse these flows and are not new implementation features.

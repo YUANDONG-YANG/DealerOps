@@ -37,7 +37,7 @@ Conflict order: **PPT > specification fields > DEVELOPMENT-DESIGN / PROTOCOL > 1
 ### Document map (human / full design)
 
 1. Before start, give the instructor: **[SCOPE-BASELINE.md](SCOPE-BASELINE.md)** (one-page scope sign-off)
-2. **This brief** (scope, fields, task order) → `00` (six pages)
+2. **This brief** (scope, fields, task order) → `00` (five pages + floating assistant widget)
 3. **[13-Frontend-Engineering.md](13-Frontend-Engineering.md)**: frontend file split, routes, page↔API (frontend still follows 13 + `AI-CODING-FRONTEND`)
 4. Backend design document: **[DEVELOPMENT-DESIGN.md](DEVELOPMENT-DESIGN.md)** (scope, phases, invariants). Public HTTP/DTOs still follow **14** + OpenAPI; internal protocol/rule details **PROTOCOL**; packaging **18** / **19**.
 5. Acceptance / NN-19: **[16-Acceptance-and-Test.md](16-Acceptance-and-Test.md)** (32 cases + 6 classroom scripts; does not change contracts)
@@ -304,7 +304,7 @@ Key: `AIMANAGER_API_KEY` on ai-service only (environment / Key Vault). The libra
 | `dealer-platform` | `env.example`, OpenAPI, API notes | **B** first draft / all certify | Does not run business code |
 | `deploy/` | Terraform for the Azure resources + `deploy-apps.sh` | **B** first draft / all certify | Applied by one operator, never by CI |
 
-Team members A/B/C **names are still missing**; write cards by role for now.
+The team roster and the A/B/C name mapping are in [TEAM.md](TEAM.md).
 
 **Sprint 1 (Review 1)**  
 Four empty repos build independently; explain the 07 architecture diagram; two roles in the JWT; direct core fails, traffic only through Gateway. Maps to NN-01–03.

@@ -14,7 +14,6 @@ import AdminView from '../views/AdminView.vue'
 import DmsView from '../views/DmsView.vue'
 import CrmView from '../views/CrmView.vue'
 import AdsView from '../views/AdsView.vue'
-import AssistantView from '../views/AssistantView.vue'
 import NoAccessLanding from '../layouts/NoAccessLanding.vue'
 
 const routes = [
@@ -23,7 +22,6 @@ const routes = [
   { path: '/dms', name: 'dms', component: DmsView, meta: { roles: ['Dealer.User'] } },
   { path: '/crm', name: 'crm', component: CrmView, meta: { roles: ['Dealer.User'] } },
   { path: '/ads', name: 'ads', component: AdsView, meta: { roles: ['Dealer.User'] } },
-  { path: '/assistant', name: 'assistant', component: AssistantView, meta: { roles: ['Dealer.User'] } },
   { path: '/', name: 'home', component: NoAccessLanding },
   { path: '/:pathMatch(.*)*', name: 'fallback', component: NoAccessLanding },
 ]

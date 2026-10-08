@@ -7,7 +7,7 @@ Conflict order (read-only): **PPT hard requirements > specification PDF fields >
 
 **Specification PDF fields** (DMS / CRM / Ad: do not add or remove)  
 **+ PPT six hard requirements** (four repos and four pipelines; Gateway; Azure+Docker+Bicep+CI/CD; JWT+RBAC+HTTPS+Key Vault (sign-in per errata 1); real AI; Scrum board and three all-hands Reviews)  
-**+ v6 six pages** (Login / Admin / DMS / CRM / Ad compliance / Assistant)  
+**+ v6 five pages** (Login / Admin / DMS / CRM / Ad compliance) **+ floating Assistant widget on staff pages**  
 **− v6 out-of-scope list** (see Out of Scope).  
 Scope changes require a re-sign of this page or email confirmation.
 
@@ -73,13 +73,14 @@ Already deferred in the proposal and still out of this version: Image Studio, OC
 
 ## Signature / email confirmation
 
-Confirm: the tables above are this course’s grading and demo scope; work orders, leads, buyer site, and Service Bus are **not** in scope. Team member names are still missing; assign by role for now.
+Confirm: the tables above are this course’s grading and demo scope; work orders, leads, buyer site, and Service Bus are **not** in scope. The team roster is [TEAM.md](TEAM.md).
 
-| Role | Name (still missing; leave blank) | Repo focus |
+| Role | Name | Repo focus |
 |---|---|---|
-| A | ________________ | `dealer-web` (6 pages) |
-| B | ________________ | `ai-service` + platform first draft |
-| C | ________________ | `dealer-gateway` + `dealer-core` |
+| A | Bedgel Fadhil Ndam Woukouo | `dealer-web` (5 pages + floating assistant) |
+| B | Jackson Warga | `ai-service` + platform first draft |
+| C | Logan Jones | `dealer-gateway` + `dealer-core` |
+| Lead | Yuandong Yang (Robin) | Full stack across all repositories, Terraform and release |
 
 | | Name / signature | Date |
 |---|---|---|

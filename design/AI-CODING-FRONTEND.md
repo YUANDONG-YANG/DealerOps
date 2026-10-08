@@ -14,7 +14,7 @@
 1. Reader: another coding AI. Follow this document to create `dealer-web` and wire it to [14](14-Backend-API-Contract.md); fields/enums/DTOs follow handbook section 3 and 14. This document does not define extra columns.
 2. Stack pinned: Vue 3 + Vite + Element Plus + Vue Router + Pinia + axios. No third-party identity SDK; login is a username/password form ([15](15-Data-Auth-and-Gateway.md) §8). No Nuxt, no chart library, no generic CRUD generator.
 3. Browser HTTP **only hits** `import.meta.env.VITE_GATEWAY_URL` (local `http://localhost:8080`), path prefix `/api/v1`. Ban axios pointing at 8081/8082. Ban requests to `/internal/v1/**`.
-4. Routes are only six pages: `/login` `/admin` `/dms` `/crm` `/ads` `/assistant`. No seventh business route; ban `/audit` `/tickets` `/leads` `/dashboard` / buyer pages.
+4. Routes are only five pages: `/login` `/admin` `/dms` `/crm` `/ads`. The assistant is a floating widget (FE-T10), not a route. No other business route; ban `/audit` `/tickets` `/leads` `/dashboard` / buyer pages.
 5. Admin: **one route** `/admin` + in-page dual tabs (Dealerships | Members). Ban `/admin/members`. Dealership `Edit` (contact fields + logo) uses `PATCH /admin/dealers/{id}` per 13 §5.3.
 6. Assistant model down but still HTTP 200: explanation area is the fixed English **`Smart summary unavailable`** (follow [12](12-Frontend-UI-Conventions.md); do not use the Chinese assistant-failure sentence from [10](10-Web-AI-Assistant.md)). Whole-page failure: `Could not ask assistant`.
 7. Unlisted features are not built: work orders, leads, consumer/buyer site, standalone Audit page, KPI home, self-registration, forgot password, dealership switcher, external ad publish.
@@ -53,17 +53,16 @@ Authority conflicts: course PPT > specification fields > BRIEF / 00 > 15 / **14 
 | `/dms` | `dms` | `src/views/DmsView.vue` | `{ roles: ['Dealer.User'] }` | Staff default page |
 | `/crm` | `crm` | `src/views/CrmView.vue` | `{ roles: ['Dealer.User'] }` | — |
 | `/ads` | `ads` | `src/views/AdsView.vue` | `{ roles: ['Dealer.User'] }` | Page title **Ad compliance** |
-| `/assistant` | `assistant` | `src/views/AssistantView.vue` | `{ roles: ['Dealer.User'] }` | — |
 
 - `/` and unknown paths: if signed in, by `role` → `/admin` or `/dms`; if not signed in → `/login`. No 404 marketing page.
 - Optional deep links: `/dms?vehicleId=`, `/crm?customerId=`, `/ads?vehicleId=` (assistant card jumps). **Ban** putting `dealerId` on the route as authority.
-- Menu and guards share one set: Admin **renders only** Admin; staff **renders only** DMS / CRM / Ad compliance / Assistant.
+- Menu and guards share one set: Admin **renders only** Admin; staff **renders only** DMS / CRM / Ad compliance. The assistant is not a menu item; staff reach it from the floating button (FE-T10).
 
 `beforeEach` order (13 §3; do not reorder):
 
 1. Not signed in (no stored login token) and not `meta.public` → `/login`, remember `redirect`.
 2. Signed in and on `/login` → after `GET /api/v1/me` go to `/admin` or `/dms` by role.
-3. `Platform.Admin` visiting `/dms` `/crm` `/ads` `/assistant` → send back to `/admin`; do not render business tables. `Dealer.User` visiting `/admin` → send back to `/dms`.
+3. `Platform.Admin` visiting `/dms` `/crm` `/ads` (or the retired `/assistant`, which now falls to the unknown-path rule) → send back to `/admin`; do not render business tables. `Dealer.User` visiting `/admin` → send back to `/dms`.
 4. `GET /me` fails 401 → clear session, return `/login`.
 5. `role` is not `Platform.Admin` | `Dealer.User`, or `/me` shows no dealership and the handbook has `active=false` → stay on a no-business shell, top bar `Sign out`, body uses the forbidden state. Do not invent a third role.
 
@@ -100,7 +99,7 @@ Authority conflicts: course PPT > specification fields > BRIEF / 00 > 15 / **14 
 - **Files:** `src/router/index.ts` (the only `beforeEach`); `src/stores/session.ts` (read `role`); the six `src/views/*.vue` files must already be referenced by the router.
 - **Must include:** the six “copy-paste route table” rows above + `/` and unknown-path routing. Implement the five guard steps as-is. The later T04 menu component must read the same `meta.roles`; do not write a second permission set.
 - **Ban:** registering `/audit` `/tickets` `/leads` `/dashboard` `/admin/members`; hiding buttons instead of guarding; a 404 marketing page.
-- **Acceptance:** against 16 **FE-01–FE-06**: unauthenticated open `/dms` → `/login`; Staff open `/admin` → `/dms`; Admin open `/dms` `/crm` `/ads` `/assistant` → `/admin` and do not render business tables.
+- **Acceptance:** against 16 **FE-01–FE-06**: unauthenticated open `/dms` → `/login`; Staff open `/admin` → `/dms`; Admin open `/dms` `/crm` `/ads` `/assistant` → `/admin` and do not render business tables (`/assistant` is no longer a route and lands via the unknown-path rule).
 
 ---
 
@@ -129,7 +128,7 @@ Authority conflicts: course PPT > specification fields > BRIEF / 00 > 15 / **14 
   - `DataTable`: Element Table + **10** per page + actions column at most **3** text links + status Tag; fade rows with `status=SOLD`. Pagination: query `page` from **0**, envelope `{items,page,size,total}` (14).
   - `FormDrawer`: create/edit; enums as `el-select`, submit raw enum values, display readable space-separated labels.
   - `ConfirmDialog`: used for Sell, Unbind staff, and **Unlink** second confirmation.
-  - `PageState`: four slots **loading / empty / error / forbidden**. All six pages must use the table below (13 §10); do not invent near-synonyms.
+  - `PageState`: four slots **loading / empty / error / forbidden**. All five pages and the assistant widget must use the table below (13 §10); do not invent near-synonyms.
 - **Ban:** KPI bars, multi-store switcher, icon seas, price sliders, inline universal editors, multi-step wizards.
 - **Acceptance:** 16 **FE-09** copy can be applied page by page. Menu matches FE-01–FE-06.
 
@@ -318,9 +317,10 @@ Staff hitting the URLs above: backend **403** `FORBIDDEN`; the frontend guard sh
 ## FE-T10 · Assistant
 
 - **Repo:** `dealer-web`
-- **Files:** `src/views/AssistantView.vue`; `src/components/AssistantCard.vue`; `src/api/assistant.ts`.
+- **Files:** `src/views/AssistantView.vue` (the widget); `src/components/AssistantCard.vue`; `src/api/assistant.ts`; mounted once in `src/App.vue`.
 - **Must include:**
-  - Interaction (10, thin): one input + `Ask`. One Q&A. Do not change vehicles/customers/checks on this page.
+  - Placement: a floating robot button fixed at the bottom-right of every staff page. It opens a chat panel; there is no `/assistant` route and no menu item. `App.vue` renders it only when `role === 'Dealer.User'`, the user has business access, and the route is not public, so Admin and signed-out users never see it. Because it lives outside `RouterView`, the conversation survives page changes for the browser session (memory only, not persisted).
+  - Interaction (10, thin): one input + `Ask`; each question and answer is appended to the panel thread, with example questions before the first ask, a typing indicator while waiting, `Retry` on a failed answer, and `Clear`. `Esc` or the close button hides the panel. Do not change vehicles/customers/checks from the assistant.
   - Request body only `{ text }`. `POST /api/v1/assistant/ask`.
   - Response fields **per 14**; ban the old `resources`:
 
@@ -338,11 +338,12 @@ Staff hitting the URLs above: backend **403** `FORBIDDEN`; the frontend guard sh
   - Frontend mapping (14 does not specify Vue routes): `VEHICLE` → `/dms?vehicleId={id}`; `CUSTOMER` → `/crm?customerId={id}`; `LISTING` → `/ads?vehicleId={vehicleId}` (no `vehicleId` then `/ads`).
   - Render at most **5** `AssistantCard`s (truncate even if the backend sends more). Card: title `label` + link into a normal page. Cards **ban** phone / email / homeAddress.
   - `summaryAvailable===false` or `summary===null` (still HTTP 200): explanation area fixed **`Smart summary unavailable`**, **still render cards**.
-  - Whole-page network/5xx: `Could not ask assistant`. `400` `VALIDATION` (empty question): in-page hint, do not emit empty cards.
-- **Ban:** the Chinese assistant-failure sentence from document 10; changing data on a card; Admin entering this page; browser hitting `/internal/v1/assistant`.
+  - Clicking a card closes the panel and navigates to the mapped page.
+  - Network/5xx: that answer shows `Could not ask assistant` with `Retry`. Empty input: hint under the box, no request. `400` `VALIDATION`: that answer asks the user to rephrase; no empty cards. `403`: the panel shows the forbidden state.
+- **Ban:** the Chinese assistant-failure sentence from document 10; changing data on a card; showing the widget to Admin; browser hitting `/internal/v1/assistant`.
 - **Acceptance:** 16 **FE-10**, **FE-06**, frontend behavior of **BE-12** (≤5 cards, read-only, Admin 403).
 
-### Wiring table · Assistant `/assistant`
+### Wiring table · Assistant widget
 
 | Control | method + path | Success | Failure HTTP / code → English |
 |---|---|---|---|
@@ -353,7 +354,7 @@ Staff hitting the URLs above: backend **403** `FORBIDDEN`; the frontend guard sh
 ## FE-T11 · Acceptance checklist against 16 (no new features)
 
 - **Repo:** `dealer-web` (hand test is enough; 16 does not require this document to add test files).
-- **Files:** no new files. Check off on the six pages.
+- **Files:** no new files. Check off on the five pages and the assistant widget.
 - **Must include:** walk the IDs below. Cite numbers only; do not change 16.
 - **Ban:** inventing mock business pages “to make testing easier”; stubs pretending to be CL-5 real cloud AI (S2/S3 follow 16).
 - **Acceptance:**
@@ -365,7 +366,7 @@ Staff hitting the URLs above: backend **403** `FORBIDDEN`; the frontend guard sh
 | **FE-03** | T02 T07 | Admin open `/dms` → `/admin`; no vehicle table |
 | **FE-04** | T02 T08 | Admin open `/crm` → `/admin` |
 | **FE-05** | T02 T09 | Admin open `/ads` → `/admin` |
-| **FE-06** | T02 T10 | Admin open `/assistant` → `/admin` |
+| **FE-06** | T02 T10 | Admin open `/assistant` → `/admin`; no assistant button on any Admin page |
 | **FE-07** | T06 | Single route, dual tabs + columns/filters/buttons match 12; no invented `/admin/members`; Edit dealership per 13 §5.3 |
 | **FE-08** | T08 | Unlink confirms first; `DELETE .../vehicles/{vehicleId}`; sold copy `Sold vehicles cannot be unlinked` |
 | **FE-09** | T04 all pages | Six-page loading/empty/error/403 copy = this document T04 table; ad 502 → right rail AI unavailable, not empty table/Passed |

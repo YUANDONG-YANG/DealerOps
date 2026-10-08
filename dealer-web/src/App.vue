@@ -1,12 +1,18 @@
 ﻿<script setup lang="ts">
-import { onMounted, ref } from 'vue'
-import { RouterView } from 'vue-router'
+import { computed, onMounted, ref } from 'vue'
+import { RouterView, useRoute } from 'vue-router'
 import { getReleaseTimes, type ReleaseTimes } from './api/release'
+import { useSessionStore } from './stores/session'
+import AssistantView from './views/AssistantView.vue'
 
 // Release time of each app (design/20-Observability.md). Web: the deploy stamp, otherwise the build time.
 const web = (import.meta.env.VITE_PUBLISHED_AT || '').trim() || __WEB_BUILT_AT__
 const pending: ReleaseTimes = { gateway: '…', core: '…', ai: '…' }
 const backend = ref<ReleaseTimes>(pending)
+const route = useRoute()
+const session = useSessionStore()
+// The assistant is a floating widget on every staff page, not a route (design/AI-CODING-FRONTEND.md FE-T10).
+const showAssistant = computed(() => session.role === 'Dealer.User' && session.hasBusinessAccess && !route.meta.public)
 
 onMounted(async () => {
   try {
@@ -18,6 +24,7 @@ onMounted(async () => {
 </script>
 <template>
   <RouterView />
+  <AssistantView v-if="showAssistant" />
   <footer class="app-footer">
     <div class="app-footer-title">Published (UTC)</div>
     <div>web {{ web }}</div>

@@ -23,7 +23,7 @@ Deliver only what the course requires: business per [DealerOps-Specification.pdf
 
 **Coding starts from [IMPLEMENTATION-BRIEF.md](IMPLEMENTATION-BRIEF.md).** The backend design document is [DEVELOPMENT-DESIGN.md](DEVELOPMENT-DESIGN.md) (scope, phases, invariants). Public HTTP/DTOs still follow 14 + OpenAPI; internal protocol/rule details are in [AI-PROTOCOL-AND-RULES.md](AI-PROTOCOL-AND-RULES.md). Packaging is in 18 / 19; execute `AI-CODING-BACKEND` per repo. Frontend still follows 13. Acceptance is 16, ad fixtures 17; scope sign-off is `SCOPE-BASELINE`. `01`–`06` are withdrawn — see [archive/](archive/); do not treat them as requirements.
 
-Machine and account blockers: [PREP-CHECKLIST.md](PREP-CHECKLIST.md).
+Machine and account blockers: [PREP-CHECKLIST.md](PREP-CHECKLIST.md). Team roster: [TEAM.md](TEAM.md).
 
 ## Coding-AI entry points
 
