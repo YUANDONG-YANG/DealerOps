@@ -62,7 +62,7 @@ dealer-core/
       SecurityConfig.java          # Resource Server; /api/v1/** requires JWT; do not expose actuator business
       WebConfig.java               # no browser CORS (or empty)
       JacksonConfig.java           # camelCase; dates YYYY-MM-DD / ISO-8601 UTC (14 §1.3)
-      AiClientConfig.java          # WebClient: Gateway base URL + internal header
+      AiClientConfig.java          # WebClient: direct ai-service base URL + internal header
     security/
       JwtRoleMapper.java           # claims.roles → Platform.Admin | Dealer.User | NONE (15 §8)
       JwtIssuer.java               # signs the HS256 login token (sub=username, name, roles)
@@ -308,7 +308,7 @@ core **does not** treat a direct `8082` call as the product path; outbound hits 
 
 `AiGatewayClient`:
 
-1. Base URL = Gateway (local `http://localhost:8080`, cloud `GATEWAY_BASE_URL`), **not** the browser origin.
+1. Base URL = direct ai-service origin (`AI_BASE_URL`; local `http://127.0.0.1:8082`, cloud the `dealerops-ai` HTTPS origin). Never use `GATEWAY_BASE_URL` for this client; that would make core call AI through Gateway a second time.
 2. Request header **`X-Dealer-Internal: <INTERNAL_TOKEN>`** (env / Key Vault). **Do not** forward the user JWT to ai-service.
 3. Body field names match 14 §11: `listing` + `vehiclePublic` (year/make/model/vin/condition/source, **no** purchase/repair/sold price) + `dealerPublic` (dealership name + three contacts). Assistant: `question` + filtered `resources`.
 4. Adapter timeout **≤15s** (handbook; set connect/response yourself).

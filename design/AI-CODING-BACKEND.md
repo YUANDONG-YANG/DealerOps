@@ -212,6 +212,7 @@ spring:
     locations: classpath:db/migration
 dealerops:
   gateway-base-url: ${GATEWAY_BASE_URL:http://localhost:8080}
+  ai-base-url: ${AI_BASE_URL:http://127.0.0.1:8082}
   internal-token: ${INTERNAL_TOKEN:dealer-internal}
   ai-timeout-ms: 15000
   jwt:
@@ -388,7 +389,8 @@ When the adapter calls the model, wrap again with `java.util.concurrent.Completa
 | `DEV_JWT_SECRET` | gateway + core | `dealer-dev-jwt-secret-change-me` locally only; ≥32 UTF-8 bytes and unique outside local (cloud: Key Vault `JWT-SIGNING-SECRET`) |
 | `ADMIN_USERNAME` / `ADMIN_PASSWORD` | core | seed the first `Platform.Admin` account |
 | `INTERNAL_TOKEN` | gateway + core outbound + ai-service | `dealer-internal`, accepted only when the Spring profile is `dev` or `local`. Any other profile must set a non-default value shared by gateway, ai-service, and dealer-core. Web **does not read** it. |
-| `GATEWAY_BASE_URL` | core outbound | `http://localhost:8080` |
+| `AI_BASE_URL` | core outbound to ai-service | `http://127.0.0.1:8082` |
+| `GATEWAY_BASE_URL` | core OpenAPI/public-link origin | `http://localhost:8080` |
 
 Who does not read: web does not read `AIMANAGER_*` / `MYSQL_*` / `INTERNAL_TOKEN`; gateway/core do not read `AIMANAGER_API_KEY`; ai-service does not read `MYSQL_*`.
 
@@ -1434,7 +1436,7 @@ public final class InternalHeaders {
 public class AiClientConfig {
   @Bean
   WebClient gatewayWebClient(
-      @Value("${dealerops.gateway-base-url}") String base,
+      @Value("${dealerops.ai-base-url}") String base,
       @Value("${dealerops.ai-timeout-ms:15000}") long timeoutMs) {
     HttpClient http = HttpClient.create()
         .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, 2000)

@@ -277,6 +277,7 @@ resource "azurerm_linux_web_app" "core" {
       MYSQL_USER         = var.mysql_admin_username
       GATEWAY_BASE_URL   = local.gateway_public_url
       GATEWAY_PUBLIC_URL = local.gateway_public_url
+      AI_BASE_URL        = local.ai_internal_url
       JWT_MODE           = "dev"
       PUBLISHED_AT       = var.published_at
       MYSQL_PASSWORD     = "@Microsoft.KeyVault(SecretUri=${azurerm_key_vault_secret.mysql_password.versionless_id})"

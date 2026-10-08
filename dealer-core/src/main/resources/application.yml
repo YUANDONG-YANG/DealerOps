@@ -48,8 +48,10 @@ dealerops:
   # so all services share one log-sum/ folder. Set LOG_DIR to override per environment.
   log-dir: ${LOG_DIR:log-sum}
   gateway-base-url: ${GATEWAY_BASE_URL:http://localhost:8080}
-  # Browser origin for OpenAPI "servers". Separate from gateway-base-url, which core uses to call the gateway.
+  # Browser origin for OpenAPI "servers". Separate from gateway-base-url.
   public-gateway-url: ${GATEWAY_PUBLIC_URL:http://localhost:8080}
+  # Core calls ai-service directly; do not point this at the gateway.
+  ai-base-url: ${AI_BASE_URL:http://127.0.0.1:8082}
   internal-token: ${INTERNAL_TOKEN:dealer-internal}
   ai-timeout-ms: 15000
   ai:

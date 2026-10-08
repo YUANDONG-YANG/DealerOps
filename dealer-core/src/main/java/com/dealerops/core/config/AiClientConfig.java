@@ -14,8 +14,8 @@ import reactor.netty.http.client.HttpClient;
 public class AiClientConfig {
 
   @Bean
-  WebClient aiGatewayWebClient(
-      @Value("${dealerops.gateway-base-url}") String gatewayBaseUrl,
+  WebClient aiServiceWebClient(
+      @Value("${dealerops.ai-base-url}") String aiBaseUrl,
       @Value("${dealerops.internal-token}") String internalToken,
       @Value("${dealerops.ai.connect-timeout-ms:2000}") int connectTimeoutMs,
       @Value("${dealerops.ai.response-timeout-ms:13000}") long responseTimeoutMs) {
@@ -24,7 +24,7 @@ public class AiClientConfig {
             .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, connectTimeoutMs)
             .responseTimeout(Duration.ofMillis(responseTimeoutMs));
     return WebClient.builder()
-        .baseUrl(gatewayBaseUrl)
+        .baseUrl(aiBaseUrl)
         .defaultHeader(InternalHeaders.NAME, internalToken)
         .clientConnector(new ReactorClientHttpConnector(http))
         .build();

@@ -39,6 +39,12 @@
       <groupId>org.springframework.cloud</groupId>
       <artifactId>spring-cloud-starter-gateway</artifactId>
     </dependency>
+    <dependency>
+      <groupId>io.netty</groupId>
+      <artifactId>netty-resolver-dns-native-macos</artifactId>
+      <classifier>osx-aarch_64</classifier>
+      <scope>runtime</scope>
+    </dependency>
     <!-- BOM 2023.0.4 pulls gateway-server 4.1.6, whose header filters call
          HttpHeaders.headerSet() (Spring 6.2). Boot 3.3.5 does not have that method,
          so every proxied route hangs. Pin the server jar that matches Boot 3.3. -->

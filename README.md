@@ -131,7 +131,7 @@ This is the standard path for a new developer. IntelliJ IDEA runs the three Java
 
    | Run configuration | Module | Main class | Required environment |
    |---|---|---|---|
-   | `dealer-core-local` | `dealer-core` | `com.dealerops.core.DealerCoreApplication` | `CORE_PORT=8081;SERVER_ADDRESS=127.0.0.1;LOG_DIR=$PROJECT_DIR$/log-sum;MYSQL_URL=jdbc:mysql://127.0.0.1:3306/dealer_core?useSSL=false&allowPublicKeyRetrieval=true;MYSQL_USER=dealer;MYSQL_PASSWORD=dealer_dev_only;GATEWAY_BASE_URL=http://localhost:8080;GATEWAY_PUBLIC_URL=http://localhost:8080;INTERNAL_TOKEN=dealer-internal;JWT_MODE=dev;DEV_JWT_SECRET=dealer-dev-jwt-secret-change-me;ADMIN_USERNAME=admin;ADMIN_PASSWORD=admin123` |
+   | `dealer-core-local` | `dealer-core` | `com.dealerops.core.DealerCoreApplication` | `CORE_PORT=8081;SERVER_ADDRESS=127.0.0.1;LOG_DIR=$PROJECT_DIR$/log-sum;MYSQL_URL=jdbc:mysql://127.0.0.1:3306/dealer_core?useSSL=false&allowPublicKeyRetrieval=true;MYSQL_USER=dealer;MYSQL_PASSWORD=dealer_dev_only;GATEWAY_BASE_URL=http://localhost:8080;GATEWAY_PUBLIC_URL=http://localhost:8080;AI_BASE_URL=http://127.0.0.1:8082;INTERNAL_TOKEN=dealer-internal;JWT_MODE=dev;DEV_JWT_SECRET=dealer-dev-jwt-secret-change-me;ADMIN_USERNAME=admin;ADMIN_PASSWORD=admin123` |
    | `ai-service-local` | `ai-service` | `ca.sait.dealerops.aiservice.AiServiceApplication` | `AI_PORT=8082;SERVER_ADDRESS=127.0.0.1;LOG_DIR=$PROJECT_DIR$/log-sum;SPRING_APPLICATION_NAME=ai-service;SPRING_PROFILES_ACTIVE=dev;INTERNAL_TOKEN=dealer-internal;AIMANAGER_API_KEY=;AIMANAGER_GATEWAY_PROVIDER=groq;AIMANAGER_GATEWAY_MODEL=qwen/qwen3.8-27b;AIMANAGER_GATEWAY_MAX_TOKENS=800` |
    | `dealer-gateway-local` | `dealer-gateway` | `ca.sait.dealerops.gateway.GatewayApplication` | `GATEWAY_PORT=8080;CORE_URL=http://127.0.0.1:8081;AI_URL=http://127.0.0.1:8082;LOG_DIR=$PROJECT_DIR$/log-sum;SPRING_PROFILES_ACTIVE=dev;INTERNAL_TOKEN=dealer-internal;CORS_ALLOWED_ORIGIN=http://localhost:5173;JWT_MODE=dev;DEV_JWT_SECRET=dealer-dev-jwt-secret-change-me` |
 
@@ -176,7 +176,7 @@ This is the standard path for a new developer. IntelliJ IDEA runs the three Java
    mysql -h 127.0.0.1 -P 3306 -u dealer -pdealer_dev_only dealer_core -e "SELECT 1"
    ```
 
-2. **dealer-core** — configure `CORE_PORT=8081`, `SERVER_ADDRESS=127.0.0.1`, `MYSQL_URL=jdbc:mysql://localhost:3306/dealer_core?useSSL=false&allowPublicKeyRetrieval=true`, `MYSQL_USER=dealer`, `MYSQL_PASSWORD=dealer_dev_only`, `GATEWAY_BASE_URL=http://localhost:8080`, `GATEWAY_PUBLIC_URL=http://localhost:8080`, `INTERNAL_TOKEN=dealer-internal`, `JWT_MODE=dev`, `DEV_JWT_SECRET=dealer-dev-jwt-secret-change-me`, and optional `ADMIN_USERNAME` / `ADMIN_PASSWORD`. Start it only after MySQL is healthy and wait for `http://127.0.0.1:8081/actuator/health` to return 200.
+2. **dealer-core** — configure `CORE_PORT=8081`, `SERVER_ADDRESS=127.0.0.1`, `MYSQL_URL=jdbc:mysql://localhost:3306/dealer_core?useSSL=false&allowPublicKeyRetrieval=true`, `MYSQL_USER=dealer`, `MYSQL_PASSWORD=dealer_dev_only`, `GATEWAY_BASE_URL=http://localhost:8080`, `GATEWAY_PUBLIC_URL=http://localhost:8080`, `AI_BASE_URL=http://127.0.0.1:8082`, `INTERNAL_TOKEN=dealer-internal`, `JWT_MODE=dev`, `DEV_JWT_SECRET=dealer-dev-jwt-secret-change-me`, and optional `ADMIN_USERNAME` / `ADMIN_PASSWORD`. `AI_BASE_URL` must point directly to ai-service, never to Gateway. Start it only after MySQL is healthy and wait for `http://127.0.0.1:8081/actuator/health` to return 200.
 
    ```text
    cd dealer-core

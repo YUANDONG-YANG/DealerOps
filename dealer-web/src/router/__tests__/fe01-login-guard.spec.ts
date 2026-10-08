@@ -1,6 +1,6 @@
 /**
  * 16 FE-01 / AI-CODING-TESTS TEST-17
- * Unauthenticated /dms → /login; only Sign in.
+ * Unauthenticated /dms → /login; username + password sign-in.
  */
 import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
@@ -24,11 +24,13 @@ describe('FE-01 login guard (TEST-17)', () => {
     expect(router.currentRoute.value.path).toBe('/login')
   })
 
-  it('login copy is Sign in only; no password box or business table', () => {
+  it('login is username + password with no self-service reset or business table', () => {
     const dir = dirname(fileURLToPath(import.meta.url))
     const login = readFileSync(join(dir, '../../views/LoginView.vue'), 'utf8')
     expect(login).toContain('Sign in')
-    expect(login).not.toMatch(/password|Forgot password|username/i)
+    expect(login).toContain('autocomplete="username"')
+    expect(login).toMatch(/type="password"/)
+    expect(login).not.toMatch(/Forgot password/i)
     expect(login).not.toMatch(/el-table|Dealerships|VIN/)
   })
 })
