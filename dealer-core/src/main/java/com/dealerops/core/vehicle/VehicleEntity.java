@@ -215,12 +215,4 @@ public class VehicleEntity implements TenantOwned {
   public int getVersion() {
     return version;
   }
-
-  public Instant getCreatedAt() {
-    return createdAt;
-  }
-
-  public Instant getUpdatedAt() {
-    return updatedAt;
-  }
 }

@@ -1,4 +1,4 @@
-/** Email-or-phone/password sessions; dealer-core issues every token. */
+/** Email, username, or phone plus password sessions; dealer-core issues every token. */
 import axios from 'axios'
 import { resolveGatewayUrl } from '../api/gateway'
 
@@ -21,7 +21,7 @@ export function account(): LocalAccount | undefined {
 }
 
 /** Business routes a post-login redirect may target (design/13-Frontend-Engineering.md S2). */
-const REDIRECT_PATHS = ['/admin', '/dms', '/crm', '/ads', '/assistant']
+const REDIRECT_PATHS = ['/admin', '/dms', '/crm', '/leads', '/ads']
 
 /**
  * Same-origin business route (path + query) or '' when the value is not one. Parsing with URL

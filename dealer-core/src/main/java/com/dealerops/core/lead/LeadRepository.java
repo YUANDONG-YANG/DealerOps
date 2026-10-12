@@ -1,7 +1,6 @@
 package com.dealerops.core.lead;
 
 import java.time.LocalDate;
-import java.util.List;
 import java.util.Optional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -12,8 +11,6 @@ import org.springframework.data.repository.query.Param;
 public interface LeadRepository extends JpaRepository<LeadEntity, Long> {
 
   Optional<LeadEntity> findByIdAndDealerId(Long id, Long dealerId);
-
-  List<LeadEntity> findByDealerIdAndCustomerIdOrderByCreatedAtDesc(Long dealerId, Long customerId);
 
   /** {@code today} is only used when {@code overdue} is true. */
   @Query(

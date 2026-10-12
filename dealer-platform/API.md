@@ -4,7 +4,7 @@ The browser only calls `http://localhost:8080`. core=8081 and ai-service=8082 ar
 
 **Full request/response/error codes:** [design/14-Backend-API-Contract.md](../design/14-Backend-API-Contract.md) (current v6). Do not use the retired [design/archive/04-API-Contract.md](../design/archive/04-API-Contract.md).
 
-Shared rules: every path except email/phone login, registration, and public VIN decode needs a Bearer token; pagination `{items,page,size,total}` (default size=10); errors `{code,message}`; writes carry `version` where specified; cross-dealership id → **404** (not 403); ignore client `dealerId`. Staff without valid `membership.active=1` → **403**. `SOLD_LOCKED` = **409**. Every public route below enters through Gateway `/api/v1/**` and is proxied to dealer-core; only photo paths use the binary-safe route without `CacheRequestBody`.
+Shared rules: every path except login, registration, and public VIN decode needs a Bearer token; pagination `{items,page,size,total}` (default size=10); errors `{code,message}`; writes carry `version` where specified; cross-dealership id → **404** (not 403); ignore client `dealerId`. Staff without valid `membership.active=1` → **403**. `SOLD_LOCKED` = **409**. Every public route below enters through Gateway `/api/v1/**` and is proxied to dealer-core; only photo paths use the binary-safe route without `CacheRequestBody`.
 
 ## Public
 
@@ -26,17 +26,19 @@ Shared rules: every path except email/phone login, registration, and public VIN 
 | GET | `/api/v1/admin/dealers/{id}/members` |
 | POST | `/api/v1/admin/dealers/{id}/members` |
 | DELETE | `/api/v1/admin/dealers/{id}/members/{username}` |
-| GET | `/api/v1/admin/pending-users` | |
+| GET | `/api/v1/admin/pending-users` |
 
-There is no `DELETE /admin/dealers/{id}`. Admin hitting the business URLs below gets 403/404 and no business fields.
+There is no `DELETE /admin/dealers/{id}`. Platform.Admin may call only `/api/v1/me`, `/api/v1/admin/**`, and the anonymous routes; every business URL below returns **403** `FORBIDDEN` with no business fields.
 
 ## Dealer.User (tenant only from JWT + membership)
 
 | Method | Path | Notes |
 |---|---|---|
-| GET POST | `/api/v1/vehicles` | query: `q` `status` `condition` |
+| GET POST | `/api/v1/vehicles` | query: `q` `make` `model` `modelYear` `status` `condition` |
 | GET PATCH | `/api/v1/vehicles/{id}` | sold vehicles cannot change purchase fields |
-| POST | `/api/v1/vehicles/{id}/sell` | `{soldOn,soldPrice,version}` |
+| POST | `/api/v1/vehicles/{id}/sell` | `{soldOn,soldPrice,version}`; missing date/price or price ≤ 0 → **400** `SOLD_PAIR_REQUIRED` |
+| GET | `/api/v1/vehicle-catalog/makes` | vPIC make options (cached) |
+| GET | `/api/v1/vehicle-catalog/models?make=` | vPIC model options for one make |
 | GET POST | `/api/v1/customers` | query: `q` `linked` |
 | GET PATCH | `/api/v1/customers/{id}` | |
 | PUT | `/api/v1/customers/{id}/vehicles/{vehicleId}` | link vehicle |

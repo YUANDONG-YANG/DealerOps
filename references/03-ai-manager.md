@@ -9,10 +9,8 @@ Private repo. Do not paste secrets in a public README or treat the library as ac
 | Repo | https://github.com/YUANDONG-YANG/ai-manager (private) |
 | Account | Local `gh`: **YUANDONG-YANG**; read-only; do not change the repo, publish, or hit models during research |
 | Commit | `c07e1f2afe5dd692c20f3567ad3a42a90d31a87a` (`main`, about 2026-03-26) |
-| Maven | `com.aimanager:aimanager:1.0.0-SNAPSHOT` |
-| Java | 17; Spring Boot parent 3.2.5 |
-| Publish | GitHub Packages `https://maven.pkg.github.com/YUANDONG-YANG/ai-manager` |
-| Plugin | `skip=true`; give downstream a JAR |
+| Java | 17 upstream; Spring Boot parent 3.2.5 |
+| How DealerOps uses it | Vendored as source into ai-service from commit `827196a`; see [design/09-AI-Agent-Integration.md](../design/09-AI-Agent-Integration.md) "Vendored source" |
 
 ## Only these APIs may be used in coding
 

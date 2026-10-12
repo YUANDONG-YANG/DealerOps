@@ -4,36 +4,26 @@ Internal AI adapter for Dealer Ops. Port **8082**, no database, not browser-faci
 
 Internal JSON follows `design/AI-PROTOCOL-AND-RULES.md` (not BACKEND T22 `{failed,reason}`).
 
-## GitHub ai-manager
+## Vendored ai-manager sources
 
-Do not copy this library into DealerOps and do not change its business source. Consume the JAR.
+The `ai-manager` library is vendored as source under `src/main/java/com/manager` (plus `src/main/resources/models.json`), so the build needs no private repository, token, or local `mvn install`. Only the classes reachable from `AiManager` are copied; the library's own Spring Boot app (`com.gateway`, `AIApplication`) and its configuration files are not.
 
 | Item | Value |
 |---|---|
-| Repo | https://github.com/YUANDONG-YANG/ai-manager (private) |
-| Local checkout | sibling directory named `ai-manager` (same parent as this repo) |
-| Pinned commit | `827196a` (xAI/Grok provider support) |
-| Maven | `com.aimanager:aimanager:1.0.0-SNAPSHOT` |
-| Packages | https://maven.pkg.github.com/YUANDONG-YANG/ai-manager |
-| Library Java | 17 bytecode / Boot parent 3.2.5 (this service stays Java 21) |
+| Upstream repo | https://github.com/YUANDONG-YANG/ai-manager (private) |
+| Vendored commit | `827196a` (xAI/Grok provider support) |
+| Package | `com.manager` (unchanged; Lombok compiles it) |
 | Public API used | `startConversation(id, systemMessage)`, conversation `request(prompt).send()`, `closeConversation` |
 
-## Local install
+Do not edit the vendored sources for DealerOps behavior; put adapters in `ca.sait.dealerops.aiservice`. To take an upstream fix, copy the changed classes from a newer upstream commit and update the commit above.
 
-Build `ai-manager` with JDK 17, then build this service with JDK 21. The pinned source now includes the xAI/Grok provider used by the local `grok:` key format.
+## Build
 
-```powershell
-git checkout 827196a
-JAVA_HOME=/path/to/jdk-17 mvn -DskipTests install
+```bash
+mvn -DskipTests package
 ```
 
-Then in `ai-service`:
-
-```powershell
-mvn -DskipTests -Dmaven.test.skip=true -Daimanager.real=true package
-```
-
-The POM uses the real `com.aimanager:aimanager:1.0.0-SNAPSHOT` dependency directly. There is no stub profile in the local development path, so IntelliJ and Maven compile the same source and cannot silently start a fake AI implementation.
+Use JDK 21, the same as the other Java services.
 
 ## Environment
 
@@ -73,6 +63,6 @@ Missing key: immediate **503** `{ "success": false, "code": "AI_KEY_MISSING", "m
 - `POST /internal/v1/assistant` — success `{ "success": true, "summary" }`
 - Header `X-Dealer-Internal: ${INTERNAL_TOKEN}`; missing or wrong → **404**
 - Failure: **504** `AI_TIMEOUT` / **503** `AI_KEY_MISSING` / **502** `AI_PROVIDER_FAILED`, body `{ "success": false, "code", "message" }`
-- Timeout: connect 2s + response 13s, plus adapter 15s `orTimeout`
+- Timeout: hard cap of connect 2s + response 13s = 15s, enforced by `TimedModelCall` around the library call (the vendored providers set no HTTP timeout of their own); over the cap → **504** `AI_TIMEOUT`
 
 Do not configure browser CORS on this process. `dealer-core` calls only through Gateway.

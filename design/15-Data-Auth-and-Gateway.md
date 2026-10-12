@@ -2,7 +2,7 @@
 
 Version: current (v6) · 2026-09-23  
 Status: fills gaps for the `dealer-core` entity layer and `dealer-gateway` configuration; **not** OpenAPI, **not** a business implementation.  
-**Password auth (email, username, or phone as the sign-in name)** is owned here in §8; keep [README.md](../README.md) § Sign-in consistent with it.
+**Password auth (email, username, or phone as the sign-in name)** is owned here in §8; keep [README.md](../README.md) "Step 6. Sign in" consistent with it.
 
 ## Conflict order and SQL baseline
 
@@ -110,7 +110,7 @@ Admin operations may write `audit_event`: `entityType=MEMBERSHIP`, `dealerId` ma
 | JWT mapped role | active membership | Result |
 |---|---|---|
 | none / cannot map | — | Gateway 401; never reaches core business |
-| `Platform.Admin` | present or absent, ignored | All `/api/v1/**` routes and `/me`; business reads are cross-dealer. Mutations that create a dealer-owned record still require an explicit dealer context |
+| `Platform.Admin` | present or absent, ignored | `/me` and the `/admin/**` routes only. Every business URL (vehicles, customers, listings, checks, audit, assistant, vehicle catalog), read or write, returns **403** `FORBIDDEN` with no business fields |
 | `Platform.Admin` and `Dealer.User` both present | — | **Admin wins** (when a staff token is accidentally elevated, trust Admin in the token) |
 | `Dealer.User` | exactly 1 active | business allowed; tenant = that row's `dealer_id` |
 | `Dealer.User` | 0 | **403** `FORBIDDEN`, no dealership (same wording as 14) |
@@ -362,11 +362,11 @@ Browser-to-service HTTP **only** goes through `dealer-gateway`. core / ai-servic
 | Match | Upstream | Who may call | Failure shape |
 |---|---|---|---|
 | `/api/v1/**` | `CORE_URL` (local `http://localhost:8081`) | browser; email/phone login, registration, and public VIN decode are anonymous; other paths need a DealerOps JWT with a mapped role | missing/bad JWT or unmapped role → 401 |
-| `/swagger-ui.html`, `/swagger-ui/**`, `/v1/api-docs`, `/v1/api-docs/**` | `CORE_URL` | browser with **no JWT** only when `dealerops.jwt.mode` is `dev` and every active Spring profile is local (`dev`, `local`, `test`, or `default`). Any other profile **denies** these paths | denied, not the schema |
+| `/swagger-ui.html`, `/swagger-ui/**`, `/v3/api-docs`, `/v3/api-docs/**` | `CORE_URL` | browser with **no JWT** only when `dealerops.jwt.mode` is `dev` and every active Spring profile is local (`dev`, `local`, `test`, or `default`). Any other profile **denies** these paths | denied, not the schema |
 | `/internal/v1/**` | `AI_URL` (local `http://localhost:8082`) | **core only** (see below) | browser → **404** (do not use 401, which would acknowledge the path) |
 | other | — | — | 404 |
 
-Swagger UI and its OpenAPI JSON are part of the gateway origin. Anonymous access is only the local classroom case above. Any active profile other than `dev`, `local`, `test`, or `default`, denies `/swagger-ui.html`, `/swagger-ui/**`, `/v1/api-docs`, and `/v1/api-docs/**`. When that case is open, acceptance uses `http://localhost:8080/swagger-ui/index.html`, or the same path on a public HTTPS gateway. Do not send the browser to core port `8081`. The info description reads title `DealerOps Gateway API`, version `v1`, `API published <time>` (the dealer-core release time) (release time rules: [20-Observability.md](20-Observability.md) §5). Business `/api/v1/**` stays authenticated. The gateway preserves the browser `Host` so Swagger's script and spec URLs stay on the gateway.
+Swagger UI and its OpenAPI JSON are part of the gateway origin. Anonymous access is only the local classroom case above. Any active profile other than `dev`, `local`, `test`, or `default`, denies `/swagger-ui.html`, `/swagger-ui/**`, `/v3/api-docs`, and `/v3/api-docs/**`. When that case is open, acceptance uses `http://localhost:8080/swagger-ui/index.html`, or the same path on a public HTTPS gateway. Do not send the browser to core port `8081`. The info description reads title `DealerOps Gateway API`, version `v1`, `API published <time>` (the dealer-core release time) (release time rules: [20-Observability.md](20-Observability.md) §5). Business `/api/v1/**` stays authenticated. The gateway preserves the browser `Host` so Swagger's script and spec URLs stay on the gateway.
 
 The two internal paths (same as the handbook; this section only defines entry, not OpenAPI bodies):
 
@@ -579,13 +579,9 @@ Platform disk encryption may use defaults. MySQL is not open to the internet: th
 |---|---|
 | dealer-gateway / dealer-core / ai-service | **Java 21** (matches handbook default and 07 "Java 21") |
 | dealer-web | Node 20 toolchain, no JDK |
-| ai-manager (private GitHub repo) | upstream is **Java 17** + Boot 3.2.5; **this course does not change that repo's source** |
+| ai-manager (private GitHub repo) | upstream is **Java 17** + Boot 3.2.5; vendored as source into ai-service and compiled with **Java 21** ([09](09-AI-Agent-Integration.md) "Vendored source") |
 
-A 21 runtime can depend on **17 bytecode** `aimanager` JARs, so you **need not** drop the three repos to 17, and you **need not** upgrade ai-manager to 21.
-
-The handbook allows "align with ai-manager on 17" only as a fallback when the machine has only 17: **if you fall back, all three Java repos fall back to 17 together; do not run core 21 and ai-service 17.**
-
-**Immutable version (plan only, do not change code here):** pin commit `c07e1f2afe5dd692c20f3567ad3a42a90d31a87a`, then cut a **non-SNAPSHOT** immutable version for `ai-service` to consume (GitHub Packages). Local `mvn install` before that version exists is for development only. CI uses a stub and does not hit paid endpoints.
+All three Java services stay on Java 21; nothing in the build needs JDK 17. CI compiles only and does not hit paid endpoints.
 
 ---
 

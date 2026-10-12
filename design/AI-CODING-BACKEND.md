@@ -34,7 +34,7 @@ Implementation order aligns with BRIEF §11: empty repo starts → Flyway/entiti
 | Spring Cloud (gateway only) | `2023.0.4` |
 | Flyway | Follow Boot BOM (`flyway-core` + `flyway-mysql`) |
 | MySQL driver | `com.mysql:mysql-connector-j` (follow BOM) |
-| ai-manager | Local development: `com.aimanager:aimanager:1.0.0-SNAPSHOT` (commit `c07e1f2afe5dd692c20f3567ad3a42a90d31a87a`, `mvn install` first). Release: the **non-SNAPSHOT** immutable version built from the same commit. CI stub; do not hit paid endpoints. |
+| ai-manager | Vendored as source in `ai-service/src/main/java/com/manager` from upstream commit `827196a` (see `ai-service/README.md`); no Maven dependency and no private access needed. CI compiles only; do not hit paid endpoints. |
 | JPA `ddl-auto` | `validate` (local empty DB relies on Flyway to create tables; ban `update`/`create`) |
 
 ### Package names (do not change)
@@ -151,21 +151,12 @@ gateway **must not** depend on: `spring-boot-starter-data-jpa`, `flyway-*`, `mys
 | `spring-boot-starter-web` | `/internal/v1/**` |
 | `spring-boot-starter-validation` | body validation |
 | `spring-boot-starter-webflux` | Self-managed 15s-timeout HttpClient (omit if using JDK HttpClient only; default is Webflux) |
-| `com.aimanager:aimanager` | `1.0.0-SNAPSHOT` or the published immutable version |
+| `org.projectlombok:lombok` | `provided`; compiles the vendored `com.manager` sources ([09](09-AI-Agent-Integration.md) "Vendored source") |
 | `spring-boot-starter-test` | test |
 
 ai-service **must not** depend on: `spring-boot-starter-data-jpa`, `flyway-*`, `mysql-connector-j`, `spring-cloud-starter-gateway`, `oauth2-resource-server` (internal-header auth; do not verify user JWT).
 
-`aimanager` repository (local may `mvn install` first; when CI uses a stub module keep this coordinate but exclude it in profile `stub`):
-
-```xml
-<repository>
-  <id>github-ai-manager</id>
-  <url>https://maven.pkg.github.com/YUANDONG-YANG/ai-manager</url>
-</repository>
-```
-
-- Ban: mixing Java 17/21 across the three repos; gateway pulling JPA; core embedding `aimanager`; ai-service pulling Flyway; treating `com.gateway` as a Spring scan package.
+- Ban: mixing Java 17/21 across the three repos; gateway pulling JPA; core embedding the `com.manager` sources; ai-service pulling Flyway; treating `com.gateway` as a Spring scan package.
 - Acceptance:
   1. `rg "java.version" dealer-core/pom.xml dealer-gateway/pom.xml ai-service/pom.xml` is `21` in all three.
   2. `rg "spring-boot-starter-parent" */pom.xml` versions are all `3.3.5`.
@@ -211,10 +202,12 @@ spring:
     enabled: true
     locations: classpath:db/migration
 dealerops:
-  gateway-base-url: ${GATEWAY_BASE_URL:http://localhost:8080}
+  public-gateway-url: ${GATEWAY_PUBLIC_URL:http://localhost:8080}
   ai-base-url: ${AI_BASE_URL:http://127.0.0.1:8082}
   internal-token: ${INTERNAL_TOKEN:dealer-internal}
-  ai-timeout-ms: 15000
+  ai:
+    connect-timeout-ms: 2000
+    response-timeout-ms: 13000
   jwt:
     # dealer-core issues and validates its own HS256 tokens at /api/v1/auth/login.
     dev-secret: ${DEV_JWT_SECRET:dealer-dev-jwt-secret-change-me}
@@ -299,7 +292,7 @@ dealerops:
 - Repo: ai-service
 - Create/change files:
   - `ai-service/src/main/java/ca/sait/dealerops/aiservice/AiServiceApplication.java`
-  - `ai-service/src/main/resources/application.yml`
+  - `ai-service/src/main/resources/application.yaml`
   - `ai-service/src/main/java/ca/sait/dealerops/aiservice/config/AiTimeoutConfig.java`
   - `ai-service/src/main/java/ca/sait/dealerops/aiservice/config/InternalGuardFilter.java`
 - Must include:
@@ -322,13 +315,12 @@ spring:
 dealerops:
   ai:
     timeout-ms: 15000
-    require-internal-header: true
   internal-header-name: X-Dealer-Internal
   internal-token: ${INTERNAL_TOKEN:dealer-internal}
 aimanager:
   api-key: ${AIMANAGER_API_KEY:}
-  gateway-provider: ${AIMANAGER_GATEWAY_PROVIDER:openai}
-  gateway-model: ${AIMANAGER_GATEWAY_MODEL:}
+  gateway-provider: ${AIMANAGER_GATEWAY_PROVIDER:groq}
+  gateway-model: ${AIMANAGER_GATEWAY_MODEL:qwen/qwen3.8-27b}
 ```
 
 Timeout must be self-implemented (library `WebClient.blockOptional()` has no 15s guarantee). `AiTimeoutConfig` pinned:
@@ -357,7 +349,7 @@ When the adapter calls the model, wrap again with `java.util.concurrent.Completa
 - Ban: scanning `com.gateway` or library web packages other than `com.manager`; starting `AIApplication`; exposing `/api/ai/request` `/chat` `/credentials` `/runtime`; configuring `5173` CORS; connecting a database; Flyway.
 - Acceptance:
   1. `rg "scanBasePackages" ai-service/src/main/java` does not contain `com.gateway`.
-  2. `rg "timeout-ms: 15000" ai-service/src/main/resources/application.yml`.
+  2. `rg "timeout-ms: 15000" ai-service/src/main/resources/application.yaml`.
   3. `rg "orTimeout|timeout-ms|responseTimeout" ai-service/src/main/java` has 15000 or `timeoutMs`.
   4. After start `curl -s -o NUL -w "%{http_code}" http://127.0.0.1:8082/internal/v1/ad-check` → `404`.
   5. `rg "localhost:5173" ai-service` none.
@@ -381,15 +373,15 @@ When the adapter calls the model, wrap again with `java.util.concurrent.Completa
 | `MYSQL_PASSWORD` | core | `dealer_dev_only` |
 | `AI_PORT` | ai-service | `8082` |
 | `AIMANAGER_API_KEY` | **ai-service only** | empty string; if empty the first model call fails immediately and does not wait 15s |
-| `AIMANAGER_GATEWAY_PROVIDER` | ai-service | `openai` |
-| `AIMANAGER_GATEWAY_MODEL` | ai-service | empty string; must be the deployment name when hitting a real model |
+| `AIMANAGER_GATEWAY_PROVIDER` | ai-service | `groq` |
+| `AIMANAGER_GATEWAY_MODEL` | ai-service | `qwen/qwen3.8-27b` |
 | `JWT_MODE` | gateway + core | `dev` (the only accepted value; anything else stops startup) |
 | `DEV_JWT_SECRET` | gateway + core | `dealer-dev-jwt-secret-change-me` locally only; ≥32 UTF-8 bytes and unique outside local (cloud: Key Vault `JWT-SIGNING-SECRET`) |
 | `ADMIN_USERNAME` / `ADMIN_PASSWORD` | core | seed the first `Platform.Admin` account |
 | `INTERNAL_TOKEN` | gateway + core outbound + ai-service | `dealer-internal`, accepted only when the Spring profile is `dev` or `local`. Any other profile must set a non-default value shared by gateway, ai-service, and dealer-core. Web **does not read** it. |
 | `AI_BASE_URL` | core outbound to ai-service | `http://127.0.0.1:8082` |
 | `VPIC_BASE_URL` | core outbound to the NHTSA vPIC vehicle catalog (14 §4.6) | `https://vpic.nhtsa.dot.gov/api/vehicles` |
-| `GATEWAY_BASE_URL` | core OpenAPI/public-link origin | `http://localhost:8080` |
+| `GATEWAY_PUBLIC_URL` | core OpenAPI server origin | `http://localhost:8080` |
 
 Who does not read: web does not read `AIMANAGER_*` / `MYSQL_*` / `INTERNAL_TOKEN`; gateway/core do not read `AIMANAGER_API_KEY`; ai-service does not read `MYSQL_*`.
 
@@ -405,7 +397,6 @@ Who does not read: web does not read `AIMANAGER_*` / `MYSQL_*` / `INTERNAL_TOKEN
 ```
 dealer-core/src/main/java/com/dealerops/core/DealerCoreApplication.java
 dealer-core/src/main/java/com/dealerops/core/config/SecurityConfig.java
-dealer-core/src/main/java/com/dealerops/core/config/WebConfig.java
 dealer-core/src/main/java/com/dealerops/core/config/JacksonConfig.java
 dealer-core/src/main/java/com/dealerops/core/config/AiClientConfig.java
 dealer-core/src/main/java/com/dealerops/core/security/JwtRoleMapper.java
@@ -645,7 +636,6 @@ public interface CustomerVehicleRepository extends JpaRepository<CustomerVehicle
 ```
 
 `JacksonConfig`: `ObjectMapper` default camelCase; `JavaTimeModule`; dates `yyyy-MM-dd`; `WRITE_DATES_AS_TIMESTAMPS=false`.
-`WebConfig`: empty, or explicitly do not register CORS.
 
 - Ban: extra columns (mileage/APR/password); `ticket/` `lead/` `bus/` `password/`; `@ManyToOne` to `lastCheck`; changing SQL; `WHERE vehicle.dealer_id = app_user.dealer_id`.
 - Acceptance:
@@ -1436,10 +1426,11 @@ public class AiClientConfig {
   @Bean
   WebClient gatewayWebClient(
       @Value("${dealerops.ai-base-url}") String base,
-      @Value("${dealerops.ai-timeout-ms:15000}") long timeoutMs) {
+      @Value("${dealerops.ai.connect-timeout-ms:2000}") int connectMs,
+      @Value("${dealerops.ai.response-timeout-ms:13000}") long responseMs) {
     HttpClient http = HttpClient.create()
-        .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, 2000)
-        .responseTimeout(Duration.ofMillis(timeoutMs - 2000));
+        .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, connectMs)
+        .responseTimeout(Duration.ofMillis(responseMs));
     return WebClient.builder().baseUrl(base)
         .clientConnector(new ReactorClientHttpConnector(http)).build();
   }
@@ -1463,7 +1454,7 @@ public record AssistantInternalRequest(String question, java.util.List<ResourceR
 
 Base URL **must be Gateway** (default `http://localhost:8080`); ban a product path that calls `8082` directly.
 
-- Ban: core holding `AIMANAGER_API_KEY`; embedding the ai-manager JAR; sending the user JWT to AI.
+- Ban: core holding `AIMANAGER_API_KEY`; embedding the ai-manager library; sending the user JWT to AI.
 - Acceptance: `rg "8082" dealer-core/src/main/resources dealer-core/src/main/java/com/dealerops/core/integration` has no product base. `rg "X-Dealer-Internal" dealer-core`. `rg "AIMANAGER" dealer-core` none. WireMock asserts outbound URL path=`/internal/v1/ad-check` with the internal header and no `Authorization`.
 
 ---

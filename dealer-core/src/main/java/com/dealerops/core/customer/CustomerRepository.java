@@ -38,20 +38,4 @@ public interface CustomerRepository extends JpaRepository<CustomerEntity, Long> 
       @Param("q") String q,
       @Param("linked") Boolean linked,
       Pageable pageable);
-
-  @Query(
-      """
-      select c from CustomerEntity c
-      where (:q is null or :q = ''
-             or lower(c.name) like lower(concat('%', :q, '%'))
-             or lower(c.email) like lower(concat('%', :q, '%'))
-             or lower(c.phone) like lower(concat('%', :q, '%')))
-        and (:linked is null
-             or (:linked = true and exists (
-                  select 1 from CustomerVehicleEntity cv where cv.customerId = c.id))
-             or (:linked = false and not exists (
-                  select 1 from CustomerVehicleEntity cv where cv.customerId = c.id)))
-      """)
-  Page<CustomerEntity> searchAll(
-      @Param("q") String q, @Param("linked") Boolean linked, Pageable pageable);
 }

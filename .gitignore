@@ -16,9 +16,9 @@ Thumbs.db
 .idea/
 *.iml
 
-# Local MCP config (may contain tokens)
-.cursor/mcp.json
+# Local MCP config (may contain tokens). The shared .cursor/mcp.json reads tokens from the environment and is committed.
 .vscode/mcp.json
+.claude/settings.local.json
 
 # Personal/working files that must not be published (incident: accidentally committed/pushed 2026-10-05, see deploy/README.md discussion)
 /review/industry-contracts-*/

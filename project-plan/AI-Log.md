@@ -2,10 +2,9 @@
 
 Updated: 2026-10-12
 
-Each member records actual AI use and their review of the output. Jackson coordinates publication or linking in the team site by 2026-10-31. The actual team-site URL is pending.
+Each member records their own AI use: the task, the affected artifact, which output was accepted or rejected, and how it was checked. Jackson publishes or links this log on the team site by 2026-10-31. Never include passwords, tokens, or private customer records.
 
 | Team Member | AI Tool | Purpose | Date | Output and human review |
 |---|---|---|---|---|
-| Yuandong Yang | OpenAI Codex | Review and update the project management Word and Excel files using repository requirements and existing records. | 2026-10-12 | Updated workload, extension assignments, report templates, and layout; created separate logs. Team review remains pending before submission. Future results and approvals were not invented. |
-
-New entries should describe the task or prompt, affected artifact, accepted or rejected changes, and human verification. Never include passwords, tokens, or private customer records. This log does not certify completed feature acceptance.
+| Yuandong Yang | Claude Code | Analyse the project plan, status report, and Sprint 1 task list against the rubric and the repository requirements; align the sign-in rule (email, username, or phone) across `README.md`, `Implementation-Delivery-Status.md`, and the Sprint 0 report; write the update instructions; restore the course template in the project plan and apply the content changes. | 2026-10-12 | Findings and instructions recorded in `Implementation-Delivery-Status.md`. Yuandong chose the sign-in rule and reviewed the edits. |
+| Yuandong Yang | OpenAI Codex | Apply the update instructions to the project plan, status report, and Sprint 1 workbook; create the separate Research and AI Logs. | 2026-10-12 | Workbook changes kept. Plan and report wording revised afterwards, and the course template restored in the plan. |

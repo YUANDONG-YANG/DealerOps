@@ -282,7 +282,6 @@ resource "azurerm_linux_web_app" "core" {
       CORE_PORT          = tostring(local.app_port)
       MYSQL_URL          = "jdbc:mysql://${azurerm_mysql_flexible_server.mysql.fqdn}:3306/${local.mysql_database_name}?sslMode=REQUIRED&serverTimezone=UTC"
       MYSQL_USER         = var.mysql_admin_username
-      GATEWAY_BASE_URL   = local.gateway_public_url
       GATEWAY_PUBLIC_URL = local.gateway_public_url
       AI_BASE_URL        = local.ai_internal_url
       JWT_MODE           = "dev"

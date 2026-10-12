@@ -53,7 +53,7 @@ spring:
         - id: dealer-core-swagger
           uri: ${CORE_URL:http://localhost:8081}
           predicates:
-            - Path=/swagger-ui.html,/swagger-ui/**,/v1/api-docs,/v1/api-docs/**
+            - Path=/swagger-ui.html,/swagger-ui/**,/v3/api-docs,/v3/api-docs/**
           metadata:
             connect-timeout: 2000
             response-timeout: 5000

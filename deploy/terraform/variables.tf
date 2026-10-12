@@ -112,22 +112,22 @@ variable "jwt_signing_secret" {
 }
 
 variable "aimanager_api_key" {
-  description = "Model key for ai-service only. Empty leaves the key unset, which keeps ai-service on its stub answer path."
+  description = "Model key for ai-service only. Empty leaves the key unset; ai-service still starts, but every model call fails with AI_KEY_MISSING (there is no stub provider)."
   type        = string
   sensitive   = true
   default     = ""
 }
 
 variable "aimanager_gateway_provider" {
-  description = "ai-manager provider name."
+  description = "ai-manager provider name. The default matches ai-service/src/main/resources/application.yaml and must match the vendor of aimanager_api_key."
   type        = string
-  default     = "openai"
+  default     = "groq"
 }
 
 variable "aimanager_gateway_model" {
-  description = "ai-manager model name. Empty uses the library default."
+  description = "ai-manager model name. The default matches ai-service/src/main/resources/application.yaml; empty uses the provider's current model alias."
   type        = string
-  default     = ""
+  default     = "qwen/qwen3.8-27b"
 }
 
 variable "admin_username" {

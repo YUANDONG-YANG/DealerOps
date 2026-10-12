@@ -60,7 +60,7 @@ License note: `composer.json` marks MIT, but the repo root has no separately rev
 - Compliance: Carventory has no OMVIC fixed-rule + ai-manager flow. Implement the rule engine, AI states, stale-on-edit, TXT export, and 15-second timeout yourselves.
 - Audit: current SQL already has `audit_event`. Use Carventory API-log shape as a reading aid. Audit must record actor, action, entity, time, and a necessary field summary. Do not record customer contact details or model keys.
 - Frontend: only reuse list/form interaction from car-dealer-crm and Carventory. Official UI is Vue 3 + Element Plus. Pages follow [12-Frontend-UI-Conventions.md](../design/12-Frontend-UI-Conventions.md). No KPI home page and no kitchen-sink admin.
-- AI: do not copy AI from these two candidates. Per [09-AI-Agent-Integration.md](../design/09-AI-Agent-Integration.md), reuse the existing private `ai-manager` JAR and write a thin adapter in `ai-service`.
+- AI: do not copy AI from these two candidates. Per [09-AI-Agent-Integration.md](../design/09-AI-Agent-Integration.md), reuse the existing private `ai-manager` library (vendored as source) and write a thin adapter in `ai-service`.
 
 ## Constraints that travel with any reuse
 

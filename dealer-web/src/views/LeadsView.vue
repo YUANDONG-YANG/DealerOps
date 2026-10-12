@@ -7,6 +7,7 @@ import AppLayout from '../layouts/AppLayout.vue'
 import DataTable from '../components/DataTable.vue'
 import FormDrawer from '../components/FormDrawer.vue'
 import PageState from '../components/PageState.vue'
+import AuditTrail from '../components/AuditTrail.vue'
 import { fieldErrorsOf, messageOf } from '../api/http'
 import { customersApi } from '../api/customers'
 import { errorCode, errorStatus, vehiclesApi } from '../api/vehicles'
@@ -75,11 +76,6 @@ function blankEdit() {
 function vehicleLabel(v: any) {
   if (!v) return '—'
   return `${v.modelYear} ${v.make} ${v.model}`
-}
-
-function summaryText(raw: unknown) {
-  if (!raw || typeof raw !== 'object') return '—'
-  return Object.keys(raw as Record<string, unknown>).length ? JSON.stringify(raw) : '—'
 }
 
 function mapWrite(e: unknown, fallback: string) {
@@ -501,17 +497,7 @@ watch(
           <div class="lead-note-body">{{ n.body }}</div>
         </div>
 
-        <div class="detail-audit">
-          <div class="muted">Audit</div>
-          <el-table :data="audit">
-            <el-table-column prop="action" label="Action" width="110" />
-            <el-table-column prop="actorUsername" label="Actor" />
-            <el-table-column prop="createdAt" label="When" />
-            <el-table-column label="Summary">
-              <template #default="{ row }">{{ summaryText(row.fieldSummary) }}</template>
-            </el-table-column>
-          </el-table>
-        </div>
+        <AuditTrail :rows="audit" />
       </template>
     </FormDrawer>
   </AppLayout>

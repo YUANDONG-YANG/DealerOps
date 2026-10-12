@@ -13,7 +13,6 @@ import com.dealerops.core.customer.CustomerRepository;
 import com.dealerops.core.listing.ListingRepository;
 import com.dealerops.core.listing.ListingStatus;
 import com.dealerops.core.security.CurrentUser;
-import com.dealerops.core.dealer.AppRole;
 import com.dealerops.core.vehicle.dto.CreateVehicleRequest;
 import com.dealerops.core.vehicle.dto.LinkedCustomerBrief;
 import com.dealerops.core.vehicle.dto.PatchVehicleRequest;
@@ -57,17 +56,14 @@ public class VehicleService {
 
   @Transactional(readOnly = true)
   public PageResponse<VehicleResponse> list(VehicleFilter filter, int page, int size) {
-    Long tenant = readTenant();
+    Long tenant = requireTenant();
     Pageable pageable = Paging.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
     String q = trimToNull(filter.q());
     String make = trimToNull(filter.make());
     String model = trimToNull(filter.model());
     Page<VehicleEntity> result =
-        tenant == null
-            ? vehicleRepository.searchAll(
-                q, filter.status(), filter.condition(), make, model, filter.modelYear(), pageable)
-            : vehicleRepository.search(
-                tenant, q, filter.status(), filter.condition(), make, model, filter.modelYear(), pageable);
+        vehicleRepository.search(
+            tenant, q, filter.status(), filter.condition(), make, model, filter.modelYear(), pageable);
     return new PageResponse<>(
         result.map(this::toResponse).getContent(), result.getNumber(), result.getSize(), result.getTotalElements());
   }
@@ -108,11 +104,7 @@ public class VehicleService {
 
   @Transactional(readOnly = true)
   public VehicleResponse get(Long id) {
-    TenantGuard.requireBusinessAccess();
-    VehicleEntity vehicle = TenantContext.get().role() == AppRole.PLATFORM_ADMIN
-        ? vehicleRepository.findById(id).orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND, "Not found"))
-        : loadThisDealer(id);
-    return toResponse(vehicle);
+    return toResponse(loadThisDealer(id));
   }
 
   @Transactional
@@ -152,7 +144,7 @@ public class VehicleService {
                 listing.setStatus(ListingStatus.DRAFT);
               });
     }
-    vehicle = vehicleRepository.save(vehicle);
+    vehicle = vehicleRepository.saveAndFlush(vehicle);
     auditService.record(
         EntityType.VEHICLE.name(),
         vehicle.getId(),
@@ -166,7 +158,7 @@ public class VehicleService {
   @Transactional
   public VehicleResponse sell(Long id, SellVehicleRequest body) {
     Long tenant = requireTenant();
-    if (body.soldOn() == null || body.soldPrice() == null) {
+    if (body.soldOn() == null || body.soldPrice() == null || body.soldPrice().signum() <= 0) {
       throw new ApiException(ErrorCode.SOLD_PAIR_REQUIRED, "Sold date and sold price are both required.");
     }
     VehicleEntity vehicle = loadThisDealer(id);
@@ -186,7 +178,7 @@ public class VehicleService {
     vehicle.setStatus(VehicleStatus.SOLD);
     vehicle.setSoldOn(body.soldOn());
     vehicle.setSoldPrice(body.soldPrice());
-    vehicle = vehicleRepository.save(vehicle);
+    vehicle = vehicleRepository.saveAndFlush(vehicle);
     auditService.record(
         EntityType.VEHICLE.name(),
         vehicle.getId(),
@@ -365,13 +357,6 @@ public class VehicleService {
   private static Long requireTenant() {
     TenantGuard.requireDealerUser();
     return TenantContext.get().tenantDealerId();
-  }
-
-  private static Long readTenant() {
-    TenantGuard.requireBusinessAccess();
-    return TenantContext.get().role() == AppRole.PLATFORM_ADMIN
-        ? null
-        : TenantContext.get().tenantDealerId();
   }
 
   private static String actorUsername() {

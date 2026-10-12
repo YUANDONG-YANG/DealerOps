@@ -30,7 +30,7 @@ Nullability of data columns, whether `membership` / `app_user` is authoritative,
 ### 1.1 Success
 
 - Single object: return the DTO directly (no extra `data` wrapper).
-- Pagination: `page` starts at **0**; `size` defaults to **10**, server cap **10** (aligns with handbook "10 per page").
+- Pagination: `page` starts at **0**; `size` defaults to **10**, server cap **10** (aligns with handbook "10 per page"). A negative `page` is read as 0, and a `size` ≤ 0 or > 10 is read as 10; the envelope echoes the values actually used.
 
 ```json
 {
@@ -68,12 +68,12 @@ Do not return SQL, stack traces, or raw model text to the browser.
 
 | HTTP | When |
 |---|---|
-| 400 | validation failure, `VIN_DUP`, `SOLD_PAIR_REQUIRED` |
+| 400 | validation failure, `VIN_DUP`, `SOLD_PAIR_REQUIRED`, `WRONG_DEALER_OR_SOLD` (lead vehicle, §5.5) |
 | 401 | missing/bad JWT |
 | 403 | insufficient role (Admin↔staff hitting the wrong prefix); **staff with no valid `membership.active=1` calling a business API** (signed in, no dealership). **Not** cross-dealership |
 | 404 | this id is not in this dealership, **cross-dealership id** (anti-probing, not 403) |
 | 405 | `METHOD_NOT_ALLOWED` (HTTP method not supported on this path) |
-| 409 | `VERSION_CONFLICT`, `DUP_MEMBER`, `VEHICLE_ALREADY_LINKED`, `SOLD_LOCKED`, `CHECK_STALE`, `NOT_PASSED` |
+| 409 | `VERSION_CONFLICT`, `DUP_MEMBER`, `USERNAME_TAKEN`, `DISPLAY_NAME_TAKEN`, `EMAIL_TAKEN`, `PHONE_TAKEN`, `VEHICLE_ALREADY_LINKED`, `SOLD_LOCKED`, `CHECK_STALE`, `NOT_PASSED`, `LEAD_CLOSED`, `WORK_ORDER_CLOSED`, `WORK_ORDERS_OPEN` |
 | 415 | `UNSUPPORTED_MEDIA_TYPE` (body is not `application/json`) |
 | 500 | `INTERNAL_ERROR` (unexpected error; details logged server-side only) |
 | 502 | `AI_UNAVAILABLE` (rules passed, model timeout/failure; check row already written); `CATALOG_UNAVAILABLE` (vehicle catalog upstream failed, §4.6) |
@@ -83,7 +83,8 @@ Do not return SQL, stack traces, or raw model text to the browser.
 - Roles are only `Platform.Admin` and `Dealer.User`. Staff tenant authority is **exactly one `membership.active=1` row** (15); `app_user.dealer_id` is only a `/me` cache.
 - **Ignore** client `dealerId` in body / query / header. Staff tenant comes only from JWT `sub` (the username) → membership. Admin `dealerId` is always treated as empty.
 - Cross-dealership resource id: **404**, not 403 (anti-probing).
-- `Dealer.User` signed in with **0** active memberships: business APIs (`/vehicles` `/customers` `/listings` `/audit` `/assistant`) → **403** `FORBIDDEN`, not 401 and not 404. `GET /me` is still 200 (`dealerId=null`).
+- `Platform.Admin` may call only `GET /me`, `/api/v1/admin/**`, and the anonymous routes (auth, public VIN decode). Every business URL (§4–§10, including `/vehicle-catalog/makes|models`, `/members`, and `/audit`) returns **403** `FORBIDDEN` for Admin; Admin never reads business rows across dealerships. `Dealer.User` calling `/api/v1/admin/**` → **403**.
+- `Dealer.User` signed in with **0** active memberships: business APIs (every route in §4–§10) → **403** `FORBIDDEN`, not 401 and not 404. `GET /me` is still 200 (`dealerId=null`).
 - Writes that carry `version`: `dealer`, `vehicle`, `customer`, `listing` (including checks/ready/export). Request `version` must equal the current row. Conflict **409** `VERSION_CONFLICT`.
 - `customer_vehicle` has no `version` column: link/unlink do not use optimistic locking.
 - Enums and required fields match handbook section 3; do not add or remove spec fields. Dates `YYYY-MM-DD`, timestamps ISO-8601 UTC. JSON camelCase.
@@ -381,7 +382,7 @@ Audit `VEHICLE`/`UPDATE`. Other errors: `404`, `409 VERSION_CONFLICT`.
 ```
 
 Both values must be present together. Server sets `status=SOLD`. Response = detail.  
-`400 SOLD_PAIR_REQUIRED` (date or price missing); `400 VALIDATION` (`soldOn` in the future or before `addedOn`, `soldPrice` ≤ 0); selling again after sold → `409 SOLD_LOCKED`; an `OPEN` or `IN_PROGRESS` work order exists → `409 WORK_ORDERS_OPEN` ("Finish or cancel open work orders before selling."); `409 VERSION_CONFLICT`; `404`. Audit `VEHICLE`/`SELL`.
+`400 SOLD_PAIR_REQUIRED` (date or price missing, or `soldPrice` ≤ 0); `400 VALIDATION` (`soldOn` in the future or before `addedOn`); selling again after sold → `409 SOLD_LOCKED`; an `OPEN` or `IN_PROGRESS` work order exists → `409 WORK_ORDERS_OPEN` ("Finish or cancel open work orders before selling."); `409 VERSION_CONFLICT`; `404`. Audit `VEHICLE`/`SELL`.
 
 ### 4.6 Vehicle catalog: `GET /api/v1/vehicle-catalog/makes` and `GET /api/v1/vehicle-catalog/models?make=`
 
@@ -391,7 +392,7 @@ Option lists for the DMS Make → Model → Year filter (13 §5.4). Data comes f
 ["Camry", "Corolla", "RAV4"]
 ```
 
-Who: any user with business access (§1.3). Successful lookups are cached in memory until dealer-core restarts. Errors: missing `make` → `400 VALIDATION`; vPIC unreachable or malformed → `502 CATALOG_UNAVAILABLE` (the web filter then lets the user type a make and model).
+Who: `Dealer.User` with a dealership; Admin or unbound staff → **403** (§1.3). Successful lookups are cached in memory until dealer-core restarts. Errors: missing `make` → `400 VALIDATION`; vPIC unreachable or malformed → `502 CATALOG_UNAVAILABLE` (the web filter then lets the user type a make and model).
 
 #### 4.6.1 VIN decode: `GET /api/v1/vehicle-catalog/vin/{vin}` (public)
 
@@ -618,7 +619,7 @@ If a row exists, `id` has a value and `lastCheck` is the latest check summary or
 ### 7.2 `PATCH /api/v1/vehicles/{id}/listing`
 
 No row → **INSERT**. Increment `contentVersion`, return `status` to `DRAFT`, void old checks (shown as `checkStatus=STALE` or `NEEDS_AI`, see §8).  
-V1 `title`/`body` are NOT NULL: when the request omits them or they are blank, write **`''`** (15); do not send SQL `null`.
+V1 `title`/`body` are NOT NULL: on the first save (INSERT) an omitted or blank `title`/`body` is written as **`''`** (15), and an omitted `adKind`/`medium` defaults to `CASH`/`ONLINE`. On a later save the body is a merge patch: an omitted or `null` field keeps the stored value, and an explicit blank `title`/`body` stores `''`. `title` ≤ 200 characters.
 
 First create may omit `version` or send `0`. Later requests must send the current `version`.
 
@@ -739,10 +740,10 @@ Success: **200** plain text. Content = dealership public four fields + vehicle p
 
 Query: `entityType`, `entityId` required; `page`, `size` optional.
 
-Staff: this dealership only. Entity not in this dealership → **404**.  
-Admin: **do not** serve business entities (`VEHICLE`/`CUSTOMER`/`CUSTOMER_VEHICLE`/`LISTING`) → **403** `FORBIDDEN`, no `fieldSummary` business content.
+`Dealer.User` with a dealership only. Entity not in this dealership → **404**.  
+Admin → **403** `FORBIDDEN` for every `entityType` (there is no Admin audit page), no `fieldSummary` content.
 
-`entityType`: `VEHICLE`\|`CUSTOMER`\|`CUSTOMER_VEHICLE`\|`LEAD`\|`WORK_ORDER`\|`VEHICLE_PHOTO` (staff query). A deleted photo's id stays queryable while its audit rows exist in this dealership. Admin writes may use `DEALER`/`MEMBERSHIP`; **this query API does not open those two types to staff** (avoid treating bind-staff as business browsing). If Admin queries their own dealership-creation audit, they may use only `DEALER`/`MEMBERSHIP` and `dealerId` may be empty — if no Admin audit page is built, a uniform 403 for that role is acceptable.
+`entityType`: `VEHICLE`\|`CUSTOMER`\|`CUSTOMER_VEHICLE`\|`LEAD`\|`WORK_ORDER`\|`VEHICLE_PHOTO` (staff query). A deleted photo's id or an unlinked `CUSTOMER_VEHICLE` id stays queryable while its audit rows exist in this dealership. `CUSTOMER` history also includes the `CUSTOMER_VEHICLE` `LINK`/`UNLINK` events whose `fieldSummary.customerId` is that customer, newest first. Admin writes use `DEALER`/`MEMBERSHIP`; **this query API does not open those two types to staff** (→ **403**). Any other type (for example `LISTING`) or a missing `entityType`/`entityId` → `400 VALIDATION`.
 
 ```json
 {
@@ -870,8 +871,8 @@ Gateway forwards to ai-service. core calls these; the browser does not.
 |---|---|---|
 | `VALIDATION` | 400 | missing field, illegal enum, bad format |
 | `VIN_DUP` | 400 | VIN already exists in this dealership |
-| `SOLD_PAIR_REQUIRED` | 400 | sell missing date or price |
-| `WRONG_DEALER_OR_SOLD` | 400 | Declared on `ErrorCode`. `CustomerService.link` does not throw it. A same-store sold vehicle may be linked. A missing or cross-dealership id is `NOT_FOUND` (404). An existing link is `VEHICLE_ALREADY_LINKED` (409). |
+| `SOLD_PAIR_REQUIRED` | 400 | sell missing date or price, or price ≤ 0 |
+| `WRONG_DEALER_OR_SOLD` | 400 | Lead create/patch with a `vehicleId` that is not `IN_STOCK` in this dealership (§5.5). `CustomerService.link` does not throw it. A same-store sold vehicle may be linked. A missing or cross-dealership id is `NOT_FOUND` (404). An existing link is `VEHICLE_ALREADY_LINKED` (409). |
 | `UNAUTHORIZED` | 401 | not signed in |
 | `FORBIDDEN` | 403 | role not allowed for this URL; or staff has no valid membership |
 | `NOT_FOUND` | 404 | no resource or cross-dealership; also an unknown API path |

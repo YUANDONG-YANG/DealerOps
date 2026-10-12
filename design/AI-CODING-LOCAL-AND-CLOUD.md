@@ -63,7 +63,7 @@ mysql -h 127.0.0.1 -P 3306 -u dealer -pdealer_dev_only dealer_core -e "SELECT 1"
 cd dealer-core && mvn spring-boot:run
 
 # 3) ai-service    → AI_PORT=8082 SERVER_ADDRESS=127.0.0.1
-cd ai-service && mvn spring-boot:run   # stub profile is the default; real AI adds -Daimanager.real=true
+cd ai-service && mvn spring-boot:run   # real AI needs AIMANAGER_API_KEY
 
 # 4) dealer-gateway → GATEWAY_PORT=8080
 cd dealer-gateway && mvn spring-boot:run
@@ -103,8 +103,8 @@ There is no compose file to merge into. Each process reads its values from the e
 
 | Process | Must be set locally |
 |---|---|
-| `dealer-core` | `CORE_PORT=8081`, `SERVER_ADDRESS=127.0.0.1`, `MYSQL_URL` / `MYSQL_USER` / `MYSQL_PASSWORD`, `GATEWAY_BASE_URL`, `GATEWAY_PUBLIC_URL`, `INTERNAL_TOKEN`, `JWT_MODE=dev`, `DEV_JWT_SECRET`, and `ADMIN_USERNAME` / `ADMIN_PASSWORD` to seed the first admin |
-| `ai-service` | `AI_PORT=8082`, `SERVER_ADDRESS=127.0.0.1`, `SPRING_PROFILES_ACTIVE=dev`, `INTERNAL_TOKEN`, `AIMANAGER_API_KEY` (empty for the stub), `AIMANAGER_GATEWAY_PROVIDER` |
+| `dealer-core` | `CORE_PORT=8081`, `SERVER_ADDRESS=127.0.0.1`, `MYSQL_URL` / `MYSQL_USER` / `MYSQL_PASSWORD`, `GATEWAY_PUBLIC_URL`, `INTERNAL_TOKEN`, `JWT_MODE=dev`, `DEV_JWT_SECRET`, and `ADMIN_USERNAME` / `ADMIN_PASSWORD` to seed the first admin |
+| `ai-service` | `AI_PORT=8082`, `SERVER_ADDRESS=127.0.0.1`, `SPRING_PROFILES_ACTIVE=dev`, `INTERNAL_TOKEN`, `AIMANAGER_API_KEY` (empty: the service starts, but model calls fail with `AI_KEY_MISSING`; there is no stub), `AIMANAGER_GATEWAY_PROVIDER`, `AIMANAGER_GATEWAY_MODEL` |
 | `dealer-gateway` | `GATEWAY_PORT=8080`, `CORE_URL`, `AI_URL`, `SPRING_PROFILES_ACTIVE=dev`, `INTERNAL_TOKEN`, `CORS_ALLOWED_ORIGIN=http://localhost:5173`, `JWT_MODE=dev`, the same `DEV_JWT_SECRET` as core |
 | `dealer-web` | `VITE_GATEWAY_URL=http://localhost:8080` in `dealer-web/.env` |
 | MySQL | Port 3306, database `dealer_core`, user `dealer`. Flyway in `dealer-core` owns the schema |
@@ -221,13 +221,15 @@ There is **no container registry and no Container Apps environment**: App Servic
 1. `terraform apply` in `deploy/terraform` creates or updates the Azure resources.
 2. `deploy/terraform/deploy-apps.sh` packages the three JARs, uploads them with `az webapp deploy --type jar`, builds the SPA with `VITE_GATEWAY_URL` set to the gateway URL, and uploads `dist/` to the Static Web App.
 
+`deploy/deploy.sh` runs both steps in order and then waits for the gateway health check.
+
 That script generates **one** UTC timestamp (`yyyy-MM-dd'T'HH:mm:ss'Z'`, second precision) per run. It becomes the `PUBLISHED_AT` app setting on every Java app the run deploys and the `VITE_PUBLISHED_AT` build value for `dealer-web`. Without a stamp, each app falls back to its build time. The web footer (bottom left) lists the release time of all four apps, and the Swagger description shows dealer-core's. The rules are in [20-Observability.md](20-Observability.md) §5. Swagger is served through the gateway at `/swagger-ui/index.html`; the browser never uses core port `8081`.
 
 | Repo | JDK / Node | PR and `main` | Cloud deploy |
 |---|---|---|---|
 | dealer-gateway | **Java 21** | `mvn -B -DskipTests compile`, unit tests | JAR upload to `dealerops-gateway`; `/actuator/release` lists the release times |
 | dealer-core | **Java 21** | Same, plus unit tests and the Testcontainers ITs when a Docker engine is present on the runner | JAR upload to `dealerops-core`; Swagger shows its release time |
-| ai-service | **Java 21** | Stub compile and tests; do not hit paid endpoints | Stub JAR upload to `dealerops-ai`; release time on `/actuator/info` |
+| ai-service | **Java 21** | `mvn -B -DskipTests compile` with the vendored `ai-manager` sources only; no private checkout, no tests, no paid model call | JAR upload to `dealerops-ai`; release time on `/actuator/info` |
 | dealer-web | Node 20 | `npm ci && npm run build` | `dist/` upload to the Static Web App; the bottom-left footer shows the release time of all four apps |
 
 The `dealer-core` integration tests are the **only** remaining use of a Docker engine, and only as a test fixture on a CI runner or a developer machine. Nothing that ships is a container.
@@ -260,7 +262,7 @@ Do not deploy by hand in the portal and call it a pipeline, and do not add an Az
 ## 8. Java and secrets
 
 - The three Java repos (`dealer-gateway` / `dealer-core` / `ai-service`) are uniformly **21**. Ban one repo on 21 and another on 17.
-- `dealer-web` has no JDK. Upstream `ai-manager` remains a Java 17 bytecode JAR; **do not change that library**; a 21 runtime may depend on it.
+- `dealer-web` has no JDK. `ai-manager` is vendored as source into ai-service and compiled with Java 21; **do not edit the vendored classes** ([09](09-AI-Agent-Integration.md)).
 - **Secrets stay out of the repo:** `.env`, `terraform.tfvars`, `terraform.tfstate`, `AIMANAGER_API_KEY`, real MySQL passwords, and real `INTERNAL_TOKEN` values do not go into Git. Locally copy `dealer-platform/env.example`. Cloud uses Key Vault references from `deploy/terraform`.
 - Sign-in uses an email, username, or phone plus password ([15](15-Data-Auth-and-Gateway.md) §8). The SPA holds no client secret of any kind.
 

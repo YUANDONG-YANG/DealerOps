@@ -18,7 +18,7 @@
 - Out of scope: tickets, consumer buyer site, standalone Audit page, KPI, CSV import, and forgot password. The assistant only reuses the GitHub component and is read-only.
 - **Local-only cannot pass Sprint 2 / Sprint 3 (Review 2 / Review 3) acceptance.** Sprint 1 may explain architecture and four-repo builds on a local machine; S2/S3 must be a **cloud demo** (password sign-in → Gateway → business → real AI on Azure). See section 5.
 
-Numbering: classroom scripts `CL-*`, backend `BE-*` (may serve as [11](11-Requirements-Governance-and-Agile.md) **NN-19** key test table), frontend `FE-*`. Total **26** use cases + 6 classroom scripts (the scripts themselves are not counted in the 32).
+Numbering: classroom scripts `CL-*`, backend `BE-*` (may serve as [11](11-Requirements-Governance-and-Agile.md) **NN-19** key test table), frontend `FE-*`. Total **26** use cases + 6 classroom scripts (the scripts are not counted in the 26).
 
 ---
 
@@ -29,7 +29,7 @@ Class signs in with an email, username, or phone plus password (15 §8); self si
 | path | Who enters | Default landing |
 |---|---|---|
 | `/` | not signed in (public landing page) | — |
-| `/login`, `/register` | public auth flow | email/phone sign-in and registration |
+| `/login`, `/register` | public auth flow | sign-in by email, username, or phone, and registration |
 | `/no-access` | signed in, no dealership yet | — |
 | `/admin` | `Platform.Admin` | Admin |
 | `/dms` | `Dealer.User` | staff |
@@ -56,7 +56,7 @@ Each script states: who signs in, which page, what they must see / must not see.
 
 1. As **Admin**, open `/login` → enter the email, username, or phone + password → `Sign in` → land on **`/admin`**.
 2. **See:** top bar `Platform Admin`; menu is **Admin only**; two in-page Tabs: **Dealerships**, **Members**.
-3. **Do not see:** DMS / CRM / Ad compliance / Assistant in the menu; any vehicle VIN, customer-name table, or ad body.
+3. **Do not see:** DMS / CRM / Leads / Ad compliance in the menu, or the floating assistant; any vehicle VIN, customer-name table, or ad body.
 4. Dealerships: `New dealership` creates dealership A and dealership B (four contact fields non-empty).
 5. Each dealership Staff drawer: `Bind staff` binds Staff A and Staff B `username` + display name + temporary password. Members Tab can flatten both people, each under one dealership.
 6. **Failure shape (optional):** binding the same person again to the same dealership while active → in-page `Staff already bound` (`409 DUP_MEMBER`), not a silent second row.
@@ -64,7 +64,7 @@ Each script states: who signs in, which page, what they must see / must not see.
 ### CL-2 · Dealership A records a vehicle and customer and links them; dealership B cannot see them (00 item 2 · NN-13/14)
 
 1. **Staff A** signs in → lands on **`/dms`**. Top-bar dealership name is dealership A's `dealerLegalName`.
-2. **See:** menu DMS / CRM / Ad compliance / Assistant. `Add vehicle` fills one vehicle with spec-required fields (VIN unique in this dealership).
+2. **See:** menu DMS / CRM / Leads / Ad compliance, plus the floating assistant button. `Add vehicle` fills one vehicle with spec-required fields (VIN unique in this dealership).
 3. Open **`/crm`**: `Add customer` four fields; `Link vehicle` selects that unlinked vehicle in this dealership; after success the list `linkedVehicle` shows year/make/model.
 4. **Do not see:** Admin menu; dealership B vehicles or customers; other-dealership VINs in the link-vehicle dropdown.
 5. **Sign out**, **Staff B** signs in → `/dms`, `/crm`.
@@ -73,10 +73,10 @@ Each script states: who signs in, which page, what they must see / must not see.
 
 ### CL-3 · Admin hitting the vehicle API is rejected (00 item 3)
 
-1. **Admin** is signed in. Change the address bar to **`/dms`** (and `/crm` `/ads` `/assistant`).
+1. **Admin** is signed in. Change the address bar to **`/dms`** (and `/crm` `/leads` `/ads`).
 2. **See:** the guard immediately sends them back to **`/admin`**; the vehicle table is not rendered.
 3. **Do not see:** VIN, purchase cost, customer phone.
-4. Keep a second terminal (still using the Admin JWT): `GET {Gateway}/api/v1/vehicles` → **403 or 404**, body **must not** contain `vin` / cost or other business fields (14). Do not use "frontend hid the button" as the only evidence.
+4. Keep a second terminal (still using the Admin JWT): `GET {Gateway}/api/v1/vehicles` → **403** `FORBIDDEN`, body **must not** contain `vin` / cost or other business fields (14). Do not use "frontend hid the button" as the only evidence.
 
 ### CL-4 · Missing price or finance missing APR is blocked (00 item 4 · NN-15)
 
@@ -127,7 +127,7 @@ All APIs go through Gateway `/api/v1/**`. Staff tenant comes only from JWT `sub`
 
 | ID | Name | Expect |
 |---|---|---|
-| **BE-13** | Admin hitting business URLs | `/vehicles` `/customers` `/listings/**` `/assistant/ask` → **403** or **404**, body has no business fields |
+| **BE-13** | Admin hitting business URLs | `/vehicles` `/customers` `/listings/**` `/audit` `/assistant/ask` → **403** `FORBIDDEN` (15 §2.4), body has no business fields |
 | **BE-14** | Bypass Gateway | browser or no internal header hitting core `8081`, ai `8082`, `/internal/v1/**` → fail (no CORS / **404**, 15). Gateway + user JWT `/api/v1/**` is the product entry |
 | **BE-15** | Sell as a pair | missing either `soldOn`/`soldPrice` → **400** `SOLD_PAIR_REQUIRED`; price `≤0` → 400. Ignore PATCH of sale fields |
 | **BE-16** | Ignore client `dealerId` | Staff A creates a vehicle while spoofing dealership B `dealerId` in body/query/header | still written to **dealership A**; cannot switch dealerships via parameters |

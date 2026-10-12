@@ -92,7 +92,13 @@ public class TenantFilter extends OncePerRequestFilter {
       if (role == AppRole.DEALER_USER) {
         List<MembershipEntity> rows = membershipRepository.findByUsernameAndActiveTrue(username);
         if (rows.size() >= 2) {
-          write(req, res, 500, "CONFIG_ERROR", "Multiple active memberships");
+          // Configuration error (the bind API never writes this); details stay in the server log.
+          log.error(
+              "requestId={} Multiple active memberships username={} count={}",
+              requestId(req),
+              username,
+              rows.size());
+          write(req, res, ErrorCode.INTERNAL_ERROR, "Unexpected server error.");
           return;
         }
         Long dealerId = rows.size() == 1 ? rows.get(0).getDealerId() : null;
@@ -165,16 +171,10 @@ public class TenantFilter extends OncePerRequestFilter {
 
   private void write(HttpServletRequest req, HttpServletResponse res, ErrorCode code, String message)
       throws IOException {
-    write(req, res, code.getHttpStatus(), code.name(), message);
-  }
-
-  private void write(
-      HttpServletRequest req, HttpServletResponse res, int status, String code, String message)
-      throws IOException {
-    log.warn("Rejecting {} {} -> {} {}", req.getMethod(), req.getRequestURI(), status, code);
-    res.setStatus(status);
+    log.warn("Rejecting {} {} -> {} {}", req.getMethod(), req.getRequestURI(), code.getHttpStatus(), code);
+    res.setStatus(code.getHttpStatus());
     res.setContentType(MediaType.APPLICATION_JSON_VALUE);
-    objectMapper.writeValue(res.getOutputStream(), new ErrorBody(code, message, null));
+    objectMapper.writeValue(res.getOutputStream(), new ErrorBody(code.name(), message, null));
   }
 
   private static String requestId(HttpServletRequest req) {

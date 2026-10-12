@@ -6,6 +6,7 @@ import AppLayout from '../layouts/AppLayout.vue'
 import DataTable from '../components/DataTable.vue'
 import FormDrawer from '../components/FormDrawer.vue'
 import PageState from '../components/PageState.vue'
+import AuditTrail from '../components/AuditTrail.vue'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 import WorkOrderPanel from '../components/WorkOrderPanel.vue'
 import PhotoStudioPanel from '../components/PhotoStudioPanel.vue'
@@ -158,15 +159,6 @@ function blankForm() {
 function enumLabel(v: string) {
   const s = String(v || '').split('_').join(' ').toLowerCase()
   return s ? s.charAt(0).toUpperCase() + s.slice(1) : ''
-}
-
-function summaryText(raw: unknown) {
-  if (!raw || typeof raw !== 'object') return '—'
-  const o: Record<string, unknown> = { ...(raw as Record<string, unknown>) }
-  for (const k of Object.keys(o)) {
-    if (/email|phone|address/i.test(k)) delete o[k]
-  }
-  return Object.keys(o).length ? JSON.stringify(o) : '—'
 }
 
 function mapWrite(e: unknown) {
@@ -610,17 +602,7 @@ watch(
           @changed="refreshAfterWorkOrder"
         />
         <PhotoStudioPanel v-if="edit?.id" :vehicle-id="edit.id" />
-        <div v-if="edit?.id" class="detail-audit">
-          <div class="muted">Audit</div>
-          <el-table :data="audit">
-            <el-table-column prop="action" label="Action" width="110" />
-            <el-table-column prop="actorUsername" label="Actor" />
-            <el-table-column prop="createdAt" label="When" />
-            <el-table-column label="Summary">
-              <template #default="{ row }">{{ summaryText(row.fieldSummary) }}</template>
-            </el-table-column>
-          </el-table>
-        </div>
+        <AuditTrail v-if="edit?.id" :rows="audit" />
       </el-form>
     </FormDrawer>
     <ConfirmDialog

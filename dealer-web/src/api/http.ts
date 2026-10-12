@@ -28,8 +28,9 @@ http.interceptors.request.use(async (config) => {
   }
   config.baseURL = await applyGatewayUrl()
   config.headers = config.headers || {}
-  // Signed-out pages (landing VIN decode) call public endpoints without a token.
-  const token = await accessToken().catch(() => '')
+  // Signed-out pages (landing VIN decode) call public endpoints without a token. Sign-in and
+  // sign-up never send one, so an expired stored token cannot turn them into a 401.
+  const token = path.includes('/auth/') ? '' : await accessToken().catch(() => '')
   if (token) config.headers.Authorization = `Bearer ${token}`
   return config
 })

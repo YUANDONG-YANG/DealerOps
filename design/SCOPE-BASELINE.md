@@ -6,7 +6,7 @@ Conflict order (read-only): **PPT hard requirements > specification PDF fields >
 ## Approved-scope formula
 
 **Specification PDF fields** (DMS / CRM / Ad: do not add or remove)  
-**+ PPT six hard requirements** (four repos and four pipelines; Gateway; Azure+Docker+Bicep+CI/CD; JWT+RBAC+HTTPS+Key Vault (sign-in per errata 1); real AI; Scrum board and three all-hands Reviews)  
+**+ PPT six hard requirements** (four repos and four pipelines; Gateway; Azure + IaC + CI/CD, with Docker dropped and Terraform as the IaC per errata 5; JWT+RBAC+HTTPS+Key Vault (sign-in per errata 1); real AI; Scrum board and three all-hands Reviews)  
 **+ v6 five pages** (Login / Admin / DMS / CRM / Ad compliance) **+ floating Assistant widget on staff pages**  
 **− v6 out-of-scope list** (see Out of Scope).  
 Scope changes require a re-sign of this page or email confirmation.
@@ -21,7 +21,7 @@ Scope changes require a re-sign of this page or email confirmation.
 | Ad check + TXT export | OMVIC fixed checklist + GitHub AI component; Ready + TXT only when Passed and not Stale |
 | Audit | Every DMS/CRM change: who, what, when |
 | Assistant | In-dealership read-only Q&A; same AI component; no database writes |
-| Four repos | `dealer-web` / `dealer-gateway` / `dealer-core` / `ai-service` (plus `dealer-platform` for IaC) |
+| Four repos | `dealer-web` / `dealer-gateway` / `dealer-core` / `ai-service` (plus `dealer-platform` for the shared contract and config; IaC is `deploy/terraform`) |
 | Auth | Password per account; sign in with email, username, or phone; no social sign-in; username is also the key for memberships and the JWT subject; JWT roles only `Platform.Admin` / `Dealer.User`; bind `app_user`→dealership. See [15-Data-Auth-and-Gateway.md](15-Data-Auth-and-Gateway.md) §8 |
 | Gateway | Browser traffic only through Gateway; direct core / ai-service access must fail |
 | Real AI | `ai-service` embeds the GitHub component in-process; failure must not display Pass |
@@ -50,8 +50,8 @@ The following appeared in early proposals or superseded drafts now under [archiv
 |---|---|
 | Visitor buyer site, public ad pages, inquiry form | No buyer site |
 | Staff / Manager roles | Admin / Dealer.User only |
-| Recon work orders, sale-ready gates, archive | No work orders; stock is only IN_STOCK / SOLD |
-| Lead funnel, follow-up, deal transactions, sales page | CRM four fields + vehicle link; DMS paired sale |
+| Recon work orders, sale-ready gates, archive | No sale-ready gates or archive; stock is only IN_STOCK / SOLD. Reconditioning work orders returned as an extension (errata 7) |
+| Lead funnel, follow-up, deal transactions, sales page | CRM four fields + vehicle link; DMS paired sale. Lead follow-up returned as an extension (errata 7); no funnel reports or deal transactions |
 | Dashboard / KPI | No KPI home page |
 | In-app Publish / Unpublish to visitor pages | **Ready + export TXT** (not an external site, not an in-app buyer page) |
 | stock #, mileage, color, list price/fees, preset images | Specification PDF fields only |
@@ -75,7 +75,7 @@ Already deferred in the proposal and still out of this version: OCR, third-party
 
 ## Signature / email confirmation
 
-Confirm: the tables above are this course’s grading and demo scope; work orders, leads, buyer site, and Service Bus are **not** in scope. The team roster is [TEAM.md](TEAM.md).
+Confirm: the tables above are this course’s grading and demo scope; garage/service billing, sales funnel reports, buyer site, and Service Bus are **not** in scope; the errata 6–7 extensions are in scope. The team roster is [TEAM.md](TEAM.md).
 
 | Role | Name | Repo focus |
 |---|---|---|

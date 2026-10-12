@@ -75,7 +75,8 @@ public class JwtDecoderConfig {
         || lower.contains("systemproperties");
   }
 
-  static String devSecret(Environment environment) {
+  /** Signing/validation secret; {@code JwtIssuer} signs with the same resolved value. */
+  public static String devSecret(Environment environment) {
     String configured =
         firstNonBlank(
             environment.getProperty("DEV_JWT_SECRET"),

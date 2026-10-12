@@ -60,7 +60,6 @@ dealer-core/
     DealerCoreApplication.java
     config/
       SecurityConfig.java          # Resource Server; /api/v1/** requires JWT; do not expose actuator business
-      WebConfig.java               # no browser CORS (or empty)
       JacksonConfig.java           # camelCase; dates YYYY-MM-DD / ISO-8601 UTC (14 §1.3)
       AiClientConfig.java          # WebClient: direct ai-service base URL + internal header
     security/
@@ -203,7 +202,7 @@ Each service maps to a 14 endpoint group. Implementations cite paths only and co
 - **Endpoints (14 §4):** `GET/POST /vehicles`, `GET/PATCH /vehicles/{id}`, `POST /vehicles/{id}/sell`.
 - **Duties:** list this dealership, `q`=VIN/make/model, `status`, `condition` (that is `conditionCode`), pagination envelope `{items,page,size,total}`, `page` from 0, `size` capped at 10. POST forces `IN_STOCK`, ignores client `dealerId`/`status`/`sold*`. VIN unique in this dealership → `400 VIN_DUP`.
 - **Sold lock (15 §3):** PATCH purchase/identity fields → `409 SOLD_LOCKED`. Do not PATCH `status`/`soldOn`/`soldPrice`. Changing `conditionCode` when a listing exists → `contentVersion++` (purchase-cost-only change does not void the ad).
-- **Sell:** `soldOn`+`soldPrice`+`version` as a pair; price `> 0`; sell again after sold → `409 SOLD_LOCKED`; missing either → `400 SOLD_PAIR_REQUIRED`. Do not delete `customer_vehicle`.
+- **Sell:** `soldOn`+`soldPrice`+`version` as a pair; price `> 0`; sell again after sold → `409 SOLD_LOCKED`; missing either or price ≤0 → `400 SOLD_PAIR_REQUIRED`. Do not delete `customer_vehicle`.
 - **Audit:** `VEHICLE` / `CREATE` | `UPDATE` | `SELL`. Cross-dealership id → 404.
 
 ### 4.4 `CustomerService` (includes link + unlink)
@@ -280,7 +279,7 @@ Every `/api/v1/**` (business paths other than `/me`) resolves tenant before the 
 |---|---|---|
 | Bean Validation / illegal enum / empty text | `VALIDATION` | 400 |
 | This-dealership VIN hits `uk_vehicle_vin` or pre-check duplicate | `VIN_DUP` | 400 |
-| sell missing `soldOn` or `soldPrice`; price ≤0 uses VALIDATION or this code (16: ≤0 → 400) | `SOLD_PAIR_REQUIRED` | 400 |
+| sell missing `soldOn` or `soldPrice`, or price ≤0 | `SOLD_PAIR_REQUIRED` | 400 |
 | PUT link does not throw this. `CustomerService.link` ignores vehicle status, so a same-store sold vehicle may be linked. Cross-store ids are `NOT_FOUND` (404). The enum stays on `ErrorCode` and has no production throw site. | `WRONG_DEALER_OR_SOLD` | 400 |
 | Missing/bad JWT | `UNAUTHORIZED` | 401 |
 | Role hitting the wrong prefix; staff 0 active memberships | `FORBIDDEN` | 403 |
@@ -315,7 +314,7 @@ core **does not** treat a direct `8082` call as the product path; outbound hits 
 5. **Blocked: `OmvicRuleEngine` already returned hard → the method returns immediately, Client makes zero calls.** (16 BE-09)
 6. AI failure/timeout: check path **502 + persist UNAVAILABLE** (14 §8.2); assistant path **200** + `summaryAvailable=false` (14 §10). If persist fails, the database wins; check again next time (15 §5).
 
-core **does not** hold `AIMANAGER_API_KEY`. Do not embed the ai-manager JAR.
+core **does not** hold `AIMANAGER_API_KEY`. Do not embed the ai-manager library.
 
 ---
 

@@ -4,7 +4,6 @@ public enum EntityType {
   VEHICLE,
   CUSTOMER,
   CUSTOMER_VEHICLE,
-  LISTING,
   DEALER,
   MEMBERSHIP,
   LEAD,

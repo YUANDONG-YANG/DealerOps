@@ -7,6 +7,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.regex.Pattern;
 import java.util.TreeSet;
@@ -41,7 +42,7 @@ public class VehicleCatalogService {
   }
 
   public List<String> makes() {
-    TenantGuard.requireBusinessAccess();
+    TenantGuard.requireDealerUser();
     return cache.computeIfAbsent(
         "makes",
         key ->
@@ -52,11 +53,11 @@ public class VehicleCatalogService {
   }
 
   public List<String> models(String make) {
-    TenantGuard.requireBusinessAccess();
+    TenantGuard.requireDealerUser();
     if (make == null || make.isBlank()) {
       throw new ApiException(ErrorCode.VALIDATION, "Make is required.");
     }
-    String key = make.trim().toUpperCase();
+    String key = make.trim().toUpperCase(Locale.ROOT);
     return cache.computeIfAbsent(
         "models:" + key,
         k ->
@@ -67,7 +68,7 @@ public class VehicleCatalogService {
 
   /** Public (no sign-in): the landing page and the DMS create form both decode VINs. */
   public VinDecodeResponse decodeVin(String vin) {
-    String key = vin == null ? "" : vin.trim().toUpperCase();
+    String key = vin == null ? "" : vin.trim().toUpperCase(Locale.ROOT);
     if (!VIN.matcher(key).matches()) {
       throw new ApiException(ErrorCode.VALIDATION, "VIN must be 17 characters without I, O, or Q.");
     }

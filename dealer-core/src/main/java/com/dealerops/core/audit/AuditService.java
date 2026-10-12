@@ -12,8 +12,6 @@ import com.dealerops.core.customer.CustomerVehicleRepository;
 import com.dealerops.core.lead.LeadRepository;
 import com.dealerops.core.photo.VehiclePhotoRepository;
 import com.dealerops.core.workorder.WorkOrderRepository;
-import com.dealerops.core.dealer.AppRole;
-import com.dealerops.core.security.CurrentUser;
 import com.dealerops.core.vehicle.VehicleRepository;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -78,14 +76,7 @@ public class AuditService {
 
   @Transactional(readOnly = true)
   public PageResponse<AuditItem> list(String entityType, Long entityId, int page, int size) {
-    CurrentUser user = TenantContext.get();
-    if (user == null) {
-      throw new ApiException(ErrorCode.FORBIDDEN, "Forbidden");
-    }
-    boolean admin = user.role() == AppRole.PLATFORM_ADMIN;
-    if (!admin) {
-      TenantGuard.requireDealerUser();
-    }
+    TenantGuard.requireDealerUser();
     if (entityType == null || entityType.isBlank() || entityId == null) {
       throw new ApiException(ErrorCode.VALIDATION, "Request is invalid.");
     }
@@ -96,10 +87,8 @@ public class AuditService {
     if (!isAllowedStaffType(type)) {
       throw new ApiException(ErrorCode.VALIDATION, "Request is invalid.");
     }
-    Long tenant = admin ? null : user.tenantDealerId();
-    if (!admin) {
-      assertEntityInDealer(type, entityId, tenant);
-    }
+    Long tenant = TenantContext.get().tenantDealerId();
+    assertEntityInDealer(type, entityId, tenant);
     if (EntityType.CUSTOMER.name().equals(type)) {
       return customerHistory(tenant, entityId, page, size);
     }
@@ -108,9 +97,8 @@ public class AuditService {
     // created_at has one-second precision; id breaks ties so CREATE/UPDATE in the same second
     // keep their order and pages do not overlap (same order as customerHistory).
     Pageable pageable = Paging.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt", "id"));
-    Page<AuditEventEntity> result = admin
-        ? auditEventRepository.findByEntityTypeAndEntityIdOrderByCreatedAtDesc(type, entityId, pageable)
-        : auditEventRepository.findByDealerIdAndEntityTypeAndEntityIdOrderByCreatedAtDesc(
+    Page<AuditEventEntity> result =
+        auditEventRepository.findByDealerIdAndEntityTypeAndEntityIdOrderByCreatedAtDesc(
             tenant, type, entityId, pageable);
     return new PageResponse<>(
         result.map(this::toItem).getContent(), result.getNumber(), result.getSize(), result.getTotalElements());
@@ -119,9 +107,7 @@ public class AuditService {
   // The classroom data set is small. Merge existing link events without a schema migration
   // or duplicate writes, so even an already-deleted link retains its customer history.
   private PageResponse<AuditItem> customerHistory(Long tenant, Long customerId, int page, int size) {
-    List<AuditEventEntity> source = tenant == null
-        ? auditEventRepository.findAll(Sort.by(Sort.Direction.DESC, "createdAt", "id"))
-        : auditEventRepository.findByDealerIdOrderByCreatedAtDescIdDesc(tenant);
+    List<AuditEventEntity> source = auditEventRepository.findByDealerIdOrderByCreatedAtDescIdDesc(tenant);
     List<AuditItem> events = source.stream()
         .filter(event -> {
           if (EntityType.CUSTOMER.name().equals(event.getEntityType())) {

@@ -8,6 +8,7 @@ import DataTable from '../components/DataTable.vue'
 import FormDrawer from '../components/FormDrawer.vue'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 import PageState from '../components/PageState.vue'
+import AuditTrail from '../components/AuditTrail.vue'
 import { fieldErrorsOf, messageOf } from '../api/http'
 import { customersApi } from '../api/customers'
 import { errorCode, errorStatus, vehiclesApi } from '../api/vehicles'
@@ -83,15 +84,6 @@ function blankForm() {
 function linkedLabel(v: any) {
   if (!v) return '—'
   return `${v.modelYear} ${v.make} ${v.model}`
-}
-
-function summaryText(raw: unknown) {
-  if (!raw || typeof raw !== 'object') return '—'
-  const o: Record<string, unknown> = { ...(raw as Record<string, unknown>) }
-  for (const k of Object.keys(o)) {
-    if (/email|phone|address/i.test(k)) delete o[k]
-  }
-  return Object.keys(o).length ? JSON.stringify(o) : '—'
 }
 
 function mapCustomerWrite(e: unknown) {
@@ -443,17 +435,7 @@ watch(
             </router-link>
             <span class="muted"> · Follow-up {{ l.nextFollowUpOn || '—' }}</span>
           </div>
-          <div class="detail-audit">
-            <div class="muted">Audit</div>
-            <el-table :data="audit">
-              <el-table-column prop="action" label="Action" width="110" />
-              <el-table-column prop="actorUsername" label="Actor" />
-              <el-table-column prop="createdAt" label="When" />
-              <el-table-column label="Summary">
-                <template #default="{ row }">{{ summaryText(row.fieldSummary) }}</template>
-              </el-table-column>
-            </el-table>
-          </div>
+          <AuditTrail :rows="audit" />
         </template>
       </el-form>
     </FormDrawer>

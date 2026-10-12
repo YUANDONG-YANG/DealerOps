@@ -98,7 +98,7 @@ spring:
         - id: dealer-core-swagger
           uri: ${CORE_URL}
           predicates:
-            - Path=/swagger-ui.html,/swagger-ui/**,/v1/api-docs,/v1/api-docs/**
+            - Path=/swagger-ui.html,/swagger-ui/**,/v3/api-docs,/v3/api-docs/**
           metadata:
             connect-timeout: 2000
             response-timeout: 5000
@@ -133,7 +133,7 @@ Route metadata timeouts are finite: the AI route is connect 2s and response 16s;
 
 `Access-Control-Allow-Headers` **must not** list `X-Dealer-Internal` (15 §13). CORS is **only** on Gateway (and Vite for 5173); core / ai-service do not configure browser CORS.
 
-**Swagger (classroom acceptance).** Anonymous Swagger and OpenAPI are available only when `dealerops.jwt.mode` is `dev` and every active Spring profile is local (`dev`, `local`, `test`, or `default`). Any other JWT mode or Spring profile denies `/swagger-ui.html`, `/swagger-ui/**`, `/v1/api-docs`, and `/v1/api-docs/**`. When that local case is open, the browser opens Swagger on the gateway, path `/swagger-ui/index.html`, with no Bearer token. `/api/v1/**` stays authenticated. Core `server.forward-headers-strategy=framework` reads the `X-Forwarded-Host` / `X-Forwarded-Proto` headers the gateway adds by default, which keeps the UI and the spec on the gateway host. The gateway does not use `PreserveHostHeader`: Azure App Service routes by `Host`, so forwarding the gateway's own host to `dealerops-core` is refused with a bare 400. The OpenAPI `servers` entry is `GATEWAY_PUBLIC_URL` (default `http://localhost:8080`, or the public gateway origin). Core's outbound AI client uses `AI_BASE_URL` directly (`http://127.0.0.1:8082` locally, the `dealerops-ai` HTTPS origin in Azure); it must never use the Gateway origin. `GATEWAY_BASE_URL` is reserved for the Gateway origin used by OpenAPI/public-link configuration. The description is title `DealerOps Gateway API`, version `v1`, `API published <time>` (the dealer-core release time), and the gateway's anonymous `GET /actuator/release` lists the gateway, core and ai-service release times ([20-Observability.md](20-Observability.md) §5). Core port `8081` is not an acceptance URL.
+**Swagger (classroom acceptance).** Anonymous Swagger and OpenAPI are available only when `dealerops.jwt.mode` is `dev` and every active Spring profile is local (`dev`, `local`, `test`, or `default`). Any other JWT mode or Spring profile denies `/swagger-ui.html`, `/swagger-ui/**`, `/v3/api-docs`, and `/v3/api-docs/**`. When that local case is open, the browser opens Swagger on the gateway, path `/swagger-ui/index.html`, with no Bearer token. `/api/v1/**` stays authenticated. Core `server.forward-headers-strategy=framework` reads the `X-Forwarded-Host` / `X-Forwarded-Proto` headers the gateway adds by default, which keeps the UI and the spec on the gateway host. The gateway does not use `PreserveHostHeader`: Azure App Service routes by `Host`, so forwarding the gateway's own host to `dealerops-core` is refused with a bare 400. The OpenAPI `servers` entry is `GATEWAY_PUBLIC_URL` (default `http://localhost:8080`, or the public gateway origin). Core's outbound AI client uses `AI_BASE_URL` directly (`http://127.0.0.1:8082` locally, the `dealerops-ai` HTTPS origin in Azure); it must never use the Gateway origin. The description is title `DealerOps Gateway API`, version `v1`, `API published <time>` (the dealer-core release time), and the gateway's anonymous `GET /actuator/release` lists the gateway, core and ai-service release times ([20-Observability.md](20-Observability.md) §5). Core port `8081` is not an acceptance URL.
 
 The runtime OpenAPI document declares the `bearerAuth` HTTP security scheme globally, so Swagger UI provides an **Authorize** button for protected `/api/v1/**` operations. `POST /api/v1/auth/login` is explicitly anonymous; paste the token returned by that operation into Swagger's Authorize dialog before trying other business APIs. The internal `/internal/v1/**` AI routes remain core-only and are not user-token APIs.
 
@@ -172,9 +172,9 @@ log-sum/dealer-core-YYYY-MM-DD.log
 log-sum/ai-service-YYYY-MM-DD.log
 ```
 
-The gateway log records the route ID, HTTP status, duration, and completion signal. Core and ai-service record the method, path, status, and duration; core also records the authenticated username when available. Authorization tokens, passwords, and request bodies must never be logged.
+The gateway log records the route ID, HTTP status, duration, and completion signal. Core and ai-service record the method, path, status, and duration; core also records the authenticated username when available. Authorization tokens and passwords must never be logged; request bodies are logged only in the redacted form defined in [20-Observability.md](20-Observability.md).
 
-For `/api/v1/assistant/ask`, core permits both `Platform.Admin` and a bound `Dealer.User`. Admin retrieval is cross-dealer; dealer-user retrieval remains tenant-scoped. A `Platform.Admin` request therefore reaches ai-service (when the AI adapter is available), while an unbound or invalid role is rejected before the AI call. A permitted request produces the same request ID in gateway, core, and ai-service logs.
+For `/api/v1/assistant/ask`, core permits only a bound `Dealer.User`, and retrieval is tenant-scoped. A `Platform.Admin`, unbound, or invalid-role request is rejected with **403** before the AI call, so it never reaches ai-service. A permitted request produces the same request ID in gateway, core, and ai-service logs.
 
 ### 1.5 How to prove direct core:8081 / ai:8082 access fails
 
@@ -206,13 +206,12 @@ Classroom wrap (full "why no Service Bus" section is in **15 §8.2 / §9**; do n
 
 ### 2.1 Position
 
-Java 21 Spring Boot, **no database**, no Flyway, no business tables. In-process dependency on the private GitHub **ai-manager** JAR; **do not** give the component its own container (07 / 09).
+Java 21 Spring Boot, **no database**, no Flyway, no business tables. In-process use of the **ai-manager** library, vendored as source under `com.manager` (09 "Vendored source"); **do not** give the component its own container (07 / 09).
 
-Locked (09; plan only, do not change that repo's source):
+Locked (09; do not edit the vendored classes):
 
-- Repo: `https://github.com/YUANDONG-YANG/ai-manager` (private)
-- Branch `main`, commit **`c07e1f2afe5dd692c20f3567ad3a42a90d31a87a`**
-- Current Maven coordinates: `com.aimanager:aimanager:1.0.0-SNAPSHOT` (SNAPSHOT is not a release number; see §2.8)
+- Upstream repo: `https://github.com/YUANDONG-YANG/ai-manager` (private)
+- Vendored commit **`827196a`**; no Maven dependency (see §2.8)
 - Use only `com.manager.AiManager`: `request(String)`, `startConversation(id, systemMessage)`, `closeConversation`
 - **Do not** scan `com.gateway`, **do not** start `AIApplication`, **do not** expose library `/api/ai/request`, `/chat`, `/credentials`, `/runtime`
 
@@ -258,7 +257,6 @@ server:
 dealerops:
   ai:
     timeout-ms: 15000
-    require-internal-header: true
 ```
 
 ### 2.4 Internal APIs (paths cite 14 §11 only)
@@ -309,8 +307,8 @@ PPT: real AI, **Azure OpenAI preferred**. No homegrown SDK; vendors use capabili
 |---|---|
 | `AI_PORT` | 8082 |
 | `AIMANAGER_API_KEY` | sole model key; empty must fail on first call after start (see below) |
-| `AIMANAGER_GATEWAY_PROVIDER` | default example `openai`; in class prefer the **Azure OpenAI-compatible openai path** (or an Azure-hosted endpoint the library already supports, 07) |
-| `AIMANAGER_GATEWAY_MODEL` | deployment / model name; empty uses the library default, but pairing must set it explicitly |
+| `AIMANAGER_GATEWAY_PROVIDER` | default `groq`; must match the vendor of `AIMANAGER_API_KEY` (`openai` for the Azure OpenAI-compatible path, 07) |
+| `AIMANAGER_GATEWAY_MODEL` | model or deployment name; default `qwen/qwen3.8-27b` (Groq) |
 
 Do not introduce `OPENAI_API_KEY`, a vector connection string, or a second model client. Rotating a key = change KV / `.env` only, not the image (15 §13).
 
@@ -327,16 +325,9 @@ ai-service **does not** invent an `AI_UNAVAILABLE` business table. It only makes
 
 Forbidden: ai-service returning a "fake Passed"; treating timeout as 200 empty notes.
 
-### 2.8 Private package / immutable version (plan only)
+### 2.8 Library version
 
-At implementation time (**do not change code outside this document, do not change ai-manager source**):
-
-1. From commit `c07e1f2afe5dd692c20f3567ad3a42a90d31a87a` cut a **non-SNAPSHOT** immutable version
-2. Publish to GitHub Packages `https://maven.pkg.github.com/YUANDONG-YANG/ai-manager`
-3. `ai-service` references that immutable version only
-4. Local `mvn install` before that version exists is for development only
-5. CI stub; do not hit paid endpoints
-6. A 21 runtime can depend on a **17 bytecode** JAR (15 §12); do not drop the three repos to 17 unless the whole machine falls back
+The private-package plan is retired. ai-service compiles the vendored `com.manager` sources at upstream commit `827196a` with Java 21 (09 "Vendored source"). CI compiles only and does not hit paid endpoints.
 
 Library README tests are unmaintained (09): **cannot** treat that library itself as quality proof. Fixture labels are team-authored (17).
 

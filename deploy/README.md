@@ -23,7 +23,7 @@ GitHub Actions starts the workflows whose path filters match the push. A pull re
 | `dealer-web/**` | `.github/workflows/dealer-web.yml` | Job `compile`: Node 20 `npm ci` and `npm run build` |
 | `dealer-core/**` | `.github/workflows/dealer-core.yml` | Job `compile`: JDK 21 compile, unit tests, and the Testcontainers ITs when the runner has a Docker engine |
 | `dealer-gateway/**` | `.github/workflows/dealer-gateway.yml` | Job `compile`: JDK 21 compile and unit tests |
-| `ai-service/**` | `.github/workflows/ai-service.yml` | Job `compile`: stub profile compile and unit tests (no paid model) |
+| `ai-service/**` | `.github/workflows/ai-service.yml` | Job `compile`: JDK 21 compile of ai-service with the vendored `ai-manager` sources (no private checkout, no paid model call) |
 | `deploy/terraform/**` | `.github/workflows/terraform.yml` | Job `validate`: `terraform fmt -check`, `init -backend=false`, `validate`. Log line `Terraform validated. Not applied (no subscription credentials in this repository).` |
 
 Open runs at `https://github.com/YUANDONG-YANG/DealerOps/actions`.
@@ -186,7 +186,7 @@ deploy/terraform/deploy-apps.sh
 That script reads every name and URL from `terraform output` and then, for one UTC timestamp:
 
 1. stamps `PUBLISHED_AT` on `dealerops-core`, packages `dealer-core`, and uploads the JAR
-2. stamps `PUBLISHED_AT` on `dealerops-ai`, packages `ai-service` (real `ai-manager` dependency, installed locally from the sibling checkout) and uploads the JAR
+2. stamps `PUBLISHED_AT` on `dealerops-ai`, packages `ai-service` (vendored `ai-manager` sources, no extra install) and uploads the JAR
 3. stamps `PUBLISHED_AT` on `dealerops-gateway`, packages `dealer-gateway`, and uploads the JAR
 4. builds `dealer-web` with `VITE_GATEWAY_URL` set to the gateway URL and `VITE_PUBLISHED_AT` set to the same timestamp, then uploads `dist/` to the Static Web App
 

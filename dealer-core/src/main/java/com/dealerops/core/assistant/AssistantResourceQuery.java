@@ -145,12 +145,7 @@ public class AssistantResourceQuery {
     ComplianceCheckEntity last =
         listing.getLastCheckId() == null
             ? null
-            : checkForListing(listing, tenantDealerId)
-                .filter(
-                    check ->
-                        listing.getId().equals(check.getListingId())
-                            && listing.getDealerId().equals(check.getDealerId()))
-                .orElse(null);
+            : checkForListing(listing, tenantDealerId).orElse(null);
     return new ResourceCard(
         "LISTING",
         listing.getId(),
@@ -163,49 +158,20 @@ public class AssistantResourceQuery {
   }
 
   private List<VehicleEntity> searchVehicles(Long dealerId, String term, VehicleStatus status) {
-    if (dealerId != null) {
-      return vehicleRepository.search(dealerId, term, status, null, null, null, null, PageRequest.of(0, 5)).getContent();
-    }
-    String normalized = term.toLowerCase(Locale.ROOT);
-    return vehicleRepository.findAll().stream()
-        .filter(vehicle -> status == null || vehicle.getStatus() == status)
-        .filter(
-            vehicle ->
-                normalized.isBlank()
-                    || vehicle.getVin().toLowerCase(Locale.ROOT).contains(normalized)
-                    || vehicle.getMake().toLowerCase(Locale.ROOT).contains(normalized)
-                    || vehicle.getModel().toLowerCase(Locale.ROOT).contains(normalized))
-        .limit(5)
-        .toList();
+    return vehicleRepository.search(dealerId, term, status, null, null, null, null, PageRequest.of(0, 5)).getContent();
   }
 
   private List<CustomerEntity> searchCustomers(Long dealerId, String term) {
-    if (dealerId != null) {
-      return customerRepository.search(dealerId, term, null, PageRequest.of(0, 5)).getContent();
-    }
-    String normalized = term.toLowerCase(Locale.ROOT);
-    return customerRepository.findAll().stream()
-        .filter(
-            customer ->
-                normalized.isBlank()
-                    || customer.getName().toLowerCase(Locale.ROOT).contains(normalized)
-                    || customer.getEmail().toLowerCase(Locale.ROOT).contains(normalized)
-                    || customer.getPhone().toLowerCase(Locale.ROOT).contains(normalized))
-        .limit(5)
-        .toList();
+    return customerRepository.search(dealerId, term, null, PageRequest.of(0, 5)).getContent();
   }
 
   private java.util.Optional<ListingEntity> listingForVehicle(Long vehicleId, Long dealerId) {
-    return dealerId == null
-        ? listingRepository.findByVehicleId(vehicleId)
-        : listingRepository.findByVehicleIdAndDealerId(vehicleId, dealerId);
+    return listingRepository.findByVehicleIdAndDealerId(vehicleId, dealerId);
   }
 
   private java.util.Optional<ComplianceCheckEntity> checkForListing(
       ListingEntity listing, Long dealerId) {
-    return (dealerId == null
-            ? checkRepository.findById(listing.getLastCheckId())
-            : checkRepository.findByIdAndDealerId(listing.getLastCheckId(), dealerId))
+    return checkRepository.findByIdAndDealerId(listing.getLastCheckId(), dealerId)
         .filter(
             check ->
                 listing.getId().equals(check.getListingId())

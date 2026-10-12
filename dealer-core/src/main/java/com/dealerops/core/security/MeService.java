@@ -22,7 +22,8 @@ public class MeService {
     this.dealerRepository = dealerRepository;
   }
 
-  @Transactional
+  /** {@code app_user.dealer_id} is already synced from the membership by {@code TenantFilter}. */
+  @Transactional(readOnly = true)
   public MeResponse me(CurrentUser user) {
     if (user == null || user.username() == null) {
       throw new ApiException(ErrorCode.UNAUTHORIZED, "Unauthorized");
@@ -36,14 +37,7 @@ public class MeService {
     }
     String roleJson = user.role() == AppRole.DEALER_USER ? AppRole.DEALER_USER.getValue() : null;
     Long dealerId = user.tenantDealerId();
-    DealerEntity dealer = null;
-    if (dealerId != null) {
-      dealer = dealerRepository.findById(dealerId).orElse(null);
-      if (appUser != null && !dealerId.equals(appUser.getDealerId())) {
-        appUser.setDealerId(dealerId);
-        appUserRepository.save(appUser);
-      }
-    }
+    DealerEntity dealer = dealerId == null ? null : dealerRepository.findById(dealerId).orElse(null);
     return new MeResponse(
         user.username(),
         displayName,

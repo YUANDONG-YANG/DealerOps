@@ -14,7 +14,7 @@ Items marked **Missing** block the matching module. Do not paste passwords into 
 | Azure subscription | **Missing** | Student or school subscription that can create App Service, Static Web Apps, MySQL Flexible Server, and Key Vault |
 | Platform admin credentials | **Missing** (env, not code) | Set `ADMIN_USERNAME` / `ADMIN_PASSWORD` so `dealer-core` seeds the one platform admin on startup. Design: [15-Data-Auth-and-Gateway.md](15-Data-Auth-and-Gateway.md) §8 |
 | Model key | **Missing** | ai-manager needs `AIMANAGER_API_KEY` (one of groq/openai/claude/deepseek). Course demos should use a real key that can be called reliably |
-| ai-manager package | **No pinned release** | Publish an immutable version from commit `c07e1f2` to GitHub Packages, or allow local `mvn install` |
+| ai-manager package | **Done** | Vendored as source into ai-service from commit `827196a` ([09](09-AI-Agent-Integration.md)) |
 
 ## Preferred before Sprint 1
 

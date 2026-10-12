@@ -15,12 +15,11 @@ import java.util.function.Supplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
-import org.springframework.web.reactive.function.client.WebClient;
 
 /**
- * Library {@code blockOptional} has no 15s guarantee (PROTOCOL §D). Hard cap is connect +
- * response (2s+13s), not a single undifferentiated 15000. The {@link WebClient} bean carries the
- * same HttpClient split for any adapter-owned HTTP.
+ * Library {@code blockOptional} has no 15s guarantee (PROTOCOL §D). The vendored providers build
+ * their own WebClient without timeouts, so this wrapper is the only cap: connect + response
+ * (2s+13s) from {@link AiTimeouts}, not a single undifferentiated 15000.
  *
  * <p>The blocking call runs on {@link #MODEL_CALLS}, never on {@code ForkJoinPool.commonPool()}.
  * {@code CompletableFuture.orTimeout} only completes the waiter and leaves the task running. A
@@ -43,16 +42,10 @@ public class TimedModelCall {
 
   private static final ThreadPoolExecutor MODEL_CALLS = newModelCallExecutor();
 
-  private final WebClient aiWebClient;
   private final AiTimeouts timeouts;
 
-  public TimedModelCall(WebClient aiWebClient, AiTimeouts timeouts) {
-    this.aiWebClient = aiWebClient;
+  public TimedModelCall(AiTimeouts timeouts) {
     this.timeouts = timeouts;
-  }
-
-  public WebClient aiWebClient() {
-    return aiWebClient;
   }
 
   public AIResponse request(Supplier<AIResponse> call) {
@@ -60,7 +53,7 @@ public class TimedModelCall {
   }
 
   public static AIResponse request(int connectTimeoutMs, int responseTimeoutMs, Supplier<AIResponse> call) {
-    long totalMs = (long) connectTimeoutMs + responseTimeoutMs;
+    long totalMs = new AiTimeouts(connectTimeoutMs, responseTimeoutMs).totalMs();
     Future<AIResponse> future = submit(call);
     try {
       return future.get(totalMs, TimeUnit.MILLISECONDS);

@@ -17,7 +17,7 @@ info:
     - Roles are only `Platform.Admin` and `Dealer.User`. Ignore client `dealerId` in body / query / header.
     - Staff tenant comes only from the JWT `sub` (the username) → exactly one `membership.active=1` row.
     - Cross-dealership or unknown id in this dealership → **404** `NOT_FOUND` (anti-probing; not 403).
-    - Admin hitting business URLs, staff hitting Admin URLs, or staff without valid membership calling business APIs → **403** `FORBIDDEN`.
+    - Platform.Admin may call only `GET /me`, `/api/v1/admin/**`, and the anonymous routes. Admin hitting any business URL, staff hitting Admin URLs, or staff without valid membership calling business APIs → **403** `FORBIDDEN`.
     - `GET /me` is still **200** when authenticated with no dealership (`dealerId=null`).
     - Writes that carry `version` must match the current row, otherwise **409** `VERSION_CONFLICT`.
     - Unlink `DELETE .../vehicles/{vehicleId}` → **204**. Sold vehicles cannot be unlinked → **409** `SOLD_LOCKED`.
@@ -142,8 +142,7 @@ paths:
                 phone:
                   type: string
                   maxLength: 40
-                  pattern: "^\\+?[1-9][0-9]{6,14}$"
-                  description: E.164-style phone with country code; email and/or phone is required (at least one).
+                  description: International phone with country code (7–15 digits, first digit not 0; spaces, dashes, dots, and brackets ignored; stored as `+digits`). Email and/or phone is required (at least one).
                 password:
                   type: string
                   minLength: 8
@@ -169,7 +168,7 @@ paths:
       tags: [Me]
       operationId: getMe
       summary: Current user
-      description: Any authenticated user. Admin `dealerId` and `dealerLegalName` are null. Staff without valid membership still get 200 with `dealerId=null`.
+      description: Any authenticated user. For Admin, `dealerId`, `dealerLegalName`, the three `dealerContact*` fields, and `dealerLogoDataUrl` are null. Staff without valid membership still get 200 with `dealerId=null`.
       responses:
         "200":
           description: Identity
@@ -247,8 +246,8 @@ paths:
     patch:
       tags: [AdminDealers]
       operationId: patchDealer
-      summary: Patch four contact fields and active
-      description: Every field, including `version` and `active`, is required. Ignore body.`id`. There is no `DELETE /admin/dealers/{id}`.
+      summary: Patch four contact fields, active, and logo
+      description: Every field except `logoDataUrl`, including `version` and `active`, is required; a null or missing `logoDataUrl` removes the logo. Ignore body.`id`. There is no `DELETE /admin/dealers/{id}`.
       requestBody:
         required: true
         content:
@@ -304,7 +303,7 @@ paths:
       summary: Bind staff
       description: |
         Already an **active** member of this dealership, still active at another dealership, or the username belongs to a Platform.Admin account → **409** `DUP_MEMBER`.
-        Re-binding a previously unbound person reactivates them (not 409) and resets their password to the one supplied.
+        Re-binding a previously unbound person reactivates them (not 409). An existing account keeps its own password, display name, and contact fields; only a new account takes them from the body.
       requestBody:
         required: true
         content:
@@ -362,7 +361,7 @@ paths:
       summary: Accounts waiting for a dealership
       description: |
         Platform.Admin only. Active Dealer.User accounts with no active membership (self sign-ups,
-        unbound former staff), newest first. `q` matches username, display name, or email. Bind one with
+        unbound former staff), newest first. `q` matches username, display name, email, or phone. Bind one with
         `POST /api/v1/admin/dealers/{id}/members` without a password.
       parameters:
         - name: q
@@ -477,7 +476,7 @@ paths:
       tags: [Vehicles]
       operationId: listCatalogMakes
       summary: Make options for the DMS filter
-      description: Union of NHTSA vPIC `car` and `mpv` makes, proxied and cached by dealer-core. Sorted, de-duplicated ignoring case.
+      description: Dealer.User with a dealership only (Admin or unbound → 403). Union of NHTSA vPIC `car` and `mpv` makes, proxied and cached by dealer-core. Sorted, de-duplicated ignoring case.
       responses:
         "200":
           description: Make names
@@ -503,7 +502,7 @@ paths:
       tags: [Vehicles]
       operationId: listCatalogModels
       summary: Model options for one make
-      description: NHTSA vPIC `GetModelsForMake`, proxied and cached by dealer-core. Sorted, de-duplicated ignoring case.
+      description: Dealer.User with a dealership only (Admin or unbound → 403). NHTSA vPIC `GetModelsForMake`, proxied and cached by dealer-core. Sorted, de-duplicated ignoring case.
       parameters:
         - name: make
           in: query
@@ -653,8 +652,8 @@ paths:
       summary: Sell as a required pair
       description: |
         `soldOn` and `soldPrice` must both be present. Server sets `status=SOLD`.
-        Missing either → **400** `SOLD_PAIR_REQUIRED`. `soldOn` in the future or before `addedOn`,
-        or `soldPrice` ≤ 0 → **400** `VALIDATION`. Selling again → **409** `SOLD_LOCKED`.
+        Missing either, or `soldPrice` ≤ 0 → **400** `SOLD_PAIR_REQUIRED`. `soldOn` in the future or before `addedOn`
+        → **400** `VALIDATION`. Selling again → **409** `SOLD_LOCKED`.
         Open (`OPEN`/`IN_PROGRESS`) work orders → **409** `WORK_ORDERS_OPEN`.
       parameters:
         - $ref: "#/components/parameters/VehicleId"
@@ -1050,9 +1049,9 @@ paths:
       operationId: linkCustomerVehicle
       summary: Link vehicle
       description: |
-        No body (or ignore body). Customer and vehicle must be in the same dealership, vehicle `IN_STOCK`, vehicle not yet linked to any customer.
-        Sold / not IN_STOCK on a **this-store** vehicle → **400** `WRONG_DEALER_OR_SOLD` (PROTOCOL A.1). Cross-dealership id → **404** (never that code).
-        Vehicle already linked (including to this customer) → **409** `VEHICLE_ALREADY_LINKED`.
+        No body (or ignore body). Customer and vehicle must be in this dealership and the vehicle not yet linked to any customer.
+        `IN_STOCK` and `SOLD` vehicles are both allowed; this route never returns `WRONG_DEALER_OR_SOLD` (14 §6.1).
+        Unknown or cross-dealership customer or vehicle id → **404**. Vehicle already linked (including to this customer) → **409** `VEHICLE_ALREADY_LINKED`.
       parameters:
         - $ref: "#/components/parameters/CustomerId"
         - $ref: "#/components/parameters/VehicleIdPath"
@@ -1063,15 +1062,6 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/CustomerVehicleLink"
-        "400":
-          description: WRONG_DEALER_OR_SOLD (PROTOCOL A.1 — this-store sold / not IN_STOCK on PUT link only)
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-              example:
-                code: WRONG_DEALER_OR_SOLD
-                message: Vehicle is sold or not in this dealership.
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -1145,8 +1135,9 @@ paths:
       operationId: patchVehicleListing
       summary: Save listing draft
       description: |
-        INSERT if no row exists. Increment `contentVersion` and set `status` back to `DRAFT`.
-        Missing or blank `title`/`body` are stored as `''` (NOT NULL).
+        INSERT if no row exists (missing or blank `title`/`body` stored as `''`; missing `adKind`/`medium` default to `CASH`/`ONLINE`).
+        On an existing row this is a merge patch: an omitted or null field keeps the stored value; an explicit blank `title`/`body` stores `''`.
+        Every save increments `contentVersion` (existing row) and sets `status` back to `DRAFT`.
         First save may omit `version` or send `0`; later saves must send the current `version`.
       requestBody:
         required: true
@@ -1482,8 +1473,9 @@ paths:
       summary: Audit
       description: |
         `entityType` and `entityId` are required. Staff see this dealership only; entity not in this dealership → 404.
-        Admin querying business entities (VEHICLE/CUSTOMER/CUSTOMER_VEHICLE/LISTING) → **403** `FORBIDDEN`.
-        Staff may query `VEHICLE`|`CUSTOMER`|`CUSTOMER_VEHICLE`|`LEAD`|`WORK_ORDER`|`VEHICLE_PHOTO`. This query does not open `DEALER`/`MEMBERSHIP` to staff.
+        Admin → **403** `FORBIDDEN` for every entity type.
+        Staff may query `VEHICLE`|`CUSTOMER`|`CUSTOMER_VEHICLE`|`LEAD`|`WORK_ORDER`|`VEHICLE_PHOTO`; `DEALER`/`MEMBERSHIP` → **403**; any other type → **400** `VALIDATION`.
+        `CUSTOMER` history also includes the `CUSTOMER_VEHICLE` link/unlink events of that customer.
         `fieldSummary` has no full customer phone/email/home address.
       parameters:
         - name: entityType
@@ -1849,8 +1841,8 @@ components:
         |---|---|---|
         | VALIDATION | 400 | Missing field, illegal enum, or bad format |
         | VIN_DUP | 400 | Duplicate VIN in this dealership |
-        | SOLD_PAIR_REQUIRED | 400 | Sell missing date or price |
-        | WRONG_DEALER_OR_SOLD | 400 | PROTOCOL A.1: this-store PUT link when sold / not IN_STOCK (cross-store is 404) |
+        | SOLD_PAIR_REQUIRED | 400 | Sell missing date or price, or price ≤ 0 |
+        | WRONG_DEALER_OR_SOLD | 400 | Lead `vehicleId` not IN_STOCK in this dealership; never returned by PUT link |
         | UNAUTHORIZED | 401 | Not authenticated |
         | FORBIDDEN | 403 | Role not allowed on this URL, or staff has no valid membership |
         | NOT_FOUND | 404 | Missing resource or cross-dealership; also an unknown API path |
@@ -2146,8 +2138,7 @@ components:
         phone:
           type: string
           maxLength: 40
-          pattern: "^\\+?[1-9][0-9]{6,14}$"
-          description: International login phone number for a new account; email and/or phone is required (at least one).
+          description: International login phone number for a new account (7–15 digits with country code; spaces, dashes, dots, and brackets ignored; stored as `+digits`); email and/or phone is required (at least one).
 
     PageMember:
       allOf:
@@ -2172,6 +2163,7 @@ components:
         - addedOn
         - conditionCode
         - status
+        - openWorkOrders
         - version
       properties:
         id:
@@ -2322,7 +2314,7 @@ components:
     VehicleSell:
       type: object
       required: [version]
-      description: "`soldOn` and `soldPrice` are a required pair: either missing → 400 `SOLD_PAIR_REQUIRED`."
+      description: "`soldOn` and `soldPrice` are a required pair: either missing, or `soldPrice` ≤ 0 → 400 `SOLD_PAIR_REQUIRED`."
       properties:
         soldOn:
           type: string

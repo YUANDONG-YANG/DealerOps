@@ -30,10 +30,6 @@ spring:
   flyway:
     enabled: true
     locations: classpath:db/migration
-# OpenAPI JSON path matches the /api/v1 API version instead of springdoc's default /v3/api-docs.
-springdoc:
-  api-docs:
-    path: /v1/api-docs
 management:
   endpoints:
     web:
@@ -58,13 +54,11 @@ dealerops:
   # Relative to the process working directory. Run configurations use the repo root,
   # so all services share one log-sum/ folder. Set LOG_DIR to override per environment.
   log-dir: ${LOG_DIR:log-sum}
-  gateway-base-url: ${GATEWAY_BASE_URL:http://localhost:8080}
-  # Browser origin for OpenAPI "servers". Separate from gateway-base-url.
+  # Browser origin for OpenAPI "servers".
   public-gateway-url: ${GATEWAY_PUBLIC_URL:http://localhost:8080}
   # Core calls ai-service directly; do not point this at the gateway.
   ai-base-url: ${AI_BASE_URL:http://127.0.0.1:8082}
   internal-token: ${INTERNAL_TOKEN:dealer-internal}
-  ai-timeout-ms: 15000
   # Free NHTSA vPIC catalog (no key) for the DMS make/model filter options.
   vpic:
     base-url: ${VPIC_BASE_URL:https://vpic.nhtsa.dot.gov/api/vehicles}

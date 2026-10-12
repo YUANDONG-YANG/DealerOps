@@ -10,7 +10,6 @@ import com.dealerops.core.compliance.ComplianceCheckService;
 import com.dealerops.core.compliance.Recommendation;
 import com.dealerops.core.dealer.DealerEntity;
 import com.dealerops.core.dealer.DealerRepository;
-import com.dealerops.core.dealer.AppRole;
 import com.dealerops.core.listing.dto.ListingResponse;
 import com.dealerops.core.listing.dto.PatchListingRequest;
 import com.dealerops.core.listing.dto.VersionBody;
@@ -43,11 +42,9 @@ public class ListingService {
 
   @Transactional(readOnly = true)
   public ListingResponse getByVehicle(Long vehicleId) {
-    Long tenant = readTenant();
+    Long tenant = requireTenant();
     requireVehicle(vehicleId, tenant);
-    return (tenant == null
-            ? listingRepository.findByVehicleId(vehicleId)
-            : listingRepository.findByVehicleIdAndDealerId(vehicleId, tenant))
+    return listingRepository.findByVehicleIdAndDealerId(vehicleId, tenant)
         .map(this::toResponse)
         .orElseGet(() -> virtualDraft(vehicleId));
   }
@@ -58,23 +55,22 @@ public class ListingService {
     requireVehicle(vehicleId, tenant);
     ListingEntity row = listingRepository.findByVehicleIdAndDealerId(vehicleId, tenant).orElse(null);
     if (row == null) {
-      Integer version = body == null ? null : body.version();
-      if (version != null && version != 0) {
+      if (body.version() != null && body.version() != 0) {
         throw new ApiException(ErrorCode.VERSION_CONFLICT, "Version conflict.");
       }
       row = new ListingEntity();
       row.setDealerId(tenant);
       row.setVehicleId(vehicleId);
-      row.setTitle(blankToEmpty(body == null ? null : body.title()));
-      row.setBody(blankToEmpty(body == null ? null : body.body()));
-      row.setAdKind(body == null || body.adKind() == null ? AdKind.CASH : body.adKind());
-      row.setMedium(body == null || body.medium() == null ? AdMedium.ONLINE : body.medium());
+      row.setTitle(blankToEmpty(body.title()));
+      row.setBody(blankToEmpty(body.body()));
+      row.setAdKind(body.adKind() == null ? AdKind.CASH : body.adKind());
+      row.setMedium(body.medium() == null ? AdMedium.ONLINE : body.medium());
       row.setStatus(ListingStatus.DRAFT);
       row.setContentVersion(1);
       row.setLastCheckId(null);
       listingRepository.save(row);
     } else {
-      if (body == null || body.version() == null || !body.version().equals(row.getVersion())) {
+      if (body.version() == null || !body.version().equals(row.getVersion())) {
         throw new ApiException(ErrorCode.VERSION_CONFLICT, "Version conflict.");
       }
       applyPresentFields(row, body);
@@ -158,8 +154,7 @@ public class ListingService {
     if (last == null || last.getRecommendation() != Recommendation.PASSED) {
       throw new ApiException(ErrorCode.NOT_PASSED, "Listing has not passed the current check.");
     }
-    if (last.getContentVersion() != listing.getContentVersion()
-        || CheckStatusMapper.STALE.equals(checkStatusMapper.derive(listing, last))) {
+    if (CheckStatusMapper.STALE.equals(checkStatusMapper.derive(listing, last))) {
       throw new ApiException(ErrorCode.CHECK_STALE, "Check is stale.");
     }
     return listing;
@@ -199,9 +194,7 @@ public class ListingService {
   }
 
   private VehicleEntity requireVehicle(Long vehicleId, Long tenant) {
-    return (tenant == null
-            ? vehicleRepository.findById(vehicleId)
-            : vehicleRepository.findByIdAndDealerId(vehicleId, tenant))
+    return vehicleRepository.findByIdAndDealerId(vehicleId, tenant)
         .orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND, "Not found"));
   }
 
@@ -212,12 +205,5 @@ public class ListingService {
   private static Long requireTenant() {
     TenantGuard.requireDealerUser();
     return TenantContext.get().tenantDealerId();
-  }
-
-  private static Long readTenant() {
-    TenantGuard.requireBusinessAccess();
-    return TenantContext.get().role() == AppRole.PLATFORM_ADMIN
-        ? null
-        : TenantContext.get().tenantDealerId();
   }
 }

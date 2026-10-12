@@ -54,10 +54,6 @@ public class LeadNoteEntity implements TenantOwned {
     this.dealerId = dealerId;
   }
 
-  public Long getLeadId() {
-    return leadId;
-  }
-
   public void setLeadId(Long leadId) {
     this.leadId = leadId;
   }

@@ -14,7 +14,7 @@ You may compare page rhythm. Do not pull someone else's domain model, login, buy
 | Identity | Admin-issued username/password; `dealer-core` signs the JWT (`design/15-Data-Auth-and-Gateway.md` §8) |
 | Roles | `Platform.Admin`, `Dealer.User` |
 | Pages | Login, Admin, DMS, CRM, Ad compliance, plus a floating Assistant widget on staff pages |
-| AI | In-process reuse of the private `ai-manager` JAR; see [03-ai-manager.md](03-ai-manager.md) |
+| AI | In-process reuse of the private `ai-manager` library, vendored as source; see [03-ai-manager.md](03-ai-manager.md) |
 | Compliance | Write our own fixed rules + AI review; OMVIC **has no ready-made checker to copy**; see [02-omvic.md](02-omvic.md) |
 
 ## You may copy

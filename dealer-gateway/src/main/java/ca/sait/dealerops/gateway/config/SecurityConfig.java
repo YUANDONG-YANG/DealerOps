@@ -30,7 +30,7 @@ public class SecurityConfig {
   private static final Logger log = LoggerFactory.getLogger(SecurityConfig.class);
 
   private static final String[] OPENAPI_PATHS = {
-    "/swagger-ui.html", "/swagger-ui/**", "/v1/api-docs", "/v1/api-docs/**"
+    "/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs", "/v3/api-docs/**"
   };
 
   @Bean

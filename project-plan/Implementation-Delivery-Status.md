@@ -235,3 +235,15 @@ The following must be fixed before submission. These are graded course documents
    - `Research-Log.md` should hold research only. Its single row is an AI-assisted repository review, which belongs in `AI-Log.md`. Leave the research table empty until members add real sources.
    - In `AI-Log.md`, the Team Member cell must name the person only.
    - Add the Claude Code session of 2026-10-12 to `AI-Log.md`: it analysed the plan documents, aligned the sign-in rule across `README.md`, this document, and the Sprint 0 report, and wrote these update instructions. Yuandong reviewed the output.
+
+All five review items were applied on 2026-10-12:
+- The project plan was rebuilt from the course template (commit `05fb55a`), restoring the header block, Instructions, table of contents, and the template section titles. Two TOC entries were added for the Sprint 2 and Sprint 3 stakeholder plans. The current content was applied under those headings:
+  - the extension background and MVP rows;
+  - the Scrum-versus-Kanban/Waterfall rationale and the week-2 client meeting;
+  - the Sprint 1–3 backlog rows, including the Should stories;
+  - each member's extension work, with Logan's lead follow-up;
+  - the 30-hour timeline;
+  - the task-list, dependency, and log notes under "Sprint 1 Plan".
+- The self-undermining and agent-facing sentences are gone. Codex's "Open Risks" table was not carried over; the scope and NN-05 confirmation now sits in Robin's Sprint 1 resource text. Word refreshes TOC page numbers on open (`updateFields`).
+- The status report meta-instructions were removed, and the identity note now reads as a dated change.
+- `Research-Log.md` holds only an empty research table. `AI-Log.md` records the Claude Code and Codex sessions under Yuandong Yang.
