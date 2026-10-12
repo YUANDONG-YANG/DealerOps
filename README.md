@@ -725,7 +725,7 @@ The spec PDF has no such page. It is added by scope erratum 2 to meet the course
   - Does a vehicle advertised both online and on a billboard need two ads?
   - Is an undo-sale demo needed?
   - Are the four dealer profile fields (legal name, phone, email, address) enough, and is an OMVIC registration number needed?
-  - Written sign-off is still needed on password-based authentication with email/phone identifiers (KAN-5), and, per erratum 5 in the change log, on dropping containers.
+  - Written sign-off is still needed on password-based authentication with email, username, or phone sign-in names (KAN-5), and, per erratum 5 in the change log, on dropping containers.
 
 ## Team acceptance guide
 

@@ -46,7 +46,7 @@ public class AppUserEntity {
   @Column(name = "active", nullable = false)
   private boolean active = true;
 
-  /** Normalized login email, when email was chosen as the login identifier. */
+  /** Normalized email; an optional sign-in name alongside the username and phone. */
   @Column(name = "email", length = 254)
   private String email;
 
