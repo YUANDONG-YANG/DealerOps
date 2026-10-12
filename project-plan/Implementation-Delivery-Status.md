@@ -1,6 +1,6 @@
 # DealerOps Implementation and Delivery Status
 
-Status date: 2026-10-08
+Status date: 2026-10-12
 
 This document records the working-tree implementation of client-requested extensions. The delivery is not complete until clean builds, manual acceptance, and target-database migration checks finish.
 
@@ -43,7 +43,13 @@ Browsers call the Gateway only. `dealer-core-public` forwards all `/api/v1/**` e
 
 ## Verification and remaining delivery work
 
-The latest compile/build and formatting checks must be recorded after the email, username, or phone sign-in changes. Database migration execution against a target database, full manual acceptance, a live deployment/demo, and completion of future Sprint 1–3 reports remain outstanding. The repository's development-phase instructions prohibit authoring tests until the user confirms feature development is complete and explicitly authorizes test work; no tests were created or modified for this delivery.
+On 2026-10-12, commit `a50cf24` passed all five GitHub Actions workflows on `main`: dealer-core compile, 20 unit tests and 44 Testcontainers integration tests; dealer-gateway 10 unit tests; ai-service compile; dealer-web build; Terraform validate. The same change closed three gaps found in the 2026-10-12 CI failures:
+
+- `Platform.Admin` could read every dealership's vehicles, customers, listings, audit and assistant results. All business reads now require a bound dealer user, as `design/15-Data-Auth-and-Gateway.md` §2.4 states (AUTH-08, SEC-05).
+- The sell and vehicle PATCH responses returned the pre-update `version`, so the next edit failed with `VERSION_CONFLICT`. A sold price of zero or less now returns `SOLD_PAIR_REQUIRED`.
+- ai-service needed the private `ai-manager` repository at build time. Its sources are now vendored into ai-service (`design/09-AI-Agent-Integration.md`), so CI needs no token.
+
+Database migration execution against a target database, full manual acceptance, a live deployment/demo, and completion of future Sprint 1–3 reports remain outstanding. The repository's development-phase instructions prohibit authoring tests until the user confirms feature development is complete and explicitly authorizes test work; no tests were created or modified for this delivery.
 
 ## Project-plan document review (2026-10-12)
 
@@ -247,3 +253,18 @@ All five review items were applied on 2026-10-12:
 - The self-undermining and agent-facing sentences are gone. Codex's "Open Risks" table was not carried over; the scope and NN-05 confirmation now sits in Robin's Sprint 1 resource text. Word refreshes TOC page numbers on open (`updateFields`).
 - The status report meta-instructions were removed, and the identity note now reads as a dated change.
 - `Research-Log.md` holds only an empty research table. `AI-Log.md` records the Claude Code and Codex sessions under Yuandong Yang.
+
+### Consistency check (2026-10-12, after the CI fixes)
+
+The three project-plan files were checked against `requirements/DealerOps-Requirements.md`, `design/21-Feature-Extensions.md`, and the repository.
+
+Consistent:
+- Every requirement ID cited in the plan, the status report, and the workbook is defined, and every ID marked Should is a Should.
+- The workbook has ten 3-hour tasks per member, each due the day after it starts, with `=SUM(G3:G12)` totals of 30 h. Weekly loads match the plan (9/12/9 h; Robin 9/9/12 h). Each fix comes after the walkthroughs that feed it, and the demo data is ready on October 12.
+- The plan's hour table adds up (30 + 27 + 27 = 84 h per member), and the October 8 deployment claims match `deploy/evidence/RELEASE-2026-10-08.md`.
+
+Corrected:
+1. The MVP backlog listed only some of the Must stories. It now covers every Must ID: the missing AUTH, DMS, CRM, AD, AUD, ARC, SEC and NFR IDs were added to their existing rows. AD-17 is left out because IMG-01–05 supersede it.
+2. The Tool section described four application repositories and a platform repository. DealerOps is one repository with one workflow per application; the text now says so.
+3. Four notes on Robin's workbook sheet read as instructions to a writer ("do not invent review feedback", "no deployment is implied", and similar). They now state the planned evidence.
+
