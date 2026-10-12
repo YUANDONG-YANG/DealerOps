@@ -16,6 +16,12 @@ for tool in az terraform mvn npm; do
   command -v "${tool}" >/dev/null 2>&1 || { echo "Missing required tool: ${tool}" >&2; exit 1; }
 done
 
+# Lombok in ai-service does not compile on newer JDKs, so Maven must run on JDK 21.
+mvn -v | grep -q 'Java version: 21\.' || {
+  echo "Maven must run on JDK 21; set JAVA_HOME to a JDK 21 install and retry." >&2
+  exit 1
+}
+
 tf() { terraform -chdir="${here}" output -raw "$1"; }
 
 resource_group="$(tf resource_group_name)"

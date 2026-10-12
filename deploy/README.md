@@ -60,7 +60,7 @@ Install on the operator machine:
 |---|---|
 | Azure CLI (`az`) | current |
 | Terraform | 1.9 or newer (CI pins 1.16.5) |
-| JDK + Maven | Java 21 |
+| JDK + Maven | Java 21; Maven must run on it (`mvn -v`), or `deploy-apps.sh` stops: ai-service does not compile on newer JDKs |
 | Node + npm | Node 20 |
 
 On macOS, Homebrew installs both CLIs. Terraform was pulled from `homebrew-core` in 2023 over the BSL license change, so it comes from HashiCorp's own tap, not `brew install terraform`:
