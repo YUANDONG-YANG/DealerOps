@@ -12,7 +12,9 @@ set -euo pipefail
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 tf_dir="${here}/terraform"
 
-command -v curl >/dev/null 2>&1 || { echo "Missing required tool: curl" >&2; exit 1; }
+for tool in terraform curl; do
+  command -v "${tool}" >/dev/null 2>&1 || { echo "Missing required tool: ${tool}" >&2; exit 1; }
+done
 
 echo "==> terraform init and apply"
 terraform -chdir="${tf_dir}" init -input=false

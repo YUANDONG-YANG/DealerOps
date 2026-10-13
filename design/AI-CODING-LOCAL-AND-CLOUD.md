@@ -187,7 +187,7 @@ Azure: `dealerops-core` and `dealerops-ai` set `ip_restriction_default_action = 
 
 ## 6. Azure resource name patterns
 
-`deploy/terraform` variable `prefix` defaults to **`dealerops`**. Use these names; **do not invent a second nickname set**. Set `name_suffix` when a global `azurewebsites.net` hostname is already taken.
+`deploy/terraform` variable `prefix` defaults to **`dealerops`**. Use these names; **do not invent a second nickname set**. Set `name_suffix` when one of the global names is already taken in another subscription: the three `azurewebsites.net` hostnames, the Static Web App, the Key Vault DNS name, and the MySQL server name. It is appended to all of them.
 
 | Resource | Count | Name pattern | Example (`prefix=dealerops`) |
 |---|---|---|---|

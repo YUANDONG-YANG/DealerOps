@@ -590,7 +590,7 @@ All three Java services stay on Java 21; nothing in the build needs JDK 17. CI c
 ### CORS
 
 - Allow browser origins **only** on Gateway, in `CorsConfig`'s `CorsWebFilter` (and the web dev server for 5173 during development). `spring.cloud.gateway.globalcors` and `DedupeResponseHeader` are not used.
-- The allowed origin is `CORS_ALLOWED_ORIGIN`. The local default is `http://localhost:5173`. On Azure allow only the web HTTPS origin.
+- The allowed origin is `CORS_ALLOWED_ORIGIN`. The local default is `http://localhost:5173`. On Azure it is the Static Web App HTTPS origin, or the one origin given in the `cors_allowed_origin` Terraform variable when the SPA is hosted outside the stack (`deploy/README.md` §5). It stays a single origin.
 - core / ai-service: **do not** configure browser CORS (or configure empty). This is part of section 10 "direct access fails".
 - Preflight: allow `Authorization`, `Content-Type`; **do not** expose `X-Dealer-Internal` to the browser (do not list it in `Access-Control-Allow-Headers`).
 

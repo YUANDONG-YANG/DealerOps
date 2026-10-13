@@ -46,6 +46,8 @@ One resource group, `dealerops-rg` by default. Names follow the pinned `${prefix
 | User-assigned identity | `dealerops-uai` | The identity the three apps use to read Key Vault |
 | Log Analytics + App Insights | `dealerops-logs`, `dealerops-appi` | Logs and telemetry |
 
+Five of those names are global, not just unique inside the resource group: the three `azurewebsites.net` hostnames, the Static Web App, the Key Vault DNS name, and the MySQL server name. `name_suffix` is appended to all of them, so a second subscription can deploy the same stack (§4).
+
 App settings hold no secret values. Each secret is an App Service Key Vault reference (`@Microsoft.KeyVault(SecretUri=...)`) resolved through `dealerops-uai`.
 
 `dealerops-core` and `dealerops-ai` keep the "not a browser entry point" rule from [design/15-Data-Auth-and-Gateway.md](../design/15-Data-Auth-and-Gateway.md) §10. App Service has no internal-only ingress on a Basic plan, so instead both apps set `ip_restriction_default_action = "Deny"` and allow only the `AzureCloud` service tag. `dealerops-gateway` runs inside Azure and gets through; a browser on the public internet is refused by the platform before the request reaches the JVM.
@@ -97,6 +99,8 @@ The Azure for Students subscription keeps its spending limit on, so the subscrip
 | `admin_username` / `admin_password`, optional `admin_email` / `admin_phone` | Seeds the one platform admin on the first `dealer-core` start; sign in with the username, or the email/phone when set |
 | `aimanager_api_key` | Optional. Empty deploys `ai-service` with no model key |
 | `operator_ip_addresses` | Optional. Public IPv4 addresses that may reach MySQL directly |
+| `cors_allowed_origin` | Optional. The one browser origin `dealer-gateway` accepts. Empty uses this stack's own Static Web App origin; set it when the SPA is built and hosted outside this stack |
+| `name_suffix` | Optional. Appended to every global name. Needed when another subscription already holds one of them |
 
 Generate the secrets instead of inventing them, and write the whole file in one pass. Writing it with a single heredoc, rather than `cp`-ing the example and appending to it, avoids defining the same variable twice (Terraform rejects a `.tfvars` file that assigns one name more than once):
 
@@ -162,7 +166,7 @@ SUB=$(az account show --query id -o tsv)
 az rest --method delete --url "https://management.azure.com/subscriptions/$SUB/resourceGroups/dealerops-rg/providers/Microsoft.DBforMySQL/flexibleServers/dealerops-mysql?api-version=2023-12-30"
 ```
 
-If apply fails with a name conflict, `dealerops-core.azurewebsites.net` or a sibling hostname is already taken globally. Set `name_suffix` in `terraform.tfvars` (for example `-sait`) and apply again.
+If apply fails with a name conflict, one of the global names is already taken: an `azurewebsites.net` hostname such as `dealerops-core`, the vault DNS name `dealerops-kv`, or the MySQL server name `dealerops-mysql`. Set `name_suffix` in `terraform.tfvars` (for example `-sait`) and apply again; it is appended to all of them. A different `prefix` works as well and renames the whole stack.
 
 State is a local `terraform.tfstate` next to the `.tf` files and is git-ignored, so one person holds it. Hand the file over, or re-import, before someone else applies.
 
@@ -193,6 +197,16 @@ That script reads every name and URL from `terraform output` and then, for one U
 After the run, the web app's bottom-left footer and `<gateway>/actuator/release` show the new time for every deployed app ([design/20-Observability.md](../design/20-Observability.md) §5).
 
 Pass names to redeploy one app: `deploy/terraform/deploy-apps.sh core web`.
+
+### Backend only, with a frontend built elsewhere
+
+A team that writes its own SPA deploys the three Java apps and skips `dealer-web`:
+
+```text
+deploy/deploy.sh core ai gateway
+```
+
+The browser origin is the one thing that still has to match. `dealer-gateway` accepts exactly one origin, so set `cors_allowed_origin` in `terraform.tfvars` to where that SPA runs (`http://localhost:5173` while developing it, the hosted origin afterwards) and apply again. The SPA then calls `terraform output -raw gateway_public_url` as its API base URL and needs nothing else: `dealerops-core` and `dealerops-ai` are not reachable from a browser. The endpoints are in [dealer-platform/API.md](../dealer-platform/API.md), [design/14-Backend-API-Contract.md](../design/14-Backend-API-Contract.md), and the live Swagger UI from §6.
 
 The equivalent by hand, for `dealer-core`:
 

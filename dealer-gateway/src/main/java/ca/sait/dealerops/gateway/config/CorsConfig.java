@@ -13,7 +13,8 @@ import org.springframework.web.cors.reactive.UrlBasedCorsConfigurationSource;
 /**
  * Sole CORS policy (15 §13 / LOCAL-AND-CLOUD §4). One SPA origin from {@code
  * CORS_ALLOWED_ORIGIN}. Local default is Vite {@code http://localhost:5173}. Azure is the web
- * HTTPS origin (Bicep {@code corsAllowedOrigin} / {@code webPublicOrigin}).
+ * HTTPS origin, set by Terraform from {@code cors_allowed_origin} or the Static Web App origin
+ * (deploy/terraform/main.tf).
  *
  * <p>Do not also set {@code spring.cloud.gateway.globalcors}. A second writer was only kept in
  * sync by {@code DedupeResponseHeader} and could drift. Do not list {@code X-Dealer-Internal}.

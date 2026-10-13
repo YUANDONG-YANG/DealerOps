@@ -1,6 +1,6 @@
 # API inventory (via Gateway, prefix /api/v1)
 
-The browser only calls `http://localhost:8080`. core=8081 and ai-service=8082 are not browser-direct.
+The browser only calls the gateway: `http://localhost:8080` locally, or `terraform output -raw gateway_public_url` on a deployed stack ([deploy/README.md](../deploy/README.md)). core=8081 and ai-service=8082 are not browser-direct, and in Azure the platform refuses them.
 
 **Full request/response/error codes:** [design/14-Backend-API-Contract.md](../design/14-Backend-API-Contract.md) (current v6). Do not use the retired [design/archive/04-API-Contract.md](../design/archive/04-API-Contract.md).
 

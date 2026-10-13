@@ -31,7 +31,13 @@ variable "prefix" {
 }
 
 variable "name_suffix" {
-  description = "Appended to every app name when a global azurewebsites.net hostname is already taken. Empty keeps the pinned names."
+  description = "Appended to every globally unique name (the three apps, the Static Web App, Key Vault, MySQL) when one is already taken in another subscription. Empty keeps the pinned names."
+  type        = string
+  default     = ""
+}
+
+variable "cors_allowed_origin" {
+  description = "The one browser origin dealer-gateway accepts. Empty uses this stack's own Static Web App origin; set it to another origin (for example http://localhost:5173) when the frontend is built and hosted outside this stack."
   type        = string
   default     = ""
 }
