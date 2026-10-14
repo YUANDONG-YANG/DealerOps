@@ -21,9 +21,9 @@ GitHub Actions starts the workflows whose path filters match the push. A pull re
 | Changed paths | Workflow file | On `main` |
 |---|---|---|
 | `dealer-web/**` | `.github/workflows/dealer-web.yml` | Job `compile`: Node 20 `npm ci` and `npm run build` |
-| `dealer-core/**` | `.github/workflows/dealer-core.yml` | Job `compile`: JDK 21 compile, unit tests, and the Testcontainers ITs when the runner has a Docker engine |
-| `dealer-gateway/**` | `.github/workflows/dealer-gateway.yml` | Job `compile`: JDK 21 compile and unit tests |
-| `ai-service/**` | `.github/workflows/ai-service.yml` | Job `compile`: JDK 21 compile of ai-service with the vendored `ai-manager` sources (no private checkout, no paid model call) |
+| `backend/java/dealer-core/**` | `.github/workflows/dealer-core.yml` | Job `compile`: JDK 21 compile, unit tests, and the Testcontainers ITs when the runner has a Docker engine |
+| `backend/java/dealer-gateway/**` | `.github/workflows/dealer-gateway.yml` | Job `compile`: JDK 21 compile and unit tests |
+| `backend/java/ai-service/**` | `.github/workflows/ai-service.yml` | Job `compile`: JDK 21 compile of ai-service with the vendored `ai-manager` sources (no private checkout, no paid model call) |
 | `deploy/terraform/**` | `.github/workflows/terraform.yml` | Job `validate`: `terraform fmt -check`, `init -backend=false`, `validate`. Log line `Terraform validated. Not applied (no subscription credentials in this repository).` |
 
 Open runs at `https://github.com/YUANDONG-YANG/DealerOps/actions`.
@@ -89,58 +89,31 @@ The Azure for Students subscription keeps its spending limit on, so the subscrip
 
 ## 4. Apply the infrastructure
 
-`terraform.tfvars` is git-ignored; the secret values stay on the operator machine. The required and optional variables:
-
-| Variable | Rule |
-|---|---|
-| `mysql_admin_password` | 12 characters or more |
-| `internal_token` | The shared `X-Dealer-Internal` value. Must not be the local default `dealer-internal` |
-| `jwt_signing_secret` | 32 bytes or more. `dealer-core` signs with it and `dealer-gateway` validates with it |
-| `admin_username` / `admin_password`, optional `admin_email` / `admin_phone` | Seeds the one platform admin on the first `dealer-core` start; sign in with the username, or the email/phone when set |
-| `aimanager_api_key` | Optional. Empty deploys `ai-service` with no model key |
-| `operator_ip_addresses` | Optional. Public IPv4 addresses that may reach MySQL directly |
-| `cors_allowed_origin` | Optional. The one browser origin `dealer-gateway` accepts. Empty uses this stack's own Static Web App origin; set it when the SPA is built and hosted outside this stack |
-| `name_suffix` | Optional. Appended to every global name. Needed when another subscription already holds one of them |
-
-Generate the secrets instead of inventing them, and write the whole file in one pass. Writing it with a single heredoc, rather than `cp`-ing the example and appending to it, avoids defining the same variable twice (Terraform rejects a `.tfvars` file that assigns one name more than once):
+All secrets auto-generate when left empty, so there is nothing to configure:
 
 ```text
 cd deploy/terraform
-
-MYSQL_PW=$(openssl rand -base64 32 | tr -dc 'A-Za-z0-9' | cut -c1-24)
-INTERNAL_TOKEN=$(openssl rand -base64 48 | tr -dc 'A-Za-z0-9' | cut -c1-40)
-JWT_SECRET=$(openssl rand -base64 48)
-ADMIN_PW=$(openssl rand -base64 32 | tr -dc 'A-Za-z0-9' | cut -c1-16)
-MY_IP=$(curl -s https://api.ipify.org)
-
-cat > terraform.tfvars <<EOF
-location                = "canadacentral"
-static_web_app_location = "eastus2"
-mysql_location          = "canadaeast"
-prefix                  = "dealerops"
-name_suffix             = ""
-service_plan_sku        = "B2"
-operator_ip_addresses   = ["${MY_IP}"]
-
-mysql_admin_password = "${MYSQL_PW}"
-internal_token        = "${INTERNAL_TOKEN}"
-jwt_signing_secret    = "${JWT_SECRET}"
-aimanager_api_key     = ""
-
-admin_username = "admin"
-admin_password = "${ADMIN_PW}"
-EOF
+terraform init
+terraform apply
 ```
 
-`tr -dc 'A-Za-z0-9'` strips punctuation that can otherwise break a JDBC connection string or a shell-quoted value. `aimanager_api_key` empty is a valid choice: it deploys `ai-service` without a model key, so the assistant and ad-check endpoints answer with the documented failure codes instead of a model reply ([09-AI-Agent-Integration.md](../design/09-AI-Agent-Integration.md)) until a real key is added and `terraform apply` runs again. Write down `admin_username` / `admin_password` before moving on — section 6 needs them to sign in, and nothing echoes them back later.
+That is it. Terraform creates all Azure resources, generates safe random passwords for MySQL, JWT, internal token, and the admin account, and stores them in Key Vault.
 
-Then:
+After apply, retrieve the admin password to sign in:
 
 ```text
-terraform init
-terraform plan -out tfplan
-terraform apply tfplan
+terraform output -raw admin_password
 ```
+
+The admin username defaults to `admin`. Sign in at the web URL (`terraform output web_public_url`).
+
+To customize anything, copy the example and edit:
+
+```text
+cp terraform.tfvars.example terraform.tfvars
+```
+
+All variables are optional. See `terraform.tfvars.example` for the full list with descriptions.
 
 `terraform apply` takes roughly 10–15 minutes; MySQL Flexible Server is the slow resource. Read the result with:
 
@@ -211,7 +184,7 @@ The browser origin is the one thing that still has to match. `dealer-gateway` ac
 The equivalent by hand, for `dealer-core`:
 
 ```text
-cd dealer-core
+cd backend/java/dealer-core
 mvn -B -DskipTests package
 az webapp deploy \
   --resource-group dealerops-rg \
@@ -252,11 +225,47 @@ Local is not a copy of the cloud and uses no Azure resource. The four processes 
 
 Only the cloud environment uses Key Vault, TLS-required MySQL, and the Static Web App. A local machine and the Azure stack never share a database, a JWT signing secret, or an admin password.
 
-## 8. Cost and teardown
+## 8. Cost, pause, and teardown
 
 `Standard_B2` App Service plan plus `B_Standard_B1ms` MySQL is the recurring cost; the Static Web App Free tier and Key Vault standard are negligible. Set `service_plan_sku = "B1"` for a cheaper plan, at the price of 1.75 GB of memory for three JVMs.
 
-Nothing in this stack stops on its own. Remove it when the demo is over:
+Nothing in this stack stops on its own. Two options when you are not using it:
+
+### Option A — Pause all resources (keep data, resume later)
+
+Stop the three App Service apps and the MySQL server. No compute charges while stopped; only storage charges remain (a few cents per day).
+
+**Pause (one command):**
+
+```text
+az webapp stop -g dealerops-rg -n dealerops-gateway && \
+az webapp stop -g dealerops-rg -n dealerops-core && \
+az webapp stop -g dealerops-rg -n dealerops-ai && \
+az mysql flexible-server stop -g dealerops-rg -n dealerops-mysql
+```
+
+**Resume (one command):**
+
+```text
+az mysql flexible-server start -g dealerops-rg -n dealerops-mysql && \
+az webapp start -g dealerops-rg -n dealerops-core && \
+az webapp start -g dealerops-rg -n dealerops-ai && \
+az webapp start -g dealerops-rg -n dealerops-gateway
+```
+
+Start MySQL first, then the apps — `dealer-core` connects to MySQL on startup and fails health checks if the database is not ready.
+
+After resume, wait one to two minutes for `dealer-core` to finish Flyway and answer health checks:
+
+```text
+curl https://dealerops-gateway.azurewebsites.net/actuator/health
+```
+
+Note: Azure auto-starts a stopped MySQL Flexible Server after 30 days of inactivity. To avoid surprise charges, check `az mysql flexible-server show -g dealerops-rg -n dealerops-mysql --query state` periodically, or set a budget alert on the subscription.
+
+### Option B — Destroy everything
+
+Remove the entire stack when the demo is over:
 
 ```text
 cd deploy/terraform
@@ -265,10 +274,12 @@ terraform destroy
 
 `terraform destroy` deletes the MySQL server and its data. Export anything that must survive first. The provider is configured to purge the soft-deleted Key Vault so the same vault name works on the next apply.
 
+To rebuild from scratch after a destroy: `terraform apply` — secrets are regenerated automatically.
+
 ## 9. Limits
 
 - CI validates Terraform and never applies it. There is no automatic deploy on push to `main`.
 - `terraform apply` creates infrastructure only. Application code reaches Azure through `deploy-apps.sh`, never through a CI job.
 - Terraform owns the app settings. A setting changed by hand in the portal is reverted on the next apply, except `PUBLISHED_AT`, which the deploy step owns.
-- Secrets, `.env`, `terraform.tfvars`, and `terraform.tfstate` stay out of git.
+- `.env`, `terraform.tfvars`, and `terraform.tfstate` stay out of git. Secrets auto-generate; `terraform.tfvars` is only needed for overrides.
 - There are no container images, no container registry, and no Compose file. The `dealer-core` Testcontainers ITs are the only remaining use of a Docker engine, on CI runners and developer machines.
