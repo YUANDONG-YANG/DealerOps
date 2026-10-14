@@ -1,6 +1,14 @@
 # Maven / Java build output
 **/target/
 
+# .NET build output
+**/bin/
+**/obj/
+
+# Node / frontend build output
+**/node_modules/
+**/dist/
+
 # Local secrets (keep *.example)
 .env
 .env.local
@@ -37,8 +45,8 @@ crash.log
 crash.*.log
 
 # Local AI provider keys never enter Git; supply AIMANAGER_API_KEY through the environment.
-ai-service/src/main/resources/api-key.md
-ai-service/src/main/resources/ai-key.md
+backend/java/ai-service/src/main/resources/api-key.md
+backend/java/ai-service/src/main/resources/ai-key.md
 
 # SkyWalking Java agent binary (fetched by deploy/skywalking/download-agent.sh, local dev only)
 deploy/skywalking/agent/

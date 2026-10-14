@@ -1,0 +1,286 @@
+using DealerOps.Core.Audit;
+using DealerOps.Core.Common;
+using DealerOps.Core.Common.Exceptions;
+using DealerOps.Core.Common.Tenant;
+using DealerOps.Core.Customer;
+using DealerOps.Core.Customer.Dto;
+using DealerOps.Core.Data;
+using DealerOps.Core.Lead.Dto;
+using DealerOps.Core.Vehicle;
+
+namespace DealerOps.Core.Lead;
+
+public class LeadService
+{
+    private readonly AppDbContext _db;
+    private readonly CustomerService _customerService;
+    private readonly IAuditService _audit;
+
+    public LeadService(AppDbContext db, CustomerService customerService, IAuditService audit)
+    {
+        _db = db;
+        _customerService = customerService;
+        _audit = audit;
+    }
+
+    public PageResponse<LeadListItem> List(
+        string? q, LeadStage? stage, string? owner, long? customerId, bool? overdue, int page, int size)
+    {
+        var tenant = RequireTenant();
+        var p = Paging.ClampPage(page);
+        var s = Paging.ClampSize(size);
+
+        IQueryable<LeadEntity> query = _db.Leads.Where(l => l.DealerId == tenant);
+
+        if (!string.IsNullOrWhiteSpace(q))
+        {
+            var term = q.Trim();
+            var matchingCustomerIds = _db.Customers
+                .Where(c => c.DealerId == tenant && c.Name.Contains(term))
+                .Select(c => c.Id);
+            query = query.Where(l => matchingCustomerIds.Contains(l.CustomerId));
+        }
+
+        if (stage.HasValue)
+            query = query.Where(l => l.Stage == stage.Value);
+        if (!string.IsNullOrWhiteSpace(owner))
+            query = query.Where(l => l.OwnerUsername == owner.Trim());
+        if (customerId.HasValue)
+            query = query.Where(l => l.CustomerId == customerId.Value);
+        if (overdue == true)
+        {
+            var today = DateOnly.FromDateTime(DateTime.UtcNow);
+            query = query.Where(l =>
+                l.Stage != LeadStage.Won && l.Stage != LeadStage.Lost &&
+                l.NextFollowUpOn != null && l.NextFollowUpOn < today);
+        }
+
+        var total = query.Count();
+        var items = query.OrderByDescending(l => l.CreatedAt).ThenByDescending(l => l.Id)
+            .Skip(p * s).Take(s)
+            .AsEnumerable()
+            .Select(lead => new LeadListItem(
+                lead.Id,
+                lead.CustomerId,
+                CustomerName(lead),
+                VehicleBrief(lead),
+                lead.Stage,
+                lead.OwnerUsername,
+                lead.NextFollowUpOn,
+                IsOverdue(lead),
+                lead.Version))
+            .ToList();
+
+        return new PageResponse<LeadListItem>(items, p, s, total);
+    }
+
+    public LeadDetail Create(CreateLeadRequest body)
+    {
+        var tenant = RequireTenant();
+        if ((body.CustomerId == null) == (body.NewCustomer == null))
+            throw new ApiException(ErrorCode.Validation, "Choose an existing customer or enter a new one.");
+
+        long customerId;
+        if (body.CustomerId != null)
+        {
+            _ = _db.Customers.FirstOrDefault(c => c.Id == body.CustomerId && c.DealerId == tenant)
+                ?? throw new ApiException(ErrorCode.NotFound, "Not found");
+            customerId = body.CustomerId.Value;
+        }
+        else
+        {
+            customerId = _customerService.Create(body.NewCustomer!).Id;
+        }
+
+        var owner = TrimToNull(body.OwnerUsername);
+        RequireMember(tenant, owner);
+        RequireInStockVehicle(tenant, body.VehicleId);
+
+        var lead = new LeadEntity
+        {
+            DealerId = tenant,
+            CustomerId = customerId,
+            VehicleId = body.VehicleId,
+            OwnerUsername = owner,
+            Stage = LeadStage.New,
+            NextFollowUpOn = body.NextFollowUpOn
+        };
+        _db.Leads.Add(lead);
+        _db.SaveChanges();
+
+        var fields = new Dictionary<string, object>
+        {
+            ["customerId"] = customerId,
+            ["stage"] = LeadStage.New.ToString()
+        };
+        if (body.VehicleId != null)
+            fields["vehicleId"] = body.VehicleId;
+
+        Audit(lead.Id, "CREATE", tenant, fields);
+
+        var note = TrimToNull(body.Note);
+        if (note != null)
+            SaveNote(lead, note);
+
+        return ToDetail(lead);
+    }
+
+    public LeadDetail Get(long id)
+    {
+        var tenant = RequireTenant();
+        return ToDetail(Load(id, tenant));
+    }
+
+    public LeadDetail Patch(long id, PatchLeadRequest body)
+    {
+        var tenant = RequireTenant();
+        var lead = Load(id, tenant);
+        if (body.Version != lead.Version)
+            throw new ApiException(ErrorCode.VersionConflict, "Version conflict.");
+        if (lead.Stage.IsClosed())
+            throw new ApiException(ErrorCode.LeadClosed, "Won and lost leads cannot be changed.");
+
+        var owner = TrimToNull(body.OwnerUsername);
+        var lostReason = TrimToNull(body.LostReason);
+
+        if (body.Stage == LeadStage.Lost && lostReason == null)
+            throw new ApiException(ErrorCode.Validation, "A lost lead needs a reason.");
+        if (body.Stage != LeadStage.Lost)
+            lostReason = null;
+
+        var changed = new Dictionary<string, object>();
+        if (lead.Stage != body.Stage)
+            changed["stage"] = body.Stage.ToString();
+        if (lead.OwnerUsername != owner)
+        {
+            RequireMember(tenant, owner);
+            changed["ownerUsername"] = owner ?? "";
+        }
+        if (lead.NextFollowUpOn != body.NextFollowUpOn)
+            changed["nextFollowUpOn"] = true;
+        if (lead.VehicleId != body.VehicleId)
+        {
+            RequireInStockVehicle(tenant, body.VehicleId);
+            changed["vehicleId"] = body.VehicleId == null ? "" : body.VehicleId;
+        }
+        if (lead.LostReason != lostReason)
+            changed["lostReason"] = true;
+
+        lead.Stage = body.Stage;
+        lead.OwnerUsername = owner;
+        lead.NextFollowUpOn = body.NextFollowUpOn;
+        lead.VehicleId = body.VehicleId;
+        lead.LostReason = lostReason;
+        lead.UpdatedAt = DateTime.UtcNow;
+        _db.SaveChanges();
+
+        if (changed.Count > 0)
+            Audit(lead.Id, "UPDATE", tenant, changed);
+
+        return ToDetail(lead);
+    }
+
+    public LeadNoteItem AddNote(long id, AddLeadNoteRequest body)
+    {
+        var tenant = RequireTenant();
+        var lead = Load(id, tenant);
+        return ToNote(SaveNote(lead, body.Body.Trim()));
+    }
+
+    private LeadNoteEntity SaveNote(LeadEntity lead, string text)
+    {
+        var note = new LeadNoteEntity
+        {
+            DealerId = lead.DealerId,
+            LeadId = lead.Id,
+            AuthorUsername = ActorUsername(),
+            Body = text
+        };
+        _db.LeadNotes.Add(note);
+        _db.SaveChanges();
+        Audit(lead.Id, "NOTE", lead.DealerId!.Value, new Dictionary<string, object> { ["noteId"] = note.Id });
+        return note;
+    }
+
+    private LeadDetail ToDetail(LeadEntity lead)
+    {
+        var notes = _db.LeadNotes
+            .Where(n => n.LeadId == lead.Id && n.DealerId == lead.DealerId)
+            .OrderByDescending(n => n.CreatedAt).ThenByDescending(n => n.Id)
+            .AsEnumerable()
+            .Select(ToNote).ToList();
+
+        return new LeadDetail(
+            lead.Id, lead.CustomerId, CustomerName(lead), VehicleBrief(lead),
+            lead.Stage, lead.OwnerUsername, lead.NextFollowUpOn, IsOverdue(lead),
+            lead.LostReason, notes, lead.CreatedAt, lead.Version);
+    }
+
+    private static LeadNoteItem ToNote(LeadNoteEntity note)
+    {
+        return new LeadNoteItem(note.Id, note.AuthorUsername, note.Body, note.CreatedAt);
+    }
+
+    private string CustomerName(LeadEntity lead)
+    {
+        return _db.Customers
+            .Where(c => c.Id == lead.CustomerId && c.DealerId == lead.DealerId)
+            .Select(c => c.Name)
+            .FirstOrDefault() ?? "";
+    }
+
+    private LeadVehicleBrief? VehicleBrief(LeadEntity lead)
+    {
+        if (lead.VehicleId == null) return null;
+        var v = _db.Vehicles.FirstOrDefault(
+            v => v.Id == lead.VehicleId && v.DealerId == lead.DealerId);
+        return v == null ? null : new LeadVehicleBrief(v.Id, v.Vin, v.ModelYear, v.Make, v.Model, v.Status);
+    }
+
+    private static bool IsOverdue(LeadEntity lead)
+    {
+        return !lead.Stage.IsClosed()
+            && lead.NextFollowUpOn != null
+            && lead.NextFollowUpOn < DateOnly.FromDateTime(DateTime.UtcNow);
+    }
+
+    private void RequireMember(long tenant, string? username)
+    {
+        if (username != null &&
+            !_db.Memberships.Any(m => m.DealerId == tenant && m.Username == username && m.Active))
+            throw new ApiException(ErrorCode.Validation, "Owner must be a member of this dealership.");
+    }
+
+    private void RequireInStockVehicle(long tenant, long? vehicleId)
+    {
+        if (vehicleId == null) return;
+        var ok = _db.Vehicles.Any(
+            v => v.Id == vehicleId && v.DealerId == tenant && v.Status == VehicleStatus.IN_STOCK);
+        if (!ok)
+            throw new ApiException(ErrorCode.WrongDealerOrSold, "Vehicle must be in stock at this dealership.");
+    }
+
+    private LeadEntity Load(long id, long tenant)
+    {
+        return _db.Leads.FirstOrDefault(l => l.Id == id && l.DealerId == tenant)
+            ?? throw new ApiException(ErrorCode.NotFound, "Not found");
+    }
+
+    private void Audit(long leadId, string action, long tenant, Dictionary<string, object> fields)
+    {
+        _audit.Record("LEAD", leadId, action, tenant, ActorUsername(), fields);
+    }
+
+    private static string? TrimToNull(string? value)
+    {
+        return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+    }
+
+    private static long RequireTenant()
+    {
+        TenantGuard.RequireDealerUser();
+        return TenantContext.Get()!.TenantDealerId!.Value;
+    }
+
+    private static string ActorUsername() => TenantContext.Get()?.Username ?? "";
+}

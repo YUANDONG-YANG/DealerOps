@@ -1,0 +1,83 @@
+import axios from 'axios';
+import { resolveGatewayUrl } from '../api/gateway';
+
+const TOKEN_KEY = 'dealerops.accessToken';
+const REDIRECT_KEY = 'dealerops.postLoginRedirect';
+
+function readToken(): string | null {
+  try {
+    return sessionStorage.getItem(TOKEN_KEY);
+  } catch {
+    return null;
+  }
+}
+
+const REDIRECT_PATHS = ['/admin', '/dms', '/crm', '/leads', '/ads'];
+
+export function safeRedirect(path: string | null | undefined): string {
+  if (!path || !path.startsWith('/')) return '';
+  try {
+    const url = new URL(path, window.location.origin);
+    if (url.origin !== window.location.origin || !REDIRECT_PATHS.includes(url.pathname)) return '';
+    return `${url.pathname}${url.search}`;
+  } catch {
+    return '';
+  }
+}
+
+export function rememberPostLoginRedirect(path: string | null | undefined) {
+  const value = safeRedirect(path);
+  if (!value) return;
+  try {
+    sessionStorage.setItem(REDIRECT_KEY, value);
+  } catch { /* ignore */ }
+}
+
+export function takePostLoginRedirect(): string {
+  try {
+    const value = sessionStorage.getItem(REDIRECT_KEY);
+    sessionStorage.removeItem(REDIRECT_KEY);
+    return safeRedirect(value);
+  } catch { /* ignore */ }
+  return '';
+}
+
+type LoginResponse = { accessToken: string; role: string; displayName: string };
+
+async function postAuth(path: string, body: object) {
+  const baseURL = await resolveGatewayUrl();
+  const { data } = await axios.post<LoginResponse>(`${baseURL}/api/v1/auth/${path}`, body);
+  try {
+    sessionStorage.setItem(TOKEN_KEY, data.accessToken);
+  } catch { /* ignore */ }
+  return data;
+}
+
+export function signIn(identifier: string, password: string) {
+  return postAuth('login', { identifier, password });
+}
+
+export function register(
+  username: string, displayName: string,
+  email: string, phone: string, password: string,
+) {
+  return postAuth('register', {
+    username, displayName,
+    email: email || null, phone: phone || null, password,
+  });
+}
+
+export function signOut() {
+  clearAccount();
+  window.location.assign('/login');
+}
+
+export function clearAccount() {
+  try {
+    sessionStorage.removeItem(TOKEN_KEY);
+  } catch { /* ignore */ }
+}
+
+export function accessToken(): string | null {
+  return readToken();
+}
