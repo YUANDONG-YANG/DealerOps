@@ -1,66 +1,48 @@
-# Quick start
-# -----------
-# 1. Copy this file:  cp terraform.tfvars.example terraform.tfvars
-# 2. Fill in the secret values below (see the generation hints).
-# 3. Run:  terraform init && terraform plan && terraform apply
-# 4. Deploy apps:  ./deploy-apps.sh
+# Quick start — deploy to Azure in three commands:
 #
-# terraform.tfvars is git-ignored. NEVER commit it.
-# Full procedure: deploy/README.md
-
+#   cd deploy/terraform
+#   terraform init
+#   terraform apply
+#
+# That's it. All secrets (MySQL password, JWT secret, internal token, admin
+# password) are auto-generated. After apply, retrieve the admin password:
+#
+#   terraform output -raw admin_password
+#
+# Sign in at the web URL (terraform output web_public_url) as "admin".
+#
+# To customize, copy this file to terraform.tfvars (git-ignored) and edit:
+#
+#   cp terraform.tfvars.example terraform.tfvars
+#
 # ── Region ──────────────────────────────────────────────────────────
-location                = "canadacentral"
-static_web_app_location = "eastus2"
-# Azure for Students cannot create MySQL in canadacentral.
-mysql_location          = "canadaeast"
+# location                = "canadacentral"
+# static_web_app_location = "eastus2"
+# mysql_location          = "canadaeast"
 
 # ── Naming ──────────────────────────────────────────────────────────
-prefix = "dealerops"
-
-# Append to every global name when the default is already taken in another subscription.
-name_suffix = ""
+# prefix      = "dealerops"
+# name_suffix = ""        # append when default names are taken
 
 # ── Networking ──────────────────────────────────────────────────────
-# The one browser origin the gateway accepts.
-# Empty uses this stack's own Static Web App; set to http://localhost:5173 for local dev.
-cors_allowed_origin = ""
+# cors_allowed_origin   = ""   # empty = this stack's own Static Web App
+# operator_ip_addresses = []   # your IP for direct MySQL access
 
 # ── Compute ─────────────────────────────────────────────────────────
-# B1 = 1.75 GB (tight for 3 JVMs). B2 = 3.5 GB (recommended).
-service_plan_sku = "B2"
+# service_plan_sku = "B2"      # B1 = 1.75 GB, B2 = 3.5 GB (recommended)
 
-# ── MySQL ───────────────────────────────────────────────────────────
-# Public IPs that may reach MySQL directly (SQL client, manual Flyway).
-# App Service reaches the server through a separate Azure services rule.
-operator_ip_addresses = []
+# ── Secrets (all optional — auto-generated when empty) ──────────────
+# mysql_admin_password = ""    # >= 12 chars
+# internal_token       = ""    # shared internal header
+# jwt_signing_secret   = ""    # >= 32 bytes
+# aimanager_api_key    = ""    # LLM key, empty = AI disabled
 
-# ── Secrets (fill locally, do NOT commit) ───────────────────────────
-#
-# Generate with:
-#   openssl rand -base64 18          # mysql_admin_password  (>= 12 chars)
-#   openssl rand -base64 30          # internal_token
-#   openssl rand -base64 48          # jwt_signing_secret    (>= 32 bytes)
-#   openssl rand -base64 18          # admin_password        (>= 12 chars)
+# ── Platform admin (seeded on first start) ──────────────────────────
+# admin_username = "admin"
+# admin_password = ""          # auto-generated, retrieve with: terraform output -raw admin_password
+# admin_email    = "admin@example.com"
+# admin_phone    = ""
 
-# MySQL administrator password, >= 12 characters.
-mysql_admin_password = ""
-
-# Shared X-Dealer-Internal header value. Must NOT be the local default "dealer-internal".
-internal_token = ""
-
-# HS256 signing secret for JWT, >= 32 bytes.
-jwt_signing_secret = ""
-
-# AI model key for ai-service. Empty deploys without AI (model calls return AI_KEY_MISSING).
-aimanager_api_key = ""
-
-# ── AI model (defaults match ai-service/application.yaml) ──────────
+# ── AI model ────────────────────────────────────────────────────────
 # aimanager_gateway_provider = "groq"
 # aimanager_gateway_model    = "qwen/qwen3.8-27b"
-
-# ── Platform admin seed (both or neither) ───────────────────────────
-# Created on first dealer-core start. Leave empty to skip.
-admin_username = ""
-admin_password = ""
-admin_email    = ""
-admin_phone    = ""

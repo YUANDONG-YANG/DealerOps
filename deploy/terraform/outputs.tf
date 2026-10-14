@@ -56,3 +56,20 @@ output "application_insights_name" {
   description = "Application Insights resource the three apps report to."
   value       = azurerm_application_insights.appi.name
 }
+
+output "admin_username" {
+  description = "Platform admin login username. Use with admin_password to sign in."
+  value       = var.admin_username
+}
+
+output "admin_password" {
+  description = "Platform admin login password (auto-generated when not provided). Retrieve with: terraform output -raw admin_password"
+  value       = local.admin_password
+  sensitive   = true
+}
+
+output "mysql_admin_password" {
+  description = "MySQL administrator password (auto-generated when not provided). Retrieve with: terraform output -raw mysql_admin_password"
+  value       = local.mysql_admin_password
+  sensitive   = true
+}

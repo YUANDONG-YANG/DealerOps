@@ -1,5 +1,6 @@
-# Deploy-time input. Secrets are passed with -var-file or TF_VAR_* and never committed.
-# Copy terraform.tfvars.example to terraform.tfvars (git-ignored) for the non-secret values.
+# All secrets auto-generate safe defaults so beginners can deploy with just:
+#   terraform init && terraform apply
+# Override any value with -var, TF_VAR_*, or a terraform.tfvars file (git-ignored).
 
 variable "location" {
   description = "Azure region for the resource group, App Service plan, MySQL, and Key Vault."
@@ -79,14 +80,10 @@ variable "mysql_admin_username" {
 }
 
 variable "mysql_admin_password" {
-  description = "MySQL administrator password. Stored in Key Vault as MYSQL-PASSWORD; read by dealer-core only."
+  description = "MySQL administrator password. Auto-generated if empty. Stored in Key Vault as MYSQL-PASSWORD."
   type        = string
   sensitive   = true
-
-  validation {
-    condition     = length(var.mysql_admin_password) >= 12
-    error_message = "mysql_admin_password must be at least 12 characters."
-  }
+  default     = ""
 }
 
 variable "operator_ip_addresses" {
@@ -96,25 +93,17 @@ variable "operator_ip_addresses" {
 }
 
 variable "internal_token" {
-  description = "Shared X-Dealer-Internal value for gateway, dealer-core outbound, and ai-service. Key Vault secret INTERNAL-TOKEN."
+  description = "Shared X-Dealer-Internal value for gateway, dealer-core outbound, and ai-service. Auto-generated if empty."
   type        = string
   sensitive   = true
-
-  validation {
-    condition     = var.internal_token != "dealer-internal"
-    error_message = "internal_token must not be the local classroom default dealer-internal."
-  }
+  default     = ""
 }
 
 variable "jwt_signing_secret" {
-  description = "HS256 secret dealer-core signs with and dealer-gateway validates. Key Vault secret JWT-SIGNING-SECRET."
+  description = "HS256 secret dealer-core signs with and dealer-gateway validates. Auto-generated if empty."
   type        = string
   sensitive   = true
-
-  validation {
-    condition     = length(var.jwt_signing_secret) >= 32
-    error_message = "jwt_signing_secret must be at least 32 bytes."
-  }
+  default     = ""
 }
 
 variable "aimanager_api_key" {
@@ -137,27 +126,22 @@ variable "aimanager_gateway_model" {
 }
 
 variable "admin_username" {
-  description = "Username of the one seeded platform admin (design/15-Data-Auth-and-Gateway.md section 8). Empty skips seeding."
+  description = "Username of the one seeded platform admin. Defaults to admin."
   type        = string
-  default     = ""
+  default     = "admin"
 }
 
 variable "admin_password" {
-  description = "Password for the seeded platform admin. Key Vault secret ADMIN-PASSWORD. Required when admin_username is set."
+  description = "Password for the seeded platform admin. Auto-generated if empty."
   type        = string
   sensitive   = true
   default     = ""
-
-  validation {
-    condition     = var.admin_password == "" || length(var.admin_password) >= 12
-    error_message = "admin_password must be empty or at least 12 characters."
-  }
 }
 
 variable "admin_email" {
   description = "Optional email the seeded platform admin can also sign in with (the username always works)."
   type        = string
-  default     = ""
+  default     = "admin@example.com"
 }
 
 variable "admin_phone" {

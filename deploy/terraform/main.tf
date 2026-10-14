@@ -6,9 +6,35 @@
 #   1 x Log Analytics + Application Insights
 # No container registry and no container images: App Service runs the JARs directly.
 
+# Auto-generated secrets: used when the corresponding variable is left empty,
+# so beginners can deploy with just `terraform init && terraform apply`.
+resource "random_password" "mysql" {
+  length  = 24
+  special = false
+}
+
+resource "random_password" "internal_token" {
+  length  = 40
+  special = false
+}
+
+resource "random_password" "jwt_secret" {
+  length  = 64
+  special = false
+}
+
+resource "random_password" "admin_password" {
+  length  = 16
+  special = false
+}
+
 data "azurerm_client_config" "current" {}
 
 locals {
+  mysql_admin_password = var.mysql_admin_password != "" ? var.mysql_admin_password : random_password.mysql.result
+  internal_token       = var.internal_token != "" ? var.internal_token : random_password.internal_token.result
+  jwt_signing_secret   = var.jwt_signing_secret != "" ? var.jwt_signing_secret : random_password.jwt_secret.result
+  admin_password       = var.admin_password != "" ? var.admin_password : random_password.admin_password.result
   resource_group_name = var.resource_group_name != "" ? var.resource_group_name : "${var.prefix}-rg"
 
   core_app_name    = "${var.prefix}-core${var.name_suffix}"
@@ -32,7 +58,7 @@ locals {
   # that builds its own frontend elsewhere points it at that origin instead.
   cors_allowed_origin = var.cors_allowed_origin != "" ? var.cors_allowed_origin : local.web_public_origin
   mysql_database_name = "dealer_core"
-  seed_platform_admin = var.admin_username != "" && var.admin_password != ""
+  seed_platform_admin = var.admin_username != ""
   configure_model_key = var.aimanager_api_key != ""
 
   common_app_settings = {
@@ -102,19 +128,19 @@ resource "azurerm_key_vault" "kv" {
 
 resource "azurerm_key_vault_secret" "internal_token" {
   name         = "INTERNAL-TOKEN"
-  value        = var.internal_token
+  value        = local.internal_token
   key_vault_id = azurerm_key_vault.kv.id
 }
 
 resource "azurerm_key_vault_secret" "mysql_password" {
   name         = "MYSQL-PASSWORD"
-  value        = var.mysql_admin_password
+  value        = local.mysql_admin_password
   key_vault_id = azurerm_key_vault.kv.id
 }
 
 resource "azurerm_key_vault_secret" "jwt_signing_secret" {
   name         = "JWT-SIGNING-SECRET"
-  value        = var.jwt_signing_secret
+  value        = local.jwt_signing_secret
   key_vault_id = azurerm_key_vault.kv.id
 }
 
@@ -129,7 +155,7 @@ resource "azurerm_key_vault_secret" "aimanager_api_key" {
 resource "azurerm_key_vault_secret" "admin_password" {
   count        = local.seed_platform_admin ? 1 : 0
   name         = "ADMIN-PASSWORD"
-  value        = var.admin_password
+  value        = local.admin_password
   key_vault_id = azurerm_key_vault.kv.id
 }
 
@@ -138,7 +164,7 @@ resource "azurerm_mysql_flexible_server" "mysql" {
   resource_group_name    = azurerm_resource_group.rg.name
   location               = var.mysql_location
   administrator_login    = var.mysql_admin_username
-  administrator_password = var.mysql_admin_password
+  administrator_password = local.mysql_admin_password
   sku_name               = var.mysql_sku_name
   version                = var.mysql_version
   backup_retention_days  = 7
