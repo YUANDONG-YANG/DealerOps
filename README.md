@@ -13,10 +13,12 @@ Browser ──> dealer-web (5173) ──> dealer-gateway (8080) ──> dealer-c
 
 | Folder | What it is |
 |---|---|
-| `dealer-web/` | Vue 3 + Element Plus frontend (Vite) |
-| `dealer-gateway/` | Spring Cloud Gateway: the only API entry for the browser (`/api/v1/**`), validates JWT |
-| `dealer-core/` | Spring Boot + Flyway + MySQL: all business APIs, login, and admin |
-| `ai-service/` | Internal AI adapter around the vendored `ai-manager` sources; no database |
+| `frontend/vue/` | Vue 3 + Element Plus frontend (Vite, port 5173) |
+| `frontend/react/` | React 19 + TypeScript frontend rewrite (Vite, port 5174) |
+| `backend/java/dealer-gateway/` | Spring Cloud Gateway: the only API entry for the browser (`/api/v1/**`), validates JWT |
+| `backend/java/dealer-core/` | Spring Boot + Flyway + MySQL: all business APIs, login, and admin |
+| `backend/java/ai-service/` | Internal AI adapter around the vendored `ai-manager` sources; no database |
+| `backend/dotnet/` | C# / .NET 8 backend port (DealerOps.Core, DealerOps.AiService, DealerOps.Gateway) |
 | `dealer-platform/` | `openapi.yaml`, `API.md`, `env.example` |
 | `deploy/` | Terraform + Azure deployment ([deploy/README.md](deploy/README.md)) |
 | `design/` | Design documents, the source of truth ([design/README.md](design/README.md)) |
@@ -124,7 +126,7 @@ Tables are created automatically by Flyway when `dealer-core` starts.
 
 `ai-service` carries the `ai-manager` library as vendored source, so there is nothing extra to clone or install. You can skip this step: without a key, everything starts and works except the AI features (ad check AI review and assistant answers), which fail with `AI_KEY_MISSING`.
 
-To enable AI, get a free Groq key: sign up at https://console.groq.com, open **API Keys**, click **Create API Key**, and copy the key (it starts with `gsk_`). You paste it in Step 3. Never commit it or share it in chat. Other providers: [ai-service/README.md](ai-service/README.md).
+To enable AI, get a free Groq key: sign up at https://console.groq.com, open **API Keys**, click **Create API Key**, and copy the key (it starts with `gsk_`). You paste it in Step 3. Never commit it or share it in chat. Other providers: [backend/java/ai-service/README.md](backend/java/ai-service/README.md).
 
 ### Step 3. Create the IntelliJ run configurations
 
@@ -182,9 +184,9 @@ For each service, in the order below:
 Run each line in its own terminal from the repository root, in the order above. The checked-in application config files (`application.yml` / `application.yaml`) already default to the local values; only these overrides are needed. `JWT_MODE=dev` must be set explicitly on core and gateway: they refuse to start when it comes only from the config default. Each new terminal needs JDK 21 (see Step 0). `mvn clean` already deletes the service's `target/`. Wait for each readiness URL before starting the next line; leave `AIMANAGER_API_KEY=` empty if you have no key. Stop a service with `Ctrl+C`.
 
 ```text
-cd dealer-core && SERVER_ADDRESS=127.0.0.1 LOG_DIR=../log-sum JWT_MODE=dev ADMIN_USERNAME=admin ADMIN_PASSWORD=admin123 ADMIN_EMAIL=admin@example.com mvn clean spring-boot:run
-cd ai-service && SERVER_ADDRESS=127.0.0.1 LOG_DIR=../log-sum SPRING_PROFILES_ACTIVE=dev AIMANAGER_API_KEY=<your key> mvn clean spring-boot:run
-cd dealer-gateway && LOG_DIR=../log-sum SPRING_PROFILES_ACTIVE=dev JWT_MODE=dev mvn clean spring-boot:run
+cd backend/java/dealer-core && SERVER_ADDRESS=127.0.0.1 LOG_DIR=../../../log-sum JWT_MODE=dev ADMIN_USERNAME=admin ADMIN_PASSWORD=admin123 ADMIN_EMAIL=admin@example.com mvn clean spring-boot:run
+cd backend/java/ai-service && SERVER_ADDRESS=127.0.0.1 LOG_DIR=../../../log-sum SPRING_PROFILES_ACTIVE=dev AIMANAGER_API_KEY=<your key> mvn clean spring-boot:run
+cd backend/java/dealer-gateway && LOG_DIR=../../../log-sum SPRING_PROFILES_ACTIVE=dev JWT_MODE=dev mvn clean spring-boot:run
 ```
 
 </details>
@@ -194,7 +196,7 @@ cd dealer-gateway && LOG_DIR=../log-sum SPRING_PROFILES_ACTIVE=dev JWT_MODE=dev 
 Only after the gateway is `UP`, open IntelliJ's terminal (**View → Tool Windows → Terminal**). It opens at the repository root. Run:
 
 ```text
-cd dealer-web
+cd frontend/vue
 cp .env.example .env    # first time only
 npm ci                  # first time, or after package.json changes
 npm run dev
@@ -218,7 +220,7 @@ Steps 0–3 are one-time setup. On later days:
 
 1. Start MySQL if it is not running: `brew services start mysql@8.4`.
 2. In IntelliJ, run `dealer-core-local`, `ai-service-local`, then `dealer-gateway-local`, waiting for each readiness URL.
-3. In the IntelliJ terminal: `cd dealer-web` then `npm run dev`.
+3. In the IntelliJ terminal: `cd frontend/vue` then `npm run dev`.
 
 To stop, press `Ctrl+C` in the frontend terminal, then click Stop (■) on the gateway, ai-service, and core Run tabs.
 
@@ -245,6 +247,38 @@ To stop, press `Ctrl+C` in the frontend terminal, then click Stop (■) on the g
 | IntelliJ shows red code everywhere | The Maven import has not finished, or the project SDK is not 21. Wait, then open the **Maven** tool window and click **Reload All Maven Projects** (⟳) |
 | `npm ci` fails | Check `node -v` is 20 or newer, then retry |
 | Anything else | Check `log-sum/` first ([design/20-Observability.md](design/20-Observability.md)) |
+
+## React frontend (alternative)
+
+The React frontend at `frontend/react/` is a full TypeScript rewrite of the Vue app. To run it instead of (or alongside) the Vue frontend:
+
+```text
+cd frontend/react
+npm install             # first time
+npm run dev             # starts on http://localhost:5174
+```
+
+It connects to the same gateway on port 8080. To use it as the primary frontend, set `CORS_ALLOWED_ORIGIN=http://localhost:5174` on the gateway run configuration.
+
+## .NET backend (alternative)
+
+The C# backend at `backend/dotnet/` is a port of the Java services. Prerequisites: .NET 8 SDK.
+
+```text
+brew install dotnet     # macOS
+
+cd backend/dotnet
+dotnet build            # verify: 0 errors, 0 warnings
+```
+
+To run the .NET core service (port 8081):
+
+```text
+cd backend/dotnet/DealerOps.Core
+dotnet run
+```
+
+The .NET backend uses the same MySQL database and the same environment variables as the Java version. See each project's `appsettings.json` for configuration.
 
 ## AI agent MCP servers
 
