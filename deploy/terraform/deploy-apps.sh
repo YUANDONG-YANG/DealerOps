@@ -45,13 +45,13 @@ deploy_jar() {
     --resource-group "${resource_group}" --name "${app}" \
     --settings "PUBLISHED_AT=${published_at}" --output none
   echo "==> ${module}: package"
-  (cd "${repo}/${module}" && mvn -B -DskipTests clean package)
+  (cd "${repo}/backend/java/${module}" && mvn -B -DskipTests clean package)
   echo "==> ${module}: upload to ${app}"
   az webapp deploy \
     --resource-group "${resource_group}" \
     --name "${app}" \
     --type jar \
-    --src-path "$(ls "${repo}/${module}"/target/"${module}"-*.jar | head -1)" \
+    --src-path "$(ls "${repo}/backend/java/${module}"/target/"${module}"-*.jar | head -1)" \
     --async false \
     --output none
 }
@@ -71,7 +71,7 @@ for target in "$@"; do
     web)
       echo "==> dealer-web: build against ${gateway_url}"
       (
-        cd "${repo}/dealer-web"
+        cd "${repo}/frontend/vue"
         npm ci
         VITE_GATEWAY_URL="${gateway_url}" \
         VITE_PUBLISHED_AT="${published_at}" \

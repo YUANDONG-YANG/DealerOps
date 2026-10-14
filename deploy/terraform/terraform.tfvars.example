@@ -1,40 +1,66 @@
-# Copy to terraform.tfvars (git-ignored) and fill in. Secret values belong in a local
-# file or in TF_VAR_* environment variables, never in git.
-# Procedure: deploy/README.md
+# Quick start
+# -----------
+# 1. Copy this file:  cp terraform.tfvars.example terraform.tfvars
+# 2. Fill in the secret values below (see the generation hints).
+# 3. Run:  terraform init && terraform plan && terraform apply
+# 4. Deploy apps:  ./deploy-apps.sh
+#
+# terraform.tfvars is git-ignored. NEVER commit it.
+# Full procedure: deploy/README.md
 
+# ── Region ──────────────────────────────────────────────────────────
 location                = "canadacentral"
 static_web_app_location = "eastus2"
 # Azure for Students cannot create MySQL in canadacentral.
 mysql_location          = "canadaeast"
-prefix                  = "dealerops"
 
-# Set this when dealerops-core.azurewebsites.net, dealerops-kv, or dealerops-mysql is
-# already taken by another subscription. It is appended to every global name.
+# ── Naming ──────────────────────────────────────────────────────────
+prefix = "dealerops"
+
+# Append to every global name when the default is already taken in another subscription.
 name_suffix = ""
 
-# The one browser origin the gateway accepts. Empty uses this stack's own Static Web App.
-# Point it at your own frontend origin when you build the SPA outside this stack.
+# ── Networking ──────────────────────────────────────────────────────
+# The one browser origin the gateway accepts.
+# Empty uses this stack's own Static Web App; set to http://localhost:5173 for local dev.
 cors_allowed_origin = ""
 
-# B1 is 1.75 GB for all three JVMs. B2 is 3.5 GB and is the safer demo default.
+# ── Compute ─────────────────────────────────────────────────────────
+# B1 = 1.75 GB (tight for 3 JVMs). B2 = 3.5 GB (recommended).
 service_plan_sku = "B2"
 
-# Public IPv4 addresses that may reach MySQL directly, for a SQL client or a manual
-# Flyway run. App Service reaches the server through the Azure services rule.
+# ── MySQL ───────────────────────────────────────────────────────────
+# Public IPs that may reach MySQL directly (SQL client, manual Flyway).
+# App Service reaches the server through a separate Azure services rule.
 operator_ip_addresses = []
 
-# --- Secrets: fill locally, do not commit ---
-# MySQL administrator password, >= 12 characters. Key Vault secret MYSQL-PASSWORD.
+# ── Secrets (fill locally, do NOT commit) ───────────────────────────
+#
+# Generate with:
+#   openssl rand -base64 18          # mysql_admin_password  (>= 12 chars)
+#   openssl rand -base64 30          # internal_token
+#   openssl rand -base64 48          # jwt_signing_secret    (>= 32 bytes)
+#   openssl rand -base64 18          # admin_password        (>= 12 chars)
+
+# MySQL administrator password, >= 12 characters.
 mysql_admin_password = ""
-# Shared X-Dealer-Internal value. Must not be the local default dealer-internal.
+
+# Shared X-Dealer-Internal header value. Must NOT be the local default "dealer-internal".
 internal_token = ""
-# HS256 signing secret, >= 32 bytes. Key Vault secret JWT-SIGNING-SECRET.
+
+# HS256 signing secret for JWT, >= 32 bytes.
 jwt_signing_secret = ""
-# Leave empty to deploy ai-service without a model key.
+
+# AI model key for ai-service. Empty deploys without AI (model calls return AI_KEY_MISSING).
 aimanager_api_key = ""
 
-# Seeds the one platform admin on the first dealer-core start. Both or neither.
+# ── AI model (defaults match ai-service/application.yaml) ──────────
+# aimanager_gateway_provider = "groq"
+# aimanager_gateway_model    = "qwen/qwen3.8-27b"
+
+# ── Platform admin seed (both or neither) ───────────────────────────
+# Created on first dealer-core start. Leave empty to skip.
 admin_username = ""
 admin_password = ""
-admin_email = ""
-admin_phone = ""
+admin_email    = ""
+admin_phone    = ""
