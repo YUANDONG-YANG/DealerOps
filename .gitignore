@@ -44,12 +44,5 @@ tfplan
 crash.log
 crash.*.log
 
-# Local AI provider keys never enter Git; supply AIMANAGER_API_KEY through the environment.
-backend/java/ai-service/src/main/resources/api-key.md
-backend/java/ai-service/src/main/resources/ai-key.md
-
-# SkyWalking Java agent binary (fetched by deploy/skywalking/download-agent.sh, local dev only)
-deploy/skywalking/agent/
-
 # Service log files (log-sum/log.md is tracked)
 log-sum/*.log
