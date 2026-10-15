@@ -35,7 +35,7 @@ public static class JwtSupport
     public static string ResolveDevSecret(IConfiguration config)
     {
         var secret = config["DEV_JWT_SECRET"]
-                     ?? config["dealerops:jwt:dev-secret"]
+                     ?? config["dealerops:jwt:devSecret"]
                      ?? DefaultDevSecret;
         return secret;
     }

@@ -256,8 +256,8 @@ resource "azurerm_linux_web_app" "gateway" {
     CORE_URL                              = local.core_internal_url
     AI_URL                                = local.ai_internal_url
     CORS_ALLOWED_ORIGIN                   = local.cors_allowed_origin
-    "dealerops__internal-token"           = "@Microsoft.KeyVault(SecretUri=${azurerm_key_vault_secret.internal_token.versionless_id})"
-    "dealerops__jwt__dev-secret"          = "@Microsoft.KeyVault(SecretUri=${azurerm_key_vault_secret.jwt_signing_secret.versionless_id})"
+    "dealerops__internalToken"            = "@Microsoft.KeyVault(SecretUri=${azurerm_key_vault_secret.internal_token.versionless_id})"
+    "dealerops__jwt__devSecret"           = "@Microsoft.KeyVault(SecretUri=${azurerm_key_vault_secret.jwt_signing_secret.versionless_id})"
   })
 
   lifecycle {

@@ -122,9 +122,9 @@ All settings have local defaults in `appsettings.json`. Override with environmen
 
 | Environment variable | Default | Description |
 |---|---|---|
-| `dealerops__jwt__dev-secret` | `dealer-dev-jwt-secret-change-me` | Must match Core |
-| `dealerops__internal-token` | `dealer-internal` | Must match Core and AiService |
-| `dealerops__cors-allowed-origin` | `http://localhost:5173` | Browser origin for CORS |
+| `dealerops__jwt__devSecret` | `dealer-dev-jwt-secret-change-me` | Must match Core |
+| `dealerops__internalToken` | `dealer-internal` | Must match Core and AiService |
+| `dealerops__corsAllowedOrigin` | `http://localhost:5173` | Browser origin for CORS |
 
 ## Useful URLs (after all three are running)
 
@@ -143,7 +143,7 @@ All settings have local defaults in `appsettings.json`. Override with environmen
 |---|---|
 | `dotnet build` fails | Run `dotnet --version` — must be 8.x. On macOS with Homebrew: `export DOTNET_ROOT="/opt/homebrew/opt/dotnet/libexec"` |
 | Core crashes with MySQL error | MySQL is not running, or the database/user was not created (Step 1) |
-| Login works but API returns 401 | `Jwt__DevSecret` on Core differs from `dealerops__jwt__dev-secret` on Gateway |
+| Login works but API returns 401 | `Jwt__DevSecret` on Core differs from `dealerops__jwt__devSecret` on Gateway |
 | AI returns `AI_KEY_MISSING` | Check that `appsettings.json` in AiService has a valid `AiManager:ApiKey` |
-| CORS errors in browser | `dealerops__cors-allowed-origin` on Gateway must match the frontend URL |
+| CORS errors in browser | `dealerops__corsAllowedOrigin` on Gateway must match the frontend URL |
 | Port already in use | The Java backend is running on the same ports — stop it first |

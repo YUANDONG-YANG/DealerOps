@@ -20,9 +20,9 @@ public class InternalRouteFilter
     {
         _next = next;
         _logger = logger;
-        _headerName = config["dealerops:internal-header-name"] ?? "X-Dealer-Internal";
+        _headerName = config["dealerops:internalHeaderName"] ?? "X-Dealer-Internal";
         _expectedToken = config["INTERNAL_TOKEN"]
-                         ?? config["dealerops:internal-token"]
+                         ?? config["dealerops:internalToken"]
                          ?? WellKnownDefaultToken;
 
         var jwtMode = config["JWT_MODE"] ?? config["dealerops:jwt:mode"] ?? "dev";
