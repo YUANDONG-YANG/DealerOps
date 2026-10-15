@@ -91,10 +91,10 @@ All secrets auto-generate when left empty, so there is nothing to configure:
 ```text
 cd deploy/terraform
 terraform init
-terraform apply
+terraform apply -auto-approve
 ```
 
-That is it. Terraform creates all Azure resources, generates safe random passwords for MySQL, JWT, internal token, and the admin account, and stores them in Key Vault.
+That is it. No confirmation prompt — Terraform creates all Azure resources, generates safe random passwords for MySQL, JWT, internal token, and the admin account, and stores them in Key Vault.
 
 After apply, retrieve the admin password to sign in:
 
@@ -256,12 +256,12 @@ Remove the entire stack when the demo is over:
 
 ```text
 cd deploy/terraform
-terraform destroy
+terraform destroy -auto-approve
 ```
 
 `terraform destroy` deletes the MySQL server and its data. Export anything that must survive first. The provider is configured to purge the soft-deleted Key Vault so the same vault name works on the next apply.
 
-To rebuild from scratch after a destroy: `terraform apply` — secrets are regenerated automatically.
+To rebuild from scratch after a destroy: `terraform apply -auto-approve` — secrets are regenerated automatically.
 
 ## 9. Limits
 
