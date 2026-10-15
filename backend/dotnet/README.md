@@ -35,7 +35,7 @@ FLUSH PRIVILEGES;
 SQL
 ```
 
-The .NET backend uses EF Core, not Flyway, so the Java backend must run first at least once to create the tables. Alternatively, point the .NET backend at a database that already has the schema.
+The .NET backend auto-creates tables on first start (EF Core `EnsureCreated`). No need to run the Java backend first.
 
 ### 2. Build the solution
 
@@ -67,13 +67,7 @@ cd backend/dotnet/DealerOps.AiService
 dotnet run
 ```
 
-Without `AiManager__ApiKey`, the service starts but AI calls return `AI_KEY_MISSING`. To enable AI:
-
-```bash
-AiManager__ApiKey=gsk_your_key_here dotnet run
-```
-
-Check: http://localhost:8082/actuator/health
+Set the Groq API key through the `AIMANAGER_API_KEY` environment variable before starting the service. Check: http://localhost:8082/actuator/health
 
 **Terminal 3 — DealerOps.Gateway (port 8080)**
 
@@ -119,7 +113,7 @@ All settings have local defaults in `appsettings.json`. Override with environmen
 
 | Environment variable | Default | Description |
 |---|---|---|
-| `AiManager__ApiKey` | _(empty)_ | LLM provider API key |
+| `AiManager__ApiKey` | _(empty)_ | LLM provider API key; prefer `AIMANAGER_API_KEY` for local development |
 | `AiManager__Provider` | `groq` | Provider name |
 | `AiManager__Model` | `qwen/qwen3.8-27b` | Model name |
 | `AiService__InternalToken` | `dealer-internal` | Must match Core and Gateway |
@@ -150,6 +144,6 @@ All settings have local defaults in `appsettings.json`. Override with environmen
 | `dotnet build` fails | Run `dotnet --version` — must be 8.x. On macOS with Homebrew: `export DOTNET_ROOT="/opt/homebrew/opt/dotnet/libexec"` |
 | Core crashes with MySQL error | MySQL is not running, or the database/user was not created (Step 1) |
 | Login works but API returns 401 | `Jwt__DevSecret` on Core differs from `dealerops__jwt__dev-secret` on Gateway |
-| AI returns `AI_KEY_MISSING` | Set `AiManager__ApiKey` on AiService |
+| AI returns `AI_KEY_MISSING` | Check that `appsettings.json` in AiService has a valid `AiManager:ApiKey` |
 | CORS errors in browser | `dealerops__cors-allowed-origin` on Gateway must match the frontend URL |
 | Port already in use | The Java backend is running on the same ports — stop it first |

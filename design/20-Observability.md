@@ -78,7 +78,7 @@ so `AiGatewayClient` copies the incoming `X-Request-ID` onto each `/internal/v1/
 gateway, core, and ai-service lines for one browser request share one `requestId`.
 
 `ai-service` keeps its defaults in `application.yaml`. The vendored ai-manager sources
-(`com.manager`, see `ai-service/README.md`) bring no Spring configuration file, so
+(`com.manager`, see `backend/java/ai-service/README.md`) bring no Spring configuration file, so
 `spring.application.name` is always `ai-service` and the log is `ai-service-<date>.log`. The
 `ai-service` build also excludes the local, Git-ignored key
 notes (`ai-key.md`, `api-key.md`) from the jar.
@@ -126,7 +126,7 @@ deploy/skywalking/download-agent.sh
 SW_AGENT_NAME=dealer-core \
 SW_AGENT_COLLECTOR_BACKEND_SERVICES=127.0.0.1:11800 \
 JAVA_TOOL_OPTS="-javaagent:$(pwd)/deploy/skywalking/agent/skywalking-agent.jar" \
-mvn -f dealer-core/pom.xml spring-boot:run
+mvn -f backend/java/dealer-core/pom.xml spring-boot:run
 ```
 
 Repeat with `SW_AGENT_NAME=dealer-gateway` / `ai-service` for the other two services.

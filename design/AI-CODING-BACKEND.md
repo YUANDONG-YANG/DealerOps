@@ -34,7 +34,7 @@ Implementation order aligns with BRIEF §11: empty repo starts → Flyway/entiti
 | Spring Cloud (gateway only) | `2023.0.4` |
 | Flyway | Follow Boot BOM (`flyway-core` + `flyway-mysql`) |
 | MySQL driver | `com.mysql:mysql-connector-j` (follow BOM) |
-| ai-manager | Vendored as source in `ai-service/src/main/java/com/manager` from upstream commit `827196a` (see `ai-service/README.md`); no Maven dependency and no private access needed. CI compiles only; do not hit paid endpoints. |
+| ai-manager | Vendored as source in `backend/java/ai-service/src/main/java/com/manager` from upstream commit `827196a` (see `backend/java/ai-service/README.md`); no Maven dependency and no private access needed. CI compiles only; do not hit paid endpoints. |
 | JPA `ddl-auto` | `validate` (local empty DB relies on Flyway to create tables; ban `update`/`create`) |
 
 ### Package names (do not change)
@@ -81,9 +81,9 @@ public record ErrorBody(String code, String message, java.util.Map<String, Strin
 ### BE-T01 Three-repo `pom.xml` dependency list
 - Repo: dealer-core | dealer-gateway | ai-service
 - Create/change files:
-  - `dealer-core/pom.xml`
-  - `dealer-gateway/pom.xml`
-  - `ai-service/pom.xml`
+  - `backend/java/dealer-core/pom.xml`
+  - `backend/java/dealer-gateway/pom.xml`
+  - `backend/java/ai-service/pom.xml`
 - Must include: (class names, method signatures, annotations, config keys)
 
 Shared by all three repos:
@@ -158,19 +158,19 @@ ai-service **must not** depend on: `spring-boot-starter-data-jpa`, `flyway-*`, `
 
 - Ban: mixing Java 17/21 across the three repos; gateway pulling JPA; core embedding the `com.manager` sources; ai-service pulling Flyway; treating `com.gateway` as a Spring scan package.
 - Acceptance:
-  1. `rg "java.version" dealer-core/pom.xml dealer-gateway/pom.xml ai-service/pom.xml` is `21` in all three.
+  1. `rg "java.version" backend/java/dealer-core/pom.xml backend/java/dealer-gateway/pom.xml backend/java/ai-service/pom.xml` is `21` in all three.
   2. `rg "spring-boot-starter-parent" */pom.xml` versions are all `3.3.5`.
-  3. `rg "flyway-core|mysql-connector-j|oauth2-resource-server" dealer-gateway/pom.xml ai-service/pom.xml` has no Flyway/MySQL; gateway has no JPA; ai-service has no oauth2-resource-server.
-  4. `rg "spring-cloud-starter-gateway" dealer-gateway/pom.xml` present; `rg "spring-cloud-starter-gateway" dealer-core/pom.xml ai-service/pom.xml` absent.
-  5. After local `JAVA_HOME` points at 21: `mvn -q -f dealer-core/pom.xml -DskipTests compile`, gateway, and ai-service each exit 0 (ai-service may start with an empty adapter + optional dependency if SNAPSHOT is not installed, but the coordinate must be written).
+  3. `rg "flyway-core|mysql-connector-j|oauth2-resource-server" backend/java/dealer-gateway/pom.xml backend/java/ai-service/pom.xml` has no Flyway/MySQL; gateway has no JPA; ai-service has no oauth2-resource-server.
+  4. `rg "spring-cloud-starter-gateway" backend/java/dealer-gateway/pom.xml` present; `rg "spring-cloud-starter-gateway" backend/java/dealer-core/pom.xml backend/java/ai-service/pom.xml` absent.
+  5. After local `JAVA_HOME` points at 21: `mvn -q -f backend/java/dealer-core/pom.xml -DskipTests compile`, gateway, and ai-service each exit 0 (ai-service may start with an empty adapter + optional dependency if SNAPSHOT is not installed, but the coordinate must be written).
 
 ---
 
 ### BE-T02 dealer-core empty repo can start
 - Repo: dealer-core
 - Create/change files:
-  - `dealer-core/src/main/java/com/dealerops/core/DealerCoreApplication.java`
-  - `dealer-core/src/main/resources/application.yml`
+  - `backend/java/dealer-core/src/main/java/com/dealerops/core/DealerCoreApplication.java`
+  - `backend/java/dealer-core/src/main/resources/application.yml`
 - Must include:
 
 ```java
@@ -219,9 +219,9 @@ Packaging is a plain Spring Boot fat JAR; there is no Dockerfile. Cloud: App Ser
 - Ban: listening on 8080; browser CORS; `ddl-auto=update`; implementing `/internal/v1/**`; changing `V1__init.sql`.
 - Later Flyway scripts (do not rename `V1__init.sql`): `V{YYYYMMDD}_{n}__{action}.sql`, for example `V20260923_1__add_listing_search_index.sql`. `{n}` restarts at `1` each calendar day. Two underscores before the action. Do not use `V2__...`.
 - Acceptance:
-  1. `rg "ddl-auto" dealer-core/src/main/resources/application.yml` is only `validate`.
+  1. `rg "ddl-auto" backend/java/dealer-core/src/main/resources/application.yml` is only `validate`.
   2. `rg "allowedOrigins|localhost:5173" dealer-core` none.
-  3. When MySQL `dealer_core` is up: `mvn -f dealer-core/pom.xml spring-boot:run` logs contain `Tomcat started on port 8081`.
+  3. When MySQL `dealer_core` is up: `mvn -f backend/java/dealer-core/pom.xml spring-boot:run` logs contain `Tomcat started on port 8081`.
   4. `curl -s -o NUL -w "%{http_code}" http://127.0.0.1:8081/api/v1/me` → `401` (before Security is configured 403/401 is allowed; after this task + T08 it must be 401).
 
 ---
@@ -229,8 +229,8 @@ Packaging is a plain Spring Boot fat JAR; there is no Dockerfile. Cloud: App Ser
 ### BE-T03 dealer-gateway copy-paste route YAML
 - Repo: dealer-gateway
 - Create/change files:
-  - `dealer-gateway/src/main/java/ca/sait/dealerops/gateway/GatewayApplication.java`
-  - `dealer-gateway/src/main/resources/application.yaml`
+  - `backend/java/dealer-gateway/src/main/java/ca/sait/dealerops/gateway/GatewayApplication.java`
+  - `backend/java/dealer-gateway/src/main/resources/application.yaml`
 - Must include:
 
 ```java
@@ -279,10 +279,10 @@ dealerops:
 
 - Ban: routing `/api/v1/**` to ai-service; listing `X-Dealer-Internal` in `Access-Control-Allow-Headers`; connecting MySQL; issuing JWT; package name `com.gateway`.
 - Acceptance:
-  1. `rg "Path=/api/v1" dealer-gateway/src/main/resources/application.yaml` and the same block `uri` contains `CORE_URL` or `8081`.
-  2. `rg "Path=/internal/v1" dealer-gateway/src/main/resources/application.yaml` and contains `X-Dealer-Internal`.
-  3. `rg "CORS_ALLOWED_ORIGIN" dealer-gateway/src/main/java/ca/sait/dealerops/gateway/config/CorsConfig.java` and the default origin is `http://localhost:5173`.
-  4. `rg "X-Dealer-Internal" dealer-gateway/src/main/java/ca/sait/dealerops/gateway/config/CorsConfig.java` shows allowed headers that do not include that header. `application.yaml` has no `globalcors` and no `DedupeResponseHeader`.
+  1. `rg "Path=/api/v1" backend/java/dealer-gateway/src/main/resources/application.yaml` and the same block `uri` contains `CORE_URL` or `8081`.
+  2. `rg "Path=/internal/v1" backend/java/dealer-gateway/src/main/resources/application.yaml` and contains `X-Dealer-Internal`.
+  3. `rg "CORS_ALLOWED_ORIGIN" backend/java/dealer-gateway/src/main/java/ca/sait/dealerops/gateway/config/CorsConfig.java` and the default origin is `http://localhost:5173`.
+  4. `rg "X-Dealer-Internal" backend/java/dealer-gateway/src/main/java/ca/sait/dealerops/gateway/config/CorsConfig.java` shows allowed headers that do not include that header. `application.yaml` has no `globalcors` and no `DedupeResponseHeader`.
   5. After gateway starts: `curl -s -o NUL -w "%{http_code}" http://localhost:8080/internal/v1/ad-check` → `404` (no internal header).
   6. `curl -s -o NUL -w "%{http_code}" http://localhost:8080/no-such` → `404`.
 
@@ -291,10 +291,10 @@ dealerops:
 ### BE-T04 ai-service empty repo + 15s timeout pattern
 - Repo: ai-service
 - Create/change files:
-  - `ai-service/src/main/java/ca/sait/dealerops/aiservice/AiServiceApplication.java`
-  - `ai-service/src/main/resources/application.yaml`
-  - `ai-service/src/main/java/ca/sait/dealerops/aiservice/config/AiTimeoutConfig.java`
-  - `ai-service/src/main/java/ca/sait/dealerops/aiservice/config/InternalGuardFilter.java`
+  - `backend/java/ai-service/src/main/java/ca/sait/dealerops/aiservice/AiServiceApplication.java`
+  - `backend/java/ai-service/src/main/resources/application.yaml`
+  - `backend/java/ai-service/src/main/java/ca/sait/dealerops/aiservice/config/AiTimeoutConfig.java`
+  - `backend/java/ai-service/src/main/java/ca/sait/dealerops/aiservice/config/InternalGuardFilter.java`
 - Must include:
 
 ```java
@@ -348,9 +348,9 @@ When the adapter calls the model, wrap again with `java.util.concurrent.Completa
 
 - Ban: scanning `com.gateway` or library web packages other than `com.manager`; starting `AIApplication`; exposing `/api/ai/request` `/chat` `/credentials` `/runtime`; configuring `5173` CORS; connecting a database; Flyway.
 - Acceptance:
-  1. `rg "scanBasePackages" ai-service/src/main/java` does not contain `com.gateway`.
-  2. `rg "timeout-ms: 15000" ai-service/src/main/resources/application.yaml`.
-  3. `rg "orTimeout|timeout-ms|responseTimeout" ai-service/src/main/java` has 15000 or `timeoutMs`.
+  1. `rg "scanBasePackages" backend/java/ai-service/src/main/java` does not contain `com.gateway`.
+  2. `rg "timeout-ms: 15000" backend/java/ai-service/src/main/resources/application.yaml`.
+  3. `rg "orTimeout|timeout-ms|responseTimeout" backend/java/ai-service/src/main/java` has 15000 or `timeoutMs`.
   4. After start `curl -s -o NUL -w "%{http_code}" http://127.0.0.1:8082/internal/v1/ad-check` → `404`.
   5. `rg "localhost:5173" ai-service` none.
 
@@ -395,60 +395,60 @@ Who does not read: web does not read `AIMANAGER_*` / `MYSQL_*` / `INTERNAL_TOKEN
 - Create/change files: (full paths)
 
 ```
-dealer-core/src/main/java/com/dealerops/core/DealerCoreApplication.java
-dealer-core/src/main/java/com/dealerops/core/config/SecurityConfig.java
-dealer-core/src/main/java/com/dealerops/core/config/JacksonConfig.java
-dealer-core/src/main/java/com/dealerops/core/config/AiClientConfig.java
-dealer-core/src/main/java/com/dealerops/core/security/JwtRoleMapper.java
-dealer-core/src/main/java/com/dealerops/core/security/MeController.java
-dealer-core/src/main/java/com/dealerops/core/security/MeService.java
-dealer-core/src/main/java/com/dealerops/core/security/CurrentUser.java
-dealer-core/src/main/java/com/dealerops/core/dealer/AdminDealerController.java
-dealer-core/src/main/java/com/dealerops/core/dealer/AdminMemberController.java
-dealer-core/src/main/java/com/dealerops/core/dealer/DealerAdminService.java
-dealer-core/src/main/java/com/dealerops/core/dealer/MembershipService.java
-dealer-core/src/main/java/com/dealerops/core/dealer/DealerEntity.java
-dealer-core/src/main/java/com/dealerops/core/dealer/DealerRepository.java
-dealer-core/src/main/java/com/dealerops/core/dealer/AppUserEntity.java
-dealer-core/src/main/java/com/dealerops/core/dealer/AppUserRepository.java
-dealer-core/src/main/java/com/dealerops/core/dealer/MembershipEntity.java
-dealer-core/src/main/java/com/dealerops/core/dealer/MembershipRepository.java
-dealer-core/src/main/java/com/dealerops/core/vehicle/VehicleController.java
-dealer-core/src/main/java/com/dealerops/core/vehicle/VehicleService.java
-dealer-core/src/main/java/com/dealerops/core/vehicle/VehicleEntity.java
-dealer-core/src/main/java/com/dealerops/core/vehicle/VehicleRepository.java
-dealer-core/src/main/java/com/dealerops/core/customer/CustomerController.java
-dealer-core/src/main/java/com/dealerops/core/customer/CustomerVehicleController.java
-dealer-core/src/main/java/com/dealerops/core/customer/CustomerService.java
-dealer-core/src/main/java/com/dealerops/core/customer/CustomerEntity.java
-dealer-core/src/main/java/com/dealerops/core/customer/CustomerRepository.java
-dealer-core/src/main/java/com/dealerops/core/customer/CustomerVehicleEntity.java
-dealer-core/src/main/java/com/dealerops/core/customer/CustomerVehicleRepository.java
-dealer-core/src/main/java/com/dealerops/core/listing/ListingController.java
-dealer-core/src/main/java/com/dealerops/core/listing/ListingService.java
-dealer-core/src/main/java/com/dealerops/core/listing/ListingEntity.java
-dealer-core/src/main/java/com/dealerops/core/listing/ListingRepository.java
-dealer-core/src/main/java/com/dealerops/core/compliance/ComplianceCheckController.java
-dealer-core/src/main/java/com/dealerops/core/compliance/ComplianceCheckService.java
-dealer-core/src/main/java/com/dealerops/core/compliance/OmvicRuleEngine.java
-dealer-core/src/main/java/com/dealerops/core/compliance/ComplianceCheckEntity.java
-dealer-core/src/main/java/com/dealerops/core/compliance/ComplianceCheckRepository.java
-dealer-core/src/main/java/com/dealerops/core/compliance/CheckStatusMapper.java
-dealer-core/src/main/java/com/dealerops/core/audit/AuditController.java
-dealer-core/src/main/java/com/dealerops/core/audit/AuditService.java
-dealer-core/src/main/java/com/dealerops/core/audit/AuditEventEntity.java
-dealer-core/src/main/java/com/dealerops/core/audit/AuditEventRepository.java
-dealer-core/src/main/java/com/dealerops/core/assistant/AssistantController.java
-dealer-core/src/main/java/com/dealerops/core/assistant/AssistantService.java
-dealer-core/src/main/java/com/dealerops/core/assistant/AssistantResourceQuery.java
-dealer-core/src/main/java/com/dealerops/core/common/exception/ApiException.java
-dealer-core/src/main/java/com/dealerops/core/common/exception/ApiExceptionHandler.java
-dealer-core/src/main/java/com/dealerops/core/common/exception/ErrorCode.java
-dealer-core/src/main/java/com/dealerops/core/common/tenant/TenantContext.java
-dealer-core/src/main/java/com/dealerops/core/common/tenant/TenantFilter.java
-dealer-core/src/main/java/com/dealerops/core/common/tenant/TenantGuard.java
-dealer-core/src/main/java/com/dealerops/core/integration/AiGatewayClient.java
-dealer-core/src/main/java/com/dealerops/core/integration/InternalHeaders.java
+backend/java/dealer-core/src/main/java/com/dealerops/core/DealerCoreApplication.java
+backend/java/dealer-core/src/main/java/com/dealerops/core/config/SecurityConfig.java
+backend/java/dealer-core/src/main/java/com/dealerops/core/config/JacksonConfig.java
+backend/java/dealer-core/src/main/java/com/dealerops/core/config/AiClientConfig.java
+backend/java/dealer-core/src/main/java/com/dealerops/core/security/JwtRoleMapper.java
+backend/java/dealer-core/src/main/java/com/dealerops/core/security/MeController.java
+backend/java/dealer-core/src/main/java/com/dealerops/core/security/MeService.java
+backend/java/dealer-core/src/main/java/com/dealerops/core/security/CurrentUser.java
+backend/java/dealer-core/src/main/java/com/dealerops/core/dealer/AdminDealerController.java
+backend/java/dealer-core/src/main/java/com/dealerops/core/dealer/AdminMemberController.java
+backend/java/dealer-core/src/main/java/com/dealerops/core/dealer/DealerAdminService.java
+backend/java/dealer-core/src/main/java/com/dealerops/core/dealer/MembershipService.java
+backend/java/dealer-core/src/main/java/com/dealerops/core/dealer/DealerEntity.java
+backend/java/dealer-core/src/main/java/com/dealerops/core/dealer/DealerRepository.java
+backend/java/dealer-core/src/main/java/com/dealerops/core/dealer/AppUserEntity.java
+backend/java/dealer-core/src/main/java/com/dealerops/core/dealer/AppUserRepository.java
+backend/java/dealer-core/src/main/java/com/dealerops/core/dealer/MembershipEntity.java
+backend/java/dealer-core/src/main/java/com/dealerops/core/dealer/MembershipRepository.java
+backend/java/dealer-core/src/main/java/com/dealerops/core/vehicle/VehicleController.java
+backend/java/dealer-core/src/main/java/com/dealerops/core/vehicle/VehicleService.java
+backend/java/dealer-core/src/main/java/com/dealerops/core/vehicle/VehicleEntity.java
+backend/java/dealer-core/src/main/java/com/dealerops/core/vehicle/VehicleRepository.java
+backend/java/dealer-core/src/main/java/com/dealerops/core/customer/CustomerController.java
+backend/java/dealer-core/src/main/java/com/dealerops/core/customer/CustomerVehicleController.java
+backend/java/dealer-core/src/main/java/com/dealerops/core/customer/CustomerService.java
+backend/java/dealer-core/src/main/java/com/dealerops/core/customer/CustomerEntity.java
+backend/java/dealer-core/src/main/java/com/dealerops/core/customer/CustomerRepository.java
+backend/java/dealer-core/src/main/java/com/dealerops/core/customer/CustomerVehicleEntity.java
+backend/java/dealer-core/src/main/java/com/dealerops/core/customer/CustomerVehicleRepository.java
+backend/java/dealer-core/src/main/java/com/dealerops/core/listing/ListingController.java
+backend/java/dealer-core/src/main/java/com/dealerops/core/listing/ListingService.java
+backend/java/dealer-core/src/main/java/com/dealerops/core/listing/ListingEntity.java
+backend/java/dealer-core/src/main/java/com/dealerops/core/listing/ListingRepository.java
+backend/java/dealer-core/src/main/java/com/dealerops/core/compliance/ComplianceCheckController.java
+backend/java/dealer-core/src/main/java/com/dealerops/core/compliance/ComplianceCheckService.java
+backend/java/dealer-core/src/main/java/com/dealerops/core/compliance/OmvicRuleEngine.java
+backend/java/dealer-core/src/main/java/com/dealerops/core/compliance/ComplianceCheckEntity.java
+backend/java/dealer-core/src/main/java/com/dealerops/core/compliance/ComplianceCheckRepository.java
+backend/java/dealer-core/src/main/java/com/dealerops/core/compliance/CheckStatusMapper.java
+backend/java/dealer-core/src/main/java/com/dealerops/core/audit/AuditController.java
+backend/java/dealer-core/src/main/java/com/dealerops/core/audit/AuditService.java
+backend/java/dealer-core/src/main/java/com/dealerops/core/audit/AuditEventEntity.java
+backend/java/dealer-core/src/main/java/com/dealerops/core/audit/AuditEventRepository.java
+backend/java/dealer-core/src/main/java/com/dealerops/core/assistant/AssistantController.java
+backend/java/dealer-core/src/main/java/com/dealerops/core/assistant/AssistantService.java
+backend/java/dealer-core/src/main/java/com/dealerops/core/assistant/AssistantResourceQuery.java
+backend/java/dealer-core/src/main/java/com/dealerops/core/common/exception/ApiException.java
+backend/java/dealer-core/src/main/java/com/dealerops/core/common/exception/ApiExceptionHandler.java
+backend/java/dealer-core/src/main/java/com/dealerops/core/common/exception/ErrorCode.java
+backend/java/dealer-core/src/main/java/com/dealerops/core/common/tenant/TenantContext.java
+backend/java/dealer-core/src/main/java/com/dealerops/core/common/tenant/TenantFilter.java
+backend/java/dealer-core/src/main/java/com/dealerops/core/common/tenant/TenantGuard.java
+backend/java/dealer-core/src/main/java/com/dealerops/core/integration/AiGatewayClient.java
+backend/java/dealer-core/src/main/java/com/dealerops/core/integration/InternalHeaders.java
 ```
 
 DTOs go in each domain `dto/` subpackage; class names appear in later tasks. This task first compiles Entity + Repository + enums.
@@ -639,20 +639,20 @@ public interface CustomerVehicleRepository extends JpaRepository<CustomerVehicle
 
 - Ban: extra columns (mileage/APR/password); `ticket/` `lead/` `bus/` `password/`; `@ManyToOne` to `lastCheck`; changing SQL; `WHERE vehicle.dealer_id = app_user.dealer_id`.
 - Acceptance:
-  1. Empty DB `mvn -f dealer-core/pom.xml spring-boot:run` logs `Successfully applied 1 migration` and 9 tables.
+  1. Empty DB `mvn -f backend/java/dealer-core/pom.xml spring-boot:run` logs `Successfully applied 1 migration` and 9 tables.
   2. `rg "ddl-auto:\\s*update" dealer-core` none.
-  3. `rg "@Column\\(name" dealer-core/src/main/java/com/dealerops/core` covers every snake column name in the tables above.
+  3. `rg "@Column\\(name" backend/java/dealer-core/src/main/java/com/dealerops/core` covers every snake column name in the tables above.
   4. `rg "class Ticket|class Lead|password_hash" dealer-core` none.
-  5. Flyway still has only `V1__init.sql` (`ls dealer-core/src/main/resources/db/migration`).
+  5. Flyway still has only `V1__init.sql` (`ls backend/java/dealer-core/src/main/resources/db/migration`).
 
 ---
 
 ### BE-T07 Exception mapping
 - Repo: dealer-core
 - Create/change files:
-  - `dealer-core/src/main/java/com/dealerops/core/common/exception/ErrorCode.java`
-  - `dealer-core/src/main/java/com/dealerops/core/common/exception/ApiException.java`
-  - `dealer-core/src/main/java/com/dealerops/core/common/exception/ApiExceptionHandler.java`
+  - `backend/java/dealer-core/src/main/java/com/dealerops/core/common/exception/ErrorCode.java`
+  - `backend/java/dealer-core/src/main/java/com/dealerops/core/common/exception/ApiException.java`
+  - `backend/java/dealer-core/src/main/java/com/dealerops/core/common/exception/ApiExceptionHandler.java`
 - Must include:
 
 ```java
@@ -674,19 +674,19 @@ public class ApiExceptionHandler {
 `handleValid` → HTTP 400, `code=VALIDATION`, `fieldErrors` field→message. Unique key `uk_vehicle_vin` → `VIN_DUP`; `uk_cv_vehicle` → `VEHICLE_ALREADY_LINKED`; `uk_membership` already active → `DUP_MEMBER`. Ban sending stack/SQL outbound.
 
 - Ban: inventing new business `code`; returning `DataIntegrityViolation` text to the browser.
-- Acceptance: `rg "enum ErrorCode" -A20 dealer-core/src/main/java/com/dealerops/core/common/exception/ErrorCode.java` contains this document’s 14 codes and no 15th business code. `rg "printStackTrace|e.getMessage\\(\\)" dealer-core/src/main/java/com/dealerops/core/common/exception/ApiExceptionHandler.java` does not write SQL into `ErrorBody.message`.
+- Acceptance: `rg "enum ErrorCode" -A20 backend/java/dealer-core/src/main/java/com/dealerops/core/common/exception/ErrorCode.java` contains this document’s 14 codes and no 15th business code. `rg "printStackTrace|e.getMessage\\(\\)" backend/java/dealer-core/src/main/java/com/dealerops/core/common/exception/ApiExceptionHandler.java` does not write SQL into `ErrorBody.message`.
 
 ---
 
 ### BE-T08 TenantFilter / Security chain (JWT claim + membership)
 - Repo: dealer-core
 - Create/change files:
-  - `dealer-core/src/main/java/com/dealerops/core/config/SecurityConfig.java`
-  - `dealer-core/src/main/java/com/dealerops/core/security/JwtRoleMapper.java`
-  - `dealer-core/src/main/java/com/dealerops/core/security/CurrentUser.java`
-  - `dealer-core/src/main/java/com/dealerops/core/common/tenant/TenantContext.java`
-  - `dealer-core/src/main/java/com/dealerops/core/common/tenant/TenantFilter.java`
-  - `dealer-core/src/main/java/com/dealerops/core/common/tenant/TenantGuard.java`
+  - `backend/java/dealer-core/src/main/java/com/dealerops/core/config/SecurityConfig.java`
+  - `backend/java/dealer-core/src/main/java/com/dealerops/core/security/JwtRoleMapper.java`
+  - `backend/java/dealer-core/src/main/java/com/dealerops/core/security/CurrentUser.java`
+  - `backend/java/dealer-core/src/main/java/com/dealerops/core/common/tenant/TenantContext.java`
+  - `backend/java/dealer-core/src/main/java/com/dealerops/core/common/tenant/TenantFilter.java`
+  - `backend/java/dealer-core/src/main/java/com/dealerops/core/common/tenant/TenantGuard.java`
 - Must include:
 
 JWT claim names (recognize only these):
@@ -781,9 +781,9 @@ public class SecurityConfig {
 - Ban: using `app_user.dealer_id` for `WHERE` isolation; client `dealerId` overriding tenant; cross-store 403; a fifth auth repo.
 - Acceptance:
   1. `rg "getClaimAsStringList\\(\"roles\"\\)" dealer-core`.
-  2. `rg "getSubject" dealer-core/src/main/java/com/dealerops/core/common/tenant/TenantFilter.java`.
+  2. `rg "getSubject" backend/java/dealer-core/src/main/java/com/dealerops/core/common/tenant/TenantFilter.java`.
   3. `rg "findByUsernameAndActiveTrue" dealer-core`.
-  4. `rg "groups" dealer-core/src/main/java/com/dealerops/core/security/JwtRoleMapper.java` does not authorize with groups.
+  4. `rg "groups" backend/java/dealer-core/src/main/java/com/dealerops/core/security/JwtRoleMapper.java` does not authorize with groups.
   5. No JWT: `curl -s http://127.0.0.1:8081/api/v1/vehicles` → JSON `{"code":"UNAUTHORIZED",...}` HTTP 401 (same 401 via Gateway).
 
 ---
@@ -791,9 +791,9 @@ public class SecurityConfig {
 ### BE-T09 `GET /api/v1/me`
 - Repo: dealer-core
 - Create/change files:
-  - `dealer-core/src/main/java/com/dealerops/core/security/MeController.java`
-  - `dealer-core/src/main/java/com/dealerops/core/security/MeService.java`
-  - `dealer-core/src/main/java/com/dealerops/core/security/dto/MeResponse.java`
+  - `backend/java/dealer-core/src/main/java/com/dealerops/core/security/MeController.java`
+  - `backend/java/dealer-core/src/main/java/com/dealerops/core/security/MeService.java`
+  - `backend/java/dealer-core/src/main/java/com/dealerops/core/security/dto/MeResponse.java`
 - Must include:
 
 ```java
@@ -820,11 +820,11 @@ public record MeResponse(String username, String displayName, String role, Long 
 ### BE-T10 Admin dealership CRUD
 - Repo: dealer-core
 - Create/change files:
-  - `dealer-core/src/main/java/com/dealerops/core/dealer/AdminDealerController.java`
-  - `dealer-core/src/main/java/com/dealerops/core/dealer/DealerAdminService.java`
-  - `dealer-core/src/main/java/com/dealerops/core/dealer/dto/DealerResponse.java`
-  - `dealer-core/src/main/java/com/dealerops/core/dealer/dto/CreateDealerRequest.java`
-  - `dealer-core/src/main/java/com/dealerops/core/dealer/dto/PatchDealerRequest.java`
+  - `backend/java/dealer-core/src/main/java/com/dealerops/core/dealer/AdminDealerController.java`
+  - `backend/java/dealer-core/src/main/java/com/dealerops/core/dealer/DealerAdminService.java`
+  - `backend/java/dealer-core/src/main/java/com/dealerops/core/dealer/dto/DealerResponse.java`
+  - `backend/java/dealer-core/src/main/java/com/dealerops/core/dealer/dto/CreateDealerRequest.java`
+  - `backend/java/dealer-core/src/main/java/com/dealerops/core/dealer/dto/PatchDealerRequest.java`
 - Must include:
 
 ```java
@@ -862,17 +862,17 @@ public record PatchDealerRequest(
 | `patch` | PATCH | `/api/v1/admin/dealers/{id}` | 400; 404; 409 VERSION_CONFLICT; 403 |
 
 - Ban: `DELETE /admin/dealers/{id}`; Admin responses carrying vehicles.
-- Acceptance: `rg "DeleteMapping" dealer-core/src/main/java/com/dealerops/core/dealer/AdminDealerController.java` has no delete-dealership. `curl` Admin POST missing `legalName` → 400 `VALIDATION`. Staff JWT GET `/api/v1/admin/dealers` → 403.
+- Acceptance: `rg "DeleteMapping" backend/java/dealer-core/src/main/java/com/dealerops/core/dealer/AdminDealerController.java` has no delete-dealership. `curl` Admin POST missing `legalName` → 400 `VALIDATION`. Staff JWT GET `/api/v1/admin/dealers` → 403.
 
 ---
 
 ### BE-T11 Admin membership
 - Repo: dealer-core
 - Create/change files:
-  - `dealer-core/src/main/java/com/dealerops/core/dealer/AdminMemberController.java`
-  - `dealer-core/src/main/java/com/dealerops/core/dealer/MembershipService.java`
-  - `dealer-core/src/main/java/com/dealerops/core/dealer/dto/MemberResponse.java`
-  - `dealer-core/src/main/java/com/dealerops/core/dealer/dto/CreateMemberRequest.java`
+  - `backend/java/dealer-core/src/main/java/com/dealerops/core/dealer/AdminMemberController.java`
+  - `backend/java/dealer-core/src/main/java/com/dealerops/core/dealer/MembershipService.java`
+  - `backend/java/dealer-core/src/main/java/com/dealerops/core/dealer/dto/MemberResponse.java`
+  - `backend/java/dealer-core/src/main/java/com/dealerops/core/dealer/dto/CreateMemberRequest.java`
 - Must include:
 
 ```java
@@ -912,12 +912,12 @@ Unbind: `membership.active=0`; `app_user.dealer_id=NULL`; **do not change** `app
 ### BE-T12 Vehicle Controller (DMS)
 - Repo: dealer-core
 - Create/change files:
-  - `dealer-core/src/main/java/com/dealerops/core/vehicle/VehicleController.java`
-  - `dealer-core/src/main/java/com/dealerops/core/vehicle/VehicleService.java`
-  - `dealer-core/src/main/java/com/dealerops/core/vehicle/dto/VehicleResponse.java`
-  - `dealer-core/src/main/java/com/dealerops/core/vehicle/dto/CreateVehicleRequest.java`
-  - `dealer-core/src/main/java/com/dealerops/core/vehicle/dto/PatchVehicleRequest.java`
-  - `dealer-core/src/main/java/com/dealerops/core/vehicle/dto/SellVehicleRequest.java`
+  - `backend/java/dealer-core/src/main/java/com/dealerops/core/vehicle/VehicleController.java`
+  - `backend/java/dealer-core/src/main/java/com/dealerops/core/vehicle/VehicleService.java`
+  - `backend/java/dealer-core/src/main/java/com/dealerops/core/vehicle/dto/VehicleResponse.java`
+  - `backend/java/dealer-core/src/main/java/com/dealerops/core/vehicle/dto/CreateVehicleRequest.java`
+  - `backend/java/dealer-core/src/main/java/com/dealerops/core/vehicle/dto/PatchVehicleRequest.java`
+  - `backend/java/dealer-core/src/main/java/com/dealerops/core/vehicle/dto/SellVehicleRequest.java`
 - Must include:
 
 ```java
@@ -1006,14 +1006,14 @@ Audit: `VEHICLE` + `CREATE`/`UPDATE`/`SELL`. `fieldSummary` has no customer PII.
 ### BE-T13 Customer Controller (CRM)
 - Repo: dealer-core
 - Create/change files:
-  - `dealer-core/src/main/java/com/dealerops/core/customer/CustomerController.java`
-  - `dealer-core/src/main/java/com/dealerops/core/customer/CustomerService.java`
-  - `dealer-core/src/main/java/com/dealerops/core/customer/dto/CustomerListItem.java`
-  - `dealer-core/src/main/java/com/dealerops/core/customer/dto/CustomerDetail.java`
-  - `dealer-core/src/main/java/com/dealerops/core/customer/dto/CreateCustomerRequest.java`
-  - `dealer-core/src/main/java/com/dealerops/core/customer/dto/PatchCustomerRequest.java`
-  - `dealer-core/src/main/java/com/dealerops/core/customer/dto/LinkedVehicleBrief.java`
-  - `dealer-core/src/main/java/com/dealerops/core/customer/dto/LinkedVehicleItem.java`
+  - `backend/java/dealer-core/src/main/java/com/dealerops/core/customer/CustomerController.java`
+  - `backend/java/dealer-core/src/main/java/com/dealerops/core/customer/CustomerService.java`
+  - `backend/java/dealer-core/src/main/java/com/dealerops/core/customer/dto/CustomerListItem.java`
+  - `backend/java/dealer-core/src/main/java/com/dealerops/core/customer/dto/CustomerDetail.java`
+  - `backend/java/dealer-core/src/main/java/com/dealerops/core/customer/dto/CreateCustomerRequest.java`
+  - `backend/java/dealer-core/src/main/java/com/dealerops/core/customer/dto/PatchCustomerRequest.java`
+  - `backend/java/dealer-core/src/main/java/com/dealerops/core/customer/dto/LinkedVehicleBrief.java`
+  - `backend/java/dealer-core/src/main/java/com/dealerops/core/customer/dto/LinkedVehicleItem.java`
 - Must include:
 
 ```java
@@ -1056,15 +1056,15 @@ List `linkedVehicle`: if many vehicles take the latest `linkedAt`; none linked `
 | `patch` | PATCH | `/api/v1/customers/{id}` | 404; 409 VERSION_CONFLICT; 400; 403 |
 
 - Ban: writing full number/email/address into `fieldSummary`.
-- Acceptance: `rg "homeAddress|email|phone" dealer-core/src/main/java/com/dealerops/core/audit` must not `put("phone", customer.getPhone())` when writing JSON. Cross-store GET customer → 404.
+- Acceptance: `rg "homeAddress|email|phone" backend/java/dealer-core/src/main/java/com/dealerops/core/audit` must not `put("phone", customer.getPhone())` when writing JSON. Cross-store GET customer → 404.
 
 ---
 
 ### BE-T14 Link vehicle PUT + unlink DELETE + SOLD lock
 - Repo: dealer-core
 - Create/change files:
-  - `dealer-core/src/main/java/com/dealerops/core/customer/CustomerVehicleController.java`
-  - `dealer-core/src/main/java/com/dealerops/core/customer/dto/LinkResponse.java`
+  - `backend/java/dealer-core/src/main/java/com/dealerops/core/customer/CustomerVehicleController.java`
+  - `backend/java/dealer-core/src/main/java/com/dealerops/core/customer/dto/LinkResponse.java`
 - Must include:
 
 ```java
@@ -1115,18 +1115,18 @@ function unlink(customerId, vehicleId):
 | `unlink` | DELETE | same | 204; 404; 409 SOLD_LOCKED; 403 |
 
 - Ban: using PUT as unlink; DELETE succeeding on a sold vehicle; a soft-delete column.
-- Acceptance: `rg "@DeleteMapping" dealer-core/src/main/java/com/dealerops/core/customer/CustomerVehicleController.java`. Same-dealer sold vehicle PUT on an unlinked vehicle → 200. Missing customer or vehicle → `NOT_FOUND`. A second link → 409 `VEHICLE_ALREADY_LINKED`. Sold vehicle DELETE → 409 `SOLD_LOCKED`. In-stock DELETE → 204 and `SELECT * FROM customer_vehicle WHERE vehicle_id=?` empty.
+- Acceptance: `rg "@DeleteMapping" backend/java/dealer-core/src/main/java/com/dealerops/core/customer/CustomerVehicleController.java`. Same-dealer sold vehicle PUT on an unlinked vehicle → 200. Missing customer or vehicle → `NOT_FOUND`. A second link → 409 `VEHICLE_ALREADY_LINKED`. Sold vehicle DELETE → 409 `SOLD_LOCKED`. In-stock DELETE → 204 and `SELECT * FROM customer_vehicle WHERE vehicle_id=?` empty.
 
 ---
 
 ### BE-T15 Listing empty-draft GET/PATCH
 - Repo: dealer-core
 - Create/change files:
-  - `dealer-core/src/main/java/com/dealerops/core/listing/ListingController.java`
-  - `dealer-core/src/main/java/com/dealerops/core/listing/ListingService.java`
-  - `dealer-core/src/main/java/com/dealerops/core/listing/dto/ListingResponse.java`
-  - `dealer-core/src/main/java/com/dealerops/core/listing/dto/PatchListingRequest.java`
-  - `dealer-core/src/main/java/com/dealerops/core/compliance/CheckStatusMapper.java`
+  - `backend/java/dealer-core/src/main/java/com/dealerops/core/listing/ListingController.java`
+  - `backend/java/dealer-core/src/main/java/com/dealerops/core/listing/ListingService.java`
+  - `backend/java/dealer-core/src/main/java/com/dealerops/core/listing/dto/ListingResponse.java`
+  - `backend/java/dealer-core/src/main/java/com/dealerops/core/listing/dto/PatchListingRequest.java`
+  - `backend/java/dealer-core/src/main/java/com/dealerops/core/compliance/CheckStatusMapper.java`
 - Must include:
 
 ```java
@@ -1192,20 +1192,20 @@ The client **must not** PATCH `lastCheckId` (do not put that field on the record
 | `export` | POST | `/api/v1/listings/{id}/exports` | see T17 |
 
 - Ban: INSERT on GET with no row; JDBC `null` into `title`/`body`; making V1 nullable.
-- Acceptance: GET listing on a new vehicle → `id` JSON `null` and `SELECT COUNT(*) FROM listing WHERE vehicle_id=?` = 0. First PATCH without title → DB `title=''`. `rg "lastCheckId" dealer-core/src/main/java/com/dealerops/core/listing/dto/PatchListingRequest.java` has no such field.
+- Acceptance: GET listing on a new vehicle → `id` JSON `null` and `SELECT COUNT(*) FROM listing WHERE vehicle_id=?` = 0. First PATCH without title → DB `title=''`. `rg "lastCheckId" backend/java/dealer-core/src/main/java/com/dealerops/core/listing/dto/PatchListingRequest.java` has no such field.
 
 ---
 
 ### BE-T16 Check + OMVIC + Blocked skips AI
 - Repo: dealer-core
 - Create/change files:
-  - `dealer-core/src/main/java/com/dealerops/core/compliance/ComplianceCheckController.java`
-  - `dealer-core/src/main/java/com/dealerops/core/compliance/ComplianceCheckService.java`
-  - `dealer-core/src/main/java/com/dealerops/core/compliance/OmvicRuleEngine.java`
-  - `dealer-core/src/main/java/com/dealerops/core/compliance/dto/CheckResponse.java`
-  - `dealer-core/src/main/java/com/dealerops/core/compliance/dto/RuleFinding.java`
-  - `dealer-core/src/main/java/com/dealerops/core/compliance/dto/AiNote.java`
-  - `dealer-core/src/main/java/com/dealerops/core/listing/dto/VersionBody.java` (if T15 did not create it)
+  - `backend/java/dealer-core/src/main/java/com/dealerops/core/compliance/ComplianceCheckController.java`
+  - `backend/java/dealer-core/src/main/java/com/dealerops/core/compliance/ComplianceCheckService.java`
+  - `backend/java/dealer-core/src/main/java/com/dealerops/core/compliance/OmvicRuleEngine.java`
+  - `backend/java/dealer-core/src/main/java/com/dealerops/core/compliance/dto/CheckResponse.java`
+  - `backend/java/dealer-core/src/main/java/com/dealerops/core/compliance/dto/RuleFinding.java`
+  - `backend/java/dealer-core/src/main/java/com/dealerops/core/compliance/dto/AiNote.java`
+  - `backend/java/dealer-core/src/main/java/com/dealerops/core/listing/dto/VersionBody.java` (if T15 did not create it)
 - Must include:
 
 ```java
@@ -1279,7 +1279,7 @@ return NEEDS_AI
 - Acceptance:
   1. listing with empty title+body POST checks → 200, `recommendation=BLOCKED`, `aiStatus=SKIPPED`.
   2. Packet capture / WireMock at the same time: `/internal/v1/ad-check` **0 times**.
-  3. `rg "adCheck\\(" dealer-core/src/main/java/com/dealerops/core/compliance/ComplianceCheckService.java` only on the `hardBlocked==false` branch.
+  3. `rg "adCheck\\(" backend/java/dealer-core/src/main/java/com/dealerops/core/compliance/ComplianceCheckService.java` only on the `hardBlocked==false` branch.
   4. After disconnecting ai-service, POST checks on an ad with no hard miss → 502 `AI_UNAVAILABLE` and `SELECT recommendation FROM compliance_check ORDER BY id DESC LIMIT 1` = `UNAVAILABLE`.
 
 ---
@@ -1326,16 +1326,16 @@ function export(...):
 | `export` | POST | `/api/v1/listings/{id}/exports` | same |
 
 - Ban: Blocked/Needs AI/UNAVAILABLE becoming READY; writing cost or customer into TXT.
-- Acceptance: `curl -D- -X POST .../exports` response headers contain `text/plain`. POST ready with no check → 409 `NOT_PASSED`. After changing title, ready → 409 `CHECK_STALE`. `rg "purchaseCost|soldPrice|homeAddress" dealer-core/src/main/java/com/dealerops/core/listing/ListingService.java` export method has none of those fields.
+- Acceptance: `curl -D- -X POST .../exports` response headers contain `text/plain`. POST ready with no check → 409 `NOT_PASSED`. After changing title, ready → 409 `CHECK_STALE`. `rg "purchaseCost|soldPrice|homeAddress" backend/java/dealer-core/src/main/java/com/dealerops/core/listing/ListingService.java` export method has none of those fields.
 
 ---
 
 ### BE-T18 Audit GET
 - Repo: dealer-core
 - Create/change files:
-  - `dealer-core/src/main/java/com/dealerops/core/audit/AuditController.java`
-  - `dealer-core/src/main/java/com/dealerops/core/audit/AuditService.java`
-  - `dealer-core/src/main/java/com/dealerops/core/audit/dto/AuditItem.java`
+  - `backend/java/dealer-core/src/main/java/com/dealerops/core/audit/AuditController.java`
+  - `backend/java/dealer-core/src/main/java/com/dealerops/core/audit/AuditService.java`
+  - `backend/java/dealer-core/src/main/java/com/dealerops/core/audit/dto/AuditItem.java`
 - Must include:
 
 ```java
@@ -1367,19 +1367,19 @@ public void record(String entityType, long entityId, String action, Long dealerI
 | `list` | GET | `/api/v1/audit` | 400 VALIDATION; 403; 404 |
 
 - Ban: summaries writing full phone/email/address.
-- Acceptance: `rg "@RequestParam String entityType" dealer-core/src/main/java/com/dealerops/core/audit/AuditController.java`. Staff querying another store’s entityId → 404. `rg "put\\(\"phone\"" dealer-core` none.
+- Acceptance: `rg "@RequestParam String entityType" backend/java/dealer-core/src/main/java/com/dealerops/core/audit/AuditController.java`. Staff querying another store’s entityId → 404. `rg "put\\(\"phone\"" dealer-core` none.
 
 ---
 
 ### BE-T19 Assistant core `POST /assistant/ask`
 - Repo: dealer-core
 - Create/change files:
-  - `dealer-core/src/main/java/com/dealerops/core/assistant/AssistantController.java`
-  - `dealer-core/src/main/java/com/dealerops/core/assistant/AssistantService.java`
-  - `dealer-core/src/main/java/com/dealerops/core/assistant/AssistantResourceQuery.java`
-  - `dealer-core/src/main/java/com/dealerops/core/assistant/dto/AskRequest.java`
-  - `dealer-core/src/main/java/com/dealerops/core/assistant/dto/AskResponse.java`
-  - `dealer-core/src/main/java/com/dealerops/core/assistant/dto/ResourceCard.java`
+  - `backend/java/dealer-core/src/main/java/com/dealerops/core/assistant/AssistantController.java`
+  - `backend/java/dealer-core/src/main/java/com/dealerops/core/assistant/AssistantService.java`
+  - `backend/java/dealer-core/src/main/java/com/dealerops/core/assistant/AssistantResourceQuery.java`
+  - `backend/java/dealer-core/src/main/java/com/dealerops/core/assistant/dto/AskRequest.java`
+  - `backend/java/dealer-core/src/main/java/com/dealerops/core/assistant/dto/AskResponse.java`
+  - `backend/java/dealer-core/src/main/java/com/dealerops/core/assistant/dto/ResourceCard.java`
 - Must include:
 
 ```java
@@ -1403,18 +1403,18 @@ Model down: still **200**, `summary=null`, `summaryAvailable=false`, `cards`=ret
 | `ask` | POST | `/api/v1/assistant/ask` | 400 VALIDATION (empty text); 403; 401 |
 
 - Ban: writing business tables; PII on cards; inventing ids into cards (must fall in this retrieval set).
-- Acceptance: `rg "save\\(|persist\\(" dealer-core/src/main/java/com/dealerops/core/assistant` none. Empty `{"text":""}` → 400. Admin POST → 403. After stopping ai-service, staff POST → 200 and `summaryAvailable=false`.
+- Acceptance: `rg "save\\(|persist\\(" backend/java/dealer-core/src/main/java/com/dealerops/core/assistant` none. Empty `{"text":""}` → 400. Admin POST → 403. After stopping ai-service, staff POST → 200 and `summaryAvailable=false`.
 
 ---
 
 ### BE-T20 core `AiGatewayClient` (via Gateway, ≤15s)
 - Repo: dealer-core
 - Create/change files:
-  - `dealer-core/src/main/java/com/dealerops/core/integration/AiGatewayClient.java`
-  - `dealer-core/src/main/java/com/dealerops/core/integration/InternalHeaders.java`
-  - `dealer-core/src/main/java/com/dealerops/core/config/AiClientConfig.java`
-  - `dealer-core/src/main/java/com/dealerops/core/integration/dto/AdCheckInternalRequest.java`
-  - `dealer-core/src/main/java/com/dealerops/core/integration/dto/AssistantInternalRequest.java`
+  - `backend/java/dealer-core/src/main/java/com/dealerops/core/integration/AiGatewayClient.java`
+  - `backend/java/dealer-core/src/main/java/com/dealerops/core/integration/InternalHeaders.java`
+  - `backend/java/dealer-core/src/main/java/com/dealerops/core/config/AiClientConfig.java`
+  - `backend/java/dealer-core/src/main/java/com/dealerops/core/integration/dto/AdCheckInternalRequest.java`
+  - `backend/java/dealer-core/src/main/java/com/dealerops/core/integration/dto/AssistantInternalRequest.java`
 - Must include:
 
 ```java
@@ -1455,15 +1455,15 @@ public record AssistantInternalRequest(String question, java.util.List<ResourceR
 Base URL **must be Gateway** (default `http://localhost:8080`); ban a product path that calls `8082` directly.
 
 - Ban: core holding `AIMANAGER_API_KEY`; embedding the ai-manager library; sending the user JWT to AI.
-- Acceptance: `rg "8082" dealer-core/src/main/resources dealer-core/src/main/java/com/dealerops/core/integration` has no product base. `rg "X-Dealer-Internal" dealer-core`. `rg "AIMANAGER" dealer-core` none. WireMock asserts outbound URL path=`/internal/v1/ad-check` with the internal header and no `Authorization`.
+- Acceptance: `rg "8082" backend/java/dealer-core/src/main/resources backend/java/dealer-core/src/main/java/com/dealerops/core/integration` has no product base. `rg "X-Dealer-Internal" dealer-core`. `rg "AIMANAGER" dealer-core` none. WireMock asserts outbound URL path=`/internal/v1/ad-check` with the internal header and no `Authorization`.
 
 ---
 
 ### BE-T21 Gateway JWT + InternalRouteFilter
 - Repo: dealer-gateway
 - Create/change files:
-  - `dealer-gateway/src/main/java/ca/sait/dealerops/gateway/config/SecurityConfig.java`
-  - `dealer-gateway/src/main/java/ca/sait/dealerops/gateway/filter/InternalRouteFilter.java`
+  - `backend/java/dealer-gateway/src/main/java/ca/sait/dealerops/gateway/config/SecurityConfig.java`
+  - `backend/java/dealer-gateway/src/main/java/ca/sait/dealerops/gateway/filter/InternalRouteFilter.java`
 - Must include:
 
 ```java
@@ -1502,14 +1502,14 @@ Gateway **forwards** `Authorization` on `/api/v1/**`. Unmappable role: `/api/v1/
 Implement [AI-PROTOCOL-AND-RULES.md](AI-PROTOCOL-AND-RULES.md) §B exactly. Local `INTERNAL_TOKEN` default is **`dealer-internal`**, accepted only when the Spring profile is **`dev`** or **`local`**.
 - Repo: ai-service
 - Create/change files:
-  - `ai-service/src/main/java/ca/sait/dealerops/aiservice/adapter/adcheck/AdCheckController.java`
-  - `ai-service/src/main/java/ca/sait/dealerops/aiservice/adapter/adcheck/AdCheckAdapter.java`
-  - `ai-service/src/main/java/ca/sait/dealerops/aiservice/adapter/assistant/AssistantController.java`
-  - `ai-service/src/main/java/ca/sait/dealerops/aiservice/adapter/assistant/AssistantAdapter.java`
-  - `ai-service/src/main/java/ca/sait/dealerops/aiservice/support/AiManagerFactory.java`
-  - `ai-service/src/main/java/ca/sait/dealerops/aiservice/support/ModelFailureException.java`
-  - `ai-service/src/main/java/ca/sait/dealerops/aiservice/support/AiFailureBody.java`
-  - `ai-service/src/main/java/ca/sait/dealerops/aiservice/config/AiExceptionHandler.java`
+  - `backend/java/ai-service/src/main/java/ca/sait/dealerops/aiservice/adapter/adcheck/AdCheckController.java`
+  - `backend/java/ai-service/src/main/java/ca/sait/dealerops/aiservice/adapter/adcheck/AdCheckAdapter.java`
+  - `backend/java/ai-service/src/main/java/ca/sait/dealerops/aiservice/adapter/assistant/AssistantController.java`
+  - `backend/java/ai-service/src/main/java/ca/sait/dealerops/aiservice/adapter/assistant/AssistantAdapter.java`
+  - `backend/java/ai-service/src/main/java/ca/sait/dealerops/aiservice/support/AiManagerFactory.java`
+  - `backend/java/ai-service/src/main/java/ca/sait/dealerops/aiservice/support/ModelFailureException.java`
+  - `backend/java/ai-service/src/main/java/ca/sait/dealerops/aiservice/support/AiFailureBody.java`
+  - `backend/java/ai-service/src/main/java/ca/sait/dealerops/aiservice/config/AiExceptionHandler.java`
 - Must include:
 
 ```java
@@ -1585,7 +1585,7 @@ ai-service **must not** write `compliance_check` itself, must not return the fiv
 
 - Ban: scanning `com.gateway`; exposing `/api/ai/**`; rule engine; business tables; 200 empty notes pretending success.
 - Acceptance:
-  1. `rg "com.gateway" ai-service/src/main/java` none.
+  1. `rg "com.gateway" backend/java/ai-service/src/main/java` none.
   2. `rg "@PostMapping\\(\"/ad-check\"\\)" ai-service` and `@PostMapping("/assistant")`.
   3. After start with `AIMANAGER_API_KEY=`: `curl -H "X-Dealer-Internal: dealer-internal" -H "Content-Type: application/json" -d "{\"listing\":{\"title\":\"t\",\"body\":\"b\",\"adKind\":\"CASH\",\"medium\":\"ONLINE\"},\"vehiclePublic\":{\"modelYear\":2020,\"make\":\"T\",\"model\":\"C\",\"vin\":\"1\",\"conditionCode\":\"AS_IS\",\"source\":\"AUCTION\"},\"dealerPublic\":{\"legalName\":\"X\",\"contactPhone\":\"1\",\"contactEmail\":\"a@b.c\",\"contactAddress\":\"z\"}}" http://127.0.0.1:8082/internal/v1/ad-check` → **503** and body contains `"success":false` and `"code":"AI_KEY_MISSING"` (returns within 1 second).
   4. Same URL with no header → 404.

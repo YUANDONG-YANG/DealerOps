@@ -50,7 +50,7 @@ Contract fields live in this repo's DTOs (08: no separate contracts repo). DTO *
 The current repo has no `src/main/java` yet; create it as follows. Test directories are in section 10.
 
 ```
-dealer-core/
+backend/java/dealer-core/
   pom.xml                          # Java 21, Boot 3, Flyway, mysql, spring-boot-starter-oauth2-resource-server
   # No Dockerfile: Maven packages a JAR, App Service runs it (deploy/README.md)
   src/main/resources/

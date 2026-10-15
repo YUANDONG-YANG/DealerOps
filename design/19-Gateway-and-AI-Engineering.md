@@ -34,7 +34,7 @@ Forbidden: a fifth auth repo / a standalone container for the GitHub component; 
 **Spring Cloud Gateway**, **Java 21** (matches 07 / 15 §12; the three Java repos share one version — do not mix gateway 21 and ai-service 17). No MySQL, no model SDK, no business writes.
 
 ```
-dealer-gateway/
+backend/java/dealer-gateway/
   pom.xml
   src/main/resources/application.yaml
   src/main/java/ca/sait/dealerops/gateway/
@@ -123,7 +123,7 @@ spring:
 
 Route metadata timeouts are finite: the AI route is connect 2s and response 16s; dealer-core `/api/v1/**` is connect 2s and response 18s; Swagger is connect 2s and response 5s. The httpclient backstop is connect 2s and response 18s.
 
-**Extension API routing (verified against `dealer-gateway/src/main/resources/application.yaml`):** every public browser API added for VIN decode, email/phone registration, pending-account administration, member options, leads, work orders, and vehicle photos is under `/api/v1/**` and is proxied to dealer-core. No per-feature route is needed for JSON APIs: `dealer-core-public` is the single catch-all for that namespace. The earlier `dealer-core-photos` route intentionally matches only `/api/v1/vehicles/*/photos` and descendants, runs before the catch-all, and omits `CacheRequestBody` so multipart uploads and image bytes are not buffered as log strings. Both routes stay behind the same Gateway JWT policy: only login/register and public VIN decode are anonymous; all new business data routes require a DealerOps JWT, with role and tenant checks enforced again by core. Never add direct browser routes to `CORE_URL` or send these APIs to ai-service.
+**Extension API routing (verified against `backend/java/dealer-gateway/src/main/resources/application.yaml`):** every public browser API added for VIN decode, email/phone registration, pending-account administration, member options, leads, work orders, and vehicle photos is under `/api/v1/**` and is proxied to dealer-core. No per-feature route is needed for JSON APIs: `dealer-core-public` is the single catch-all for that namespace. The earlier `dealer-core-photos` route intentionally matches only `/api/v1/vehicles/*/photos` and descendants, runs before the catch-all, and omits `CacheRequestBody` so multipart uploads and image bytes are not buffered as log strings. Both routes stay behind the same Gateway JWT policy: only login/register and public VIN decode are anonymous; all new business data routes require a DealerOps JWT, with role and tenant checks enforced again by core. Never add direct browser routes to `CORE_URL` or send these APIs to ai-service.
 
 **Browser calls to `/internal/v1/**` must fail (15 §7; missing one of the three will be torn apart in defense):**
 
@@ -220,7 +220,7 @@ The key goes to ai-service **only**: `AIMANAGER_API_KEY` (env / Key Vault). web 
 ### 2.2 Suggested directory (adapter level, not a rule engine)
 
 ```
-ai-service/
+backend/java/ai-service/
   pom.xml
   src/main/resources/application.yaml
   src/main/java/ca/sait/dealerops/aiservice/

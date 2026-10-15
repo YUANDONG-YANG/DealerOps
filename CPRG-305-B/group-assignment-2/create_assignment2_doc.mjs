@@ -5,7 +5,7 @@ const out = '/Users/robin/IdeaProjects/DealerOps/CPRG-305-B/group-assignment-2/D
 const blue = '1F4E78';
 const light = 'D9EAF7';
 const gray = 'F2F2F2';
-const members = 'Yuandong Yang (Robin), Bedgel Fadhil Ndam Woukouo, Jackson Warga, and Logan Jones';
+const members = 'Yuandong Yang, Daniel Watson, and Xiaomei He';
 const today = 'October 13, 2026';
 
 function p(text='', opts={}) {
@@ -87,7 +87,7 @@ children.push(table(['Business expertise source','What it informs','How we use i
  ['Project requirements and user stories under design/','Explicit requirement statements and acceptance criteria (REQ-AUTH, REQ-TENANT, REQ-INV, REQ-COMP, REQ-AI, REQ-GW, REQ-CRM, REQ-WEB).','Each test case cites a Req ID; traceability table in §3 shows coverage.'],
  ['SAIT subject-matter courses and textbook (Everett 2007, course notes)','IEEE 829-style test plan structure, risk-based testing, documentation standards.','Shape the plan structure and the pass/fail/suspension language.'],
  ['Dealership-domain reference materials (vehicle status flows, VIN validation, OMVIC ad guidance)','Vehicle lifecycle (DRAFT→READY→SOLD), VIN format, "ad must not mislead" rules.','Define boundary values and risk-based priorities for inventory, listing readiness, and ad-check cases.'],
- ['Group member Yuandong Yang (Robin, full-stack lead)','Cross-service business flow and current product behavior.','Resolves day-to-day business/behavior questions during case drafting; escalates to client if blocked.']
+ ['Group member Yuandong Yang (QA lead and full-stack reviewer)','Cross-service business flow and current product behavior.','Resolves day-to-day business/behavior questions during case drafting; escalates to client if blocked.']
 ], [2800,3400,3160]));
 children.push(heading('2.6 Sources of development expertise',2));
 children.push(p('Development (technical) expertise is the knowledge of how the system is built, which lets us design accurate, low-flakiness tests and interpret failures correctly. The following sources are used:'));
@@ -99,9 +99,8 @@ children.push(table(['Development expertise source','What it informs','How we us
  ['Vue 3 and Vite docs','Frontend reactivity, routing, build output, env handling.','Design system/UI cases and understand browser-side failures.'],
  ['Existing checked-in test suites and Testcontainers setup','What is already covered, where gaps are, how MySQL is spun up.','Avoid duplicating coverage; reuse the current Testcontainers harness.'],
  ['Course instructor and SAIT course notes (Chapter 5 — testing across the SDLC)','SDLC level definitions, entry/exit criteria, risk-based test design.','Shape §6 Test Approach and §6A per-phase details.'],
- ['Role-C team member Logan Jones (dealer-gateway, dealer-core)','Service internals, SQL schema, security filter order.','Technical review of auth/tenant/gateway cases.'],
- ['Role-B team member Jackson Warga (ai-service, dealer-platform)','AI client, timeouts, prompt builder, internal-only enforcement.','Technical review of AI boundary and failure-safe cases.'],
- ['Role-A team member Bedgel Fadhil Ndam Woukouo (dealer-web)','UI state machine, API error handling in the client, guard components.','Technical review of UI and workflow cases.']
+ ['Group member Daniel Watson (gateway/core, persistence, and UI workflow focus)','Service internals, SQL schema, security filter order, UI state machine, API error handling in the client.','Technical review of auth/tenant/gateway cases and UI/workflow cases.'],
+ ['Group member Xiaomei He (AI-service and platform focus)','AI client, timeouts, prompt builder, internal-only enforcement.','Technical review of AI boundary and failure-safe cases.']
 ], [2800,3400,3160]));
 children.push(heading('2.7 Why quality matters',2));
 children.push(p('A tenant-isolation or authorization failure could disclose or modify another dealer’s inventory and customer data. A readiness or compliance failure could publish a misleading listing. A sold-record mutation could corrupt operational and financial records. An internal-route or AI failure could expose service topology or sensitive data. Quality is therefore measured through zero open Critical defects, no cross-tenant data exposure, no unauthorized business mutation, correct readiness gating, and reproducible execution of all planned high-risk cases.'));
@@ -177,7 +176,7 @@ children.push(table(['Attribute','Detail'], [
  ['Entry criteria','Feature code compiles; unit test data is deterministic (no network, no real DB).'],
  ['Exit criteria','All planned unit cases pass; no Critical/Major defect remains in the changed unit; unit summary attached to the build run.'],
  ['Deliverables','Surefire reports, unit case evidence rows in the workbook (UT-01…UT-10), defect log for failed cases.'],
- ['Owner','Logan Jones (dealer-core, dealer-gateway) and Jackson Warga (ai-service, dealer-platform).'],
+ ['Owner','Daniel Watson (dealer-core, dealer-gateway) and Xiaomei He (ai-service, dealer-platform).'],
  ['Test cases','UT-01 to UT-10 (10 cases).']
 ], [1800,7560]));
 
@@ -190,7 +189,7 @@ children.push(table(['Attribute','Detail'], [
  ['Entry criteria','Unit exit met; services/build available; schema migrates cleanly; seeded users and dealer data exist.'],
  ['Exit criteria','All High-priority integration cases pass; tenant, auth, persistence, and service-boundary evidence captured; no open Critical defect in auth/tenant/gateway/compliance.'],
  ['Deliverables','API response and DB-check evidence, integration case rows (IT-01…IT-20), defect log.'],
- ['Owner','Logan Jones (gateway/core/data) with Jackson Warga for AI boundary and failure-mapping cases.'],
+ ['Owner','Daniel Watson (gateway/core/data) with Xiaomei He for AI boundary and failure-mapping cases.'],
  ['Test cases','IT-01 to IT-20 (20 cases).']
 ], [1800,7560]));
 
@@ -203,7 +202,7 @@ children.push(table(['Attribute','Detail'], [
  ['Entry criteria','Integration exit met; gateway, core, AI, DB, and web build deployed to the test environment; synthetic data loaded.'],
  ['Exit criteria','All planned system cases executed; no open Critical/Major release blocker; readiness workflow demonstrated end-to-end.'],
  ['Deliverables','Screenshots, console/network logs, system case rows (SYS-01…SYS-10), defect log.'],
- ['Owner','Bedgel Fadhil Ndam Woukouo (UI/workflow) with Logan Jones for boundary and gateway cases.'],
+ ['Owner','Daniel Watson (UI/workflow and gateway boundary cases).'],
  ['Test cases','SYS-01 to SYS-10 (10 cases).']
 ], [1800,7560]));
 
@@ -229,7 +228,7 @@ children.push(table(['Attribute','Detail'], [
  ['Entry criteria','System and acceptance phases produce no open release blocker; build identifier recorded.'],
  ['Exit criteria','Clean build reproducible from a fresh checkout; services start, migrate, and respond on their configured ports (8080/8081/8082) with correct health; no secret or Chinese-only log line present; rollback drill succeeds without data loss on reversible migrations.'],
  ['Deliverables','Deployment checklist, migration/rollback evidence, final test summary and release recommendation.'],
- ['Owner','Yuandong Yang (release/full-stack) with Logan Jones for migrations.'],
+ ['Owner','Yuandong Yang (release/full-stack) with Daniel Watson for migrations.'],
  ['Test cases','Deployment smoke bundle = IT-17 (gateway health) + IT-16 (AI port blocked) + SYS-05 (direct 8081/8082 blocked) + AT-06 (golden workflow on fresh build).']
 ], [1800,7560]));
 
@@ -269,10 +268,9 @@ children.push(table(['Deliverable','Description','Owner / evidence'], [
 
 children.push(heading('10. Testing Tasks and Responsibilities'));
 children.push(table(['Role','Measurable responsibilities','Owner'], [
- ['QA lead / plan coordinator','Maintain this plan and traceability; review 100% of High-priority cases; publish weekly status and final summary.','Yuandong Yang (Robin)'],
- ['Gateway / core API and security tester','Execute auth, tenant, gateway, AI-boundary, negative, and error-mapping cases on dealer-gateway and dealer-core; attach response evidence.','Logan Jones'],
- ['AI service and platform tester','Execute AI prompt-boundary, timeout, failure-safe, and dealer-platform cases; verify internal-only enforcement.','Jackson Warga'],
- ['Workflow and UI tester','Execute inventory, customer, listing, readiness, export, photo, and browser system cases on dealer-web; attach screenshots.','Bedgel Fadhil Ndam Woukouo'],
+ ['QA lead / plan coordinator','Maintain this plan and traceability; review 100% of High-priority cases; publish weekly status and final summary.','Yuandong Yang'],
+ ['Gateway/core API, security, and UI workflow tester','Execute auth, tenant, gateway, AI-boundary, negative, and error-mapping cases on dealer-gateway and dealer-core; execute inventory, customer, listing, readiness, export, photo, and browser system cases on dealer-web; attach response evidence and screenshots.','Daniel Watson'],
+ ['AI service and platform tester','Execute AI prompt-boundary, timeout, failure-safe, and dealer-platform cases; verify internal-only enforcement.','Xiaomei He'],
  ['Developer support / triage','Provide build identifiers, investigate failures, fix defects, and document root cause without changing test evidence.','Team member who owns the affected service'],
  ['Acceptance reviewer','Review client-facing scenarios and approve or record residual risk before final submission.','Group consensus / instructor or client representative']
 ], [2200,5200,1960]));
@@ -280,13 +278,13 @@ children.push(table(['Role','Measurable responsibilities','Owner'], [
 children.push(heading('11. Environmental Needs'));
 children.push(table(['Item','Requirements / setup and management','Responsible'], [
  ['Hardware','Developer machine with 4+ CPU cores, 8+ GB RAM, 10+ GB free disk; browser at 1440×900 or equivalent; Docker resources sufficient for MySQL/Testcontainers.','Team'],
- ['Backend runtime','Java 21 (Corretto 21); Maven wrapper; Spring Boot 3.3.5 services. dealer-gateway listens on 8080, dealer-core on 8081, ai-service on 8082.','Logan Jones / Jackson Warga'],
- ['Database','MySQL Testcontainers for integration tests; Flyway migrations applied from dealer-core; use isolated schema/database per run and reset synthetic records between suites.','Logan Jones'],
- ['Frontend/browser','dealer-web Vue/Vite build; current supported Chrome and one secondary Chromium-based browser; use browser devtools only for evidence, never direct service ports from the UI.','Bedgel Fadhil Ndam Woukouo'],
- ['Network / security','Gateway is the public entry point. Core and AI direct ports must be blocked from browser access. Internal AI calls require X-Dealer-Internal; browser CORS allows only configured public headers.','Logan Jones'],
+ ['Backend runtime','Java 21 (Corretto 21); Maven wrapper; Spring Boot 3.3.5 services. dealer-gateway listens on 8080, dealer-core on 8081, ai-service on 8082.','Daniel Watson / Xiaomei He'],
+ ['Database','MySQL Testcontainers for integration tests; Flyway migrations applied from dealer-core; use isolated schema/database per run and reset synthetic records between suites.','Daniel Watson'],
+ ['Frontend/browser','dealer-web Vue/Vite build; current supported Chrome and one secondary Chromium-based browser; use browser devtools only for evidence, never direct service ports from the UI.','Daniel Watson'],
+ ['Network / security','Gateway is the public entry point. Core and AI direct ports must be blocked from browser access. Internal AI calls require X-Dealer-Internal; browser CORS allows only configured public headers.','Daniel Watson'],
  ['Configuration','Use environment variables for DB URL/credentials, JWT secret, CORE_URL, AI_URL, INTERNAL_TOKEN, vPIC URL, and AI timeouts. Never place real keys or PII in the workbook or screenshots.','Yuandong Yang (QA lead)'],
  ['Build/version control','Record Git commit/build identifier, Java/Maven versions, service ports, browser version, and database image for every execution batch.','Yuandong Yang (QA lead)'],
- ['Backup and reset','Before destructive data tests, record seed IDs; restore by re-running deterministic seed/reset scripts. Do not reuse another test’s sold or blocked record without resetting its state.','Logan Jones']
+ ['Backup and reset','Before destructive data tests, record seed IDs; restore by re-running deterministic seed/reset scripts. Do not reuse another test’s sold or blocked record without resetting its state.','Daniel Watson']
 ], [1900,5600,1860]));
 children.push(p('Synthetic data matrix: use at least two dealers (Dealer A and Dealer B), one admin and one business user per dealer, an unbound user, valid/invalid VINs, model years at and outside allowed boundaries, vehicles in draft/ready/sold states, customers with and without linked vehicles, listings with current/pass, current/block, stale, and missing compliance evidence, and AI responses for success, timeout, missing key, provider failure, empty output, and prompt-boundary cases. Never use production customer contact information.'));
 
@@ -319,7 +317,7 @@ children.push(table(['Data category','Primary source','Generation method','Priva
 
 children.push(heading('11A.3 Data setup, reset, and traceability procedure',2));
 children.push(bullet('Setup: on each test run, (a) Testcontainers starts an isolated MySQL 8; (b) Flyway migrates to the latest versioned schema; (c) a V{YYYYMMDD}_{n}__seed_test_data.sql script loads dealers, users, vehicles, listings, customers, and audit baseline; (d) stubs (AI, vPIC) are started with their fixtures.'));
-children.push(bullet('Reset: between destructive case groups, the data owner (Logan Jones) truncates mutable tables (vehicles.status back to DRAFT, listings.status back to NOT_READY, audit cleared) and re-runs the seed; the reset step is logged in the case evidence.'));
+children.push(bullet('Reset: between destructive case groups, the data owner (Daniel Watson) truncates mutable tables (vehicles.status back to DRAFT, listings.status back to NOT_READY, audit cleared) and re-runs the seed; the reset step is logged in the case evidence.'));
 children.push(bullet('Traceability: every workbook row names its primary data category in the Pre-Conditions column; this section is the source of truth for how that data is produced.'));
 children.push(bullet('Rotation: synthetic data is reviewed every assignment baseline; any accidental resemblance to a real dealer/customer is corrected and the plan version is bumped.'));
 
@@ -334,10 +332,9 @@ children.push(table(['Data risk','Impact','Mitigation'], [
 
 children.push(heading('12. Staffing and Training Needs'));
 children.push(table(['Role','Skills required','Training / preparation','Responsible'], [
- ['QA lead','Traceability, defect triage, report writing, risk-based prioritization','30-minute review of rubric and IEEE-style plan; confirm severity rules and evidence naming.','Yuandong Yang (Robin)'],
- ['Gateway/core API and security tester','HTTP, JWT, Spring Security, gateway routes, Flyway, negative testing','Review route/security configuration and internal-header contract before execution.','Logan Jones'],
- ['AI service and platform tester','HTTP, prompt-boundary analysis, timeout/error mapping, platform integration','Review AI client, timeout and error mapping, and internal-only enforcement.','Jackson Warga'],
- ['Workflow/UI tester','Vue browser workflows, API state interpretation, screenshot evidence','Walk through inventory-to-export acceptance flow and blocked/unavailable UI states.','Bedgel Fadhil Ndam Woukouo'],
+ ['QA lead','Traceability, defect triage, report writing, risk-based prioritization','30-minute review of rubric and IEEE-style plan; confirm severity rules and evidence naming.','Yuandong Yang'],
+ ['Gateway/core API, security, and UI workflow tester','HTTP, JWT, Spring Security, gateway routes, Flyway, negative testing, Vue browser workflows, API state interpretation, screenshot evidence','Review route/security configuration and internal-header contract; walk through inventory-to-export acceptance flow and blocked/unavailable UI states.','Daniel Watson'],
+ ['AI service and platform tester','HTTP, prompt-boundary analysis, timeout/error mapping, platform integration','Review AI client, timeout and error mapping, and internal-only enforcement.','Xiaomei He'],
  ['All members','Clear case writing, reproducible steps, communication','Peer review all High cases; calibration run of one pass and one fail case.','Group']
 ], [1900,3000,3260,1200]));
 
@@ -345,10 +342,10 @@ children.push(heading('13. Schedule'));
 children.push(p('The individual case schedule below is distinct from the master testing schedule. Dates are a practical execution baseline for the assignment and can be updated with actual dates without changing case IDs.'));
 children.push(heading('Test-case writing and review schedule',2));
 children.push(table(['Activity','Start','End','Responsible','Status'], [
- ['Draft requirements/design review cases ST-01–ST-05','Oct 13, 2026','Oct 13, 2026','Yuandong Yang (Robin)','Planned'],
- ['Draft unit cases UT-01–UT-10','Oct 13, 2026','Oct 14, 2026','Logan Jones / Jackson Warga','Planned'],
+ ['Draft requirements/design review cases ST-01–ST-05','Oct 13, 2026','Oct 13, 2026','Yuandong Yang','Planned'],
+ ['Draft unit cases UT-01–UT-10','Oct 13, 2026','Oct 14, 2026','Daniel Watson / Xiaomei He','Planned'],
  ['Draft integration cases IT-01–IT-20','Oct 13, 2026','Oct 15, 2026','All members by assigned area','Planned'],
- ['Draft system and acceptance cases SYS-01–SYS-10, AT-01–AT-10','Oct 14, 2026','Oct 15, 2026','Bedgel Fadhil Ndam Woukouo / QA lead','Planned'],
+ ['Draft system and acceptance cases SYS-01–SYS-10, AT-01–AT-10','Oct 14, 2026','Oct 15, 2026','Daniel Watson / QA lead','Planned'],
  ['Peer review, deduplication, traceability check, and approval','Oct 15, 2026','Oct 16, 2026','All members','Planned']
 ], [3100,1300,1300,2200,1460]));
 children.push(heading('Test execution and reporting schedule',2));
@@ -373,18 +370,18 @@ children.push(table(['Milestone','Date','Completion evidence'], [
 
 children.push(heading('14. Risks and Contingencies'));
 children.push(table(['Risk','Likelihood','Impact','Mitigation / contingency','Owner'], [
- ['Cross-tenant authorization defect','Medium','High','Run Dealer A/B matrix on every affected endpoint; stop release on any disclosure or mutation.','Logan Jones'],
- ['AI provider unavailable, missing key, or slow','High','Medium/High','Use controlled failure cases; verify 503/502/504 mapping and safe UI latch; rerun live cases when available.','Jackson Warga'],
- ['Database/Testcontainers resource failure','Medium','High','Reserve Docker resources, capture image/version, and use isolated schema reset; keep environment blocker separate from product defect.','Logan Jones'],
+ ['Cross-tenant authorization defect','Medium','High','Run Dealer A/B matrix on every affected endpoint; stop release on any disclosure or mutation.','Daniel Watson'],
+ ['AI provider unavailable, missing key, or slow','High','Medium/High','Use controlled failure cases; verify 503/502/504 mapping and safe UI latch; rerun live cases when available.','Xiaomei He'],
+ ['Database/Testcontainers resource failure','Medium','High','Reserve Docker resources, capture image/version, and use isolated schema reset; keep environment blocker separate from product defect.','Daniel Watson'],
  ['Incomplete/ambiguous business rule','Medium','Medium','Record question, identify affected IDs, obtain client/instructor decision, and update expected result before execution.','Yuandong Yang (QA lead)'],
  ['Build delivery delay','Medium','High','Prioritize static review and unit cases; maintain a known-good build; shift dependent dates without marking unexecuted cases as passed.','Service owners'],
  ['Real PII enters test evidence','Low','High','Synthetic-only data rule, pre-submission evidence scrub, and immediate quarantine/deletion if discovered.','All members'],
- ['Browser UI enables an action despite API state','Medium','Medium','Use API as source of truth; add UI system case and verify server-side rejection as a separate integration case.','Bedgel Fadhil Ndam Woukouo']
+ ['Browser UI enables an action despite API state','Medium','Medium','Use API as source of truth; add UI system case and verify server-side rejection as a separate integration case.','Daniel Watson']
 ], [2200,1000,1100,3900,1160]));
 
 children.push(heading('15. Approvals'));
 children.push(p('Signatures can be added by the group and instructor/client representative before execution. The absence of a signature in this working baseline does not convert unexecuted cases into passes.'));
-children.push(table(['Name','Role / title','Signature','Date'], [['Yuandong Yang (Robin)','QA lead / group member','________________________','________________'],['Bedgel Fadhil Ndam Woukouo','Workflow/UI tester / group member','________________________','________________'],['Jackson Warga','AI service and platform tester / group member','________________________','________________'],['Logan Jones','Gateway/core API and security tester / group member','________________________','________________'],['Instructor or client representative','Reviewer (if required)','________________________','________________']], [2600,2700,2500,1560]));
+children.push(table(['Name','Role / title','Signature','Date'], [['Yuandong Yang','QA lead / group member','________________________','________________'],['Daniel Watson','Gateway/core and UI workflow tester / group member','________________________','________________'],['Xiaomei He','AI service and platform tester / group member','________________________','________________'],['Instructor or client representative','Reviewer (if required)','________________________','________________']], [2600,2700,2500,1560]));
 
 children.push(heading('16. References'));
 children.push(p('Everett, G. D., & McLeod, R. (2007). Software testing: Testing across the entire software development life cycle. Wiley-IEEE Computer Society Press. (Course textbook; Chapter 5 informs the SDLC-level approach used in §6 and §6A.)'));

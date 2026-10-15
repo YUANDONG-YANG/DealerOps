@@ -155,7 +155,7 @@ Admin actions may record `DEALER`/`MEMBERSHIP`; `dealerId` may be null.
 
 Follow the skeleton; **do not invent another table set**:
 
-`dealer-core/src/main/resources/db/migration/V1__init.sql`
+`backend/java/dealer-core/src/main/resources/db/migration/V1__init.sql`
 
 | Table | Purpose |
 |---|---|

@@ -5,18 +5,18 @@ name: dealer-core
 on:
   pull_request:
     paths:
-      - "dealer-core/**"
+      - "backend/java/dealer-core/**"
       - ".github/workflows/dealer-core.yml"
   push:
     branches: [main]
     paths:
-      - "dealer-core/**"
+      - "backend/java/dealer-core/**"
       - ".github/workflows/dealer-core.yml"
   workflow_dispatch:
 
 defaults:
   run:
-    working-directory: dealer-core
+    working-directory: backend/java/dealer-core
 
 jobs:
   compile:

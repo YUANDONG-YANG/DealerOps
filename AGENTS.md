@@ -32,7 +32,7 @@ This development-phase gate takes precedence over conflicting test-writing instr
 - All new or edited project text must be English: Markdown, YAML/JSON comments, Java/JS comments, OpenAPI descriptions, commit messages, and pull request descriptions.
 - Do not leave leftover Chinese in files you touch. Translate it; do not delete meaning.
 
-Never write a machine-specific absolute path in `*.md`. Use repo-relative paths such as `design/SCOPE-BASELINE.md` and `dealer-core/src/main/resources/db/migration/V1__init.sql`. Use GitHub URLs or env-var placeholders (`$JAVA_HOME`, sibling checkout named `ai-manager`) instead of a local disk layout.
+Never write a machine-specific absolute path in `*.md`. Use repo-relative paths such as `design/SCOPE-BASELINE.md` and `backend/java/dealer-core/src/main/resources/db/migration/V1__init.sql`. Use GitHub URLs or env-var placeholders (`$JAVA_HOME`, sibling checkout named `ai-manager`) instead of a local disk layout.
 
 ## Design documentation
 
@@ -61,7 +61,7 @@ Use these people when creating, assigning, or mentioning JIRA work for this proj
 
 ## Flyway migration names
 
-Leave `dealer-core/src/main/resources/db/migration/V1__init.sql` unchanged, and never edit a migration that has already run; add a new dated script instead. (V1 was rewritten once on 2026-10-07 to define the username identity columns; databases created before that need the Flyway history repair in `design/15-Data-Auth-and-Gateway.md` §8.3.)
+Leave `backend/java/dealer-core/src/main/resources/db/migration/V1__init.sql` unchanged, and never edit a migration that has already run; add a new dated script instead. (V1 was rewritten once on 2026-10-07 to define the username identity columns; databases created before that need the Flyway history repair in `design/15-Data-Auth-and-Gateway.md` §8.3.)
 
 Every later versioned migration in that folder uses `V{YYYYMMDD}_{n}__{action}.sql`.
 

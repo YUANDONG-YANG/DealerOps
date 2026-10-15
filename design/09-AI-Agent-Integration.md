@@ -20,7 +20,7 @@ No `src/test` was found. The README says tests are not maintained. The library i
 
 ## Vendored source (decision, 2026-10-12)
 
-`ai-service` carries the library as **source**, not as a Maven dependency. The classes reachable from `com.manager.AiManager` at upstream commit `827196a` are copied unchanged into `ai-service/src/main/java/com/manager`, with `models.json` in `ai-service/src/main/resources`. Lombok compiles them.
+`ai-service` carries the library as **source**, not as a Maven dependency. The classes reachable from `com.manager.AiManager` at upstream commit `827196a` are copied unchanged into `backend/java/ai-service/src/main/java/com/manager`, with `models.json` in `backend/java/ai-service/src/main/resources`. Lombok compiles them.
 
 Why: the upstream repository is private, so CI and every teammate needed a token plus a JDK 17 `mvn install` before ai-service could compile, and no immutable package was ever published. Vendoring removes that step and keeps the build reproducible.
 
@@ -28,7 +28,7 @@ Rules:
 
 - Do not copy `com.gateway`, `AIApplication`, or the library's `application*.yml`.
 - Do not edit the vendored classes for DealerOps behavior; adapters live in `ca.sait.dealerops.aiservice`.
-- To take an upstream fix, copy the changed classes from a newer upstream commit and update the commit in `ai-service/README.md` and here.
+- To take an upstream fix, copy the changed classes from a newer upstream commit and update the commit in `backend/java/ai-service/README.md` and here.
 
 The earlier plan (publish a non-SNAPSHOT package to GitHub Packages and depend on it) is retired.
 

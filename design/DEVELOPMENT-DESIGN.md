@@ -59,7 +59,7 @@ Envelope `{ items, page, size, total }` (size defaults to and caps at 10). Error
 
 ## 3. Nine tables (V1, do not add or remove)
 
-`dealer-core/src/main/resources/db/migration/V1__init.sql`:  
+`backend/java/dealer-core/src/main/resources/db/migration/V1__init.sql`:  
 `dealer` · `app_user` · `membership` · `vehicle` · `customer` · `customer_vehicle` · `listing` · `compliance_check` · `audit_event`.  
 Ban `ddl-auto=update`. Ban work-order / lead / password tables.
 

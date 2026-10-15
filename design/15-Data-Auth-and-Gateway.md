@@ -14,7 +14,7 @@ On conflict, decide in this order and **do not reverse it**:
 4. **This document owns data, tenant, and gateway behavior**; **[14](14-Backend-API-Contract.md) owns HTTP JSON**; **[13](13-Frontend-Engineering.md) owns frontend engineering**
 5. [12](12-Frontend-UI-Conventions.md) UI conventions
 
-The SQL **landed baseline** is `dealer-core/src/main/resources/db/migration/V1__init.sql`.  
+The SQL **landed baseline** is `backend/java/dealer-core/src/main/resources/db/migration/V1__init.sql`.  
 This document does not change V1. Where this document conflicts with V1 there are only two outs: **handle it in the application layer**, or later suggest `V2__*.sql` (indexes first; do not change columns if you can avoid it).  
 Do not restore tickets / leads / password tables / Service Bus / a second database. Do not use `ddl-auto=update`.
 

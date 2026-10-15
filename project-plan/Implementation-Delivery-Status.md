@@ -31,7 +31,7 @@ Browsers call the Gateway only. `dealer-core-public` forwards all `/api/v1/**` e
 - `V20261008_6__add_email_phone_login_identifiers.sql` (adds phone and unique nullable email/phone login identifiers)
 - `V20261008_7__drop_user_identity.sql` (removes the unused third-party identity table)
 
-`V1__init.sql` is unchanged. The currently active authentication configuration is in `dealer-core/src/main/resources/application.yml`; no OAuth client IDs, client secrets, callback URLs, or identity-provider setup are required. The seeded platform admin requires `ADMIN_USERNAME` and `ADMIN_PASSWORD`; `ADMIN_EMAIL` and `ADMIN_PHONE` are optional extra sign-in names. Local reference values are documented in [README.md](../README.md) and `dealer-platform/env.example`.
+`V1__init.sql` is unchanged. The currently active authentication configuration is in `backend/java/dealer-core/src/main/resources/application.yml`; no OAuth client IDs, client secrets, callback URLs, or identity-provider setup are required. The seeded platform admin requires `ADMIN_USERNAME` and `ADMIN_PASSWORD`; `ADMIN_EMAIL` and `ADMIN_PHONE` are optional extra sign-in names. Local reference values are documented in [README.md](../README.md) and `dealer-platform/env.example`.
 
 ## Repository references
 

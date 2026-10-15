@@ -3,18 +3,18 @@ name: dealer-gateway
 on:
   pull_request:
     paths:
-      - "dealer-gateway/**"
+      - "backend/java/dealer-gateway/**"
       - ".github/workflows/dealer-gateway.yml"
   push:
     branches: [main]
     paths:
-      - "dealer-gateway/**"
+      - "backend/java/dealer-gateway/**"
       - ".github/workflows/dealer-gateway.yml"
   workflow_dispatch:
 
 defaults:
   run:
-    working-directory: dealer-gateway
+    working-directory: backend/java/dealer-gateway
 
 jobs:
   compile:

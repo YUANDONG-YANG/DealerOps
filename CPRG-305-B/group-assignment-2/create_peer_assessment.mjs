@@ -27,19 +27,18 @@ children.push(p('Date: October 13, 2026', { size: 22, after: 240 }));
 children.push(heading('Peer ratings'));
 children.push(p('Scale: 1 = Significant area for improvement; 2 = Acceptable but with some areas for improvement; 3 = Excellent contribution.', { italics: true, size: 20 }));
 children.push(table(
-  ['Assessment criterion', 'Bedgel Fadhil Ndam Woukouo', 'Jackson Warga', 'Logan Jones'],
+  ['Assessment criterion', 'Daniel Watson', 'Xiaomei He'],
   [
-    ['Motivation and engagement in assignment', '3/3', '3/3', '3/3'],
-    ['Timely submission of deliverables', '3/3', '3/3', '3/3'],
-    ['Effective communication and problem solving', '3/3', '3/3', '3/3'],
+    ['Motivation and engagement in assignment', '3/3', '3/3'],
+    ['Timely submission of deliverables', '3/3', '3/3'],
+    ['Effective communication and problem solving', '3/3', '3/3'],
   ],
-  [3400, 2000, 2000, 1960]
+  [3800, 2780, 2780]
 ));
 
-children.push(heading('Additional comments'));
-children.push(p('Bedgel Fadhil Ndam Woukouo contributed strongly to the dealer-web workflow and UI test scenarios. He was responsive during planning sessions, delivered agreed workflow cases on time, and raised useful questions about blocked/unavailable UI states.'));
-children.push(p('Jackson Warga owned the ai-service and dealer-platform coverage. He documented clear prompt-boundary and timeout cases, communicated AI failure-safe expectations to the rest of the group, and completed his tasks on schedule.'));
-children.push(p('Logan Jones led the dealer-gateway and dealer-core coverage, including authentication, tenant isolation, and persistence cases. He provided reliable technical input during planning, met the review and drafting deadlines, and collaborated effectively on cross-service tests.'));
+children.push(heading('Other comments for your peers'));
+children.push(p('Daniel Watson made an excellent contribution to this assignment. He led the gateway, core API, and UI workflow coverage, participated actively in group discussions, delivered his section drafts on time, and raised useful questions about tenant isolation and blocked/unavailable UI states.'));
+children.push(p('Xiaomei He made an excellent contribution to this assignment. She owned the ai-service and dealer-platform coverage, documented clear prompt-boundary, timeout, and failure-safe cases, communicated well with the rest of the group, and completed her tasks on schedule.'));
 
 const doc = new Document({ creator: 'Yuandong Yang', title: 'CPRG305 Group Assignment 2 Peer Assessment', sections: [{ properties: { page: { margin: { top: 900, right: 900, bottom: 900, left: 900 } } }, children }] });
 await fs.writeFile(out, await Packer.toBuffer(doc));

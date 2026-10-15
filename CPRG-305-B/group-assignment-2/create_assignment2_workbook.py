@@ -14,9 +14,9 @@ HEADERS = [
 
 TESTERS = {
     "QA": "Yuandong Yang",
-    "GW": "Logan Jones",
-    "AI": "Jackson Warga",
-    "UI": "Bedgel Fadhil Ndam Woukouo",
+    "GW": "Daniel Watson",
+    "AI": "Xiaomei He",
+    "UI": "Daniel Watson",
 }
 
 ENV_REVIEW = "Dev (static review)"
@@ -361,7 +361,7 @@ summary["A1"].font = Font(bold=True, size=14, color="1F4E78")
 summary["A3"] = "Group:"
 summary["B3"] = "Group 12 (team G2)"
 summary["A4"] = "Members:"
-summary["B4"] = "Yuandong Yang (Robin), Bedgel Fadhil Ndam Woukouo, Jackson Warga, Logan Jones"
+summary["B4"] = "Yuandong Yang, Daniel Watson, Xiaomei He"
 summary["A5"] = "Course:"
 summary["B5"] = "CPRG-305-B Software Testing and Deployment (Fall 2026)"
 summary["A6"] = "Document version:"

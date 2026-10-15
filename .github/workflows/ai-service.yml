@@ -3,18 +3,18 @@ name: ai-service
 on:
   pull_request:
     paths:
-      - "ai-service/**"
+      - "backend/java/ai-service/**"
       - ".github/workflows/ai-service.yml"
   push:
     branches: [main]
     paths:
-      - "ai-service/**"
+      - "backend/java/ai-service/**"
       - ".github/workflows/ai-service.yml"
   workflow_dispatch:
 
 defaults:
   run:
-    working-directory: ai-service
+    working-directory: backend/java/ai-service
 
 jobs:
   compile:

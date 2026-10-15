@@ -28,17 +28,13 @@ public class AiProviderClient
     public AiProviderClient(HttpClient http, IConfiguration config)
     {
         _http = http;
-        _apiKey = config["AIMANAGER_API_KEY"]
-                  ?? config["AiManager:ApiKey"]
-                  ?? "";
-        var provider = config["AIMANAGER_GATEWAY_PROVIDER"]
-                       ?? config["AiManager:Provider"]
-                       ?? "groq";
-        _model = config["AIMANAGER_GATEWAY_MODEL"]
-                 ?? config["AiManager:Model"]
-                 ?? "qwen/qwen3.8-27b";
-        var maxTokensStr = config["AIMANAGER_GATEWAY_MAX_TOKENS"]
-                           ?? config["AiManager:MaxTokens"];
+        // Keep local startup simple: appsettings.json is the default, while a
+        // non-empty environment variable can still override it. An empty
+        // environment variable should not hide the working local defaults.
+        _apiKey = FirstNonEmpty(config["AIMANAGER_API_KEY"], config["AiManager:ApiKey"]);
+        var provider = FirstNonEmpty(config["AIMANAGER_GATEWAY_PROVIDER"], config["AiManager:Provider"], "groq");
+        _model = FirstNonEmpty(config["AIMANAGER_GATEWAY_MODEL"], config["AiManager:Model"], "qwen/qwen3.8-27b");
+        var maxTokensStr = FirstNonEmpty(config["AIMANAGER_GATEWAY_MAX_TOKENS"], config["AiManager:MaxTokens"]);
         _maxTokens = int.TryParse(maxTokensStr, out var mt) ? mt : 800;
 
         _baseUrl = ProviderBaseUrls.GetValueOrDefault(provider, ProviderBaseUrls["groq"]);
@@ -47,6 +43,9 @@ public class AiProviderClient
         logger.LogInformation("AIMANAGER_API_KEY configured: {HasKey} (provider={Provider}, model={Model})",
             HasApiKey, provider, _model);
     }
+
+    private static string FirstNonEmpty(params string?[] values)
+        => values.FirstOrDefault(value => !string.IsNullOrWhiteSpace(value))?.Trim() ?? "";
 
     public async Task<string?> ChatAsync(string systemPrompt, string userContent, CancellationToken ct)
     {
