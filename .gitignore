@@ -4,6 +4,8 @@
 # .NET build output
 **/bin/
 **/obj/
+**/publish/
+**/deploy.zip
 
 # Node / frontend build output
 **/node_modules/
@@ -16,6 +18,9 @@
 *.pem
 *.p12
 *.jks
+ai-key.md
+api-key.md
+appsettings.Development.json
 
 # OS / editor junk
 .DS_Store
