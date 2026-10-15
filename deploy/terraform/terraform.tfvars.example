@@ -17,7 +17,7 @@
 #
 # ── Region ──────────────────────────────────────────────────────────
 # location                = "canadacentral"
-# static_web_app_location = "eastus2"
+# web_app_name            = "dealer-ops-dev"
 # mysql_location          = "canadaeast"
 
 # ── Naming ──────────────────────────────────────────────────────────
@@ -25,7 +25,7 @@
 # name_suffix = ""        # append when default names are taken
 
 # ── Networking ──────────────────────────────────────────────────────
-# cors_allowed_origin   = ""   # empty = this stack's own Static Web App
+# cors_allowed_origin   = ""   # empty = this stack's own web app
 # operator_ip_addresses = []   # your IP for direct MySQL access
 
 # ── Compute ─────────────────────────────────────────────────────────

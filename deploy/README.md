@@ -33,21 +33,21 @@ One resource group, `dealerops-rg` by default. Names follow the pinned `${prefix
 
 | Resource | Name | Role |
 |---|---|---|
-| App Service plan | `dealerops-plan` | One Linux plan, `B2` by default, for all three .NET apps |
+| App Service plan | `dealerops-plan` | One Linux plan, `B2` by default, for the three .NET apps and the SPA |
 | Linux Web App | `dealerops-gateway` | .NET 8. **The only public API origin.** YARP reverse proxy, JWT validation |
 | Linux Web App | `dealerops-core` | .NET 8. Business APIs, EF Core, JWT issuing. Access restricted to Azure-internal callers |
 | Linux Web App | `dealerops-ai` | .NET 8. `ai-service`. Restricted the same way |
-| Static Web App | `dealerops-web` | Free tier. The built React SPA |
+| Linux Web App | `dealer-ops-dev` | Node 20. The built React SPA, served by pm2 with SPA fallback at `https://dealer-ops-dev.azurewebsites.net` |
 | MySQL Flexible Server | `dealerops-mysql` | `B_Standard_B1ms`, database `dealer_core`, TLS required |
 | Key Vault | `dealerops-kv` | `INTERNAL-TOKEN`, `MYSQL-PASSWORD`, `JWT-SIGNING-SECRET`, and when configured `AIMANAGER-API-KEY` and `ADMIN-PASSWORD` |
 | User-assigned identity | `dealerops-uai` | The identity the three apps use to read Key Vault |
 | Log Analytics + App Insights | `dealerops-logs`, `dealerops-appi` | Logs and telemetry |
 
-Five of those names are global, not just unique inside the resource group: the three `azurewebsites.net` hostnames, the Static Web App, the Key Vault DNS name, and the MySQL server name. `name_suffix` is appended to all of them, so a second subscription can deploy the same stack (§4).
+Six of those names are global, not just unique inside the resource group: the four `azurewebsites.net` hostnames, the Key Vault DNS name, and the MySQL server name. `name_suffix` is appended to all of them, so a second subscription can deploy the same stack (§4).
 
 App settings hold no secret values. Each secret is an App Service Key Vault reference (`@Microsoft.KeyVault(SecretUri=...)`) resolved through `dealerops-uai`.
 
-`dealerops-core` and `dealerops-ai` keep the "not a browser entry point" rule from [design/15-Data-Auth-and-Gateway.md](../design/15-Data-Auth-and-Gateway.md) §10. App Service has no internal-only ingress on a Basic plan, so instead both apps set `ip_restriction_default_action = "Deny"` and allow only the `AzureCloud` service tag. `dealerops-gateway` runs inside Azure and gets through; a browser on the public internet is refused by the platform before the request reaches the JVM.
+`dealerops-core` and `dealerops-ai` keep the "not a browser entry point" rule from [design/15-Data-Auth-and-Gateway.md](../design/15-Data-Auth-and-Gateway.md) §10. App Service has no internal-only ingress on a Basic plan, so instead both apps set `ip_restriction_default_action = "Deny"` and allow only the `AzureCloud` service tag. `dealerops-gateway` runs inside Azure and gets through; a browser on the public internet is refused by the platform before the request reaches the app.
 
 That tag is deliberately coarse. A rule built from the plan's own outbound addresses would be tighter, but those addresses only exist after `apply`, so they cannot appear in a `plan` — and they change when the plan scales. The network rule stops browsers, not another Azure-hosted caller, so `X-Dealer-Internal` and the JWT checks remain the real authorization, the same as locally.
 
@@ -153,7 +153,7 @@ That script reads every name and URL from `terraform output` and then, for one U
 1. stamps `PUBLISHED_AT` on `dealerops-core`, runs `dotnet publish`, zips and uploads DealerOps.Core
 2. stamps `PUBLISHED_AT` on `dealerops-ai`, publishes and uploads DealerOps.AiService
 3. stamps `PUBLISHED_AT` on `dealerops-gateway`, publishes and uploads DealerOps.Gateway
-4. builds the React frontend with `VITE_GATEWAY_URL` set to the gateway URL, then uploads `dist/` to the Static Web App
+4. builds the React frontend with `VITE_GATEWAY_URL` set to the gateway URL, then zips `dist/` and uploads it to `dealer-ops-dev`
 
 Pass names to redeploy one app: `deploy/terraform/deploy-apps.sh core web`.
 
@@ -180,7 +180,7 @@ az webapp deploy \
   --src-path ../deploy.zip
 ```
 
-`--type zip` extracts to `/home/site/wwwroot/`, and the .NET 8 stack starts the app on its own. Each app binds `8080` inside the sandbox (`CORE_PORT` / `GATEWAY_PORT` / `AI_PORT`, with `WEBSITES_PORT` telling the platform where to route); App Service terminates HTTPS on 443 in front of it. The local `8081` / `8082` split only matters on a developer machine.
+`--type zip` extracts to `/home/site/wwwroot/`, and the .NET 8 stack starts the app on its own. Each app binds `8080` inside the sandbox (`GATEWAY_PORT` for the gateway, `Kestrel__Endpoints__Http__Url` for core and ai, `pm2 --port` for the SPA, with `WEBSITES_PORT` telling the platform where to route); App Service terminates HTTPS on 443 in front of it. The local `8081` / `8082` split only matters on a developer machine.
 
 The first start after an upload takes about a minute: `dealer-core` runs EF Core `EnsureCreated` against `dealerops-mysql` before it answers health checks.
 
@@ -210,17 +210,17 @@ az webapp log tail --resource-group dealerops-rg --name dealerops-core
 
 Local is not a copy of the cloud and uses no Azure resource. The four processes run directly on the machine against a local MySQL 8 on `3306`; the startup order, the per-service `dev` values, and the health checks are in the [README](../README.md) under "Local development startup". Copy `dealer-platform/env.example` to a local `.env` or paste the same values into IDE run configurations.
 
-Only the cloud environment uses Key Vault, TLS-required MySQL, and the Static Web App. A local machine and the Azure stack never share a database, a JWT signing secret, or an admin password.
+Only the cloud environment uses Key Vault and TLS-required MySQL. A local machine and the Azure stack never share a database, a JWT signing secret, or an admin password.
 
 ## 8. Cost, pause, and teardown
 
-`Standard_B2` App Service plan plus `B_Standard_B1ms` MySQL is the recurring cost; the Static Web App Free tier and Key Vault standard are negligible. Set `service_plan_sku = "B1"` for a cheaper plan, at the price of 1.75 GB of memory for three .NET apps.
+`Standard_B2` App Service plan plus `B_Standard_B1ms` MySQL is the recurring cost; Key Vault standard is negligible. Set `service_plan_sku = "B1"` for a cheaper plan, at the price of 1.75 GB of memory for four apps.
 
 Nothing in this stack stops on its own. Two options when you are not using it:
 
 ### Option A — Pause all resources (keep data, resume later)
 
-Stop the three App Service apps and the MySQL server. No compute charges while stopped; only storage charges remain (a few cents per day).
+Stop the four App Service apps and the MySQL server. No compute charges while stopped; only storage charges remain (a few cents per day).
 
 **Pause (one command):**
 
@@ -228,6 +228,7 @@ Stop the three App Service apps and the MySQL server. No compute charges while s
 az webapp stop -g dealerops-rg -n dealerops-gateway && \
 az webapp stop -g dealerops-rg -n dealerops-core && \
 az webapp stop -g dealerops-rg -n dealerops-ai && \
+az webapp stop -g dealerops-rg -n dealer-ops-dev && \
 az mysql flexible-server stop -g dealerops-rg -n dealerops-mysql
 ```
 
@@ -237,7 +238,8 @@ az mysql flexible-server stop -g dealerops-rg -n dealerops-mysql
 az mysql flexible-server start -g dealerops-rg -n dealerops-mysql && \
 az webapp start -g dealerops-rg -n dealerops-core && \
 az webapp start -g dealerops-rg -n dealerops-ai && \
-az webapp start -g dealerops-rg -n dealerops-gateway
+az webapp start -g dealerops-rg -n dealerops-gateway && \
+az webapp start -g dealerops-rg -n dealer-ops-dev
 ```
 
 Start MySQL first, then the apps — `dealer-core` connects to MySQL on startup and fails health checks if the database is not ready.

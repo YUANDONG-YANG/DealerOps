@@ -8,10 +8,10 @@ variable "location" {
   default     = "canadacentral"
 }
 
-variable "static_web_app_location" {
-  description = "Static Web Apps region. The service runs in a short region list; Canada Central is not one of them."
+variable "web_app_name" {
+  description = "App Service name for the React SPA. The browser URL is https://<web_app_name><name_suffix>.azurewebsites.net."
   type        = string
-  default     = "eastus2"
+  default     = "dealer-ops-dev"
 }
 
 variable "mysql_location" {
@@ -32,13 +32,13 @@ variable "prefix" {
 }
 
 variable "name_suffix" {
-  description = "Appended to every globally unique name (the three apps, the Static Web App, Key Vault, MySQL) when one is already taken in another subscription. Empty keeps the pinned names."
+  description = "Appended to every globally unique name (the four apps, Key Vault, MySQL) when one is already taken in another subscription. Empty keeps the pinned names."
   type        = string
   default     = ""
 }
 
 variable "cors_allowed_origin" {
-  description = "The one browser origin dealer-gateway accepts. Empty uses this stack's own Static Web App origin; set it to another origin (for example http://localhost:5173) when the frontend is built and hosted outside this stack."
+  description = "The one browser origin dealer-gateway accepts. Empty uses this stack's own web app origin; set it to another origin (for example http://localhost:5173) when the frontend is built and hosted outside this stack."
   type        = string
   default     = ""
 }
@@ -50,7 +50,7 @@ variable "resource_group_name" {
 }
 
 variable "service_plan_sku" {
-  description = "Linux App Service plan SKU. B1 (1.75 GB) is the cheapest that allows Always On; B2 (3.5 GB) is safer for three JVMs on one plan."
+  description = "Linux App Service plan SKU. B1 (1.75 GB) is the cheapest that allows Always On; B2 (3.5 GB) is safer for four apps on one plan."
   type        = string
   default     = "B2"
 }
@@ -151,7 +151,7 @@ variable "admin_phone" {
 }
 
 variable "published_at" {
-  description = "Release-time stamp on the gateway, core and ai-service before the first JAR deploy. The deploy step overwrites it with a UTC timestamp, and Terraform then leaves it alone."
+  description = "Release-time stamp on the gateway, core and ai-service before the first zip deploy. The deploy step overwrites it with a UTC timestamp, and Terraform then leaves it alone."
   type        = string
   default     = "cloud"
 }

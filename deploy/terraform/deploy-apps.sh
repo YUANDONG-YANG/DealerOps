@@ -22,6 +22,7 @@ resource_group="$(tf resource_group_name)"
 core_app="$(tf core_app_name)"
 ai_app="$(tf ai_app_name)"
 gateway_app="$(tf gateway_app_name)"
+web_app="$(tf web_app_name)"
 gateway_url="$(tf gateway_public_url)"
 
 published_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
@@ -73,10 +74,17 @@ for target in "$@"; do
         VITE_GATEWAY_URL="${gateway_url}" \
         VITE_PUBLISHED_AT="${published_at}" \
           npm run build
-        echo "==> react frontend: upload dist/ to Static Web Apps"
-        npx -y @azure/static-web-apps-cli@2 deploy ./dist \
-          --deployment-token "$(tf static_web_app_deployment_token)" \
-          --env production
+        echo "==> react frontend: zip and upload dist/ to ${web_app}"
+        rm -f web.zip
+        (cd dist && zip -r -q ../web.zip .)
+        az webapp deploy \
+          --resource-group "${resource_group}" \
+          --name "${web_app}" \
+          --type zip \
+          --src-path web.zip \
+          --async false \
+          --output none
+        rm -f web.zip
       )
       ;;
     *)

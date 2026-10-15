@@ -1,5 +1,4 @@
-# Values the deploy steps in deploy/README.md need. Nothing here prints a secret value
-# except static_web_app_deployment_token, which is marked sensitive.
+# Values the deploy steps in deploy/README.md need. Secret values are marked sensitive.
 
 output "resource_group_name" {
   description = "Resource group holding the whole stack."
@@ -26,20 +25,19 @@ output "gateway_public_url" {
   value       = "https://${azurerm_linux_web_app.gateway.default_hostname}"
 }
 
+output "web_app_name" {
+  description = "App Service name for the React SPA deploy."
+  value       = azurerm_linux_web_app.web.name
+}
+
 output "web_public_url" {
   description = "Public SPA origin. Already set as the gateway CORS_ALLOWED_ORIGIN."
-  value       = "https://${azurerm_static_web_app.web.default_host_name}"
+  value       = "https://${azurerm_linux_web_app.web.default_hostname}"
 }
 
 output "swagger_url" {
   description = "Swagger UI, proxied by the gateway. Core is not reachable from a browser."
   value       = "https://${azurerm_linux_web_app.gateway.default_hostname}/swagger/index.html"
-}
-
-output "static_web_app_deployment_token" {
-  description = "Deployment token for the swa deploy step."
-  value       = azurerm_static_web_app.web.api_key
-  sensitive   = true
 }
 
 output "mysql_fqdn" {
