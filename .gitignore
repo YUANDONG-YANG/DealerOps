@@ -46,3 +46,6 @@ crash.*.log
 
 # Service log files (log-sum/log.md is tracked)
 log-sum/*.log
+
+# TypeScript incremental build cache
+*.tsbuildinfo
