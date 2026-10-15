@@ -13,15 +13,23 @@ using DealerOps.Core.Dealer;
 using DealerOps.Core.Integration;
 using DealerOps.Core.Lead;
 using DealerOps.Core.Listing;
+using DealerOps.Core.OpenApi;
 using DealerOps.Core.Photo;
 using DealerOps.Core.Security;
 using DealerOps.Core.Vehicle;
 using DealerOps.Core.WorkOrder;
+using DealerOps.Logging;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi.Models;
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Logging.AddProvider(new FileLoggerProvider(
+    Environment.GetEnvironmentVariable("LOG_DIR")
+    ?? Path.GetFullPath(Path.Combine(builder.Environment.ContentRootPath, "../../../log-sum")),
+    "dealer-core"));
 
 var connectionString = builder.Configuration["MYSQL_URL"]
                        ?? builder.Configuration.GetConnectionString("Default")
@@ -55,12 +63,43 @@ builder.Services.AddControllers(options =>
     .AddJsonOptions(options =>
     {
         options.JsonSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
-        options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+        options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.SnakeCaseUpper));
         options.JsonSerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
     });
 
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+builder.Services.AddSwaggerGen(options =>
+{
+    options.OperationFilter<LoginOperationFilter>();
+    options.SwaggerDoc("v1", new OpenApiInfo
+    {
+        Title = "DealerOps Gateway API",
+        Version = "v1",
+        Description = "Public DealerOps API. Use Authorize to provide a JWT Bearer token."
+    });
+
+    options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Name = "Authorization",
+        Type = SecuritySchemeType.Http,
+        Scheme = "bearer",
+        BearerFormat = "JWT",
+        In = ParameterLocation.Header,
+        Description = "Paste only the JWT access token. Swagger adds the Bearer prefix."
+    });
+
+    options.AddSecurityRequirement(new OpenApiSecurityRequirement
+    {
+        [new OpenApiSecurityScheme
+        {
+            Reference = new OpenApiReference
+            {
+                Type = ReferenceType.SecurityScheme,
+                Id = "Bearer"
+            }
+        }] = Array.Empty<string>()
+    });
+});
 builder.Services.AddHttpContextAccessor();
 
 builder.Services.AddCors(options =>
@@ -112,10 +151,13 @@ using (var scope = app.Services.CreateScope())
     db.Database.EnsureCreated();
 }
 
-if (app.Environment.IsDevelopment())
+if (app.Environment.IsDevelopment() || builder.Configuration.GetValue<bool>("EnableSwagger"))
 {
     app.UseSwagger();
-    app.UseSwaggerUI();
+    app.UseSwaggerUI(options =>
+    {
+        options.SwaggerEndpoint("/swagger/v1/swagger.json", "DealerOps Core API");
+    });
 }
 
 app.UseMiddleware<RequestLoggingMiddleware>();

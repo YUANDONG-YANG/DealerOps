@@ -1,8 +1,8 @@
 # DealerOps reuse and adaptation notes
 
-Updated: 2026-09-21
+Updated: 2026-10-15
 
-Research notes for the copies under `references/`. Authoritative scope and coding order live in `design/`, especially [SCOPE-BASELINE.md](../design/SCOPE-BASELINE.md) and [IMPLEMENTATION-BRIEF.md](../design/IMPLEMENTATION-BRIEF.md). What may be copied at all is in [00-reuse-policy.md](00-reuse-policy.md). Do not implement from this file.
+Research notes for the copies under `references/`. Authoritative scope and coding order live in `design/`, especially [TECHNOLOGY-STACK.md](../design/TECHNOLOGY-STACK.md), [SCOPE-BASELINE.md](../design/SCOPE-BASELINE.md), and [IMPLEMENTATION-BRIEF.md](../design/IMPLEMENTATION-BRIEF.md). What may be copied at all is in [00-reuse-policy.md](00-reuse-policy.md). Do not implement from this file.
 
 ## Downloaded reference copies
 
@@ -59,7 +59,7 @@ License note: `composer.json` marks MIT, but the repo root has no separately rev
 - Listing: current SQL is a starting point. Implement stale checks with `content_version` and check snapshots. Use Carventory public DTOs as a reading aid. Do not leak cost, customer, or internal notes.
 - Compliance: Carventory has no OMVIC fixed-rule + ai-manager flow. Implement the rule engine, AI states, stale-on-edit, TXT export, and 15-second timeout yourselves.
 - Audit: current SQL already has `audit_event`. Use Carventory API-log shape as a reading aid. Audit must record actor, action, entity, time, and a necessary field summary. Do not record customer contact details or model keys.
-- Frontend: only reuse list/form interaction from car-dealer-crm and Carventory. Official UI is Vue 3 + Element Plus. Pages follow [12-Frontend-UI-Conventions.md](../design/12-Frontend-UI-Conventions.md). No KPI home page and no kitchen-sink admin.
+- Frontend: only reuse list/form interaction from car-dealer-crm and Carventory. Official UI is React 19 + TypeScript + Vite. Pages follow [12-Frontend-UI-Conventions.md](../design/12-Frontend-UI-Conventions.md). No KPI home page and no kitchen-sink admin.
 - AI: do not copy AI from these two candidates. Per [09-AI-Agent-Integration.md](../design/09-AI-Agent-Integration.md), reuse the existing private `ai-manager` library (vendored as source) and write a thin adapter in `ai-service`.
 
 ## Constraints that travel with any reuse

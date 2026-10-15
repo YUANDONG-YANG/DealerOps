@@ -69,10 +69,13 @@ public class CustomerService
             Phone = body.Phone,
             HomeAddress = body.HomeAddress
         };
+        using var tx = _db.Database.BeginTransaction();
         _db.Customers.Add(customer);
         _db.SaveChanges();
         _audit.Record("CUSTOMER", customer.Id, "CREATE", tenant, ActorUsername(),
             ContactFieldChanges(null, null, null, null, body.Name, email, body.Phone, body.HomeAddress));
+        _db.SaveChanges();
+        tx.Commit();
         return ToDetail(customer);
     }
 
@@ -98,9 +101,9 @@ public class CustomerService
         customer.Phone = body.Phone;
         customer.HomeAddress = body.HomeAddress;
         customer.UpdatedAt = DateTime.UtcNow;
-        _db.SaveChanges();
 
         _audit.Record("CUSTOMER", customer.Id, "UPDATE", tenant, ActorUsername(), fieldSummary);
+        _db.SaveChanges();
         return ToDetail(customer);
     }
 
@@ -120,11 +123,13 @@ public class CustomerService
             CustomerId = customer.Id,
             VehicleId = vehicle.Id
         };
+        using var tx = _db.Database.BeginTransaction();
         _db.CustomerVehicles.Add(row);
         _db.SaveChanges();
-
         _audit.Record("CUSTOMER_VEHICLE", row.Id, "LINK", tenant, ActorUsername(),
             new Dictionary<string, object> { ["customerId"] = customer.Id, ["vehicleId"] = vehicle.Id });
+        _db.SaveChanges();
+        tx.Commit();
         return new LinkResponse(row.Id, row.CustomerId, row.VehicleId, row.LinkedAt);
     }
 
@@ -138,15 +143,15 @@ public class CustomerService
         var row = _db.CustomerVehicles.FirstOrDefault(
             cv => cv.CustomerId == customerId && cv.VehicleId == vehicleId)
             ?? throw new ApiException(ErrorCode.NotFound, "Not found");
-        if (vehicle.Status == VehicleStatus.SOLD)
+        if (vehicle.Status == VehicleStatus.Sold)
             throw new ApiException(ErrorCode.SoldLocked, "Sold vehicle cannot be unlinked.");
 
         var entityId = row.Id;
         _db.CustomerVehicles.Remove(row);
-        _db.SaveChanges();
 
         _audit.Record("CUSTOMER_VEHICLE", entityId, "UNLINK", tenant, ActorUsername(),
             new Dictionary<string, object> { ["customerId"] = customerId, ["vehicleId"] = vehicleId });
+        _db.SaveChanges();
     }
 
     private CustomerListItem ToListItem(CustomerEntity customer)
@@ -192,7 +197,7 @@ public class CustomerService
         string name, string email, string phone, string homeAddress)
     {
         var changed = new Dictionary<string, object>();
-        if (previousName != name) changed["name"] = true;
+        if (previousName != name) changed["name"] = name;
         if (previousEmail != email) changed["email"] = true;
         if (previousPhone != phone) changed["phone"] = true;
         if (previousHomeAddress != homeAddress) changed["homeAddress"] = true;

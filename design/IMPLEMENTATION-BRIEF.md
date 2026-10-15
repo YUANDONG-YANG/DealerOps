@@ -17,7 +17,7 @@ Conflict priority: **PPT > specification fields > [DEVELOPMENT-DESIGN.md](DEVELO
 Source design: sibling checkout named `DealerOS-Design`  
 Implementation skeleton: this repository
 
-This repository already contains four apps (`dealer-web`, `dealer-gateway`, `dealer-core`, `ai-service`) plus `dealer-platform` (OpenAPI, API notes, `env.example`) and `deploy/` (the Terraform stack and the app upload script). Each app has source and a build file (`pom.xml` / `package.json`); none has a Dockerfile, and there is no Compose file. Local startup is five processes ([README](../README.md)). Do not scaffold these projects again.
+This repository already contains the .NET 8 backend apps (`DealerOps.Core`, `DealerOps.Gateway`, `DealerOps.AiService`) and the React frontend in `frontend/react`, plus `dealer-platform` (OpenAPI, API notes, `env.example`) and `deploy/` (the Terraform stack and the app upload script). Each app has source and a build file (`*.csproj` / `package.json`); none has a Dockerfile, and there is no Compose file. Local startup is the MySQL service, three .NET services, and the React dev server ([README](../README.md)). Do not scaffold Java or Vue projects.
 
 ### Coding-AI reading order
 
@@ -60,11 +60,11 @@ A multi-tenant back office for independent dealers: each dealership has its own 
 
 | Item | Must |
 |---|---|
-| Languages | Backend **Java 21** for every Java service. Frontend **Vue 3 + Element Plus** (no third-party identity SDK). UI in English. |
-| Repositories | **Four independent application repos**: `dealer-web`, `dealer-gateway`, `dealer-core`, `ai-service`. Plus `dealer-platform` for contract and config notes and `deploy/` for the Terraform stack. Ban a monorepo. |
-| Entry | Browser-to-service HTTP **only through Spring Cloud Gateway**. core / ai-service are not public. Bypassing Gateway must fail. |
+| Languages | Backend **.NET 8 / ASP.NET Core**. Frontend **React 19 + TypeScript + Vite**. UI in English. |
+| Repositories | Current implementation is the DealerOps monorepo: `backend/dotnet/` contains Gateway, Core, AI, and shared logging; `frontend/react/` contains the SPA. |
+| Entry | Browser-to-service HTTP **only through the .NET Gateway**. Core / AI are internal. Bypassing Gateway must fail. |
 | Identity | **Email, username, or phone + password** ([SCOPE-BASELINE.md](SCOPE-BASELINE.md) errata 1). `POST /api/v1/auth/login` resolves the sign-in name and BCrypt hash on `app_user.password_hash`; dealer-core issues an HS256 JWT (`sub`=username, `name`, `roles`). Roles only `Platform.Admin`, `Dealer.User`. New accounts are created with a username and an email and/or phone, then bound to `dealer_id` by the admin (unbind = soft deactivate). No social-provider login. **Authoritative design:** [15-Data-Auth-and-Gateway.md](15-Data-Auth-and-Gateway.md) §8. |
-| Data | **One MySQL** database `dealer_core`. Flyway owns tables. The AI service has no database. |
+| Data | **One MySQL** database `dealer_core`. EF Core owns the runtime schema. The AI service has no database. |
 | AI | `ai-service` embeds `YUANDONG-YANG/ai-manager` **in-process**. Synchronous REST. The adapter guarantees a **15s** timeout. |
 | Calls | Synchronous REST. |
 
@@ -155,7 +155,7 @@ Admin actions may record `DEALER`/`MEMBERSHIP`; `dealerId` may be null.
 
 Follow the skeleton; **do not invent another table set**:
 
-`backend/java/dealer-core/src/main/resources/db/migration/V1__init.sql`
+`backend/dotnet/DealerOps.Core` EF Core schema configuration
 
 | Table | Purpose |
 |---|---|
@@ -182,7 +182,7 @@ Flyway only; ban `ddl-auto=update`.
 
 ## 5. API list
 
-The browser only hits Gateway `http://localhost:8080`, prefix `/api/v1`. core=`8081`, ai-service=`8082`; the browser must not call them directly. Swagger UI stays on that same gateway (`/swagger-ui/index.html` and `/v3/api-docs`). Anonymous access, with no Bearer token, is only when `dealerops.jwt.mode` is `dev` and every active Spring profile is local (`dev`, `local`, `test`, or `default`). Any other JWT mode or profile denies those paths. Do not open core port `8081` for Swagger.
+The browser only hits Gateway `http://localhost:8080`, prefix `/api/v1`. Core=`8081`, AI=`8082`; the browser must not call them directly. Swagger is exposed only by Gateway at `/swagger/index.html`; Core and AI are not external Swagger origins.
 
 Unified error body: `{"code":"VIN_DUP","message":"..."}`. Cross-dealership id → **404** (not 403; anti-probing). Admin hitting business URLs → **403** `FORBIDDEN`, response has no business fields. Staff without a valid membership → **403**. Optimistic lock: writes carry `version`, conflict `409 VERSION_CONFLICT`. JSON shapes in **14**.
 
@@ -265,7 +265,7 @@ Key: `AIMANAGER_API_KEY` on ai-service only (environment / Key Vault). The libra
 
 ## 7. Frontend UI convention summary
 
-- Stack: Vue 3 + **Element Plus**. English. 6 pages. Do not fork an entire dealer repo.  
+- Stack: React 19 + **TypeScript + Vite**. English. 6 pages. Do not fork an entire dealer repo.
 - Login: centered single card, one email/username/phone field + password, one `Sign in` button.
 - Others: left menu + top bar (dealership name or `Platform Admin`, role, `Sign out`). Admin sees only Admin; staff see only DMS/CRM/Ad/Assistant.  
 - Primary button top-right; sell/unlink require a second confirmation.  
@@ -296,10 +296,10 @@ Key: `AIMANAGER_API_KEY` on ai-service only (environment / Key Vault). The libra
 
 | Directory | Tech | Who | Duty |
 |---|---|---|---|
-| `dealer-web` | Vue3, built to `dist/` + its own pipeline | **A** | 6 pages, sign-in, web pipeline |
-| `dealer-gateway` | Spring Cloud Gateway, packaged as a JAR + pipeline | **C** (A reviews) | Route/verify JWT and forward only; block `/internal` from the browser |
-| `dealer-core` | Boot + Flyway + one database, packaged as a JAR + pipeline | **C** | Tenant isolation, business API, call AI |
-| `ai-service` | Boot, no database + vendored `ai-manager` sources + pipeline | **B** | Adapter, OMVIC checklist copy, real model, ai pipeline compiles without private access |
+| `frontend/react` | React 19 + TypeScript + Vite, built to `dist/` | **A** | 6 pages, sign-in, web pipeline |
+| `backend/dotnet/DealerOps.Gateway` | ASP.NET Core Gateway + pipeline | **C** (A reviews) | Route/verify JWT and forward only; block internal paths |
+| `backend/dotnet/DealerOps.Core` | ASP.NET Core + EF Core + one database | **C** | Tenant isolation, business API, call AI |
+| `backend/dotnet/DealerOps.AiService` | ASP.NET Core, no database + AI adapter | **B** | Adapter, OMVIC checklist copy, real model, AI pipeline |
 | `dealer-platform` | `env.example`, OpenAPI, API notes | **B** first draft / all certify | Does not run business code |
 | `deploy/` | Terraform for the Azure resources + `deploy-apps.sh` | **B** first draft / all certify | Applied by one operator, never by CI |
 

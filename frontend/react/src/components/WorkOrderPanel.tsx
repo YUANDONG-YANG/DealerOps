@@ -3,11 +3,16 @@ import { http } from '../api/http';
 
 interface WorkOrder {
   id: number;
-  description: string;
-  estimatedCost: number | null;
-  actualCost: number | null;
+  vehicleId: number;
+  task: string;
+  assigneeUsername: string | null;
   status: string;
+  dueOn: string | null;
+  cost: number | null;
+  completionNote: string | null;
+  completedOn: string | null;
   createdAt: string;
+  version: number;
 }
 
 interface Props {
@@ -21,12 +26,19 @@ function cad(v: unknown) {
   return v == null || v === '' ? '—' : CAD.format(Number(v));
 }
 
+const STATUS_TAG: Record<string, string> = {
+  OPEN: 'tag-warning',
+  IN_PROGRESS: 'tag-info',
+  DONE: 'tag-success',
+  CANCELLED: 'tag-default',
+};
+
 export default function WorkOrderPanel({ vehicleId, sold, onChanged }: Props) {
   const [orders, setOrders] = useState<WorkOrder[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [description, setDescription] = useState('');
-  const [estimatedCost, setEstimatedCost] = useState('');
+  const [task, setTask] = useState('');
+  const [assignee, setAssignee] = useState('');
   const [createError, setCreateError] = useState('');
   const [creating, setCreating] = useState(false);
   const [actionBusy, setActionBusy] = useState<number | null>(null);
@@ -51,16 +63,16 @@ export default function WorkOrderPanel({ vehicleId, sold, onChanged }: Props) {
   useEffect(() => { void load(); }, [load]);
 
   async function create() {
-    if (creating || !description.trim()) return;
+    if (creating || !task.trim()) return;
     setCreateError('');
     setCreating(true);
     try {
       await http.post(`/api/v1/vehicles/${vehicleId}/work-orders`, {
-        description: description.trim(),
-        estimatedCost: estimatedCost.trim() ? Number(estimatedCost) : null,
+        task: task.trim(),
+        assigneeUsername: assignee.trim() || null,
       });
-      setDescription('');
-      setEstimatedCost('');
+      setTask('');
+      setAssignee('');
       await load();
       onChanged();
     } catch {
@@ -70,33 +82,25 @@ export default function WorkOrderPanel({ vehicleId, sold, onChanged }: Props) {
     }
   }
 
-  async function complete(id: number) {
+  async function transition(wo: WorkOrder, newStatus: string) {
     if (actionBusy != null) return;
-    setActionBusy(id);
+    setActionBusy(wo.id);
     try {
-      await http.post(`/api/v1/vehicles/${vehicleId}/work-orders/${id}/complete`);
+      await http.patch(`/api/v1/work-orders/${wo.id}`, {
+        status: newStatus,
+        task: wo.task,
+        version: wo.version,
+      });
       await load();
       onChanged();
     } catch {
-      setError('Could not complete work order.');
+      setError(`Could not update work order.`);
     } finally {
       setActionBusy(null);
     }
   }
 
-  async function cancel(id: number) {
-    if (actionBusy != null) return;
-    setActionBusy(id);
-    try {
-      await http.post(`/api/v1/vehicles/${vehicleId}/work-orders/${id}/cancel`);
-      await load();
-      onChanged();
-    } catch {
-      setError('Could not cancel work order.');
-    } finally {
-      setActionBusy(null);
-    }
-  }
+  const isOpen = (s: string) => s === 'OPEN' || s === 'IN_PROGRESS';
 
   return (
     <div style={{ marginTop: 24 }}>
@@ -107,20 +111,20 @@ export default function WorkOrderPanel({ vehicleId, sold, onChanged }: Props) {
       {!sold && (
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
           <input
-            className="form-input"
-            placeholder="Description"
-            value={description}
-            onChange={e => setDescription(e.target.value)}
+            className="input"
+            placeholder="Task description"
+            value={task}
+            onChange={e => setTask(e.target.value)}
             style={{ flex: 1, minWidth: 160 }}
           />
           <input
-            className="form-input"
-            placeholder="Estimated cost"
-            value={estimatedCost}
-            onChange={e => setEstimatedCost(e.target.value)}
-            style={{ width: 130 }}
+            className="input"
+            placeholder="Assignee (optional)"
+            value={assignee}
+            onChange={e => setAssignee(e.target.value)}
+            style={{ width: 140 }}
           />
-          <button className="btn" onClick={create} disabled={creating || !description.trim()}>
+          <button className="btn" onClick={create} disabled={creating || !task.trim()}>
             {creating ? 'Adding…' : 'Add'}
           </button>
           {createError && <span className="danger-text">{createError}</span>}
@@ -132,21 +136,30 @@ export default function WorkOrderPanel({ vehicleId, sold, onChanged }: Props) {
         <div key={wo.id} style={{ padding: '8px 0', borderBottom: '1px solid var(--border)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div>
-              <strong>{wo.description}</strong>
-              <span className="muted"> · Est. {cad(wo.estimatedCost)}</span>
-              {wo.actualCost != null && <span className="muted"> · Actual {cad(wo.actualCost)}</span>}
+              <strong>{wo.task}</strong>
+              {wo.assigneeUsername && <span className="muted"> · {wo.assigneeUsername}</span>}
+              {wo.cost != null && <span className="muted"> · {cad(wo.cost)}</span>}
+              {wo.dueOn && <span className="muted"> · Due {wo.dueOn}</span>}
             </div>
-            <span className={`tag tag-${wo.status === 'OPEN' ? 'warning' : wo.status === 'COMPLETED' ? 'success' : 'default'}`}>
-              {wo.status}
+            <span className={`tag ${STATUS_TAG[wo.status] || 'tag-default'}`}>
+              {wo.status.replace(/_/g, ' ')}
             </span>
           </div>
-          <div className="muted" style={{ fontSize: 12 }}>{wo.createdAt}</div>
-          {wo.status === 'OPEN' && !sold && (
+          <div className="muted" style={{ fontSize: 12 }}>
+            {wo.createdAt}
+            {wo.completionNote && <> · {wo.completionNote}</>}
+          </div>
+          {isOpen(wo.status) && !sold && (
             <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
-              <button className="btn-link" onClick={() => complete(wo.id)} disabled={actionBusy === wo.id}>
+              {wo.status === 'OPEN' && (
+                <button className="btn-link" onClick={() => transition(wo, 'IN_PROGRESS')} disabled={actionBusy === wo.id}>
+                  Start
+                </button>
+              )}
+              <button className="btn-link" onClick={() => transition(wo, 'DONE')} disabled={actionBusy === wo.id}>
                 Complete
               </button>
-              <button className="btn-link danger" onClick={() => cancel(wo.id)} disabled={actionBusy === wo.id}>
+              <button className="btn-link danger" onClick={() => transition(wo, 'CANCELLED')} disabled={actionBusy === wo.id}>
                 Cancel
               </button>
             </div>

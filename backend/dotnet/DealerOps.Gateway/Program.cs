@@ -1,12 +1,20 @@
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using DealerOps.Gateway.Health;
 using DealerOps.Gateway.Middleware;
 using DealerOps.Gateway.Security;
+using DealerOps.Logging;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
+using System.Security.Claims;
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Logging.AddProvider(new FileLoggerProvider(
+    Environment.GetEnvironmentVariable("LOG_DIR")
+    ?? Path.GetFullPath(Path.Combine(builder.Environment.ContentRootPath, "../../../log-sum")),
+    "dealer-gateway"));
 
 var gatewayPort = builder.Configuration["GATEWAY_PORT"] ?? "8080";
 builder.WebHost.UseUrls($"http://*:{gatewayPort}");
@@ -102,6 +110,7 @@ builder.Services.AddReverseProxy()
 
 // Health check dependencies
 builder.Services.AddHttpClient("health");
+builder.Services.AddHttpClient("swagger");
 builder.Services.AddSingleton<DownstreamHealthCheck>();
 
 var app = builder.Build();
@@ -120,6 +129,25 @@ app.MapGet("/actuator/release", async (DownstreamHealthCheck healthCheck) =>
 
 app.UseAuthentication();
 app.UseAuthorization();
+
+// One Gateway OpenAPI document: merge Core and AI operations for the frontend.
+app.MapGet("/swagger/v1/swagger.json", async (IHttpClientFactory httpClientFactory) =>
+{
+    var http = httpClientFactory.CreateClient("swagger");
+    var coreUrl = builder.Configuration["CORE_URL"] ?? "http://localhost:8081";
+    var aiUrl = builder.Configuration["AI_URL"] ?? "http://localhost:8082";
+
+    var core = JsonNode.Parse(await http.GetStringAsync($"{coreUrl}/swagger/v1/swagger.json"))!.AsObject();
+    var ai = JsonNode.Parse(await http.GetStringAsync($"{aiUrl}/swagger/v1/swagger.json"))!.AsObject();
+
+    MergeObject(core, ai, "paths");
+    MergeArray(core, ai, "tags");
+    MergeObject(core, ai, "components", nested: true);
+    core["info"]!["title"] = "DealerOps Gateway API";
+    core["info"]!["description"] = "Unified Core and AI backend API through the Gateway.";
+
+    return Results.Json(core);
+});
 
 // Role gate: authenticated /api/v1/** must have Platform.Admin or Dealer.User
 app.Use(async (context, next) =>
@@ -161,7 +189,9 @@ app.Use(async (context, next) =>
     }
 
     // Must have a valid role
-    var roles = context.User.FindFirst("roles")?.Value;
+    // JwtBearer may map the custom roles claim to ClaimTypes.Role.
+    var roles = context.User.FindFirst("roles")?.Value
+                ?? context.User.FindFirst(ClaimTypes.Role)?.Value;
     if (roles != "Platform.Admin" && roles != "Dealer.User")
     {
         context.Response.StatusCode = 401;
@@ -179,7 +209,8 @@ var devMode = string.Equals(jwtMode.Trim(), "dev", StringComparison.OrdinalIgnor
 app.Use(async (context, next) =>
 {
     var path = context.Request.Path.Value ?? "";
-    if (path.StartsWith("/swagger", StringComparison.OrdinalIgnoreCase)
+    if ((path.StartsWith("/swagger", StringComparison.OrdinalIgnoreCase)
+        || path.StartsWith("/ai-swagger", StringComparison.OrdinalIgnoreCase))
         && !devMode)
     {
         context.Response.StatusCode = 404;
@@ -194,3 +225,34 @@ app.MapFallback(() => Results.NotFound(new { code = "NOT_FOUND", message = "Not 
 app.MapReverseProxy();
 
 app.Run();
+
+static void MergeObject(JsonObject target, JsonObject source, string property, bool nested = false)
+{
+    if (nested)
+    {
+        var targetObject = target[property]?.AsObject() ?? new JsonObject();
+        var sourceObject = source[property]?.AsObject();
+        if (sourceObject == null) return;
+        foreach (var (key, value) in sourceObject)
+            targetObject[key] = value?.DeepClone();
+        target[property] = targetObject;
+        return;
+    }
+
+    var targetMap = target[property]?.AsObject() ?? new JsonObject();
+    var sourceMap = source[property]?.AsObject();
+    if (sourceMap == null) return;
+    foreach (var (key, value) in sourceMap)
+        targetMap[key] = value?.DeepClone();
+    target[property] = targetMap;
+}
+
+static void MergeArray(JsonObject target, JsonObject source, string property)
+{
+    var targetArray = target[property]?.AsArray() ?? new JsonArray();
+    var sourceArray = source[property]?.AsArray();
+    if (sourceArray == null) return;
+    foreach (var value in sourceArray)
+        targetArray.Add(value?.DeepClone());
+    target[property] = targetArray;
+}

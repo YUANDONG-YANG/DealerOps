@@ -266,7 +266,7 @@ export default function LeadsPage() {
         </div>
         {customerMode === 'existing' ? (
           <div className="form-item">
-            <label>Customer</label>
+            <label className="form-label">Customer</label>
             <select className="select" value={createForm.customerId ?? ''}
               onChange={(e) => setCreateForm((f) => ({ ...f, customerId: e.target.value ? Number(e.target.value) : undefined }))}>
               <option value="">Select customer</option>
@@ -276,25 +276,25 @@ export default function LeadsPage() {
           </div>
         ) : (
           <>
-            <div className="form-item"><label>Name</label>
+            <div className="form-item"><label className="form-label">Name</label>
               <input className="input" value={createForm.name} onChange={(e) => setCreateForm((f) => ({ ...f, name: e.target.value }))} />
-              {createFieldErrors['newCustomer.name'] && <span className="danger-text">{createFieldErrors['newCustomer.name']}</span>}
+              {createFieldErrors['newCustomer.name'] && <div className="form-error">{createFieldErrors['newCustomer.name']}</div>}
             </div>
-            <div className="form-item"><label>Email</label>
+            <div className="form-item"><label className="form-label">Email</label>
               <input className="input" value={createForm.email} onChange={(e) => setCreateForm((f) => ({ ...f, email: e.target.value }))} />
-              {createFieldErrors['newCustomer.email'] && <span className="danger-text">{createFieldErrors['newCustomer.email']}</span>}
+              {createFieldErrors['newCustomer.email'] && <div className="form-error">{createFieldErrors['newCustomer.email']}</div>}
             </div>
-            <div className="form-item"><label>Phone</label>
+            <div className="form-item"><label className="form-label">Phone</label>
               <input className="input" value={createForm.phone} onChange={(e) => setCreateForm((f) => ({ ...f, phone: e.target.value }))} />
-              {createFieldErrors['newCustomer.phone'] && <span className="danger-text">{createFieldErrors['newCustomer.phone']}</span>}
+              {createFieldErrors['newCustomer.phone'] && <div className="form-error">{createFieldErrors['newCustomer.phone']}</div>}
             </div>
-            <div className="form-item"><label>Home address</label>
+            <div className="form-item"><label className="form-label">Home address</label>
               <input className="input" value={createForm.homeAddress} onChange={(e) => setCreateForm((f) => ({ ...f, homeAddress: e.target.value }))} />
-              {createFieldErrors['newCustomer.homeAddress'] && <span className="danger-text">{createFieldErrors['newCustomer.homeAddress']}</span>}
+              {createFieldErrors['newCustomer.homeAddress'] && <div className="form-error">{createFieldErrors['newCustomer.homeAddress']}</div>}
             </div>
           </>
         )}
-        <div className="form-item"><label>Vehicle of interest (in stock)</label>
+        <div className="form-item"><label className="form-label">Vehicle of interest (in stock)</label>
           <select className="select" value={createForm.vehicleId ?? ''}
             onChange={(e) => setCreateForm((f) => ({ ...f, vehicleId: e.target.value ? Number(e.target.value) : undefined }))}>
             <option value="">None</option>
@@ -302,18 +302,18 @@ export default function LeadsPage() {
           </select>
           <input className="input" placeholder="Search vehicles" onChange={(e) => searchVehicles(e.target.value)} />
         </div>
-        <div className="form-item"><label>Owner</label>
+        <div className="form-item"><label className="form-label">Owner</label>
           <select className="select" value={createForm.ownerUsername}
             onChange={(e) => setCreateForm((f) => ({ ...f, ownerUsername: e.target.value }))}>
             <option value="">Unassigned</option>
             {owners.map((o) => <option key={o.username} value={o.username}>{memberLabel(o)}</option>)}
           </select>
         </div>
-        <div className="form-item"><label>Next follow-up</label>
+        <div className="form-item"><label className="form-label">Next follow-up</label>
           <input type="date" className="input" value={createForm.nextFollowUpOn}
             onChange={(e) => setCreateForm((f) => ({ ...f, nextFollowUpOn: e.target.value }))} />
         </div>
-        <div className="form-item"><label>First note</label>
+        <div className="form-item"><label className="form-label">First note</label>
           <textarea className="input" rows={3} maxLength={2000} value={createForm.note}
             onChange={(e) => setCreateForm((f) => ({ ...f, note: e.target.value }))} />
         </div>
@@ -330,30 +330,30 @@ export default function LeadsPage() {
                 <span className="muted"> · <Link to={`/dms?vehicleId=${selected.vehicle.id}`}>{vehicleLabel(selected.vehicle)}</Link></span>
               )}
             </p>
-            <div className="form-item"><label>Stage</label>
+            <div className="form-item"><label className="form-label">Stage</label>
               <select className="select" value={edit.stage} disabled={isClosedStage(selected.stage)}
                 onChange={(e) => setEdit((ed) => ({ ...ed, stage: e.target.value as LeadStage }))}>
                 {LEAD_STAGES.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
               </select>
             </div>
             {edit.stage === 'LOST' && (
-              <div className="form-item"><label>Lost reason</label>
+              <div className="form-item"><label className="form-label">Lost reason</label>
                 <input className="input" value={edit.lostReason} disabled={isClosedStage(selected.stage)} maxLength={300}
                   onChange={(e) => setEdit((ed) => ({ ...ed, lostReason: e.target.value }))} />
               </div>
             )}
-            <div className="form-item"><label>Owner</label>
+            <div className="form-item"><label className="form-label">Owner</label>
               <select className="select" value={edit.ownerUsername} disabled={isClosedStage(selected.stage)}
                 onChange={(e) => setEdit((ed) => ({ ...ed, ownerUsername: e.target.value }))}>
                 <option value="">Unassigned</option>
                 {owners.map((o) => <option key={o.username} value={o.username}>{memberLabel(o)}</option>)}
               </select>
             </div>
-            <div className="form-item"><label>Next follow-up</label>
+            <div className="form-item"><label className="form-label">Next follow-up</label>
               <input type="date" className="input" value={edit.nextFollowUpOn} disabled={isClosedStage(selected.stage)}
                 onChange={(e) => setEdit((ed) => ({ ...ed, nextFollowUpOn: e.target.value }))} />
             </div>
-            <div className="form-item"><label>Vehicle of interest (in stock)</label>
+            <div className="form-item"><label className="form-label">Vehicle of interest (in stock)</label>
               <select className="select" value={edit.vehicleId ?? ''} disabled={isClosedStage(selected.stage)}
                 onChange={(e) => setEdit((ed) => ({ ...ed, vehicleId: e.target.value ? Number(e.target.value) : undefined }))}>
                 <option value="">None</option>
@@ -370,7 +370,7 @@ export default function LeadsPage() {
               <button className="btn btn-primary" disabled={saving} onClick={saveDetail}>{saving ? 'Saving…' : 'Save'}</button>
             )}
 
-            <hr />
+            <hr className="divider" />
             <div className="muted">Notes</div>
             <textarea className="input" rows={3} maxLength={2000} placeholder="Add a follow-up note"
               value={noteText} onChange={(e) => setNoteText(e.target.value)} />

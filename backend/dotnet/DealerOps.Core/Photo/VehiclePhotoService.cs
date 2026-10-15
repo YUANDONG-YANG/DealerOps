@@ -58,11 +58,13 @@ public class VehiclePhotoService
             OriginalData = data,
             UploadedBy = ActorUsername()
         };
+        using var tx = _db.Database.BeginTransaction();
         _db.VehiclePhotos.Add(photo);
         _db.SaveChanges();
-
         _audit.Record("VEHICLE_PHOTO", photo.Id, "CREATE", tenant, ActorUsername(),
             new Dictionary<string, object> { ["vehicleId"] = vehicleId });
+        _db.SaveChanges();
+        tx.Commit();
         return ToItem(photo);
     }
 
@@ -78,10 +80,10 @@ public class VehiclePhotoService
         var photo = Load(photoId, vehicleId, tenant);
         photo.EnhancedData = _enhancer.Enhance(photo.OriginalData, preset);
         photo.Enhancement = preset;
-        _db.SaveChanges();
 
         _audit.Record("VEHICLE_PHOTO", photo.Id, "UPDATE", tenant, ActorUsername(),
             new Dictionary<string, object> { ["vehicleId"] = vehicleId, ["enhancement"] = preset.ToString() });
+        _db.SaveChanges();
         return ToItem(photo);
     }
 
@@ -90,9 +92,9 @@ public class VehiclePhotoService
         var tenant = RequireVehicle(vehicleId);
         var photo = Load(photoId, vehicleId, tenant);
         _db.VehiclePhotos.Remove(photo);
-        _db.SaveChanges();
         _audit.Record("VEHICLE_PHOTO", photoId, "DELETE", tenant, ActorUsername(),
             new Dictionary<string, object> { ["vehicleId"] = vehicleId });
+        _db.SaveChanges();
     }
 
     private VehiclePhotoEntity Load(long photoId, long vehicleId, long tenant) =>

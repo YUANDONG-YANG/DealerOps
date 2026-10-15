@@ -48,11 +48,13 @@ public class WorkOrderService
             Status = WorkOrderStatus.Open,
             DueOn = body.DueOn
         };
+        using var tx = _db.Database.BeginTransaction();
         _db.WorkOrders.Add(order);
         _db.SaveChanges();
-
         Audit(order.Id, "CREATE", tenant,
             new Dictionary<string, object> { ["vehicleId"] = vehicleId, ["status"] = "OPEN" });
+        _db.SaveChanges();
+        tx.Commit();
         return ToResponse(order);
     }
 
@@ -105,10 +107,10 @@ public class WorkOrderService
         order.AssigneeUsername = assignee;
         order.DueOn = body.DueOn;
         order.UpdatedAt = DateTime.UtcNow;
-        _db.SaveChanges();
 
         if (changed.Count > 0)
             Audit(order.Id, "UPDATE", tenant, changed);
+        _db.SaveChanges();
 
         return ToResponse(order);
     }
@@ -121,7 +123,7 @@ public class WorkOrderService
 
     private static void RequireInStock(VehicleEntity vehicle)
     {
-        if (vehicle.Status == VehicleStatus.SOLD)
+        if (vehicle.Status == VehicleStatus.Sold)
             throw new ApiException(ErrorCode.SoldLocked, "Sold vehicle is locked.");
     }
 

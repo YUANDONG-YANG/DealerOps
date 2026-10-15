@@ -65,7 +65,6 @@ public class AuditService : IAuditService
                 : null
         };
         _db.AuditEvents.Add(entity);
-        _db.SaveChanges();
     }
 
     public PageResponse<AuditItem> List(string entityType, long entityId, int page, int size)

@@ -31,6 +31,7 @@ public class VehiclePhotoController : ControllerBase
     public IActionResult Content(long vehicleId, long photoId, [FromQuery] string variant = "original")
     {
         var photo = _photoService.Content(vehicleId, photoId);
+        Response.Headers[HeaderNames.CacheControl] = "no-store";
         return variant switch
         {
             "original" => File(photo.OriginalData, photo.ContentType),

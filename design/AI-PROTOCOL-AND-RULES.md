@@ -1,4 +1,6 @@
-# AI protocol and rules hard spec
+# AI protocol and rules hard spec (legacy Java integration reference)
+
+> Historical protocol notes. The active implementation is `backend/dotnet/DealerOps.AiService` and the React client under `frontend/react`; Java/Spring snippets below are not current implementation instructions.
 
 ## Development phase: no test authoring
 

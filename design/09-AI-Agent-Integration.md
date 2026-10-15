@@ -1,4 +1,6 @@
-# AI: component already retrieved from GitHub
+# AI: component already retrieved from GitHub (legacy Java integration reference)
+
+> Historical reference only. The active AI service is `backend/dotnet/DealerOps.AiService`; Java/Maven/vendor instructions below are not current implementation steps.
 
 Version v6.1 · 2026-09-21
 

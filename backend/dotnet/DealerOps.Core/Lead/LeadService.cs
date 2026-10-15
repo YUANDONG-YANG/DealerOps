@@ -105,6 +105,7 @@ public class LeadService
             Stage = LeadStage.New,
             NextFollowUpOn = body.NextFollowUpOn
         };
+        using var tx = _db.Database.BeginTransaction();
         _db.Leads.Add(lead);
         _db.SaveChanges();
 
@@ -117,6 +118,8 @@ public class LeadService
             fields["vehicleId"] = body.VehicleId;
 
         Audit(lead.Id, "CREATE", tenant, fields);
+        _db.SaveChanges();
+        tx.Commit();
 
         var note = TrimToNull(body.Note);
         if (note != null)
@@ -172,10 +175,10 @@ public class LeadService
         lead.VehicleId = body.VehicleId;
         lead.LostReason = lostReason;
         lead.UpdatedAt = DateTime.UtcNow;
-        _db.SaveChanges();
 
         if (changed.Count > 0)
             Audit(lead.Id, "UPDATE", tenant, changed);
+        _db.SaveChanges();
 
         return ToDetail(lead);
     }
@@ -196,9 +199,12 @@ public class LeadService
             AuthorUsername = ActorUsername(),
             Body = text
         };
+        using var tx = _db.Database.BeginTransaction();
         _db.LeadNotes.Add(note);
         _db.SaveChanges();
         Audit(lead.Id, "NOTE", lead.DealerId!.Value, new Dictionary<string, object> { ["noteId"] = note.Id });
+        _db.SaveChanges();
+        tx.Commit();
         return note;
     }
 
@@ -255,7 +261,7 @@ public class LeadService
     {
         if (vehicleId == null) return;
         var ok = _db.Vehicles.Any(
-            v => v.Id == vehicleId && v.DealerId == tenant && v.Status == VehicleStatus.IN_STOCK);
+            v => v.Id == vehicleId && v.DealerId == tenant && v.Status == VehicleStatus.InStock);
         if (!ok)
             throw new ApiException(ErrorCode.WrongDealerOrSold, "Vehicle must be in stock at this dealership.");
     }

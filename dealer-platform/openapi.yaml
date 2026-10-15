@@ -1975,9 +1975,13 @@ components:
       properties:
         identifier:
           type: string
+          default: admin
+          example: admin
           description: The account's email address, username, or phone number (with country code).
         password:
           type: string
+          default: admin123
+          example: admin123
 
     LoginResponse:
       type: object

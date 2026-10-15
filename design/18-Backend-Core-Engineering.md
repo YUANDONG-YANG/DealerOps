@@ -1,6 +1,8 @@
-# 18 · Backend dealer-core engineering design
+# 18 · Backend dealer-core engineering design (legacy Java reference)
 
-- Status: **current (v6 core engineering)**
+> **Deprecated:** This document describes the former Java/Spring implementation. The current backend is .NET 8 / ASP.NET Core in `backend/dotnet/DealerOps.Core`; use that code and its `.csproj` as the implementation source of truth. The Java paths and class names below are retained only for historical reference.
+
+- Status: **legacy reference only**
 - **HTTP follows [14-Backend-API-Contract.md](14-Backend-API-Contract.md)** (paths, DTOs, error codes, envelope). This document does not start a second contract or rewrite 14 JSON.
 - **Data / tenant / empty draft / membership / SOLD / OMVIC fixed rules follow [15-Data-Auth-and-Gateway.md](15-Data-Auth-and-Gateway.md)**. This document does not change those rulings or `V1__init.sql`.
 - This document covers only: **how the `dealer-core` repo splits Java files, application-service responsibilities, tenant intercept, exception mapping, outbound AI calls, audit, and test-class mapping**. Team members can write from the directory and class names.

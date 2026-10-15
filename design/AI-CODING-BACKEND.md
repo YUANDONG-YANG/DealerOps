@@ -1,4 +1,6 @@
-# AI coding spec: backend (compilable, wired to the contract)
+# AI coding spec: backend (legacy Java task list; current .NET implementation is authoritative)
+
+> Historical reference only. Do not follow Java/Spring/Maven paths or create Java projects. Current backend code is under `backend/dotnet/`; use [TECHNOLOGY-STACK.md](TECHNOLOGY-STACK.md), the repository README, and the actual .NET projects as the source of truth.
 
 ## Development phase: no test authoring
 
@@ -13,7 +15,7 @@
 
 You are the coding AI. Implement only the numbered tasks in this document (BE-Txx). Do not read withdrawn `01`–`06`. Do not implement work orders / leads / password login / Service Bus / a fifth auth repo.
 Contract conflicts: HTTP JSON / paths / error codes follow `design/14-Backend-API-Contract.md`; data columns / tenant / membership / empty draft / SOLD / Gateway behavior follow `design/15-Data-Auth-and-Gateway.md`. `18`/`19` only fix file locations; they do not invent another contract.
-Stack pinned: Java 21, Spring Boot 3.3.5, four independent repos (`dealer-core` / `dealer-gateway` / `ai-service` / `dealer-web`; `dealer-platform` holds the shared env and contract files only and does not run business). Ban merging into a monorepo. Ban core 21 + ai-service 17.
+Current stack: .NET 8 / ASP.NET Core for `DealerOps.Core`, `DealerOps.Gateway`, and `DealerOps.AiService`. The frontend is React 19 + TypeScript + Vite in `frontend/react`. The former Java/Spring service split is deprecated; use `backend/dotnet/` and do not create Java projects. `dealer-platform` holds the shared env and contract files only and does not run business.
 The browser only hits Gateway `http://localhost:8080` prefix `/api/v1/**`. core listens only on `8081`, ai-service only on `8082`; neither configures browser CORS or public Ingress.
 Ignore `dealerId` in the client body/query/header (including `X-Dealer-Id`). Cross-store or this store has no such id → **404** `NOT_FOUND` (not 403). Staff without `membership.active=1` calling a business API → **403** `FORBIDDEN` (not 401/404). `GET /me` is still 200 with `dealerId=null`.
 Roles come only from JWT `roles[]`: `Platform.Admin`, `Dealer.User`. If Admin and staff appear together → Admin wins. Admin hitting `/vehicles` `/customers` `/listings/**` `/audit` `/assistant` → 403; response body has no vin/cost/customer fields.
@@ -29,9 +31,9 @@ Implementation order aligns with BRIEF §11: empty repo starts → Flyway/entiti
 
 | Item | Value |
 |---|---|
-| Java | `21` |
-| Spring Boot | `3.3.5` |
-| Spring Cloud (gateway only) | `2023.0.4` |
+| .NET SDK | `8.0+` |
+| ASP.NET Core | `.NET 8` |
+| Frontend | `React 19 + TypeScript + Vite` |
 | Flyway | Follow Boot BOM (`flyway-core` + `flyway-mysql`) |
 | MySQL driver | `com.mysql:mysql-connector-j` (follow BOM) |
 | ai-manager | Vendored as source in `backend/java/ai-service/src/main/java/com/manager` from upstream commit `827196a` (see `backend/java/ai-service/README.md`); no Maven dependency and no private access needed. CI compiles only; do not hit paid endpoints. |

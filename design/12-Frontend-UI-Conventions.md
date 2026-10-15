@@ -2,7 +2,7 @@
 
 Version v6.1 · 2026-09-21
 
-Do not fork any full dealer repository. Those projects usually include a buyer site, dashboards, leads, and tickets. This course uses Vue 3 + **Element Plus**, English UI, and 6 pages. Fields follow [00](00-Current-Development-Design.md) only.
+Do not fork any full dealer repository. Those projects usually include a buyer site, dashboards, leads, and tickets. This project uses **React 19 + TypeScript + Vite**, the Aurora CSS design system in `frontend/react/src/styles.css`, English UI, and the implemented React pages. Fields follow [00](00-Current-Development-Design.md) only.
 
 ## 1. Global
 
@@ -52,7 +52,7 @@ One question, one answer + at most 5 dealership resource cards that open ordinar
 3. [Car-Mart EntityPage](https://github.com/saadshd/Car-Mart-Frontend/blob/main/src/components/crud/EntityPage.tsx)
 4. [carventory](https://github.com/mohammadumar-dev/carventory) staff back office only, not the marketplace
 5. [vue-element-plus-admin Demo](https://element-plus-admin.cn/) (do not use the whole repo as scaffolding)
-6. [Element Plus Result / Table / Empty](https://element-plus.org/en-US/component/result)
+6. Current implementation reference: Aurora CSS and reusable React components in `frontend/react/src/components/`
 7. [MEVN-MyCar video](https://vimeo.com/500102464)
 
 Do not copy: buyer sites, chart walls, leads/test-drives/tickets, dark glassmorphism, or a generic CRUD generator.

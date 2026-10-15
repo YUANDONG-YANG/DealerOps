@@ -103,11 +103,14 @@ public class MembershipService
             user.Active = true;
         }
 
+        using var tx = _db.Database.BeginTransaction();
         try { _db.SaveChanges(); }
         catch (DbUpdateException ex) { throw _accountRules.Conflict(ex); }
 
         _audit.Record("MEMBERSHIP", membership.Id, "CREATE", dealerId, ActorUsername(),
             new Dictionary<string, object> { ["username"] = username });
+        _db.SaveChanges();
+        tx.Commit();
 
         return new MemberResponse(membership.Username, user.DisplayName, AppRole.DealerUser.Value, membership.Active);
     }
@@ -122,17 +125,14 @@ public class MembershipService
             ?? throw new ApiException(ErrorCode.NotFound, "Not found");
 
         membership.Active = false;
-        _db.SaveChanges();
 
         var user = _db.AppUsers.FirstOrDefault(u => u.Username == username);
         if (user != null)
-        {
             user.DealerId = null;
-            _db.SaveChanges();
-        }
 
         _audit.Record("MEMBERSHIP", membership.Id, "UPDATE", dealerId, ActorUsername(),
             new Dictionary<string, object> { ["username"] = username, ["unbound"] = true });
+        _db.SaveChanges();
     }
 
     public PageResponse<PendingUserResponse> Pending(string? q, int page, int size)

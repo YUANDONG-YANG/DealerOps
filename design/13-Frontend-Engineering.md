@@ -5,23 +5,23 @@
 - This document covers only: **routes, guards, sign-in, page↔API mapping, component split, empty/error states, English copy**. **Fields, enums, and DTOs follow the handbook / 14**; this document does not define extra columns
 - Out of scope: buyer/OEM/tickets/leads/KPI home/self-registration/forgot-password/standalone Audit page; do not change the backend contract, SQL, or `01`–`06`
 
-Coding repo: `dealer-web`. Browser HTTP **hits Gateway only**. UI is English. Copy fields and enums from handbook section 3; this document does not rewrite them.
+Coding repo: `frontend/react`. Browser HTTP **hits Gateway only**. UI is English. Copy fields and enums from handbook section 3; this document does not rewrite them. Any remaining Vue file names below are historical and must be mapped to the React source tree.
 
 ---
 
 ## 1. Stack and directories (enough to start)
 
-Stack: **Vue 3 + Vite + Element Plus + Vue Router + Pinia**. No third-party identity SDK (see §4). HTTP uses axios (or a fetch wrapper — pick one and lock axios). No Nuxt, no chart library, no generic CRUD generator.
+Stack: **React 19 + TypeScript + Vite + React Router + Zustand**. Vue is deprecated. No third-party identity SDK (see §4). HTTP uses axios. No Next.js, no chart library, no generic CRUD generator.
 
 Layout:
 
 ```
-dealer-web/
-  .env.example          # copy only the four frontend items from platform/env.example
+frontend/react/
+  .env.example          # VITE_GATEWAY_URL only
   src/
     main.ts
-    App.vue
-    router/index.ts
+    App.tsx
+    router/index.tsx
     auth/login.ts       # email/username/phone + password login + sessionStorage token
     api/http.ts         # VITE_GATEWAY_URL only, Bearer
     api/me.ts
@@ -32,22 +32,22 @@ dealer-web/
     api/audit.ts
     api/assistant.ts
     stores/session.ts   # account, role, dealer display name
-    layouts/AppLayout.vue
+    layouts/AppLayout.tsx
     components/
-      AppMenu.vue
-      DataTable.vue
-      FormDrawer.vue
-      ConfirmDialog.vue
-      PageState.vue
-      AdWorkspace.vue   # form left, results right
-      AssistantCard.vue
+      AppMenu.tsx
+      DataTable.tsx
+      FormDrawer.tsx
+      ConfirmDialog.tsx
+      PageState.tsx
+      AdWorkspace.tsx   # form left, results right
+      AssistantCard.tsx
     views/
-      LoginView.vue
-      AdminView.vue
-      DmsView.vue
-      CrmView.vue
-      AdsView.vue
-      AssistantView.vue
+      LoginView.tsx
+      AdminView.tsx
+      DmsView.tsx
+      CrmView.tsx
+      AdsView.tsx
+      AssistantView.tsx
 ```
 
 Do not add "ticket/lead/dashboard/AuditView" splits. Keep `stores` for session only; list state can live in each View.
@@ -159,7 +159,7 @@ The CRM link picker uses each vehicle’s `linkedCustomer` (`{id, name}` or `nul
 
 ### 5.4 DMS `/dms` (Dealer.User only)
 
-Filter row, broad to narrow: `Make` → `Model` → `Year` cascading selects, then `VIN` text, `status`, `condition`; 10 per page. Make and model options come from `GET /vehicle-catalog/makes` and `GET /vehicle-catalog/models?make=` (14 §4.6). Year options run from next year down to 1900. Model is disabled until a make is chosen and Year until a model is chosen; changing a broader level clears the narrower ones. Make and model selects allow typed values, so the filter still works when the catalog is unavailable (a warning line says so). Query: `make` `model` `modelYear` `q` `status` `condition` `page` `size`. **Pagination envelope `{items,page,size,total}`, `page` starts at 0** (14). Fields follow the handbook/14.
+Filter row, broad to narrow: `Make` → `Model` → `Year` cascading selects, then `VIN` text, `status`, `condition`; 10 per page. Make and model options come from `GET /catalog/makes` and `GET /catalog/models?make=` (14 §4.6). Year options run from next year down to 1900. Model is disabled until a make is chosen and Year until a model is chosen; changing a broader level clears the narrower ones. Make and model selects allow typed values, so the filter still works when the catalog is unavailable (a warning line says so). Query: `make` `model` `modelYear` `q` `status` `condition` `page` `size`. **Pagination envelope `{items,page,size,total}`, `page` starts at 0** (14). Fields follow the handbook/14.
 
 | Control | Handbook path | Success refresh | Failure |
 |---|---|---|---|
@@ -170,7 +170,7 @@ Filter row, broad to narrow: `Make` → `Model` → `Year` cascading selects, th
 | List column **Open work orders** | `openWorkOrders` on each vehicle | vehicle table | count or — |
 | Drawer **Work orders** (above Audit) | `GET/POST /vehicles/{id}/work-orders`, `PATCH /work-orders/{id}`; assignee options from `GET /members` | work-order table, then vehicle version, repair cost, audit, and list | `409 WORK_ORDER_CLOSED`; `409 SOLD_LOCKED`; `400` Check required fields. `Start`, `Done` (dialog: completion note + cost, added to the repair cost), `Cancel` (ConfirmDialog); actions hidden on sold vehicles |
 | Drawer **Image Studio** (between Work orders and Audit) | `GET/POST /vehicles/{id}/photos`, `GET …/{photoId}/content?variant=`, `POST …/{photoId}/enhance`, `DELETE …/{photoId}` | thumbnails + preview | `415` Photo must be a JPEG or PNG image; `400` Photo must be 2 MB or smaller / at most 10 photos. Images load as Blobs through the HTTP client (an `<img>` tag cannot send the bearer token); object URLs are revoked on reload, delete, re-enhance, and unmount. Presets `Auto fix` / `Brighten` / `Sharpen`; Original / Enhanced toggle; `Delete` with ConfirmDialog |
-| `Add vehicle` VIN `Decode` | `GET /vehicle-catalog/vin/{vin}` | prefill make, model, year; body class, engine, country, manufacturer shown as reference, not saved | 400 / 404 / 502 copy from `vinDecodeError` |
+| `Add vehicle` VIN `Decode` | `GET /catalog/vin/{vin}` | prefill make, model, year; body class, engine, country, manufacturer shown as reference, not saved | 400 / 404 / 502 copy from `vinDecodeError` |
 | Detail footer Audit | `GET /audit?entityType=VEHICLE&entityId=` | refresh audit list only | `404` do not show business fields |
 | Detail linked customer / ad status | `linkedCustomer` from `GET /vehicles/{id}` (link to `/crm?customerId=`); `GET /vehicles/{id}/listing` `checkStatus` | detail drawer | ad status shows `Could not load ad check status.` |
 

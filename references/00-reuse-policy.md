@@ -2,15 +2,15 @@
 
 ## Conclusion
 
-The web has many dealership / DMS / CRM course projects. Against this course (Java + Vue 3 + Element Plus, admin-issued username/password, four repos, five pages + assistant widget): **none of them can be a whole-repo base**.  
+The web has many dealership / DMS / CRM course projects. Against this course (.NET 8 + React 19, admin-issued username/password, Gateway-only API access, five pages + assistant widget): **none of them can be a whole-repo base**.
 You may compare page rhythm. Do not pull someone else's domain model, login, buyer site, or scaffold into this course's repos.
 
 ## Course boundary (coding must not expand this)
 
 | Item | This course |
 |----|------|
-| Repos | `dealer-web` / `dealer-gateway` / `dealer-core` / `ai-service` (plus the platform repo) |
-| Frontend | Vue 3 + Element Plus; English UI |
+| Repos | Current monorepo: `frontend/react` + `backend/dotnet` (plus platform/deploy) |
+| Frontend | React 19 + TypeScript + Vite; English UI |
 | Identity | Admin-issued username/password; `dealer-core` signs the JWT (`design/15-Data-Auth-and-Gateway.md` §8) |
 | Roles | `Platform.Admin`, `Dealer.User` |
 | Pages | Login, Admin, DMS, CRM, Ad compliance, plus a floating Assistant widget on staff pages |

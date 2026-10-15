@@ -217,22 +217,25 @@ export default function AdsPage() {
         </div>
         <AdWorkspace listing={listing} onChange={setListing} vehicle={selected} readOnly={sold}
           pickerSlot={
-            <PageState loading={listLoading} error={listError} forbidden={listForbidden}
-              empty={!listLoading && !listError && !listForbidden && !vehicles.length}
-              emptyText="No vehicles to advertise." loadingText="Loading listing…"
-              forbiddenText="You do not have access to Ad compliance.">
-              <DataTable rows={vehicles} total={total} page={page}
-                onPage={(p) => { setPage(p); }}
-                rowClassName={(r: any) => r.status === 'SOLD' ? 'sold-row' : ''}
-                columns={[
-                  { label: 'Vehicle', render: (r: any) => `${r.modelYear} ${r.make} ${r.model}` },
-                  { label: 'Type', render: (r: any) => kindLabel(summaries[r.id]?.adKind) },
-                  { label: 'Medium', render: (r: any) => mediumLabel(summaries[r.id]?.medium) },
-                  { label: 'Check status', render: (r: any) => checkStatusLabel(summaries[r.id]?.checkStatus) || '—' },
-                ]}
-                actions={(r: any) => <button className="btn-link" onClick={() => select(r)}>Open</button>}
-              />
-            </PageState>
+            <div className="card">
+              <div className="card-header">Vehicles</div>
+              <PageState loading={listLoading} error={listError} forbidden={listForbidden}
+                empty={!listLoading && !listError && !listForbidden && !vehicles.length}
+                emptyText="No vehicles to advertise." loadingText="Loading listing…"
+                forbiddenText="You do not have access to Ad compliance.">
+                <DataTable rows={vehicles} total={total} page={page}
+                  onPage={(p) => { setPage(p); }}
+                  rowClassName={(r: any) => r.status === 'SOLD' ? 'sold-row' : ''}
+                  columns={[
+                    { label: 'Vehicle', render: (r: any) => `${r.modelYear} ${r.make} ${r.model}` },
+                    { label: 'Type', render: (r: any) => kindLabel(summaries[r.id]?.adKind) },
+                    { label: 'Medium', render: (r: any) => mediumLabel(summaries[r.id]?.medium) },
+                    { label: 'Check status', render: (r: any) => checkStatusLabel(summaries[r.id]?.checkStatus) || '—' },
+                  ]}
+                  actions={(r: any) => <button className="btn-link" onClick={() => select(r)}>Open</button>}
+                />
+              </PageState>
+            </div>
           }
           actionsSlot={
             <>

@@ -3,7 +3,7 @@
 Authoritative source: `design/12-Frontend-UI-Conventions.md` (v6.1). **Do not invent new pages.**  
 This course has only: **Login, Admin, DMS, CRM, Ad compliance, plus a floating Assistant widget on staff pages** (`design/AI-CODING-FRONTEND.md` FE-T10).
 
-Stack: Vue 3 + **Element Plus**, English UI. Fields follow `design/00-Current-Development-Design.md` only.
+Stack: React 19 + **TypeScript + Vite**, English UI. Fields follow the current `design/` requirements only. The Vue/Element Plus examples in the copied projects are interaction references, not dependencies.
 
 ## Global
 
@@ -73,8 +73,8 @@ No GitHub listing checker to copy. Rules: [02-omvic.md](02-omvic.md).
 2. [hyundai_dms Cars](https://github.com/Navpreet0981/hyundai_dms/blob/master/dms_app/src/pages/admin/Cars.jsx)
 3. [Car-Mart EntityPage](https://github.com/saadshd/Car-Mart-Frontend/blob/main/src/components/crud/EntityPage.tsx)
 4. [carventory](https://github.com/mohammadumar-dev/carventory) staff console only
-5. [vue-element-plus-admin Demo](https://element-plus-admin.cn/) (not scaffolding)
-6. [Element Plus Result / Table / Empty](https://element-plus.org/en-US/component/result)
+5. Aurora-style React components already present in `frontend/react/src/components/`
+6. Current loading/empty/error patterns in `frontend/react/src/components/PageState.tsx`
 7. [MEVN-MyCar video](https://vimeo.com/500102464)
 
 ## Do not copy into the UI

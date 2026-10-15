@@ -3,9 +3,17 @@ using System.Text.Json.Serialization;
 using DealerOps.AiService.Adapter;
 using DealerOps.AiService.Config;
 using DealerOps.AiService.Middleware;
+using DealerOps.AiService.OpenApi;
 using DealerOps.AiService.Support;
+using DealerOps.Logging;
+using Microsoft.OpenApi.Models;
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Logging.AddProvider(new FileLoggerProvider(
+    Environment.GetEnvironmentVariable("LOG_DIR")
+    ?? Path.GetFullPath(Path.Combine(builder.Environment.ContentRootPath, "../../../log-sum")),
+    "ai-service"));
 
 var port = builder.Configuration["AI_PORT"] ?? "8082";
 builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
@@ -17,6 +25,38 @@ builder.Services.AddControllers(options => options.Filters.Add<AiExceptionFilter
         options.JsonSerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
         options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
     });
+
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen(options =>
+{
+    options.SwaggerDoc("v1", new OpenApiInfo
+    {
+        Title = "DealerOps AI Service API",
+        Version = "v1",
+        Description = "Internal AI endpoints used by DealerOps Core through the Gateway."
+    });
+    options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Name = "Authorization",
+        Type = SecuritySchemeType.Http,
+        Scheme = "bearer",
+        BearerFormat = "JWT",
+        In = ParameterLocation.Header,
+        Description = "Paste the JWT access token returned by /api/v1/auth/login."
+    });
+    options.AddSecurityRequirement(new OpenApiSecurityRequirement
+    {
+        [new OpenApiSecurityScheme
+        {
+            Reference = new OpenApiReference
+            {
+                Type = ReferenceType.SecurityScheme,
+                Id = "Bearer"
+            }
+        }] = Array.Empty<string>()
+    });
+    options.DocumentFilter<AiGatewayDocumentFilter>();
+});
 
 var connectMs = int.TryParse(
     builder.Configuration["AiService:ConnectTimeoutMs"], out var c) ? c : 2000;
@@ -37,6 +77,12 @@ builder.Services.AddSingleton<InternalGuardFilter>();
 builder.Services.AddSingleton<AiExceptionFilter>();
 
 var app = builder.Build();
+
+if (app.Environment.IsDevelopment() || builder.Configuration.GetValue<bool>("EnableSwagger"))
+{
+    // The Gateway is the only Swagger UI entry point. Keep JSON available for Gateway aggregation.
+    app.UseSwagger();
+}
 
 app.UseMiddleware<RequestLoggingMiddleware>();
 app.UseMiddleware<InternalGuardFilter>();

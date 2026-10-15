@@ -8,6 +8,7 @@ import ConfirmDialog from '../components/ConfirmDialog';
 import AuditTrail from '../components/AuditTrail';
 import WorkOrderPanel from '../components/WorkOrderPanel';
 import PhotoStudioPanel from '../components/PhotoStudioPanel';
+import StatusTag from '../components/StatusTag';
 import { vehiclesApi, errorCode, errorStatus } from '../api/vehicles';
 import { catalogApi, vinDecodeError } from '../api/catalog';
 import { listingsApi, checkStatusLabel } from '../api/listings';
@@ -138,7 +139,6 @@ export default function DmsPage() {
   const listSeqRef = useRef(0);
   const detailSeqRef = useRef(0);
   const modelsSeqRef = useRef(0);
-  const deepLinkHandled = useRef(false);
 
   const load = useCallback(async (p?: number) => {
     const seq = ++listSeqRef.current;
@@ -168,14 +168,12 @@ export default function DmsPage() {
   }, []);
 
   useEffect(() => {
-    if (deepLinkHandled.current) return;
     const vehicleId = searchParams.get('vehicleId');
     if (vehicleId) {
-      deepLinkHandled.current = true;
       const id = Number(vehicleId);
       if (Number.isFinite(id)) void openEdit(id);
     }
-  }, [searchParams]);
+  }, [searchParams.get('vehicleId')]);
 
   async function onMakeChange(make: string) {
     setFilters(f => ({ ...f, make, model: '', modelYear: '' }));
@@ -379,7 +377,7 @@ export default function DmsPage() {
     { key: 'purchaseCost', label: 'Cost', render: (row: any) => cad(row.purchaseCost) },
     { key: 'addedOn', label: 'Date added' },
     { key: 'openWorkOrders', label: 'Open WOs', render: (row: any) => row.openWorkOrders || '—' },
-    { key: 'status', label: 'Status', render: (row: any) => <span className="tag">{enumLabel(row.status)}</span> },
+    { key: 'status', label: 'Status', render: (row: any) => <StatusTag status={row.status}>{enumLabel(row.status)}</StatusTag> },
   ];
 
   const actions = (row: any) => (
@@ -411,25 +409,25 @@ export default function DmsPage() {
           <button className="btn btn-primary" onClick={openCreate}>Add vehicle</button>
         </div>
         <div className="filters">
-          <select className="form-select" value={filters.make} onChange={e => onMakeChange(e.target.value)}>
+          <select className="select" value={filters.make} onChange={e => onMakeChange(e.target.value)}>
             <option value="">Make</option>
             {makeOptions.map(m => <option key={m} value={m}>{m}</option>)}
           </select>
-          <select className="form-select" value={filters.model} onChange={e => setFilters(f => ({ ...f, model: e.target.value, modelYear: '' }))} disabled={!filters.make}>
+          <select className="select" value={filters.model} onChange={e => setFilters(f => ({ ...f, model: e.target.value, modelYear: '' }))} disabled={!filters.make}>
             <option value="">Model</option>
             {modelOptions.map(m => <option key={m} value={m}>{m}</option>)}
           </select>
-          <select className="form-select" value={filters.modelYear} onChange={e => setFilters(f => ({ ...f, modelYear: e.target.value }))} disabled={!filters.model}>
+          <select className="select" value={filters.modelYear} onChange={e => setFilters(f => ({ ...f, modelYear: e.target.value }))} disabled={!filters.model}>
             <option value="">Year</option>
             {yearOptions.map(y => <option key={y} value={y}>{y}</option>)}
           </select>
-          <input className="form-input" placeholder="VIN" value={filters.q} onChange={e => setFilters(f => ({ ...f, q: e.target.value }))} />
-          <select className="form-select" value={filters.status} onChange={e => setFilters(f => ({ ...f, status: e.target.value }))}>
+          <input className="input" placeholder="VIN" value={filters.q} onChange={e => setFilters(f => ({ ...f, q: e.target.value }))} />
+          <select className="select" value={filters.status} onChange={e => setFilters(f => ({ ...f, status: e.target.value }))}>
             <option value="">Status</option>
             <option value="IN_STOCK">In stock</option>
             <option value="SOLD">Sold</option>
           </select>
-          <select className="form-select" value={filters.condition} onChange={e => setFilters(f => ({ ...f, condition: e.target.value }))}>
+          <select className="select" value={filters.condition} onChange={e => setFilters(f => ({ ...f, condition: e.target.value }))}>
             <option value="">Condition</option>
             {CONDITIONS.map(c => <option key={c} value={c}>{enumLabel(c)}</option>)}
           </select>
@@ -448,48 +446,48 @@ export default function DmsPage() {
         <form onSubmit={e => { e.preventDefault(); void save(); }}>
           {purchaseFields.map(field => (
             <div className="form-item" key={field.key}>
-              <label>{field.label}</label>
+              <label className="form-label">{field.label}</label>
               <div>
                 {field.key === 'vin' && !edit ? (
                   <div style={{ display: 'flex', gap: 8 }}>
-                    <input className="form-input" value={form[field.key]} onChange={e => updateForm(field.key, e.target.value)} disabled={isSold} style={{ flex: 1 }} />
+                    <input className="input" value={form[field.key]} onChange={e => updateForm(field.key, e.target.value)} disabled={isSold} style={{ flex: 1 }} />
                     <button type="button" className="btn" onClick={decodeVin} disabled={decoding}>{decoding ? 'Decoding…' : 'Decode'}</button>
                   </div>
                 ) : field.key === 'addedOn' ? (
-                  <input className="form-input" type="date" value={form[field.key]} onChange={e => updateForm(field.key, e.target.value)} disabled={isSold} />
+                  <input className="input" type="date" value={form[field.key]} onChange={e => updateForm(field.key, e.target.value)} disabled={isSold} />
                 ) : (
-                  <input className="form-input" value={form[field.key]} onChange={e => updateForm(field.key, e.target.value)} disabled={isSold} />
+                  <input className="input" value={form[field.key]} onChange={e => updateForm(field.key, e.target.value)} disabled={isSold} />
                 )}
                 {field.key === 'vin' && !edit && vinFacts && <div className="muted" style={{ marginTop: 4 }}>{vinFacts}</div>}
               </div>
               {(validationErrors[field.key] || serverErrors[field.key]) && (
-                <span className="danger-text" style={{ fontSize: 12 }}>{validationErrors[field.key] || serverErrors[field.key]}</span>
+                <div className="form-error">{validationErrors[field.key] || serverErrors[field.key]}</div>
               )}
             </div>
           ))}
 
           <div className="form-item">
-            <label>Source</label>
-            <select className="form-select" value={form.source} onChange={e => updateForm('source', e.target.value)} disabled={isSold}>
+            <label className="form-label">Source</label>
+            <select className="select" value={form.source} onChange={e => updateForm('source', e.target.value)} disabled={isSold}>
               {SOURCES.map(v => <option key={v} value={v}>{enumLabel(v)}</option>)}
             </select>
-            {(validationErrors.source || serverErrors.source) && <span className="danger-text" style={{ fontSize: 12 }}>{validationErrors.source || serverErrors.source}</span>}
+            {(validationErrors.source || serverErrors.source) && <div className="form-error">{validationErrors.source || serverErrors.source}</div>}
           </div>
 
           <div className="form-item">
-            <label>Condition</label>
-            <select className="form-select" value={form.conditionCode} onChange={e => updateForm('conditionCode', e.target.value)}>
+            <label className="form-label">Condition</label>
+            <select className="select" value={form.conditionCode} onChange={e => updateForm('conditionCode', e.target.value)}>
               {CONDITIONS.map(v => <option key={v} value={v}>{enumLabel(v)}</option>)}
             </select>
-            {(validationErrors.conditionCode || serverErrors.conditionCode) && <span className="danger-text" style={{ fontSize: 12 }}>{validationErrors.conditionCode || serverErrors.conditionCode}</span>}
+            {(validationErrors.conditionCode || serverErrors.conditionCode) && <div className="form-error">{validationErrors.conditionCode || serverErrors.conditionCode}</div>}
           </div>
 
           {isSold && (
             <>
-              <div className="form-item"><label>Sold date</label><span>{edit.soldOn}</span></div>
-              <div className="form-item"><label>Sold price</label><span>{cad(edit.soldPrice)}</span></div>
+              <div className="form-item"><label className="form-label">Sold date</label><span>{edit.soldOn}</span></div>
+              <div className="form-item"><label className="form-label">Sold price</label><span>{cad(edit.soldPrice)}</span></div>
               <div className="form-item">
-                <label>Profit (sold price − purchase cost − repair cost)</label>
+                <label className="form-label">Profit (sold price − purchase cost − repair cost)</label>
                 <span className={((profit(edit) ?? 0) < 0) ? 'danger-text' : ''}>{cad(profit(edit))}</span>
               </div>
             </>
@@ -497,7 +495,7 @@ export default function DmsPage() {
 
           {edit?.id && (
             <div className="form-item">
-              <label>Linked customer</label>
+              <label className="form-label">Linked customer</label>
               {edit.linkedCustomer ? (
                 <Link to={`/crm?customerId=${edit.linkedCustomer.id}`}>{edit.linkedCustomer.name}</Link>
               ) : <span>—</span>}
@@ -506,7 +504,7 @@ export default function DmsPage() {
 
           {edit?.id && (
             <div className="form-item">
-              <label>Ad check status</label>
+              <label className="form-label">Ad check status</label>
               <span>{adStatus || '—'}</span>
             </div>
           )}
@@ -522,12 +520,12 @@ export default function DmsPage() {
 
       <ConfirmDialog open={sellOpen} title="Sell vehicle" confirmLabel="Confirm sale" onCancel={() => setSellOpen(false)} onConfirm={sell}>
         <div className="form-item">
-          <label>Sold date</label>
-          <input className="form-input" type="date" value={sellForm.soldOn} onChange={e => setSellForm(f => ({ ...f, soldOn: e.target.value }))} />
+          <label className="form-label">Sold date</label>
+          <input className="input" type="date" value={sellForm.soldOn} onChange={e => setSellForm(f => ({ ...f, soldOn: e.target.value }))} />
         </div>
         <div className="form-item">
-          <label>Sold price</label>
-          <input className="form-input" value={sellForm.soldPrice} onChange={e => setSellForm(f => ({ ...f, soldPrice: e.target.value }))} />
+          <label className="form-label">Sold price</label>
+          <input className="input" value={sellForm.soldPrice} onChange={e => setSellForm(f => ({ ...f, soldPrice: e.target.value }))} />
         </div>
         {sellError && <p className="danger-text">{sellError}</p>}
       </ConfirmDialog>

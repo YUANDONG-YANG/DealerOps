@@ -2,6 +2,7 @@ import { type KeyboardEvent, useCallback, useEffect, useRef, useState } from 're
 import { useNavigate } from 'react-router-dom'
 import { assistantApi, type AssistantCardDto, type AskResponse } from '../api/assistant'
 import { codeOf, statusOf } from '../api/http'
+import AssistantCard from './AssistantCard'
 
 interface Turn {
   id: number
@@ -174,17 +175,7 @@ export default function AssistantWidget() {
                             {cards(turn).length > 0 ? (
                               <div className="card-grid chat-cards">
                                 {cards(turn).map(c => (
-                                  <div key={`${c.kind}-${c.id}`} className="card assistant-card"
-                                    tabIndex={0} role="button"
-                                    onClick={() => openCard(c)}
-                                    onKeyDown={e => e.key === 'Enter' && openCard(c)}>
-                                    <div className="assistant-card-head">
-                                      <span className="muted">{c.kind}</span>
-                                      {c.status && <span className="muted">{c.status}</span>}
-                                    </div>
-                                    <span className="assistant-card-label">{c.label}</span>
-                                    <span className="assistant-card-action">Open &rarr;</span>
-                                  </div>
+                                  <AssistantCard key={`${c.kind}-${c.id}`} card={c} onOpen={() => openCard(c)} />
                                 ))}
                               </div>
                             ) : (

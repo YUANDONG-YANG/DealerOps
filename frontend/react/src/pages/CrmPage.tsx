@@ -108,7 +108,6 @@ export default function CrmPage() {
 
   const listSeqRef = useRef(0);
   const editSeqRef = useRef(0);
-  const deepLinkHandled = useRef(false);
 
   const load = useCallback(async (p?: number) => {
     const seq = ++listSeqRef.current;
@@ -134,14 +133,12 @@ export default function CrmPage() {
   useEffect(() => { void load(); }, [load]);
 
   useEffect(() => {
-    if (deepLinkHandled.current) return;
     const customerId = searchParams.get('customerId');
     if (customerId) {
-      deepLinkHandled.current = true;
       const id = Number(customerId);
       if (Number.isFinite(id)) void openEdit(id);
     }
-  }, [searchParams]);
+  }, [searchParams.get('customerId')]);
 
   async function collectAllPages(loadPage: (p: number, size: number) => Promise<{ data: { items?: any[]; total?: number } }>) {
     const collected: any[] = [];
@@ -338,8 +335,8 @@ export default function CrmPage() {
           <button className="btn btn-primary" onClick={openCreate}>Add customer</button>
         </div>
         <div className="filters">
-          <input className="form-input" placeholder="Name / Email / Phone" value={filters.q} onChange={e => setFilters(f => ({ ...f, q: e.target.value }))} />
-          <select className="form-select" value={filters.linked} onChange={e => setFilters(f => ({ ...f, linked: e.target.value }))}>
+          <input className="input" placeholder="Name / Email / Phone" value={filters.q} onChange={e => setFilters(f => ({ ...f, q: e.target.value }))} />
+          <select className="select" value={filters.linked} onChange={e => setFilters(f => ({ ...f, linked: e.target.value }))}>
             <option value="">Linked</option>
             <option value="true">Linked</option>
             <option value="false">Not linked</option>
@@ -358,15 +355,15 @@ export default function CrmPage() {
         <form onSubmit={e => { e.preventDefault(); void save(); }}>
           {CUSTOMER_FIELDS.map(field => (
             <div className="form-item" key={field.key}>
-              <label>{field.label}</label>
+              <label className="form-label">{field.label}</label>
               <input
-                className="form-input"
+                className="input"
                 value={form[field.key]}
                 onChange={e => updateForm(field.key, e.target.value)}
                 onBlur={field.key === 'email' ? checkSharedEmail : undefined}
               />
               {(validationErrors[field.key] || serverErrors[field.key]) && (
-                <span className="danger-text" style={{ fontSize: 12 }}>{validationErrors[field.key] || serverErrors[field.key]}</span>
+                <div className="form-error">{validationErrors[field.key] || serverErrors[field.key]}</div>
               )}
             </div>
           ))}
@@ -377,9 +374,9 @@ export default function CrmPage() {
 
         {selected && (
           <>
-            <hr />
+            <hr className="divider" />
             <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-              <select className="form-select" value={linkId ?? ''} onChange={e => setLinkId(e.target.value ? Number(e.target.value) : undefined)} style={{ flex: 1 }}>
+              <select className="select" value={linkId ?? ''} onChange={e => setLinkId(e.target.value ? Number(e.target.value) : undefined)} style={{ flex: 1 }}>
                 <option value="">Link vehicle</option>
                 {vehicles.map(v => <option key={v.id} value={v.id}>{`${linkedLabel(v)} · ${v.vin}`}</option>)}
               </select>
@@ -399,7 +396,7 @@ export default function CrmPage() {
               </div>
             ))}
 
-            <hr />
+            <hr className="divider" />
             <div className="muted">Leads</div>
             {!customerLeads.length && <p className="muted">No leads for this customer.</p>}
             {customerLeads.map(l => (

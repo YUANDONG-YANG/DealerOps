@@ -1,4 +1,6 @@
-# Testing and Team Acceptance Guide
+# Testing and Team Acceptance Guide (legacy Java/Vue commands retained for historical review)
+
+> Current acceptance uses `frontend/react` and `backend/dotnet`. The old Maven/Vue commands in this historical guide are not startup instructions; use the repository README and current .NET project READMEs.
 
 ## How to test (student guide)
 

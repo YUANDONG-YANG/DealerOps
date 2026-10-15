@@ -1,4 +1,6 @@
-# AI coding spec · dealer-web (frontend)
+# AI coding spec · dealer-web (legacy Vue task list; current React implementation is authoritative)
+
+> Historical task-list reference only. Do not follow Vue file paths or create Vue components. Current frontend code is under `frontend/react/`; use [TECHNOLOGY-STACK.md](TECHNOLOGY-STACK.md) and the actual React source as the source of truth.
 
 ## Development phase: no test authoring
 
@@ -12,7 +14,7 @@
 
 
 1. Reader: another coding AI. Follow this document to create `dealer-web` and wire it to [14](14-Backend-API-Contract.md); fields/enums/DTOs follow handbook section 3 and 14. This document does not define extra columns.
-2. Stack pinned: Vue 3 + Vite + Element Plus + Vue Router + Pinia + axios. No third-party identity SDK; login uses an email, username, or phone plus password ([15](15-Data-Auth-and-Gateway.md) §8). No Nuxt, no chart library, no generic CRUD generator.
+2. Current stack: React 19 + TypeScript + Vite + React Router + Zustand + axios. Vue 3 is deprecated and must not be used for new work. No third-party identity SDK; login uses an email, username, or phone plus password ([15](15-Data-Auth-and-Gateway.md) §8). No Next.js, no chart library, no generic CRUD generator.
 3. Browser HTTP **only hits** `import.meta.env.VITE_GATEWAY_URL` (local `http://localhost:8080`), path prefix `/api/v1`. Ban axios pointing at 8081/8082. Ban requests to `/internal/v1/**`.
 4. Routes are only five pages: `/login` `/admin` `/dms` `/crm` `/ads`. The assistant is a floating widget (FE-T10), not a route. No other business route; ban `/audit` `/tickets` `/leads` `/dashboard` / buyer pages.
 5. Admin: **one route** `/admin` + in-page dual tabs (Dealerships | Members). Ban `/admin/members`. Dealership `Edit` (contact fields + logo) uses `PATCH /admin/dealers/{id}` per 13 §5.3.

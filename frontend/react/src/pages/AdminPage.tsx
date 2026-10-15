@@ -345,24 +345,27 @@ export default function AdminPage() {
 
       <FormDrawer title={editingDealer ? 'Edit dealership' : 'New dealership'} open={drawer} onClose={() => setDrawer(false)}>
         {formError && <p className="danger-text">{formError}</p>}
-        <div className="form-item"><label>Legal name</label>
+        <div className="form-item"><label className="form-label form-required">Legal name</label>
           <input className="input" value={form.legalName} onChange={(e) => setForm((f) => ({ ...f, legalName: e.target.value }))} />
         </div>
-        <div className="form-item"><label>Contact phone</label>
+        <div className="form-item"><label className="form-label form-required">Contact phone</label>
           <input className="input" value={form.contactPhone} onChange={(e) => setForm((f) => ({ ...f, contactPhone: e.target.value }))} />
         </div>
-        <div className="form-item"><label>Contact email</label>
+        <div className="form-item"><label className="form-label form-required">Contact email</label>
           <input className="input" value={form.contactEmail} onChange={(e) => setForm((f) => ({ ...f, contactEmail: e.target.value }))} />
         </div>
-        <div className="form-item"><label>Contact address</label>
+        <div className="form-item"><label className="form-label form-required">Contact address</label>
           <input className="input" value={form.contactAddress} onChange={(e) => setForm((f) => ({ ...f, contactAddress: e.target.value }))} />
         </div>
         {editingDealer && (
-          <div className="form-item"><label>Logo</label>
+          <div className="form-item"><label className="form-label">Logo</label>
             <div className="logo-field">
               {logoDataUrl && <img src={logoDataUrl} alt="Dealership logo" className="dealer-logo" />}
-              <input type="file" accept="image/png,image/jpeg,image/webp" onChange={pickLogo} />
-              {logoDataUrl && <button className="btn-link danger-text" onClick={() => setLogoDataUrl(null)}>Remove</button>}
+              <label className="btn btn-sm upload-btn">
+                {logoDataUrl ? 'Replace logo' : 'Upload logo'}
+                <input type="file" accept="image/png,image/jpeg,image/webp" onChange={pickLogo} />
+              </label>
+              {logoDataUrl && <button className="btn-link danger" onClick={() => setLogoDataUrl(null)}>Remove</button>}
             </div>
           </div>
         )}
@@ -375,49 +378,47 @@ export default function AdminPage() {
         open={memberDrawer} onClose={() => setMemberDrawer(false)}>
         {drawerError && <p className="danger-text">{drawerError}</p>}
         {bindError && <p className="danger-text">{bindError}</p>}
-        <div className="form-item"><label>Username</label>
+        <div className="form-item"><label className="form-label form-required">Username</label>
           <input className="input" value={member.username}
             onChange={(e) => setMember((m) => ({ ...m, username: e.target.value }))} />
-          {memberErrors.username && <span className="danger-text">{memberErrors.username}</span>}
+          {memberErrors.username && <div className="form-error">{memberErrors.username}</div>}
         </div>
-        <div className="form-item"><label>Display name</label>
+        <div className="form-item"><label className="form-label form-required">Display name</label>
           <input className="input" value={member.displayName}
             onChange={(e) => setMember((m) => ({ ...m, displayName: e.target.value }))} />
-          {memberErrors.displayName && <span className="danger-text">{memberErrors.displayName}</span>}
+          {memberErrors.displayName && <div className="form-error">{memberErrors.displayName}</div>}
         </div>
-        <div className="form-item"><label>Temporary password</label>
+        <div className="form-item"><label className="form-label form-required">Temporary password</label>
           <input className="input" type="password" value={member.password}
             onChange={(e) => setMember((m) => ({ ...m, password: e.target.value }))} />
-          {memberErrors.password && <span className="danger-text">{memberErrors.password}</span>}
+          {memberErrors.password && <div className="form-error">{memberErrors.password}</div>}
         </div>
-        <div className="form-item"><label>Login email</label>
+        <div className="form-item"><label className="form-label">Login email</label>
           <input className="input" type="email" value={member.email}
             onChange={(e) => setMember((m) => ({ ...m, email: e.target.value }))} />
-          {memberErrors.email && <span className="danger-text">{memberErrors.email}</span>}
+          {memberErrors.email && <div className="form-error">{memberErrors.email}</div>}
         </div>
-        <div className="form-item"><label>Login phone (email, phone, or both)</label>
+        <div className="form-item"><label className="form-label">Login phone (email, phone, or both)</label>
           <input className="input" type="tel" value={member.phone}
             onChange={(e) => setMember((m) => ({ ...m, phone: e.target.value }))} />
-          {memberErrors.phone && <span className="danger-text">{memberErrors.phone}</span>}
+          {memberErrors.phone && <div className="form-error">{memberErrors.phone}</div>}
         </div>
         <button className="btn btn-primary" disabled={binding} onClick={bind}>
           {binding ? 'Binding…' : 'Bind staff'}
         </button>
-        <div className="table-wrap" style={{ marginTop: 20 }}>
-          <table className="data-table">
-            <thead><tr><th>Username</th><th>Name</th><th>Status</th></tr></thead>
+        <div style={{ marginTop: 20 }}>
+          <table className="table">
+            <thead><tr><th>Username</th><th>Name</th><th>Status</th><th>Actions</th></tr></thead>
             <tbody>
               {drawerMembers.map((m) => (
                 <tr key={m.username}>
                   <td>{m.username}</td>
                   <td>{m.displayName}</td>
+                  <td><span className={`tag ${m.active ? 'tag-success' : ''}`}>{m.active ? 'Active' : 'Inactive'}</span></td>
                   <td>
-                    <label className="switch-label">
-                      <input type="checkbox" checked={m.active}
-                        disabled={!staffDealer || statusBusy === `${staffDealer.id}:${m.username}`}
-                        onChange={(e) => staffDealer && setStatus(staffDealer.id, m.username, e.target.checked)} />
-                      {m.active ? 'Active' : 'Inactive'}
-                    </label>
+                    {staffDealer && m.active && (
+                      <button className="btn-link danger" onClick={() => setStatus(staffDealer.id, m.username, false)}>Unbind</button>
+                    )}
                   </td>
                 </tr>
               ))}

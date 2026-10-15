@@ -1,7 +1,8 @@
+using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
 
 namespace DealerOps.Core.Dealer.Dto;
 
 public record LoginRequest(
-    [Required] string Identifier,
-    [Required] string Password);
+    [Required, DefaultValue("admin")] string Identifier,
+    [Required, DefaultValue("admin123")] string Password);

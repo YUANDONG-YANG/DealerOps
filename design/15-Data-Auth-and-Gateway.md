@@ -2,6 +2,7 @@
 
 Version: current (v6) · 2026-09-23  
 Status: fills gaps for the `dealer-core` entity layer and `dealer-gateway` configuration; **not** OpenAPI, **not** a business implementation.  
+**Current implementation note:** active services are .NET 8 / ASP.NET Core under `backend/dotnet/`; Java/Spring/Flyway snippets below are historical and must not be implemented. The public Swagger entry is the .NET Gateway at `/swagger/index.html`.
 **Password auth (email, username, or phone as the sign-in name)** is owned here in §8; keep [README.md](../README.md) "Step 6. Sign in" consistent with it.
 
 ## Conflict order and SQL baseline
@@ -14,7 +15,7 @@ On conflict, decide in this order and **do not reverse it**:
 4. **This document owns data, tenant, and gateway behavior**; **[14](14-Backend-API-Contract.md) owns HTTP JSON**; **[13](13-Frontend-Engineering.md) owns frontend engineering**
 5. [12](12-Frontend-UI-Conventions.md) UI conventions
 
-The SQL **landed baseline** is `backend/java/dealer-core/src/main/resources/db/migration/V1__init.sql`.  
+The SQL **landed baseline** is now managed by the .NET backend in `backend/dotnet/DealerOps.Core` using EF Core. The old Java/Flyway path is historical only.
 This document does not change V1. Where this document conflicts with V1 there are only two outs: **handle it in the application layer**, or later suggest `V2__*.sql` (indexes first; do not change columns if you can avoid it).  
 Do not restore tickets / leads / password tables / Service Bus / a second database. Do not use `ddl-auto=update`.
 
@@ -48,7 +49,7 @@ Handbook: `GET /vehicles/{id}/listing` "empty draft if none". These do not confl
 
 **V2 is not recommended (this item).**
 
-Entity convention: `Listing.title` / `Listing.body` are non-null Java `String`s defaulting to `""`. Do not use `Optional` to mean draft.
+Entity convention: `Listing.title` / `Listing.body` are non-null C# `string` values defaulting to `""`. Do not use nullable values to mean draft.
 
 ---
 
@@ -366,7 +367,7 @@ Browser-to-service HTTP **only** goes through `dealer-gateway`. core / ai-servic
 | `/internal/v1/**` | `AI_URL` (local `http://localhost:8082`) | **core only** (see below) | browser → **404** (do not use 401, which would acknowledge the path) |
 | other | — | — | 404 |
 
-Swagger UI and its OpenAPI JSON are part of the gateway origin. Anonymous access is only the local classroom case above. Any active profile other than `dev`, `local`, `test`, or `default`, denies `/swagger-ui.html`, `/swagger-ui/**`, `/v3/api-docs`, and `/v3/api-docs/**`. When that case is open, acceptance uses `http://localhost:8080/swagger-ui/index.html`, or the same path on a public HTTPS gateway. Do not send the browser to core port `8081`. The info description reads title `DealerOps Gateway API`, version `v1`, `API published <time>` (the dealer-core release time) (release time rules: [20-Observability.md](20-Observability.md) §5). Business `/api/v1/**` stays authenticated. The gateway preserves the browser `Host` so Swagger's script and spec URLs stay on the gateway.
+Swagger UI and its OpenAPI JSON are part of the Gateway origin. The current .NET entry is `http://localhost:8080/swagger/index.html`; do not send the browser to Core `8081` or AI `8082`. Business `/api/v1/**` stays authenticated. Java/Spring path names in older notes are historical.
 
 The two internal paths (same as the handbook; this section only defines entry, not OpenAPI bodies):
 
@@ -398,7 +399,7 @@ Authentication uses a sign-in name (email, username, or phone) plus password (`P
 
 ### Swagger authentication flow
 
-The local gateway Swagger UI is the browser-facing API test entry point at `/swagger-ui/index.html`; core port `8081` is not a frontend or acceptance URL. The gateway proxies the core-generated OpenAPI document, which declares the `bearerAuth` HTTP Bearer/JWT security scheme for protected public operations. `POST /api/v1/auth/login`, `POST /api/v1/auth/register`, and public VIN decode are the anonymous business operations and are marked without a security requirement in OpenAPI.
+The Gateway Swagger UI is the browser-facing API test entry point at `/swagger/index.html`; core port `8081` and AI port `8082` are not frontend or acceptance URLs. The Gateway is the only externally exposed Swagger origin and declares the `bearerAuth` HTTP Bearer/JWT security scheme for protected public operations. `POST /api/v1/auth/login`, `POST /api/v1/auth/register`, and public VIN decode are the anonymous business operations and are marked without a security requirement in OpenAPI.
 
 To test protected APIs in Swagger:
 
@@ -458,7 +459,7 @@ function mapRole(claims):
 | `DEV_JWT_SECRET` (the only signing-secret variable in every environment) | Local: the gateway and core run configurations. Cloud: app setting referencing Key Vault `JWT-SIGNING-SECRET` | ≥32 UTF-8 bytes; unique per environment, never committed |
 | `ADMIN_USERNAME` / `ADMIN_PASSWORD`, optional `ADMIN_EMAIL` / `ADMIN_PHONE` | dealer-core only. Local: run configuration. Cloud: app settings; password references Key Vault `ADMIN-PASSWORD` | Seeds the platform admin account on first startup; the admin signs in with the username, or the email/phone when set |
 
-Gateway anonymous permits for sign-in (both `dealer-gateway` and `dealer-core` security configs): `POST /api/v1/auth/login`, `POST /api/v1/auth/register`, plus the public `GET /api/v1/vehicle-catalog/vin/*`. Every other `/api/v1/**` path needs the bearer JWT.
+Gateway anonymous permits for sign-in: `POST /api/v1/auth/login`, `POST /api/v1/auth/register`, plus the public `GET /api/v1/catalog/vin/*`. Every other `/api/v1/**` path needs the bearer JWT. The Gateway is the only external API origin.
 
 Azure Terraform continues to deploy the web app, gateway, core, and MySQL. No social-provider credentials or callback settings are required.
 
@@ -486,7 +487,7 @@ One defense sentence: the proposal's async was scope creep; this course uses syn
 
 | Process | Port | Browser |
 |---|---|---|
-| dealer-web (Vite) | 5173 | static only; login posts to the gateway |
+| dealer-web (Vite) | 5174 | static only; login posts to the gateway |
 | dealer-gateway | **8080** (`GATEWAY_PORT`) | **sole API origin**, `VITE_GATEWAY_URL=http://localhost:8080` |
 | dealer-core | **8081** (`CORE_PORT`) | must fail |
 | ai-service | **8082** (`AI_PORT`) | must fail |
@@ -496,9 +497,9 @@ There is no orchestrator locally: each process is started by hand. Gateway binds
 
 ### 10.2 Configuration principles (demo-able in Sprint 1)
 
-1. core / ai **do not** configure CORS for `http://localhost:5173`. Browser `fetch('http://localhost:8081/api/v1/vehicles')` from the page → browser blocks (no ACAO).
+1. core / ai **do not** configure CORS for `http://localhost:5174`. Browser `fetch('http://localhost:8081/api/v1/vehicles')` from the page → browser blocks (no ACAO).
 2. The same request via `http://localhost:8080/api/v1/vehicles` + Bearer → 200 or a business error.
-3. Azure: `dealerops-core` and `dealerops-ai` set `ip_restriction_default_action = "Deny"` and allow only the `AzureCloud` service tag (`deploy/terraform/main.tf`), so `dealerops-gateway` reaches them and a browser on the public internet is refused by the platform before the request reaches the JVM. The usable public origins are the Static Web App and `dealerops-gateway` only. This is coarser than a private ingress — any Azure-hosted caller passes the network rule — so `X-Dealer-Internal` and the JWT checks remain the real authorization, exactly as they are locally.
+3. Azure: the internal .NET services are restricted so the Gateway reaches them and a browser on the public internet is refused before the request reaches the service. The usable public origins are the Static Web App and Gateway only. Network restrictions are defense in depth; the Gateway route policy and JWT checks remain the real authorization.
 4. Classroom backup: if `curl` 8081 still works, show "no CORS / no public DNS / needs intranet" and stress that **the product entry is not 8081**. Do not rely on "firewall off but we forgot" as the only evidence.
 
 ---
@@ -509,10 +510,10 @@ Minimum set required by 07 (one demo resource group), written as Terraform in `d
 
 | Resource | Count | Role |
 |---|---|---|
-| App Service plan (Linux, `B2`) | 1 | Hosts the three Java apps |
-| Linux Web App, Java 21 SE | **3**: gateway, core, ai | `az webapp deploy --type jar`. No image, no registry |
+| App Service plan (Linux, `B2`) | 1 | Hosts the three .NET apps |
+| Linux Web App, .NET 8 | **3**: gateway, core, ai | `dotnet publish` artifacts. No image, no registry |
 | Static Web App (Free) | 1 | The built SPA |
-| MySQL Flexible Server | 1, database `dealer_core`, TLS required | Flyway in core owns the schema |
+| MySQL Flexible Server | 1, database `dealer_core`, TLS required | EF Core in core owns the schema |
 | Key Vault | 1 | `INTERNAL-TOKEN`, `MYSQL-PASSWORD`, `JWT-SIGNING-SECRET`, optional `AIMANAGER-API-KEY` and `ADMIN-PASSWORD` |
 | User-assigned identity | 1 | Resolves the Key Vault references in app settings |
 | Log Analytics + Application Insights | 1 each | Logs and telemetry |
@@ -523,7 +524,7 @@ There is **no container registry**: containers were removed from this project ([
 
 **Ruling: the team may move the development database off the local container onto one shared hosted MySQL. The engine stays MySQL 8. Nothing else changes.**
 
-`dealer-core` reads every datasource value from the environment (`application.yml`: `MYSQL_URL`, `MYSQL_USER`, `MYSQL_PASSWORD`). Pointing at a hosted server is therefore an environment change: no Java change, no entity change, no new migration. Flyway still owns the schema, so `V1__init.sql` plus the dated scripts build the shared database exactly as they build the local one.
+`DealerOps.Core` reads every datasource value from the environment. Pointing at a hosted server is therefore an environment change; EF Core still owns the runtime schema and no Java/Flyway migration path is involved.
 
 Connection string difference: a hosted server requires TLS, so the local `useSSL=false&allowPublicKeyRetrieval=true` pair is replaced by `sslMode=REQUIRED` (see `dealer-platform/env.example`). This is the same JDBC URL shape `deploy/terraform` writes into the `dealerops-core` app settings. The local MySQL server is then unused and can be stopped.
 
@@ -571,17 +572,9 @@ Platform disk encryption may use defaults. MySQL is not open to the internet: th
 
 ---
 
-## 12. Java version (unified across the four course repos)
+## 12. Runtime version (current implementation)
 
-**Ruling: the four course repos (the three Java repos excluding web + any shared tests) use JDK 21 uniformly. Prefer 21; do not mix 17/21 per repo.**
-
-| Repo | Version |
-|---|---|
-| dealer-gateway / dealer-core / ai-service | **Java 21** (matches handbook default and 07 "Java 21") |
-| dealer-web | Node 20 toolchain, no JDK |
-| ai-manager (private GitHub repo) | upstream is **Java 17** + Boot 3.2.5; vendored as source into ai-service and compiled with **Java 21** ([09](09-AI-Agent-Integration.md) "Vendored source") |
-
-All three Java services stay on Java 21; nothing in the build needs JDK 17. CI compiles only and does not hit paid endpoints.
+The active backend runtime is **.NET 8 / ASP.NET Core**. The active frontend runtime is **React 19 + TypeScript + Vite** on Node 20+. Java/Spring and Vue references in this document are historical course material and are not implementation instructions.
 
 ---
 
@@ -589,8 +582,8 @@ All three Java services stay on Java 21; nothing in the build needs JDK 17. CI c
 
 ### CORS
 
-- Allow browser origins **only** on Gateway, in `CorsConfig`'s `CorsWebFilter` (and the web dev server for 5173 during development). `spring.cloud.gateway.globalcors` and `DedupeResponseHeader` are not used.
-- The allowed origin is `CORS_ALLOWED_ORIGIN`. The local default is `http://localhost:5173`. On Azure it is the Static Web App HTTPS origin, or the one origin given in the `cors_allowed_origin` Terraform variable when the SPA is hosted outside the stack (`deploy/README.md` §5). It stays a single origin.
+- Allow browser origins **only** on Gateway. The React dev server runs on `http://localhost:5174` during development.
+- The allowed origin is `CORS_ALLOWED_ORIGIN`. The local default is `http://localhost:5174`. On Azure it is the Static Web App HTTPS origin. It stays a single origin.
 - core / ai-service: **do not** configure browser CORS (or configure empty). This is part of section 10 "direct access fails".
 - Preflight: allow `Authorization`, `Content-Type`; **do not** expose `X-Dealer-Internal` to the browser (do not list it in `Access-Control-Allow-Headers`).
 

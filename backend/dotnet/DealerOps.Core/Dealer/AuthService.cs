@@ -56,6 +56,7 @@ public class AuthService
             Active = true
         };
 
+        using var tx = _db.Database.BeginTransaction();
         try
         {
             _db.AppUsers.Add(user);
@@ -68,6 +69,8 @@ public class AuthService
 
         _audit.Record("APP_USER", user.Id, "CREATE", null, user.Username,
             new Dictionary<string, object> { ["registration"] = "password" });
+        _db.SaveChanges();
+        tx.Commit();
 
         return new LoginResponse(_jwt.Issue(user), user.Role.Value, user.DisplayName);
     }

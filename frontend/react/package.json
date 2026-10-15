@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:logged": "bash ./scripts/dev-logged.sh",
     "build": "tsc -b && vite build",
     "build-only": "vite build",
     "preview": "vite preview"

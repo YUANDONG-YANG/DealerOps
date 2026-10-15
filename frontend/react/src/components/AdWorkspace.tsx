@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { useSessionStore } from '../store/session';
 import { checkStatusLabel, isCheckStatus, type Listing, type RuleFinding } from '../api/listings';
+import StatusTag from './StatusTag';
 
 type ChecklistItem = { label: string; codes: string[] };
 
@@ -15,37 +16,43 @@ function buildChecklist(listing: Listing): ChecklistItem[] {
   ];
   if (listing.adKind === 'FINANCE') {
     items.push(
-      { label: 'APR', codes: ['APR_MISSING', 'APR_INVALID'] },
+      { label: 'APR', codes: ['APR_MISSING', 'APR_INVALID', 'FINANCE_APR_MISSING'] },
       { label: 'Finance term', codes: ['FINANCE_TERM_MISSING', 'FINANCE_TERM_INVALID'] },
-      { label: 'Monthly payment', codes: ['PAYMENT_MISSING', 'PAYMENT_INVALID'] },
+      { label: 'Cash price', codes: ['PRICE_MISSING'] },
     );
+    if (listing.medium !== 'RADIO_TV_BILLBOARD') {
+      items.push({ label: 'Rate shown next to the APR', codes: ['FINANCE_APR_PROXIMITY'] });
+    }
   }
   if (listing.adKind === 'LEASE') {
     items.push(
-      { label: 'Lease rate', codes: ['LEASE_RATE_MISSING', 'LEASE_RATE_INVALID'] },
+      { label: 'Lease statement', codes: ['LEASE_STATEMENT_MISSING'] },
       { label: 'Lease term', codes: ['LEASE_TERM_MISSING', 'LEASE_TERM_INVALID'] },
-      { label: 'Lease payment', codes: ['LEASE_PAYMENT_MISSING', 'LEASE_PAYMENT_INVALID'] },
-      { label: 'Residual', codes: ['RESIDUAL_MISSING', 'RESIDUAL_INVALID'] },
+      { label: 'Rent / payment', codes: ['LEASE_RENT_MISSING', 'LEASE_PAYMENT_MISSING', 'LEASE_PAYMENT_INVALID'] },
+      { label: 'APR', codes: ['LEASE_APR_MISSING', 'LEASE_RATE_MISSING', 'LEASE_RATE_INVALID'] },
+      { label: 'Down payment', codes: ['LEASE_DOWN_MISSING'] },
+      { label: 'Low-km excess charges', codes: ['LEASE_EXCESS_KM_MISSING', 'LEASE_ALLOWANCE_UNSTATED'] },
     );
   }
   return items;
 }
 
-function checklistStatus(item: ChecklistItem, findings: RuleFinding[]): 'pass' | 'block' | 'review' | 'pending' {
-  if (!findings.length) return 'pending';
-  const matched = findings.filter((f) => item.codes.includes(f.ruleId));
-  if (!matched.length) return 'pass';
-  if (matched.some((f) => f.severity === 'HARD_BLOCK' && !f.passed)) return 'block';
-  if (matched.some((f) => !f.passed)) return 'review';
-  return 'pass';
+function checklistIcon(item: ChecklistItem, findings: RuleFinding[]): string {
+  if (!findings.length) return '';
+  const failed = findings.filter((f) => !f.passed && item.codes.includes(f.ruleId));
+  if (failed.some((f) => f.severity === 'BLOCK' || f.severity === 'HARD_BLOCK')) return '❌';
+  return failed.length ? '⚠️' : '✅';
 }
 
-const statusColor: Record<string, string> = {
-  pass: 'tag-success', block: 'tag-danger', review: 'tag-warning', pending: '',
-};
-const statusText: Record<string, string> = {
-  pass: 'Pass', block: 'Blocked', review: 'Review', pending: '—',
-};
+function findingIcon(finding: RuleFinding): string {
+  if (finding.passed) return '✅';
+  return finding.severity === 'BLOCK' || finding.severity === 'HARD_BLOCK' ? '❌' : '⚠️';
+}
+
+function conditionLabel(code?: string): string {
+  const s = String(code || '').split('_').join(' ').toLowerCase();
+  return s ? s.charAt(0).toUpperCase() + s.slice(1) : '—';
+}
 
 interface Props {
   listing: Listing;
@@ -67,73 +74,92 @@ export default function AdWorkspace({ listing, onChange, vehicle, readOnly, pick
     : listing.checkStatus === 'BLOCKED' ? 'tag-danger'
     : listing.checkStatus === 'NEEDS_AI' ? 'tag-info'
     : 'tag-warning';
+  const formDisabled = !hasSelection || readOnly;
 
   return (
     <div className="ad-grid">
-      <div>{pickerSlot}</div>
-      <div>
-        {hasSelection ? (
-          <>
-            <div className="form-item"><label>Title</label>
-              <input className="input" value={listing.title} disabled={readOnly}
-                onChange={(e) => onChange({ ...listing, title: e.target.value })} />
-            </div>
-            <div className="form-item"><label>Body</label>
-              <textarea className="textarea" rows={8} value={listing.body} disabled={readOnly}
-                onChange={(e) => onChange({ ...listing, body: e.target.value })} />
-            </div>
-            <div className="filters" style={{ marginBottom: 12 }}>
-              <div className="form-item" style={{ flex: 1 }}><label>Ad type</label>
-                <select className="select" value={listing.adKind} disabled={readOnly}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        {pickerSlot}
+        <div className="card">
+          <div className="card-header">Advertisement</div>
+          {hasSelection ? (
+            <>
+              <p className="muted">
+                Year {String(vehicle?.modelYear ?? '—')} · Condition {conditionLabel(vehicle?.conditionCode as string)} · Dealership {session.dealerLegalName || '—'}
+              </p>
+              <p className="muted">
+                Contact {session.dealerContactPhone || '—'} · {session.dealerContactEmail || '—'}
+              </p>
+              <div className="form-item"><label className="form-label">Title</label>
+                <input className="input" value={listing.title} disabled={formDisabled}
+                  onChange={(e) => onChange({ ...listing, title: e.target.value })} />
+              </div>
+              <div className="form-item"><label className="form-label">Body</label>
+                <textarea className="input" rows={10} value={listing.body} disabled={formDisabled}
+                  onChange={(e) => onChange({ ...listing, body: e.target.value })} />
+              </div>
+              <div className="form-item"><label className="form-label">Type</label>
+                <select className="select" value={listing.adKind} disabled={formDisabled}
                   onChange={(e) => onChange({ ...listing, adKind: e.target.value as 'CASH' | 'FINANCE' | 'LEASE' })}>
                   <option value="CASH">Cash</option><option value="FINANCE">Finance</option><option value="LEASE">Lease</option>
                 </select>
               </div>
-              <div className="form-item" style={{ flex: 1 }}><label>Medium</label>
-                <select className="select" value={listing.medium} disabled={readOnly}
+              <div className="form-item"><label className="form-label">Medium</label>
+                <select className="select" value={listing.medium} disabled={formDisabled}
                   onChange={(e) => onChange({ ...listing, medium: e.target.value as 'ONLINE' | 'RADIO_TV_BILLBOARD' })}>
                   <option value="ONLINE">Online</option><option value="RADIO_TV_BILLBOARD">Radio / TV / Billboard</option>
                 </select>
               </div>
-            </div>
-            <div className="muted" style={{ marginBottom: 8 }}>
-              Dealer: {session.dealerLegalName || 'Unknown'} · {session.dealerContactPhone} · {session.dealerContactEmail}
-            </div>
-            {listing.checkStatus && (
-              <div style={{ marginBottom: 12 }}><span className={`tag ${statusType}`}>{statusLabel}</span></div>
+              {readOnly && <p className="muted">This vehicle is sold. The advertisement is read-only.</p>}
+              {actionsSlot}
+            </>
+          ) : (
+            <div className="state">Select a vehicle to start.</div>
+          )}
+        </div>
+      </div>
+      <div className="card result-pane">
+        <div className="card-header">Check result</div>
+        <p className="muted" style={{ fontSize: 13 }}>This check is not legal advice and is not an OMVIC approval.</p>
+        {!hasSelection ? (
+          <div className="state">Select a vehicle to start.</div>
+        ) : (
+          <>
+            {isCheckStatus(listing.checkStatus) && (
+              <div style={{ marginBottom: 12 }}><StatusTag status={listing.checkStatus} tone={statusType.replace('tag-', '') as 'success' | 'danger' | 'warning' | 'info'}>{statusLabel}</StatusTag></div>
             )}
-            <div style={{ marginBottom: 12 }}>
-              <div className="muted" style={{ marginBottom: 4 }}>Compliance checklist</div>
-              {checklist.map((item) => {
-                const s = checklistStatus(item, findings);
-                return (
-                  <div key={item.label} style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', borderBottom: '1px solid var(--border)' }}>
-                    <span>{item.label}</span>
-                    <span className={`tag ${statusColor[s]}`}>{statusText[s]}</span>
-                  </div>
-                );
-              })}
-            </div>
-            {findings.length > 0 && (
-              <div style={{ marginBottom: 12 }}>
-                <div className="muted" style={{ marginBottom: 4 }}>Rule findings</div>
+            <h4 style={{ margin: '16px 0 8px', fontSize: 15, fontWeight: 600 }}>Checklist</h4>
+            <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+              {checklist.map((item) => (
+                <li key={item.label} style={{ padding: '4px 0' }}>
+                  {checklistIcon(item, findings)} {item.label}
+                </li>
+              ))}
+            </ul>
+            <p className="muted" style={{ fontSize: 12, marginTop: 8 }}>
+              Display only. Marks show the last server check; pass or block comes from the server, not this list.
+            </p>
+            <h4 style={{ margin: '16px 0 8px', fontSize: 15, fontWeight: 600 }}>Rule findings</h4>
+            {findings.length > 0 ? (
+              <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
                 {findings.map((f, i) => (
-                  <div key={i} className={f.passed ? '' : 'danger-text'} style={{ padding: '4px 0' }}>
-                    {f.ruleId}: {f.message} {f.passed ? '(passed)' : `(${f.severity})`}
-                  </div>
+                  <li key={i} style={{ padding: '4px 0' }}>
+                    {findingIcon(f)} <strong>{f.passed ? 'Pass' : f.severity === 'BLOCK' || f.severity === 'HARD_BLOCK' ? 'Block' : 'Review'} · {f.ruleId}</strong>: {f.message}
+                  </li>
                 ))}
-              </div>
+              </ul>
+            ) : (
+              <p className="muted">No rule findings yet. Save a draft and run check.</p>
             )}
             {aiNotes.length > 0 && (
-              <div style={{ marginBottom: 12 }}>
-                <div className="muted" style={{ marginBottom: 4 }}>AI notes</div>
-                {aiNotes.map((n, i) => <div key={i} style={{ padding: '4px 0' }}>{n.message}</div>)}
-              </div>
+              <>
+                <h4 style={{ margin: '16px 0 8px', fontSize: 15, fontWeight: 600 }}>AI notes</h4>
+                <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+                  {aiNotes.map((n, i) => <li key={i} style={{ padding: '4px 0' }}>{n.message}</li>)}
+                </ul>
+              </>
             )}
-            {actionsSlot}
           </>
-        ) : (
-          <div className="state">Select a vehicle to edit its ad.</div>
         )}
       </div>
     </div>

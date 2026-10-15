@@ -53,7 +53,7 @@ cd backend/dotnet
 dotnet build
 ```
 
-Expected output: **0 errors, 0 warnings**.
+Expected output: **0 errors**. Core may currently print two existing nullable warnings.
 
 ### 3. Start the services
 
@@ -63,6 +63,7 @@ Open three terminals. Keep all three terminals running. Start the services in th
 
 ```bash
 cd backend/dotnet/DealerOps.Core
+ASPNETCORE_ENVIRONMENT=Development \
 ADMIN_USERNAME=admin ADMIN_PASSWORD=admin123 ADMIN_EMAIL=admin@example.com \
   dotnet run
 ```
@@ -73,6 +74,7 @@ Wait for `Now listening on: http://0.0.0.0:8081`. Check: http://localhost:8081/a
 
 ```bash
 cd backend/dotnet/DealerOps.AiService
+export ASPNETCORE_ENVIRONMENT=Development
 export AIMANAGER_API_KEY='paste-your-groq-api-key-here'
 dotnet run
 ```
@@ -152,7 +154,10 @@ All settings have local defaults in `appsettings.json`. Override with environmen
 |---|---|
 | Web app (Vue) | http://localhost:5173 |
 | Web app (React) | http://localhost:5174 |
-| Swagger UI | http://localhost:8081/swagger/index.html |
+| Swagger UI (唯一外部入口) | http://localhost:8080/swagger/index.html |
+| Swagger 文档 | Gateway 自动合并 Core 和 AI Service API，无需切换 |
+| Gateway OpenAPI JSON | http://localhost:8080/swagger/v1/swagger.json |
+| AI API (经 Gateway) | `POST http://localhost:8080/api/v1/ai/ad-check` / `POST http://localhost:8080/api/v1/ai/assistant` |
 | Gateway health | http://localhost:8080/actuator/health |
 | Core health | http://localhost:8081/actuator/health |
 | AI health | http://localhost:8082/actuator/health |

@@ -1,6 +1,8 @@
-# 20. Observability: application logging, release time, and local tracing
+# 20. Observability: application logging, release time, and local tracing (legacy Java reference)
 
-Status: **currently in force**, scope addendum to [SCOPE-BASELINE.md](SCOPE-BASELINE.md) — see "Scope note" below.
+> **Deprecated runtime details:** The logback/Spring Boot configuration described below belongs to the former Java services. The current runtime is .NET 8 / ASP.NET Core; do not add Java agents, Maven, or logback configuration to the current backend.
+
+Status: **legacy Java reference only**. Current runtime observability follows the .NET 8 / ASP.NET Core services in `backend/dotnet/`.
 
 ## 1. Problem
 

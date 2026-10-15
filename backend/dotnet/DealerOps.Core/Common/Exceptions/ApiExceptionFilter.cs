@@ -12,7 +12,7 @@ public class ApiExceptionFilter : IExceptionFilter
         var statusCode = ex.Code.HttpStatus();
         var requestId = context.HttpContext.Items["RequestId"] as string ?? "";
 
-        context.Result = new ObjectResult(new ErrorBody(ex.Code.ToString(), ex.Message, requestId, ex.FieldErrors))
+        context.Result = new ObjectResult(new ErrorBody(ex.Code.ToWireCode(), ex.Message, requestId, ex.FieldErrors))
         {
             StatusCode = statusCode
         };

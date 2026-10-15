@@ -23,18 +23,7 @@ import DmsPage from './pages/DmsPage';
 import CrmPage from './pages/CrmPage';
 import LeadsPage from './pages/LeadsPage';
 import AdsPage from './pages/AdsPage';
-
-function NoAccessPage() {
-  return (
-    <div className="state">
-      <h2>No access</h2>
-      <p className="muted">
-        Your account is not assigned to a dealership yet. Ask your platform
-        administrator to add you.
-      </p>
-    </div>
-  );
-}
+import NoAccessPage from './pages/NoAccessPage';
 
 function AuthGuard() {
   const location = useLocation();

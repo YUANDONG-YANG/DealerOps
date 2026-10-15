@@ -1,6 +1,8 @@
-# 19 · Gateway and ai-service engineering design
+# 19 · Gateway and ai-service engineering design (legacy Java reference)
 
-- Status: **current (v6 Gateway YAML-level / ai-service adapter-level)**
+> **Deprecated:** This document describes the former Spring Cloud Gateway/Java implementation. The current services are .NET 8 / ASP.NET Core in `backend/dotnet/DealerOps.Gateway` and `backend/dotnet/DealerOps.AiService`; use those projects as the implementation source of truth.
+
+- Status: **legacy reference only**
 - **Routes, JWT, CORS, internal header, direct-access failure, why no standalone auth repo, why no Service Bus: follow [15](15-Data-Auth-and-Gateway.md).** This document does not set new principles; it only writes file-splittable config and adapter boundaries.
 - **ai-manager integration follows [09](09-AI-Agent-Integration.md)** (in-process embed, `AiManager`, do not scan `com.gateway`, implement timeout yourself).
 - **HTTP paths and JSON follow [14](14-Backend-API-Contract.md).** Public surface is only `/api/v1/**`; internal surface is only `/internal/v1/ad-check` and `/internal/v1/assistant`. This document invents no extra paths, no extra error codes, and no business tables.

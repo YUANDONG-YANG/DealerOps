@@ -43,11 +43,19 @@ public class DealerAdminService
             ContactAddress = body.ContactAddress,
             Active = true
         };
+        using var tx = _db.Database.BeginTransaction();
         _db.Dealers.Add(dealer);
         _db.SaveChanges();
-
         _audit.Record("DEALER", dealer.Id, "CREATE", dealer.Id, ActorUsername(),
-            new Dictionary<string, object> { ["legalNameChanged"] = true });
+            new Dictionary<string, object>
+            {
+                ["legalName"] = dealer.LegalName,
+                ["contactPhone"] = dealer.ContactPhone,
+                ["contactEmail"] = dealer.ContactEmail,
+                ["contactAddress"] = dealer.ContactAddress
+            });
+        _db.SaveChanges();
+        tx.Commit();
         return ToResponse(dealer);
     }
 
@@ -64,16 +72,22 @@ public class DealerAdminService
         if (body.Version != dealer.Version)
             throw new ApiException(ErrorCode.VersionConflict, "Version conflict.");
 
+        var changed = new Dictionary<string, object>();
+        if (dealer.LegalName != body.LegalName) changed["legalName"] = body.LegalName;
+        if (dealer.ContactPhone != body.ContactPhone) changed["contactPhone"] = body.ContactPhone;
+        if (dealer.ContactEmail != body.ContactEmail) changed["contactEmail"] = body.ContactEmail;
+        if (dealer.ContactAddress != body.ContactAddress) changed["contactAddress"] = body.ContactAddress;
+        if (dealer.Active != body.Active) changed["active"] = body.Active;
+
         dealer.LegalName = body.LegalName;
         dealer.ContactPhone = body.ContactPhone;
         dealer.ContactEmail = body.ContactEmail;
         dealer.ContactAddress = body.ContactAddress;
         dealer.Active = body.Active;
         dealer.LogoDataUrl = body.LogoDataUrl;
-        _db.SaveChanges();
 
-        _audit.Record("DEALER", dealer.Id, "UPDATE", dealer.Id, ActorUsername(),
-            new Dictionary<string, object> { ["contactFieldsChanged"] = true });
+        _audit.Record("DEALER", dealer.Id, "UPDATE", dealer.Id, ActorUsername(), changed);
+        _db.SaveChanges();
         return ToResponse(dealer);
     }
 

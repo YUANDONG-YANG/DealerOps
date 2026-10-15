@@ -15,13 +15,14 @@ Version v6.0 · 2026-09-21
 
 Deliver only what the course requires: business per [DealerOps-Specification.pdf](../requirements/DealerOps-Specification.pdf), technology per [Non-Negotiable-Project-Requirements.pptx](../tech-stack/Non-Negotiable-Project-Requirements.pptx). Do not expand scope.
 
-- Backend Java 21 + Spring Boot, frontend Vue 3.
-- Four independent repositories: web, gateway, core, ai-service. `dealer-platform` holds the shared contract and config surface; `deploy/` holds the Terraform stack and the deploy script.
+- **Current technology stack:** backend **.NET 8 / ASP.NET Core**, frontend **React 19 + TypeScript + Vite**. See [TECHNOLOGY-STACK.md](TECHNOLOGY-STACK.md) for the authoritative baseline.
+- Java/Spring Boot and Vue designs are legacy references only. They are not current implementation guidance; use `backend/dotnet/` and `frontend/react/`.
+- Current implementation is the DealerOps monorepo: `backend/dotnet/` contains Gateway, Core, AI, and shared logging; `frontend/react/` contains the React SPA. `dealer-platform` holds the shared contract/config surface; `deploy/` holds Terraform.
 - Architecture diagrams (service boundaries, Azure deployment, AI workflow) are [07-Azure-Microservices-Architecture.md](07-Azure-Microservices-Architecture.md) and the SVG sources in [diagrams/](diagrams/). The PPT requires a diagram at the Sprint 1 review.
 - One MySQL database. The AI service is stateless and uses synchronous REST; no message queue and no second database.
 - Do not build AI from scratch: reuse the assistant library on your GitHub (default [YUANDONG-YANG/ai-manager](https://github.com/YUANDONG-YANG/ai-manager)), embedded in ai-service.
 
-**Coding starts from [IMPLEMENTATION-BRIEF.md](IMPLEMENTATION-BRIEF.md).** The backend design document is [DEVELOPMENT-DESIGN.md](DEVELOPMENT-DESIGN.md) (scope, phases, invariants). Public HTTP/DTOs still follow 14 + OpenAPI; internal protocol/rule details are in [AI-PROTOCOL-AND-RULES.md](AI-PROTOCOL-AND-RULES.md). Packaging is in 18 / 19; execute `AI-CODING-BACKEND` per repo. Frontend still follows 13. Acceptance is 16, ad fixtures 17; scope sign-off is `SCOPE-BASELINE`. `01`–`06` are withdrawn — see [archive/](archive/); do not treat them as requirements.
+**Coding starts from the current code and [TECHNOLOGY-STACK.md](TECHNOLOGY-STACK.md).** The backend design document is [DEVELOPMENT-DESIGN.md](DEVELOPMENT-DESIGN.md) (scope, phases, invariants). Public HTTP/DTOs still follow 14 + OpenAPI; internal protocol/rule details are in [AI-PROTOCOL-AND-RULES.md](AI-PROTOCOL-AND-RULES.md). Java/Vue task lists and packaging documents are historical references unless explicitly updated for .NET/React. Frontend implementation is `frontend/react`. Acceptance is 16, ad fixtures 17; scope sign-off is `SCOPE-BASELINE`. `01`–`06` are withdrawn — see [archive/](archive/); do not treat them as requirements.
 
 Machine and account blockers: [PREP-CHECKLIST.md](PREP-CHECKLIST.md). Team roster: [TEAM.md](TEAM.md).
 
@@ -32,16 +33,18 @@ Humans still confirm scope first via `SCOPE-BASELINE` and the BRIEF.
 - **Backend design:** [DEVELOPMENT-DESIGN.md](DEVELOPMENT-DESIGN.md) (scope, phases, invariants).
 - **Public HTTP/DTOs:** [14-Backend-API-Contract.md](14-Backend-API-Contract.md) + [../dealer-platform/openapi.yaml](../dealer-platform/openapi.yaml).
 - **Internal protocol/rules:** [AI-PROTOCOL-AND-RULES.md](AI-PROTOCOL-AND-RULES.md).
-- **Packaging:** 18 / 19. Task list [AI-CODING-BACKEND.md](AI-CODING-BACKEND.md).
-- **Frontend:** still [13-Frontend-Engineering.md](13-Frontend-Engineering.md) + [AI-CODING-FRONTEND.md](AI-CODING-FRONTEND.md).
+- **Packaging:** current .NET project READMEs and `TECHNOLOGY-STACK.md`; 18 / 19 are legacy references.
+- **Frontend:** [13-Frontend-Engineering.md](13-Frontend-Engineering.md) plus the current `frontend/react` source; the old Vue task list is historical.
 - **Conflict order:** PPT > specification fields > DEVELOPMENT-DESIGN / PROTOCOL > 14 / 15 > task lists.
 
-- [AI-CODING-FRONTEND.md](AI-CODING-FRONTEND.md) — `dealer-web` task list FE-T01–11 (shell, guards, login, six-page wiring).
-- [AI-CODING-BACKEND.md](AI-CODING-BACKEND.md) — backend task list BE-T01–23 (core / Gateway / ai-service).
-- [AI-PROTOCOL-AND-RULES.md](AI-PROTOCOL-AND-RULES.md) — internal JSON and rule details.
-- [AI-CODING-LOCAL-AND-CLOUD.md](AI-CODING-LOCAL-AND-CLOUD.md) — how to start the four local services, ports, and minimum cloud resource names.
+- [AI-CODING-FRONTEND.md](AI-CODING-FRONTEND.md) — legacy Vue task list; current frontend source is `frontend/react`.
+- [AI-CODING-BACKEND.md](AI-CODING-BACKEND.md) — legacy Java task list; current backend source is `backend/dotnet`.
+- [AI-PROTOCOL-AND-RULES.md](AI-PROTOCOL-AND-RULES.md) — legacy Java integration notes; current AI implementation is `DealerOps.AiService`.
+- [AI-CODING-LOCAL-AND-CLOUD.md](AI-CODING-LOCAL-AND-CLOUD.md) — legacy startup/cloud notes; current startup is in the repository README and `backend/dotnet/README.md`.
 - [AI-CODING-TESTS.md](AI-CODING-TESTS.md) — 28 test-implementation tasks (empty test skeletons; do not change contracts).
 - [../dealer-platform/openapi.yaml](../dealer-platform/openapi.yaml) — public path/DTO alignment with 14; if internal sketches conflict, PROTOCOL wins.
+
+Documents explicitly labeled **legacy** or **historical** preserve the former Java/Spring/Vue design for audit context only. They must not be used to create or start current services.
 
 ## Effective documents
 
@@ -56,15 +59,15 @@ Humans still confirm scope first via `SCOPE-BASELINE` and the BRIEF.
 8. [In-store assistant (same component)](10-Web-AI-Assistant.md)
 9. [Tracking and Scrum](11-Requirements-Governance-and-Agile.md)
 10. [Frontend UI conventions](12-Frontend-UI-Conventions.md)
-11. [Frontend engineering (file split)](13-Frontend-Engineering.md) **currently in force** — routes, file split, page↔API; frontend still follows this document + `AI-CODING-FRONTEND`.
+11. [Frontend engineering (file split)](13-Frontend-Engineering.md) **currently in force** — React routes, file split, page↔API; frontend follows this document and the current `frontend/react` source.
 12. [Backend development design](DEVELOPMENT-DESIGN.md) **backend design document** — scope, phases, invariants.
 13. [Backend API contract (DTOs/error codes)](14-Backend-API-Contract.md) **currently in force** — public HTTP, DTOs, pagination envelope, error codes; align with OpenAPI.
 14. [Data / auth / gateway rulings](15-Data-Auth-and-Gateway.md) **currently in force** — tables, tenant/membership, Gateway, JWT, **password auth by email, username, or phone (§8)**, rule pseudocode.
 15. [Acceptance and test](16-Acceptance-and-Test.md) **currently in force** — 26 use cases + 6 classroom scripts + 10 extension cases, mapped to NN-19; does not change contracts.
 16. [Ad-check fixtures](17-Ad-Check-Fixtures.md) **currently in force** — 22 ad samples and expected states; classroom priority FX-01 / FX-03 / FX-10 / FX-11 / FX-12.
-17. [Backend core engineering](18-Backend-Core-Engineering.md) **currently in force** — `dealer-core` packaging reference.
-18. [Gateway and AI engineering](19-Gateway-and-AI-Engineering.md) **currently in force** — Gateway / ai-service packaging reference.
-19. [Observability](20-Observability.md) **currently in force** — logback file logging (`log-sum/`) and local-only SkyWalking tracing; scope addendum to `SCOPE-BASELINE`.
+17. [Backend core engineering](18-Backend-Core-Engineering.md) **legacy Java reference only** — current implementation is `backend/dotnet/DealerOps.Core`.
+18. [Gateway and AI engineering](19-Gateway-and-AI-Engineering.md) **legacy Java reference only** — current implementation is `backend/dotnet/DealerOps.Gateway` and `DealerOps.AiService`.
+19. [Observability](20-Observability.md) **legacy Java reference only** — current runtime is ASP.NET Core.
 20. [Feature extensions](21-Feature-Extensions.md) — implementation complete for VIN decode, lead follow-up, work orders, self sign-up and sign-in by email, username, or phone, and Image Studio; manual acceptance remains pending. Instructor scope confirmation is tracked separately.
 21. [Testing and team acceptance guide](TESTING-AND-ACCEPTANCE-GUIDE.md) — how to test during the development phase (build, existing tests, API/UI/log checks) and per-role acceptance duties. The English requirements specification is [../requirements/DealerOps-Requirements.md](../requirements/DealerOps-Requirements.md).
 
@@ -72,7 +75,7 @@ Humans still confirm scope first via `SCOPE-BASELINE` and the BRIEF.
 
 ## Course hard items that must remain
 
-Independent microservices + independent repos/pipelines, Spring Cloud Gateway, Azure App Service + Terraform + CI/CD, JWT/RBAC, HTTPS and Key Vault, real AI scanning ads, board and three all-hands Reviews. Containerization (NN-05) is dropped; see [SCOPE-BASELINE.md](SCOPE-BASELINE.md) errata item 5. NN-06 names Terraform explicitly, so infrastructure as code is still met.
+Independent services + independent pipelines, .NET Gateway, Azure App Service + Terraform + CI/CD, JWT/RBAC, HTTPS and Key Vault, real AI scanning ads, board and three all-hands Reviews. Containerization (NN-05) is dropped; see [SCOPE-BASELINE.md](SCOPE-BASELINE.md) errata item 5. NN-06 names Terraform explicitly, so infrastructure as code is still met.
 
 ## Explicitly out of scope
 

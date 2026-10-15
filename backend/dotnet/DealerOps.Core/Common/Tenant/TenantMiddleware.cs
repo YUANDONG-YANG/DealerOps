@@ -144,7 +144,7 @@ public class TenantMiddleware
     {
         context.Response.StatusCode = code.HttpStatus();
         context.Response.ContentType = "application/json";
-        var body = new ErrorBody(code.ToString(), message, null);
+        var body = new ErrorBody(code.ToWireCode(), message, null);
         await JsonSerializer.SerializeAsync(context.Response.Body, body,
             new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
     }

@@ -1,5 +1,5 @@
 # One resource group holding the graded cloud demo:
-#   3 x Linux App Service (.NET 8)          - dealer-gateway public, dealer-core and ai-service locked to the plan
+#   3 x Linux App Service (.NET 8)          - dealer-gateway public, dealer-core and ai-service reachable by the gateway
 #   1 x Linux App Service (Node 20)         - the built React SPA on a fixed hostname
 #   1 x MySQL Flexible Server               - schema owned by EF Core EnsureCreated in dealer-core
 #   1 x Key Vault                           - the five secret values, referenced by app settings

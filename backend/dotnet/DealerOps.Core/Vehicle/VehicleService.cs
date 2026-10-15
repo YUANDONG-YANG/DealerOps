@@ -82,16 +82,18 @@ public class VehicleService
             ConditionCode = body.ConditionCode,
             RepairCost = body.RepairCost,
             CarfaxUrl = body.CarfaxUrl,
-            Status = VehicleStatus.IN_STOCK,
+            Status = VehicleStatus.InStock,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow
         };
 
+        using var tx = _db.Database.BeginTransaction();
         _db.Vehicles.Add(vehicle);
         _db.SaveChanges();
-
         _audit.Record("VEHICLE", vehicle.Id, "CREATE",
-            tenant, ActorUsername(), CreatedVehicleFields(body));
+            tenant, ActorUsername(), CreatedVehicleFields(body, vehicle.Make, vehicle.Model, vin));
+        _db.SaveChanges();
+        tx.Commit();
 
         return ToResponse(vehicle);
     }
@@ -116,7 +118,7 @@ public class VehicleService
 
         var changed = ChangedVehicleFields(vehicle, body, make, model, vin);
 
-        if (vehicle.Status == VehicleStatus.SOLD && PurchaseFieldsChanged(changed))
+        if (vehicle.Status == VehicleStatus.Sold && PurchaseFieldsChanged(changed))
             throw new ApiException(ErrorCode.SoldLocked, "Sold vehicle is locked.");
 
         if (changed.ContainsKey("vin") && _db.Vehicles.Any(v => v.DealerId == tenant && v.Vin == vin))
@@ -145,10 +147,9 @@ public class VehicleService
             }
         }
 
-        _db.SaveChanges();
-
         _audit.Record("VEHICLE", vehicle.Id, "UPDATE",
             tenant, ActorUsername(), changed);
+        _db.SaveChanges();
 
         return ToResponse(vehicle);
     }
@@ -165,7 +166,7 @@ public class VehicleService
         if (body.Version != vehicle.Version)
             throw new ApiException(ErrorCode.VersionConflict, "Version conflict.");
 
-        if (vehicle.Status == VehicleStatus.SOLD)
+        if (vehicle.Status == VehicleStatus.Sold)
             throw new ApiException(ErrorCode.SoldLocked, "Sold vehicle is locked.");
 
         if (CountOpenWorkOrders(vehicle) > 0)
@@ -176,15 +177,14 @@ public class VehicleService
 
         var changed = ChangedSellFields(vehicle, body);
 
-        vehicle.Status = VehicleStatus.SOLD;
+        vehicle.Status = VehicleStatus.Sold;
         vehicle.SoldOn = body.SoldOn;
         vehicle.SoldPrice = body.SoldPrice;
         vehicle.UpdatedAt = DateTime.UtcNow;
 
-        _db.SaveChanges();
-
         _audit.Record("VEHICLE", vehicle.Id, "SELL",
             tenant, ActorUsername(), changed);
+        _db.SaveChanges();
 
         return ToResponse(vehicle);
     }
@@ -194,18 +194,18 @@ public class VehicleService
         var tenant = RequireTenant();
         var vehicle = LoadThisDealer(vehicleId);
 
-        if (vehicle.Status == VehicleStatus.SOLD)
+        if (vehicle.Status == VehicleStatus.Sold)
             throw new ApiException(ErrorCode.SoldLocked, "Sold vehicle is locked.");
 
         if (cost == 0)
             return;
 
         vehicle.RepairCost = (vehicle.RepairCost ?? 0) + cost;
-        _db.SaveChanges();
 
         _audit.Record("VEHICLE", vehicle.Id, "UPDATE",
             tenant, ActorUsername(),
-            new Dictionary<string, object> { ["repairCost"] = true });
+            new Dictionary<string, object> { ["repairCost"] = vehicle.RepairCost! });
+        _db.SaveChanges();
     }
 
     private long CountOpenWorkOrders(VehicleEntity vehicle)
@@ -253,16 +253,17 @@ public class VehicleService
             vehicle.Version);
     }
 
-    private static Dictionary<string, object> CreatedVehicleFields(CreateVehicleRequest body)
+    private static Dictionary<string, object> CreatedVehicleFields(CreateVehicleRequest body, string make, string model, string vin)
     {
         var fields = new Dictionary<string, object>
         {
-            ["make"] = true, ["model"] = true, ["modelYear"] = true, ["vin"] = true,
-            ["source"] = true, ["purchaseCost"] = true, ["addedOn"] = true,
-            ["conditionCode"] = true, ["status"] = true
+            ["make"] = make, ["model"] = model, ["modelYear"] = body.ModelYear, ["vin"] = vin,
+            ["source"] = body.Source.ToString(), ["purchaseCost"] = body.PurchaseCost,
+            ["addedOn"] = body.AddedOn.ToString("yyyy-MM-dd"),
+            ["conditionCode"] = body.ConditionCode.ToString(), ["status"] = "IN_STOCK"
         };
-        if (body.RepairCost != null) fields["repairCost"] = true;
-        if (body.CarfaxUrl != null) fields["carfaxUrl"] = true;
+        if (body.RepairCost != null) fields["repairCost"] = body.RepairCost;
+        if (body.CarfaxUrl != null) fields["carfaxUrl"] = body.CarfaxUrl;
         return fields;
     }
 
@@ -270,25 +271,25 @@ public class VehicleService
         VehicleEntity vehicle, PatchVehicleRequest body, string make, string model, string vin)
     {
         var changed = new Dictionary<string, object>();
-        if (vehicle.Make != make) changed["make"] = true;
-        if (vehicle.Model != model) changed["model"] = true;
-        if (vehicle.ModelYear != body.ModelYear) changed["modelYear"] = true;
-        if (vehicle.Vin != vin) changed["vin"] = true;
-        if (vehicle.Source != body.Source) changed["source"] = true;
-        if (vehicle.PurchaseCost != body.PurchaseCost) changed["purchaseCost"] = true;
-        if (vehicle.AddedOn != body.AddedOn) changed["addedOn"] = true;
-        if (vehicle.ConditionCode != body.ConditionCode) changed["conditionCode"] = true;
-        if (MoneyChanged(vehicle.RepairCost, body.RepairCost)) changed["repairCost"] = true;
-        if (vehicle.CarfaxUrl != body.CarfaxUrl) changed["carfaxUrl"] = true;
+        if (vehicle.Make != make) changed["make"] = make;
+        if (vehicle.Model != model) changed["model"] = model;
+        if (vehicle.ModelYear != body.ModelYear) changed["modelYear"] = body.ModelYear;
+        if (vehicle.Vin != vin) changed["vin"] = vin;
+        if (vehicle.Source != body.Source) changed["source"] = body.Source.ToString();
+        if (vehicle.PurchaseCost != body.PurchaseCost) changed["purchaseCost"] = body.PurchaseCost;
+        if (vehicle.AddedOn != body.AddedOn) changed["addedOn"] = body.AddedOn.ToString("yyyy-MM-dd");
+        if (vehicle.ConditionCode != body.ConditionCode) changed["conditionCode"] = body.ConditionCode.ToString();
+        if (MoneyChanged(vehicle.RepairCost, body.RepairCost)) changed["repairCost"] = (object?)body.RepairCost ?? "";
+        if (vehicle.CarfaxUrl != body.CarfaxUrl) changed["carfaxUrl"] = (object?)body.CarfaxUrl ?? "";
         return changed;
     }
 
     private static Dictionary<string, object> ChangedSellFields(VehicleEntity vehicle, SellVehicleRequest body)
     {
         var changed = new Dictionary<string, object>();
-        if (vehicle.Status != VehicleStatus.SOLD) changed["status"] = true;
-        if (vehicle.SoldOn != body.SoldOn) changed["soldOn"] = true;
-        if (MoneyChanged(vehicle.SoldPrice, body.SoldPrice)) changed["soldPrice"] = true;
+        if (vehicle.Status != VehicleStatus.Sold) changed["status"] = "SOLD";
+        if (vehicle.SoldOn != body.SoldOn) changed["soldOn"] = (object?)body.SoldOn?.ToString("yyyy-MM-dd") ?? "";
+        if (MoneyChanged(vehicle.SoldPrice, body.SoldPrice)) changed["soldPrice"] = (object?)body.SoldPrice ?? "";
         return changed;
     }
 

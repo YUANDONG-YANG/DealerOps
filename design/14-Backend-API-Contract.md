@@ -83,7 +83,7 @@ Do not return SQL, stack traces, or raw model text to the browser.
 - Roles are only `Platform.Admin` and `Dealer.User`. Staff tenant authority is **exactly one `membership.active=1` row** (15); `app_user.dealer_id` is only a `/me` cache.
 - **Ignore** client `dealerId` in body / query / header. Staff tenant comes only from JWT `sub` (the username) → membership. Admin `dealerId` is always treated as empty.
 - Cross-dealership resource id: **404**, not 403 (anti-probing).
-- `Platform.Admin` may call only `GET /me`, `/api/v1/admin/**`, and the anonymous routes (auth, public VIN decode). Every business URL (§4–§10, including `/vehicle-catalog/makes|models`, `/members`, and `/audit`) returns **403** `FORBIDDEN` for Admin; Admin never reads business rows across dealerships. `Dealer.User` calling `/api/v1/admin/**` → **403**.
+- `Platform.Admin` may call only `GET /me`, `/api/v1/admin/**`, and the anonymous routes (auth, public VIN decode). Every business URL (§4–§10, including `/catalog/makes|models`, `/members`, and `/audit`) returns **403** `FORBIDDEN` for Admin; Admin never reads business rows across dealerships. `Dealer.User` calling `/api/v1/admin/**` → **403**.
 - `Dealer.User` signed in with **0** active memberships: business APIs (every route in §4–§10) → **403** `FORBIDDEN`, not 401 and not 404. `GET /me` is still 200 (`dealerId=null`).
 - Writes that carry `version`: `dealer`, `vehicle`, `customer`, `listing` (including checks/ready/export). Request `version` must equal the current row. Conflict **409** `VERSION_CONFLICT`.
 - `customer_vehicle` has no `version` column: link/unlink do not use optimistic locking.
@@ -384,7 +384,7 @@ Audit `VEHICLE`/`UPDATE`. Other errors: `404`, `409 VERSION_CONFLICT`.
 Both values must be present together. Server sets `status=SOLD`. Response = detail.  
 `400 SOLD_PAIR_REQUIRED` (date or price missing, or `soldPrice` ≤ 0); `400 VALIDATION` (`soldOn` in the future or before `addedOn`); selling again after sold → `409 SOLD_LOCKED`; an `OPEN` or `IN_PROGRESS` work order exists → `409 WORK_ORDERS_OPEN` ("Finish or cancel open work orders before selling."); `409 VERSION_CONFLICT`; `404`. Audit `VEHICLE`/`SELL`.
 
-### 4.6 Vehicle catalog: `GET /api/v1/vehicle-catalog/makes` and `GET /api/v1/vehicle-catalog/models?make=`
+### 4.6 Vehicle catalog: `GET /api/v1/catalog/makes` and `GET /api/v1/catalog/models?make=`
 
 Option lists for the DMS Make → Model → Year filter (13 §5.4). Data comes from the free NHTSA vPIC API (no key). dealer-core calls it at `VPIC_BASE_URL` (default `https://vpic.nhtsa.dot.gov/api/vehicles`) so the browser still talks only to the Gateway. Makes are the union of the vPIC `car` and `mpv` vehicle types; models come from `GetModelsForMake`. Both return a JSON array of names, trimmed, de-duplicated ignoring case, and sorted:
 
@@ -394,7 +394,7 @@ Option lists for the DMS Make → Model → Year filter (13 §5.4). Data comes f
 
 Who: `Dealer.User` with a dealership; Admin or unbound staff → **403** (§1.3). Successful lookups are cached in memory until dealer-core restarts. Errors: missing `make` → `400 VALIDATION`; vPIC unreachable or malformed → `502 CATALOG_UNAVAILABLE` (the web filter then lets the user type a make and model).
 
-#### 4.6.1 VIN decode: `GET /api/v1/vehicle-catalog/vin/{vin}` (public)
+#### 4.6.1 VIN decode: `GET /api/v1/catalog/vin/{vin}` (public)
 
 Decodes one VIN through vPIC `DecodeVinValues`. Used by the signed-out landing page VIN decoder and by the DMS **Add vehicle** form (`Decode` prefills make, model, and year). **Anonymous:** no JWT required; the gateway and core both permit `GET` on this path only. Response (blank vPIC values become `null`; `engine` is built from displacement, cylinders, and primary fuel):
 

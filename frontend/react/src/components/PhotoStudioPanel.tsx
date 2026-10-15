@@ -4,7 +4,7 @@ import { http } from '../api/http';
 interface PhotoItem {
   id: number;
   contentType: string;
-  enhanced: boolean;
+  enhancement: string | null;
   createdAt: string;
 }
 
@@ -12,8 +12,8 @@ interface Props {
   vehicleId: number;
 }
 
-const PRESETS = ['AUTO', 'BRIGHT', 'WARM', 'COOL', 'HIGH_CONTRAST'];
-const MAX_SIZE = 3 * 1024 * 1024;
+const PRESETS = ['Auto', 'Brighten', 'Sharpen'];
+const MAX_SIZE = 2 * 1024 * 1024;
 
 export default function PhotoStudioPanel({ vehicleId }: Props) {
   const [photos, setPhotos] = useState<PhotoItem[]>([]);
@@ -46,7 +46,7 @@ export default function PhotoStudioPanel({ vehicleId }: Props) {
 
   async function upload(file: File) {
     if (file.size > MAX_SIZE) {
-      setError('Photo must be 3 MB or smaller.');
+      setError('Photo must be 2 MB or smaller.');
       return;
     }
     setUploading(true);
@@ -122,14 +122,14 @@ export default function PhotoStudioPanel({ vehicleId }: Props) {
           <div key={p.id} className="card" style={{ padding: 12, minWidth: 200 }}>
             <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
               <button className="btn-link" onClick={() => viewPhoto(p.id, 'original')}>Original</button>
-              {p.enhanced && (
+              {p.enhancement && (
                 <button className="btn-link" onClick={() => viewPhoto(p.id, 'enhanced')}>Enhanced</button>
               )}
             </div>
             <div className="muted" style={{ fontSize: 12, marginBottom: 6 }}>{p.createdAt}</div>
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
               <select
-                className="form-select"
+                className="select"
                 defaultValue=""
                 onChange={e => {
                   if (e.target.value) void enhance(p.id, e.target.value);
@@ -155,10 +155,14 @@ export default function PhotoStudioPanel({ vehicleId }: Props) {
       </div>
 
       {viewUrl && (
-        <div className="modal-backdrop" onClick={() => setViewUrl(null)}>
-          <div className="modal-content" onClick={e => e.stopPropagation()}>
-            <img src={viewUrl} alt="Vehicle photo" style={{ maxWidth: '100%', maxHeight: '80vh' }} />
-            <button className="btn" style={{ marginTop: 12 }} onClick={() => setViewUrl(null)}>Close</button>
+        <div className="dialog-overlay" onClick={() => setViewUrl(null)}>
+          <div className="dialog" style={{ width: 'auto', maxWidth: 'calc(100vw - 32px)' }} onClick={e => e.stopPropagation()}>
+            <div className="dialog-body" style={{ textAlign: 'center' }}>
+              <img src={viewUrl} alt="Vehicle photo" style={{ maxWidth: '100%', maxHeight: '80vh' }} />
+            </div>
+            <div className="dialog-footer">
+              <button className="btn" onClick={() => setViewUrl(null)}>Close</button>
+            </div>
           </div>
         </div>
       )}

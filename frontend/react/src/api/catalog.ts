@@ -9,7 +9,7 @@ export type VinDecode = {
 export const catalogApi = {
   decodeVin: (vin: string) => http.get<VinDecode>(`/api/v1/catalog/vin/${encodeURIComponent(vin)}`),
   makes: () => http.get<string[]>('/api/v1/catalog/makes'),
-  models: (make: string) => http.get<string[]>(`/api/v1/catalog/makes/${encodeURIComponent(make)}/models`),
+  models: (make: string) => http.get<string[]>('/api/v1/catalog/models', { params: { make } }),
 };
 
 export function vinDecodeError(err: unknown): string {

@@ -1,13 +1,11 @@
 import { http } from './http';
 
-export type LeadStage = 'NEW' | 'CONTACTED' | 'QUALIFIED' | 'PROPOSAL' | 'NEGOTIATION' | 'WON' | 'LOST';
+export type LeadStage = 'NEW' | 'CONTACTED' | 'QUALIFIED' | 'WON' | 'LOST';
 
 export const LEAD_STAGES: { value: LeadStage; label: string }[] = [
   { value: 'NEW', label: 'New' },
   { value: 'CONTACTED', label: 'Contacted' },
   { value: 'QUALIFIED', label: 'Qualified' },
-  { value: 'PROPOSAL', label: 'Proposal' },
-  { value: 'NEGOTIATION', label: 'Negotiation' },
   { value: 'WON', label: 'Won' },
   { value: 'LOST', label: 'Lost' },
 ];

@@ -31,6 +31,20 @@ public enum ErrorCode
 
 public static class ErrorCodeExtensions
 {
+    public static string ToWireCode(this ErrorCode code)
+    {
+        var name = code.ToString();
+        var sb = new System.Text.StringBuilder(name.Length + 4);
+        for (var i = 0; i < name.Length; i++)
+        {
+            var c = name[i];
+            if (char.IsUpper(c) && i > 0)
+                sb.Append('_');
+            sb.Append(char.ToUpperInvariant(c));
+        }
+        return sb.ToString();
+    }
+
     public static int HttpStatus(this ErrorCode code) => code switch
     {
         ErrorCode.Validation => 400,

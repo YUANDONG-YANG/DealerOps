@@ -1,4 +1,6 @@
-# AI-CODING · How to start the four local services, and minimum cloud resource names
+# AI-CODING · Legacy Java/Vue local-and-cloud notes
+
+> Historical reference only. Its Java/Vue/JAR commands are deprecated. Current startup instructions are in the repository README and `backend/dotnet/README.md`; current stack is documented in [TECHNOLOGY-STACK.md](TECHNOLOGY-STACK.md).
 
 ## Development phase: no test authoring
 
@@ -13,7 +15,7 @@
 
 Version: currently in force · 2026-09-21  
 Status: **Coding AIs start by copying this file.** Do not change contracts, and do not change 13–19 / BRIEF / `AI-CODING-BACKEND` / `AI-CODING-FRONTEND` / `AI-PROTOCOL`.  
-**Do not** add a container runtime back. There are no Dockerfiles, no Compose file, and no container registry in this project: local is five processes, cloud is `deploy/terraform` plus a JAR upload.  
+**Do not** add a container runtime back. There are no Dockerfiles, no Compose file, and no container registry in this project: local is MySQL plus three .NET services and the React dev server, cloud is `deploy/terraform` plus .NET app uploads.
 **Do not** edit `deploy/terraform` to claim a resource is live. That stack is real infrastructure as code, and only `terraform apply` on an operator machine makes it exist.
 
 Principles and ports follow [15](15-Data-Auth-and-Gateway.md) / [19](19-Gateway-and-AI-Engineering.md). This file only records **copy-paste commands, name patterns, and acceptance curls**.

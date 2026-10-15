@@ -3,7 +3,7 @@
 This directory holds research conclusions only. It does not hold this course's business code.  
 Official scope is in `design/`.
 
-Currently effective: `00-Current-Development-Design.md` and `07`–`12`. `01`–`06` are historical drafts.
+Currently effective: the current code plus `design/TECHNOLOGY-STACK.md` and the effective `design/` documents. `01`–`06` are historical drafts.
 
 **Read the implementation brief before writing code. Do not start from this directory:**  
 `design/IMPLEMENTATION-BRIEF.md`  
@@ -23,7 +23,7 @@ Adaptation notes for the local reference copies: [REUSE-PLAN.md](REUSE-PLAN.md).
 
 ## How to use this while coding
 
-- Stack is fixed: **Java + Vue 3 + Element Plus**, username/password login per `design/15-Data-Auth-and-Gateway.md` §8. Four app repos: `dealer-web`, `dealer-gateway`, `dealer-core`, `ai-service` (the platform repo also stores Bicep/Compose). Do not treat any dealership course repo as the base.
+- Current implementation stack is fixed: **.NET 8 / ASP.NET Core + React 19 / TypeScript / Vite**, with Gateway-only browser traffic. The reference copies may use Java, Vue, Laravel, or other stacks; their code is historical research only. Do not treat any dealership course repo as the base.
 - Pages are only: **Login, Admin, DMS, CRM, Ad compliance**, plus a floating Assistant widget on staff pages (see `design/AI-CODING-FRONTEND.md` FE-T10). No buyer site. No KPI home page.
 - GitHub course projects: copy **interaction rhythm** only (tables, filters, drawers, confirms). Fields, state machines, isolation, auth, and compliance follow the design docs.
 - If this directory still has cloned source (for example `carventory/`), open it locally to inspect interaction only. Do not wire it into Compose. Do not use it as scaffolding.

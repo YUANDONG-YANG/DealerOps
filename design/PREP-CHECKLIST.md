@@ -6,7 +6,7 @@ Items marked **Missing** block the matching module. Do not paste passwords into 
 
 | Item | Status | What you need to do |
 |---|---|---|
-| JDK 17 or 21 | **Missing**. This machine has JDK 11; Spring Boot 3 will not compile | Install Temurin 17 or 21 and point `JAVA_HOME` at it |
+| .NET SDK 8 | Current backend prerequisite | Install .NET 8 SDK and verify with `dotnet --info` |
 | MySQL 8.4 | **Missing** | Install and start it locally on `3306`, then create database `dealer_core` and user `dealer` ([README](../README.md)) |
 | Terraform 1.9+ and Azure CLI | **Missing** | Only the operator who runs the cloud deploy needs them ([deploy/README.md](../deploy/README.md)) |
 | Docker engine | Optional | Only the `dealer-core` Testcontainers integration tests use one. Nothing that ships is a container |

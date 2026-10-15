@@ -12,7 +12,7 @@ Source: the client notes in `requirements/Dos Car dealership2.docx` and the orig
 
 Ground rules for every item:
 
-- **Add, do not rewrite.** The stack stays Java 21 + Spring Boot, Vue 3 + Element Plus, one MySQL database, gateway-only browser traffic. The C#, React, and Firebase stack in the client notes is not adopted ([SCOPE-BASELINE.md](SCOPE-BASELINE.md) errata item 7).
+- **Add, do not rewrite.** The active stack is .NET 8 / ASP.NET Core, React 19 + TypeScript + Vite, one MySQL database, and Gateway-only browser traffic. The old Java/Vue wording is historical and the client notes' Firebase stack is not adopted.
 - Every new table carries `dealer_id` and uses the existing tenant filter (`TenantOwned`, `TenantGuard.requireDealerUser()`); another dealership's id is **404**, as for vehicles and customers.
 - Every new business write is audited in the same transaction through `AuditService`.
 - New migrations follow the naming rule in `CLAUDE.md` (`V{YYYYMMDD}_{n}__{action}.sql`); never edit an applied migration.
@@ -35,13 +35,13 @@ All five items have backend and frontend implementation, database migrations, AP
 
 ### Current state
 
-dealer-core proxies NHTSA vPIC for the DMS make/model options (`catalog/VehicleCatalogService`, base URL `dealerops.vpic.base-url` / `VPIC_BASE_URL`) and provides `GET /api/v1/vehicle-catalog/vin/{vin}` (`VinDecodeResponse`). Core and Gateway allow this single VIN endpoint anonymously. The public landing page and DMS create form use the same browser API client and Gateway origin (`dealer-web/src/api/catalog.ts`).
+DealerOps.Core proxies NHTSA vPIC for the DMS make/model options and provides `GET /api/v1/catalog/vin/{vin}` (`VinDecodeResponse`). Core and Gateway allow this single VIN endpoint anonymously. The public landing page and DMS create form use the same React API client and Gateway origin (`frontend/react/src/api/catalog.ts`).
 
 ### Requirements
 
 | ID | Requirement | Priority |
 |---|---|---|
-| VIN-01 | `GET /api/v1/vehicle-catalog/vin/{vin}` returns `vin, make, model, modelYear, bodyClass, engine, country, manufacturer`; blank vPIC values are `null` | Must |
+| VIN-01 | `GET /api/v1/catalog/vin/{vin}` returns `vin, make, model, modelYear, bodyClass, engine, country, manufacturer`; blank vPIC values are `null` | Must |
 | VIN-02 | Invalid VIN (not 17 characters, or contains I/O/Q) → **400** `VALIDATION`; vPIC has no make → **404** `NOT_FOUND`; vPIC down → **502** `CATALOG_UNAVAILABLE` | Must |
 | VIN-03 | DMS create form: `Decode` fills make, model, and year only; the user can still edit them; nothing is saved until `Save`. Body class, engine, country, and manufacturer are shown, not stored (the specification's eight vehicle fields do not change) | Must |
 | VIN-04 | The endpoint is anonymous (landing page demo). It reads no tenant data and writes nothing. Successful decodes are cached in memory | Must |

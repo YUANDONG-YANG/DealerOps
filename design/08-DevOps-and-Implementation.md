@@ -5,10 +5,10 @@ Version v6.0 · 2026-09-21
 ## Repositories
 
 ```text
-dealer-web        Vue, built to dist/ + its own compile pipeline
-dealer-gateway    Spring Cloud Gateway, packaged as a JAR + pipeline
-dealer-core       Spring Boot + Flyway, packaged as a JAR + pipeline
-ai-service        Spring Boot, packaged as a JAR + pipeline
+dealer-web        React 19 + Vite + TypeScript, built to dist/ + its own compile pipeline
+dealer-gateway    ASP.NET Core .NET 8, published as an app + pipeline
+dealer-core       ASP.NET Core .NET 8 + EF Core, published as an app + pipeline
+ai-service        ASP.NET Core .NET 8, published as an app + pipeline
 dealer-platform   env.example, OpenAPI, API notes (no business code)
 deploy            Terraform for the Azure resources + the app upload script
 ```
@@ -17,13 +17,13 @@ A change builds only that application. Do not use a monorepo. Contract fields li
 
 ## Pipelines (one set per application)
 
-PR and `main`: Java compile + critical JUnit, or Vue build. Terraform changes additionally run `fmt -check` and `validate`. **No pipeline deploys**: CI holds no Azure credentials.
+PR and `main`: .NET build, or React/TypeScript build. Terraform changes additionally run `fmt -check` and `validate`. **No pipeline deploys**: CI holds no Azure credentials.
 
 Cloud release is two operator commands: `terraform apply` in `deploy/terraform`, then `deploy/terraform/deploy-apps.sh`, which packages each JAR, uploads it with `az webapp deploy --type jar`, builds the SPA against the gateway URL, and uploads `dist/` to the Static Web App. Flyway needs no separate job: `dealer-core` migrates on startup. A demo deploy needs a second person's approval. Do not publish applications by clicking the portal by hand.
 
 ## Three people
 
-- A: Vue pages (Admin/DMS/CRM/advertisements), login, web pipeline.
+- A: React pages (Admin/DMS/CRM/advertisements), login, web pipeline.
 - B: ai-service, GitHub AI library integration, OMVIC checklist, first Terraform draft, ai pipeline. The library is vendored as source (see 09), so the ai pipeline needs no private package access.
 - C: core, tenant isolation, Gateway, login/JWT, core pipeline.
 
