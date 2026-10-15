@@ -90,6 +90,7 @@ public class TenantMiddleware
                 }
 
                 TenantContext.Set(new CurrentUser(username, role, dealerId));
+                db.SetTenantDealerId(dealerId);
 
                 if (path.StartsWith("/api/v1/admin", StringComparison.OrdinalIgnoreCase))
                 {

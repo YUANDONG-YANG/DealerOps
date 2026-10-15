@@ -78,14 +78,14 @@ builder.Services.AddSingleton<AiExceptionFilter>();
 
 var app = builder.Build();
 
-if (app.Environment.IsDevelopment() || builder.Configuration.GetValue<bool>("EnableSwagger"))
-{
-    // The Gateway is the only Swagger UI entry point. Keep JSON available for Gateway aggregation.
-    app.UseSwagger();
-}
+// The Gateway is the only Swagger UI entry point; the JSON is always served for its aggregation.
+app.UseSwagger();
 
 app.UseMiddleware<RequestLoggingMiddleware>();
 app.UseMiddleware<InternalGuardFilter>();
 app.MapControllers();
+
+ReleaseInfo.LogStartup(app.Services.GetRequiredService<ILogger<Program>>(), "ai",
+    ReleaseInfo.Resolve(builder.Configuration["PUBLISHED_AT"]));
 
 app.Run();

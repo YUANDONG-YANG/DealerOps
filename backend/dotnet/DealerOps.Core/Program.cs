@@ -3,6 +3,7 @@ using System.Text.Json.Serialization;
 using DealerOps.Core.Assistant;
 using DealerOps.Core.Audit;
 using DealerOps.Core.Catalog;
+using DealerOps.Core.Common;
 using DealerOps.Core.Common.Exceptions;
 using DealerOps.Core.Common.Tenant;
 using DealerOps.Core.Compliance;
@@ -20,6 +21,7 @@ using DealerOps.Core.Vehicle;
 using DealerOps.Core.WorkOrder;
 using DealerOps.Logging;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
@@ -66,6 +68,30 @@ builder.Services.AddControllers(options =>
         options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.SnakeCaseUpper));
         options.JsonSerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
     });
+
+// Model-binding failures must use the same {code, message, requestId, fieldErrors} envelope as
+// ApiExceptionFilter, otherwise clients receive ASP.NET ProblemDetails and lose per-field errors.
+builder.Services.Configure<ApiBehaviorOptions>(options =>
+{
+    options.InvalidModelStateResponseFactory = context =>
+    {
+        var fieldErrors = new Dictionary<string, string>();
+        foreach (var (key, entry) in context.ModelState)
+        {
+            if (entry.Errors.Count == 0) continue;
+            var name = key.StartsWith("$.", StringComparison.Ordinal) ? key[2..] : key;
+            if (name.Length == 0) name = "request";
+            fieldErrors[JsonNamingPolicy.CamelCase.ConvertName(name)] = entry.Errors[0].ErrorMessage;
+        }
+
+        var requestId = context.HttpContext.Items["RequestId"] as string ?? "";
+        return new ObjectResult(new ErrorBody(
+            ErrorCode.Validation.ToWireCode(), "Validation failed.", requestId, fieldErrors))
+        {
+            StatusCode = ErrorCode.Validation.HttpStatus()
+        };
+    };
+});
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
@@ -134,7 +160,8 @@ builder.Services.AddHttpClient<IAiGatewayClient, AiGatewayClient>(client =>
     client.DefaultRequestHeaders.Add("X-Dealer-Internal", internalToken);
 });
 
-var vpicBaseUrl = builder.Configuration["Vpic:BaseUrl"] ?? "https://vpic.nhtsa.dot.gov/api/vehicles";
+var vpicBaseUrl = builder.Configuration["Vpic:BaseUrl"] ?? "https://vpic.nhtsa.dot.gov/api/vehicles/";
+if (!vpicBaseUrl.EndsWith('/')) vpicBaseUrl += "/";
 builder.Services.AddHttpClient<VehicleCatalogService>(client =>
 {
     client.BaseAddress = new Uri(vpicBaseUrl);
@@ -151,9 +178,11 @@ using (var scope = app.Services.CreateScope())
     db.Database.EnsureCreated();
 }
 
+// The Gateway merges this document into its own, so the JSON is always served; only the
+// browser-facing UI is limited to development.
+app.UseSwagger();
 if (app.Environment.IsDevelopment() || builder.Configuration.GetValue<bool>("EnableSwagger"))
 {
-    app.UseSwagger();
     app.UseSwaggerUI(options =>
     {
         options.SwaggerEndpoint("/swagger/v1/swagger.json", "DealerOps Core API");
@@ -167,5 +196,8 @@ app.UseAuthorization();
 app.UseMiddleware<TenantMiddleware>();
 app.MapControllers();
 app.MapHealthChecks("/actuator/health");
+
+ReleaseInfo.LogStartup(app.Services.GetRequiredService<ILogger<Program>>(), "core",
+    ReleaseInfo.Resolve(builder.Configuration["PUBLISHED_AT"]));
 
 app.Run();

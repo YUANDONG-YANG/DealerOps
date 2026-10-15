@@ -22,7 +22,6 @@ public class VehicleCatalogService
 
     public List<string> Makes()
     {
-        TenantGuard.RequireDealerUser();
         return _cache.GetOrAdd("makes", _ =>
         {
             var allMakes = new SortedSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -41,7 +40,6 @@ public class VehicleCatalogService
 
     public List<string> Models(string? make)
     {
-        TenantGuard.RequireDealerUser();
         if (string.IsNullOrWhiteSpace(make))
             throw new ApiException(ErrorCode.Validation, "Make is required.");
 
@@ -100,7 +98,7 @@ public class VehicleCatalogService
     {
         try
         {
-            var response = _httpClient.GetAsync(uri).GetAwaiter().GetResult();
+            var response = _httpClient.GetAsync(uri.TrimStart('/')).GetAwaiter().GetResult();
             response.EnsureSuccessStatusCode();
             var body = response.Content.ReadAsStringAsync().GetAwaiter().GetResult();
             var doc = JsonDocument.Parse(body);

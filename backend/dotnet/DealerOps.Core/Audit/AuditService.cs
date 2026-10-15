@@ -156,8 +156,10 @@ public class AuditService : IAuditService
     }
 
     private static AuditItem ToItem(AuditEventEntity e) =>
-        new(e.Id, e.EntityType.ToString(), e.EntityId, e.Action.ToString(),
-            DeserializeSummary(e.FieldSummary), e.ActorUsername, e.CreatedAt);
+        new(e.Id, EnumSnakeCaseConverter<EntityType>.ToWire(e.EntityType), e.EntityId,
+            EnumSnakeCaseConverter<AuditAction>.ToWire(e.Action),
+            DeserializeSummary(e.FieldSummary), e.ActorUsername,
+            DateTime.SpecifyKind(e.CreatedAt, DateTimeKind.Utc));
 
     private static Dictionary<string, object>? DeserializeSummary(string? json)
     {

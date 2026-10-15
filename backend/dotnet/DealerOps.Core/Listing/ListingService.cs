@@ -3,6 +3,7 @@ using DealerOps.Core.Common.Tenant;
 using DealerOps.Core.Compliance;
 using DealerOps.Core.Data;
 using DealerOps.Core.Listing.Dto;
+using DealerOps.Core.Vehicle;
 
 namespace DealerOps.Core.Listing;
 
@@ -62,11 +63,15 @@ public class ListingService
             if (body.Version == null || body.Version != row.Version)
                 throw new ApiException(ErrorCode.VersionConflict, "Version conflict.");
 
-            ApplyPresentFields(row, body);
-            row.ContentVersion++;
-            row.Status = ListingStatus.Draft;
-            row.UpdatedAt = DateTime.UtcNow;
-            _db.SaveChanges();
+            // Only a real content change invalidates a passed check (AD-11); re-saving the same
+            // text must not push a PASSED ad to STALE.
+            if (ApplyPresentFields(row, body))
+            {
+                row.ContentVersion++;
+                row.Status = ListingStatus.Draft;
+                row.UpdatedAt = DateTime.UtcNow;
+                _db.SaveChanges();
+            }
         }
 
         return GetByVehicle(vehicleId);
@@ -91,21 +96,22 @@ public class ListingService
                       ?? throw new ApiException(ErrorCode.NotFound, "Not found");
         var last = _complianceCheckService.LoadCheck(listing);
 
+        // Public ad content only: no customer data and no cost figures (AD-13).
         var text = new System.Text.StringBuilder();
-        text.AppendLine(dealer.LegalName);
-        text.AppendLine(dealer.ContactPhone);
-        text.AppendLine(dealer.ContactEmail);
-        text.AppendLine(dealer.ContactAddress);
-        text.Append(vehicle.ModelYear).Append(' ');
-        text.Append(vehicle.Make).Append(' ');
-        text.AppendLine(vehicle.Model);
-        text.AppendLine(vehicle.Vin);
-        text.AppendLine(vehicle.ConditionCode.ToString());
-        text.AppendLine(vehicle.Source.ToString());
-        text.AppendLine(listing.Title);
-        text.AppendLine(listing.Body);
-        if (last?.CreatedAt != null)
-            text.Append(last.CreatedAt);
+        text.Append("Dealer: ").AppendLine(dealer.LegalName);
+        text.Append("Phone: ").AppendLine(dealer.ContactPhone);
+        text.Append("Email: ").AppendLine(dealer.ContactEmail);
+        text.Append("Address: ").AppendLine(dealer.ContactAddress);
+        text.Append("Vehicle: ").Append(vehicle.ModelYear).Append(' ')
+            .Append(vehicle.Make).Append(' ').AppendLine(vehicle.Model);
+        text.Append("VIN: ").AppendLine(vehicle.Vin);
+        text.Append("Condition: ")
+            .AppendLine(EnumSnakeCaseConverter<ConditionCode>.ToWire(vehicle.ConditionCode));
+        text.Append("Title: ").AppendLine(listing.Title);
+        text.Append("Body: ").AppendLine(listing.Body);
+        if (last != null)
+            text.Append("Checked at: ").AppendLine(
+                DateTime.SpecifyKind(last.CreatedAt, DateTimeKind.Utc).ToString("O"));
 
         return text.ToString();
     }
@@ -157,12 +163,30 @@ public class ListingService
             throw new ApiException(ErrorCode.NotFound, "Not found");
     }
 
-    private static void ApplyPresentFields(ListingEntity row, PatchListingRequest body)
+    private static bool ApplyPresentFields(ListingEntity row, PatchListingRequest body)
     {
-        if (body.Title != null) row.Title = BlankToEmpty(body.Title);
-        if (body.Body != null) row.Body = BlankToEmpty(body.Body);
-        if (body.AdKind != null) row.AdKind = body.AdKind.Value;
-        if (body.Medium != null) row.Medium = body.Medium.Value;
+        var changed = false;
+        if (body.Title != null && row.Title != BlankToEmpty(body.Title))
+        {
+            row.Title = BlankToEmpty(body.Title);
+            changed = true;
+        }
+        if (body.Body != null && row.Body != BlankToEmpty(body.Body))
+        {
+            row.Body = BlankToEmpty(body.Body);
+            changed = true;
+        }
+        if (body.AdKind != null && row.AdKind != body.AdKind.Value)
+        {
+            row.AdKind = body.AdKind.Value;
+            changed = true;
+        }
+        if (body.Medium != null && row.Medium != body.Medium.Value)
+        {
+            row.Medium = body.Medium.Value;
+            changed = true;
+        }
+        return changed;
     }
 
     private static string BlankToEmpty(string? value) =>

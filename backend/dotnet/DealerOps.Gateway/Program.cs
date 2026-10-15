@@ -131,8 +131,10 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 // One Gateway OpenAPI document: merge Core and AI operations for the frontend.
-app.MapGet("/swagger/v1/swagger.json", async (IHttpClientFactory httpClientFactory) =>
+app.MapGet("/swagger/v1/swagger.json", async (IHttpClientFactory httpClientFactory,
+    DownstreamHealthCheck healthCheck) =>
 {
+    var corePublishedAt = await healthCheck.CorePublishedAtAsync();
     var http = httpClientFactory.CreateClient("swagger");
     var coreUrl = builder.Configuration["CORE_URL"] ?? "http://localhost:8081";
     var aiUrl = builder.Configuration["AI_URL"] ?? "http://localhost:8082";
@@ -144,7 +146,8 @@ app.MapGet("/swagger/v1/swagger.json", async (IHttpClientFactory httpClientFacto
     MergeArray(core, ai, "tags");
     MergeObject(core, ai, "components", nested: true);
     core["info"]!["title"] = "DealerOps Gateway API";
-    core["info"]!["description"] = "Unified Core and AI backend API through the Gateway.";
+    core["info"]!["description"] =
+        $"Unified Core and AI backend API through the Gateway. Core published {corePublishedAt}.";
 
     return Results.Json(core);
 });
@@ -172,7 +175,8 @@ app.Use(async (context, next) =>
         await next();
         return;
     }
-    if (method == "GET" && path.StartsWith("/api/v1/catalog/vin/", StringComparison.OrdinalIgnoreCase))
+    if (method == "GET" && (path.StartsWith("/api/v1/catalog/", StringComparison.OrdinalIgnoreCase)
+                            || path.StartsWith("/api/v1/release", StringComparison.OrdinalIgnoreCase)))
     {
         await next();
         return;
@@ -206,6 +210,13 @@ app.Use(async (context, next) =>
 
 // Swagger gate: only in dev mode
 var devMode = string.Equals(jwtMode.Trim(), "dev", StringComparison.OrdinalIgnoreCase);
+if (devMode)
+{
+    app.UseSwaggerUI(c =>
+    {
+        c.SwaggerEndpoint("/swagger/v1/swagger.json", "DealerOps Gateway API");
+    });
+}
 app.Use(async (context, next) =>
 {
     var path = context.Request.Path.Value ?? "";
@@ -224,6 +235,9 @@ app.MapFallback(() => Results.NotFound(new { code = "NOT_FOUND", message = "Not 
 
 app.MapReverseProxy();
 
+ReleaseInfo.LogStartup(app.Services.GetRequiredService<ILogger<Program>>(), "gateway",
+    app.Services.GetRequiredService<DownstreamHealthCheck>().GatewayPublishedAt);
+
 app.Run();
 
 static void MergeObject(JsonObject target, JsonObject source, string property, bool nested = false)
@@ -234,7 +248,17 @@ static void MergeObject(JsonObject target, JsonObject source, string property, b
         var sourceObject = source[property]?.AsObject();
         if (sourceObject == null) return;
         foreach (var (key, value) in sourceObject)
-            targetObject[key] = value?.DeepClone();
+        {
+            if (value is JsonObject subSource && targetObject[key] is JsonObject subTarget)
+            {
+                foreach (var (subKey, subValue) in subSource)
+                    subTarget[subKey] = subValue?.DeepClone();
+            }
+            else
+            {
+                targetObject[key] = value?.DeepClone();
+            }
+        }
         target[property] = targetObject;
         return;
     }

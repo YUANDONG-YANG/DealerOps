@@ -162,6 +162,7 @@ public class AppDbContext : DbContext
     {
         ApplyTimestamps();
         AutoAssignTenantId();
+        BumpVersions();
         return base.SaveChanges(acceptAllChangesOnSuccess);
     }
 
@@ -169,7 +170,20 @@ public class AppDbContext : DbContext
     {
         ApplyTimestamps();
         AutoAssignTenantId();
+        BumpVersions();
         return base.SaveChangesAsync(acceptAllChangesOnSuccess, ct);
+    }
+
+    // Entities carry an int Version guarded by [ConcurrencyCheck]; EF does not advance it on its own,
+    // so without this bump every stored version stays 0 and VERSION_CONFLICT can never fire.
+    private void BumpVersions()
+    {
+        foreach (var entry in ChangeTracker.Entries())
+        {
+            if (entry.State != EntityState.Modified) continue;
+            if (entry.Properties.FirstOrDefault(p => p.Metadata.Name == "Version") is not { } version) continue;
+            if (version.CurrentValue is int current) version.CurrentValue = current + 1;
+        }
     }
 
     private void ApplyTimestamps()

@@ -15,13 +15,14 @@ public class VehicleCatalogController : ControllerBase
     }
 
     [HttpGet("makes")]
-    [Authorize]
+    [AllowAnonymous]
     public List<string> Makes() => _catalogService.Makes();
 
     [HttpGet("models")]
-    [Authorize]
+    [AllowAnonymous]
     public List<string> Models([FromQuery] string? make) => _catalogService.Models(make);
 
     [HttpGet("vin/{vin}")]
+    [AllowAnonymous]
     public VinDecodeResponse DecodeVin(string vin) => _catalogService.DecodeVin(vin);
 }

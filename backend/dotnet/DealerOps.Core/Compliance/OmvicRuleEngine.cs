@@ -17,26 +17,32 @@ public class OmvicRuleEngine
         @"\d+(?:\.\d+)?\s*%\s*(?:apr|annual percentage rate)|apr\s*[:=]?\s*\d+(?:\.\d+)?\s*%",
         RegexOptions.IgnoreCase | RegexOptions.Compiled);
     private static readonly Regex TermMo = new(
-        @"\d+\s*(?:month|months|mo)\b|term\s*[:=]?\s*\d+",
+        @"\d+[\s-]*(?:month|months|mo)\b|term\s*[:=]?\s*\d+",
         RegexOptions.IgnoreCase | RegexOptions.Compiled);
     private static readonly Regex LeaseWord = new(@"\b(?:lease|leasing|lessee)\b",
         RegexOptions.IgnoreCase | RegexOptions.Compiled);
     private static readonly Regex LeaseRent = new(
-        @"\$?\d[\d,]*(?:\.\d{2})?\s*(?:per month|/mo|monthly)",
+        @"\$?\d[\d,]*(?:\.\d{2})?\s*(?:per month|/mo\b|monthly)",
         RegexOptions.IgnoreCase | RegexOptions.Compiled);
     private static readonly Regex LeaseDown = new(
         @"down payment|due at signing|\$\d[\d,]*.{0,12}down",
         RegexOptions.IgnoreCase | RegexOptions.Compiled);
     private static readonly Regex LeaseKmAllowance = new(
-        @"(?<![\d,.])(\d{1,3}(?:[, ]\d{3})+|\d{1,6})\s*(?:km|kilomet(?:er|re)s?)\s*(?:per|/)?\s*(?:year|yr|annual)",
+        @"(?<![\d,.])(?<km>\d{1,3}(?:[, ]\d{3})+|\d{1,6})\s*(?:km|kilomet(?:er|re)s?)\s*(?:(?:per|/|a|each)\s*)?(?:year|yr|annum|annual(?:ly)?)",
+        RegexOptions.IgnoreCase | RegexOptions.Compiled);
+    private static readonly Regex LeaseKmAllowanceAnnualFirst = new(
+        @"annual(?:ly)?[^.\n]{0,30}?(?<![\d,.])(?<km>\d{1,3}(?:[, ]\d{3})+|\d{1,6})\s*(?:km|kilomet(?:er|re)s?)",
         RegexOptions.IgnoreCase | RegexOptions.Compiled);
     private static readonly Regex LeaseExcess = new(
         @"excess|overage|additional.{0,20}(?:km|kilomet)",
         RegexOptions.IgnoreCase | RegexOptions.Compiled);
     private static readonly Regex LeaseTermOnly = new(
-        @"\d+\s*(month|months|mo)\b",
+        @"\d+[\s-]*(month|months|mo)\b",
         RegexOptions.IgnoreCase | RegexOptions.Compiled);
-    private static readonly Regex CertifiedRx = new(@"certified|cpo|certifi",
+    private static readonly Regex CertifiedRx = new(@"\b(?:certified|cpo)\b",
+        RegexOptions.IgnoreCase | RegexOptions.Compiled);
+    // "not certified" / "non-certified" denies the claim rather than making it.
+    private static readonly Regex CertifiedDenial = new(@"\b(?:not|never|non)[\s-]*certified\b",
         RegexOptions.IgnoreCase | RegexOptions.Compiled);
     private static readonly Regex AsIsRx = new(@"\bas[\s-]?is\b",
         RegexOptions.IgnoreCase | RegexOptions.Compiled);
@@ -54,10 +60,10 @@ public class OmvicRuleEngine
         @"(?:previously used as|prior use|former(?:ly)? (?:a )?(?:police|taxi|limo(?:usine)?|rental)|ex[- ](?:police|taxi|limo(?:usine)?|rental)|lease return disclosed|disclosed prior use)",
         RegexOptions.IgnoreCase | RegexOptions.Compiled);
     private static readonly Regex WarrantyBoast = new(
-        @"extended warranty|warranty included|free warranty",
+        @"\bwarrant(?:y|ies)\b",
         RegexOptions.IgnoreCase | RegexOptions.Compiled);
     private static readonly Regex Payment = new(
-        @"\$?\d[\d,]*(?:\.\d{2})?\s*(?:per month|/mo|monthly|bi-?weekly|per week|/wk)",
+        @"\$?\d[\d,]*(?:\.\d{2})?\s*(?:per month|/mo\b|monthly|bi-?weekly|weekly|per week|/wk\b)",
         RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
     public OmvicResult Run(ListingEntity listing, VehicleEntity vehicle, DealerEntity dealer)

@@ -1,3 +1,5 @@
+using DealerOps.Logging;
+
 namespace DealerOps.Gateway.Health;
 
 public class DownstreamHealthCheck
@@ -5,13 +7,21 @@ public class DownstreamHealthCheck
     private readonly HttpClient _httpClient;
     private readonly string _coreUrl;
     private readonly string _aiUrl;
+    private readonly string _gatewayPublishedAt;
+    private readonly string _webPublishedAt;
 
     public DownstreamHealthCheck(IHttpClientFactory httpClientFactory, IConfiguration config)
     {
         _httpClient = httpClientFactory.CreateClient("health");
         _coreUrl = config["CORE_URL"] ?? "http://localhost:8081";
         _aiUrl = config["AI_URL"] ?? "http://localhost:8082";
+        _gatewayPublishedAt = ReleaseInfo.Resolve(config["PUBLISHED_AT"]);
+        _webPublishedAt = ReleaseInfo.Resolve(config["WEB_PUBLISHED_AT"]);
     }
+
+    public string GatewayPublishedAt => _gatewayPublishedAt;
+
+    public Task<string> CorePublishedAtAsync() => FetchRelease(_coreUrl);
 
     public async Task<object> CheckAsync()
     {
@@ -34,7 +44,8 @@ public class DownstreamHealthCheck
         var aiTime = await FetchRelease(_aiUrl);
         return new
         {
-            gateway = Environment.GetEnvironmentVariable("PUBLISHED_AT") ?? "local",
+            web = _webPublishedAt,
+            gateway = _gatewayPublishedAt,
             core = coreTime,
             ai = aiTime
         };
@@ -59,15 +70,13 @@ public class DownstreamHealthCheck
         try
         {
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
-            var response = await _httpClient.GetAsync($"{baseUrl}/actuator/info", cts.Token);
+            var response = await _httpClient.GetAsync($"{baseUrl}/actuator/release", cts.Token);
             if (!response.IsSuccessStatusCode) return "unavailable";
 
-            var json = await response.Content.ReadFromJsonAsync<Dictionary<string, object>>(cancellationToken: cts.Token);
-            if (json != null && json.TryGetValue("release", out var release) && release is System.Text.Json.JsonElement el)
-            {
-                if (el.TryGetProperty("publishedAt", out var pub))
-                    return pub.GetString() ?? "unavailable";
-            }
+            var json = await response.Content.ReadFromJsonAsync<Dictionary<string, System.Text.Json.JsonElement>>(
+                cancellationToken: cts.Token);
+            if (json != null && json.TryGetValue("publishedAt", out var published))
+                return published.GetString() ?? "unavailable";
             return "unavailable";
         }
         catch

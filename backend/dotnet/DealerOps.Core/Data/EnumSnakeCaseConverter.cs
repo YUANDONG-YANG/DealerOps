@@ -9,6 +9,8 @@ public class EnumSnakeCaseConverter<T> : ValueConverter<T, string> where T : str
     public EnumSnakeCaseConverter()
         : base(v => ToSnakeCase(v), v => FromSnakeCase(v)) { }
 
+    public static string ToWire(T value) => ToSnakeCase(value);
+
     private static string ToSnakeCase(T value)
     {
         var name = value.ToString();
