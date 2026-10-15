@@ -14,8 +14,17 @@ C# / .NET 8 port of the Java backend. Three projects in one solution, matching t
 |---|---|---|
 | .NET SDK | 8.0+ | `brew install dotnet` |
 | MySQL | 8.x | `brew install mysql@8.4 && brew services start mysql@8.4` |
+| Node.js | 20+ | Install from [nodejs.org](https://nodejs.org/) or `brew install node` |
 
-Verify: `dotnet --version` prints `8.x.xxx`.
+Verify the installations before continuing:
+
+```bash
+dotnet --version  # prints 8.x.xxx
+mysql --version   # prints MySQL 8.x
+node --version    # prints v20.x or newer
+```
+
+The commands below assume macOS or Linux and a terminal opened at the repository root.
 
 ## Quick start
 
@@ -37,7 +46,7 @@ SQL
 
 The .NET backend auto-creates tables on first start (EF Core `EnsureCreated`). No need to run the Java backend first.
 
-### 2. Build the solution
+### 2. Build the solution once
 
 ```bash
 cd backend/dotnet
@@ -48,7 +57,7 @@ Expected output: **0 errors, 0 warnings**.
 
 ### 3. Start the services
 
-Open three terminals. Start in this order, and wait for each to be ready before starting the next.
+Open three terminals. Keep all three terminals running. Start the services in this order and wait for the health check to respond before opening the next terminal.
 
 **Terminal 1 — DealerOps.Core (port 8081)**
 
@@ -64,10 +73,13 @@ Wait for `Now listening on: http://0.0.0.0:8081`. Check: http://localhost:8081/a
 
 ```bash
 cd backend/dotnet/DealerOps.AiService
+export AIMANAGER_API_KEY='paste-your-groq-api-key-here'
 dotnet run
 ```
 
-Set the Groq API key through the `AIMANAGER_API_KEY` environment variable before starting the service. Check: http://localhost:8082/actuator/health
+Replace `paste-your-groq-api-key-here` with your own Groq API key. This sets the key only in the current terminal; do not commit it to Git. Check: http://localhost:8082/actuator/health
+
+If you do not need AI features, omit the `export` line. The service will still start, but AI requests will return `AI_KEY_MISSING`.
 
 **Terminal 3 — DealerOps.Gateway (port 8080)**
 
@@ -78,19 +90,27 @@ dotnet run
 
 Check: http://localhost:8080/actuator/health
 
-### 4. Open the frontend
+### 4. Start the frontend
 
-Start either frontend (from the repo root):
+Use a fourth terminal. Return to the repository root before running one of these commands:
 
 ```bash
 # Vue (port 5173)
-cd frontend/vue && npm ci && npm run dev
+cd frontend/vue
+npm install
+npm run dev
 
 # or React (port 5174)
-cd frontend/react && npm install && npm run dev
+cd frontend/react
+npm install
+npm run dev
 ```
 
-Sign in as `admin` / `admin123`.
+Open the URL printed by Vite, then sign in as `admin` / `admin123`.
+
+### Stop everything
+
+In each terminal, press `Ctrl+C`. MySQL can remain running for the next session.
 
 ## Configuration
 
@@ -113,7 +133,7 @@ All settings have local defaults in `appsettings.json`. Override with environmen
 
 | Environment variable | Default | Description |
 |---|---|---|
-| `AiManager__ApiKey` | _(empty)_ | LLM provider API key; prefer `AIMANAGER_API_KEY` for local development |
+| `AIMANAGER_API_KEY` | _(empty)_ | LLM provider API key for local development |
 | `AiManager__Provider` | `groq` | Provider name |
 | `AiManager__Model` | `qwen/qwen3.8-27b` | Model name |
 | `AiService__InternalToken` | `dealer-internal` | Must match Core and Gateway |
@@ -144,6 +164,6 @@ All settings have local defaults in `appsettings.json`. Override with environmen
 | `dotnet build` fails | Run `dotnet --version` — must be 8.x. On macOS with Homebrew: `export DOTNET_ROOT="/opt/homebrew/opt/dotnet/libexec"` |
 | Core crashes with MySQL error | MySQL is not running, or the database/user was not created (Step 1) |
 | Login works but API returns 401 | `Jwt__DevSecret` on Core differs from `dealerops__jwt__devSecret` on Gateway |
-| AI returns `AI_KEY_MISSING` | Check that `appsettings.json` in AiService has a valid `AiManager:ApiKey` |
+| AI returns `AI_KEY_MISSING` | Set `AIMANAGER_API_KEY` in the AiService terminal, then restart AiService |
 | CORS errors in browser | `dealerops__corsAllowedOrigin` on Gateway must match the frontend URL |
 | Port already in use | The Java backend is running on the same ports — stop it first |
