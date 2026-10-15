@@ -1,10 +1,10 @@
 # One resource group holding the graded cloud demo:
-#   3 x Linux App Service (Java 21 SE JAR)  - dealer-gateway public, dealer-core and ai-service locked to the plan
-#   1 x Static Web App                      - the built Vue SPA
-#   1 x MySQL Flexible Server               - schema owned by Flyway in dealer-core
+#   3 x Linux App Service (.NET 8)          - dealer-gateway public, dealer-core and ai-service locked to the plan
+#   1 x Static Web App                      - the built React SPA
+#   1 x MySQL Flexible Server               - schema owned by EF Core EnsureCreated in dealer-core
 #   1 x Key Vault                           - the five secret values, referenced by app settings
 #   1 x Log Analytics + Application Insights
-# No container registry and no container images: App Service runs the JARs directly.
+# No container registry and no container images: App Service runs the .NET apps directly.
 
 # Auto-generated secrets: used when the corresponding variable is left empty,
 # so beginners can deploy with just `terraform init && terraform apply`.
@@ -247,20 +247,17 @@ resource "azurerm_linux_web_app" "gateway" {
     ftps_state                        = "Disabled"
 
     application_stack {
-      java_server         = "JAVA"
-      java_server_version = "21"
-      java_version        = "21"
+      dotnet_version = "8.0"
     }
   }
 
   app_settings = merge(local.common_app_settings, {
-    GATEWAY_PORT        = tostring(local.app_port)
-    CORE_URL            = local.core_internal_url
-    AI_URL              = local.ai_internal_url
-    CORS_ALLOWED_ORIGIN = local.cors_allowed_origin
-    JWT_MODE            = "dev"
-    INTERNAL_TOKEN      = "@Microsoft.KeyVault(SecretUri=${azurerm_key_vault_secret.internal_token.versionless_id})"
-    DEV_JWT_SECRET      = "@Microsoft.KeyVault(SecretUri=${azurerm_key_vault_secret.jwt_signing_secret.versionless_id})"
+    GATEWAY_PORT                          = tostring(local.app_port)
+    "dealerops__cors-allowed-origin"      = local.cors_allowed_origin
+    "dealerops__internal-token"           = "@Microsoft.KeyVault(SecretUri=${azurerm_key_vault_secret.internal_token.versionless_id})"
+    "dealerops__jwt__dev-secret"          = "@Microsoft.KeyVault(SecretUri=${azurerm_key_vault_secret.jwt_signing_secret.versionless_id})"
+    ReverseProxy__Clusters__core__Destinations__primary__Address = local.core_internal_url
+    ReverseProxy__Clusters__ai__Destinations__primary__Address   = local.ai_internal_url
   })
 
   lifecycle {
@@ -292,16 +289,9 @@ resource "azurerm_linux_web_app" "core" {
     ip_restriction_default_action     = "Deny"
 
     application_stack {
-      java_server         = "JAVA"
-      java_server_version = "21"
-      java_version        = "21"
+      dotnet_version = "8.0"
     }
 
-    # Everything is denied except callers inside Azure, which is what lets dealer-gateway
-    # (same App Service plan) through while a browser on the public internet is refused by
-    # the platform. The App Service replacement for the "internal ingress" rule in
-    # design/15 section 10. A rule built from the plan's own outbound addresses is not used
-    # on purpose: those addresses are only known after apply, so they cannot appear in a plan.
     ip_restriction {
       name        = "allow-azure-callers"
       action      = "Allow"
@@ -314,14 +304,10 @@ resource "azurerm_linux_web_app" "core" {
     local.common_app_settings,
     {
       CORE_PORT          = tostring(local.app_port)
-      MYSQL_URL          = "jdbc:mysql://${azurerm_mysql_flexible_server.mysql.fqdn}:3306/${local.mysql_database_name}?sslMode=REQUIRED&serverTimezone=UTC"
-      MYSQL_USER         = var.mysql_admin_username
-      GATEWAY_PUBLIC_URL = local.gateway_public_url
-      AI_BASE_URL        = local.ai_internal_url
-      JWT_MODE           = "dev"
-      MYSQL_PASSWORD     = "@Microsoft.KeyVault(SecretUri=${azurerm_key_vault_secret.mysql_password.versionless_id})"
-      INTERNAL_TOKEN     = "@Microsoft.KeyVault(SecretUri=${azurerm_key_vault_secret.internal_token.versionless_id})"
-      DEV_JWT_SECRET     = "@Microsoft.KeyVault(SecretUri=${azurerm_key_vault_secret.jwt_signing_secret.versionless_id})"
+      ConnectionStrings__Default = "Server=${azurerm_mysql_flexible_server.mysql.fqdn};Port=3306;Database=${local.mysql_database_name};User=${var.mysql_admin_username};Password=${local.mysql_admin_password};SslMode=Required"
+      AiService__BaseUrl        = local.ai_internal_url
+      AiService__InternalToken  = "@Microsoft.KeyVault(SecretUri=${azurerm_key_vault_secret.internal_token.versionless_id})"
+      Jwt__DevSecret            = "@Microsoft.KeyVault(SecretUri=${azurerm_key_vault_secret.jwt_signing_secret.versionless_id})"
     },
     local.seed_platform_admin ? {
       ADMIN_USERNAME = var.admin_username
@@ -362,16 +348,9 @@ resource "azurerm_linux_web_app" "ai" {
     ip_restriction_default_action     = "Deny"
 
     application_stack {
-      java_server         = "JAVA"
-      java_server_version = "21"
-      java_version        = "21"
+      dotnet_version = "8.0"
     }
 
-    # Everything is denied except callers inside Azure, which is what lets dealer-gateway
-    # (same App Service plan) through while a browser on the public internet is refused by
-    # the platform. The App Service replacement for the "internal ingress" rule in
-    # design/15 section 10. A rule built from the plan's own outbound addresses is not used
-    # on purpose: those addresses are only known after apply, so they cannot appear in a plan.
     ip_restriction {
       name        = "allow-azure-callers"
       action      = "Allow"
@@ -384,12 +363,12 @@ resource "azurerm_linux_web_app" "ai" {
     local.common_app_settings,
     {
       AI_PORT                    = tostring(local.app_port)
-      AIMANAGER_GATEWAY_PROVIDER = var.aimanager_gateway_provider
-      AIMANAGER_GATEWAY_MODEL    = var.aimanager_gateway_model
-      INTERNAL_TOKEN             = "@Microsoft.KeyVault(SecretUri=${azurerm_key_vault_secret.internal_token.versionless_id})"
+      AiManager__Provider        = var.aimanager_gateway_provider
+      AiManager__Model           = var.aimanager_gateway_model
+      AiService__InternalToken   = "@Microsoft.KeyVault(SecretUri=${azurerm_key_vault_secret.internal_token.versionless_id})"
     },
     local.configure_model_key ? {
-      AIMANAGER_API_KEY = "@Microsoft.KeyVault(SecretUri=${azurerm_key_vault_secret.aimanager_api_key[0].versionless_id})"
+      AiManager__ApiKey = "@Microsoft.KeyVault(SecretUri=${azurerm_key_vault_secret.aimanager_api_key[0].versionless_id})"
     } : {}
   )
 

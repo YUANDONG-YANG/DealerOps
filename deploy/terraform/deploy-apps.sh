@@ -5,22 +5,16 @@
 #   ./deploy-apps.sh            # all four
 #   ./deploy-apps.sh core web   # only these
 #
-# Needs: az (logged in), terraform, JDK 21 + Maven, Node 20 + npm.
+# Needs: az (logged in), terraform, .NET 8 SDK, Node 20 + npm/pnpm.
 # Procedure and verification: ../README.md
 set -euo pipefail
 
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 repo="$(cd "${here}/../.." && pwd)"
 
-for tool in az terraform mvn npm; do
+for tool in az terraform dotnet npm; do
   command -v "${tool}" >/dev/null 2>&1 || { echo "Missing required tool: ${tool}" >&2; exit 1; }
 done
-
-# Lombok in ai-service does not compile on newer JDKs, so Maven must run on JDK 21.
-mvn -v | grep -q 'Java version: 21\.' || {
-  echo "Maven must run on JDK 21; set JAVA_HOME to a JDK 21 install and retry." >&2
-  exit 1
-}
 
 tf() { terraform -chdir="${here}" output -raw "$1"; }
 
@@ -30,53 +24,56 @@ ai_app="$(tf ai_app_name)"
 gateway_app="$(tf gateway_app_name)"
 gateway_url="$(tf gateway_public_url)"
 
-# One UTC stamp per run: PUBLISHED_AT on each Java app and VITE_PUBLISHED_AT on the web build.
-# The web footer lists all four; Swagger shows dealer-core's (design/20-Observability.md).
 published_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 
 if [ "$#" -eq 0 ]; then
   set -- core ai gateway web
 fi
 
-deploy_jar() {
-  local module="$1" app="$2"
-  echo "==> ${module}: stamp PUBLISHED_AT=${published_at}"
+deploy_dotnet() {
+  local project="$1" app="$2"
+  local project_dir="${repo}/backend/dotnet/${project}"
+
+  echo "==> ${project}: stamp PUBLISHED_AT=${published_at}"
   az webapp config appsettings set \
     --resource-group "${resource_group}" --name "${app}" \
     --settings "PUBLISHED_AT=${published_at}" --output none
-  echo "==> ${module}: package"
-  (cd "${repo}/backend/java/${module}" && mvn -B -DskipTests clean package)
-  echo "==> ${module}: upload to ${app}"
+
+  echo "==> ${project}: publish"
+  dotnet publish "${project_dir}" -c Release -o "${project_dir}/publish" --nologo -v quiet
+
+  echo "==> ${project}: zip and upload to ${app}"
+  (cd "${project_dir}/publish" && zip -r -q "${project_dir}/deploy.zip" .)
   az webapp deploy \
     --resource-group "${resource_group}" \
     --name "${app}" \
-    --type jar \
-    --src-path "$(ls "${repo}/backend/java/${module}"/target/"${module}"-*.jar | head -1)" \
+    --type zip \
+    --src-path "${project_dir}/deploy.zip" \
     --async false \
     --output none
+  rm -rf "${project_dir}/publish" "${project_dir}/deploy.zip"
 }
 
 for target in "$@"; do
   case "${target}" in
     core)
-      deploy_jar dealer-core "${core_app}"
+      deploy_dotnet DealerOps.Core "${core_app}"
       ;;
     ai)
-      # The model key is a Key Vault value, not a build flag.
-      deploy_jar ai-service "${ai_app}"
+      deploy_dotnet DealerOps.AiService "${ai_app}"
       ;;
     gateway)
-      deploy_jar dealer-gateway "${gateway_app}"
+      deploy_dotnet DealerOps.Gateway "${gateway_app}"
       ;;
     web)
-      echo "==> dealer-web: build against ${gateway_url}"
+      echo "==> react frontend: build against ${gateway_url}"
       (
-        cd "${repo}/frontend/vue"
-        npm ci
+        cd "${repo}/frontend/react"
+        npm install
         VITE_GATEWAY_URL="${gateway_url}" \
         VITE_PUBLISHED_AT="${published_at}" \
           npm run build
-        echo "==> dealer-web: upload dist/ to Static Web Apps"
+        echo "==> react frontend: upload dist/ to Static Web Apps"
         npx -y @azure/static-web-apps-cli@2 deploy ./dist \
           --deployment-token "$(tf static_web_app_deployment_token)" \
           --env production
@@ -93,5 +90,4 @@ echo
 echo "Published ${published_at}"
 echo "Web     $(tf web_public_url)"
 echo "Gateway ${gateway_url}/actuator/health"
-echo "Release ${gateway_url}/actuator/release"
 echo "Swagger $(tf swagger_url)"

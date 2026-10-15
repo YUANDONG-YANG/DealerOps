@@ -7,17 +7,17 @@ output "resource_group_name" {
 }
 
 output "gateway_app_name" {
-  description = "App Service name for the dealer-gateway JAR deploy."
+  description = "App Service name for the dealer-gateway deploy."
   value       = azurerm_linux_web_app.gateway.name
 }
 
 output "core_app_name" {
-  description = "App Service name for the dealer-core JAR deploy."
+  description = "App Service name for the dealer-core deploy."
   value       = azurerm_linux_web_app.core.name
 }
 
 output "ai_app_name" {
-  description = "App Service name for the ai-service JAR deploy."
+  description = "App Service name for the ai-service deploy."
   value       = azurerm_linux_web_app.ai.name
 }
 
@@ -33,7 +33,7 @@ output "web_public_url" {
 
 output "swagger_url" {
   description = "Swagger UI, proxied by the gateway. Core is not reachable from a browser."
-  value       = "https://${azurerm_linux_web_app.gateway.default_hostname}/swagger-ui/index.html"
+  value       = "https://${azurerm_linux_web_app.gateway.default_hostname}/swagger/index.html"
 }
 
 output "static_web_app_deployment_token" {
@@ -43,7 +43,7 @@ output "static_web_app_deployment_token" {
 }
 
 output "mysql_fqdn" {
-  description = "MySQL Flexible Server host. dealer-core already has the JDBC URL as an app setting."
+  description = "MySQL Flexible Server host. dealer-core already has the connection string as an app setting."
   value       = azurerm_mysql_flexible_server.mysql.fqdn
 }
 

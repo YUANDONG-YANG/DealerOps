@@ -2,12 +2,12 @@
 
 This folder is the procedure for the cloud deploy. Architecture stays in [design/07-Azure-Microservices-Architecture.md](../design/07-Azure-Microservices-Architecture.md) and [design/AI-CODING-LOCAL-AND-CLOUD.md](../design/AI-CODING-LOCAL-AND-CLOUD.md) §6–7.
 
-The cloud path is **Terraform + Azure App Service**. There are no container images anywhere in this project: `terraform apply` creates the Azure resources, then the three Java services are uploaded as plain JARs and the SPA is uploaded as static files. Local development runs the same four processes directly on the machine ([README](../README.md) "Local development startup").
+The cloud path is **Terraform + Azure App Service**. There are no container images anywhere in this project: `terraform apply` creates the Azure resources, then the three .NET services are uploaded as zip packages and the React SPA is uploaded as static files. Local development runs the same four processes directly on the machine ([README](../README.md) "Local development startup").
 
 | Piece | Where |
 |---|---|
 | Infrastructure as code | [deploy/terraform/](terraform/) (`main.tf`, `variables.tf`, `outputs.tf`) |
-| App upload script | [deploy/terraform/deploy-apps.sh](terraform/deploy-apps.sh) — uploads JARs and SPA after `terraform apply` |
+| App upload script | [deploy/terraform/deploy-apps.sh](terraform/deploy-apps.sh) — uploads .NET apps and React SPA after `terraform apply` |
 | CI check | `.github/workflows/terraform.yml` — `fmt`, `init -backend=false`, `validate`. It never runs `plan` or `apply` |
 | Compile CI | `.github/workflows/dealer-{web,core,gateway}.yml` and `ai-service.yml` |
 
@@ -19,15 +19,13 @@ GitHub Actions starts the workflows whose path filters match the push. A pull re
 
 | Changed paths | Workflow file | On `main` |
 |---|---|---|
-| `dealer-web/**` | `.github/workflows/dealer-web.yml` | Job `compile`: Node 20 `npm ci` and `npm run build` |
-| `backend/java/dealer-core/**` | `.github/workflows/dealer-core.yml` | Job `compile`: JDK 21 compile, unit tests, and the Testcontainers ITs when the runner has a Docker engine |
-| `backend/java/dealer-gateway/**` | `.github/workflows/dealer-gateway.yml` | Job `compile`: JDK 21 compile and unit tests |
-| `backend/java/ai-service/**` | `.github/workflows/ai-service.yml` | Job `compile`: JDK 21 compile of ai-service with the vendored `ai-manager` sources (no private checkout, no paid model call) |
+| `frontend/react/**` | `.github/workflows/dealer-web.yml` | Job `compile`: Node 20 `npm install` and `npm run build` |
+| `backend/dotnet/**` | `.github/workflows/dealer-core.yml` | Job `compile`: `dotnet build` of the .NET solution |
 | `deploy/terraform/**` | `.github/workflows/terraform.yml` | Job `validate`: `terraform fmt -check`, `init -backend=false`, `validate`. Log line `Terraform validated. Not applied (no subscription credentials in this repository).` |
 
 Open runs at `https://github.com/YUANDONG-YANG/DealerOps/actions`.
 
-The `dealer-core` integration tests are the one place a Docker engine is still used, and only on the CI runner or a developer machine: `dealer-core` starts a MySQL 8.4 container through Testcontainers. Nothing that is built, shipped, or run in Azure is a container.
+Nothing that is built, shipped, or run in Azure is a container.
 
 ## 2. What the stack creates
 
@@ -35,11 +33,11 @@ One resource group, `dealerops-rg` by default. Names follow the pinned `${prefix
 
 | Resource | Name | Role |
 |---|---|---|
-| App Service plan | `dealerops-plan` | One Linux plan, `B2` by default, for all three Java apps |
-| Linux Web App | `dealerops-gateway` | Java 21 SE. **The only public API origin.** Also serves Swagger UI |
-| Linux Web App | `dealerops-core` | Java 21 SE. Business APIs, Flyway, JWT issuing. Access restricted to Azure-internal callers |
-| Linux Web App | `dealerops-ai` | Java 21 SE. `ai-service`. Restricted the same way |
-| Static Web App | `dealerops-web` | Free tier. The built Vue SPA |
+| App Service plan | `dealerops-plan` | One Linux plan, `B2` by default, for all three .NET apps |
+| Linux Web App | `dealerops-gateway` | .NET 8. **The only public API origin.** YARP reverse proxy, JWT validation |
+| Linux Web App | `dealerops-core` | .NET 8. Business APIs, EF Core, JWT issuing. Access restricted to Azure-internal callers |
+| Linux Web App | `dealerops-ai` | .NET 8. `ai-service`. Restricted the same way |
+| Static Web App | `dealerops-web` | Free tier. The built React SPA |
 | MySQL Flexible Server | `dealerops-mysql` | `B_Standard_B1ms`, database `dealer_core`, TLS required |
 | Key Vault | `dealerops-kv` | `INTERNAL-TOKEN`, `MYSQL-PASSWORD`, `JWT-SIGNING-SECRET`, and when configured `AIMANAGER-API-KEY` and `ADMIN-PASSWORD` |
 | User-assigned identity | `dealerops-uai` | The identity the three apps use to read Key Vault |
@@ -61,7 +59,7 @@ Install on the operator machine:
 |---|---|
 | Azure CLI (`az`) | current |
 | Terraform | 1.9 or newer (CI pins 1.16.5) |
-| JDK + Maven | Java 21; Maven must run on it (`mvn -v`), or `deploy-apps.sh` stops: ai-service does not compile on newer JDKs |
+| .NET SDK | 8.0+ (`dotnet --version`) |
 | Node + npm | Node 20 |
 
 On macOS, Homebrew installs both CLIs. Terraform was pulled from `homebrew-core` in 2023 over the BSL license change, so it comes from HashiCorp's own tap, not `brew install terraform`:
@@ -152,18 +150,16 @@ deploy/terraform/deploy-apps.sh
 
 That script reads every name and URL from `terraform output` and then, for one UTC timestamp:
 
-1. stamps `PUBLISHED_AT` on `dealerops-core`, packages `dealer-core`, and uploads the JAR
-2. stamps `PUBLISHED_AT` on `dealerops-ai`, packages `ai-service` (vendored `ai-manager` sources, no extra install) and uploads the JAR
-3. stamps `PUBLISHED_AT` on `dealerops-gateway`, packages `dealer-gateway`, and uploads the JAR
-4. builds `dealer-web` with `VITE_GATEWAY_URL` set to the gateway URL and `VITE_PUBLISHED_AT` set to the same timestamp, then uploads `dist/` to the Static Web App
-
-After the run, the web app's bottom-left footer and `<gateway>/actuator/release` show the new time for every deployed app ([design/20-Observability.md](../design/20-Observability.md) §5).
+1. stamps `PUBLISHED_AT` on `dealerops-core`, runs `dotnet publish`, zips and uploads DealerOps.Core
+2. stamps `PUBLISHED_AT` on `dealerops-ai`, publishes and uploads DealerOps.AiService
+3. stamps `PUBLISHED_AT` on `dealerops-gateway`, publishes and uploads DealerOps.Gateway
+4. builds the React frontend with `VITE_GATEWAY_URL` set to the gateway URL, then uploads `dist/` to the Static Web App
 
 Pass names to redeploy one app: `deploy/terraform/deploy-apps.sh core web`.
 
 ### Backend only, with a frontend built elsewhere
 
-A team that writes its own SPA deploys the three Java apps and skips `dealer-web`:
+A team that writes its own SPA deploys the three .NET apps and skips the React frontend:
 
 ```text
 deploy/terraform/deploy-apps.sh core ai gateway
@@ -171,21 +167,22 @@ deploy/terraform/deploy-apps.sh core ai gateway
 
 The browser origin is the one thing that still has to match. `dealer-gateway` accepts exactly one origin, so set `cors_allowed_origin` in `terraform.tfvars` to where that SPA runs (`http://localhost:5173` while developing it, the hosted origin afterwards) and apply again. The SPA then calls `terraform output -raw gateway_public_url` as its API base URL and needs nothing else: `dealerops-core` and `dealerops-ai` are not reachable from a browser. The endpoints are in [dealer-platform/API.md](../dealer-platform/API.md), [design/14-Backend-API-Contract.md](../design/14-Backend-API-Contract.md), and the live Swagger UI from §6.
 
-The equivalent by hand, for `dealer-core`:
+The equivalent by hand, for `DealerOps.Core`:
 
 ```text
-cd backend/java/dealer-core
-mvn -B -DskipTests package
+cd backend/dotnet/DealerOps.Core
+dotnet publish -c Release -o ./publish
+cd publish && zip -r ../deploy.zip .
 az webapp deploy \
   --resource-group dealerops-rg \
   --name dealerops-core \
-  --type jar \
-  --src-path target/dealer-core-0.0.1-SNAPSHOT.jar
+  --type zip \
+  --src-path ../deploy.zip
 ```
 
-`--type jar` lands the file as `/home/site/wwwroot/app.jar`, which the Java 21 SE stack starts on its own. Each app binds `8080` inside the sandbox (`CORE_PORT` / `GATEWAY_PORT` / `AI_PORT`, with `WEBSITES_PORT` telling the platform where to route); App Service terminates HTTPS on 443 in front of it. The local `8081` / `8082` split only matters on a developer machine.
+`--type zip` extracts to `/home/site/wwwroot/`, and the .NET 8 stack starts the app on its own. Each app binds `8080` inside the sandbox (`CORE_PORT` / `GATEWAY_PORT` / `AI_PORT`, with `WEBSITES_PORT` telling the platform where to route); App Service terminates HTTPS on 443 in front of it. The local `8081` / `8082` split only matters on a developer machine.
 
-The first start after an upload takes a minute or two: `dealer-core` runs Flyway against `dealerops-mysql` before it answers health checks.
+The first start after an upload takes about a minute: `dealer-core` runs EF Core `EnsureCreated` against `dealerops-mysql` before it answers health checks.
 
 ## 6. Verify
 
@@ -197,7 +194,7 @@ terraform -chdir=deploy/terraform output
 |---|---|
 | Web UI | `https://<web_public_url>/` |
 | Gateway health | `https://<gateway_public_url>/actuator/health` → `{"status":"UP"}` |
-| Swagger UI | `https://<gateway_public_url>/swagger-ui/index.html` |
+| Swagger UI | `https://<gateway_public_url>/swagger/index.html` |
 | Core direct | `https://dealerops-core.azurewebsites.net/actuator/health` → refused by App Service, not 200 |
 | AI direct | `https://dealerops-ai.azurewebsites.net/actuator/health` → refused by App Service, not 200 |
 
@@ -217,7 +214,7 @@ Only the cloud environment uses Key Vault, TLS-required MySQL, and the Static We
 
 ## 8. Cost, pause, and teardown
 
-`Standard_B2` App Service plan plus `B_Standard_B1ms` MySQL is the recurring cost; the Static Web App Free tier and Key Vault standard are negligible. Set `service_plan_sku = "B1"` for a cheaper plan, at the price of 1.75 GB of memory for three JVMs.
+`Standard_B2` App Service plan plus `B_Standard_B1ms` MySQL is the recurring cost; the Static Web App Free tier and Key Vault standard are negligible. Set `service_plan_sku = "B1"` for a cheaper plan, at the price of 1.75 GB of memory for three .NET apps.
 
 Nothing in this stack stops on its own. Two options when you are not using it:
 
@@ -245,7 +242,7 @@ az webapp start -g dealerops-rg -n dealerops-gateway
 
 Start MySQL first, then the apps — `dealer-core` connects to MySQL on startup and fails health checks if the database is not ready.
 
-After resume, wait one to two minutes for `dealer-core` to finish Flyway and answer health checks:
+After resume, wait one to two minutes for `dealer-core` to finish starting and answer health checks:
 
 ```text
 curl https://dealerops-gateway.azurewebsites.net/actuator/health
@@ -272,4 +269,4 @@ To rebuild from scratch after a destroy: `terraform apply` — secrets are regen
 - `terraform apply` creates infrastructure only. Application code reaches Azure through `deploy-apps.sh`, never through a CI job.
 - Terraform owns the app settings. A setting changed by hand in the portal is reverted on the next apply, except `PUBLISHED_AT`, which the deploy step owns.
 - `.env`, `terraform.tfvars`, and `terraform.tfstate` stay out of git. Secrets auto-generate; `terraform.tfvars` is only needed for overrides.
-- There are no container images, no container registry, and no Compose file. The `dealer-core` Testcontainers ITs are the only remaining use of a Docker engine, on CI runners and developer machines.
+- There are no container images, no container registry, and no Compose file.
