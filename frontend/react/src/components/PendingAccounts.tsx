@@ -27,7 +27,7 @@ export default function PendingAccounts({ onBound }: Props) {
       do {
         const r = await adminApi.dealers({ page: p, size: 10 });
         all.push(...(r.data.items || []));
-        n = r.data.total || 0; p++;
+        n = r.data.totalElements || 0; p++;
       } while (all.length < n);
       setDealers(all);
     } catch { setDealers([]); }

@@ -1,3 +1,5 @@
+import { dateTimeLocal } from '../format';
+
 interface AuditRow {
   action?: string;
   actorUsername?: string;
@@ -5,13 +7,18 @@ interface AuditRow {
   fieldSummary?: Record<string, unknown>;
 }
 
+// Contact fields are recorded by name only — never by value (AUD-04 / CRM-12).
+const REDACTED = /email|phone|address/i;
+
 function summaryText(raw: unknown): string {
   if (!raw || typeof raw !== 'object') return '—';
-  const o: Record<string, unknown> = { ...(raw as Record<string, unknown>) };
-  for (const k of Object.keys(o)) {
-    if (/email|phone|address/i.test(k)) delete o[k];
-  }
-  return Object.keys(o).length ? JSON.stringify(o) : '—';
+  const entries = Object.entries(raw as Record<string, unknown>);
+  if (!entries.length) return '—';
+  return entries
+    .map(([key, value]) =>
+      REDACTED.test(key) || value === true ? key : `${key}: ${JSON.stringify(value)}`,
+    )
+    .join(', ');
 }
 
 export default function AuditTrail({ rows }: { rows: AuditRow[] }) {
@@ -33,7 +40,7 @@ export default function AuditTrail({ rows }: { rows: AuditRow[] }) {
             <tr key={i}>
               <td>{row.action}</td>
               <td>{row.actorUsername}</td>
-              <td>{row.createdAt}</td>
+              <td>{dateTimeLocal(row.createdAt)}</td>
               <td>{summaryText(row.fieldSummary)}</td>
             </tr>
           ))}

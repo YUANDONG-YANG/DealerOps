@@ -7,7 +7,7 @@ export type Dealer = {
 
 export type Member = { username: string; displayName: string; role: string; active: boolean };
 
-export type Page<T> = { items: T[]; page: number; size: number; total: number };
+export type Page<T> = { items: T[]; page: number; size: number; totalElements: number };
 
 export type CreateDealerBody = { legalName: string; contactPhone: string; contactEmail: string; contactAddress: string };
 

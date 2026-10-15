@@ -69,7 +69,7 @@ export default function AdsPage() {
     try {
       const r = await vehiclesApi.list({ page, size: 10 });
       if (seq !== vehicleListSeq.current) return;
-      setVehicles(r.data.items || []); setTotal(r.data.total || 0);
+      setVehicles(r.data.items || []); setTotal(r.data.totalElements || 0);
     } catch (e) {
       if (seq !== vehicleListSeq.current) return;
       setVehicles([]);

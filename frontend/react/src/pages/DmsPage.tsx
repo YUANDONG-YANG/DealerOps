@@ -10,6 +10,7 @@ import WorkOrderPanel from '../components/WorkOrderPanel';
 import PhotoStudioPanel from '../components/PhotoStudioPanel';
 import StatusTag from '../components/StatusTag';
 import { vehiclesApi, errorCode, errorStatus } from '../api/vehicles';
+import { cad } from '../format';
 import { catalogApi, vinDecodeError } from '../api/catalog';
 import { listingsApi, checkStatusLabel } from '../api/listings';
 import { auditApi } from '../api/audit';
@@ -17,11 +18,6 @@ import { fieldErrorsOf, messageOf } from '../api/http';
 
 const SOURCES = ['TRADE_IN', 'AUCTION', 'PRIVATE_PURCHASE', 'OTHER'] as const;
 const CONDITIONS = ['CERTIFIED', 'AS_IS', 'UNFIT', 'IRREPARABLE'] as const;
-
-const CAD = new Intl.NumberFormat('en-CA', { style: 'currency', currency: 'CAD' });
-function cad(value: unknown) {
-  return value == null || value === '' ? '—' : CAD.format(Number(value));
-}
 
 function enumLabel(v: string) {
   const s = String(v || '').split('_').join(' ').toLowerCase();
@@ -132,6 +128,8 @@ export default function DmsPage() {
   const [adStatus, setAdStatus] = useState('');
   const [audit, setAudit] = useState<any[]>([]);
 
+  const [formModelOptions, setFormModelOptions] = useState<string[]>([]);
+
   const [sellOpen, setSellOpen] = useState(false);
   const [sellForm, setSellForm] = useState({ soldOn: '', soldPrice: '' });
   const [sellError, setSellError] = useState('');
@@ -150,7 +148,7 @@ export default function DmsPage() {
       const r = await vehiclesApi.list({ ...filters, page: usePage, size: 10 });
       if (seq !== listSeqRef.current) return;
       setRows(r.data.items || []);
-      setTotal(r.data.total || 0);
+      setTotal(r.data.totalElements || 0);
     } catch (e) {
       if (seq !== listSeqRef.current) return;
       if (errorStatus(e) === 403 || errorCode(e) === 'FORBIDDEN') setForbidden(true);
@@ -194,10 +192,22 @@ export default function DmsPage() {
     setPage(0);
   }
 
+  async function onFormMakeChange(make: string) {
+    updateForm('make', make);
+    updateForm('model', '');
+    setFormModelOptions([]);
+    if (!make) return;
+    try {
+      const models = (await catalogApi.models(make)).data;
+      setFormModelOptions(models);
+    } catch { /* ignore */ }
+  }
+
   function openCreate() {
     detailSeqRef.current++;
     setEdit(null);
     setForm(blankForm());
+    setFormModelOptions([]);
     setVinFacts('');
     setFormError('');
     setValidationErrors({});
@@ -219,6 +229,10 @@ export default function DmsPage() {
       if (seq !== detailSeqRef.current) return;
       setEdit(r.data);
       setForm(vehicleToForm(r.data));
+      setFormModelOptions([]);
+      if (r.data.make) {
+        catalogApi.models(r.data.make).then(mr => setFormModelOptions(mr.data)).catch(() => {});
+      }
       setDrawer(true);
       loadAdStatus(id, seq);
       loadAudit(id, seq);
@@ -448,13 +462,28 @@ export default function DmsPage() {
             <div className="form-item" key={field.key}>
               <label className="form-label">{field.label}</label>
               <div>
-                {field.key === 'vin' && !edit ? (
+                {field.key === 'make' ? (
+                  <select className="select" value={form.make} onChange={e => onFormMakeChange(e.target.value)} disabled={isSold}>
+                    <option value="">Select make</option>
+                    {makeOptions.map(m => <option key={m} value={m}>{m}</option>)}
+                  </select>
+                ) : field.key === 'model' ? (
+                  <select className="select" value={form.model} onChange={e => updateForm('model', e.target.value)} disabled={isSold || !form.make}>
+                    <option value="">Select model</option>
+                    {formModelOptions.map(m => <option key={m} value={m}>{m}</option>)}
+                  </select>
+                ) : field.key === 'modelYear' ? (
+                  <select className="select" value={form.modelYear} onChange={e => updateForm('modelYear', e.target.value)} disabled={isSold}>
+                    <option value="">Select year</option>
+                    {yearOptions.map(y => <option key={y} value={String(y)}>{y}</option>)}
+                  </select>
+                ) : field.key === 'vin' && !edit ? (
                   <div style={{ display: 'flex', gap: 8 }}>
                     <input className="input" value={form[field.key]} onChange={e => updateForm(field.key, e.target.value)} disabled={isSold} style={{ flex: 1 }} />
                     <button type="button" className="btn" onClick={decodeVin} disabled={decoding}>{decoding ? 'Decoding…' : 'Decode'}</button>
                   </div>
                 ) : field.key === 'addedOn' ? (
-                  <input className="input" type="date" value={form[field.key]} onChange={e => updateForm(field.key, e.target.value)} disabled={isSold} />
+                  <input className="input" type="date" value={form[field.key]} onChange={e => updateForm(field.key, e.target.value)} disabled={isSold} lang="en" />
                 ) : (
                   <input className="input" value={form[field.key]} onChange={e => updateForm(field.key, e.target.value)} disabled={isSold} />
                 )}

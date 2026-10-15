@@ -45,7 +45,7 @@ function AuthGuard() {
 
     let cancelled = false;
     http
-      .get<MeResponse>('/api/v1/auth/me')
+      .get<MeResponse>('/api/v1/me')
       .then((res) => {
         if (cancelled) return;
         setProfile(res.data);

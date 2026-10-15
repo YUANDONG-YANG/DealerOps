@@ -14,8 +14,8 @@ export const catalogApi = {
 
 export function vinDecodeError(err: unknown): string {
   const { status, code } = apiError(err);
-  if (code === 'VIN_INVALID') return 'VIN must be 17 characters (no I, O, Q).';
-  if (code === 'VIN_NOT_FOUND') return 'VIN not found in the NHTSA catalog.';
-  if (status === 502 || code === 'UPSTREAM_FAILED') return 'NHTSA catalog unavailable. Try again later.';
+  if (code === 'VALIDATION') return 'VIN must be 17 characters (no I, O, Q).';
+  if (code === 'NOT_FOUND') return 'VIN not found in the NHTSA catalog.';
+  if (status === 502 || code === 'CATALOG_UNAVAILABLE') return 'NHTSA catalog unavailable. Try again later.';
   return 'Could not decode VIN.';
 }

@@ -28,7 +28,8 @@ http.interceptors.request.use(async (config) => {
   }
   config.baseURL = await applyGatewayUrl();
   config.headers = config.headers || {};
-  const token = path.includes('/auth/') ? '' : (accessToken() ?? '');
+  const isPublicAuth = path.includes('/auth/login') || path.includes('/auth/register');
+  const token = isPublicAuth ? '' : (accessToken() ?? '');
   if (token) config.headers.Authorization = `Bearer ${token}`;
   return config;
 });

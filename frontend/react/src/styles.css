@@ -182,6 +182,7 @@ textarea.input, .textarea { resize: vertical; min-height: 80px; }
   font-size: 14px;
   vertical-align: middle;
 }
+.table td .btn-link + .btn-link { margin-left: 12px; }
 .table tr:last-child td { border-bottom: none; }
 .table tbody tr:nth-child(even) { background: #fafbff; }
 .table tbody tr:hover { background: #f5f5ff; }

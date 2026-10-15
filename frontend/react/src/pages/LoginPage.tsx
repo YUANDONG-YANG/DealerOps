@@ -33,8 +33,10 @@ export default function LoginPage() {
     try {
       const redirect = params.get('redirect') || ''
       rememberPostLoginRedirect(redirect)
-      await signIn(identifier.trim(), password)
-      navigate(takePostLoginRedirect() || '/')
+      const result = await signIn(identifier.trim(), password)
+      const saved = takePostLoginRedirect()
+      const roleHome = result.role === 'Platform.Admin' ? '/admin' : '/dms'
+      navigate(saved || roleHome)
     } catch {
       setError('Invalid sign-in name or password.')
     } finally {

@@ -8,5 +8,12 @@ export default defineConfig({
       new Date().toISOString().replace(/\.\d{3}Z$/, 'Z'),
     ),
   },
-  server: { port: 5174, strictPort: true },
+  server: {
+    port: 5174,
+    strictPort: true,
+    proxy: {
+      '/api': 'http://localhost:8080',
+      '/actuator': 'http://localhost:8080',
+    },
+  },
 })

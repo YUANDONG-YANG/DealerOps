@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { http } from '../api/http';
+import { cad } from '../format';
 
 interface WorkOrder {
   id: number;
@@ -21,10 +22,6 @@ interface Props {
   onChanged: () => void;
 }
 
-const CAD = new Intl.NumberFormat('en-CA', { style: 'currency', currency: 'CAD' });
-function cad(v: unknown) {
-  return v == null || v === '' ? '—' : CAD.format(Number(v));
-}
 
 const STATUS_TAG: Record<string, string> = {
   OPEN: 'tag-warning',

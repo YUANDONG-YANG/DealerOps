@@ -119,7 +119,7 @@ export default function CrmPage() {
       const r = await customersApi.list({ ...filters, page: usePage, size: 10 });
       if (seq !== listSeqRef.current) return;
       setRows(r.data.items || []);
-      setTotal(r.data.total || 0);
+      setTotal(r.data.totalElements || 0);
     } catch (e) {
       if (seq !== listSeqRef.current) return;
       if (errorStatus(e) === 403 || errorCode(e) === 'FORBIDDEN') setForbidden(true);
@@ -140,14 +140,14 @@ export default function CrmPage() {
     }
   }, [searchParams.get('customerId')]);
 
-  async function collectAllPages(loadPage: (p: number, size: number) => Promise<{ data: { items?: any[]; total?: number } }>) {
+  async function collectAllPages(loadPage: (p: number, size: number) => Promise<{ data: { items?: any[]; totalElements?: number } }>) {
     const collected: any[] = [];
     let pageIndex = 0;
     let totalCount = Infinity;
     while (collected.length < totalCount) {
       const r = await loadPage(pageIndex, 10);
       const items = r.data.items || [];
-      totalCount = Number(r.data.total) || 0;
+      totalCount = Number(r.data.totalElements) || 0;
       collected.push(...items);
       if (!items.length) break;
       pageIndex++;

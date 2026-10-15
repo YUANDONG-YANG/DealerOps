@@ -8,14 +8,12 @@ import { hasBusinessAccess, useSessionStore } from './store/session';
 const webBuiltAt =
   (import.meta.env.VITE_PUBLISHED_AT || '').trim() || __WEB_BUILT_AT__;
 
+const PENDING: ReleaseTimes = { web: '…', gateway: '…', core: '…', ai: '…' };
+
 export default function App() {
   const location = useLocation();
   const session = useSessionStore();
-  const [backend, setBackend] = useState<ReleaseTimes>({
-    gateway: '…',
-    core: '…',
-    ai: '…',
-  });
+  const [backend, setBackend] = useState<ReleaseTimes>(PENDING);
   const fetched = useRef(false);
 
   const isPublicRoute = ['/', '/login', '/register'].includes(location.pathname);
@@ -23,7 +21,6 @@ export default function App() {
     session.role === 'Dealer.User' &&
     hasBusinessAccess(session) &&
     !isPublicRoute;
-  const showFooter = location.pathname !== '/';
 
   useEffect(() => {
     if (fetched.current) return;
@@ -32,6 +29,7 @@ export default function App() {
       .then(setBackend)
       .catch(() =>
         setBackend({
+          web: webBuiltAt,
           gateway: 'unavailable',
           core: 'unavailable',
           ai: 'unavailable',
@@ -43,15 +41,13 @@ export default function App() {
     <>
       <AppRoutes />
       {showAssistant && <AssistantWidget />}
-      {showFooter && (
-        <footer className="app-footer">
-          <div className="app-footer-title">Published (UTC)</div>
-          <div>web {webBuiltAt}</div>
-          <div>gateway {backend.gateway}</div>
-          <div>core {backend.core}</div>
-          <div>ai {backend.ai}</div>
-        </footer>
-      )}
+      <footer className="app-footer">
+        <div className="app-footer-title">Published (UTC)</div>
+        <div>web {webBuiltAt}</div>
+        <div>gateway {backend.gateway}</div>
+        <div>core {backend.core}</div>
+        <div>ai {backend.ai}</div>
+      </footer>
     </>
   );
 }

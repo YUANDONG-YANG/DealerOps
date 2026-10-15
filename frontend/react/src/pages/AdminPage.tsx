@@ -74,7 +74,7 @@ export default function AdminPage() {
     try {
       const r = await adminApi.dealers({ q, page, size: 10 });
       if (seq !== dealersLoadSeq.current) return;
-      setRows(r.data.items || []); setTotal(r.data.total || 0);
+      setRows(r.data.items || []); setTotal(r.data.totalElements || 0);
     } catch (e) {
       if (seq !== dealersLoadSeq.current) return;
       setRows([]); setTotal(0);
@@ -92,7 +92,7 @@ export default function AdminPage() {
     let p = 0, n = 0;
     do {
       const r = await adminApi.dealers({ page: p, size: 10 });
-      all.push(...(r.data.items || [])); n = r.data.total || 0; p++;
+      all.push(...(r.data.items || [])); n = r.data.totalElements || 0; p++;
     } while (all.length < n);
     return all;
   };
@@ -102,7 +102,7 @@ export default function AdminPage() {
     let p = 0, n = 0;
     do {
       const r = await adminApi.members(dealerId, { q: filterQ, page: p, size: 10 });
-      items.push(...(r.data.items || [])); n = r.data.total || 0; p++;
+      items.push(...(r.data.items || [])); n = r.data.totalElements || 0; p++;
     } while (items.length < n);
     return items;
   };

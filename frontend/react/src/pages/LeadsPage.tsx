@@ -75,7 +75,7 @@ export default function LeadsPage() {
     try {
       const r = await leadsApi.list({ ...f, page: p, size: 10 });
       if (seq !== listSeq.current) return;
-      setRows(r.data.items || []); setTotal(r.data.total || 0);
+      setRows(r.data.items || []); setTotal(r.data.totalElements || 0);
     } catch (e) {
       if (seq !== listSeq.current) return;
       if (errorStatus(e) === 403 || errorCode(e) === 'FORBIDDEN') setForbidden(true);
