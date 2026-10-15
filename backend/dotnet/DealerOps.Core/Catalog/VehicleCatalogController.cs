@@ -4,7 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace DealerOps.Core.Catalog;
 
 [ApiController]
-[Route("api/v1/vehicle-catalog")]
+[Route("api/v1/catalog")]
 public class VehicleCatalogController : ControllerBase
 {
     private readonly VehicleCatalogService _catalogService;

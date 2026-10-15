@@ -144,7 +144,7 @@ app.Use(async (context, next) =>
         await next();
         return;
     }
-    if (method == "GET" && path.StartsWith("/api/v1/vehicle-catalog/vin/", StringComparison.OrdinalIgnoreCase))
+    if (method == "GET" && path.StartsWith("/api/v1/catalog/vin/", StringComparison.OrdinalIgnoreCase))
     {
         await next();
         return;
@@ -179,8 +179,7 @@ var devMode = string.Equals(jwtMode.Trim(), "dev", StringComparison.OrdinalIgnor
 app.Use(async (context, next) =>
 {
     var path = context.Request.Path.Value ?? "";
-    if ((path.StartsWith("/swagger-ui", StringComparison.OrdinalIgnoreCase)
-         || path.StartsWith("/v3/api-docs", StringComparison.OrdinalIgnoreCase))
+    if (path.StartsWith("/swagger", StringComparison.OrdinalIgnoreCase)
         && !devMode)
     {
         context.Response.StatusCode = 404;
