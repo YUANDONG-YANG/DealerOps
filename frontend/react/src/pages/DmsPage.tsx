@@ -572,6 +572,12 @@ export default function DmsPage() {
                   ) : (
                     <select className="select" value={form.make} onChange={e => onFormMakeChange(e.target.value)} disabled={isSold}>
                       <option value="">Select make</option>
+                      {/* The catalog returns ALL CAPS but stored makes may be title case
+                          (and models may still be loading). Pin the current value as a
+                          virtual option so a controlled <select> can always display it. */}
+                      {form.make && !makeOptions.includes(form.make) && (
+                        <option value={form.make}>{form.make}</option>
+                      )}
                       {makeOptions.map(m => <option key={m} value={m}>{m}</option>)}
                     </select>
                   )
@@ -582,12 +588,22 @@ export default function DmsPage() {
                   ) : (
                     <select className="select" value={form.model} onChange={e => updateForm('model', e.target.value, true)} disabled={isSold || !form.make}>
                       <option value="">Select model</option>
+                      {/* Same guard as make: the options list may lag the loaded value by one
+                          async hop, or carry a different casing than the stored row. */}
+                      {form.model && !formModelOptions.includes(form.model) && (
+                        <option value={form.model}>{form.model}</option>
+                      )}
                       {formModelOptions.map(m => <option key={m} value={m}>{m}</option>)}
                     </select>
                   )
                 ) : field.key === 'modelYear' ? (
                   <select className="select" value={form.modelYear} onChange={e => updateForm('modelYear', e.target.value, true)} disabled={isSold}>
                     <option value="">Select year</option>
+                    {/* Pin the stored year if it is outside the current year window
+                        (e.g. a very old vehicle or a VIN-decoded future model year). */}
+                    {form.modelYear && !yearOptions.some(y => String(y) === form.modelYear) && (
+                      <option value={form.modelYear}>{form.modelYear}</option>
+                    )}
                     {yearOptions.map(y => <option key={y} value={String(y)}>{y}</option>)}
                   </select>
                 ) : field.key === 'vin' && !edit ? (
@@ -613,6 +629,11 @@ export default function DmsPage() {
           <div className="form-item">
             <label className="form-label form-required">Source</label>
             <select className="select" value={form.source} onChange={e => updateForm('source', e.target.value, true)} disabled={isSold}>
+              {/* Virtual option for a value the backend already knows but the frontend enum
+                  does not list yet — stops the stored row from silently flipping on save. */}
+              {form.source && !SOURCES.includes(form.source as (typeof SOURCES)[number]) && (
+                <option value={form.source}>{enumLabel(form.source)}</option>
+              )}
               {SOURCES.map(v => <option key={v} value={v}>{enumLabel(v)}</option>)}
             </select>
             {(validationErrors.source || serverErrors.source) && <div className="form-error">{validationErrors.source || serverErrors.source}</div>}
@@ -621,6 +642,9 @@ export default function DmsPage() {
           <div className="form-item">
             <label className="form-label form-required">Condition</label>
             <select className="select" value={form.conditionCode} onChange={e => updateForm('conditionCode', e.target.value, true)}>
+              {form.conditionCode && !CONDITIONS.includes(form.conditionCode as (typeof CONDITIONS)[number]) && (
+                <option value={form.conditionCode}>{enumLabel(form.conditionCode)}</option>
+              )}
               {CONDITIONS.map(v => <option key={v} value={v}>{enumLabel(v)}</option>)}
             </select>
             {(validationErrors.conditionCode || serverErrors.conditionCode) && <div className="form-error">{validationErrors.conditionCode || serverErrors.conditionCode}</div>}
@@ -629,6 +653,9 @@ export default function DmsPage() {
           <div className="form-item">
             <label className="form-label form-required">Body type</label>
             <select className="select" value={form.bodyType} onChange={e => updateForm('bodyType', e.target.value, true)} disabled={isSold}>
+              {form.bodyType && !BODY_TYPES.includes(form.bodyType as (typeof BODY_TYPES)[number]) && (
+                <option value={form.bodyType}>{enumLabel(form.bodyType)}</option>
+              )}
               {BODY_TYPES.map(v => <option key={v} value={v}>{enumLabel(v)}</option>)}
             </select>
             {(validationErrors.bodyType || serverErrors.bodyType) && <div className="form-error">{validationErrors.bodyType || serverErrors.bodyType}</div>}
