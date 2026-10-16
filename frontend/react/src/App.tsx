@@ -37,13 +37,18 @@ export default function App() {
       );
   }, []);
 
+  // Prefer the Gateway's stamp so all four times share one source; fall back to this build's
+  // own constant when the deployment did not stamp WEB_PUBLISHED_AT.
+  const resolvedWeb =
+    backend.web === '…' || backend.web === 'unavailable' ? webBuiltAt : backend.web;
+
   return (
     <>
       <AppRoutes />
       {showAssistant && <AssistantWidget />}
       <footer className="app-footer">
         <div className="app-footer-title">Published (UTC)</div>
-        <div>web {webBuiltAt}</div>
+        <div>web {resolvedWeb}</div>
         <div>gateway {backend.gateway}</div>
         <div>core {backend.core}</div>
         <div>ai {backend.ai}</div>

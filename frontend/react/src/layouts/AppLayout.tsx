@@ -1,8 +1,7 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useSessionStore } from '../store/session';
 import { signOut } from '../auth/login';
-import { getReleaseTimes, type ReleaseTimes } from '../api/release';
 
 const icons: Record<string, string> = {
   admin: 'M12 3l8 3v6c0 4.5-3.4 8.3-8 9-4.6-.7-8-4.5-8-9V6l8-3zM9 12l2 2 4-4',
@@ -19,11 +18,6 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   const isAdmin = session.role === 'Platform.Admin';
   const name = session.displayName || session.username || 'User';
   const initials = name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join('');
-  const [release, setRelease] = useState<ReleaseTimes | null>(null);
-
-  useEffect(() => {
-    getReleaseTimes().then(setRelease).catch(() => {});
-  }, []);
 
   const items = !session.hasBusinessAccess ? [] : isAdmin
     ? [{ label: 'Admin', to: '/admin', icon: icons.admin }]
@@ -102,13 +96,6 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           </div>
         </header>
         <main className="app-main">{children}</main>
-        {release && (
-          <footer className="app-release">
-            <span>gateway {release.gateway}</span>
-            <span>core {release.core}</span>
-            <span>ai {release.ai}</span>
-          </footer>
-        )}
       </div>
     </div>
   );

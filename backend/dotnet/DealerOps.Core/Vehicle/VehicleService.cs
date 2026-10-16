@@ -52,6 +52,7 @@ public class VehicleService
         var total = query.LongCount();
         var items = query
             .OrderByDescending(v => v.CreatedAt)
+            .ThenByDescending(v => v.Id)
             .Skip(p * s).Take(s)
             .AsEnumerable()
             .Select(ToResponse)
@@ -65,6 +66,8 @@ public class VehicleService
         var tenant = RequireTenant();
         RequireModelYearInRange(body.ModelYear);
         var vin = NormalizeVin(body.Vin);
+        var addedOn = body.AddedOn!.Value;
+        RequireAddedOnNotInFuture(addedOn);
 
         if (_db.Vehicles.Any(v => v.DealerId == tenant && v.Vin == vin))
             throw new ApiException(ErrorCode.VinDup, "VIN already exists in this dealership.");
@@ -76,10 +79,10 @@ public class VehicleService
             Model = body.Model.Trim(),
             ModelYear = body.ModelYear,
             Vin = vin,
-            Source = body.Source,
-            PurchaseCost = body.PurchaseCost,
-            AddedOn = body.AddedOn,
-            ConditionCode = body.ConditionCode,
+            Source = body.Source!.Value,
+            PurchaseCost = body.PurchaseCost!.Value,
+            AddedOn = addedOn,
+            ConditionCode = body.ConditionCode!.Value,
             RepairCost = body.RepairCost,
             CarfaxUrl = body.CarfaxUrl,
             Status = VehicleStatus.InStock,
@@ -91,7 +94,7 @@ public class VehicleService
         _db.Vehicles.Add(vehicle);
         _db.SaveChanges();
         _audit.Record("VEHICLE", vehicle.Id, "CREATE",
-            tenant, ActorUsername(), CreatedVehicleFields(body, vehicle.Make, vehicle.Model, vin));
+            tenant, ActorUsername(), CreatedVehicleFields(vehicle));
         _db.SaveChanges();
         tx.Commit();
 
@@ -112,28 +115,44 @@ public class VehicleService
             throw new ApiException(ErrorCode.VersionConflict, "Version conflict.");
 
         RequireModelYearInRange(body.ModelYear);
-        var make = body.Make.Trim();
-        var model = body.Model.Trim();
-        var vin = NormalizeVin(body.Vin);
 
-        var changed = ChangedVehicleFields(vehicle, body, make, model, vin);
+        // A null value-type field means "not supplied": keep what is stored.
+        var next = new PatchedVehicleValues(
+            body.Make.Trim(),
+            body.Model.Trim(),
+            body.ModelYear,
+            NormalizeVin(body.Vin),
+            body.Source ?? vehicle.Source,
+            body.PurchaseCost ?? vehicle.PurchaseCost,
+            body.AddedOn ?? vehicle.AddedOn,
+            body.ConditionCode ?? vehicle.ConditionCode,
+            body.RepairCost,
+            body.CarfaxUrl);
+
+        if (body.AddedOn != null)
+            RequireAddedOnNotInFuture(body.AddedOn.Value);
+
+        var changed = ChangedVehicleFields(vehicle, next);
 
         if (vehicle.Status == VehicleStatus.Sold && PurchaseFieldsChanged(changed))
             throw new ApiException(ErrorCode.SoldLocked, "Sold vehicle is locked.");
 
-        if (changed.ContainsKey("vin") && _db.Vehicles.Any(v => v.DealerId == tenant && v.Vin == vin))
+        if (changed.ContainsKey("vin") && _db.Vehicles.Any(v => v.DealerId == tenant && v.Vin == next.Vin))
             throw new ApiException(ErrorCode.VinDup, "VIN already exists in this dealership.");
 
-        vehicle.Make = make;
-        vehicle.Model = model;
-        vehicle.ModelYear = body.ModelYear;
-        vehicle.Vin = vin;
-        vehicle.Source = body.Source;
-        vehicle.PurchaseCost = body.PurchaseCost;
-        vehicle.AddedOn = body.AddedOn;
-        vehicle.ConditionCode = body.ConditionCode;
-        vehicle.RepairCost = body.RepairCost;
-        vehicle.CarfaxUrl = body.CarfaxUrl;
+        if (changed.Count == 0)
+            return ToResponse(vehicle);
+
+        vehicle.Make = next.Make;
+        vehicle.Model = next.Model;
+        vehicle.ModelYear = next.ModelYear;
+        vehicle.Vin = next.Vin;
+        vehicle.Source = next.Source;
+        vehicle.PurchaseCost = next.PurchaseCost;
+        vehicle.AddedOn = next.AddedOn;
+        vehicle.ConditionCode = next.ConditionCode;
+        vehicle.RepairCost = next.RepairCost;
+        vehicle.CarfaxUrl = next.CarfaxUrl;
         vehicle.UpdatedAt = DateTime.UtcNow;
 
         if (changed.ContainsKey("conditionCode"))
@@ -158,7 +177,7 @@ public class VehicleService
     {
         var tenant = RequireTenant();
 
-        if (body.SoldOn == null || body.SoldPrice == null || body.SoldPrice.Value <= 0)
+        if (body.SoldOn == null || body.SoldPrice == null)
             throw new ApiException(ErrorCode.SoldPairRequired, "Sold date and sold price are both required.");
 
         var vehicle = LoadThisDealer(id);
@@ -173,7 +192,18 @@ public class VehicleService
             throw new ApiException(ErrorCode.WorkOrdersOpen, "Finish or cancel open work orders before selling.");
 
         if (body.SoldOn.Value < vehicle.AddedOn)
-            throw new ApiException(ErrorCode.Validation, "Sold date must not be before the date added.");
+        {
+            const string message = "Sold date must not be before the date added.";
+            throw new ApiException(ErrorCode.Validation, message,
+                new Dictionary<string, string> { ["soldOn"] = message });
+        }
+
+        if (body.SoldOn.Value > Today())
+        {
+            const string message = "Sold date must not be later than today.";
+            throw new ApiException(ErrorCode.Validation, message,
+                new Dictionary<string, string> { ["soldOn"] = message });
+        }
 
         var changed = ChangedSellFields(vehicle, body);
 
@@ -253,34 +283,47 @@ public class VehicleService
             vehicle.Version);
     }
 
-    private static Dictionary<string, object> CreatedVehicleFields(CreateVehicleRequest body, string make, string model, string vin)
+    private sealed record PatchedVehicleValues(
+        string Make,
+        string Model,
+        int ModelYear,
+        string Vin,
+        VehicleSource Source,
+        decimal PurchaseCost,
+        DateOnly AddedOn,
+        ConditionCode ConditionCode,
+        decimal? RepairCost,
+        string? CarfaxUrl);
+
+    private static Dictionary<string, object> CreatedVehicleFields(VehicleEntity vehicle)
     {
         var fields = new Dictionary<string, object>
         {
-            ["make"] = make, ["model"] = model, ["modelYear"] = body.ModelYear, ["vin"] = vin,
-            ["source"] = body.Source.ToString(), ["purchaseCost"] = body.PurchaseCost,
-            ["addedOn"] = body.AddedOn.ToString("yyyy-MM-dd"),
-            ["conditionCode"] = body.ConditionCode.ToString(), ["status"] = "IN_STOCK"
+            ["make"] = vehicle.Make, ["model"] = vehicle.Model, ["modelYear"] = vehicle.ModelYear,
+            ["vin"] = vehicle.Vin,
+            ["source"] = vehicle.Source.ToString(), ["purchaseCost"] = vehicle.PurchaseCost,
+            ["addedOn"] = vehicle.AddedOn.ToString("yyyy-MM-dd"),
+            ["conditionCode"] = vehicle.ConditionCode.ToString(), ["status"] = "IN_STOCK"
         };
-        if (body.RepairCost != null) fields["repairCost"] = body.RepairCost;
-        if (body.CarfaxUrl != null) fields["carfaxUrl"] = body.CarfaxUrl;
+        if (vehicle.RepairCost != null) fields["repairCost"] = vehicle.RepairCost;
+        if (vehicle.CarfaxUrl != null) fields["carfaxUrl"] = vehicle.CarfaxUrl;
         return fields;
     }
 
     private static Dictionary<string, object> ChangedVehicleFields(
-        VehicleEntity vehicle, PatchVehicleRequest body, string make, string model, string vin)
+        VehicleEntity vehicle, PatchedVehicleValues next)
     {
         var changed = new Dictionary<string, object>();
-        if (vehicle.Make != make) changed["make"] = make;
-        if (vehicle.Model != model) changed["model"] = model;
-        if (vehicle.ModelYear != body.ModelYear) changed["modelYear"] = body.ModelYear;
-        if (vehicle.Vin != vin) changed["vin"] = vin;
-        if (vehicle.Source != body.Source) changed["source"] = body.Source.ToString();
-        if (vehicle.PurchaseCost != body.PurchaseCost) changed["purchaseCost"] = body.PurchaseCost;
-        if (vehicle.AddedOn != body.AddedOn) changed["addedOn"] = body.AddedOn.ToString("yyyy-MM-dd");
-        if (vehicle.ConditionCode != body.ConditionCode) changed["conditionCode"] = body.ConditionCode.ToString();
-        if (MoneyChanged(vehicle.RepairCost, body.RepairCost)) changed["repairCost"] = (object?)body.RepairCost ?? "";
-        if (vehicle.CarfaxUrl != body.CarfaxUrl) changed["carfaxUrl"] = (object?)body.CarfaxUrl ?? "";
+        if (vehicle.Make != next.Make) changed["make"] = next.Make;
+        if (vehicle.Model != next.Model) changed["model"] = next.Model;
+        if (vehicle.ModelYear != next.ModelYear) changed["modelYear"] = next.ModelYear;
+        if (vehicle.Vin != next.Vin) changed["vin"] = next.Vin;
+        if (vehicle.Source != next.Source) changed["source"] = next.Source.ToString();
+        if (vehicle.PurchaseCost != next.PurchaseCost) changed["purchaseCost"] = next.PurchaseCost;
+        if (vehicle.AddedOn != next.AddedOn) changed["addedOn"] = next.AddedOn.ToString("yyyy-MM-dd");
+        if (vehicle.ConditionCode != next.ConditionCode) changed["conditionCode"] = next.ConditionCode.ToString();
+        if (MoneyChanged(vehicle.RepairCost, next.RepairCost)) changed["repairCost"] = (object?)next.RepairCost ?? "";
+        if (vehicle.CarfaxUrl != next.CarfaxUrl) changed["carfaxUrl"] = (object?)next.CarfaxUrl ?? "";
         return changed;
     }
 
@@ -311,6 +354,18 @@ public class VehicleService
         if (modelYear > DateTime.UtcNow.Year + 1)
             throw new ApiException(ErrorCode.Validation, "Model year must not be later than next year.");
     }
+
+    private static void RequireAddedOnNotInFuture(DateOnly addedOn)
+    {
+        if (addedOn > Today())
+        {
+            const string message = "Date added must not be later than today.";
+            throw new ApiException(ErrorCode.Validation, message,
+                new Dictionary<string, string> { ["addedOn"] = message });
+        }
+    }
+
+    private static DateOnly Today() => DateOnly.FromDateTime(DateTime.UtcNow);
 
     private static string NormalizeVin(string vin) => vin.ToUpperInvariant();
 

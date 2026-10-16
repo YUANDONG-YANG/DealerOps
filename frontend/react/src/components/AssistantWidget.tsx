@@ -123,7 +123,7 @@ export default function AssistantWidget() {
           <header className="assistant-panel-head">
             <div>
               <strong>Assistant</strong>
-              <div className="muted assistant-panel-sub">Read-only &middot; up to five matches per answer</div>
+              <div className="muted assistant-panel-sub">Up to five matches per answer</div>
             </div>
             <div style={{ display: 'flex', gap: 8 }}>
               {turns.length > 0 && (
@@ -138,6 +138,10 @@ export default function AssistantWidget() {
             <div className="state danger-text">You do not have access to Assistant.</div>
           ) : (
             <>
+              <div className="muted chat-note" style={{ padding: '10px 16px 0' }}>
+                This assistant is read-only: it can only look up vehicles, customers and ads for your
+                dealership. It will never create, change or delete any data.
+              </div>
               <div ref={threadRef} className="chat-thread">
                 {turns.length === 0 && (
                   <div className="chat-welcome">

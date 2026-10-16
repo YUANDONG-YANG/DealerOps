@@ -56,7 +56,7 @@ export default function AdsPage() {
   const sold = selected?.status === 'SOLD';
   const canRunCheck = !!listing.id && !sold && !unsaved;
   const canMarkReady = !!listing.id && listing.checkStatus === 'PASSED' && !sold && !unsaved;
-  const canExport = !!listing.id && listing.checkStatus === 'PASSED' && !unsaved;
+  const canExport = !!listing.id && listing.checkStatus === 'PASSED' && !sold && !unsaved;
 
   const rememberSummary = (row: Listing) => {
     if (!row.vehicleId) return;
@@ -154,11 +154,17 @@ export default function AdsPage() {
     } catch (e) {
       if (selected?.id !== vehicleId) return;
       const { status, code } = apiError(e);
-      if (status === 502 || code === 'AI_UNAVAILABLE') {
-        try { await refreshListing(); } catch {
-          if (selected?.id !== vehicleId || listing.vehicleId !== vehicleId) return;
-          setListing((l) => { const upd = { ...l, checkStatus: 'AI_UNAVAILABLE' as const }; rememberSummary(upd); return upd; });
-        }
+      // A timeout or a dropped connection carries no response at all. It is still an AI
+      // failure (AD-09), so it must never leave a previous "Passed" badge on screen.
+      const noResponse = !(e as { response?: unknown })?.response;
+      if (status === 502 || code === 'AI_UNAVAILABLE' || noResponse) {
+        if (listing.vehicleId !== vehicleId) return;
+        setListing((l) => {
+          const upd = { ...l, checkStatus: 'AI_UNAVAILABLE' as const, lastCheckId: null, lastCheck: null };
+          rememberSummary(upd);
+          return upd;
+        });
+        setActionError('AI review is unavailable. The advertisement did not pass; run the check again.');
       } else if (code === 'VERSION_CONFLICT') setActionError('Refresh and retry');
       else if (status === 404 || code === 'NOT_FOUND') setActionError('Vehicle not found');
       else if (status === 403 || code === 'FORBIDDEN') setActionError('You do not have access to Ad compliance.');

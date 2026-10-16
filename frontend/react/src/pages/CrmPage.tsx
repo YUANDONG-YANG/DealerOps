@@ -14,6 +14,10 @@ import { fieldErrorsOf, messageOf } from '../api/http';
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+$/;
 const PHONE_PATTERN = /^(?=(?:\D*\d){7,20}\D*$)[0-9+\-() ]+$/;
+const SEARCH_DEBOUNCE_MS = 300;
+// The vehicle list has no server-side "unlinked" filter, so every page is collected
+// and filtered here. 100 is the largest page size the API accepts.
+const LINK_OPTION_PAGE_SIZE = 100;
 
 interface CustomerForm {
   name: string; email: string; phone: string; homeAddress: string;
@@ -28,19 +32,47 @@ function linkedLabel(v: any) {
   return `${v.modelYear} ${v.make} ${v.model}`;
 }
 
+function statusLabel(status: unknown) {
+  return status === 'SOLD' ? 'Sold' : 'In stock';
+}
+
+function vehicleOptionLabel(v: any) {
+  return `${linkedLabel(v)} · ${v.vin} · ${statusLabel(v.status)}`;
+}
+
+// UI-33: the picker filters the loaded options on VIN or model (make and year also match).
+function matchesVehicleQuery(v: any, query: string) {
+  if (!query) return true;
+  return `${v.modelYear ?? ''} ${v.make ?? ''} ${v.model ?? ''} ${v.vin ?? ''}`
+    .toLowerCase()
+    .includes(query.toLowerCase());
+}
+
 type Validation = Record<string, string>;
 
+// Surrounding whitespace is never part of a stored value, so it is removed before
+// the length rules run and before the payload is sent.
+function trimForm(form: CustomerForm): CustomerForm {
+  return {
+    name: form.name.trim(),
+    email: form.email.trim(),
+    phone: form.phone.trim(),
+    homeAddress: form.homeAddress.trim(),
+  };
+}
+
+// Expects an already trimmed form (see trimForm).
 function validateCustomer(form: CustomerForm): Validation {
   const e: Validation = {};
-  if (!form.name.trim()) e.name = 'Check required fields';
+  if (!form.name) e.name = 'Check required fields';
   else if (form.name.length > 100) e.name = 'At most 100 characters';
-  if (!form.email.trim()) e.email = 'Check required fields';
+  if (!form.email) e.email = 'Check required fields';
   else if (!EMAIL_PATTERN.test(form.email)) e.email = 'Enter a valid email';
   else if (form.email.length > 254) e.email = 'At most 254 characters';
-  if (!form.phone.trim()) e.phone = 'Check required fields';
+  if (!form.phone) e.phone = 'Check required fields';
   else if (!PHONE_PATTERN.test(form.phone)) e.phone = 'Use 7 to 20 digits; only + - ( ) and spaces are allowed';
   else if (form.phone.length > 40) e.phone = 'At most 40 characters';
-  if (!form.homeAddress.trim()) e.homeAddress = 'Check required fields';
+  if (!form.homeAddress) e.homeAddress = 'Check required fields';
   else if (form.homeAddress.length > 300) e.homeAddress = 'At most 300 characters';
   return e;
 }
@@ -87,6 +119,8 @@ export default function CrmPage() {
   const [error, setError] = useState('');
   const [forbidden, setForbidden] = useState(false);
   const [filters, setFilters] = useState({ q: '', linked: '' });
+  // Filters actually sent to the API; updated from `filters` after the debounce.
+  const [applied, setApplied] = useState({ q: '', linked: '' });
 
   const [drawer, setDrawer] = useState(false);
   const [selected, setSelected] = useState<any>(null);
@@ -99,6 +133,7 @@ export default function CrmPage() {
 
   const [vehicles, setVehicles] = useState<any[]>([]);
   const [linkId, setLinkId] = useState<number | undefined>();
+  const [vehicleQuery, setVehicleQuery] = useState('');
   const [linkError, setLinkError] = useState('');
   const [customerLeads, setCustomerLeads] = useState<any[]>([]);
   const [audit, setAudit] = useState<any[]>([]);
@@ -109,14 +144,13 @@ export default function CrmPage() {
   const listSeqRef = useRef(0);
   const editSeqRef = useRef(0);
 
-  const load = useCallback(async (p?: number) => {
+  const load = useCallback(async (p: number, f: { q: string; linked: string }) => {
     const seq = ++listSeqRef.current;
-    const usePage = p ?? page;
     setLoading(true);
     setError('');
     setForbidden(false);
     try {
-      const r = await customersApi.list({ ...filters, page: usePage, size: 10 });
+      const r = await customersApi.list({ ...f, page: p, size: 10 });
       if (seq !== listSeqRef.current) return;
       setRows(r.data.items || []);
       setTotal(r.data.totalElements || 0);
@@ -128,9 +162,21 @@ export default function CrmPage() {
     } finally {
       if (seq === listSeqRef.current) setLoading(false);
     }
-  }, [filters, page]);
+  }, []);
 
-  useEffect(() => { void load(); }, [load]);
+  const reload = useCallback(() => load(page, applied), [load, page, applied]);
+
+  // Typing only moves `filters`; the request waits until typing pauses.
+  useEffect(() => {
+    const q = filters.q.trim();
+    const linked = filters.linked;
+    const timer = setTimeout(() => {
+      setApplied(prev => (prev.q === q && prev.linked === linked ? prev : { q, linked }));
+    }, SEARCH_DEBOUNCE_MS);
+    return () => clearTimeout(timer);
+  }, [filters.q, filters.linked]);
+
+  useEffect(() => { void load(page, applied); }, [load, page, applied]);
 
   useEffect(() => {
     const customerId = searchParams.get('customerId');
@@ -145,7 +191,7 @@ export default function CrmPage() {
     let pageIndex = 0;
     let totalCount = Infinity;
     while (collected.length < totalCount) {
-      const r = await loadPage(pageIndex, 10);
+      const r = await loadPage(pageIndex, LINK_OPTION_PAGE_SIZE);
       const items = r.data.items || [];
       totalCount = Number(r.data.totalElements) || 0;
       collected.push(...items);
@@ -198,6 +244,7 @@ export default function CrmPage() {
     setAudit([]);
     setVehicles([]);
     setLinkId(undefined);
+    setVehicleQuery('');
     setCustomerLeads([]);
     setDrawer(true);
   }
@@ -211,6 +258,8 @@ export default function CrmPage() {
     setLinkError('');
     setAudit([]);
     setCustomerLeads([]);
+    setLinkId(undefined);
+    setVehicleQuery('');
     try {
       const r = await customersApi.get(id);
       if (seq !== editSeqRef.current) return;
@@ -248,7 +297,8 @@ export default function CrmPage() {
   async function save() {
     setFormError('');
     setServerErrors({});
-    const errors = validateCustomer(form);
+    const payload = trimForm(form);
+    const errors = validateCustomer(payload);
     setValidationErrors(errors);
     if (Object.keys(errors).length || saving) return;
 
@@ -256,14 +306,14 @@ export default function CrmPage() {
     await checkSharedEmail();
     try {
       if (selected) {
-        const saved = await customersApi.update(selected.id, { ...form, version: selected.version });
+        const saved = await customersApi.update(selected.id, { ...payload, version: selected.version });
         setSelected({ ...selected, ...saved.data });
-        await load();
+        await reload();
         await openEdit(selected.id);
       } else {
-        await customersApi.create(form);
+        await customersApi.create(payload);
         setDrawer(false);
-        await load();
+        await reload();
       }
     } catch (e) {
       if (errorCode(e) === 'VALIDATION') setServerErrors(fieldErrorsOf(e));
@@ -278,8 +328,8 @@ export default function CrmPage() {
     setLinkError('');
     try {
       await customersApi.link(selected.id, linkId);
-      setLinkId(undefined);
-      await load();
+      await reload();
+      // openEdit clears the picker selection and reloads the linkable vehicles.
       await openEdit(selected.id);
     } catch (e) {
       setLinkError(mapLink(e));
@@ -300,7 +350,7 @@ export default function CrmPage() {
     setLinkError('');
     try {
       await customersApi.unlink(customerId, vehicleId);
-      await load();
+      await reload();
       await openEdit(customerId);
     } catch (e) {
       setLinkError(mapUnlink(e));
@@ -312,11 +362,25 @@ export default function CrmPage() {
     setValidationErrors(prev => { const n = { ...prev }; delete n[key]; return n; });
   };
 
+  const vehicleOptions = vehicles.filter(v => matchesVehicleQuery(v, vehicleQuery.trim()));
+
   const columns = [
     { key: 'name', label: 'Name' },
     { key: 'email', label: 'Email' },
     { key: 'phone', label: 'Phone' },
-    { key: 'linkedVehicle', label: 'Linked vehicle', render: (row: any) => linkedLabel(row.linkedVehicle) },
+    {
+      key: 'linkedVehicle',
+      label: 'Linked vehicles',
+      render: (row: any) => {
+        const extra = Number(row.linkedVehicleCount ?? 0) - 1;
+        return (
+          <>
+            {linkedLabel(row.linkedVehicle)}
+            {extra > 0 && <span className="muted"> +{extra} more</span>}
+          </>
+        );
+      },
+    },
     { key: 'linkedVehicleCount', label: 'Vehicles purchased' },
   ];
 
@@ -335,19 +399,21 @@ export default function CrmPage() {
           <button className="btn btn-primary" onClick={openCreate}>Add customer</button>
         </div>
         <div className="filters">
-          <input className="input" placeholder="Name / Email / Phone" value={filters.q} onChange={e => setFilters(f => ({ ...f, q: e.target.value }))} />
-          <select className="select" value={filters.linked} onChange={e => setFilters(f => ({ ...f, linked: e.target.value }))}>
-            <option value="">Linked</option>
+          <input className="input" placeholder="Name / Email / Phone" value={filters.q}
+            onChange={e => { setFilters(f => ({ ...f, q: e.target.value })); setPage(0); }} />
+          <select className="select" value={filters.linked}
+            onChange={e => { setFilters(f => ({ ...f, linked: e.target.value })); setPage(0); }}>
+            <option value="">Any</option>
             <option value="true">Linked</option>
             <option value="false">Not linked</option>
           </select>
-          <button className="btn" onClick={() => { setPage(0); void load(0); }}>Search</button>
+          <button className="btn" onClick={() => { setPage(0); setApplied({ q: filters.q.trim(), linked: filters.linked }); }}>Search</button>
           <button className="btn" onClick={() => { setFilters({ q: '', linked: '' }); setPage(0); }}>Reset</button>
         </div>
         <PageState loading={loading} error={error} forbidden={forbidden} empty={!loading && !error && !forbidden && !rows.length}
           emptyText="No customers match." loadingText="Loading customers…" forbiddenText="You do not have access to CRM.">
           <DataTable rows={rows} total={total} page={page} columns={columns} actions={actions}
-            onPage={p => { setPage(p); void load(p); }} />
+            onPage={p => setPage(p)} />
         </PageState>
       </div>
 
@@ -355,9 +421,11 @@ export default function CrmPage() {
         <form onSubmit={e => { e.preventDefault(); void save(); }}>
           {CUSTOMER_FIELDS.map(field => (
             <div className="form-item" key={field.key}>
-              <label className="form-label">{field.label}</label>
+              <label className="form-label form-required" htmlFor={`customer-${field.key}`}>{field.label}</label>
               <input
+                id={`customer-${field.key}`}
                 className="input"
+                aria-required="true"
                 value={form[field.key]}
                 onChange={e => updateForm(field.key, e.target.value)}
                 onBlur={field.key === 'email' ? checkSharedEmail : undefined}
@@ -375,19 +443,48 @@ export default function CrmPage() {
         {selected && (
           <>
             <hr className="divider" />
-            <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-              <select className="select" value={linkId ?? ''} onChange={e => setLinkId(e.target.value ? Number(e.target.value) : undefined)} style={{ flex: 1 }}>
-                <option value="">Link vehicle</option>
-                {vehicles.map(v => <option key={v.id} value={v.id}>{`${linkedLabel(v)} · ${v.vin}`}</option>)}
-              </select>
-              <button className="btn" type="button" onClick={link}>Link vehicle</button>
+            <div className="form-item">
+              <label className="form-label" htmlFor="vehicle-search">Link vehicle</label>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                <input
+                  id="vehicle-search"
+                  className="input"
+                  style={{ flex: 1 }}
+                  placeholder="Search by VIN or model"
+                  value={vehicleQuery}
+                  onChange={e => setVehicleQuery(e.target.value)}
+                />
+                <button className="btn" type="button" onClick={link} disabled={linkId === undefined}>Link vehicle</button>
+              </div>
+              <div role="listbox" aria-label="Unlinked vehicles"
+                style={{ marginTop: 8, maxHeight: 180, overflowY: 'auto', border: '1px solid var(--border)', borderRadius: 8, background: 'var(--surface)' }}>
+                {!vehicleOptions.length && (
+                  <p className="muted" style={{ margin: 0, padding: '8px 10px' }}>No unlinked vehicles match.</p>
+                )}
+                {vehicleOptions.map(v => (
+                  <button
+                    key={v.id}
+                    type="button"
+                    role="option"
+                    aria-selected={linkId === v.id}
+                    className="btn-link"
+                    onClick={() => setLinkId(v.id)}
+                    style={{
+                      display: 'block', width: '100%', textAlign: 'left', padding: '6px 10px',
+                      background: linkId === v.id ? 'var(--grad-soft)' : 'transparent',
+                    }}
+                  >
+                    {vehicleOptionLabel(v)}
+                  </button>
+                ))}
+              </div>
             </div>
             {linkError && <p className="danger-text">{linkError}</p>}
 
             {(selected.linkedVehicles || []).map((v: any) => (
               <div key={v.id} style={{ marginTop: 12 }}>
                 <Link to={`/dms?vehicleId=${v.id}`}>{linkedLabel(v)}</Link>
-                <span className="muted"> · {v.vin} · {v.status === 'SOLD' ? 'Sold' : 'In stock'}</span>
+                <span className="muted"> · {v.vin} · {statusLabel(v.status)}</span>
                 {v.status !== 'SOLD' ? (
                   <button className="btn-link danger" onClick={() => requestUnlink(v.id)}>Unlink</button>
                 ) : (

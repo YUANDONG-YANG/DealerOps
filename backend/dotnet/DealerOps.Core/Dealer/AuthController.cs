@@ -21,4 +21,9 @@ public class AuthController : ControllerBase
     [ProducesResponseType(201)]
     public IActionResult Register([FromBody] RegisterRequest request) =>
         StatusCode(201, _authService.Register(request));
+
+    [HttpPost("google")]
+    public Task<LoginResponse> Google(
+        [FromBody] GoogleSignInRequest request, CancellationToken cancellationToken) =>
+        _authService.GoogleSignIn(request, cancellationToken);
 }

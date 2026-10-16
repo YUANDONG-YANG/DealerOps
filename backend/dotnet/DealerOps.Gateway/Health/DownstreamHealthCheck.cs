@@ -16,7 +16,10 @@ public class DownstreamHealthCheck
         _coreUrl = config["CORE_URL"] ?? "http://localhost:8081";
         _aiUrl = config["AI_URL"] ?? "http://localhost:8082";
         _gatewayPublishedAt = ReleaseInfo.Resolve(config["PUBLISHED_AT"]);
-        _webPublishedAt = ReleaseInfo.Resolve(config["WEB_PUBLISHED_AT"]);
+        // The Gateway cannot infer the web build time; without an explicit stamp say so rather
+        // than reporting the Gateway's own binary timestamp as the web app's.
+        var webStamp = config["WEB_PUBLISHED_AT"];
+        _webPublishedAt = string.IsNullOrWhiteSpace(webStamp) ? "unavailable" : webStamp.Trim();
     }
 
     public string GatewayPublishedAt => _gatewayPublishedAt;

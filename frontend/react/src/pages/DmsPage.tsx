@@ -74,6 +74,34 @@ interface VehicleForm {
   conditionCode: string; repairCost: string; carfaxUrl: string;
 }
 
+interface Filters {
+  make: string; model: string; modelYear: string;
+  q: string; status: string; condition: string;
+}
+
+function blankFilters(): Filters {
+  return { make: '', model: '', modelYear: '', q: '', status: '', condition: '' };
+}
+
+// Filters the user types rather than picks; they are held as a draft until typing pauses.
+type TextFilters = Pick<Filters, 'make' | 'model' | 'q'>;
+
+function blankDrafts(): TextFilters {
+  return { make: '', model: '', q: '' };
+}
+
+function draftsPending(drafts: TextFilters, filters: Filters) {
+  return (Object.keys(drafts) as (keyof TextFilters)[]).some(key => drafts[key] !== filters[key]);
+}
+
+const ALL_TOUCHED: Record<string, boolean> = {
+  make: true, model: true, modelYear: true, vin: true, source: true,
+  purchaseCost: true, addedOn: true, conditionCode: true, repairCost: true, carfaxUrl: true,
+};
+
+// Typed filters fire a request only after the user pauses typing (UI-20).
+const FILTER_DEBOUNCE_MS = 350;
+
 function blankForm(): VehicleForm {
   return { make: '', model: '', modelYear: '', vin: '', source: 'AUCTION', purchaseCost: '', addedOn: '', conditionCode: 'AS_IS', repairCost: '', carfaxUrl: '' };
 }
@@ -111,7 +139,8 @@ export default function DmsPage() {
   const [error, setError] = useState('');
   const [forbidden, setForbidden] = useState(false);
 
-  const [filters, setFilters] = useState({ make: '', model: '', modelYear: '' as string | number, q: '', status: '', condition: '' });
+  const [filters, setFilters] = useState<Filters>(blankFilters());
+  const [drafts, setDrafts] = useState<TextFilters>(blankDrafts());
   const [makeOptions, setMakeOptions] = useState<string[]>([]);
   const [modelOptions, setModelOptions] = useState<string[]>([]);
   const [catalogError, setCatalogError] = useState('');
@@ -121,6 +150,7 @@ export default function DmsPage() {
   const [form, setForm] = useState<VehicleForm>(blankForm());
   const [formError, setFormError] = useState('');
   const [validationErrors, setValidationErrors] = useState<Validation>({});
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
   const [serverErrors, setServerErrors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
   const [vinFacts, setVinFacts] = useState('');
@@ -166,6 +196,15 @@ export default function DmsPage() {
   }, []);
 
   useEffect(() => {
+    if (!draftsPending(drafts, filters)) return;
+    const timer = setTimeout(() => {
+      setFilters(f => ({ ...f, ...drafts }));
+      setPage(0);
+    }, FILTER_DEBOUNCE_MS);
+    return () => clearTimeout(timer);
+  }, [drafts, filters]);
+
+  useEffect(() => {
     const vehicleId = searchParams.get('vehicleId');
     if (vehicleId) {
       const id = Number(vehicleId);
@@ -173,8 +212,16 @@ export default function DmsPage() {
     }
   }, [searchParams.get('vehicleId')]);
 
+  // Any filter change restarts at the first page, otherwise the new result set is queried at an
+  // offset that no longer exists and the table looks empty (UI-20).
+  function changeFilter(patch: Partial<Filters>) {
+    setFilters(f => ({ ...f, ...patch }));
+    setPage(0);
+  }
+
   async function onMakeChange(make: string) {
-    setFilters(f => ({ ...f, make, model: '', modelYear: '' }));
+    setDrafts(d => ({ ...d, make, model: '' }));
+    changeFilter({ make, model: '' });
     setModelOptions([]);
     if (!make) return;
     const seq = ++modelsSeqRef.current;
@@ -186,15 +233,21 @@ export default function DmsPage() {
     }
   }
 
+  function applySearch() {
+    setPage(0);
+    if (draftsPending(drafts, filters)) setFilters(f => ({ ...f, ...drafts }));
+    else void load(0);
+  }
+
   function resetFilters() {
-    setFilters({ make: '', model: '', modelYear: '', q: '', status: '', condition: '' });
+    setFilters(blankFilters());
+    setDrafts(blankDrafts());
     setModelOptions([]);
     setPage(0);
   }
 
   async function onFormMakeChange(make: string) {
-    updateForm('make', make);
-    updateForm('model', '');
+    applyForm({ ...form, make, model: '' }, { ...touched, make: true });
     setFormModelOptions([]);
     if (!make) return;
     try {
@@ -211,6 +264,7 @@ export default function DmsPage() {
     setVinFacts('');
     setFormError('');
     setValidationErrors({});
+    setTouched({});
     setServerErrors({});
     setAudit([]);
     setAdStatus('');
@@ -221,6 +275,7 @@ export default function DmsPage() {
     const seq = ++detailSeqRef.current;
     setFormError('');
     setValidationErrors({});
+    setTouched({});
     setServerErrors({});
     setAudit([]);
     setAdStatus('');
@@ -273,6 +328,7 @@ export default function DmsPage() {
     setServerErrors({});
     const isSold = edit?.status === 'SOLD';
     const errors = validateForm(form, isSold);
+    setTouched(ALL_TOUCHED);
     setValidationErrors(errors);
     if (Object.keys(errors).length) return;
 
@@ -317,16 +373,22 @@ export default function DmsPage() {
     await load();
   }
 
-  async function openSell(id: number) {
-    const seq = ++detailSeqRef.current;
+  function beginSell() {
     setSellError('');
     setSellForm({ soldOn: '', soldPrice: '' });
+    setSellOpen(true);
+  }
+
+  async function openSell(id: number) {
+    const seq = ++detailSeqRef.current;
     try {
       const r = await vehiclesApi.get(id);
       if (seq !== detailSeqRef.current) return;
       setEdit(r.data);
       setForm(vehicleToForm(r.data));
-      setSellOpen(true);
+      setValidationErrors({});
+      setTouched({});
+      beginSell();
     } catch (e) {
       if (seq !== detailSeqRef.current) return;
       const missing = errorStatus(e) === 404 || errorCode(e) === 'NOT_FOUND';
@@ -362,12 +424,15 @@ export default function DmsPage() {
     setVinFacts('');
     try {
       const d = (await catalogApi.decodeVin(form.vin.trim())).data;
-      setForm(prev => ({
-        ...prev,
+      applyForm({
+        ...form,
         make: d.make,
-        model: d.model || prev.model,
-        modelYear: d.modelYear ? String(d.modelYear) : prev.modelYear,
-      }));
+        model: d.model || form.model,
+        modelYear: d.modelYear ? String(d.modelYear) : form.modelYear,
+      }, { ...touched, make: true, model: true, modelYear: true });
+      if (d.make) {
+        catalogApi.models(d.make).then(r => setFormModelOptions(r.data)).catch(() => {});
+      }
       setVinFacts([d.bodyClass, d.engine, d.country, d.manufacturer].filter(Boolean).join(' · '));
     } catch (err) {
       setFormError(vinDecodeError(err));
@@ -376,12 +441,37 @@ export default function DmsPage() {
     }
   }
 
-  const updateForm = (key: keyof VehicleForm, value: string) => {
-    setForm(prev => ({ ...prev, [key]: value }));
-    setValidationErrors(prev => { const n = { ...prev }; delete n[key]; return n; });
+  // Shows only the errors of fields the user has already left (or of a rejected save), so a field
+  // being typed into stays quiet while a field that is done is checked straight away (UI-21).
+  function showErrors(next: VehicleForm, visible: Record<string, boolean>) {
+    const all = validateForm(next, edit?.status === 'SOLD');
+    const shown: Validation = {};
+    for (const key of Object.keys(all)) if (visible[key]) shown[key] = all[key];
+    setValidationErrors(shown);
+  }
+
+  function applyForm(next: VehicleForm, visible: Record<string, boolean>) {
+    setForm(next);
+    setTouched(visible);
+    showErrors(next, visible);
+  }
+
+  // `settled` marks controls whose value is complete as soon as it changes (dropdowns, date
+  // pickers); free-text fields wait for blur so the error does not flicker while typing.
+  const updateForm = (key: keyof VehicleForm, value: string, settled = false) => {
+    applyForm({ ...form, [key]: value }, settled ? { ...touched, [key]: true } : touched);
+    setServerErrors(prev => { const n = { ...prev }; delete n[key]; return n; });
   };
 
+  const blurForm = (key: keyof VehicleForm) => applyForm(form, { ...touched, [key]: true });
+
   const isSold = edit?.status === 'SOLD';
+  // With no catalog makes the dropdowns would be empty and no vehicle could be entered at all,
+  // so make and model fall back to free text.
+  const catalogUnavailable = !makeOptions.length;
+  const sellTitle = edit
+    ? `Sell ${edit.modelYear} ${edit.make} ${edit.model} · VIN ${edit.vin}`
+    : 'Sell vehicle';
 
   const columns = [
     { key: 'ymm', label: 'Year Make Model', render: (row: any) => `${row.modelYear} ${row.make} ${row.model}` },
@@ -402,14 +492,14 @@ export default function DmsPage() {
   );
 
   const purchaseFields = [
-    { key: 'make' as const, label: 'Make' },
-    { key: 'model' as const, label: 'Model' },
-    { key: 'modelYear' as const, label: 'Model year' },
-    { key: 'vin' as const, label: 'VIN' },
-    { key: 'purchaseCost' as const, label: 'Purchase cost' },
-    { key: 'addedOn' as const, label: 'Added on' },
-    { key: 'repairCost' as const, label: 'Repair cost' },
-    { key: 'carfaxUrl' as const, label: 'Carfax URL' },
+    { key: 'make' as const, label: 'Make', required: true },
+    { key: 'model' as const, label: 'Model', required: true },
+    { key: 'modelYear' as const, label: 'Model year', required: true },
+    { key: 'vin' as const, label: 'VIN', required: true },
+    { key: 'purchaseCost' as const, label: 'Purchase cost', required: true },
+    { key: 'addedOn' as const, label: 'Added on', required: true },
+    { key: 'repairCost' as const, label: 'Repair cost', required: false },
+    { key: 'carfaxUrl' as const, label: 'Carfax URL', required: false },
   ];
 
   return (
@@ -423,29 +513,35 @@ export default function DmsPage() {
           <button className="btn btn-primary" onClick={openCreate}>Add vehicle</button>
         </div>
         <div className="filters">
-          <select className="select" value={filters.make} onChange={e => onMakeChange(e.target.value)}>
-            <option value="">Make</option>
-            {makeOptions.map(m => <option key={m} value={m}>{m}</option>)}
-          </select>
-          <select className="select" value={filters.model} onChange={e => setFilters(f => ({ ...f, model: e.target.value, modelYear: '' }))} disabled={!filters.make}>
-            <option value="">Model</option>
-            {modelOptions.map(m => <option key={m} value={m}>{m}</option>)}
-          </select>
-          <select className="select" value={filters.modelYear} onChange={e => setFilters(f => ({ ...f, modelYear: e.target.value }))} disabled={!filters.model}>
+          {catalogUnavailable ? (
+            <input className="input" placeholder="Make" value={drafts.make} onChange={e => setDrafts(d => ({ ...d, make: e.target.value }))} />
+          ) : (
+            <select className="select" value={filters.make} onChange={e => onMakeChange(e.target.value)}>
+              <option value="">Make</option>
+              {makeOptions.map(m => <option key={m} value={m}>{m}</option>)}
+            </select>
+          )}
+          <input className="input" placeholder="Model" list="dms-filter-models" value={drafts.model}
+            onChange={e => setDrafts(d => ({ ...d, model: e.target.value }))} />
+          <datalist id="dms-filter-models">
+            {modelOptions.map(m => <option key={m} value={m} />)}
+          </datalist>
+          <select className="select" value={filters.modelYear} onChange={e => changeFilter({ modelYear: e.target.value })}>
             <option value="">Year</option>
             {yearOptions.map(y => <option key={y} value={y}>{y}</option>)}
           </select>
-          <input className="input" placeholder="VIN" value={filters.q} onChange={e => setFilters(f => ({ ...f, q: e.target.value }))} />
-          <select className="select" value={filters.status} onChange={e => setFilters(f => ({ ...f, status: e.target.value }))}>
+          <input className="input" placeholder="Search VIN, make or model" value={drafts.q}
+            onChange={e => setDrafts(d => ({ ...d, q: e.target.value }))} />
+          <select className="select" value={filters.status} onChange={e => changeFilter({ status: e.target.value })}>
             <option value="">Status</option>
             <option value="IN_STOCK">In stock</option>
             <option value="SOLD">Sold</option>
           </select>
-          <select className="select" value={filters.condition} onChange={e => setFilters(f => ({ ...f, condition: e.target.value }))}>
+          <select className="select" value={filters.condition} onChange={e => changeFilter({ condition: e.target.value })}>
             <option value="">Condition</option>
             {CONDITIONS.map(c => <option key={c} value={c}>{enumLabel(c)}</option>)}
           </select>
-          <button className="btn" onClick={() => { setPage(0); void load(0); }}>Search</button>
+          <button className="btn" onClick={applySearch}>Search</button>
           <button className="btn" onClick={resetFilters}>Reset</button>
         </div>
         {catalogError && <p className="warning-text">{catalogError}</p>}
@@ -456,36 +552,48 @@ export default function DmsPage() {
         </PageState>
       </div>
 
-      <FormDrawer title={edit ? 'Edit vehicle' : 'Add vehicle'} open={drawer} onClose={() => setDrawer(false)}>
+      <FormDrawer title={edit ? 'Edit vehicle' : 'Add vehicle'} open={drawer} onClose={() => { if (!sellOpen) setDrawer(false); }}>
         <form onSubmit={e => { e.preventDefault(); void save(); }}>
           {purchaseFields.map(field => (
             <div className="form-item" key={field.key}>
-              <label className="form-label">{field.label}</label>
+              <label className={field.required ? 'form-label form-required' : 'form-label'}>{field.label}</label>
               <div>
                 {field.key === 'make' ? (
-                  <select className="select" value={form.make} onChange={e => onFormMakeChange(e.target.value)} disabled={isSold}>
-                    <option value="">Select make</option>
-                    {makeOptions.map(m => <option key={m} value={m}>{m}</option>)}
-                  </select>
+                  catalogUnavailable ? (
+                    <input className="input" value={form.make} onChange={e => updateForm('make', e.target.value)}
+                      onBlur={() => blurForm('make')} disabled={isSold} />
+                  ) : (
+                    <select className="select" value={form.make} onChange={e => onFormMakeChange(e.target.value)} disabled={isSold}>
+                      <option value="">Select make</option>
+                      {makeOptions.map(m => <option key={m} value={m}>{m}</option>)}
+                    </select>
+                  )
                 ) : field.key === 'model' ? (
-                  <select className="select" value={form.model} onChange={e => updateForm('model', e.target.value)} disabled={isSold || !form.make}>
-                    <option value="">Select model</option>
-                    {formModelOptions.map(m => <option key={m} value={m}>{m}</option>)}
-                  </select>
+                  catalogUnavailable ? (
+                    <input className="input" value={form.model} onChange={e => updateForm('model', e.target.value)}
+                      onBlur={() => blurForm('model')} disabled={isSold} />
+                  ) : (
+                    <select className="select" value={form.model} onChange={e => updateForm('model', e.target.value, true)} disabled={isSold || !form.make}>
+                      <option value="">Select model</option>
+                      {formModelOptions.map(m => <option key={m} value={m}>{m}</option>)}
+                    </select>
+                  )
                 ) : field.key === 'modelYear' ? (
-                  <select className="select" value={form.modelYear} onChange={e => updateForm('modelYear', e.target.value)} disabled={isSold}>
+                  <select className="select" value={form.modelYear} onChange={e => updateForm('modelYear', e.target.value, true)} disabled={isSold}>
                     <option value="">Select year</option>
                     {yearOptions.map(y => <option key={y} value={String(y)}>{y}</option>)}
                   </select>
                 ) : field.key === 'vin' && !edit ? (
                   <div style={{ display: 'flex', gap: 8 }}>
-                    <input className="input" value={form[field.key]} onChange={e => updateForm(field.key, e.target.value)} disabled={isSold} style={{ flex: 1 }} />
+                    <input className="input" value={form[field.key]} onChange={e => updateForm(field.key, e.target.value)}
+                      onBlur={() => blurForm(field.key)} disabled={isSold} style={{ flex: 1 }} />
                     <button type="button" className="btn" onClick={decodeVin} disabled={decoding}>{decoding ? 'Decoding…' : 'Decode'}</button>
                   </div>
                 ) : field.key === 'addedOn' ? (
-                  <input className="input" type="date" value={form[field.key]} onChange={e => updateForm(field.key, e.target.value)} disabled={isSold} lang="en" />
+                  <input className="input" type="date" value={form[field.key]} onChange={e => updateForm(field.key, e.target.value, true)} disabled={isSold} lang="en" />
                 ) : (
-                  <input className="input" value={form[field.key]} onChange={e => updateForm(field.key, e.target.value)} disabled={isSold} />
+                  <input className="input" value={form[field.key]} onChange={e => updateForm(field.key, e.target.value)}
+                    onBlur={() => blurForm(field.key)} disabled={isSold} />
                 )}
                 {field.key === 'vin' && !edit && vinFacts && <div className="muted" style={{ marginTop: 4 }}>{vinFacts}</div>}
               </div>
@@ -496,16 +604,16 @@ export default function DmsPage() {
           ))}
 
           <div className="form-item">
-            <label className="form-label">Source</label>
-            <select className="select" value={form.source} onChange={e => updateForm('source', e.target.value)} disabled={isSold}>
+            <label className="form-label form-required">Source</label>
+            <select className="select" value={form.source} onChange={e => updateForm('source', e.target.value, true)} disabled={isSold}>
               {SOURCES.map(v => <option key={v} value={v}>{enumLabel(v)}</option>)}
             </select>
             {(validationErrors.source || serverErrors.source) && <div className="form-error">{validationErrors.source || serverErrors.source}</div>}
           </div>
 
           <div className="form-item">
-            <label className="form-label">Condition</label>
-            <select className="select" value={form.conditionCode} onChange={e => updateForm('conditionCode', e.target.value)}>
+            <label className="form-label form-required">Condition</label>
+            <select className="select" value={form.conditionCode} onChange={e => updateForm('conditionCode', e.target.value, true)}>
               {CONDITIONS.map(v => <option key={v} value={v}>{enumLabel(v)}</option>)}
             </select>
             {(validationErrors.conditionCode || serverErrors.conditionCode) && <div className="form-error">{validationErrors.conditionCode || serverErrors.conditionCode}</div>}
@@ -520,6 +628,13 @@ export default function DmsPage() {
                 <span className={((profit(edit) ?? 0) < 0) ? 'danger-text' : ''}>{cad(profit(edit))}</span>
               </div>
             </>
+          )}
+
+          {edit?.id && (
+            <div className="form-item">
+              <label className="form-label">Status</label>
+              <StatusTag status={edit.status}>{enumLabel(edit.status)}</StatusTag>
+            </div>
           )}
 
           {edit?.id && (
@@ -539,7 +654,12 @@ export default function DmsPage() {
           )}
 
           {formError && <p className="danger-text">{formError}</p>}
-          <button type="submit" className="btn btn-primary" disabled={saving}>{saving ? 'Saving…' : 'Save'}</button>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button type="submit" className="btn btn-primary" disabled={saving}>{saving ? 'Saving…' : 'Save'}</button>
+            {edit?.id && !isSold && (
+              <button type="button" className="btn" onClick={beginSell}>Mark as sold</button>
+            )}
+          </div>
         </form>
 
         {edit?.id && <WorkOrderPanel vehicleId={edit.id} sold={isSold} onChanged={refreshAfterWorkOrder} />}
@@ -547,13 +667,13 @@ export default function DmsPage() {
         {edit?.id && <AuditTrail rows={audit} />}
       </FormDrawer>
 
-      <ConfirmDialog open={sellOpen} title="Sell vehicle" confirmLabel="Confirm sale" onCancel={() => setSellOpen(false)} onConfirm={sell}>
+      <ConfirmDialog open={sellOpen} title={sellTitle} confirmLabel="Confirm sale" onCancel={() => setSellOpen(false)} onConfirm={sell}>
         <div className="form-item">
-          <label className="form-label">Sold date</label>
-          <input className="input" type="date" value={sellForm.soldOn} onChange={e => setSellForm(f => ({ ...f, soldOn: e.target.value }))} />
+          <label className="form-label form-required">Sold date</label>
+          <input className="input" type="date" value={sellForm.soldOn} onChange={e => setSellForm(f => ({ ...f, soldOn: e.target.value }))} lang="en" />
         </div>
         <div className="form-item">
-          <label className="form-label">Sold price</label>
+          <label className="form-label form-required">Sold price</label>
           <input className="input" value={sellForm.soldPrice} onChange={e => setSellForm(f => ({ ...f, soldPrice: e.target.value }))} />
         </div>
         {sellError && <p className="danger-text">{sellError}</p>}

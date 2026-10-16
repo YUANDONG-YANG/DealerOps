@@ -62,8 +62,23 @@ public class OmvicRuleEngine
     private static readonly Regex WarrantyBoast = new(
         @"\bwarrant(?:y|ies)\b",
         RegexOptions.IgnoreCase | RegexOptions.Compiled);
+    // Shared payment cadence: "/mo" and "/month" both occur in real copy, so the month
+    // suffix is optional; without it "$299/month" reads as a cash price.
+    private const string Cadence =
+        @"(?:per\s+month|a\s+month|/\s*mo(?:nth)?\b|monthly|bi-?weekly|weekly|per\s+week|/\s*wk\b)";
     private static readonly Regex Payment = new(
-        @"\$?\d[\d,]*(?:\.\d{2})?\s*(?:per month|/mo\b|monthly|bi-?weekly|weekly|per week|/wk\b)",
+        @"\$?\d[\d,]*(?:\.\d{2})?\s*" + Cadence,
+        RegexOptions.IgnoreCase | RegexOptions.Compiled);
+    private static readonly Regex UsedStatus = new(
+        @"\b(?:used|pre[\s-]?owned|second[\s-]?hand|previously owned)\b",
+        RegexOptions.IgnoreCase | RegexOptions.Compiled);
+    private static readonly Regex CostOfBorrowing = new(
+        @"cost of borrowing|total cost of credit|borrowing cost|finance charge",
+        RegexOptions.IgnoreCase | RegexOptions.Compiled);
+    // Anchored at the start of whatever follows an amount: it turns that amount into a
+    // periodic payment rather than a cash price.
+    private static readonly Regex PaymentCadence = new(
+        @"^\s*" + Cadence,
         RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
     public OmvicResult Run(ListingEntity listing, VehicleEntity vehicle, DealerEntity dealer)
@@ -71,14 +86,8 @@ public class OmvicRuleEngine
         var hard = new List<RuleFinding>();
         var soft = new List<RuleFinding>();
 
-        if (IsBlank(listing.Title) && IsBlank(listing.Body))
-        {
-            hard.Add(Hard("PRICE_MISSING", "Advertised price not found in the ad body."));
-            hard.Add(Hard("DEALER_NAME_MISSING", "Dealership legal name is missing from the ad."));
-            hard.Add(Hard("CONDITION_UNDISCLOSED", "Vehicle condition is not disclosed in the ad."));
-            return new OmvicResult(hard, true);
-        }
-
+        // A blank draft needs no special case: the rules below already produce the correct
+        // superset for every ad kind and medium.
         var text = (listing.Title ?? "") + "\n" + (listing.Body ?? "");
 
         if (!Price.IsMatch(text))
@@ -99,13 +108,16 @@ public class OmvicRuleEngine
                 soft.Add(Soft("DEALER_CONTACT_INCOMPLETE", "Dealership contact details look incomplete."));
         }
 
-        if (!text.Contains(vehicle.ModelYear.ToString()))
+        // Digit boundaries so a price such as "$32,019" does not count as stating a 2019 model year.
+        if (!Regex.IsMatch(text, $@"(?<!\d){vehicle.ModelYear}(?!\d)"))
             soft.Add(Soft("YEAR_NOT_IN_COPY", "Model year is not present in the ad copy."));
 
         if (BrandNew.IsMatch(text) && vehicle.ModelYear <= DateTime.UtcNow.Year - 2)
             soft.Add(Soft("YEAR_NEW_USED_CONTRADICTION", "Copy implies new while the model year is older."));
 
-        bool claimedCertified = CertifiedRx.IsMatch(text);
+        // Strip denials first, so "not certified" is not read as a certification claim while a
+        // genuine claim elsewhere in the same copy still counts.
+        bool claimedCertified = CertifiedRx.IsMatch(CertifiedDenial.Replace(text, " "));
         bool claimedAsIs = AsIsRx.IsMatch(text);
         bool claimedUnfit = UnfitRx.IsMatch(text);
         bool claimedIrrep = IrrepRx.IsMatch(text);
@@ -122,6 +134,12 @@ public class OmvicRuleEngine
         if (code == ConditionCode.Certified && !claimedCertified)
             soft.Add(Soft("CERTIFIED_NOT_IN_COPY", "Certified status is not stated in the copy."));
 
+        // The source lists new/used as an always-required disclosure, but erratum 4 keeps the
+        // new/old family advisory, so a silent ad is flagged rather than blocked.
+        if (!BrandNew.IsMatch(text) && !UsedStatus.IsMatch(text))
+            soft.Add(Soft("NEW_USED_NOT_STATED",
+                "The ad does not state whether the vehicle is new or used."));
+
         if (PriorUseCue.IsMatch(text) && !PriorUseDisclosure.IsMatch(text))
             soft.Add(Soft("PRIOR_USE_UNCLEAR", "Prior use is mentioned without a clear disclosure."));
         if (WarrantyBoast.IsMatch(text))
@@ -136,6 +154,11 @@ public class OmvicRuleEngine
                 hard.Add(Hard("FINANCE_APR_MISSING", "Finance APR is missing from the ad."));
             if (!TermMo.IsMatch(text))
                 soft.Add(Soft("FINANCE_TERM_MISSING", "Finance term is not stated."));
+            // A payment amount alone satisfies the generic price rule, so finance copy is
+            // checked separately for a cash price or the cost of borrowing.
+            if (!HasCashPrice(text) && !CostOfBorrowing.IsMatch(text))
+                hard.Add(Hard("FINANCE_CASH_PRICE_MISSING",
+                    "Finance advertising must state the cash price or the cost of borrowing."));
             if (listing.Medium != AdMedium.RadioTvBillboard)
                 soft.Add(Soft("FINANCE_APR_PROXIMITY", "Finance APR placement should be reviewed."));
         }
@@ -154,9 +177,10 @@ public class OmvicRuleEngine
                 soft.Add(Soft("LEASE_DOWN_MISSING", "Lease down payment is not stated."));
 
             var kmMatch = LeaseKmAllowance.Match(text);
+            if (!kmMatch.Success) kmMatch = LeaseKmAllowanceAnnualFirst.Match(text);
             if (kmMatch.Success)
             {
-                var km = int.Parse(kmMatch.Groups[1].Value.Replace(",", "").Replace(" ", ""));
+                var km = int.Parse(kmMatch.Groups["km"].Value.Replace(",", "").Replace(" ", ""));
                 if (km < 20000 && !LeaseExcess.IsMatch(text))
                     hard.Add(Hard("LEASE_EXCESS_KM_MISSING", "Excess kilometre fees are missing."));
             }
@@ -169,6 +193,18 @@ public class OmvicRuleEngine
         var findings = new List<RuleFinding>(hard);
         findings.AddRange(soft);
         return new OmvicResult(findings, hard.Count > 0);
+    }
+
+    // True when at least one advertised amount is not immediately qualified as a periodic
+    // payment, which is what distinguishes a cash price from "$299 per month".
+    private static bool HasCashPrice(string text)
+    {
+        foreach (Match match in Price.Matches(text))
+        {
+            if (!PaymentCadence.IsMatch(text[(match.Index + match.Length)..]))
+                return true;
+        }
+        return false;
     }
 
     private static bool IsBlank(string? s) => string.IsNullOrWhiteSpace(s);

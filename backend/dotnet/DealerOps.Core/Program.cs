@@ -71,6 +71,17 @@ builder.Services.AddControllers(options =>
 
 // Model-binding failures must use the same {code, message, requestId, fieldErrors} envelope as
 // ApiExceptionFilter, otherwise clients receive ASP.NET ProblemDetails and lose per-field errors.
+// ModelState keys are dotted paths for nested DTOs ("NewCustomer.Name"), so each segment must be
+// camel-cased, not just the first, or the client cannot bind the error to its input.
+static string ToCamelPath(string path) =>
+    string.Join('.', path.Split('.').Select(segment =>
+    {
+        var bracket = segment.IndexOf('[');
+        return bracket < 0
+            ? JsonNamingPolicy.CamelCase.ConvertName(segment)
+            : JsonNamingPolicy.CamelCase.ConvertName(segment[..bracket]) + segment[bracket..];
+    }));
+
 builder.Services.Configure<ApiBehaviorOptions>(options =>
 {
     options.InvalidModelStateResponseFactory = context =>
@@ -81,7 +92,7 @@ builder.Services.Configure<ApiBehaviorOptions>(options =>
             if (entry.Errors.Count == 0) continue;
             var name = key.StartsWith("$.", StringComparison.Ordinal) ? key[2..] : key;
             if (name.Length == 0) name = "request";
-            fieldErrors[JsonNamingPolicy.CamelCase.ConvertName(name)] = entry.Errors[0].ErrorMessage;
+            fieldErrors[ToCamelPath(name)] = entry.Errors[0].ErrorMessage;
         }
 
         var requestId = context.HttpContext.Items["RequestId"] as string ?? "";
@@ -133,6 +144,8 @@ builder.Services.AddCors(options =>
         policy.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader()));
 
 builder.Services.AddSingleton<JwtService>();
+// Singleton so Google's signing keys are fetched and cached once, not per sign-in.
+builder.Services.AddSingleton<GoogleIdTokenVerifier>();
 builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<NewAccountRules>();
 builder.Services.AddScoped<DealerAdminService>();
@@ -162,9 +175,15 @@ builder.Services.AddHttpClient<IAiGatewayClient, AiGatewayClient>(client =>
 
 var vpicBaseUrl = builder.Configuration["Vpic:BaseUrl"] ?? "https://vpic.nhtsa.dot.gov/api/vehicles/";
 if (!vpicBaseUrl.EndsWith('/')) vpicBaseUrl += "/";
+// The catalog cache lives in the singleton IMemoryCache, not in the service: the typed client must
+// stay transient so its HttpMessageHandler is not captured for the lifetime of the application.
+builder.Services.AddMemoryCache();
 builder.Services.AddHttpClient<VehicleCatalogService>(client =>
 {
     client.BaseAddress = new Uri(vpicBaseUrl);
+    // The catalog is reachable anonymously, so an unreachable vPIC must fail fast instead of
+    // holding the public landing page for the 100-second default.
+    client.Timeout = TimeSpan.FromSeconds(5);
 });
 
 builder.Services.AddHostedService<AdminSeeder>();

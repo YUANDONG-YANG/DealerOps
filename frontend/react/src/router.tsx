@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   Navigate,
   Outlet,
@@ -7,13 +7,9 @@ import {
   useLocation,
   useNavigate,
 } from 'react-router-dom';
-import { http } from './api/http';
-import { accessToken, clearAccount } from './auth/login';
-import {
-  hasBusinessAccess,
-  useSessionStore,
-  type MeResponse,
-} from './store/session';
+import { getMe, type Profile } from './api/me';
+import { accessToken, clearAccount, roleHome } from './auth/login';
+import { hasBusinessAccess, useSessionStore } from './store/session';
 
 import LandingPage from './pages/LandingPage';
 import LoginPage from './pages/LoginPage';
@@ -25,6 +21,22 @@ import LeadsPage from './pages/LeadsPage';
 import AdsPage from './pages/AdsPage';
 import NoAccessPage from './pages/NoAccessPage';
 
+/** The profile is loaded once per signed-in session, not on every navigation. */
+let profileRequest: { token: string; profile: Promise<Profile> } | null = null;
+
+function loadProfile(token: string): Promise<Profile> {
+  if (profileRequest?.token !== token) {
+    profileRequest = {
+      token,
+      profile: getMe().catch((err) => {
+        profileRequest = null;
+        throw err;
+      }),
+    };
+  }
+  return profileRequest.profile;
+}
+
 function AuthGuard() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -32,23 +44,27 @@ function AuthGuard() {
   const session = useSessionStore();
   const [status, setStatus] = useState<'loading' | 'ok' | 'redirect'>('loading');
 
+  // Keep the page the user asked for, including its query string and hash (UI-04).
+  const requested = `${location.pathname}${location.search}${location.hash}`;
+  const requestedRef = useRef(requested);
+  requestedRef.current = requested;
+
   useEffect(() => {
     const token = accessToken();
     if (!token) {
       setStatus('redirect');
       navigate(
-        `/login?notice=required&redirect=${encodeURIComponent(location.pathname)}`,
+        `/login?notice=required&redirect=${encodeURIComponent(requestedRef.current)}`,
         { replace: true },
       );
       return;
     }
 
     let cancelled = false;
-    http
-      .get<MeResponse>('/api/v1/me')
-      .then((res) => {
+    loadProfile(token)
+      .then((profile) => {
         if (cancelled) return;
-        setProfile(res.data);
+        setProfile(profile);
         setStatus('ok');
       })
       .catch((err) => {
@@ -66,7 +82,7 @@ function AuthGuard() {
     return () => {
       cancelled = true;
     };
-  }, [location.pathname, navigate, setProfile]);
+  }, [navigate, setProfile]);
 
   if (status === 'loading') {
     return <div className="state">Loading…</div>;
@@ -80,16 +96,19 @@ function AuthGuard() {
   return <Outlet />;
 }
 
+// A wrong-role user is sent to their own home page, not to the anonymous landing page (UI-02).
 function AdminGuard() {
   const role = useSessionStore((s) => s.role);
-  if (role !== 'Platform.Admin') return <Navigate to="/" replace />;
+  if (role !== 'Platform.Admin') return <Navigate to={roleHome(role)} replace />;
   return <Outlet />;
 }
 
 function DealerGuard() {
   const role = useSessionStore((s) => s.role);
   const dealerId = useSessionStore((s) => s.dealerId);
-  if (role !== 'Dealer.User' || dealerId == null) return <Navigate to="/" replace />;
+  if (role !== 'Dealer.User' || dealerId == null) {
+    return <Navigate to={roleHome(role)} replace />;
+  }
   return <Outlet />;
 }
 

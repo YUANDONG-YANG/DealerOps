@@ -5,31 +5,43 @@ import StatusTag from './StatusTag';
 
 type ChecklistItem = { label: string; codes: string[] };
 
+// Mirrors the APR / payment patterns in OmvicRuleEngine so the displayed checklist
+// matches the finance rules the server will apply (spec 04 section 6).
+const APR_PATTERN = /\d+(?:\.\d+)?\s*%\s*(?:apr|annual percentage rate)|apr\s*[:=]?\s*\d+(?:\.\d+)?\s*%/i;
+const PAYMENT_PATTERN = /\$?\d[\d,]*(?:\.\d{2})?\s*(?:per\s+month|a\s+month|\/\s*mo(?:nth)?\b|monthly|bi-?weekly|weekly|per\s+week|\/\s*wk\b)/i;
+
+function financeTriggered(listing: Listing): boolean {
+  if (listing.adKind === 'FINANCE') return true;
+  if (listing.adKind !== 'CASH') return false;
+  const text = `${listing.title || ''}\n${listing.body || ''}`;
+  return APR_PATTERN.test(text) || PAYMENT_PATTERN.test(text);
+}
+
 function buildChecklist(listing: Listing): ChecklistItem[] {
   const items: ChecklistItem[] = [
     { label: 'Dealership name and contacts', codes: ['DEALER_NAME_MISSING', 'DEALER_CONTACT_MISSING', 'DEALER_CONTACT_INCOMPLETE'] },
     { label: 'Prior use (when applicable)', codes: ['PRIOR_USE_UNCLEAR'] },
-    { label: 'New/used and year', codes: ['YEAR_NOT_IN_COPY', 'YEAR_NEW_USED_CONTRADICTION'] },
+    { label: 'New/used and year', codes: ['NEW_USED_NOT_STATED', 'YEAR_NOT_IN_COPY', 'YEAR_NEW_USED_CONTRADICTION'] },
     { label: 'Extended warranty (if any)', codes: ['WARRANTY_CLAIM_NEEDS_REVIEW'] },
     { label: 'Price', codes: ['PRICE_MISSING'] },
     { label: 'Condition', codes: ['CONDITION_MISMATCH', 'CONDITION_UNDISCLOSED', 'CERTIFIED_NOT_IN_COPY'] },
   ];
-  if (listing.adKind === 'FINANCE') {
+  if (financeTriggered(listing)) {
     items.push(
-      { label: 'APR', codes: ['APR_MISSING', 'APR_INVALID', 'FINANCE_APR_MISSING'] },
-      { label: 'Finance term', codes: ['FINANCE_TERM_MISSING', 'FINANCE_TERM_INVALID'] },
-      { label: 'Cash price', codes: ['PRICE_MISSING'] },
+      { label: 'APR', codes: ['FINANCE_APR_MISSING'] },
+      { label: 'Finance term', codes: ['FINANCE_TERM_MISSING'] },
+      { label: 'Cash price or cost of borrowing', codes: ['FINANCE_CASH_PRICE_MISSING'] },
     );
     if (listing.medium !== 'RADIO_TV_BILLBOARD') {
-      items.push({ label: 'Rate shown next to the APR', codes: ['FINANCE_APR_PROXIMITY'] });
+      items.push({ label: 'APR shown as prominently as the payment amount', codes: ['FINANCE_APR_PROXIMITY'] });
     }
   }
   if (listing.adKind === 'LEASE') {
     items.push(
       { label: 'Lease statement', codes: ['LEASE_STATEMENT_MISSING'] },
-      { label: 'Lease term', codes: ['LEASE_TERM_MISSING', 'LEASE_TERM_INVALID'] },
-      { label: 'Rent / payment', codes: ['LEASE_RENT_MISSING', 'LEASE_PAYMENT_MISSING', 'LEASE_PAYMENT_INVALID'] },
-      { label: 'APR', codes: ['LEASE_APR_MISSING', 'LEASE_RATE_MISSING', 'LEASE_RATE_INVALID'] },
+      { label: 'Lease term', codes: ['LEASE_TERM_MISSING'] },
+      { label: 'Rent / payment', codes: ['LEASE_RENT_MISSING'] },
+      { label: 'APR', codes: ['LEASE_APR_MISSING'] },
       { label: 'Down payment', codes: ['LEASE_DOWN_MISSING'] },
       { label: 'Low-km excess charges', codes: ['LEASE_EXCESS_KM_MISSING', 'LEASE_ALLOWANCE_UNSTATED'] },
     );
@@ -37,16 +49,23 @@ function buildChecklist(listing: Listing): ChecklistItem[] {
   return items;
 }
 
-function checklistIcon(item: ChecklistItem, findings: RuleFinding[]): string {
-  if (!findings.length) return '';
-  const failed = findings.filter((f) => !f.passed && item.codes.includes(f.ruleId));
-  if (failed.some((f) => f.severity === 'BLOCK' || f.severity === 'HARD_BLOCK')) return '❌';
-  return failed.length ? '⚠️' : '✅';
+// The engine only emits failures, so a pass is derived: after a completed check a row
+// with no matching finding passed.
+function checklistIcon(item: ChecklistItem, findings: RuleFinding[], evaluated: boolean): string {
+  const matched = findings.filter((f) => item.codes.includes(f.ruleId));
+  if (matched.some((f) => f.severity === 'BLOCK')) return '❌';
+  if (matched.length) return '⚠️';
+  return evaluated ? '✅' : '';
 }
 
 function findingIcon(finding: RuleFinding): string {
-  if (finding.passed) return '✅';
-  return finding.severity === 'BLOCK' || finding.severity === 'HARD_BLOCK' ? '❌' : '⚠️';
+  return finding.severity === 'BLOCK' ? '❌' : '⚠️';
+}
+
+function emptyFindingsText(status: Listing['checkStatus']): string {
+  if (status === 'AI_UNAVAILABLE') return 'AI review did not complete, so no findings are available. Run the check again.';
+  if (status === 'PASSED') return 'No rule findings. Every checklist item passed.';
+  return 'No rule findings yet. Save a draft and run check.';
 }
 
 function conditionLabel(code?: string): string {
@@ -70,10 +89,12 @@ export default function AdWorkspace({ listing, onChange, vehicle, readOnly, pick
   const aiNotes = listing.lastCheck?.aiNotes || [];
   const checklist = buildChecklist(listing);
   const statusLabel = checkStatusLabel(listing.checkStatus);
+  // AI_UNAVAILABLE is a failed check, so it is kept apart from the STALE warning tone.
   const statusType = listing.checkStatus === 'PASSED' ? 'tag-success'
-    : listing.checkStatus === 'BLOCKED' ? 'tag-danger'
+    : listing.checkStatus === 'BLOCKED' || listing.checkStatus === 'AI_UNAVAILABLE' ? 'tag-danger'
     : listing.checkStatus === 'NEEDS_AI' ? 'tag-info'
     : 'tag-warning';
+  const evaluated = listing.checkStatus === 'PASSED' || listing.checkStatus === 'BLOCKED';
   const formDisabled = !hasSelection || readOnly;
 
   return (
@@ -132,7 +153,7 @@ export default function AdWorkspace({ listing, onChange, vehicle, readOnly, pick
             <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
               {checklist.map((item) => (
                 <li key={item.label} style={{ padding: '4px 0' }}>
-                  {checklistIcon(item, findings)} {item.label}
+                  {checklistIcon(item, findings, evaluated)} {item.label}
                 </li>
               ))}
             </ul>
@@ -144,12 +165,12 @@ export default function AdWorkspace({ listing, onChange, vehicle, readOnly, pick
               <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
                 {findings.map((f, i) => (
                   <li key={i} style={{ padding: '4px 0' }}>
-                    {findingIcon(f)} <strong>{f.passed ? 'Pass' : f.severity === 'BLOCK' || f.severity === 'HARD_BLOCK' ? 'Block' : 'Review'} · {f.ruleId}</strong>: {f.message}
+                    {findingIcon(f)} <strong>{f.severity === 'BLOCK' ? 'Block' : 'Review'} · {f.ruleId}</strong>: {f.message}
                   </li>
                 ))}
               </ul>
             ) : (
-              <p className="muted">No rule findings yet. Save a draft and run check.</p>
+              <p className="muted">{emptyFindingsText(listing.checkStatus)}</p>
             )}
             {aiNotes.length > 0 && (
               <>

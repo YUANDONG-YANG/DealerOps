@@ -26,7 +26,7 @@ Ground rules for every item:
 | 1 | VIN decode | **Go** — already implemented in the working tree; finish the contract and acceptance | P1 | VIN-01–04 |
 | 2 | Lead follow-up | **Go** | P2 | LEAD-01–09 |
 | 3 | Reconditioning work orders | **Go** (vehicle-level, no garage billing) | P3 | WO-01–07 |
-| 4 | Self sign-up and sign-in | **Go, constrained**: register with a username plus email and/or phone; sign in with any of them plus the password; new accounts start unbound; only the admin grants dealership access; no social provider | P4 | AUTH-16–22 |
+| 4 | Self sign-up and sign-in | **Go, constrained**: register with a username plus email and/or phone; sign in with any of them plus the password; new accounts start unbound; only the admin grants dealership access. Google sign-in added 2026-10-15 (AUTH-23), superseding the earlier "no social provider" constraint | P4 | AUTH-16–23 |
 | 5 | Image Studio | **Go** — photo upload and automatic enhancement in dealer-core; photos stored in MySQL | P5 | IMG-01–05 |
 
 All five items have backend and frontend implementation, database migrations, API contract entries, and Gateway coverage. Scope re-signing remains a course-administration risk, but does not block the user's implementation request. Source compilation and production frontend build pass; manual acceptance remains pending. See [Implementation Delivery Status](../project-plan/Implementation-Delivery-Status.md).
@@ -185,7 +185,11 @@ No new route. The DMS vehicle drawer gets a **Work orders** section above the au
 
 ## 5. Self sign-up and sign-in by email, username, or phone (P4)
 
-Users register with a username they choose plus an email and/or phone, and sign in with any of the three and the password. The username is also the stable key for memberships, audit, and the JWT subject. No third-party or social-provider sign-in is built: each provider requires official app registration and review, which a student demo does not have. Accounts remain unbound until a Platform.Admin assigns them to a dealership.
+Users register with a username they choose plus an email and/or phone, and sign in with any of the three and the password. The username is also the stable key for memberships, audit, and the JWT subject. Accounts remain unbound until a Platform.Admin assigns them to a dealership.
+
+**Google sign-in, added 2026-10-15.** The original constraint ruled out every social provider on the grounds that each needs official app registration and review. That holds for sensitive or restricted scopes, but Google's ID-token sign-in uses only the default `openid email profile` scopes, which an unverified app in testing mode serves without review. It also needs no client secret, so it adds no new stored credential. The constraint is therefore lifted for Google only, and `AUTH-19` is superseded by `AUTH-23`. No other provider is built.
+
+Google authenticates an email address and nothing more. It grants no role and no dealership: a Google sign-in for an unknown email creates the same unbound `Dealer.User` that password self-registration creates, so an admin still has to bind it (`AUTH-18`). Tenancy continues to be resolved per request from the membership table, never from the identity provider, which is what keeps the multi-tenant boundary intact.
 
 ### Requirements
 
@@ -194,10 +198,11 @@ Users register with a username they choose plus an email and/or phone, and sign 
 | AUTH-16 | `POST /api/v1/auth/register` accepts `username` (3–64 letters, digits, `.`, `_`, `-`, at least one letter), `displayName`, password, and at least one of a valid `email` or international phone number (country code required). A duplicate username, email, or phone → **409** `USERNAME_TAKEN` / `DISPLAY_NAME_TAKEN` / `EMAIL_TAKEN` / `PHONE_TAKEN`. Full names are unique (trimmed, case-insensitive). Every error names its field in `fieldErrors` with an English message. | Must |
 | AUTH-17 | `POST /api/v1/auth/login` accepts `identifier` = email, username, or phone, and the password. Order: `@` → email; else username; else phone | Must |
 | AUTH-18 | A new account is active but unbound and can access no dealership data until the admin binds it | Must |
-| AUTH-19 | No social-provider login buttons, routes, credentials, or integrations are present | Must |
+| AUTH-19 | ~~No social-provider login buttons, routes, credentials, or integrations are present~~ **Superseded 2026-10-15 by AUTH-23.** Still binding for every provider other than Google | Must |
 | AUTH-20 | Admin can create an account with a username and an email and/or phone and bind it; binding an existing account never replaces its credentials | Must |
 | AUTH-21 | The platform admin is seeded from `ADMIN_USERNAME` / `ADMIN_PASSWORD`; `ADMIN_EMAIL` / `ADMIN_PHONE` are optional extra sign-in names | Must |
 | AUTH-22 | Local registration and first admin-created account are audited (`APP_USER`, `CREATE`, actor = the username) | Should |
+| AUTH-23 | `POST /api/v1/auth/google` accepts a Google ID token, verifies it server-side (RS256 against Google's published keys, issuer, audience = the configured client id, expiry, and `email_verified` true), then signs in the account holding that email or creates a new unbound `Dealer.User` for it. The account gets no password, so it can only return through Google. A `Platform.Admin` account is refused and keeps password-only sign-in. An optional `Google:HostedDomain` restricts sign-in to one Google Workspace domain. The button is hidden when no client id is configured. Audited as `APP_USER` / `CREATE` with `registration = google` | Must |
 
 ### Flow and API
 

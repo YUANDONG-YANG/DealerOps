@@ -1,7 +1,7 @@
 import { type FormEvent, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { apiError, fieldErrorsOf } from '../api/http'
-import { register } from '../auth/login'
+import { register, roleHome } from '../auth/login'
 
 const USERNAME_RX = /^(?=.*[A-Za-z])[A-Za-z0-9._-]{3,64}$/
 const EMAIL_RX = /^[^@\s]+@[^@\s]+\.[^@\s]+$/
@@ -62,11 +62,13 @@ export default function RegisterPage() {
     }
     setLoading(true)
     try {
-      await register(
+      const result = await register(
         form.username.trim(), form.displayName.trim(),
         form.email.trim(), form.phone.trim(), form.password,
       )
-      navigate('/')
+      // Registration signs the account in. It has no dealership yet, so the role home
+      // shows the "waiting for an administrator" notice instead of the marketing page (UI-03).
+      navigate(roleHome(result.role), { replace: true })
     } catch (err) {
       const fields = fieldErrorsOf(err)
       const { code, message } = apiError(err)

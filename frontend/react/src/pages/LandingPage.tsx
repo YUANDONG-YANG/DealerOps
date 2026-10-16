@@ -1,6 +1,8 @@
 import { type FormEvent, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, Navigate } from 'react-router-dom'
 import { catalogApi, vinDecodeError, type VinDecode } from '../api/catalog'
+import { roleHome } from '../auth/login'
+import { useSessionStore } from '../store/session'
 import BrandMark from '../components/BrandMark'
 import LandingArt, { type LandingArtKind } from '../components/LandingArt'
 
@@ -41,6 +43,7 @@ function vinFacts(d: VinDecode) {
 }
 
 export default function LandingPage() {
+  const role = useSessionStore(s => s.role)
   const [vin, setVin] = useState('')
   const [decoding, setDecoding] = useState(false)
   const [vinError, setVinError] = useState('')
@@ -74,6 +77,10 @@ export default function LandingPage() {
     e.preventDefault()
     decode()
   }
+
+  // A signed-in user never sees the anonymous marketing page (UI-02). A dealer user with no
+  // dealership goes to /dms as well, where the guard shows the activation notice (UI-03).
+  if (role) return <Navigate to={roleHome(role)} replace />
 
   return (
     <div className="landing">

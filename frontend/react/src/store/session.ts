@@ -21,18 +21,6 @@ function computeAccess(role: Role, dealerId: number | null): boolean {
   return role === 'Platform.Admin' || (role === 'Dealer.User' && dealerId !== null);
 }
 
-export type MeResponse = {
-  username: string;
-  displayName: string;
-  role: 'Platform.Admin' | 'Dealer.User';
-  dealerId: number | null;
-  dealerLegalName: string | null;
-  dealerContactPhone: string | null;
-  dealerContactEmail: string | null;
-  dealerContactAddress: string | null;
-  dealerLogoDataUrl: string | null;
-};
-
 export function hasBusinessAccess(s: Pick<SessionState, 'role' | 'dealerId'>): boolean {
   return computeAccess(s.role, s.dealerId);
 }

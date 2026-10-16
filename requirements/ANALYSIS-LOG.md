@@ -2,6 +2,16 @@
 
 Record of work on the requirement sources in this folder. Newest entry first.
 
+## 2026-10-15 · Full status re-verification and source cross-check
+
+Re-verified all 199 requirement rows in `DealerOps-Requirements-zh.html` against the current working tree (20 parallel source-review passes, one per requirement block), then cross-checked that document against the original client sources: the specification PDF and both `Dos Car dealership` DOCX files. Updated 58 status cells and added a status legend: 182 implemented, 8 partial, 2 not implemented, 7 out of scope. No application code or configuration was changed, and no tests were written or run.
+
+The previous status marks were materially stale: 26 rows marked Partial had already been fixed by then-uncommitted frontend work, `CRM-13` was marked unimplemented although a warn-only duplicate-email check exists, `NFR-04` was marked unimplemented although Terraform configures a 7-day backup retention, and `AD-R02` / `AT-37` rested on the wrong premise that `DEALER_CONTACT_INCOMPLETE` was unreachable (the rule reads the ad copy, not the dealer record).
+
+The source cross-check found four coverage gaps the requirements document never derived from the client material — no rule requires an ad to state used/new status (PDF §5), credit ads are not required to disclose a cash price or cost of borrowing beyond any dollar amount (PDF §5), the public landing page has no requirement row, and the 21 extension requirements (`LEAD`, `WO`, `IMG`, VIN decode) have status tracking nowhere — plus two unrecorded deviations, four document inconsistencies, eight questions for the client or instructor, and a credential exposure that blocks `SEC-04`.
+
+Report: [../review/DealerOps-Requirements-Open-Questions-2026-10-15.md](../review/DealerOps-Requirements-Open-Questions-2026-10-15.md).
+
 ## 2026-09-28 · Minimal fixes before commit/push
 
 Implemented V-01–04 from analysis/12: sold fields visible, customer link history remains readable, all linked vehicles excluded from the CRM picker, and simple assistant keyword/status questions supported. Added only small existing-page displays (VIN/detail link, read-only notice, BLOCK/REVIEW labels). Updated two obsolete CORS assertions, removed the CI skipTests mistake, and supplied the required address in the existing integration fixture. No new test cases/framework, schema or service. Push note: GitHub rejected the workflow change because the current OAuth credential lacks workflow scope. The one-line dealer-core.yml CI correction is retained locally and excluded from the pushed code commit; the remote pipeline still has its prior integration-test command.

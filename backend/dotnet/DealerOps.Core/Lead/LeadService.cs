@@ -80,21 +80,21 @@ public class LeadService
         if ((body.CustomerId == null) == (body.NewCustomer == null))
             throw new ApiException(ErrorCode.Validation, "Choose an existing customer or enter a new one.");
 
-        long customerId;
         if (body.CustomerId != null)
         {
             _ = _db.Customers.FirstOrDefault(c => c.Id == body.CustomerId && c.DealerId == tenant)
                 ?? throw new ApiException(ErrorCode.NotFound, "Not found");
-            customerId = body.CustomerId.Value;
-        }
-        else
-        {
-            customerId = _customerService.Create(body.NewCustomer!).Id;
         }
 
         var owner = TrimToNull(body.OwnerUsername);
         RequireMember(tenant, owner);
         RequireInStockVehicle(tenant, body.VehicleId);
+        var note = TrimToNull(body.Note);
+
+        // The customer, the lead, the first note, and their audit rows commit together (LEAD-01, AUD-07).
+        using var tx = _db.Database.BeginTransaction();
+
+        var customerId = body.CustomerId ?? _customerService.Create(body.NewCustomer!).Id;
 
         var lead = new LeadEntity
         {
@@ -105,7 +105,6 @@ public class LeadService
             Stage = LeadStage.New,
             NextFollowUpOn = body.NextFollowUpOn
         };
-        using var tx = _db.Database.BeginTransaction();
         _db.Leads.Add(lead);
         _db.SaveChanges();
 
@@ -119,11 +118,11 @@ public class LeadService
 
         Audit(lead.Id, "CREATE", tenant, fields);
         _db.SaveChanges();
-        tx.Commit();
 
-        var note = TrimToNull(body.Note);
         if (note != null)
-            SaveNote(lead, note);
+            WriteNote(lead, note);
+
+        tx.Commit();
 
         return ToDetail(lead);
     }
@@ -187,10 +186,14 @@ public class LeadService
     {
         var tenant = RequireTenant();
         var lead = Load(id, tenant);
-        return ToNote(SaveNote(lead, body.Body.Trim()));
+        using var tx = _db.Database.BeginTransaction();
+        var note = WriteNote(lead, body.Body.Trim());
+        tx.Commit();
+        return ToNote(note);
     }
 
-    private LeadNoteEntity SaveNote(LeadEntity lead, string text)
+    // Caller owns the transaction, so the note and its audit row commit together with it (AUD-07).
+    private LeadNoteEntity WriteNote(LeadEntity lead, string text)
     {
         var note = new LeadNoteEntity
         {
@@ -199,12 +202,10 @@ public class LeadService
             AuthorUsername = ActorUsername(),
             Body = text
         };
-        using var tx = _db.Database.BeginTransaction();
         _db.LeadNotes.Add(note);
         _db.SaveChanges();
         Audit(lead.Id, "NOTE", lead.DealerId!.Value, new Dictionary<string, object> { ["noteId"] = note.Id });
         _db.SaveChanges();
-        tx.Commit();
         return note;
     }
 

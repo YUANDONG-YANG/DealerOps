@@ -1,11 +1,8 @@
-using System.Collections.Concurrent;
-
 namespace DealerOps.AiService.Support;
 
 public class TimedModelCall
 {
     private const int MaxConcurrent = 16;
-    private const int MaxQueued = 16;
 
     private readonly SemaphoreSlim _semaphore = new(MaxConcurrent, MaxConcurrent);
     private readonly int _connectTimeoutMs;
@@ -21,8 +18,10 @@ public class TimedModelCall
     {
         var totalMs = _connectTimeoutMs + _responseTimeoutMs;
 
+        // Rejected for concurrency, not for elapsed time: report it as its own code
+        // so an overload is never read as a model timeout.
         if (!await _semaphore.WaitAsync(0))
-            throw ModelFailureException.TimeoutError();
+            throw ModelFailureException.BusyError();
 
         try
         {

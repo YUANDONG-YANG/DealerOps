@@ -1,37 +1,62 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { http } from '../api/http';
-
-interface PhotoItem {
-  id: number;
-  contentType: string;
-  enhancement: string | null;
-  createdAt: string;
-}
+import { messageOf } from '../api/http';
+import {
+  PHOTO_ALLOWED_TYPES,
+  PHOTO_MAX_SIZE,
+  PHOTO_PRESETS,
+  photosApi,
+  presetLabel,
+  type PhotoItem,
+  type PhotoPreset,
+  type PhotoVariant,
+} from '../api/photos';
+import ConfirmDialog from './ConfirmDialog';
 
 interface Props {
   vehicleId: number;
 }
 
-const PRESETS = ['Auto', 'Brighten', 'Sharpen'];
-const MAX_SIZE = 2 * 1024 * 1024;
+function snapshot(cache: Map<number, string>): Record<number, string> {
+  const urls: Record<number, string> = {};
+  cache.forEach((url, id) => { urls[id] = url; });
+  return urls;
+}
 
 export default function PhotoStudioPanel({ vehicleId }: Props) {
   const [photos, setPhotos] = useState<PhotoItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [uploading, setUploading] = useState(false);
-  const [enhancingId, setEnhancingId] = useState<number | null>(null);
-  const [deletingId, setDeletingId] = useState<number | null>(null);
-  const [viewUrl, setViewUrl] = useState<string | null>(null);
+  const [enhancing, setEnhancing] = useState<PhotoPreset | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
+  const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [variant, setVariant] = useState<PhotoVariant>('original');
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewError, setPreviewError] = useState('');
+  const [thumbs, setThumbs] = useState<Record<number, string>>({});
   const fileRef = useRef<HTMLInputElement>(null);
   const seqRef = useRef(0);
+  const previewRef = useRef<string | null>(null);
+  const thumbRef = useRef(new Map<number, string>());
+
+  const selected = photos.find((p) => p.id === selectedId) ?? null;
+  const enhancement = selected?.enhancement ?? null;
+
+  // Object URLs are owned by this component: replacing or dropping one must revoke it.
+  const showPreview = useCallback((url: string | null) => {
+    if (previewRef.current) URL.revokeObjectURL(previewRef.current);
+    previewRef.current = url;
+    setPreviewUrl(url);
+  }, []);
 
   const load = useCallback(async () => {
     const seq = ++seqRef.current;
     setLoading(true);
     setError('');
     try {
-      const r = await http.get(`/api/v1/vehicles/${vehicleId}/photos`);
+      const r = await photosApi.list(vehicleId);
       if (seq !== seqRef.current) return;
       setPhotos(r.data || []);
     } catch {
@@ -44,128 +69,255 @@ export default function PhotoStudioPanel({ vehicleId }: Props) {
 
   useEffect(() => { void load(); }, [load]);
 
+  // Revoke every object URL still held when the panel unmounts.
+  useEffect(() => () => {
+    const cache = thumbRef.current;
+    cache.forEach((url) => URL.revokeObjectURL(url));
+    cache.clear();
+    if (previewRef.current) URL.revokeObjectURL(previewRef.current);
+    previewRef.current = null;
+  }, []);
+
+  // Keep a selection on an existing photo.
+  useEffect(() => {
+    if (photos.length === 0) {
+      if (selectedId !== null) setSelectedId(null);
+      return;
+    }
+    if (selectedId == null || !photos.some((p) => p.id === selectedId)) {
+      setSelectedId(photos[0].id);
+      setVariant('original');
+    }
+  }, [photos, selectedId]);
+
+  // Thumbnails: fetch originals through the authenticated client, cache by photo id.
+  useEffect(() => {
+    const cache = thumbRef.current;
+    let changed = false;
+    cache.forEach((url, id) => {
+      if (!photos.some((p) => p.id === id)) {
+        URL.revokeObjectURL(url);
+        cache.delete(id);
+        changed = true;
+      }
+    });
+    const missing = photos.filter((p) => !cache.has(p.id));
+    if (missing.length === 0) {
+      if (changed) setThumbs(snapshot(cache));
+      return;
+    }
+    let active = true;
+    void (async () => {
+      for (const photo of missing) {
+        try {
+          const r = await photosApi.content(vehicleId, photo.id, 'original');
+          if (!active) return;
+          cache.set(photo.id, URL.createObjectURL(r.data));
+        } catch {
+          if (!active) return;
+        }
+      }
+      if (active) setThumbs(snapshot(cache));
+    })();
+    return () => { active = false; };
+  }, [photos, vehicleId]);
+
+  // Large preview: load the selected variant as a blob and render an object URL.
+  useEffect(() => {
+    if (selectedId == null) {
+      showPreview(null);
+      setPreviewError('');
+      return;
+    }
+    let active = true;
+    const wanted: PhotoVariant = variant === 'enhanced' && enhancement ? 'enhanced' : 'original';
+    setPreviewLoading(true);
+    setPreviewError('');
+    photosApi.content(vehicleId, selectedId, wanted)
+      .then((r) => {
+        const url = URL.createObjectURL(r.data);
+        if (!active) {
+          URL.revokeObjectURL(url);
+          return;
+        }
+        showPreview(url);
+      })
+      .catch(() => {
+        if (!active) return;
+        showPreview(null);
+        setPreviewError('Could not load this photo.');
+      })
+      .finally(() => {
+        if (active) setPreviewLoading(false);
+      });
+    return () => { active = false; };
+  }, [vehicleId, selectedId, variant, enhancement, showPreview]);
+
+  function resetFileInput() {
+    if (fileRef.current) fileRef.current.value = '';
+  }
+
   async function upload(file: File) {
-    if (file.size > MAX_SIZE) {
+    if (!PHOTO_ALLOWED_TYPES.includes(file.type)) {
+      setError('Photo must be a JPEG or PNG.');
+      resetFileInput();
+      return;
+    }
+    if (file.size > PHOTO_MAX_SIZE) {
       setError('Photo must be 2 MB or smaller.');
+      resetFileInput();
       return;
     }
     setUploading(true);
     setError('');
-    const form = new FormData();
-    form.append('file', file);
     try {
-      await http.post(`/api/v1/vehicles/${vehicleId}/photos`, form, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
+      const r = await photosApi.upload(vehicleId, file);
       await load();
-    } catch {
-      setError('Could not upload photo.');
+      if (r.data?.id != null) {
+        setSelectedId(r.data.id);
+        setVariant('original');
+      }
+    } catch (e) {
+      setError(messageOf(e, 'Could not upload photo.'));
     } finally {
       setUploading(false);
-      if (fileRef.current) fileRef.current.value = '';
+      resetFileInput();
     }
   }
 
-  async function enhance(photoId: number, preset: string) {
-    setEnhancingId(photoId);
+  async function enhance(photoId: number, preset: PhotoPreset) {
+    if (enhancing) return;
+    setEnhancing(preset);
     setError('');
     try {
-      await http.post(`/api/v1/vehicles/${vehicleId}/photos/${photoId}/enhance`, { preset });
+      await photosApi.enhance(vehicleId, photoId, preset);
       await load();
+      setVariant('enhanced');
     } catch {
       setError('Could not enhance photo.');
     } finally {
-      setEnhancingId(null);
+      setEnhancing(null);
     }
   }
 
   async function remove(photoId: number) {
-    setDeletingId(photoId);
+    setConfirmDeleteId(null);
+    setDeleting(true);
     setError('');
     try {
-      await http.delete(`/api/v1/vehicles/${vehicleId}/photos/${photoId}`);
+      await photosApi.delete(vehicleId, photoId);
       await load();
     } catch {
       setError('Could not delete photo.');
     } finally {
-      setDeletingId(null);
+      setDeleting(false);
     }
   }
 
-  function viewPhoto(photoId: number, variant: 'original' | 'enhanced') {
-    setViewUrl(`/api/v1/vehicles/${vehicleId}/photos/${photoId}/content?variant=${variant}`);
-  }
+  const busy = uploading || enhancing !== null || deleting;
 
   return (
-    <div style={{ marginTop: 24 }}>
-      <div className="muted" style={{ marginBottom: 8 }}>Photos</div>
+    <div className="photo-panel">
+      <div className="muted" style={{ marginBottom: 8 }}>Image Studio</div>
       {error && <p className="danger-text">{error}</p>}
       {loading && <p className="muted">Loading photos…</p>}
 
-      <div style={{ marginBottom: 12 }}>
+      <label className="btn upload-btn">
+        {uploading ? 'Uploading…' : 'Upload photo'}
         <input
           ref={fileRef}
           type="file"
-          accept="image/*"
-          onChange={e => {
+          accept="image/jpeg,image/png"
+          onChange={(e) => {
             const f = e.target.files?.[0];
             if (f) void upload(f);
           }}
           disabled={uploading}
         />
-        {uploading && <span className="muted"> Uploading…</span>}
-      </div>
+      </label>
 
       {photos.length === 0 && !loading && <p className="muted">No photos.</p>}
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
-        {photos.map(p => (
-          <div key={p.id} className="card" style={{ padding: 12, minWidth: 200 }}>
-            <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
-              <button className="btn-link" onClick={() => viewPhoto(p.id, 'original')}>Original</button>
-              {p.enhancement && (
-                <button className="btn-link" onClick={() => viewPhoto(p.id, 'enhanced')}>Enhanced</button>
-              )}
-            </div>
-            <div className="muted" style={{ fontSize: 12, marginBottom: 6 }}>{p.createdAt}</div>
-            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-              <select
-                className="select"
-                defaultValue=""
-                onChange={e => {
-                  if (e.target.value) void enhance(p.id, e.target.value);
-                  e.target.value = '';
-                }}
-                disabled={enhancingId === p.id}
-              >
-                <option value="" disabled>{enhancingId === p.id ? 'Enhancing…' : 'Enhance'}</option>
-                {PRESETS.map(pr => (
-                  <option key={pr} value={pr}>{pr.replace(/_/g, ' ').toLowerCase()}</option>
-                ))}
-              </select>
-              <button
-                className="btn-link danger"
-                onClick={() => remove(p.id)}
-                disabled={deletingId === p.id}
-              >
-                {deletingId === p.id ? 'Deleting…' : 'Delete'}
-              </button>
-            </div>
+
+      {selected && (
+        <>
+          <div className="tab-bar" style={{ marginTop: 12, marginBottom: 12 }}>
+            <button
+              className={`tab-btn${variant === 'original' ? ' active' : ''}`}
+              onClick={() => setVariant('original')}
+            >
+              Original
+            </button>
+            <button
+              className={`tab-btn${variant === 'enhanced' && enhancement ? ' active' : ''}`}
+              onClick={() => setVariant('enhanced')}
+              disabled={!enhancement}
+            >
+              Enhanced
+            </button>
           </div>
+
+          <div className="card" style={{ padding: 12, textAlign: 'center', minHeight: 180 }}>
+            {previewLoading && <p className="muted">Loading photo…</p>}
+            {previewError && !previewLoading && <p className="danger-text">{previewError}</p>}
+            {previewUrl && !previewLoading && !previewError && (
+              <img
+                src={previewUrl}
+                alt="Vehicle photo"
+                style={{ maxWidth: '100%', maxHeight: 360, borderRadius: 10 }}
+              />
+            )}
+          </div>
+
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginTop: 10 }}>
+            {PHOTO_PRESETS.map((preset) => (
+              <button
+                key={preset.value}
+                className="btn btn-sm"
+                onClick={() => void enhance(selected.id, preset.value)}
+                disabled={busy}
+              >
+                {enhancing === preset.value ? 'Enhancing…' : preset.label}
+              </button>
+            ))}
+            <button
+              className="btn btn-sm btn-danger"
+              onClick={() => setConfirmDeleteId(selected.id)}
+              disabled={busy}
+            >
+              {deleting ? 'Deleting…' : 'Delete'}
+            </button>
+            {enhancement && (
+              <span className="tag tag-info">Enhanced · {presetLabel(enhancement)}</span>
+            )}
+          </div>
+        </>
+      )}
+
+      <div className="photo-grid">
+        {photos.map((p) => (
+          thumbs[p.id] ? (
+            <img
+              key={p.id}
+              className="photo-thumb"
+              src={thumbs[p.id]}
+              alt="Vehicle photo"
+              onClick={() => { setSelectedId(p.id); setVariant('original'); }}
+              style={p.id === selectedId ? { borderColor: 'var(--accent)' } : undefined}
+            />
+          ) : (
+            <div key={p.id} className="photo-thumb" />
+          )
         ))}
       </div>
 
-      {viewUrl && (
-        <div className="dialog-overlay" onClick={() => setViewUrl(null)}>
-          <div className="dialog" style={{ width: 'auto', maxWidth: 'calc(100vw - 32px)' }} onClick={e => e.stopPropagation()}>
-            <div className="dialog-body" style={{ textAlign: 'center' }}>
-              <img src={viewUrl} alt="Vehicle photo" style={{ maxWidth: '100%', maxHeight: '80vh' }} />
-            </div>
-            <div className="dialog-footer">
-              <button className="btn" onClick={() => setViewUrl(null)}>Close</button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ConfirmDialog
+        open={confirmDeleteId !== null}
+        title="Delete photo"
+        message="Delete this photo? The original and the enhanced copy are both removed. This cannot be undone."
+        confirmLabel="Delete"
+        onConfirm={() => { if (confirmDeleteId !== null) void remove(confirmDeleteId); }}
+        onCancel={() => setConfirmDeleteId(null)}
+      />
     </div>
   );
 }

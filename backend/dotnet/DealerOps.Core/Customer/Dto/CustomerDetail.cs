@@ -7,4 +7,5 @@ public record CustomerDetail(
     string? Phone,
     string? HomeAddress,
     List<LinkedVehicleItem> LinkedVehicles,
-    int Version);
+    int Version,
+    bool DuplicateEmail);

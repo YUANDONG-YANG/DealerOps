@@ -79,7 +79,7 @@ public class ComplianceCheckService
             check.Id, check.ListingId, check.ContentVersion,
             DeserializeFindings(check.RuleFindingsJson),
             check.AiStatus,
-            DeserializeNotes(check.AiNotes),
+            DeserializeNotes(check.AiNotes) ?? [],
             check.Recommendation,
             _checkStatusMapper.Derive(listing, check),
             check.CreatedAt);

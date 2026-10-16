@@ -89,17 +89,27 @@ public class WorkOrderService
         if (order.DueOn != body.DueOn)
             changed["dueOn"] = true;
 
-        if (next == WorkOrderStatus.Done)
+        var done = next == WorkOrderStatus.Done;
+        string? completionNote = null;
+        decimal repairCost = 0;
+        if (done)
         {
-            var note = TrimToNull(body.CompletionNote);
-            if (note == null || body.Cost == null)
+            completionNote = TrimToNull(body.CompletionNote);
+            if (completionNote == null || body.Cost == null)
                 throw new ApiException(ErrorCode.Validation, "A finished work order needs a completion note and a cost.");
-            order.CompletionNote = note;
-            order.Cost = body.Cost;
-            order.CompletedOn = DateOnly.FromDateTime(DateTime.UtcNow);
+            repairCost = body.Cost.Value;
             changed["cost"] = true;
             changed["completionNote"] = true;
-            _vehicleService.AddRepairCost(order.VehicleId, body.Cost.Value);
+        }
+
+        // The work order, its audit row, and the vehicle repair cost must commit together (AUD-07, WO-04).
+        using var tx = _db.Database.BeginTransaction();
+
+        if (done)
+        {
+            order.CompletionNote = completionNote;
+            order.Cost = repairCost;
+            order.CompletedOn = DateOnly.FromDateTime(DateTime.UtcNow);
         }
 
         order.Status = next;
@@ -111,6 +121,11 @@ public class WorkOrderService
         if (changed.Count > 0)
             Audit(order.Id, "UPDATE", tenant, changed);
         _db.SaveChanges();
+
+        if (done)
+            _vehicleService.AddRepairCost(order.VehicleId, repairCost);
+
+        tx.Commit();
 
         return ToResponse(order);
     }

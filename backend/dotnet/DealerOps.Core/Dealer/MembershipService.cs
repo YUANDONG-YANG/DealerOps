@@ -75,6 +75,10 @@ public class MembershipService
         membership.Active = true;
         membership.CreatedBy = ActorUsername();
 
+        // One transaction from the membership row through its audit entry (AUD-07): the flush
+        // below only assigns the id, so nothing is committed until the audit row is written too.
+        using var tx = _db.Database.CurrentTransaction is null ? _db.Database.BeginTransaction() : null;
+
         if (membership.Id == 0)
             _db.Memberships.Add(membership);
         _db.SaveChanges();
@@ -103,14 +107,13 @@ public class MembershipService
             user.Active = true;
         }
 
-        using var tx = _db.Database.BeginTransaction();
         try { _db.SaveChanges(); }
         catch (DbUpdateException ex) { throw _accountRules.Conflict(ex); }
 
         _audit.Record("MEMBERSHIP", membership.Id, "CREATE", dealerId, ActorUsername(),
             new Dictionary<string, object> { ["username"] = username });
         _db.SaveChanges();
-        tx.Commit();
+        tx?.Commit();
 
         return new MemberResponse(membership.Username, user.DisplayName, AppRole.DealerUser.Value, membership.Active);
     }

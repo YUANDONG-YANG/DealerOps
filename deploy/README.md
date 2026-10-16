@@ -8,10 +8,23 @@ The cloud path is **Terraform + Azure App Service**. There are no container imag
 |---|---|
 | Infrastructure as code | [deploy/terraform/](terraform/) (`main.tf`, `variables.tf`, `outputs.tf`) |
 | App upload script | [deploy/terraform/deploy-apps.sh](terraform/deploy-apps.sh) — uploads .NET apps and React SPA after `terraform apply` |
+| Combined deployment entry point | [deploy/deploy.sh](deploy.sh) — optionally runs `terraform apply`, then uploads selected apps |
 | CI check | `.github/workflows/terraform.yml` — `fmt`, `init -backend=false`, `validate`. It never runs `plan` or `apply` |
 | Compile CI | `.github/workflows/dealer-{web,core,gateway}.yml` and `ai-service.yml` |
 
+Google 登录与 Azure origin 的完整配置记录见 [GOOGLE-OAUTH-AZURE.md](GOOGLE-OAUTH-AZURE.md)。
+
 CI does not deploy. An operator with the Azure subscription runs `terraform apply` and `deploy-apps.sh` by hand. There are no Azure credentials in this repository and no GitHub environment secrets for Azure.
+
+For a single local deployment command, use the wrapper from the repository root:
+
+```text
+./deploy/deploy.sh --apply       # Terraform apply, then publish all apps
+./deploy/deploy.sh --apply web   # Terraform apply, then publish only the React SPA
+./deploy/deploy.sh web           # publish React only; Terraform must already be applied
+```
+
+`--apply` is explicit by design. Without it, the wrapper never changes Azure infrastructure and only delegates to `terraform/deploy-apps.sh`.
 
 ## 1. What a push to `main` does
 

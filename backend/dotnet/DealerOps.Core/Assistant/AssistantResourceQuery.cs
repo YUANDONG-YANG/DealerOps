@@ -3,21 +3,26 @@ using DealerOps.Core.Assistant.Dto;
 using DealerOps.Core.Compliance;
 using DealerOps.Core.Customer;
 using DealerOps.Core.Data;
-using DealerOps.Core.Listing;
 using DealerOps.Core.Vehicle;
+using Microsoft.EntityFrameworkCore;
 
 namespace DealerOps.Core.Assistant;
 
 public class AssistantResourceQuery
 {
+    private const int MaxCards = 5;
+    private const int MaxTerms = 5;
+
     private static readonly Regex InStockRx = new(@"\bin[ -]stock\b", RegexOptions.IgnoreCase | RegexOptions.Compiled);
     private static readonly Regex SoldRx = new(@"\bsold\b", RegexOptions.IgnoreCase | RegexOptions.Compiled);
-    private static readonly Regex CustomerWord = new(@"\bcustomers?\b", RegexOptions.IgnoreCase | RegexOptions.Compiled);
-    private static readonly Regex ListingWord = new(@"\b(?:listings?|ads?|advertis\w*|compliance|check|blocked|passed|stale)\b", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+    private static readonly Regex VehicleWord = new(@"\b(?:vehicles?|cars?|inventory|stock|vin)\b", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+    private static readonly Regex CustomerWord = new(@"\b(?:customers?|clients?|buyers?|owners?)\b", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+    private static readonly Regex ListingWord = new(@"\b(?:listings?|ads?|advertis\w*|compliance|checks?|blocked|passed|stale)\b", RegexOptions.IgnoreCase | RegexOptions.Compiled);
     private static readonly Regex Filler = new(
-        @"\b(?:which|what|who|how|many|show|find|list|search|for|me|the|a|an|all|any|are|is|our|here|please|do|does|we|you|have|has|got|in|of|with|named|called|there|vehicles?|cars?|customers?)\b",
+        @"\b(?:which|what|who|how|many|show|find|list|search|for|me|the|a|an|all|any|are|is|our|here|please|do|does|we|you|have|has|got|in|of|with|named|called|there)\b",
         RegexOptions.IgnoreCase | RegexOptions.Compiled);
     private static readonly Regex Punctuation = new(@"[?!,;:""\(\)]", RegexOptions.Compiled);
+    private static readonly char[] WordSeparators = [' ', '\t', '\r', '\n'];
 
     private readonly AppDbContext _db;
     private readonly CheckStatusMapper _checkStatusMapper;
@@ -28,100 +33,146 @@ public class AssistantResourceQuery
         _checkStatusMapper = checkStatusMapper;
     }
 
+    /// <summary>
+    /// Read-only keyword retrieval over this dealer's vehicles, customers and ads.
+    /// Returns at most five cards and never exposes purchase cost or customer contact data.
+    /// </summary>
     public List<ResourceCard> Load(long tenantDealerId, string? text)
     {
-        var question = text?.Trim() ?? "";
-        var customerQuestion = CustomerWord.IsMatch(question);
-        var listingQuestion = ListingWord.IsMatch(question);
+        var question = Punctuation.Replace(text?.Trim() ?? "", " ");
         VehicleStatus? status = InStockRx.IsMatch(question) ? VehicleStatus.InStock
             : SoldRx.IsMatch(question) ? VehicleStatus.Sold : null;
 
         var q = InStockRx.Replace(question, " ");
         q = SoldRx.Replace(q, " ");
-        q = Filler.Replace(Punctuation.Replace(q, " "), " ");
+
+        // Words naming a record type steer the ranking only; they are never searched for.
+        var vehicleAsked = status != null || VehicleWord.IsMatch(q);
+        var customerAsked = CustomerWord.IsMatch(q);
+        var listingAsked = ListingWord.IsMatch(q);
+
+        q = VehicleWord.Replace(q, " ");
+        q = CustomerWord.Replace(q, " ");
+        q = ListingWord.Replace(q, " ");
+        q = Filler.Replace(q, " ");
 
         var terms = SearchTerms(q);
+        if (terms.Count == 0)
+        {
+            // Nothing to search for: return no cards so the answer can ask for a make, VIN or customer name.
+            return [];
+        }
+
+        var groups = new List<(int Rank, List<ResourceCard> Cards)>
+        {
+            (vehicleAsked ? 0 : 1, VehicleCards(tenantDealerId, status, terms)),
+            (customerAsked ? 0 : 1, CustomerCards(tenantDealerId, terms)),
+            (listingAsked ? 0 : 1, ListingCards(tenantDealerId, terms))
+        };
+
+        // Record types the question points at come first, but every type that matched
+        // keeps one slot so an ad question still shows the vehicle behind it.
+        var ranked = groups.OrderBy(g => g.Rank).Select(g => g.Cards).ToList();
         var cards = new List<ResourceCard>();
 
-        if (!customerQuestion && !listingQuestion)
+        foreach (var group in ranked.Where(g => g.Count > 0))
         {
-            IQueryable<VehicleEntity> vq = _db.Vehicles
-                .Where(v => v.DealerId == tenantDealerId);
-            if (status != null)
-                vq = vq.Where(v => v.Status == status);
-            foreach (var term in terms.Where(t => t.Length > 0))
-            {
-                var t = term;
-                vq = vq.Where(v =>
-                    v.Vin.Contains(t) || v.Make.Contains(t) || v.Model.Contains(t)
-                    || v.ModelYear.ToString() == t);
-            }
-
-            foreach (var v in vq.Take(5).ToList())
-            {
-                cards.Add(new ResourceCard("VEHICLE", v.Id,
-                    $"{v.ModelYear} {v.Make} {v.Model}", v.Status.ToString(), null, null));
-            }
+            if (cards.Count == MaxCards) break;
+            cards.Add(group[0]);
         }
 
-        if (customerQuestion || (status == null && !listingQuestion && cards.Count < 5))
+        foreach (var card in ranked.SelectMany(g => g.Skip(1)))
         {
-            IQueryable<CustomerEntity> cq = _db.Customers
-                .Where(c => c.DealerId == tenantDealerId);
-            foreach (var term in terms.Where(t => t.Length > 0))
-            {
-                var t = term;
-                cq = cq.Where(c => c.Name.Contains(t));
-            }
-
-            foreach (var c in cq.Take(5 - cards.Count).ToList())
-            {
-                cards.Add(new ResourceCard("CUSTOMER", c.Id, c.Name, null, null, null));
-            }
+            if (cards.Count == MaxCards) break;
+            cards.Add(card);
         }
 
-        if (listingQuestion || cards.Count < 5)
+        return cards;
+    }
+
+    private List<ResourceCard> VehicleCards(long tenantDealerId, VehicleStatus? status, List<string> terms)
+    {
+        IQueryable<VehicleEntity> vq = _db.Vehicles.AsNoTracking()
+            .Where(v => v.DealerId == tenantDealerId);
+        if (status != null)
+            vq = vq.Where(v => v.Status == status);
+        foreach (var term in terms)
         {
-            var remaining = 5 - cards.Count;
-            if (remaining > 0)
-            {
-                var lq = from l in _db.Listings
-                         join v in _db.Vehicles on l.VehicleId equals v.Id
-                         where l.DealerId == tenantDealerId
-                         select new { l, v };
-
-                foreach (var term in terms.Where(t => t.Length > 0))
-                {
-                    var t = term;
-                    lq = lq.Where(x =>
-                        x.l.Title.Contains(t) || x.v.Make.Contains(t) || x.v.Model.Contains(t)
-                        || x.v.Vin.Contains(t));
-                }
-
-                foreach (var x in lq.Take(remaining).ToList())
-                {
-                    var lastCheck = x.l.LastCheckId != null
-                        ? _db.ComplianceChecks.Find(x.l.LastCheckId)
-                        : null;
-                    var checkStatus = _checkStatusMapper.Derive(x.l, lastCheck);
-                    cards.Add(new ResourceCard("LISTING", x.l.Id,
-                        string.IsNullOrWhiteSpace(x.l.Title) ? $"{x.v.ModelYear} {x.v.Make} {x.v.Model}" : x.l.Title,
-                        null, x.v.Id, checkStatus));
-                }
-            }
+            var t = term;
+            vq = vq.Where(v =>
+                v.Vin.Contains(t) || v.Make.Contains(t) || v.Model.Contains(t)
+                || v.ModelYear.ToString() == t);
         }
 
-        return cards.Count <= 5 ? cards : cards.Take(5).ToList();
+        // Purchase cost and repair cost are deliberately left off the card.
+        return vq.Take(MaxCards).ToList()
+            .Select(v => new ResourceCard("VEHICLE", v.Id,
+                $"{v.ModelYear} {v.Make} {v.Model}", v.Status.ToString(), null, null))
+            .ToList();
+    }
+
+    private List<ResourceCard> CustomerCards(long tenantDealerId, List<string> terms)
+    {
+        IQueryable<CustomerEntity> cq = _db.Customers.AsNoTracking()
+            .Where(c => c.DealerId == tenantDealerId);
+        foreach (var term in terms)
+        {
+            var t = term;
+            cq = cq.Where(c => c.Name.Contains(t));
+        }
+
+        // A customer card carries the name and id only: never phone, email or home address.
+        return cq.Take(MaxCards).ToList()
+            .Select(c => new ResourceCard("CUSTOMER", c.Id, c.Name, null, null, null))
+            .ToList();
+    }
+
+    private List<ResourceCard> ListingCards(long tenantDealerId, List<string> terms)
+    {
+        var lq = from l in _db.Listings.AsNoTracking()
+                 join v in _db.Vehicles.AsNoTracking() on l.VehicleId equals v.Id
+                 where l.DealerId == tenantDealerId
+                 select new { l, v };
+
+        foreach (var term in terms)
+        {
+            var t = term;
+            lq = lq.Where(x =>
+                x.l.Title.Contains(t) || x.v.Make.Contains(t) || x.v.Model.Contains(t)
+                || x.v.Vin.Contains(t));
+        }
+
+        var rows = lq.Take(MaxCards).ToList();
+        var checkIds = rows.Where(x => x.l.LastCheckId != null)
+            .Select(x => x.l.LastCheckId!.Value)
+            .Distinct()
+            .ToList();
+        var checks = checkIds.Count == 0
+            ? new Dictionary<long, ComplianceCheckEntity>()
+            : _db.ComplianceChecks.AsNoTracking()
+                .Where(c => checkIds.Contains(c.Id))
+                .ToDictionary(c => c.Id);
+
+        return rows.Select(x =>
+        {
+            ComplianceCheckEntity? lastCheck = null;
+            if (x.l.LastCheckId != null)
+                checks.TryGetValue(x.l.LastCheckId.Value, out lastCheck);
+            var label = string.IsNullOrWhiteSpace(x.l.Title)
+                ? $"{x.v.ModelYear} {x.v.Make} {x.v.Model}"
+                : x.l.Title;
+            return new ResourceCard("LISTING", x.l.Id, label, null, x.v.Id,
+                _checkStatusMapper.Derive(x.l, lastCheck));
+        }).ToList();
     }
 
     private static List<string> SearchTerms(string q)
     {
-        var terms = q.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries)
+        return q.Split(WordSeparators, StringSplitOptions.RemoveEmptyEntries)
             .Select(w => w.TrimEnd('.'))
             .Where(w => w.Length >= 2)
-            .Distinct()
-            .Take(5)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Take(MaxTerms)
             .ToList();
-        return terms.Count == 0 ? [""] : terms;
     }
 }

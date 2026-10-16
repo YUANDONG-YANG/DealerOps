@@ -125,6 +125,38 @@ Response **201**: same `LoginResponse` as §1.4. Every error names its field in 
 
 When several values are taken, `code` is the first in the order above and `fieldErrors` lists all of them. Admin bind of a new user (§3.6) applies the same rules.
 
+### 1.6 `POST /api/v1/auth/google` (anonymous)
+
+Google sign-in (AUTH-23). Takes the ID token that Google Identity Services returns in the browser and exchanges it for this application's own session token. Google proves the email address only — it grants no role and no dealership, so the tenant is still resolved per request from the membership table.
+
+```json
+{ "idToken": "<Google ID token>" }
+```
+
+The server verifies the token before trusting any claim: RS256 signature against Google's published keys (fetched from its OpenID metadata and cached), issuer `https://accounts.google.com` or `accounts.google.com`, audience equal to `GoogleIdTokenVerifier.ClientId`, expiry, and `email_verified` true. The algorithm is pinned so a token signed with another algorithm cannot be substituted.
+
+Then, by the token's email address (canonical lower case):
+
+| Account state | Result |
+|---|---|
+| A `Dealer.User` holds that email | **200** `LoginResponse` as §1.4 |
+| No account holds that email | A new **unbound** `Dealer.User` is created with no password hash, a username derived from the email local part, and the Google display name; **200** `LoginResponse`. Business calls then return **403** until an admin binds it (§3.6, §3.8), exactly as for §1.5 |
+| A `Platform.Admin` holds that email | **403** `FORBIDDEN` — the admin is seeded from the environment and keeps password-only sign-in |
+
+Because the created account has an empty password hash, `POST /api/v1/auth/login` can never authenticate it; Google remains its only route in. A derived username or display name that is already taken gets a numeric suffix, since both columns are unique.
+
+| Case | Status and code |
+|---|---|
+| Missing or oversized `idToken` | **400** `VALIDATION` |
+| Invalid signature, wrong audience or issuer, expired token | **401** `UNAUTHORIZED` |
+| `email_verified` is false | **401** `UNAUTHORIZED` |
+| `Google:HostedDomain` is set and the token's `hd` does not match | **403** `FORBIDDEN` |
+| Google's signing keys are unreachable | **500** `INTERNAL_ERROR` |
+
+Audited as `APP_USER` / `CREATE` with `registration = google` (actor = the derived username, no `dealerId`).
+
+The client id is a public identifier of the DealerOps application rather than of any one environment, and there is no client secret, so it is compiled in on both sides instead of being configured per deployment: `GoogleIdTokenVerifier.ClientId` in dealer-core and `googleClientId` in `frontend/react/src/auth/google.ts`. The two must stay equal, because the backend checks the ID token audience against its copy. This adds no stored credential and nothing to set up per environment. The one remaining per-deployment setting is the optional `Google__HostedDomain`. Adding a new browser origin (a new port or a custom domain) still requires adding it to the OAuth client's authorized JavaScript origins in Google Cloud; see `deploy/GOOGLE-OAUTH-AZURE.md`.
+
 ---
 
 ## 2. `GET /api/v1/me`

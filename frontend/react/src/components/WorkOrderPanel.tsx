@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { http } from '../api/http';
+import { http, messageOf } from '../api/http';
+import { memberLabel, membersApi, type MemberOption } from '../api/members';
+import ConfirmDialog from './ConfirmDialog';
 import { cad } from '../format';
 
 interface WorkOrder {
@@ -22,6 +24,23 @@ interface Props {
   onChanged: () => void;
 }
 
+// PATCH /api/v1/work-orders/{id} takes the full editable state, so every call
+// resends the fields it does not change (21-Feature-Extensions.md §4).
+interface PatchPayload {
+  status: string;
+  task: string;
+  assigneeUsername: string | null;
+  dueOn: string | null;
+  cost: number | null;
+  completionNote: string | null;
+  version: number;
+}
+
+interface EditForm {
+  task: string;
+  assignee: string;
+  dueOn: string;
+}
 
 const STATUS_TAG: Record<string, string> = {
   OPEN: 'tag-warning',
@@ -30,15 +49,40 @@ const STATUS_TAG: Record<string, string> = {
   CANCELLED: 'tag-default',
 };
 
+const EMPTY_EDIT: EditForm = { task: '', assignee: '', dueOn: '' };
+
+function currentState(wo: WorkOrder): PatchPayload {
+  return {
+    status: wo.status,
+    task: wo.task,
+    assigneeUsername: wo.assigneeUsername,
+    dueOn: wo.dueOn,
+    cost: wo.cost,
+    completionNote: wo.completionNote,
+    version: wo.version,
+  };
+}
+
+function trimToNull(value: string): string | null {
+  return value.trim() ? value.trim() : null;
+}
+
 export default function WorkOrderPanel({ vehicleId, sold, onChanged }: Props) {
   const [orders, setOrders] = useState<WorkOrder[]>([]);
+  const [members, setMembers] = useState<MemberOption[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [task, setTask] = useState('');
-  const [assignee, setAssignee] = useState('');
+  const [form, setForm] = useState<EditForm>(EMPTY_EDIT);
   const [createError, setCreateError] = useState('');
   const [creating, setCreating] = useState(false);
   const [actionBusy, setActionBusy] = useState<number | null>(null);
+  const [editId, setEditId] = useState<number | null>(null);
+  const [editForm, setEditForm] = useState<EditForm>(EMPTY_EDIT);
+  const [doneTarget, setDoneTarget] = useState<WorkOrder | null>(null);
+  const [doneCost, setDoneCost] = useState('');
+  const [doneNote, setDoneNote] = useState('');
+  const [doneError, setDoneError] = useState('');
+  const [cancelTarget, setCancelTarget] = useState<WorkOrder | null>(null);
   const seqRef = useRef(0);
 
   const load = useCallback(async () => {
@@ -59,42 +103,112 @@ export default function WorkOrderPanel({ vehicleId, sold, onChanged }: Props) {
 
   useEffect(() => { void load(); }, [load]);
 
+  useEffect(() => {
+    let active = true;
+    membersApi.list()
+      .then(r => { if (active) setMembers(r.data || []); })
+      .catch(() => { if (active) setMembers([]); });
+    return () => { active = false; };
+  }, []);
+
+  function assigneeLabel(username: string) {
+    const member = members.find(m => m.username === username);
+    return member ? memberLabel(member) : username;
+  }
+
   async function create() {
-    if (creating || !task.trim()) return;
+    if (creating || !form.task.trim()) return;
     setCreateError('');
     setCreating(true);
     try {
       await http.post(`/api/v1/vehicles/${vehicleId}/work-orders`, {
-        task: task.trim(),
-        assigneeUsername: assignee.trim() || null,
+        task: form.task.trim(),
+        assigneeUsername: trimToNull(form.assignee),
+        dueOn: trimToNull(form.dueOn),
       });
-      setTask('');
-      setAssignee('');
+      setForm(EMPTY_EDIT);
       await load();
       onChanged();
-    } catch {
-      setCreateError('Could not create work order.');
+    } catch (e) {
+      setCreateError(messageOf(e, 'Could not create work order.'));
     } finally {
       setCreating(false);
     }
   }
 
-  async function transition(wo: WorkOrder, newStatus: string) {
-    if (actionBusy != null) return;
+  // Returns '' when the work order was updated, otherwise the message to show.
+  async function patch(wo: WorkOrder, payload: PatchPayload): Promise<string> {
+    if (actionBusy != null) return 'Another work order change is still running.';
     setActionBusy(wo.id);
+    setError('');
     try {
-      await http.patch(`/api/v1/work-orders/${wo.id}`, {
-        status: newStatus,
-        task: wo.task,
-        version: wo.version,
-      });
+      await http.patch(`/api/v1/work-orders/${wo.id}`, payload);
       await load();
       onChanged();
-    } catch {
-      setError(`Could not update work order.`);
+      return '';
+    } catch (e) {
+      const message = messageOf(e, 'Could not update work order.');
+      setError(message);
+      return message;
     } finally {
       setActionBusy(null);
     }
+  }
+
+  function startEdit(wo: WorkOrder) {
+    setEditId(wo.id);
+    setEditForm({
+      task: wo.task,
+      assignee: wo.assigneeUsername || '',
+      dueOn: wo.dueOn || '',
+    });
+  }
+
+  async function saveEdit(wo: WorkOrder) {
+    if (!editForm.task.trim()) return;
+    const failure = await patch(wo, {
+      ...currentState(wo),
+      task: editForm.task.trim(),
+      assigneeUsername: trimToNull(editForm.assignee),
+      dueOn: trimToNull(editForm.dueOn),
+    });
+    if (!failure) setEditId(null);
+  }
+
+  function openDone(wo: WorkOrder) {
+    setDoneTarget(wo);
+    setDoneCost('');
+    setDoneNote('');
+    setDoneError('');
+  }
+
+  // WO-03: DONE needs a completion note (1-500) and a cost >= 0.
+  async function confirmDone() {
+    if (!doneTarget) return;
+    const note = doneNote.trim();
+    const cost = Number(doneCost);
+    if (!note) {
+      setDoneError('A completion note is required.');
+      return;
+    }
+    if (!doneCost.trim() || !Number.isFinite(cost) || cost < 0) {
+      setDoneError('Enter a cost of 0 or more.');
+      return;
+    }
+    const failure = await patch(doneTarget, {
+      ...currentState(doneTarget),
+      status: 'DONE',
+      cost,
+      completionNote: note,
+    });
+    if (failure) setDoneError(failure);
+    else setDoneTarget(null);
+  }
+
+  async function confirmCancel() {
+    if (!cancelTarget) return;
+    await patch(cancelTarget, { ...currentState(cancelTarget), status: 'CANCELLED' });
+    setCancelTarget(null);
   }
 
   const isOpen = (s: string) => s === 'OPEN' || s === 'IN_PROGRESS';
@@ -110,18 +224,29 @@ export default function WorkOrderPanel({ vehicleId, sold, onChanged }: Props) {
           <input
             className="input"
             placeholder="Task description"
-            value={task}
-            onChange={e => setTask(e.target.value)}
+            maxLength={200}
+            value={form.task}
+            onChange={e => setForm(f => ({ ...f, task: e.target.value }))}
             style={{ flex: 1, minWidth: 160 }}
           />
+          <select
+            className="select"
+            value={form.assignee}
+            onChange={e => setForm(f => ({ ...f, assignee: e.target.value }))}
+            style={{ width: 160 }}
+          >
+            <option value="">Unassigned</option>
+            {members.map(m => <option key={m.username} value={m.username}>{memberLabel(m)}</option>)}
+          </select>
           <input
             className="input"
-            placeholder="Assignee (optional)"
-            value={assignee}
-            onChange={e => setAssignee(e.target.value)}
-            style={{ width: 140 }}
+            type="date"
+            aria-label="Due date"
+            value={form.dueOn}
+            onChange={e => setForm(f => ({ ...f, dueOn: e.target.value }))}
+            style={{ width: 150 }}
           />
-          <button className="btn" onClick={create} disabled={creating || !task.trim()}>
+          <button className="btn" onClick={create} disabled={creating || !form.task.trim()}>
             {creating ? 'Adding…' : 'Add'}
           </button>
           {createError && <span className="danger-text">{createError}</span>}
@@ -134,7 +259,7 @@ export default function WorkOrderPanel({ vehicleId, sold, onChanged }: Props) {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div>
               <strong>{wo.task}</strong>
-              {wo.assigneeUsername && <span className="muted"> · {wo.assigneeUsername}</span>}
+              {wo.assigneeUsername && <span className="muted"> · {assigneeLabel(wo.assigneeUsername)}</span>}
               {wo.cost != null && <span className="muted"> · {cad(wo.cost)}</span>}
               {wo.dueOn && <span className="muted"> · Due {wo.dueOn}</span>}
             </div>
@@ -146,23 +271,113 @@ export default function WorkOrderPanel({ vehicleId, sold, onChanged }: Props) {
             {wo.createdAt}
             {wo.completionNote && <> · {wo.completionNote}</>}
           </div>
+
+          {editId === wo.id && isOpen(wo.status) && !sold && (
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', margin: '8px 0' }}>
+              <input
+                className="input"
+                placeholder="Task description"
+                maxLength={200}
+                value={editForm.task}
+                onChange={e => setEditForm(f => ({ ...f, task: e.target.value }))}
+                style={{ flex: 1, minWidth: 160 }}
+              />
+              <select
+                className="select"
+                value={editForm.assignee}
+                onChange={e => setEditForm(f => ({ ...f, assignee: e.target.value }))}
+                style={{ width: 160 }}
+              >
+                <option value="">Unassigned</option>
+                {members.map(m => <option key={m.username} value={m.username}>{memberLabel(m)}</option>)}
+              </select>
+              <input
+                className="input"
+                type="date"
+                aria-label="Due date"
+                value={editForm.dueOn}
+                onChange={e => setEditForm(f => ({ ...f, dueOn: e.target.value }))}
+                style={{ width: 150 }}
+              />
+              <button
+                className="btn"
+                onClick={() => saveEdit(wo)}
+                disabled={actionBusy === wo.id || !editForm.task.trim()}
+              >
+                Save
+              </button>
+              <button className="btn-link" onClick={() => setEditId(null)}>Cancel edit</button>
+            </div>
+          )}
+
           {isOpen(wo.status) && !sold && (
             <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
               {wo.status === 'OPEN' && (
-                <button className="btn-link" onClick={() => transition(wo, 'IN_PROGRESS')} disabled={actionBusy === wo.id}>
+                <button
+                  className="btn-link"
+                  onClick={() => patch(wo, { ...currentState(wo), status: 'IN_PROGRESS' })}
+                  disabled={actionBusy === wo.id}
+                >
                   Start
                 </button>
               )}
-              <button className="btn-link" onClick={() => transition(wo, 'DONE')} disabled={actionBusy === wo.id}>
-                Complete
+              {editId !== wo.id && (
+                <button className="btn-link" onClick={() => startEdit(wo)} disabled={actionBusy === wo.id}>
+                  Edit
+                </button>
+              )}
+              <button className="btn-link" onClick={() => openDone(wo)} disabled={actionBusy === wo.id}>
+                Done
               </button>
-              <button className="btn-link danger" onClick={() => transition(wo, 'CANCELLED')} disabled={actionBusy === wo.id}>
+              <button className="btn-link danger" onClick={() => setCancelTarget(wo)} disabled={actionBusy === wo.id}>
                 Cancel
               </button>
             </div>
           )}
         </div>
       ))}
+
+      <ConfirmDialog
+        open={doneTarget != null}
+        title="Complete work order"
+        confirmLabel="Mark done"
+        onCancel={() => setDoneTarget(null)}
+        onConfirm={confirmDone}
+      >
+        <p className="muted">{doneTarget?.task}</p>
+        <div className="form-item">
+          <label className="form-label">Cost (CAD)</label>
+          <input
+            className="input"
+            type="number"
+            min={0}
+            step="0.01"
+            value={doneCost}
+            onChange={e => setDoneCost(e.target.value)}
+          />
+        </div>
+        <div className="form-item">
+          <label className="form-label">Completion note</label>
+          <textarea
+            className="input"
+            rows={3}
+            maxLength={500}
+            value={doneNote}
+            onChange={e => setDoneNote(e.target.value)}
+          />
+        </div>
+        <p className="muted">The cost is added to the vehicle's repair cost.</p>
+        {doneError && <p className="danger-text">{doneError}</p>}
+      </ConfirmDialog>
+
+      <ConfirmDialog
+        open={cancelTarget != null}
+        title="Cancel work order"
+        message={`Cancel "${cancelTarget?.task ?? ''}"? A cancelled work order cannot be changed again.`}
+        confirmLabel="Cancel work order"
+        onCancel={() => setCancelTarget(null)}
+        onConfirm={confirmCancel}
+      />
     </div>
   );
 }

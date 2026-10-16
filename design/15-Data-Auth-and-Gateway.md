@@ -458,10 +458,30 @@ function mapRole(claims):
 |---|---|---|
 | `DEV_JWT_SECRET` (the only signing-secret variable in every environment) | Local: the gateway and core run configurations. Cloud: app setting referencing Key Vault `JWT-SIGNING-SECRET` | ≥32 UTF-8 bytes; unique per environment, never committed |
 | `ADMIN_USERNAME` / `ADMIN_PASSWORD`, optional `ADMIN_EMAIL` / `ADMIN_PHONE` | dealer-core only. Local: run configuration. Cloud: app settings; password references Key Vault `ADMIN-PASSWORD` | Seeds the platform admin account on first startup; the admin signs in with the username, or the email/phone when set |
+| optional `Google__HostedDomain` | dealer-core. Local: run configuration. Cloud: plain app settings | Restricts Google sign-in to one Workspace domain (§8.5). Empty accepts any verified Google account |
 
-Gateway anonymous permits for sign-in: `POST /api/v1/auth/login`, `POST /api/v1/auth/register`, plus the public `GET /api/v1/catalog/vin/*`. Every other `/api/v1/**` path needs the bearer JWT. The Gateway is the only external API origin.
+Gateway anonymous permits for sign-in: `POST /api/v1/auth/login`, `POST /api/v1/auth/register`, `POST /api/v1/auth/google`, plus the public `GET /api/v1/catalog/vin/*`. Every other `/api/v1/**` path needs the bearer JWT. The Gateway is the only external API origin; the catch-all `/api/v1/{**}` route already covers the Google endpoint, so no new route is needed.
 
-Azure Terraform continues to deploy the web app, gateway, core, and MySQL. No social-provider credentials or callback settings are required.
+Azure Terraform continues to deploy the web app, gateway, core, and MySQL. Google sign-in needs no client secret and no callback setting, so it adds nothing to Key Vault.
+
+### 8.5 Google sign-in (AUTH-23)
+
+Added 2026-10-15, superseding the earlier "no social provider" constraint for Google only (`design/21-Feature-Extensions.md` §5). The decision that matters for this document: **Google is an authentication method, never an authorisation source.**
+
+| Concern | Where it is decided |
+|---|---|
+| Who is this? | Google, via an ID token verified in `Security/GoogleIdTokenVerifier.cs` |
+| What role do they have? | This application. Google sign-in only ever yields `Dealer.User`; `Platform.Admin` is refused and stays password-only, keeping the env-seeded admin boundary of §8.3 |
+| Which dealership? | `membership`, resolved per request by `TenantMiddleware` exactly as before (§2.1). The token carries no dealership and cannot assert one |
+
+Why this needed no change to tenancy, the Gateway, or the schema:
+
+- The JWT this application issues is unchanged, so `TenantMiddleware`, the role gate, and the EF tenant filters are untouched. Google simply becomes a second way to prove an identity the system already keys by username.
+- `email` is already unique on `app_user`, so it serves as the link between a Google account and a local one.
+- A Google-provisioned account stores an **empty** `password_hash`. `AuthService.Login` already treats an empty hash as "no password sign-in", so the account cannot be entered with a password and no column had to become nullable — relevant because core creates its schema with `EnsureCreated()` and has no EF migrations.
+- An unknown email produces the same unbound account as password self-registration, so the existing pending-account flow (§3.8 in the API contract, `MembershipService.Pending`) lists it for the admin, who binds it with no password.
+
+Verification rules enforced server-side, never in the browser: RS256 only, issuer and audience checked, expiry checked, `email_verified` required, and an optional single Workspace domain via the token's `hd` claim. Every rejection returns one message so a caller cannot probe which check failed.
 
 ---
 

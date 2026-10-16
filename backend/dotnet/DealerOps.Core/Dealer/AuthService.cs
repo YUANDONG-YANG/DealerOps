@@ -9,18 +9,28 @@ namespace DealerOps.Core.Dealer;
 
 public class AuthService
 {
+    // A Google account carries no username, so one is derived from the email address. Each cap
+    // leaves room for the longest collision suffix without exceeding the column: username
+    // 56 + ".123456" = 63 of 64, display name 110 + " (123456)" = 119 of 120.
+    private const int UsernameBaseMaxLength = 56;
+    private const int DisplayNameBaseMaxLength = 110;
+    private const int MaxSuffixAttempts = 50;
+
     private readonly AppDbContext _db;
     private readonly JwtService _jwt;
     private readonly IAuditService _audit;
     private readonly NewAccountRules _accountRules;
+    private readonly GoogleIdTokenVerifier _google;
     private readonly string _unknownUserHash;
 
-    public AuthService(AppDbContext db, JwtService jwt, IAuditService audit, NewAccountRules accountRules)
+    public AuthService(AppDbContext db, JwtService jwt, IAuditService audit, NewAccountRules accountRules,
+        GoogleIdTokenVerifier google)
     {
         _db = db;
         _jwt = jwt;
         _audit = audit;
         _accountRules = accountRules;
+        _google = google;
         _unknownUserHash = BCrypt.Net.BCrypt.HashPassword(Guid.NewGuid().ToString());
     }
 
@@ -73,6 +83,115 @@ public class AuthService
         tx.Commit();
 
         return new LoginResponse(_jwt.Issue(user), user.Role.Value, user.DisplayName);
+    }
+
+    /// <summary>
+    /// Signs in with a Google ID token. Google proves the email address only: an account it has
+    /// never seen is created unbound, exactly like password self-registration, so a platform
+    /// admin still has to bind it to a dealership before any business data is reachable
+    /// (AUTH-13, AUTH-14). Tenancy is unchanged — it is resolved per request from the
+    /// membership table, never from the identity provider.
+    /// </summary>
+    public async Task<LoginResponse> GoogleSignIn(GoogleSignInRequest request, CancellationToken cancellationToken)
+    {
+        var identity = await _google.VerifyAsync(request.IdToken.Trim(), cancellationToken);
+        var email = LoginIdentifiers.Email(identity.Email);
+
+        var user = _db.AppUsers.FirstOrDefault(u => u.Email != null && u.Email.ToLower() == email && u.Active);
+        if (user == null)
+            return ProvisionGoogleUser(email, identity.Name);
+
+        // The platform admin is seeded from the environment and keeps password-only sign-in, so
+        // control of its mailbox is not enough to reach the admin console (AUTH-15).
+        if (user.Role == AppRole.PlatformAdmin)
+            throw new ApiException(ErrorCode.Forbidden, "Sign in with your password as the platform administrator.");
+
+        return new LoginResponse(_jwt.Issue(user), user.Role.Value, user.DisplayName);
+    }
+
+    private LoginResponse ProvisionGoogleUser(string email, string? name)
+    {
+        var username = AvailableUsername(email);
+        var user = new AppUserEntity
+        {
+            Username = username,
+            // No password hash: Login treats an empty hash as "cannot sign in with a password",
+            // so this account can only ever come back through Google.
+            PasswordHash = "",
+            DisplayName = AvailableDisplayName(name, username),
+            Email = email,
+            Phone = null,
+            Role = AppRole.DealerUser,
+            DealerId = null,
+            Active = true
+        };
+
+        using var tx = _db.Database.BeginTransaction();
+        try
+        {
+            _db.AppUsers.Add(user);
+            _db.SaveChanges();
+        }
+        catch (DbUpdateException ex)
+        {
+            throw _accountRules.Conflict(ex);
+        }
+
+        _audit.Record("APP_USER", user.Id, "CREATE", null, user.Username,
+            new Dictionary<string, object> { ["registration"] = "google" });
+        _db.SaveChanges();
+        tx.Commit();
+
+        return new LoginResponse(_jwt.Issue(user), user.Role.Value, user.DisplayName);
+    }
+
+    private string AvailableUsername(string email)
+    {
+        var local = email.Split('@')[0];
+        var kept = new string(local
+                .Where(c => char.IsAsciiLetterOrDigit(c) || c is '.' or '_' or '-')
+                .ToArray())
+            .ToLowerInvariant()
+            .Trim('.', '_', '-');
+
+        // The username contract is 3-64 characters with at least one letter, so a numeric or
+        // empty local part is prefixed rather than rejected.
+        var baseName = kept.Length >= 3 && kept.Any(char.IsAsciiLetter) ? kept : "user" + kept;
+        if (baseName.Length > UsernameBaseMaxLength)
+            baseName = baseName[..UsernameBaseMaxLength];
+
+        return FirstAvailable(baseName,
+            candidate => _db.AppUsers.Any(u => u.Username == candidate),
+            (b, n) => $"{b}.{n}");
+    }
+
+    private string AvailableDisplayName(string? name, string username)
+    {
+        var baseName = (name ?? "").Trim();
+        if (baseName.Length == 0)
+            baseName = username;
+        if (baseName.Length > DisplayNameBaseMaxLength)
+            baseName = baseName[..DisplayNameBaseMaxLength];
+
+        // Display names are unique in this schema, so two people with the same Google name need
+        // a discriminator rather than a failed sign-in.
+        return FirstAvailable(baseName,
+            candidate => _db.AppUsers.Any(u => EF.Functions.Like(u.DisplayName, candidate)),
+            (b, n) => $"{b} ({n})");
+    }
+
+    private static string FirstAvailable(string baseName, Func<string, bool> taken, Func<string, int, string> suffixed)
+    {
+        if (!taken(baseName)) return baseName;
+
+        for (var n = 2; n <= MaxSuffixAttempts; n++)
+        {
+            var candidate = suffixed(baseName, n);
+            if (!taken(candidate)) return candidate;
+        }
+
+        // The unique index is the final arbiter; a clash here surfaces as a conflict response.
+        return suffixed(baseName, Random.Shared.Next(100_000, 999_999));
     }
 
     private AppUserEntity? FindForSignIn(string identifier)

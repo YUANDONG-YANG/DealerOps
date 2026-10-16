@@ -30,9 +30,11 @@ public class CustomerService
         if (!string.IsNullOrWhiteSpace(q))
         {
             var term = q.Trim();
+            // Email is stored lower-case, so match it against the lower-cased term (CRM-03).
+            var emailTerm = term.ToLowerInvariant();
             query = query.Where(c =>
                 c.Name.Contains(term) ||
-                c.Email.Contains(term) ||
+                c.Email.Contains(emailTerm) ||
                 c.Phone.Contains(term));
         }
 
@@ -60,22 +62,27 @@ public class CustomerService
     public CustomerDetail Create(CreateCustomerRequest body)
     {
         var tenant = RequireTenant();
+        var name = body.Name.Trim();
         var email = NormalizeEmail(body.Email);
+        var phone = body.Phone.Trim();
+        var homeAddress = body.HomeAddress.Trim();
         var customer = new CustomerEntity
         {
             DealerId = tenant,
-            Name = body.Name,
+            Name = name,
             Email = email,
-            Phone = body.Phone,
-            HomeAddress = body.HomeAddress
+            Phone = phone,
+            HomeAddress = homeAddress
         };
-        using var tx = _db.Database.BeginTransaction();
+        // A caller such as lead creation may already own a transaction (LEAD-01); begin one
+        // only when none is active, and commit only the one begun here.
+        using var tx = _db.Database.CurrentTransaction is null ? _db.Database.BeginTransaction() : null;
         _db.Customers.Add(customer);
         _db.SaveChanges();
         _audit.Record("CUSTOMER", customer.Id, "CREATE", tenant, ActorUsername(),
-            ContactFieldChanges(null, null, null, null, body.Name, email, body.Phone, body.HomeAddress));
+            ContactFieldChanges(null, null, null, null, name, email, phone, homeAddress));
         _db.SaveChanges();
-        tx.Commit();
+        tx?.Commit();
         return ToDetail(customer);
     }
 
@@ -91,15 +98,18 @@ public class CustomerService
         if (body.Version != customer.Version)
             throw new ApiException(ErrorCode.VersionConflict, "Version conflict.");
 
+        var name = body.Name.Trim();
         var email = NormalizeEmail(body.Email);
+        var phone = body.Phone.Trim();
+        var homeAddress = body.HomeAddress.Trim();
         var fieldSummary = ContactFieldChanges(
             customer.Name, customer.Email, customer.Phone, customer.HomeAddress,
-            body.Name, email, body.Phone, body.HomeAddress);
+            name, email, phone, homeAddress);
 
-        customer.Name = body.Name;
+        customer.Name = name;
         customer.Email = email;
-        customer.Phone = body.Phone;
-        customer.HomeAddress = body.HomeAddress;
+        customer.Phone = phone;
+        customer.HomeAddress = homeAddress;
         customer.UpdatedAt = DateTime.UtcNow;
 
         _audit.Record("CUSTOMER", customer.Id, "UPDATE", tenant, ActorUsername(), fieldSummary);
@@ -123,13 +133,13 @@ public class CustomerService
             CustomerId = customer.Id,
             VehicleId = vehicle.Id
         };
-        using var tx = _db.Database.BeginTransaction();
+        using var tx = _db.Database.CurrentTransaction is null ? _db.Database.BeginTransaction() : null;
         _db.CustomerVehicles.Add(row);
         _db.SaveChanges();
         _audit.Record("CUSTOMER_VEHICLE", row.Id, "LINK", tenant, ActorUsername(),
             new Dictionary<string, object> { ["customerId"] = customer.Id, ["vehicleId"] = vehicle.Id });
         _db.SaveChanges();
-        tx.Commit();
+        tx?.Commit();
         return new LinkResponse(row.Id, row.CustomerId, row.VehicleId, row.LinkedAt);
     }
 
@@ -187,9 +197,14 @@ public class CustomerService
             .Select(v => new LinkedVehicleItem(v!.Id, v.Vin, v.ModelYear, v.Make, v.Model, v.Status))
             .ToList();
 
+        // CRM-13: families share one email, so a duplicate inside the dealership is reported
+        // as a flag the form can warn on, never as a rejected save.
+        var duplicateEmail = _db.Customers.Any(
+            c => c.DealerId == tenant && c.Id != customer.Id && c.Email == customer.Email);
+
         return new CustomerDetail(
             customer.Id, customer.Name, customer.Email, customer.Phone,
-            customer.HomeAddress, items, customer.Version);
+            customer.HomeAddress, items, customer.Version, duplicateEmail);
     }
 
     private static Dictionary<string, object> ContactFieldChanges(

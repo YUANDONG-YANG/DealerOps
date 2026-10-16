@@ -10,9 +10,6 @@ public enum WorkOrderStatus
 
 public static class WorkOrderStatusExtensions
 {
-    public static readonly IReadOnlyList<WorkOrderStatus> OpenStatuses =
-        [WorkOrderStatus.Open, WorkOrderStatus.InProgress];
-
     public static bool IsClosed(this WorkOrderStatus status) =>
         status is WorkOrderStatus.Done or WorkOrderStatus.Cancelled;
 

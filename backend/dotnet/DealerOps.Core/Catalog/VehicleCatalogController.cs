@@ -16,13 +16,16 @@ public class VehicleCatalogController : ControllerBase
 
     [HttpGet("makes")]
     [AllowAnonymous]
-    public List<string> Makes() => _catalogService.Makes();
+    public Task<List<string>> Makes(CancellationToken cancellationToken)
+        => _catalogService.MakesAsync(cancellationToken);
 
     [HttpGet("models")]
     [AllowAnonymous]
-    public List<string> Models([FromQuery] string? make) => _catalogService.Models(make);
+    public Task<List<string>> Models([FromQuery] string? make, CancellationToken cancellationToken)
+        => _catalogService.ModelsAsync(make, cancellationToken);
 
     [HttpGet("vin/{vin}")]
     [AllowAnonymous]
-    public VinDecodeResponse DecodeVin(string vin) => _catalogService.DecodeVin(vin);
+    public Task<VinDecodeResponse> DecodeVin(string vin, CancellationToken cancellationToken)
+        => _catalogService.DecodeVinAsync(vin, cancellationToken);
 }

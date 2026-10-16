@@ -61,6 +61,10 @@ export default function AdminPage() {
   const [confirm, setConfirm] = useState(false);
   const [pendingUnbind, setPendingUnbind] = useState<{ dealerId: number; username: string } | null>(null);
   const [unbindError, setUnbindError] = useState('');
+  // Bumped to remount the status checkboxes so a cancelled confirm snaps back to the stored state.
+  const [statusRevert, setStatusRevert] = useState(0);
+  // Bumped to remount the pending lists after a membership change adds or removes a pending account.
+  const [pendingReload, setPendingReload] = useState(0);
 
   const dealersLoadSeq = useRef(0);
   const membersLoadSeq = useRef(0);
@@ -155,6 +159,13 @@ export default function AdminPage() {
     } catch {}
   };
 
+  const refreshMemberships = async (dealerId: number) => {
+    if (staffDealer?.id === dealerId) await refreshDrawerMembers();
+    await loadDealers();
+    if (tab === 'members') await loadFlatMembers();
+    setPendingReload((n) => n + 1);
+  };
+
   const openDealer = () => {
     setEditingDealer(null);
     setForm({ legalName: '', contactPhone: '', contactEmail: '', contactAddress: '' });
@@ -226,8 +237,7 @@ export default function AdminPage() {
     try {
       await adminApi.bind(staffDealer.id, member);
       setMember({ username: '', displayName: '', password: '', email: '', phone: '' });
-      await refreshDrawerMembers(); await loadDealers();
-      if (tab === 'members') await loadFlatMembers();
+      await refreshMemberships(staffDealer.id);
     } catch (e) {
       const code = adminErrorCode(e);
       const fields = fieldErrorsOf(e);
@@ -244,10 +254,9 @@ export default function AdminPage() {
     setStatusBusy(`${dealerId}:${username}`);
     try {
       await adminApi.bind(dealerId, { username });
-      if (staffDealer?.id === dealerId) await refreshDrawerMembers();
-      await loadDealers();
-      if (tab === 'members') await loadFlatMembers();
+      await refreshMemberships(dealerId);
     } catch (e) {
+      setStatusRevert((n) => n + 1);
       if (adminErrorCode(e) === 'DUP_MEMBER') alert('Already active at another dealership. Deactivate it there first.');
       else if (isForbidden(e)) alert('You do not have access to Admin.');
       else alert(serverDetail(e) || 'Could not activate staff.');
@@ -260,9 +269,7 @@ export default function AdminPage() {
     try {
       await adminApi.unbind(dealerId, username);
       setConfirm(false); setPendingUnbind(null);
-      if (staffDealer?.id === dealerId) await refreshDrawerMembers();
-      await loadDealers();
-      if (tab === 'members') await loadFlatMembers();
+      await refreshMemberships(dealerId);
     } catch (e) {
       if (adminErrorCode(e) === 'NOT_FOUND') setUnbindError('Member not found');
       else if (isForbidden(e)) setUnbindError('You do not have access to Admin.');
@@ -329,7 +336,8 @@ export default function AdminPage() {
                   { key: 'legalName', label: 'Dealership' },
                   { label: 'Status', render: (r) => (
                     <label className="switch-label">
-                      <input type="checkbox" checked={r.active}
+                      <input type="checkbox" key={`${r.dealerId}:${r.username}:${statusRevert}`}
+                        checked={r.active}
                         disabled={statusBusy === `${r.dealerId}:${r.username}`}
                         onChange={(e) => setStatus(r.dealerId, r.username, e.target.checked)} />
                       {r.active ? 'Active' : 'Inactive'}
@@ -338,7 +346,7 @@ export default function AdminPage() {
                 ]}
               />
             </PageState>
-            <PendingAccounts onBound={() => loadFlatMembers()} />
+            <PendingAccounts key={pendingReload} onBound={() => { void loadFlatMembers(); void loadDealers(); }} />
           </>
         )}
       </div>
@@ -377,6 +385,10 @@ export default function AdminPage() {
       <FormDrawer title={staffDealer ? `Staff · ${staffDealer.legalName}` : 'Staff'}
         open={memberDrawer} onClose={() => setMemberDrawer(false)}>
         {drawerError && <p className="danger-text">{drawerError}</p>}
+        <div className="muted" style={{ marginBottom: 8 }}>
+          Create a new staff account — a temporary password is required. An account that registered itself is bound
+          further down without one.
+        </div>
         {bindError && <p className="danger-text">{bindError}</p>}
         <div className="form-item"><label className="form-label form-required">Username</label>
           <input className="input" value={member.username}
@@ -404,7 +416,7 @@ export default function AdminPage() {
           {memberErrors.phone && <div className="form-error">{memberErrors.phone}</div>}
         </div>
         <button className="btn btn-primary" disabled={binding} onClick={bind}>
-          {binding ? 'Binding…' : 'Bind staff'}
+          {binding ? 'Binding…' : 'Create and bind'}
         </button>
         <div style={{ marginTop: 20 }}>
           <table className="table">
@@ -425,11 +437,15 @@ export default function AdminPage() {
             </tbody>
           </table>
         </div>
+        {staffDealer && (
+          <PendingAccounts key={pendingReload} dealerId={staffDealer.id}
+            onBound={() => { void refreshDrawerMembers(); void loadDealers(); }} />
+        )}
       </FormDrawer>
 
-      <ConfirmDialog open={confirm} title="Deactivate staff"
-        message={unbindError || 'Deactivate this staff membership? They lose access to this dealership until reactivated.'}
-        onCancel={() => { setConfirm(false); setPendingUnbind(null); }}
+      <ConfirmDialog open={confirm} title="Unbind staff" confirmLabel="Unbind"
+        message={unbindError || 'Unbind this staff member from the dealership? They lose access to its data right away. The account and its audit history are kept, and you can bind it again later.'}
+        onCancel={() => { setConfirm(false); setPendingUnbind(null); setStatusRevert((n) => n + 1); }}
         onConfirm={unbind}
       />
     </AppLayout>

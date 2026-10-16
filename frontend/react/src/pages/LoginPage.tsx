@@ -1,6 +1,9 @@
-import { type FormEvent, useEffect, useState } from 'react'
+import { type FormEvent, useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
-import { rememberPostLoginRedirect, signIn, takePostLoginRedirect } from '../auth/login'
+import {
+  rememberPostLoginRedirect, roleHome, signIn, signInWithGoogle, takePostLoginRedirect,
+} from '../auth/login'
+import { renderGoogleButton } from '../auth/google'
 
 export default function LoginPage() {
   const navigate = useNavigate()
@@ -10,6 +13,8 @@ export default function LoginPage() {
   const [showPw, setShowPw] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [googleReady, setGoogleReady] = useState(false)
+  const googleSlot = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     const notice = params.get('notice')
@@ -22,6 +27,32 @@ export default function LoginPage() {
     if (redirect) rememberPostLoginRedirect(redirect)
   }, [params])
 
+  // Re-runs when the form returns after a failed attempt, because the spinner branch below
+  // replaces the container the button was rendered into.
+  useEffect(() => {
+    if (loading || !googleSlot.current) return
+    let cancelled = false
+    renderGoogleButton(googleSlot.current, idToken => {
+      if (!cancelled) void completeGoogleSignIn(idToken)
+    })
+      .then(() => { if (!cancelled) setGoogleReady(true) })
+      .catch(() => { if (!cancelled) setGoogleReady(false) })
+    return () => { cancelled = true }
+  }, [loading])
+
+  async function completeGoogleSignIn(idToken: string) {
+    setError('')
+    setLoading(true)
+    try {
+      const result = await signInWithGoogle(idToken)
+      navigate(takePostLoginRedirect(result.role) || roleHome(result.role))
+    } catch {
+      setError('Google sign-in failed. If your account is new, ask your administrator to activate it.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
     setError('')
@@ -31,12 +62,9 @@ export default function LoginPage() {
     }
     setLoading(true)
     try {
-      const redirect = params.get('redirect') || ''
-      rememberPostLoginRedirect(redirect)
       const result = await signIn(identifier.trim(), password)
-      const saved = takePostLoginRedirect()
-      const roleHome = result.role === 'Platform.Admin' ? '/admin' : '/dms'
-      navigate(saved || roleHome)
+      // A saved path is honoured only when this role may open it; otherwise the role home wins.
+      navigate(takePostLoginRedirect(result.role) || roleHome(result.role))
     } catch {
       setError('Invalid sign-in name or password.')
     } finally {
@@ -95,6 +123,16 @@ export default function LoginPage() {
             Sign in
           </button>
         </form>
+        <div className="auth-alt">
+          <div className="auth-or"><span>or</span></div>
+          <div className="auth-google" ref={googleSlot} />
+          {googleReady && (
+            <p className="auth-hint">
+              A new Google account still needs a platform administrator to activate it before
+              any dealership data is visible.
+            </p>
+          )}
+        </div>
         <p className="auth-switch">
           New here? <Link to="/register">Create account</Link>
         </p>

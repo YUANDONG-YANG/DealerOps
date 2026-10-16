@@ -170,13 +170,13 @@ app.Use(async (context, next) =>
         return;
     }
     if (method == "POST" && (path.Equals("/api/v1/auth/login", StringComparison.OrdinalIgnoreCase)
-                             || path.Equals("/api/v1/auth/register", StringComparison.OrdinalIgnoreCase)))
+                             || path.Equals("/api/v1/auth/register", StringComparison.OrdinalIgnoreCase)
+                             || path.Equals("/api/v1/auth/google", StringComparison.OrdinalIgnoreCase)))
     {
         await next();
         return;
     }
-    if (method == "GET" && (path.StartsWith("/api/v1/catalog/", StringComparison.OrdinalIgnoreCase)
-                            || path.StartsWith("/api/v1/release", StringComparison.OrdinalIgnoreCase)))
+    if (method == "GET" && path.StartsWith("/api/v1/catalog/", StringComparison.OrdinalIgnoreCase))
     {
         await next();
         return;
@@ -202,6 +202,20 @@ app.Use(async (context, next) =>
         context.Response.ContentType = "application/json";
         await context.Response.WriteAsync(
             JsonSerializer.Serialize(new { code = "UNAUTHORIZED", message = "Unauthorized" }));
+        return;
+    }
+
+    // AUTH-08: the platform admin owns no business data. Core already rejects it, but the
+    // /api/v1/ai/** routes proxy straight to the AI service, so the Gateway must gate it here.
+    if (roles == "Platform.Admin"
+        && !path.StartsWith("/api/v1/admin", StringComparison.OrdinalIgnoreCase)
+        && !path.StartsWith("/api/v1/me", StringComparison.OrdinalIgnoreCase)
+        && !path.StartsWith("/api/v1/auth", StringComparison.OrdinalIgnoreCase))
+    {
+        context.Response.StatusCode = 403;
+        context.Response.ContentType = "application/json";
+        await context.Response.WriteAsync(
+            JsonSerializer.Serialize(new { code = "FORBIDDEN", message = "Forbidden" }));
         return;
     }
 

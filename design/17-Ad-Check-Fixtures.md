@@ -8,6 +8,19 @@ Retired `05` is not a current requirement. This document only borrows its "repea
 
 Out of scope: Service Bus, async ad review, queue polling, external ad sites, claiming legal certification. A check is a staff-synchronous `POST /api/v1/listings/{id}/checks` (rules before AI, AI ≤15s).
 
+### Amendment 2026-10-15 — two disclosure rules added
+
+The source requires both of these on every ad, and neither had a rule before; `PRICE_MISSING` was assumed to cover the second, which it does not, because a payment amount satisfies it.
+
+| Reason code | Severity | Fires when |
+|---|---|---|
+| `NEW_USED_NOT_STATED` | REVIEW | Neither a new-vehicle phrase nor used / pre-owned / second-hand / previously owned appears in the copy. Advisory rather than blocking, because erratum 4 keeps the new/old family a prompt. |
+| `FINANCE_CASH_PRICE_MISSING` | BLOCK | A finance-triggered ad states no cash price and no cost of borrowing. An amount directly followed by a payment cadence (`per month`, `/mo`, `/month`, `a month`, `bi-weekly`, `weekly`) is a payment, not a cash price. Applies to every medium: the broadcast exemption waives only `FINANCE_APR_PROXIMITY`. |
+
+Effect on the fixtures below: none of the expected BLOCK/PASS outcomes change. Every payment-bearing fixture already states `Cash price $18,900`, so `FINANCE_CASH_PRICE_MISSING` does not fire. Fixtures whose copy says `Sold as-is` but never `used` now carry one extra REVIEW finding, `NEW_USED_NOT_STATED`; REVIEW findings do not block, so each fixture's state is unchanged.
+
+The payment cadence pattern was also corrected in the same change: it previously matched `/mo` but not `/month`, so an ad reading `$299/month` triggered no finance rules at all and its payment amount was accepted as a cash price.
+
 ---
 
 ## 1. Shared dealership and vehicle premises

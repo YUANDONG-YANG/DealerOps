@@ -12,14 +12,26 @@ function readToken(): string | null {
   }
 }
 
-const REDIRECT_PATHS = ['/admin', '/dms', '/crm', '/leads', '/ads'];
+const ADMIN_PATHS = ['/admin'];
+const DEALER_PATHS = ['/dms', '/crm', '/leads', '/ads'];
 
-export function safeRedirect(path: string | null | undefined): string {
+/** Landing route for a signed-in user, by role (UI-02). */
+export function roleHome(role: string | null | undefined): string {
+  return role === 'Platform.Admin' ? '/admin' : '/dms';
+}
+
+/** Internal pages the role may open; every internal page when the role is unknown. */
+function allowedPaths(role: string | null | undefined): string[] {
+  if (!role) return [...ADMIN_PATHS, ...DEALER_PATHS];
+  return role === 'Platform.Admin' ? ADMIN_PATHS : DEALER_PATHS;
+}
+
+function safeRedirect(path: string | null | undefined, role?: string | null): string {
   if (!path || !path.startsWith('/')) return '';
   try {
     const url = new URL(path, window.location.origin);
-    if (url.origin !== window.location.origin || !REDIRECT_PATHS.includes(url.pathname)) return '';
-    return `${url.pathname}${url.search}`;
+    if (url.origin !== window.location.origin || !allowedPaths(role).includes(url.pathname)) return '';
+    return `${url.pathname}${url.search}${url.hash}`;
   } catch {
     return '';
   }
@@ -33,11 +45,12 @@ export function rememberPostLoginRedirect(path: string | null | undefined) {
   } catch { /* ignore */ }
 }
 
-export function takePostLoginRedirect(): string {
+/** Saved path, but only when the signed-in role may actually open it (UI-02). */
+export function takePostLoginRedirect(role: string | null | undefined): string {
   try {
     const value = sessionStorage.getItem(REDIRECT_KEY);
     sessionStorage.removeItem(REDIRECT_KEY);
-    return safeRedirect(value);
+    return safeRedirect(value, role);
   } catch { /* ignore */ }
   return '';
 }
@@ -55,6 +68,11 @@ async function postAuth(path: string, body: object) {
 
 export function signIn(identifier: string, password: string) {
   return postAuth('login', { identifier, password });
+}
+
+/** Exchanges a Google ID token for this application's own session token. */
+export function signInWithGoogle(idToken: string) {
+  return postAuth('google', { idToken });
 }
 
 export function register(

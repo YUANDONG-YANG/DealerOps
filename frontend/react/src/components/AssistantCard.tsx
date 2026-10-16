@@ -13,7 +13,18 @@ function pretty(s?: string) {
 export default function AssistantCard({ card, onOpen }: { card: AssistantCardDto; onOpen: () => void }) {
   const kind = KINDS[card.kind] || KINDS.VEHICLE;
   return (
-    <div className="assistant-card" tabIndex={0} onClick={onOpen} onKeyDown={e => e.key === 'Enter' && onOpen()} role="button">
+    <div
+      className="assistant-card"
+      tabIndex={0}
+      role="button"
+      onClick={onOpen}
+      onKeyDown={e => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onOpen();
+        }
+      }}
+    >
       <div className="assistant-card-head">
         <span className={kind.tagClass}>{kind.label}</span>
         {(card.status || card.checkStatus) && <span className="muted">{pretty(card.status || card.checkStatus)}</span>}
