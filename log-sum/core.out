@@ -1,0 +1,47 @@
+fail: Microsoft.EntityFrameworkCore.Database.Command[20102]
+      Failed executing DbCommand (39ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+      ALTER TABLE app_user ADD COLUMN requested_dealer_id BIGINT NULL
+info: Program[0]
+      Release: core published 2026-10-16T01:36:48Z
+info: DealerOps.Core.Dealer.AdminSeeder[0]
+      ADMIN_USERNAME/ADMIN_PASSWORD not set; skipping platform admin seed
+info: Microsoft.Hosting.Lifetime[14]
+      Now listening on: http://0.0.0.0:8081
+info: Microsoft.Hosting.Lifetime[0]
+      Application started. Press Ctrl+C to shut down.
+info: Microsoft.Hosting.Lifetime[0]
+      Hosting environment: Production
+info: Microsoft.Hosting.Lifetime[0]
+      Content root path: /Users/robin/IdeaProjects/DealerOps/backend/dotnet/DealerOps.Core
+info: DealerOps.Core.Config.RequestLoggingMiddleware[0]
+      GET /actuator/release 200 178ms [373a503f5592]
+info: DealerOps.Core.Config.RequestLoggingMiddleware[0]
+      GET /api/v1/me 200 456ms [b37197d2-c187-4cf1-8316-0f9ae0b3150b]
+info: System.Net.Http.HttpClient.VehicleCatalogService.LogicalHandler[100]
+      Start processing HTTP request GET https://vpic.nhtsa.dot.gov/api/vehicles/GetMakesForVehicleType/car?*
+info: System.Net.Http.HttpClient.VehicleCatalogService.ClientHandler[100]
+      Sending HTTP request GET https://vpic.nhtsa.dot.gov/api/vehicles/GetMakesForVehicleType/car?*
+info: DealerOps.Core.Config.RequestLoggingMiddleware[0]
+      GET /api/v1/dealer/notifications 200 115ms [be100c50-86a8-456a-badc-960e8fee5b94]
+info: DealerOps.Core.Config.RequestLoggingMiddleware[0]
+      GET /api/v1/dealer/notifications 200 9ms [15664517-8dfd-4011-8bf7-d3fa897fac4a]
+info: DealerOps.Core.Config.RequestLoggingMiddleware[0]
+      GET /api/v1/vehicles 200 237ms [92677c52-d232-4cd1-823c-f9673f8e9ce2]
+info: DealerOps.Core.Config.RequestLoggingMiddleware[0]
+      GET /api/v1/vehicles 200 17ms [a4061772-b845-4325-bf09-8eb901384154]
+info: System.Net.Http.HttpClient.VehicleCatalogService.ClientHandler[101]
+      Received HTTP response headers after 555.6834ms - 200
+info: System.Net.Http.HttpClient.VehicleCatalogService.LogicalHandler[101]
+      End processing HTTP request after 561.7246ms - 200
+info: System.Net.Http.HttpClient.VehicleCatalogService.LogicalHandler[100]
+      Start processing HTTP request GET https://vpic.nhtsa.dot.gov/api/vehicles/GetMakesForVehicleType/mpv?*
+info: System.Net.Http.HttpClient.VehicleCatalogService.ClientHandler[100]
+      Sending HTTP request GET https://vpic.nhtsa.dot.gov/api/vehicles/GetMakesForVehicleType/mpv?*
+info: System.Net.Http.HttpClient.VehicleCatalogService.ClientHandler[101]
+      Received HTTP response headers after 250.6921ms - 200
+info: System.Net.Http.HttpClient.VehicleCatalogService.LogicalHandler[101]
+      End processing HTTP request after 251.1699ms - 200
+info: DealerOps.Core.Config.RequestLoggingMiddleware[0]
+      GET /api/v1/catalog/makes 200 904ms [6ecfe955-68e4-4889-a3c9-b124f4b4ac3c]
+info: DealerOps.Core.Config.RequestLoggingMiddleware[0]
+      GET /api/v1/catalog/makes 200 15ms [78e6983c-f765-4999-a83e-b9323fbf0ece]
