@@ -81,6 +81,8 @@ function mapCustomerWrite(e: unknown) {
   const code = errorCode(e);
   const status = errorStatus(e);
   if (code === 'VALIDATION') return messageOf(e, 'Check required fields');
+  if (code === 'EMAIL_TAKEN') return messageOf(e, 'That email is already used by another customer.');
+  if (code === 'PHONE_TAKEN') return messageOf(e, 'That phone number is already used by another customer.');
   if (code === 'VERSION_CONFLICT') return 'Refresh and retry';
   if (status === 404 || code === 'NOT_FOUND') return 'Customer not found';
   return 'Could not save customer.';
@@ -126,7 +128,6 @@ export default function CrmPage() {
   const [selected, setSelected] = useState<any>(null);
   const [form, setForm] = useState<CustomerForm>(blankForm());
   const [formError, setFormError] = useState('');
-  const [emailWarning, setEmailWarning] = useState('');
   const [validationErrors, setValidationErrors] = useState<Validation>({});
   const [serverErrors, setServerErrors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
@@ -237,7 +238,6 @@ export default function CrmPage() {
     setSelected(null);
     setForm(blankForm());
     setFormError('');
-    setEmailWarning('');
     setValidationErrors({});
     setServerErrors({});
     setLinkError('');
@@ -252,7 +252,6 @@ export default function CrmPage() {
   async function openEdit(id: number) {
     const seq = ++editSeqRef.current;
     setFormError('');
-    setEmailWarning('');
     setValidationErrors({});
     setServerErrors({});
     setLinkError('');
@@ -279,21 +278,6 @@ export default function CrmPage() {
     }
   }
 
-  async function checkSharedEmail() {
-    const email = form.email.trim().toLowerCase();
-    setEmailWarning('');
-    if (!EMAIL_PATTERN.test(email)) return;
-    try {
-      const r = await customersApi.list({ q: email });
-      const shared = (r.data.items || []).some(
-        (c: { id: number; email?: string }) => c.email?.toLowerCase() === email && c.id !== selected?.id,
-      );
-      if (shared && form.email.trim().toLowerCase() === email) {
-        setEmailWarning('Another customer at this dealership already uses this email. You can still save.');
-      }
-    } catch { /* advisory */ }
-  }
-
   async function save() {
     setFormError('');
     setServerErrors({});
@@ -303,7 +287,6 @@ export default function CrmPage() {
     if (Object.keys(errors).length || saving) return;
 
     setSaving(true);
-    await checkSharedEmail();
     try {
       if (selected) {
         const saved = await customersApi.update(selected.id, { ...payload, version: selected.version });
@@ -316,7 +299,11 @@ export default function CrmPage() {
         await reload();
       }
     } catch (e) {
-      if (errorCode(e) === 'VALIDATION') setServerErrors(fieldErrorsOf(e));
+      const code = errorCode(e);
+      // VALIDATION and the two uniqueness codes carry fieldErrors; show them inline on the field.
+      if (code === 'VALIDATION' || code === 'EMAIL_TAKEN' || code === 'PHONE_TAKEN') {
+        setServerErrors(fieldErrorsOf(e));
+      }
       setFormError(mapCustomerWrite(e));
     } finally {
       setSaving(false);
@@ -428,14 +415,12 @@ export default function CrmPage() {
                 aria-required="true"
                 value={form[field.key]}
                 onChange={e => updateForm(field.key, e.target.value)}
-                onBlur={field.key === 'email' ? checkSharedEmail : undefined}
               />
               {(validationErrors[field.key] || serverErrors[field.key]) && (
                 <div className="form-error">{validationErrors[field.key] || serverErrors[field.key]}</div>
               )}
             </div>
           ))}
-          {emailWarning && <p className="warning-text">{emailWarning}</p>}
           {formError && <p className="danger-text">{formError}</p>}
           <button type="submit" className="btn btn-primary" disabled={saving}>{saving ? 'Saving…' : 'Save'}</button>
         </form>

@@ -57,6 +57,16 @@ export function takePostLoginRedirect(role: string | null | undefined): string {
 
 type LoginResponse = { accessToken: string; role: string; displayName: string };
 
+/**
+ * Google sign-in is three-way: an already-bound account signs straight in; a brand-new Google
+ * account first lands on 'needs_dealer' so the user can pick a dealership; after the pick, it
+ * sits at 'pending_approval' until a member of that dealership approves the join request.
+ */
+export type GoogleSignInResult =
+  | { status: 'ok'; login: LoginResponse }
+  | { status: 'needs_dealer' }
+  | { status: 'pending_approval' };
+
 async function postAuth(path: string, body: object) {
   const baseURL = await resolveGatewayUrl();
   const { data } = await axios.post<LoginResponse>(`${baseURL}/api/v1/auth/${path}`, body);
@@ -70,9 +80,20 @@ export function signIn(identifier: string, password: string) {
   return postAuth('login', { identifier, password });
 }
 
-/** Exchanges a Google ID token for this application's own session token. */
-export function signInWithGoogle(idToken: string) {
-  return postAuth('google', { idToken });
+/**
+ * Exchanges a Google ID token for this application's own session token. Pass dealerId on the
+ * second call, after the user picks a dealership on the 'needs_dealer' screen; omit it on the
+ * first call so the server can report which branch to take.
+ */
+export async function signInWithGoogle(idToken: string, dealerId?: number): Promise<GoogleSignInResult> {
+  const baseURL = await resolveGatewayUrl();
+  const body: Record<string, unknown> = { idToken };
+  if (dealerId != null) body.dealerId = dealerId;
+  const { data } = await axios.post<GoogleSignInResult>(`${baseURL}/api/v1/auth/google`, body);
+  if (data.status === 'ok') {
+    try { sessionStorage.setItem(TOKEN_KEY, data.login.accessToken); } catch { /* ignore */ }
+  }
+  return data;
 }
 
 export function register(

@@ -146,6 +146,7 @@ builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<NewAccountRules>();
 builder.Services.AddScoped<DealerAdminService>();
 builder.Services.AddScoped<MembershipService>();
+builder.Services.AddScoped<JoinRequestService>();
 builder.Services.AddScoped<MemberDirectoryService>();
 builder.Services.AddScoped<VehicleService>();
 builder.Services.AddScoped<CustomerService>();

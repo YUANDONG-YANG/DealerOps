@@ -201,14 +201,32 @@ public class CustomerService
             .Select(v => new LinkedVehicleItem(v!.Id, v.Vin, v.ModelYear, v.Make, v.Model, v.Status))
             .ToList();
 
-        // CRM-13: families share one email, so a duplicate inside the dealership is reported
-        // as a flag the form can warn on, never as a rejected save.
-        var duplicateEmail = _db.Customers.Any(
-            c => c.DealerId == tenant && c.Id != customer.Id && c.Email == customer.Email);
-
         return new CustomerDetail(
             customer.Id, customer.Name, customer.Email, customer.Phone,
-            customer.HomeAddress, items, customer.Version, duplicateEmail);
+            customer.HomeAddress, items, customer.Version);
+    }
+
+    // Email and phone must be unique inside the dealership. On a Patch, excludingId skips the
+    // customer being edited so saving without changing the contact fields does not self-collide.
+    private void RequireUniqueContact(long tenant, string email, string phone, long? excludingId)
+    {
+        var duplicateEmail = _db.Customers.Any(c =>
+            c.DealerId == tenant && c.Email == email && (excludingId == null || c.Id != excludingId));
+        if (duplicateEmail)
+        {
+            const string message = "That email is already used by another customer.";
+            throw new ApiException(ErrorCode.EmailTaken, message,
+                new Dictionary<string, string> { ["email"] = message });
+        }
+
+        var duplicatePhone = _db.Customers.Any(c =>
+            c.DealerId == tenant && c.Phone == phone && (excludingId == null || c.Id != excludingId));
+        if (duplicatePhone)
+        {
+            const string message = "That phone number is already used by another customer.";
+            throw new ApiException(ErrorCode.PhoneTaken, message,
+                new Dictionary<string, string> { ["phone"] = message });
+        }
     }
 
     private static Dictionary<string, object> ContactFieldChanges(

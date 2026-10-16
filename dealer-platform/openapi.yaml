@@ -992,6 +992,12 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
+        "409":
+          description: Email or phone is already used by another customer in this dealership. code is `EMAIL_TAKEN` or `PHONE_TAKEN`; `fieldErrors` names the taken field.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
 
   /api/v1/customers/{id}:
     parameters:
@@ -1041,7 +1047,12 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
         "409":
-          $ref: "#/components/responses/VersionConflict"
+          description: |
+            Version conflict (`VERSION_CONFLICT`), or email/phone already used by another customer in this dealership (`EMAIL_TAKEN` or `PHONE_TAKEN`, with `fieldErrors` naming the taken field).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
 
   /api/v1/customers/{id}/vehicles/{vehicleId}:
     put:
