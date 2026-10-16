@@ -1,15 +1,30 @@
 import { useEffect, useState } from 'react';
-import { joinRequestsApi, type JoinRequest } from '../api/joinRequests';
+import AppLayout from '../layouts/AppLayout';
+import { joinRequestsApi } from '../api/joinRequests';
+import { notificationsApi, type Notification, type JoinRequestPayload } from '../api/notifications';
 import { messageOf } from '../api/http';
 
+type JoinRequestRow = Notification & { kind: 'JOIN_REQUEST'; payload: JoinRequestPayload };
+
+function isJoinRequest(n: Notification): n is JoinRequestRow {
+  return n.kind === 'JOIN_REQUEST'
+    && typeof (n.payload as Record<string, unknown>)?.username === 'string';
+}
+
+function statusLabel(n: Notification): { text: string; className: string } {
+  if (n.resolvedAt == null) return { text: 'Pending', className: 'chip chip-review' };
+  if (n.resolvedAction === 'APPROVED') return { text: 'Approved', className: 'chip chip-pass' };
+  if (n.resolvedAction === 'REJECTED') return { text: 'Rejected', className: 'chip chip-block' };
+  return { text: 'Resolved', className: 'chip' };
+}
+
 /**
- * Dealer.User queue of Google join requests. Any member of the dealership can approve or
- * reject; approval creates the membership so the applicant signs in to this dealership next
- * time. Scoped server-side to the caller's own tenant, so one dealership never sees another's
- * queue.
+ * Dealership inbox history: every notification scoped to the current tenant, newest first.
+ * Pending rows still carry the Approve / Reject actions; resolved rows show who settled it
+ * and when, so the dealership keeps an audit trail of its own membership decisions.
  */
 export default function TeamPage() {
-  const [rows, setRows] = useState<JoinRequest[]>([]);
+  const [rows, setRows] = useState<JoinRequestRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [acting, setActing] = useState<string | null>(null);
@@ -17,9 +32,10 @@ export default function TeamPage() {
   async function load() {
     setLoading(true); setError('');
     try {
-      setRows(await joinRequestsApi.list());
+      const list = await notificationsApi.list(true);
+      setRows(list.filter(isJoinRequest));
     } catch (err) {
-      setError(messageOf(err, 'Could not load join requests.'));
+      setError(messageOf(err, 'Could not load the inbox.'));
     } finally {
       setLoading(false);
     }
@@ -41,10 +57,11 @@ export default function TeamPage() {
   }
 
   return (
+    <AppLayout>
     <section className="page">
       <header className="page-header">
         <h1>Team</h1>
-        <p className="muted">Google users who asked to join this dealership.</p>
+        <p className="muted">Google users who asked to join this dealership. Newest first.</p>
       </header>
 
       {error && <div className="alert alert-error">{error}</div>}
@@ -52,7 +69,7 @@ export default function TeamPage() {
       {loading ? (
         <div className="state">Loading…</div>
       ) : rows.length === 0 ? (
-        <div className="state">No pending join requests.</div>
+        <div className="state">No join requests yet.</div>
       ) : (
         <table className="table">
           <thead>
@@ -61,40 +78,58 @@ export default function TeamPage() {
               <th>Email</th>
               <th>Username</th>
               <th>Requested</th>
-              <th style={{ width: 180 }}>Actions</th>
+              <th>Status</th>
+              <th>Resolved</th>
+              <th style={{ width: 200 }}>Actions</th>
             </tr>
           </thead>
           <tbody>
-            {rows.map(r => (
-              <tr key={r.username}>
-                <td>{r.displayName}</td>
-                <td>{r.email ?? '—'}</td>
-                <td>{r.username}</td>
-                <td>{new Date(r.createdAt).toLocaleString()}</td>
-                <td>
-                  <button
-                    type="button"
-                    className="btn btn-primary"
-                    disabled={acting === r.username}
-                    onClick={() => void act(r.username, 'approve')}
-                  >
-                    Approve
-                  </button>
-                  <button
-                    type="button"
-                    className="btn-link"
-                    style={{ marginLeft: 12 }}
-                    disabled={acting === r.username}
-                    onClick={() => void act(r.username, 'reject')}
-                  >
-                    Reject
-                  </button>
-                </td>
-              </tr>
-            ))}
+            {rows.map(r => {
+              const status = statusLabel(r);
+              const pending = r.resolvedAt == null;
+              return (
+                <tr key={r.id}>
+                  <td>{r.payload.displayName}</td>
+                  <td>{r.payload.email ?? '—'}</td>
+                  <td>{r.payload.username}</td>
+                  <td>{new Date(r.createdAt).toLocaleString()}</td>
+                  <td><span className={status.className}>{status.text}</span></td>
+                  <td>
+                    {r.resolvedAt
+                      ? <>{new Date(r.resolvedAt).toLocaleString()}<br />
+                          <span className="muted">by {r.resolvedBy}</span></>
+                      : '—'}
+                  </td>
+                  <td>
+                    {pending ? (
+                      <>
+                        <button
+                          type="button"
+                          className="btn btn-primary"
+                          disabled={acting === r.payload.username}
+                          onClick={() => void act(r.payload.username, 'approve')}
+                        >
+                          Approve
+                        </button>
+                        <button
+                          type="button"
+                          className="btn-link"
+                          style={{ marginLeft: 12 }}
+                          disabled={acting === r.payload.username}
+                          onClick={() => void act(r.payload.username, 'reject')}
+                        >
+                          Reject
+                        </button>
+                      </>
+                    ) : '—'}
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       )}
     </section>
+    </AppLayout>
   );
 }

@@ -19,15 +19,26 @@ public class NotificationController : ControllerBase
 
     public NotificationController(NotificationService service) { _service = service; }
 
+    // includeResolved=false (default) is the inbox feed; includeResolved=true is the message
+    // history page. Both are scoped to the caller's tenant by the service layer.
     [HttpGet]
-    public List<NotificationResponse> List() =>
-        _service.ListUnresolved().Select(ToResponse).ToList();
+    public List<NotificationResponse> List([FromQuery] bool includeResolved = false) =>
+        _service.List(includeResolved).Select(ToResponse).ToList();
 
     private static NotificationResponse ToResponse(NotificationEntity entity)
     {
         var payload = JsonSerializer.Deserialize<JsonElement>(entity.Payload);
-        return new NotificationResponse(entity.Id, entity.Kind, entity.CreatedAt, payload);
+        return new NotificationResponse(
+            entity.Id, entity.Kind, entity.CreatedAt, payload,
+            entity.ResolvedAt, entity.ResolvedBy, entity.ResolvedAction);
     }
 }
 
-public record NotificationResponse(long Id, string Kind, DateTime CreatedAt, JsonElement Payload);
+public record NotificationResponse(
+    long Id,
+    string Kind,
+    DateTime CreatedAt,
+    JsonElement Payload,
+    DateTime? ResolvedAt,
+    string? ResolvedBy,
+    string? ResolvedAction);

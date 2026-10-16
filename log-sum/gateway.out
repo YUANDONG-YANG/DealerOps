@@ -382,3 +382,1171 @@ warn: Yarp.ReverseProxy.Forwarder.HttpForwarder[48]
          at Yarp.ReverseProxy.Forwarder.HttpForwarder.SendAsync(HttpContext context, String destinationPrefix, HttpMessageInvoker httpClient, ForwarderRequestConfig requestConfig, HttpTransformer transformer, CancellationToken cancellationToken)
 info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
       requestId=96e37295-9957-490b-9ad4-f7f82a65f556 GET /api/v1/dealer/join-requests user=anonymous status=502 durationMs=9
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=3363446d-d18a-4186-9ce5-a91fc33e0f45 OPTIONS /api/v1/me user=anonymous status=204 durationMs=1
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=628666fe-2d18-4aa5-8e08-60ca1b38ddd0 OPTIONS /actuator/release user=anonymous status=204 durationMs=0
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9]
+      Proxying to http://localhost:8081/api/v1/me HTTP/2 RequestVersionOrLower 
+info: System.Net.Http.HttpClient.health.LogicalHandler[100]
+      Start processing HTTP request GET http://localhost:8081/actuator/release
+info: System.Net.Http.HttpClient.health.ClientHandler[100]
+      Sending HTTP request GET http://localhost:8081/actuator/release
+info: System.Net.Http.HttpClient.health.ClientHandler[101]
+      Received HTTP response headers after 233.8682ms - 200
+info: System.Net.Http.HttpClient.health.LogicalHandler[101]
+      End processing HTTP request after 238.0213ms - 200
+info: System.Net.Http.HttpClient.health.LogicalHandler[100]
+      Start processing HTTP request GET http://localhost:8082/actuator/release
+info: System.Net.Http.HttpClient.health.ClientHandler[100]
+      Sending HTTP request GET http://localhost:8082/actuator/release
+info: System.Net.Http.HttpClient.health.ClientHandler[101]
+      Received HTTP response headers after 104.241ms - 200
+info: System.Net.Http.HttpClient.health.LogicalHandler[101]
+      End processing HTTP request after 104.6384ms - 200
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=45df450c-acc3-4012-be45-05c3a26f79a4 GET /actuator/release user=anonymous status=200 durationMs=359
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56]
+      Received HTTP/1.1 response 200.
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=b37197d2-c187-4cf1-8316-0f9ae0b3150b GET /api/v1/me user=anonymous status=200 durationMs=526
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=4532d59e-2429-42d9-9916-bb159e926a67 OPTIONS /api/v1/vehicles user=anonymous status=204 durationMs=0
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=58d73d9a-30e9-4952-b16e-be03cac36dc8 OPTIONS /api/v1/dealer/notifications user=anonymous status=204 durationMs=0
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=284dc79b-75f2-4155-ba48-a0fa7801db3c OPTIONS /api/v1/catalog/makes user=anonymous status=204 durationMs=0
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=309299e0-d062-46ff-b608-fdc690daa8ac OPTIONS /api/v1/dealer/notifications user=anonymous status=204 durationMs=0
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=503eef54-4c8e-4bd7-85ce-a52ad1587aba OPTIONS /api/v1/vehicles user=anonymous status=204 durationMs=0
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=8faa9a5e-16ee-4880-997d-12ca43cf0310 OPTIONS /api/v1/catalog/makes user=anonymous status=204 durationMs=0
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9]
+      Proxying to http://localhost:8081/api/v1/vehicles?page=0&size=10 HTTP/2 RequestVersionOrLower 
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9]
+      Proxying to http://localhost:8081/api/v1/catalog/makes HTTP/2 RequestVersionOrLower 
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9]
+      Proxying to http://localhost:8081/api/v1/dealer/notifications HTTP/2 RequestVersionOrLower 
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56]
+      Received HTTP/1.1 response 200.
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=be100c50-86a8-456a-badc-960e8fee5b94 GET /api/v1/dealer/notifications user=anonymous status=200 durationMs=118
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9]
+      Proxying to http://localhost:8081/api/v1/dealer/notifications HTTP/2 RequestVersionOrLower 
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56]
+      Received HTTP/1.1 response 200.
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=15664517-8dfd-4011-8bf7-d3fa897fac4a GET /api/v1/dealer/notifications user=anonymous status=200 durationMs=10
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56]
+      Received HTTP/1.1 response 200.
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=92677c52-d232-4cd1-823c-f9673f8e9ce2 GET /api/v1/vehicles user=anonymous status=200 durationMs=241
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9]
+      Proxying to http://localhost:8081/api/v1/vehicles?page=0&size=10 HTTP/2 RequestVersionOrLower 
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56]
+      Received HTTP/1.1 response 200.
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=a4061772-b845-4325-bf09-8eb901384154 GET /api/v1/vehicles user=anonymous status=200 durationMs=30
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56]
+      Received HTTP/1.1 response 200.
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=6ecfe955-68e4-4889-a3c9-b124f4b4ac3c GET /api/v1/catalog/makes user=anonymous status=200 durationMs=907
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9]
+      Proxying to http://localhost:8081/api/v1/catalog/makes HTTP/2 RequestVersionOrLower 
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56]
+      Received HTTP/1.1 response 200.
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=78e6983c-f765-4999-a83e-b9323fbf0ece GET /api/v1/catalog/makes user=anonymous status=200 durationMs=16
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=f0233e35-235b-4385-a324-954d596eb196 OPTIONS /api/v1/dealer/join-requests user=anonymous status=204 durationMs=0
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=d91af894-f101-45e7-95d7-2b2c5c6bf00f OPTIONS /api/v1/dealer/join-requests user=anonymous status=204 durationMs=0
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9]
+      Proxying to http://localhost:8081/api/v1/dealer/join-requests HTTP/2 RequestVersionOrLower 
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56]
+      Received HTTP/1.1 response 200.
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=5956e614-a572-4cc0-8c1e-4d1da70a46a9 GET /api/v1/dealer/join-requests user=anonymous status=200 durationMs=40
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9]
+      Proxying to http://localhost:8081/api/v1/dealer/join-requests HTTP/2 RequestVersionOrLower 
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56]
+      Received HTTP/1.1 response 200.
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=147a6399-0f1f-4aa8-a79e-7531de7ceae1 GET /api/v1/dealer/join-requests user=anonymous status=200 durationMs=10
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=28439608-24e0-4d26-97ee-a59b9e47effe OPTIONS /api/v1/dealer/join-requests/yuandongyang061903/approve user=anonymous status=204 durationMs=1
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9]
+      Proxying to http://localhost:8081/api/v1/dealer/join-requests/yuandongyang061903/approve HTTP/2 RequestVersionOrLower 
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56]
+      Received HTTP/1.1 response 204.
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=8e6f122c-d7f3-4354-9590-69efa7cde34d POST /api/v1/dealer/join-requests/yuandongyang061903/approve user=anonymous status=204 durationMs=267
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9]
+      Proxying to http://localhost:8081/api/v1/dealer/join-requests HTTP/2 RequestVersionOrLower 
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56]
+      Received HTTP/1.1 response 200.
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=02674ae7-aeeb-49f9-8476-e9ac777293f3 GET /api/v1/dealer/join-requests user=anonymous status=200 durationMs=10
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=f0f81820-7292-4e62-ae40-cd7f1fc2a299 OPTIONS /api/v1/dealer/notifications user=anonymous status=204 durationMs=2
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=f3adca06-c1c6-44c9-89ee-4d6c9379f302 OPTIONS /api/v1/catalog/makes user=anonymous status=204 durationMs=2
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=ab2888f3-d550-42d7-b6e8-c9eed21facb6 OPTIONS /api/v1/catalog/makes user=anonymous status=204 durationMs=2
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=dc93f971-ab83-49c4-9527-d4cd0707c806 OPTIONS /api/v1/dealer/notifications user=anonymous status=204 durationMs=2
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=2453fc32-c5b3-4bfe-a09b-48391457528a OPTIONS /api/v1/vehicles user=anonymous status=204 durationMs=2
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=c4c90e7f-95ef-4372-b267-18d9adc9cf49 OPTIONS /api/v1/vehicles user=anonymous status=204 durationMs=2
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9]
+      Proxying to http://localhost:8081/api/v1/catalog/makes HTTP/2 RequestVersionOrLower 
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9]
+      Proxying to http://localhost:8081/api/v1/dealer/notifications HTTP/2 RequestVersionOrLower 
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9]
+      Proxying to http://localhost:8081/api/v1/vehicles?page=0&size=10 HTTP/2 RequestVersionOrLower 
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56]
+      Received HTTP/1.1 response 200.
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56]
+      Received HTTP/1.1 response 200.
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=1d47094a-c30e-4e37-9047-754b10179edd GET /api/v1/dealer/notifications user=anonymous status=200 durationMs=65
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=9e483540-d319-4a62-8016-8dfb04357dd1 GET /api/v1/catalog/makes user=anonymous status=200 durationMs=66
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9]
+      Proxying to http://localhost:8081/api/v1/catalog/makes HTTP/2 RequestVersionOrLower 
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9]
+      Proxying to http://localhost:8081/api/v1/dealer/notifications HTTP/2 RequestVersionOrLower 
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56]
+      Received HTTP/1.1 response 200.
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=ae82853f-2623-4457-bc2e-53023431bc92 GET /api/v1/vehicles user=anonymous status=200 durationMs=71
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9]
+      Proxying to http://localhost:8081/api/v1/vehicles?page=0&size=10 HTTP/2 RequestVersionOrLower 
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56]
+      Received HTTP/1.1 response 200.
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=17f4cffa-f45b-4d9f-b09c-f418222807c1 GET /api/v1/catalog/makes user=anonymous status=200 durationMs=13
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56]
+      Received HTTP/1.1 response 200.
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=a3bca594-6161-40b2-91af-6f988c35a7e3 GET /api/v1/dealer/notifications user=anonymous status=200 durationMs=15
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56]
+      Received HTTP/1.1 response 200.
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=56380a7c-b22d-4012-9fec-6861f36cfac0 GET /api/v1/vehicles user=anonymous status=200 durationMs=17
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=4d7488d8-9053-4093-b333-d94fae42cd96 OPTIONS /api/v1/dealer/join-requests user=anonymous status=204 durationMs=0
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=784795f5-fa2b-4015-92a9-1e14220cc238 OPTIONS /api/v1/dealer/join-requests user=anonymous status=204 durationMs=0
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9]
+      Proxying to http://localhost:8081/api/v1/dealer/join-requests HTTP/2 RequestVersionOrLower 
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56]
+      Received HTTP/1.1 response 200.
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=8152c263-0bde-4144-ab3d-4f55914a5636 GET /api/v1/dealer/join-requests user=anonymous status=200 durationMs=49
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9]
+      Proxying to http://localhost:8081/api/v1/dealer/join-requests HTTP/2 RequestVersionOrLower 
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56]
+      Received HTTP/1.1 response 200.
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=e8abb0b1-8537-4018-a3d4-4fc98545d6ac GET /api/v1/dealer/join-requests user=anonymous status=200 durationMs=13
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=5e02e0f7-452d-4063-ad98-71e303796496 OPTIONS /actuator/release user=anonymous status=204 durationMs=0
+info: System.Net.Http.HttpClient.health.LogicalHandler[100]
+      Start processing HTTP request GET http://localhost:8081/actuator/release
+info: System.Net.Http.HttpClient.health.ClientHandler[100]
+      Sending HTTP request GET http://localhost:8081/actuator/release
+info: System.Net.Http.HttpClient.health.ClientHandler[101]
+      Received HTTP response headers after 30.1265ms - 200
+info: System.Net.Http.HttpClient.health.LogicalHandler[101]
+      End processing HTTP request after 32.6356ms - 200
+info: System.Net.Http.HttpClient.health.LogicalHandler[100]
+      Start processing HTTP request GET http://localhost:8082/actuator/release
+info: System.Net.Http.HttpClient.health.ClientHandler[100]
+      Sending HTTP request GET http://localhost:8082/actuator/release
+info: System.Net.Http.HttpClient.health.ClientHandler[101]
+      Received HTTP response headers after 11.5481ms - 200
+info: System.Net.Http.HttpClient.health.LogicalHandler[101]
+      End processing HTTP request after 11.909ms - 200
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=a11b4333-2b16-4367-91c7-62e57e1449fd GET /actuator/release user=anonymous status=200 durationMs=47
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=28f8b477-0106-4096-a0a1-31bb54da4ca0 OPTIONS /api/v1/auth/login user=anonymous status=204 durationMs=0
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9]
+      Proxying to http://localhost:8081/api/v1/auth/login HTTP/2 RequestVersionOrLower 
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56]
+      Received HTTP/1.1 response 200.
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=54c3c020-9fda-4d66-8498-9e2dd6556614 POST /api/v1/auth/login user=anonymous status=200 durationMs=348
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=3babdc75-4cb9-4cc5-a10a-d22df31acacd OPTIONS /api/v1/me user=anonymous status=204 durationMs=0
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9]
+      Proxying to http://localhost:8081/api/v1/me HTTP/2 RequestVersionOrLower 
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56]
+      Received HTTP/1.1 response 200.
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=75d95fb0-97c4-4142-a063-2a5c6152ccc6 GET /api/v1/me user=anonymous status=200 durationMs=403
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=d61e09f0-7d29-4aa1-87f2-9c497bcdc447 OPTIONS /api/v1/catalog/makes user=anonymous status=204 durationMs=0
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=ac862674-ef48-4933-b9d6-26c8ba4795bd OPTIONS /api/v1/dealer/notifications user=anonymous status=204 durationMs=0
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=13c72845-8448-4710-8014-125008549a1f OPTIONS /api/v1/vehicles user=anonymous status=204 durationMs=0
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=2deb758b-205e-439a-9e94-56d181b77742 OPTIONS /api/v1/dealer/notifications user=anonymous status=204 durationMs=0
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=7f0035d8-89db-4f4d-a274-97fc3bb042a1 OPTIONS /api/v1/catalog/makes user=anonymous status=204 durationMs=0
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=01e5bdf9-0c00-4d94-b508-9552057dc89f OPTIONS /api/v1/vehicles user=anonymous status=204 durationMs=0
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9]
+      Proxying to http://localhost:8081/api/v1/vehicles?page=0&size=10 HTTP/2 RequestVersionOrLower 
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9]
+      Proxying to http://localhost:8081/api/v1/dealer/notifications HTTP/2 RequestVersionOrLower 
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9]
+      Proxying to http://localhost:8081/api/v1/catalog/makes HTTP/2 RequestVersionOrLower 
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56]
+      Received HTTP/1.1 response 200.
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=81453555-fc23-4b5f-8f66-9da08f84e5b8 GET /api/v1/dealer/notifications user=anonymous status=200 durationMs=133
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9]
+      Proxying to http://localhost:8081/api/v1/dealer/notifications HTTP/2 RequestVersionOrLower 
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56]
+      Received HTTP/1.1 response 200.
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56]
+      Received HTTP/1.1 response 200.
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56]
+      Received HTTP/1.1 response 200.
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=19b16df9-5ec4-4a0f-8aec-560ddd324538 GET /api/v1/vehicles user=anonymous status=200 durationMs=255
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=10634a9d-85bb-4de6-b724-b1f2dafc6795 GET /api/v1/catalog/makes user=anonymous status=200 durationMs=254
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=9bd44fc9-05ab-41fa-b9ab-2ec89d1b3dcf GET /api/v1/dealer/notifications user=anonymous status=200 durationMs=121
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9]
+      Proxying to http://localhost:8081/api/v1/vehicles?page=0&size=10 HTTP/2 RequestVersionOrLower 
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9]
+      Proxying to http://localhost:8081/api/v1/catalog/makes HTTP/2 RequestVersionOrLower 
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56]
+      Received HTTP/1.1 response 200.
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56]
+      Received HTTP/1.1 response 200.
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=8df34bb8-b625-46c7-8c70-aff2547aa1df GET /api/v1/catalog/makes user=anonymous status=200 durationMs=135
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=4cd3dfa3-d1fd-4e15-bba7-5021b7f91a7d GET /api/v1/vehicles user=anonymous status=200 durationMs=135
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=5ae16549-2ddf-4043-b8f6-dc24fb619e90 OPTIONS /api/v1/dealer/join-requests user=anonymous status=204 durationMs=0
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=19574334-ea8f-4b53-af68-a0b77cba08e2 OPTIONS /api/v1/dealer/join-requests user=anonymous status=204 durationMs=0
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9]
+      Proxying to http://localhost:8081/api/v1/dealer/join-requests HTTP/2 RequestVersionOrLower 
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56]
+      Received HTTP/1.1 response 200.
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=ec89b9d8-dcad-4241-a15b-f9c8b53f8343 GET /api/v1/dealer/join-requests user=anonymous status=200 durationMs=46
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9]
+      Proxying to http://localhost:8081/api/v1/dealer/join-requests HTTP/2 RequestVersionOrLower 
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56]
+      Received HTTP/1.1 response 200.
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=5118ef2f-deac-4ba9-87f7-dca79effa78c GET /api/v1/dealer/join-requests user=anonymous status=200 durationMs=13
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=28b5e881-18c0-4850-9ec8-f35e1e78f926 OPTIONS /actuator/release user=anonymous status=204 durationMs=3
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=8bd2360e-62bc-456e-9bee-1000a1726547 OPTIONS /api/v1/me user=anonymous status=204 durationMs=3
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9]
+      Proxying to http://localhost:8081/api/v1/me HTTP/2 RequestVersionOrLower 
+info: System.Net.Http.HttpClient.health.LogicalHandler[100]
+      Start processing HTTP request GET http://localhost:8081/actuator/release
+info: System.Net.Http.HttpClient.health.ClientHandler[100]
+      Sending HTTP request GET http://localhost:8081/actuator/release
+info: System.Net.Http.HttpClient.health.ClientHandler[101]
+      Received HTTP response headers after 60.7561ms - 200
+info: System.Net.Http.HttpClient.health.LogicalHandler[101]
+      End processing HTTP request after 62.617ms - 200
+info: System.Net.Http.HttpClient.health.LogicalHandler[100]
+      Start processing HTTP request GET http://localhost:8082/actuator/release
+info: System.Net.Http.HttpClient.health.ClientHandler[100]
+      Sending HTTP request GET http://localhost:8082/actuator/release
+info: System.Net.Http.HttpClient.health.ClientHandler[101]
+      Received HTTP response headers after 7.9985ms - 200
+info: System.Net.Http.HttpClient.health.LogicalHandler[101]
+      End processing HTTP request after 8.2466ms - 200
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=ffc3b4b9-1bd7-4c74-81f2-a255b72be43d GET /actuator/release user=anonymous status=200 durationMs=74
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56]
+      Received HTTP/1.1 response 200.
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=798df3f6-f352-4484-9dd0-30dab5e56c83 GET /api/v1/me user=anonymous status=200 durationMs=399
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=482f6aba-ca51-4e32-9f93-1baacbddd266 OPTIONS /api/v1/dealer/notifications user=anonymous status=204 durationMs=0
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=225eed67-60c5-4839-9ca0-911da943dfa5 OPTIONS /api/v1/dealer/notifications user=anonymous status=204 durationMs=0
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9]
+      Proxying to http://localhost:8081/api/v1/dealer/notifications?includeResolved=true HTTP/2 RequestVersionOrLower 
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56]
+      Received HTTP/1.1 response 200.
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=2537868e-e999-40df-bb6e-3d68951d1564 GET /api/v1/dealer/notifications user=anonymous status=200 durationMs=137
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9]
+      Proxying to http://localhost:8081/api/v1/dealer/notifications?includeResolved=true HTTP/2 RequestVersionOrLower 
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56]
+      Received HTTP/1.1 response 200.
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=77bf54c0-2563-4ed2-bac1-85d9c0e897f6 GET /api/v1/dealer/notifications user=anonymous status=200 durationMs=66
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=756bee3d-252e-4985-8636-d3e242588ee4 OPTIONS /api/v1/auth/login user=anonymous status=204 durationMs=4
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9]
+      Proxying to http://localhost:8081/api/v1/auth/login HTTP/2 RequestVersionOrLower 
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56]
+      Received HTTP/1.1 response 200.
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=b404eb10-bb1e-4335-9f9a-6b33119720c1 POST /api/v1/auth/login user=anonymous status=200 durationMs=367
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=c7028a29-75e9-408e-9de6-7ad369810682 OPTIONS /api/v1/me user=anonymous status=204 durationMs=0
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9]
+      Proxying to http://localhost:8081/api/v1/me HTTP/2 RequestVersionOrLower 
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56]
+      Received HTTP/1.1 response 200.
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=dbdca79e-5c44-4c78-b64d-1a3cf63fc91e GET /api/v1/me user=anonymous status=200 durationMs=45
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=c69210ca-1221-4034-9c69-352161c0a27c OPTIONS /api/v1/dealer/notifications user=anonymous status=204 durationMs=0
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=fdeb2bdb-9ea8-478a-a7a6-2b02eb0a5e97 OPTIONS /api/v1/vehicles user=anonymous status=204 durationMs=0
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=03e7885d-f9fc-46a9-ac52-4fddb124b265 OPTIONS /api/v1/catalog/makes user=anonymous status=204 durationMs=0
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=e01c0ef2-3777-45d7-ad7d-2605f9604ff9 OPTIONS /api/v1/catalog/makes user=anonymous status=204 durationMs=0
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9]
+      Proxying to http://localhost:8081/api/v1/vehicles?page=0&size=10 HTTP/2 RequestVersionOrLower 
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=fc00fc3f-195e-4942-b585-6979751cbf0b OPTIONS /api/v1/vehicles user=anonymous status=204 durationMs=0
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=c816dede-9f34-443b-9dde-e3e23b91cfc3 OPTIONS /api/v1/dealer/notifications user=anonymous status=204 durationMs=0
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9]
+      Proxying to http://localhost:8081/api/v1/catalog/makes HTTP/2 RequestVersionOrLower 
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9]
+      Proxying to http://localhost:8081/api/v1/dealer/notifications HTTP/2 RequestVersionOrLower 
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56]
+      Received HTTP/1.1 response 200.
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=b4e06bd7-c9ab-4add-8ea1-65a314e75e41 GET /api/v1/dealer/notifications user=anonymous status=200 durationMs=252
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9]
+      Proxying to http://localhost:8081/api/v1/dealer/notifications HTTP/2 RequestVersionOrLower 
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56]
+      Received HTTP/1.1 response 200.
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=0493392c-2c0c-4a38-9dd9-8704ab95af2f GET /api/v1/dealer/notifications user=anonymous status=200 durationMs=9
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56]
+      Received HTTP/1.1 response 200.
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=c0d335e8-9127-41b3-826a-a3e0aed0cf76 GET /api/v1/vehicles user=anonymous status=200 durationMs=332
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9]
+      Proxying to http://localhost:8081/api/v1/vehicles?page=0&size=10 HTTP/2 RequestVersionOrLower 
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56]
+      Received HTTP/1.1 response 200.
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=33b42626-4242-438e-8b36-39a4c36a5478 GET /api/v1/vehicles user=anonymous status=200 durationMs=14
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56]
+      Received HTTP/1.1 response 200.
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=86ca2558-0a65-4f83-8450-7a39a94e9b5f GET /api/v1/catalog/makes user=anonymous status=200 durationMs=1204
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9]
+      Proxying to http://localhost:8081/api/v1/catalog/makes HTTP/2 RequestVersionOrLower 
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56]
+      Received HTTP/1.1 response 200.
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=584d5d0a-e5de-4341-860d-9a3cd3f4325f GET /api/v1/catalog/makes user=anonymous status=200 durationMs=44
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=7e2b7c7f-6ff6-4fdb-bee7-3a112dbe487c OPTIONS /api/v1/dealer/notifications user=anonymous status=204 durationMs=0
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=0be73bc1-e943-4d73-9b4d-65bc4b14b9ba OPTIONS /api/v1/dealer/notifications user=anonymous status=204 durationMs=0
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9]
+      Proxying to http://localhost:8081/api/v1/dealer/notifications?includeResolved=true HTTP/2 RequestVersionOrLower 
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56]
+      Received HTTP/1.1 response 200.
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=a43609a0-ab8b-4f33-83cf-a7375f2fe100 GET /api/v1/dealer/notifications user=anonymous status=200 durationMs=82
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9]
+      Proxying to http://localhost:8081/api/v1/dealer/notifications?includeResolved=true HTTP/2 RequestVersionOrLower 
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56]
+      Received HTTP/1.1 response 200.
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=e3ba88ef-214a-47a5-9372-03cd8d003e34 GET /api/v1/dealer/notifications user=anonymous status=200 durationMs=158
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=9ab9094a-dec0-44ec-abdb-cb2e470b1bb0 OPTIONS /api/v1/catalog/makes user=anonymous status=204 durationMs=0
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=15bafd07-02ad-46f8-a711-e097d42223e4 OPTIONS /api/v1/dealer/notifications user=anonymous status=204 durationMs=0
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=8f352a56-1ea8-4573-a405-0f6084d33510 OPTIONS /api/v1/dealer/notifications user=anonymous status=204 durationMs=0
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=483839e9-fdc2-412f-b82f-a38875cb1c20 OPTIONS /api/v1/vehicles user=anonymous status=204 durationMs=0
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=6003feb1-a0b6-4785-88b5-a22c5d6b462a OPTIONS /api/v1/vehicles user=anonymous status=204 durationMs=0
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=0cdefcdd-df6b-4c7f-bf81-7eb72d6256b7 OPTIONS /api/v1/catalog/makes user=anonymous status=204 durationMs=0
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9]
+      Proxying to http://localhost:8081/api/v1/catalog/makes HTTP/2 RequestVersionOrLower 
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9]
+      Proxying to http://localhost:8081/api/v1/vehicles?page=0&size=10 HTTP/2 RequestVersionOrLower 
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9]
+      Proxying to http://localhost:8081/api/v1/dealer/notifications HTTP/2 RequestVersionOrLower 
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56]
+      Received HTTP/1.1 response 200.
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=adeacb77-ed3d-49bf-81df-757c249f1060 GET /api/v1/catalog/makes user=anonymous status=200 durationMs=59
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9]
+      Proxying to http://localhost:8081/api/v1/catalog/makes HTTP/2 RequestVersionOrLower 
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56]
+      Received HTTP/1.1 response 200.
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=177470d3-9685-45bb-a8e1-b6fb541038e4 GET /api/v1/dealer/notifications user=anonymous status=200 durationMs=62
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56]
+      Received HTTP/1.1 response 200.
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=a1f45cf9-253b-41ed-898f-873bb2006b16 GET /api/v1/vehicles user=anonymous status=200 durationMs=64
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9]
+      Proxying to http://localhost:8081/api/v1/dealer/notifications HTTP/2 RequestVersionOrLower 
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9]
+      Proxying to http://localhost:8081/api/v1/vehicles?page=0&size=10 HTTP/2 RequestVersionOrLower 
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56]
+      Received HTTP/1.1 response 200.
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=36522273-5406-4803-8f42-5c8424e69498 GET /api/v1/catalog/makes user=anonymous status=200 durationMs=11
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56]
+      Received HTTP/1.1 response 200.
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=e2677d84-0815-4762-97d5-6115393fceb4 GET /api/v1/dealer/notifications user=anonymous status=200 durationMs=10
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56]
+      Received HTTP/1.1 response 200.
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=35ab20ff-4563-4a51-be5e-7ddfb393cf0a GET /api/v1/vehicles user=anonymous status=200 durationMs=14
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=bc7c3451-45cf-48f1-bacb-962d96c657f7 OPTIONS /api/v1/dealer/notifications user=anonymous status=204 durationMs=0
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=209d4d0b-46ca-4924-acfa-c2cfd37d1177 OPTIONS /api/v1/dealer/notifications user=anonymous status=204 durationMs=0
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9]
+      Proxying to http://localhost:8081/api/v1/dealer/notifications?includeResolved=true HTTP/2 RequestVersionOrLower 
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56]
+      Received HTTP/1.1 response 200.
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9]
+      Proxying to http://localhost:8081/api/v1/dealer/notifications?includeResolved=true HTTP/2 RequestVersionOrLower 
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=86699b73-e11d-44b2-8625-56f60bd5bf24 GET /api/v1/dealer/notifications user=anonymous status=200 durationMs=51
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56]
+      Received HTTP/1.1 response 200.
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=1a75e893-bfda-4e20-a881-7b10671e843a GET /api/v1/dealer/notifications user=anonymous status=200 durationMs=12
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=7362cb0d-a58c-4f2b-9d7e-1e82ac693b39 OPTIONS /api/v1/catalog/makes user=anonymous status=204 durationMs=0
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=e24d45d9-c66d-4a46-b104-95a67fdbd868 OPTIONS /api/v1/dealer/notifications user=anonymous status=204 durationMs=0
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=5dffad3f-8d68-4e7e-bbc9-cd34dc4c9250 OPTIONS /api/v1/dealer/notifications user=anonymous status=204 durationMs=0
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=759c5975-98c1-4714-aec8-bfcb40b42483 OPTIONS /api/v1/catalog/makes user=anonymous status=204 durationMs=0
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=853cb5bf-86b5-4c06-94c2-19a9de5f1851 OPTIONS /api/v1/vehicles user=anonymous status=204 durationMs=0
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=68f2042b-7431-4d81-a1eb-44b6dba47c08 OPTIONS /api/v1/vehicles user=anonymous status=204 durationMs=0
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9]
+      Proxying to http://localhost:8081/api/v1/dealer/notifications HTTP/2 RequestVersionOrLower 
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9]
+      Proxying to http://localhost:8081/api/v1/catalog/makes HTTP/2 RequestVersionOrLower 
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9]
+      Proxying to http://localhost:8081/api/v1/vehicles?page=0&size=10 HTTP/2 RequestVersionOrLower 
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56]
+      Received HTTP/1.1 response 200.
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=11a52e0b-10f8-4c15-917d-84150ac3cf97 GET /api/v1/catalog/makes user=anonymous status=200 durationMs=67
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56]
+      Received HTTP/1.1 response 200.
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9]
+      Proxying to http://localhost:8081/api/v1/catalog/makes HTTP/2 RequestVersionOrLower 
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=432975d5-a45f-49c4-bd8d-5cb43e42d0e1 GET /api/v1/dealer/notifications user=anonymous status=200 durationMs=67
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9]
+      Proxying to http://localhost:8081/api/v1/dealer/notifications HTTP/2 RequestVersionOrLower 
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56]
+      Received HTTP/1.1 response 200.
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=90002e29-7b4c-41f5-9f03-8dad13edeeba GET /api/v1/catalog/makes user=anonymous status=200 durationMs=12
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56]
+      Received HTTP/1.1 response 200.
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=5865eb68-8e3a-4277-9093-34f67cb186c0 GET /api/v1/dealer/notifications user=anonymous status=200 durationMs=12
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56]
+      Received HTTP/1.1 response 200.
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=abbadb0e-ed56-4fe7-b3bb-ef43b9005206 GET /api/v1/vehicles user=anonymous status=200 durationMs=83
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9]
+      Proxying to http://localhost:8081/api/v1/vehicles?page=0&size=10 HTTP/2 RequestVersionOrLower 
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56]
+      Received HTTP/1.1 response 200.
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=38864998-5d90-4a29-9b05-532f49d28c37 GET /api/v1/vehicles user=anonymous status=200 durationMs=13
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9]
+      Proxying to http://localhost:8081/api/v1/dealer/notifications HTTP/2 RequestVersionOrLower 
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9]
+      Proxying to http://localhost:8081/api/v1/vehicles?page=0&size=10 HTTP/2 RequestVersionOrLower 
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56]
+      Received HTTP/1.1 response 200.
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=a3be37f2-9ba6-4d7b-a24a-a06e3e1da262 GET /api/v1/dealer/notifications user=anonymous status=200 durationMs=55
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9]
+      Proxying to http://localhost:8081/api/v1/dealer/notifications HTTP/2 RequestVersionOrLower 
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56]
+      Received HTTP/1.1 response 200.
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=c469b3a2-e694-4163-af66-a79ba85a6d36 GET /api/v1/dealer/notifications user=anonymous status=200 durationMs=10
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56]
+      Received HTTP/1.1 response 200.
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=a81187b4-9095-45b2-ac70-eef494544fcf GET /api/v1/vehicles user=anonymous status=200 durationMs=59
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9]
+      Proxying to http://localhost:8081/api/v1/vehicles?page=0&size=10 HTTP/2 RequestVersionOrLower 
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56]
+      Received HTTP/1.1 response 200.
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=e2040ec8-a3a1-43a1-881b-2a0bd474df5d GET /api/v1/vehicles user=anonymous status=200 durationMs=12
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9]
+      Proxying to http://localhost:8081/api/v1/dealer/notifications HTTP/2 RequestVersionOrLower 
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56]
+      Received HTTP/1.1 response 200.
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=308029aa-9cd4-467d-ae12-84cc7fe26937 GET /api/v1/dealer/notifications user=anonymous status=200 durationMs=8
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9]
+      Proxying to http://localhost:8081/api/v1/dealer/notifications HTTP/2 RequestVersionOrLower 
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56]
+      Received HTTP/1.1 response 200.
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=5b37cbf0-bbdb-4312-9146-bb72928a0a88 GET /api/v1/dealer/notifications user=anonymous status=200 durationMs=8
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=41b47acc-aec5-4e28-a6a4-7d7d79809059 OPTIONS /api/v1/leads user=anonymous status=204 durationMs=0
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=b5a94448-f30a-43ac-a408-59a38d876745 OPTIONS /api/v1/members user=anonymous status=204 durationMs=0
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=620cd702-ed1d-43ba-a8c1-dabda5ae914f OPTIONS /api/v1/leads user=anonymous status=204 durationMs=0
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=01cf0e15-d2ec-4043-ba6b-b0774aa03be2 OPTIONS /api/v1/members user=anonymous status=204 durationMs=0
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9]
+      Proxying to http://localhost:8081/api/v1/dealer/notifications HTTP/2 RequestVersionOrLower 
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9]
+      Proxying to http://localhost:8081/api/v1/members HTTP/2 RequestVersionOrLower 
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9]
+      Proxying to http://localhost:8081/api/v1/leads?page=0&size=10 HTTP/2 RequestVersionOrLower 
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56]
+      Received HTTP/1.1 response 200.
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=d31991c1-8e8e-43bf-8a50-32db786d1195 GET /api/v1/dealer/notifications user=anonymous status=200 durationMs=24
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9]
+      Proxying to http://localhost:8081/api/v1/dealer/notifications HTTP/2 RequestVersionOrLower 
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56]
+      Received HTTP/1.1 response 200.
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=c6fbe8ec-d7c8-45f7-9b54-9d54db4dd46e GET /api/v1/dealer/notifications user=anonymous status=200 durationMs=24
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56]
+      Received HTTP/1.1 response 200.
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=5f023689-74d1-491e-a764-11ed706a0a8c GET /api/v1/members user=anonymous status=200 durationMs=47
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9]
+      Proxying to http://localhost:8081/api/v1/members HTTP/2 RequestVersionOrLower 
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56]
+      Received HTTP/1.1 response 200.
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=347a829f-dab8-4b26-85bb-5e8657484cb5 GET /api/v1/members user=anonymous status=200 durationMs=10
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56]
+      Received HTTP/1.1 response 200.
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=b46b427f-d24e-40fb-a413-a0769f32fbb4 GET /api/v1/leads user=anonymous status=200 durationMs=71
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9]
+      Proxying to http://localhost:8081/api/v1/leads?page=0&size=10 HTTP/2 RequestVersionOrLower 
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56]
+      Received HTTP/1.1 response 200.
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=1a28fdc7-4219-43a2-b22e-413b092dfa5e GET /api/v1/leads user=anonymous status=200 durationMs=14
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=606c0612-9716-44ef-b2b1-c80ec06852f0 OPTIONS /api/v1/customers user=anonymous status=204 durationMs=0
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9]
+      Proxying to http://localhost:8081/api/v1/dealer/notifications HTTP/2 RequestVersionOrLower 
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=dcbebf64-3011-47cc-b204-10d0afaadac6 OPTIONS /api/v1/customers user=anonymous status=204 durationMs=0
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9]
+      Proxying to http://localhost:8081/api/v1/customers?page=0&size=10 HTTP/2 RequestVersionOrLower 
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56]
+      Received HTTP/1.1 response 200.
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=ae25a504-0f3c-423f-adf7-bbdece8fa44b GET /api/v1/dealer/notifications user=anonymous status=200 durationMs=15
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9]
+      Proxying to http://localhost:8081/api/v1/dealer/notifications HTTP/2 RequestVersionOrLower 
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56]
+      Received HTTP/1.1 response 200.
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=fd5d9482-4739-4733-b3ea-3be458cd88d4 GET /api/v1/dealer/notifications user=anonymous status=200 durationMs=12
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56]
+      Received HTTP/1.1 response 200.
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=68088d07-0bcb-4ad2-adb5-7148ef6ab1ec GET /api/v1/customers user=anonymous status=200 durationMs=45
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9]
+      Proxying to http://localhost:8081/api/v1/customers?page=0&size=10 HTTP/2 RequestVersionOrLower 
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56]
+      Received HTTP/1.1 response 200.
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=41a30c55-7f62-4524-9279-d43519668e7e GET /api/v1/customers user=anonymous status=200 durationMs=12
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9]
+      Proxying to http://localhost:8081/api/v1/dealer/notifications HTTP/2 RequestVersionOrLower 
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9]
+      Proxying to http://localhost:8081/api/v1/vehicles?page=0&size=10 HTTP/2 RequestVersionOrLower 
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9]
+      Proxying to http://localhost:8081/api/v1/catalog/makes HTTP/2 RequestVersionOrLower 
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56]
+      Received HTTP/1.1 response 200.
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56]
+      Received HTTP/1.1 response 200.
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=80e721ec-85d8-4e72-a133-913b0b0b6772 GET /api/v1/dealer/notifications user=anonymous status=200 durationMs=11
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=55c76fce-f3b7-4db4-a876-9a4daa34f9b7 GET /api/v1/catalog/makes user=anonymous status=200 durationMs=10
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9]
+      Proxying to http://localhost:8081/api/v1/dealer/notifications HTTP/2 RequestVersionOrLower 
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9]
+      Proxying to http://localhost:8081/api/v1/catalog/makes HTTP/2 RequestVersionOrLower 
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56]
+      Received HTTP/1.1 response 200.
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=3ce3060a-beba-4c12-80fd-784a6962c666 GET /api/v1/vehicles user=anonymous status=200 durationMs=14
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9]
+      Proxying to http://localhost:8081/api/v1/vehicles?page=0&size=10 HTTP/2 RequestVersionOrLower 
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56]
+      Received HTTP/1.1 response 200.
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=da50e72d-3dc1-44f1-90b4-281567b4c531 GET /api/v1/catalog/makes user=anonymous status=200 durationMs=11
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56]
+      Received HTTP/1.1 response 200.
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=5aee44ee-c53c-47cf-9c78-aa6066dde9db GET /api/v1/dealer/notifications user=anonymous status=200 durationMs=12
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56]
+      Received HTTP/1.1 response 200.
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=ff9dbac5-f205-41cb-97f7-1277ee0a5ac1 GET /api/v1/vehicles user=anonymous status=200 durationMs=13
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=cf77be8e-cbb3-46ad-b1f0-be44403e8063 OPTIONS /api/v1/dealer/notifications user=anonymous status=204 durationMs=0
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=94d2bcf8-1181-42ef-b08e-76edb9d387fd OPTIONS /api/v1/dealer/notifications user=anonymous status=204 durationMs=0
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9]
+      Proxying to http://localhost:8081/api/v1/dealer/notifications HTTP/2 RequestVersionOrLower 
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9]
+      Proxying to http://localhost:8081/api/v1/dealer/notifications?includeResolved=true HTTP/2 RequestVersionOrLower 
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56]
+      Received HTTP/1.1 response 200.
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56]
+      Received HTTP/1.1 response 200.
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=f12364c1-781d-44ac-9723-a4b217ebbe30 GET /api/v1/dealer/notifications user=anonymous status=200 durationMs=13
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=ff50e5bd-76a8-470e-b741-06192394396a GET /api/v1/dealer/notifications user=anonymous status=200 durationMs=11
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9]
+      Proxying to http://localhost:8081/api/v1/dealer/notifications HTTP/2 RequestVersionOrLower 
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9]
+      Proxying to http://localhost:8081/api/v1/dealer/notifications?includeResolved=true HTTP/2 RequestVersionOrLower 
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56]
+      Received HTTP/1.1 response 200.
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56]
+      Received HTTP/1.1 response 200.
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=5a3b66a0-7647-494d-913f-11afc88cb2be GET /api/v1/dealer/notifications user=anonymous status=200 durationMs=13
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=c2bbbd64-277f-4c2a-a3c5-c55fd4082bbe GET /api/v1/dealer/notifications user=anonymous status=200 durationMs=13
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=4448dd73-e8c9-4a0b-8510-d2b889570953 OPTIONS /api/v1/dealer/notifications user=anonymous status=204 durationMs=0
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9]
+      Proxying to http://localhost:8081/api/v1/dealer/notifications HTTP/2 RequestVersionOrLower 
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56]
+      Received HTTP/1.1 response 200.
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=82df6940-fae6-419a-808d-25c755ad7613 GET /api/v1/dealer/notifications user=anonymous status=200 durationMs=39
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9]
+      Proxying to http://localhost:8081/api/v1/dealer/notifications HTTP/2 RequestVersionOrLower 
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56]
+      Received HTTP/1.1 response 200.
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=740d1afa-2e68-44ed-900e-ecb98968f970 GET /api/v1/dealer/notifications user=anonymous status=200 durationMs=20
+info: System.Net.Http.HttpClient.health.LogicalHandler[100]
+      Start processing HTTP request GET http://localhost:8081/actuator/release
+info: System.Net.Http.HttpClient.health.ClientHandler[100]
+      Sending HTTP request GET http://localhost:8081/actuator/release
+info: System.Net.Http.HttpClient.health.ClientHandler[101]
+      Received HTTP response headers after 160.8344ms - 200
+info: System.Net.Http.HttpClient.health.LogicalHandler[101]
+      End processing HTTP request after 172.3251ms - 200
+info: System.Net.Http.HttpClient.health.LogicalHandler[100]
+      Start processing HTTP request GET http://localhost:8082/actuator/release
+info: System.Net.Http.HttpClient.health.ClientHandler[100]
+      Sending HTTP request GET http://localhost:8082/actuator/release
+info: System.Net.Http.HttpClient.health.ClientHandler[101]
+      Received HTTP response headers after 42.4276ms - 200
+info: System.Net.Http.HttpClient.health.LogicalHandler[101]
+      End processing HTTP request after 42.8885ms - 200
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=56b4553e-3f9a-43e7-b5ff-7ef2dd04eb71 GET /actuator/release user=anonymous status=200 durationMs=235
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=aa8f8d2d-1be8-48ee-ace2-134fcee97c1c OPTIONS /api/v1/auth/google user=anonymous status=204 durationMs=0
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9]
+      Proxying to http://localhost:8081/api/v1/auth/google HTTP/2 RequestVersionOrLower 
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56]
+      Received HTTP/1.1 response 200.
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=93868f5f-a0f1-4cc8-b537-1f47d49acfe2 POST /api/v1/auth/google user=anonymous status=200 durationMs=820
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=212109e9-30c0-4e72-b461-6ca0b67598da OPTIONS /api/v1/me user=anonymous status=204 durationMs=0
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9]
+      Proxying to http://localhost:8081/api/v1/me HTTP/2 RequestVersionOrLower 
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56]
+      Received HTTP/1.1 response 200.
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=ecb5efb2-9fe3-4641-a243-50e707900891 GET /api/v1/me user=anonymous status=200 durationMs=21
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=c4ddd791-303a-4e6c-becc-2cbd596bae74 OPTIONS /api/v1/dealer/notifications user=anonymous status=204 durationMs=0
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=bf713c66-4151-49b3-8493-1db5a56c4379 OPTIONS /api/v1/vehicles user=anonymous status=204 durationMs=0
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=46d2bc87-1e3c-4050-9500-55ec62056c2d OPTIONS /api/v1/dealer/notifications user=anonymous status=204 durationMs=0
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=46fa0a63-0db2-4bec-b321-62e1b9ea10a8 OPTIONS /api/v1/catalog/makes user=anonymous status=204 durationMs=0
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=2e7087f7-d52f-4d00-9f69-de6f643b3dfa OPTIONS /api/v1/vehicles user=anonymous status=204 durationMs=0
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=46482593-75e3-4736-80d5-b82978cdbb65 OPTIONS /api/v1/catalog/makes user=anonymous status=204 durationMs=0
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9]
+      Proxying to http://localhost:8081/api/v1/dealer/notifications HTTP/2 RequestVersionOrLower 
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9]
+      Proxying to http://localhost:8081/api/v1/vehicles?page=0&size=10 HTTP/2 RequestVersionOrLower 
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9]
+      Proxying to http://localhost:8081/api/v1/catalog/makes HTTP/2 RequestVersionOrLower 
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56]
+      Received HTTP/1.1 response 200.
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=62b60845-a32a-4466-af39-28cd6a3ff580 GET /api/v1/dealer/notifications user=anonymous status=200 durationMs=41
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9]
+      Proxying to http://localhost:8081/api/v1/dealer/notifications HTTP/2 RequestVersionOrLower 
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56]
+      Received HTTP/1.1 response 200.
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=70f46049-fd09-4991-90c7-8c6f6b7e92e7 GET /api/v1/catalog/makes user=anonymous status=200 durationMs=42
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9]
+      Proxying to http://localhost:8081/api/v1/catalog/makes HTTP/2 RequestVersionOrLower 
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56]
+      Received HTTP/1.1 response 200.
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=3bfe7b0e-78eb-456d-afec-683df89f2aae GET /api/v1/vehicles user=anonymous status=200 durationMs=46
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9]
+      Proxying to http://localhost:8081/api/v1/vehicles?page=0&size=10 HTTP/2 RequestVersionOrLower 
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56]
+      Received HTTP/1.1 response 200.
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=b22fd307-6202-45b1-beb7-614590faef3c GET /api/v1/dealer/notifications user=anonymous status=200 durationMs=13
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56]
+      Received HTTP/1.1 response 200.
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=16abbc85-724a-4040-8a6c-77cfc7e493c2 GET /api/v1/catalog/makes user=anonymous status=200 durationMs=11
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56]
+      Received HTTP/1.1 response 200.
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=212aacb6-1a9e-4499-883f-e17470830a02 GET /api/v1/vehicles user=anonymous status=200 durationMs=12
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=cc3d04f4-b24e-444f-a334-268f7b1e1bd4 OPTIONS /api/v1/dealer/notifications user=anonymous status=204 durationMs=0
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9]
+      Proxying to http://localhost:8081/api/v1/dealer/notifications HTTP/2 RequestVersionOrLower 
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56]
+      Received HTTP/1.1 response 200.
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=33c81701-e694-486a-805c-31e42adcee00 GET /api/v1/dealer/notifications user=anonymous status=200 durationMs=84
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=cf09cd48-7434-4ebc-bf45-0a4ef2767765 OPTIONS /api/v1/dealer/notifications user=anonymous status=204 durationMs=0
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9]
+      Proxying to http://localhost:8081/api/v1/dealer/notifications HTTP/2 RequestVersionOrLower 
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56]
+      Received HTTP/1.1 response 200.
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=95e6f6a2-252f-4689-9bac-2765c382370d GET /api/v1/dealer/notifications user=anonymous status=200 durationMs=49
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=637382b5-3b99-41aa-b0eb-a7830dac1c5f OPTIONS /api/v1/dealer/notifications user=anonymous status=204 durationMs=0
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9]
+      Proxying to http://localhost:8081/api/v1/dealer/notifications HTTP/2 RequestVersionOrLower 
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56]
+      Received HTTP/1.1 response 200.
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=3d3964fb-6e93-484b-8b16-dd6fe48d8f58 GET /api/v1/dealer/notifications user=anonymous status=200 durationMs=46
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=13fdfaf3-98c8-449c-ad60-9284d0a30d6c OPTIONS /api/v1/dealer/notifications user=anonymous status=204 durationMs=0
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9]
+      Proxying to http://localhost:8081/api/v1/dealer/notifications HTTP/2 RequestVersionOrLower 
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56]
+      Received HTTP/1.1 response 200.
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=fd3d451a-8d17-4ca6-90cd-57ee49fc2b1d GET /api/v1/dealer/notifications user=anonymous status=200 durationMs=94
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=b88ae6dd-c25f-43f6-891b-8944d4301e60 OPTIONS /api/v1/dealer/notifications user=anonymous status=204 durationMs=1
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9]
+      Proxying to http://localhost:8081/api/v1/dealer/notifications HTTP/2 RequestVersionOrLower 
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56]
+      Received HTTP/1.1 response 200.
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=37085e5d-28b1-4f9b-8011-aeffefdb8664 GET /api/v1/dealer/notifications user=anonymous status=200 durationMs=44
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=827be660-9e68-4a39-b4a1-0b3119903182 OPTIONS /api/v1/dealer/notifications user=anonymous status=204 durationMs=1
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9]
+      Proxying to http://localhost:8081/api/v1/dealer/notifications HTTP/2 RequestVersionOrLower 
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56]
+      Received HTTP/1.1 response 200.
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=0940fae1-012c-424a-bdc9-ffab041ea8da GET /api/v1/dealer/notifications user=anonymous status=200 durationMs=69
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=1fdd7ece-833a-42dd-ad69-82ef4484a7fa OPTIONS /api/v1/customers user=anonymous status=204 durationMs=0
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=d995c6e5-7224-43d3-af33-58d48bb21c18 OPTIONS /api/v1/customers user=anonymous status=204 durationMs=0
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9]
+      Proxying to http://localhost:8081/api/v1/dealer/notifications HTTP/2 RequestVersionOrLower 
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9]
+      Proxying to http://localhost:8081/api/v1/customers?page=0&size=10 HTTP/2 RequestVersionOrLower 
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56]
+      Received HTTP/1.1 response 200.
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=299b2678-df37-47f7-989a-bc6a5c7f8bcd GET /api/v1/dealer/notifications user=anonymous status=200 durationMs=66
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9]
+      Proxying to http://localhost:8081/api/v1/dealer/notifications HTTP/2 RequestVersionOrLower 
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56]
+      Received HTTP/1.1 response 200.
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=11090cfc-58ba-4882-8f3e-ce90b78f5cf6 GET /api/v1/dealer/notifications user=anonymous status=200 durationMs=20
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56]
+      Received HTTP/1.1 response 200.
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=96c3c402-2ea8-43dc-9136-5e0dac08abee GET /api/v1/customers user=anonymous status=200 durationMs=108
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9]
+      Proxying to http://localhost:8081/api/v1/customers?page=0&size=10 HTTP/2 RequestVersionOrLower 
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56]
+      Received HTTP/1.1 response 200.
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=3421f87e-dce7-4254-a29a-041364367680 GET /api/v1/customers user=anonymous status=200 durationMs=18
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9]
+      Proxying to http://localhost:8081/api/v1/dealer/notifications HTTP/2 RequestVersionOrLower 
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=f07ec71f-c053-44ef-85e4-dbc558dc4ca7 OPTIONS /api/v1/leads user=anonymous status=204 durationMs=0
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=45122558-861d-4e0c-8bf6-5139ad4c87d9 OPTIONS /api/v1/members user=anonymous status=204 durationMs=0
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=afbfb459-2a59-450a-8e28-cbf0de587e8c OPTIONS /api/v1/members user=anonymous status=204 durationMs=0
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=86668050-f3d4-42d6-9f44-cf1fa4f20edd OPTIONS /api/v1/leads user=anonymous status=204 durationMs=0
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9]
+      Proxying to http://localhost:8081/api/v1/leads?page=0&size=10 HTTP/2 RequestVersionOrLower 
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9]
+      Proxying to http://localhost:8081/api/v1/members HTTP/2 RequestVersionOrLower 
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56]
+      Received HTTP/1.1 response 200.
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=f234d3da-5ff9-4275-951c-c570a9551af5 GET /api/v1/dealer/notifications user=anonymous status=200 durationMs=35
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9]
+      Proxying to http://localhost:8081/api/v1/dealer/notifications HTTP/2 RequestVersionOrLower 
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56]
+      Received HTTP/1.1 response 200.
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=c4a29e66-99af-4ea2-8b8b-28c92ae5d360 GET /api/v1/members user=anonymous status=200 durationMs=28
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9]
+      Proxying to http://localhost:8081/api/v1/members HTTP/2 RequestVersionOrLower 
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56]
+      Received HTTP/1.1 response 200.
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=28cdd3f7-31bd-4085-a12f-a3e5eaa63c71 GET /api/v1/leads user=anonymous status=200 durationMs=36
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9]
+      Proxying to http://localhost:8081/api/v1/leads?page=0&size=10 HTTP/2 RequestVersionOrLower 
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56]
+      Received HTTP/1.1 response 200.
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=9e6422a1-aeb7-4dae-9017-b18cbf1ada31 GET /api/v1/dealer/notifications user=anonymous status=200 durationMs=15
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56]
+      Received HTTP/1.1 response 200.
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=08a05421-8f64-490b-ba5a-d0d49f3e9017 GET /api/v1/leads user=anonymous status=200 durationMs=12
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56]
+      Received HTTP/1.1 response 200.
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=caeafbba-48a2-4107-8ade-4c4a20708836 GET /api/v1/members user=anonymous status=200 durationMs=15
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9]
+      Proxying to http://localhost:8081/api/v1/dealer/notifications HTTP/2 RequestVersionOrLower 
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=ab702ebb-4c2a-45e2-b53d-cce0a69f4b75 OPTIONS /api/v1/vehicles user=anonymous status=204 durationMs=0
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=027862bb-39f2-4521-a47b-e4731c1d4631 OPTIONS /api/v1/vehicles user=anonymous status=204 durationMs=0
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9]
+      Proxying to http://localhost:8081/api/v1/vehicles?page=0&size=10 HTTP/2 RequestVersionOrLower 
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56]
+      Received HTTP/1.1 response 200.
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=357d3581-7b4f-4b06-b0dd-743d6b6c6449 GET /api/v1/dealer/notifications user=anonymous status=200 durationMs=30
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9]
+      Proxying to http://localhost:8081/api/v1/dealer/notifications HTTP/2 RequestVersionOrLower 
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56]
+      Received HTTP/1.1 response 200.
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=c4f8f43b-8f8e-41df-9c39-f3275269931a GET /api/v1/vehicles user=anonymous status=200 durationMs=32
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9]
+      Proxying to http://localhost:8081/api/v1/vehicles?page=0&size=10 HTTP/2 RequestVersionOrLower 
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56]
+      Received HTTP/1.1 response 200.
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=5f55634b-e4ff-426a-8c35-0a6c7e2c8588 GET /api/v1/dealer/notifications user=anonymous status=200 durationMs=12
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56]
+      Received HTTP/1.1 response 200.
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=4060adaf-66f3-41b8-9d1b-55abe9d78b93 GET /api/v1/vehicles user=anonymous status=200 durationMs=10
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=0ed9397f-0b5c-4cbe-afea-e08a53f8da6d OPTIONS /api/v1/dealer/notifications user=anonymous status=204 durationMs=0
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9]
+      Proxying to http://localhost:8081/api/v1/dealer/notifications HTTP/2 RequestVersionOrLower 
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=3f8298de-9f61-4099-8549-342d8182d96f OPTIONS /api/v1/dealer/notifications user=anonymous status=204 durationMs=0
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9]
+      Proxying to http://localhost:8081/api/v1/dealer/notifications?includeResolved=true HTTP/2 RequestVersionOrLower 
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56]
+      Received HTTP/1.1 response 200.
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56]
+      Received HTTP/1.1 response 200.
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=6fac9b55-b487-416c-84f3-5a3b5f3bff78 GET /api/v1/dealer/notifications user=anonymous status=200 durationMs=15
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=ea6957a8-638a-45e4-95f7-61b9eef1c450 GET /api/v1/dealer/notifications user=anonymous status=200 durationMs=17
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9]
+      Proxying to http://localhost:8081/api/v1/dealer/notifications HTTP/2 RequestVersionOrLower 
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9]
+      Proxying to http://localhost:8081/api/v1/dealer/notifications?includeResolved=true HTTP/2 RequestVersionOrLower 
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56]
+      Received HTTP/1.1 response 200.
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56]
+      Received HTTP/1.1 response 200.
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=1e2e6de9-6ec4-4de5-8d44-9c68911a0d34 GET /api/v1/dealer/notifications user=anonymous status=200 durationMs=9
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=fca18080-56b9-42a6-8b7f-1e9bfa38dc50 GET /api/v1/dealer/notifications user=anonymous status=200 durationMs=10
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=e6246358-6137-4bef-bc8d-9ae71f842b99 OPTIONS /api/v1/vehicles user=anonymous status=204 durationMs=0
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=37c71a9b-b1f3-4097-83b6-b044a2473a37 OPTIONS /api/v1/vehicles user=anonymous status=204 durationMs=0
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=d595a9cc-e7a3-4355-96f2-da153bfa9b1d OPTIONS /api/v1/dealer/notifications user=anonymous status=204 durationMs=0
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=094d9365-f9fa-4604-81e6-dc58906d3828 OPTIONS /api/v1/catalog/makes user=anonymous status=204 durationMs=0
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=7f8e77e0-e7d1-4027-a301-005010de7652 OPTIONS /api/v1/dealer/notifications user=anonymous status=204 durationMs=0
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9]
+      Proxying to http://localhost:8081/api/v1/catalog/makes HTTP/2 RequestVersionOrLower 
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9]
+      Proxying to http://localhost:8081/api/v1/vehicles?page=0&size=10 HTTP/2 RequestVersionOrLower 
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9]
+      Proxying to http://localhost:8081/api/v1/dealer/notifications HTTP/2 RequestVersionOrLower 
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=186ea1a6-488e-4be4-99b7-1b31ab67e268 OPTIONS /api/v1/catalog/makes user=anonymous status=204 durationMs=0
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56]
+      Received HTTP/1.1 response 200.
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=37b54ed2-4d64-4861-b04a-70e741830054 GET /api/v1/catalog/makes user=anonymous status=200 durationMs=174
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9]
+      Proxying to http://localhost:8081/api/v1/catalog/makes HTTP/2 RequestVersionOrLower 
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56]
+      Received HTTP/1.1 response 200.
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=ce11c1b7-9422-40e9-b106-1d51c7d780ad GET /api/v1/dealer/notifications user=anonymous status=200 durationMs=177
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9]
+      Proxying to http://localhost:8081/api/v1/dealer/notifications HTTP/2 RequestVersionOrLower 
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56]
+      Received HTTP/1.1 response 200.
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=2d3a604c-54b7-4e4c-b943-a5ae703bd289 GET /api/v1/vehicles user=anonymous status=200 durationMs=178
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9]
+      Proxying to http://localhost:8081/api/v1/vehicles?page=0&size=10 HTTP/2 RequestVersionOrLower 
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56]
+      Received HTTP/1.1 response 200.
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=6b7da129-7234-49e9-9ec9-428cf890ebf1 GET /api/v1/dealer/notifications user=anonymous status=200 durationMs=34
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56]
+      Received HTTP/1.1 response 200.
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=91c2fef2-21e8-43d0-8492-79cb04f65042 GET /api/v1/catalog/makes user=anonymous status=200 durationMs=41
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56]
+      Received HTTP/1.1 response 200.
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=b79cfdaf-5b9b-410b-8d02-1d1f877e1d61 GET /api/v1/vehicles user=anonymous status=200 durationMs=37
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=b4140315-0495-4aea-8e5f-895cc2606320 OPTIONS /api/v1/customers user=anonymous status=204 durationMs=0
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9]
+      Proxying to http://localhost:8081/api/v1/dealer/notifications HTTP/2 RequestVersionOrLower 
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=ab0d66a2-ba39-4967-8de4-7056ecda045c OPTIONS /api/v1/customers user=anonymous status=204 durationMs=0
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9]
+      Proxying to http://localhost:8081/api/v1/customers?page=0&size=10 HTTP/2 RequestVersionOrLower 
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56]
+      Received HTTP/1.1 response 200.
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=3d428f79-6fd0-4655-b1ce-c68d179ef975 GET /api/v1/dealer/notifications user=anonymous status=200 durationMs=46
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9]
+      Proxying to http://localhost:8081/api/v1/dealer/notifications HTTP/2 RequestVersionOrLower 
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56]
+      Received HTTP/1.1 response 200.
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=407ba380-5df4-4b88-8ccb-ec715f862298 GET /api/v1/customers user=anonymous status=200 durationMs=35
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9]
+      Proxying to http://localhost:8081/api/v1/customers?page=0&size=10 HTTP/2 RequestVersionOrLower 
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56]
+      Received HTTP/1.1 response 200.
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=8fcc98a0-b415-4d42-a8cc-25009bd05e68 GET /api/v1/dealer/notifications user=anonymous status=200 durationMs=48
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56]
+      Received HTTP/1.1 response 200.
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=df2a19b8-1abf-41a6-95da-1cfebe04d9d1 GET /api/v1/customers user=anonymous status=200 durationMs=77
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=23125435-c47f-498c-85f1-95387d4188a8 OPTIONS /api/v1/leads user=anonymous status=204 durationMs=0
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=ceebe9d8-42e3-4af1-95a8-bd04e0d044e2 OPTIONS /api/v1/leads user=anonymous status=204 durationMs=0
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=f41d7d58-aabe-43c1-9d2f-2da7bff5361f OPTIONS /api/v1/members user=anonymous status=204 durationMs=0
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=f013d45b-3292-4774-9b89-2ec9b06bb0dc OPTIONS /api/v1/members user=anonymous status=204 durationMs=0
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9]
+      Proxying to http://localhost:8081/api/v1/leads?page=0&size=10 HTTP/2 RequestVersionOrLower 
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9]
+      Proxying to http://localhost:8081/api/v1/dealer/notifications HTTP/2 RequestVersionOrLower 
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9]
+      Proxying to http://localhost:8081/api/v1/members HTTP/2 RequestVersionOrLower 
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56]
+      Received HTTP/1.1 response 200.
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=b763408a-70a7-466a-a956-c8f96650aa34 GET /api/v1/dealer/notifications user=anonymous status=200 durationMs=104
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9]
+      Proxying to http://localhost:8081/api/v1/dealer/notifications HTTP/2 RequestVersionOrLower 
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56]
+      Received HTTP/1.1 response 200.
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=5f4cc87a-f1ee-4c5d-9954-ff4c7391c625 GET /api/v1/leads user=anonymous status=200 durationMs=108
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9]
+      Proxying to http://localhost:8081/api/v1/leads?page=0&size=10 HTTP/2 RequestVersionOrLower 
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56]
+      Received HTTP/1.1 response 200.
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=7f02b8e4-476d-491d-9f07-50838b3c6122 GET /api/v1/members user=anonymous status=200 durationMs=148
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9]
+      Proxying to http://localhost:8081/api/v1/members HTTP/2 RequestVersionOrLower 
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56]
+      Received HTTP/1.1 response 200.
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=6c55eb36-3154-4c00-9556-77a187a19762 GET /api/v1/dealer/notifications user=anonymous status=200 durationMs=78
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56]
+      Received HTTP/1.1 response 200.
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=c584eac1-f37d-44da-8404-182ad539222e GET /api/v1/members user=anonymous status=200 durationMs=146
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56]
+      Received HTTP/1.1 response 200.
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=975205a4-b012-4bc0-8ac7-01ff93c412ca GET /api/v1/leads user=anonymous status=200 durationMs=193
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9]
+      Proxying to http://localhost:8081/api/v1/dealer/notifications HTTP/2 RequestVersionOrLower 
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9]
+      Proxying to http://localhost:8081/api/v1/vehicles?page=0&size=10 HTTP/2 RequestVersionOrLower 
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56]
+      Received HTTP/1.1 response 200.
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=2e3c9246-a022-42d0-89b6-7eaa4cafbf5d GET /api/v1/dealer/notifications user=anonymous status=200 durationMs=42
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9]
+      Proxying to http://localhost:8081/api/v1/dealer/notifications HTTP/2 RequestVersionOrLower 
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56]
+      Received HTTP/1.1 response 200.
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=3d5bd529-bc2d-4736-89de-ef6dfcd16c8a GET /api/v1/vehicles user=anonymous status=200 durationMs=50
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9]
+      Proxying to http://localhost:8081/api/v1/vehicles?page=0&size=10 HTTP/2 RequestVersionOrLower 
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56]
+      Received HTTP/1.1 response 200.
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=0f9bcdbb-c38a-44b6-bc08-88ef26730e42 GET /api/v1/dealer/notifications user=anonymous status=200 durationMs=19
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56]
+      Received HTTP/1.1 response 200.
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=c0dcc2da-0ded-4e7b-a060-80ad16c67765 GET /api/v1/vehicles user=anonymous status=200 durationMs=15
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=03cdfb7d-ed8a-4a4c-880b-77725dc6dc20 OPTIONS /api/v1/dealer/notifications user=anonymous status=204 durationMs=0
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9]
+      Proxying to http://localhost:8081/api/v1/dealer/notifications HTTP/2 RequestVersionOrLower 
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=cf9f152c-0557-4d26-84cf-e05d25e3c4e3 OPTIONS /api/v1/dealer/notifications user=anonymous status=204 durationMs=0
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9]
+      Proxying to http://localhost:8081/api/v1/dealer/notifications?includeResolved=true HTTP/2 RequestVersionOrLower 
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56]
+      Received HTTP/1.1 response 200.
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56]
+      Received HTTP/1.1 response 200.
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=42e60e54-8a8f-4bfd-b97f-70f7b89ec1cf GET /api/v1/dealer/notifications user=anonymous status=200 durationMs=19
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=b78c32fe-1671-446c-9120-fcd2823f0d7f GET /api/v1/dealer/notifications user=anonymous status=200 durationMs=18
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9]
+      Proxying to http://localhost:8081/api/v1/dealer/notifications?includeResolved=true HTTP/2 RequestVersionOrLower 
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9]
+      Proxying to http://localhost:8081/api/v1/dealer/notifications HTTP/2 RequestVersionOrLower 
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56]
+      Received HTTP/1.1 response 200.
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56]
+      Received HTTP/1.1 response 200.
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=f7ff77b4-74f6-4a50-a64a-7b2873729d28 GET /api/v1/dealer/notifications user=anonymous status=200 durationMs=10
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=7dcc14bf-3c42-43db-8230-355489403cb9 GET /api/v1/dealer/notifications user=anonymous status=200 durationMs=10
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=a6f9f239-b473-428b-82dd-1c379e4c3750 OPTIONS /api/v1/dealer/notifications user=anonymous status=204 durationMs=0
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9]
+      Proxying to http://localhost:8081/api/v1/dealer/notifications HTTP/2 RequestVersionOrLower 
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56]
+      Received HTTP/1.1 response 200.
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=27dc66b9-2de8-4d36-bda3-3bbda2e931a5 GET /api/v1/dealer/notifications user=anonymous status=200 durationMs=72
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=e49f47f0-27d1-46ec-876b-61efdea131c2 OPTIONS /api/v1/dealer/notifications user=anonymous status=204 durationMs=0
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9]
+      Proxying to http://localhost:8081/api/v1/dealer/notifications HTTP/2 RequestVersionOrLower 
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56]
+      Received HTTP/1.1 response 200.
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=6a20f113-794b-4d0b-8595-4f71e4e21a51 GET /api/v1/dealer/notifications user=anonymous status=200 durationMs=60
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=e1e7a626-e10e-48ed-bf5e-b0e77d64cada OPTIONS /api/v1/dealer/notifications user=anonymous status=204 durationMs=0
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9]
+      Proxying to http://localhost:8081/api/v1/dealer/notifications HTTP/2 RequestVersionOrLower 
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56]
+      Received HTTP/1.1 response 200.
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=947ca9fb-a65b-4a38-95c0-47ab74d2e987 GET /api/v1/dealer/notifications user=anonymous status=200 durationMs=27
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9]
+      Proxying to http://localhost:8081/api/v1/dealer/notifications HTTP/2 RequestVersionOrLower 
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56]
+      Received HTTP/1.1 response 200.
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=00f81f13-2ac1-43e3-9f6d-497bea26319f GET /api/v1/dealer/notifications user=anonymous status=200 durationMs=30
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=027d7b3a-570c-4f73-bd3f-413381467962 OPTIONS /api/v1/dealer/notifications user=anonymous status=204 durationMs=0
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9]
+      Proxying to http://localhost:8081/api/v1/dealer/notifications HTTP/2 RequestVersionOrLower 
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56]
+      Received HTTP/1.1 response 200.
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=c78a8787-851c-4e59-89bd-425a78f670a2 GET /api/v1/dealer/notifications user=anonymous status=200 durationMs=115
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=ff97543f-1371-4bc8-9330-44a368740a78 OPTIONS /api/v1/dealer/notifications user=anonymous status=204 durationMs=0
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[9]
+      Proxying to http://localhost:8081/api/v1/dealer/notifications HTTP/2 RequestVersionOrLower 
+info: Yarp.ReverseProxy.Forwarder.HttpForwarder[56]
+      Received HTTP/1.1 response 200.
+info: DealerOps.Gateway.Middleware.RequestLoggingMiddleware[0]
+      requestId=0c859bca-e7b1-4524-ba55-aff9b3c2ae30 GET /api/v1/dealer/notifications user=anonymous status=200 durationMs=121

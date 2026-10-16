@@ -10,11 +10,17 @@ export type Notification = {
   kind: string;
   createdAt: string;
   payload: Record<string, unknown>;
+  resolvedAt: string | null;
+  resolvedBy: string | null;
+  resolvedAction: string | null;
 };
 
 export const notificationsApi = {
-  list: () =>
-    http.get<Notification[]>('/api/v1/dealer/notifications').then(r => r.data),
+  /** Unread inbox (default) or the full history when includeResolved is true. */
+  list: (includeResolved = false) =>
+    http.get<Notification[]>('/api/v1/dealer/notifications',
+      { params: includeResolved ? { includeResolved: true } : {} })
+      .then(r => r.data),
 };
 
 /** Narrowed payload for kind=JOIN_REQUEST. */

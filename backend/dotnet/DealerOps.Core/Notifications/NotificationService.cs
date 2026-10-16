@@ -67,12 +67,11 @@ public class NotificationService
         }
     }
 
-    public List<NotificationEntity> ListUnresolved()
+    public List<NotificationEntity> List(bool includeResolved)
     {
         var tenant = TenantGuard.RequireTenantId();
-        return _db.Notifications
-            .Where(n => n.DealerId == tenant && n.ResolvedAt == null)
-            .OrderByDescending(n => n.Id)
-            .ToList();
+        var query = _db.Notifications.Where(n => n.DealerId == tenant);
+        if (!includeResolved) query = query.Where(n => n.ResolvedAt == null);
+        return query.OrderByDescending(n => n.Id).ToList();
     }
 }

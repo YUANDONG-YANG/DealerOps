@@ -9,4 +9,10 @@ public record MeResponse(
     string? DealerContactPhone,
     string? DealerContactEmail,
     string? DealerContactAddress,
-    string? DealerLogoDataUrl);
+    string? DealerLogoDataUrl,
+    // Caller's own contact + how they got into the system. SignInMethod is "google" when the
+    // account was provisioned without a password hash and "password" otherwise; the frontend
+    // uses it on the profile page to tell the user which sign-in to keep working.
+    string? Email,
+    string? Phone,
+    string SignInMethod);
