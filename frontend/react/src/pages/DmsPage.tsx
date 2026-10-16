@@ -18,6 +18,7 @@ import { fieldErrorsOf, messageOf } from '../api/http';
 
 const SOURCES = ['TRADE_IN', 'AUCTION', 'PRIVATE_PURCHASE', 'OTHER'] as const;
 const CONDITIONS = ['CERTIFIED', 'AS_IS', 'UNFIT', 'IRREPARABLE'] as const;
+const BODY_TYPES = ['SEDAN', 'SUV', 'TRUCK', 'MOTORCYCLE', 'COUPE', 'HATCHBACK', 'VAN', 'OTHER'] as const;
 
 function enumLabel(v: string) {
   const s = String(v || '').split('_').join(' ').toLowerCase();
@@ -65,22 +66,23 @@ function validateForm(form: VehicleForm, isSold: boolean): Validation {
   }
   if (!form.source) e.source = 'Required';
   if (!form.conditionCode) e.conditionCode = 'Required';
+  if (!form.bodyType) e.bodyType = 'Required';
   return e;
 }
 
 interface VehicleForm {
   make: string; model: string; modelYear: string; vin: string;
   source: string; purchaseCost: string; addedOn: string;
-  conditionCode: string; repairCost: string; carfaxUrl: string;
+  conditionCode: string; bodyType: string; repairCost: string; carfaxUrl: string;
 }
 
 interface Filters {
   make: string; model: string; modelYear: string;
-  q: string; status: string; condition: string;
+  q: string; status: string; condition: string; bodyType: string;
 }
 
 function blankFilters(): Filters {
-  return { make: '', model: '', modelYear: '', q: '', status: '', condition: '' };
+  return { make: '', model: '', modelYear: '', q: '', status: '', condition: '', bodyType: '' };
 }
 
 // Filters the user types rather than picks; they are held as a draft until typing pauses.
@@ -96,21 +98,21 @@ function draftsPending(drafts: TextFilters, filters: Filters) {
 
 const ALL_TOUCHED: Record<string, boolean> = {
   make: true, model: true, modelYear: true, vin: true, source: true,
-  purchaseCost: true, addedOn: true, conditionCode: true, repairCost: true, carfaxUrl: true,
+  purchaseCost: true, addedOn: true, conditionCode: true, bodyType: true, repairCost: true, carfaxUrl: true,
 };
 
 // Typed filters fire a request only after the user pauses typing (UI-20).
 const FILTER_DEBOUNCE_MS = 350;
 
 function blankForm(): VehicleForm {
-  return { make: '', model: '', modelYear: '', vin: '', source: 'AUCTION', purchaseCost: '', addedOn: '', conditionCode: 'AS_IS', repairCost: '', carfaxUrl: '' };
+  return { make: '', model: '', modelYear: '', vin: '', source: 'AUCTION', purchaseCost: '', addedOn: '', conditionCode: 'AS_IS', bodyType: 'SEDAN', repairCost: '', carfaxUrl: '' };
 }
 
 function vehicleToForm(data: any): VehicleForm {
   return {
     make: data.make ?? '', model: data.model ?? '', modelYear: data.modelYear != null ? String(data.modelYear) : '',
     vin: data.vin ?? '', source: data.source ?? 'AUCTION', purchaseCost: data.purchaseCost != null ? String(data.purchaseCost) : '',
-    addedOn: data.addedOn ?? '', conditionCode: data.conditionCode ?? 'AS_IS',
+    addedOn: data.addedOn ?? '', conditionCode: data.conditionCode ?? 'AS_IS', bodyType: data.bodyType ?? 'OTHER',
     repairCost: data.repairCost != null ? String(data.repairCost) : '', carfaxUrl: data.carfaxUrl ?? '',
   };
 }
@@ -476,6 +478,7 @@ export default function DmsPage() {
   const columns = [
     { key: 'ymm', label: 'Year Make Model', render: (row: any) => `${row.modelYear} ${row.make} ${row.model}` },
     { key: 'vin', label: 'VIN' },
+    { key: 'bodyType', label: 'Body', render: (row: any) => enumLabel(row.bodyType) },
     { key: 'source', label: 'Source', render: (row: any) => enumLabel(row.source) },
     { key: 'conditionCode', label: 'Condition', render: (row: any) => enumLabel(row.conditionCode) },
     { key: 'purchaseCost', label: 'Cost', render: (row: any) => cad(row.purchaseCost) },
@@ -540,6 +543,10 @@ export default function DmsPage() {
           <select className="select" value={filters.condition} onChange={e => changeFilter({ condition: e.target.value })}>
             <option value="">Condition</option>
             {CONDITIONS.map(c => <option key={c} value={c}>{enumLabel(c)}</option>)}
+          </select>
+          <select className="select" value={filters.bodyType} onChange={e => changeFilter({ bodyType: e.target.value })}>
+            <option value="">Body type</option>
+            {BODY_TYPES.map(b => <option key={b} value={b}>{enumLabel(b)}</option>)}
           </select>
           <button className="btn" onClick={applySearch}>Search</button>
           <button className="btn" onClick={resetFilters}>Reset</button>
@@ -617,6 +624,14 @@ export default function DmsPage() {
               {CONDITIONS.map(v => <option key={v} value={v}>{enumLabel(v)}</option>)}
             </select>
             {(validationErrors.conditionCode || serverErrors.conditionCode) && <div className="form-error">{validationErrors.conditionCode || serverErrors.conditionCode}</div>}
+          </div>
+
+          <div className="form-item">
+            <label className="form-label form-required">Body type</label>
+            <select className="select" value={form.bodyType} onChange={e => updateForm('bodyType', e.target.value, true)} disabled={isSold}>
+              {BODY_TYPES.map(v => <option key={v} value={v}>{enumLabel(v)}</option>)}
+            </select>
+            {(validationErrors.bodyType || serverErrors.bodyType) && <div className="form-error">{validationErrors.bodyType || serverErrors.bodyType}</div>}
           </div>
 
           {isSold && (

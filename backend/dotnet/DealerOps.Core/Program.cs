@@ -200,7 +200,27 @@ using (var scope = app.Services.CreateScope())
     // EnsureCreated does nothing when the table already exists, so new columns added after the
     // first create need an idempotent patch. MySQL 8 rejects IF NOT EXISTS on ADD COLUMN, so
     // the exception for a duplicate column (1060) is swallowed.
-    try { db.Database.ExecuteSqlRaw("ALTER TABLE app_user ADD COLUMN requested_dealer_id BIGINT NULL"); }
+    // Columns added after the first EnsureCreated. Each ALTER is wrapped so an already-added
+    // column is a no-op; MySQL 8 does not support ADD COLUMN IF NOT EXISTS cleanly.
+    foreach (var column in new[]
+    {
+        "ADD COLUMN requested_dealer_id BIGINT NULL",
+        "ADD COLUMN google_sub VARCHAR(64) NULL",
+        "ADD COLUMN given_name VARCHAR(120) NULL",
+        "ADD COLUMN family_name VARCHAR(120) NULL",
+        "ADD COLUMN avatar_url TEXT NULL",
+        "ADD COLUMN locale VARCHAR(16) NULL",
+    })
+    {
+        try { db.Database.ExecuteSqlRaw($"ALTER TABLE app_user {column}"); }
+        catch (Exception ex) when (
+            ex.ToString().Contains("Duplicate column", StringComparison.OrdinalIgnoreCase)
+            || ex.ToString().Contains("1060", StringComparison.Ordinal))
+        { /* already present */ }
+    }
+    // Existing rows get the catch-all body type so the NOT NULL column can be added without a
+    // separate backfill step; the add-vehicle form chooses an explicit value for new rows.
+    try { db.Database.ExecuteSqlRaw("ALTER TABLE vehicle ADD COLUMN body_type VARCHAR(16) NOT NULL DEFAULT 'other'"); }
     catch (Exception ex) when (
         ex.ToString().Contains("Duplicate column", StringComparison.OrdinalIgnoreCase)
         || ex.ToString().Contains("1060", StringComparison.Ordinal))

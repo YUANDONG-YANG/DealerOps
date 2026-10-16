@@ -1,8 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { joinRequestsApi } from '../api/joinRequests';
-import { notificationsApi, type Notification, type JoinRequestPayload } from '../api/notifications';
-import { messageOf } from '../api/http';
+import {
+  JOIN_REQUESTS_CHANGED,
+  emitJoinRequestsChanged,
+  notificationsApi,
+  type JoinRequestPayload,
+  type Notification,
+} from '../api/notifications';
+import { codeOf, messageOf, statusOf } from '../api/http';
 
 type JoinRequestNotification = Notification & { kind: 'JOIN_REQUEST'; payload: JoinRequestPayload };
 
@@ -42,7 +48,12 @@ export default function JoinRequestInbox() {
   useEffect(() => {
     void load();
     const timer = window.setInterval(() => void load(), POLL_MS);
-    return () => window.clearInterval(timer);
+    const onChanged = () => void load();
+    window.addEventListener(JOIN_REQUESTS_CHANGED, onChanged);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener(JOIN_REQUESTS_CHANGED, onChanged);
+    };
   }, []);
 
   // Close the popover when the next click lands outside it, so it doesn't trap focus.
@@ -62,12 +73,16 @@ export default function JoinRequestInbox() {
     try {
       if (verb === 'approve') await joinRequestsApi.approve(username);
       else await joinRequestsApi.reject(username);
-      await load();
     } catch (err) {
-      setError(messageOf(err, `Could not ${verb} the request.`));
+      // The request is already resolved (by another admin or in the Team page): drop it from
+      // the list silently instead of surfacing an error for an action that no longer applies.
+      const gone = statusOf(err) === 404 || codeOf(err) === 'NOT_FOUND';
+      if (!gone) setError(messageOf(err, `Could not ${verb} the request.`));
     } finally {
       setActing(null);
     }
+    await load();
+    emitJoinRequestsChanged();
   }
 
   const count = rows.length;
@@ -104,11 +119,7 @@ export default function JoinRequestInbox() {
               {rows.map(r => (
                 <li key={r.id} className="inbox-item">
                   <div>
-                    <div><strong>{r.payload.displayName}</strong> asked to join</div>
-                    <div className="muted">{r.payload.email ?? r.payload.username}</div>
-                    <div className="muted" style={{ fontSize: 12 }}>
-                      {new Date(r.createdAt).toLocaleString()}
-                    </div>
+                    <strong>{r.payload.displayName}</strong>
                   </div>
                   <div className="inbox-actions">
                     <button

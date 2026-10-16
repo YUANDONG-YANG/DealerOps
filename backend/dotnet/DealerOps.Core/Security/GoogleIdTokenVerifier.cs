@@ -7,8 +7,20 @@ using Microsoft.IdentityModel.Tokens;
 
 namespace DealerOps.Core.Security;
 
-/// <summary>The part of a verified Google ID token this application acts on.</summary>
-public record GoogleIdentity(string Subject, string Email, string? Name);
+/// <summary>
+/// The part of a verified Google ID token this application acts on. Everything here comes
+/// from the default <c>openid email profile</c> scope — no extra OAuth consent, no review.
+/// <see cref="Subject"/> is Google's stable per-user id (the <c>sub</c> claim); the rest are
+/// optional because older Google accounts can be missing a given/family split or a picture.
+/// </summary>
+public record GoogleIdentity(
+    string Subject,
+    string Email,
+    string? Name,
+    string? GivenName,
+    string? FamilyName,
+    string? Picture,
+    string? Locale);
 
 /// <summary>
 /// Verifies a Google Identity Services ID token server-side. Google only proves which email
@@ -99,7 +111,14 @@ public class GoogleIdTokenVerifier
         if (string.IsNullOrWhiteSpace(subject))
             throw Rejected();
 
-        return new GoogleIdentity(subject, email, principal.FindFirstValue("name"));
+        return new GoogleIdentity(
+            subject,
+            email,
+            principal.FindFirstValue("name"),
+            principal.FindFirstValue("given_name"),
+            principal.FindFirstValue("family_name"),
+            principal.FindFirstValue("picture"),
+            principal.FindFirstValue("locale"));
     }
 
     // One message for every rejection, so a caller cannot probe which part of the token failed.

@@ -29,3 +29,11 @@ export type JoinRequestPayload = {
   displayName: string;
   email: string | null;
 };
+
+// Fires whenever the inbox or the Team page changes a join request so that whichever other
+// view is open refreshes without the user having to reload or switch tabs.
+export const JOIN_REQUESTS_CHANGED = 'dealerops:join-requests-changed';
+
+export function emitJoinRequestsChanged() {
+  window.dispatchEvent(new CustomEvent(JOIN_REQUESTS_CHANGED));
+}

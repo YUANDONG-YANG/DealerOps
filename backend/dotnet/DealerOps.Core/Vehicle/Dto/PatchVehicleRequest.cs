@@ -17,6 +17,7 @@ public record PatchVehicleRequest(
     [Range(0, double.MaxValue)] decimal? PurchaseCost,
     DateOnly? AddedOn,
     ConditionCode? ConditionCode,
+    VehicleBodyType? BodyType,
     [Range(0, double.MaxValue)] decimal? RepairCost,
     [MaxLength(500)]
     [RegularExpression(@"(?i)^https?://\S+$", ErrorMessage = "must be an http(s) URL")]

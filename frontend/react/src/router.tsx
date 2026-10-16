@@ -20,6 +20,7 @@ import CrmPage from './pages/CrmPage';
 import LeadsPage from './pages/LeadsPage';
 import AdsPage from './pages/AdsPage';
 import TeamPage from './pages/TeamPage';
+import ProfilePage from './pages/ProfilePage';
 import NoAccessPage from './pages/NoAccessPage';
 
 /** The profile is loaded once per signed-in session, not on every navigation. */
@@ -121,6 +122,8 @@ export default function AppRoutes() {
       <Route path="/register" element={<RegisterPage />} />
 
       <Route element={<AuthGuard />}>
+        {/* Profile is accessible to both roles; it's about the signed-in user, not tenant data. */}
+        <Route path="/profile" element={<ProfilePage />} />
         <Route element={<AdminGuard />}>
           <Route path="/admin" element={<AdminPage />} />
         </Route>

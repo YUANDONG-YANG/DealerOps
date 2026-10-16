@@ -45,6 +45,9 @@ public class VehicleEntity : ITenantOwned
     [Column("condition_code")]
     public ConditionCode ConditionCode { get; set; }
 
+    [Column("body_type")]
+    public VehicleBodyType BodyType { get; set; } = VehicleBodyType.Other;
+
     [Column("repair_cost", TypeName = "decimal(12,2)")]
     public decimal? RepairCost { get; set; }
 

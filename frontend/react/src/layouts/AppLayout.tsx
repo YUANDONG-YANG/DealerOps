@@ -1,7 +1,6 @@
-import { useState, type ReactNode } from 'react';
+import { type ReactNode } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useSessionStore } from '../store/session';
-import { signOut } from '../auth/login';
 import JoinRequestInbox from '../components/JoinRequestInbox';
 
 const icons: Record<string, string> = {
@@ -16,7 +15,6 @@ const icons: Record<string, string> = {
 export default function AppLayout({ children }: { children: ReactNode }) {
   const session = useSessionStore();
   const location = useLocation();
-  const [profileOpen, setProfileOpen] = useState(false);
   const isAdmin = session.role === 'Platform.Admin';
   const name = session.displayName || session.username || 'User';
   const initials = name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join('');
@@ -65,41 +63,21 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 12 }}>
             {!isAdmin && session.hasBusinessAccess && <JoinRequestInbox />}
           </div>
-          <div
-            className="user-chip"
-            onClick={() => setProfileOpen((open) => !open)}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter' || event.key === ' ') setProfileOpen((open) => !open);
-            }}
-            role="button"
-            tabIndex={0}
-            aria-expanded={profileOpen}
-            style={{ position: 'relative' }}
+          {/* Clicking the name/avatar goes to /profile, where the user can view their sign-in
+              method, edit their details, and sign out or delete the account. */}
+          <Link
+            to="/profile"
+            className={`user-chip ${location.pathname === '/profile' ? 'active' : ''}`}
+            aria-label="Open profile"
           >
-            <div className="user-avatar">{initials}</div>
-            <span>{name}</span>
-            <span className="profile-chevron" aria-hidden="true">⌄</span>
-            {profileOpen && (
-              <div className="user-dropdown" onClick={(event) => event.stopPropagation()}>
-                <div className="profile-card">
-                  <div className="user-avatar user-avatar-lg">{initials}</div>
-                  <div>
-                    <strong>{name}</strong>
-                    <div className="muted">@{session.username}</div>
-                    <div className="muted">{isAdmin ? 'Platform Admin' : session.role}</div>
-                    {!isAdmin && (
-                      <>
-                        <div className="muted">{session.dealerLegalName || 'No dealership'}</div>
-                        {session.dealerContactEmail && <div className="muted">{session.dealerContactEmail}</div>}
-                        {session.dealerContactPhone && <div className="muted">{session.dealerContactPhone}</div>}
-                      </>
-                    )}
-                  </div>
-                </div>
-                <button className="dropdown-action" onClick={() => signOut()}>Sign out</button>
-              </div>
+            {session.avatarUrl ? (
+              <img src={session.avatarUrl} alt="" referrerPolicy="no-referrer"
+                className="user-avatar" style={{ objectFit: 'cover' }} />
+            ) : (
+              <div className="user-avatar">{initials}</div>
             )}
-          </div>
+            <span>{name}</span>
+          </Link>
         </header>
         <main className="app-main">{children}</main>
       </div>

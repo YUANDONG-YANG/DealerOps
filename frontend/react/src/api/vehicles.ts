@@ -19,6 +19,7 @@ function vehicleWriteBody(b: any) {
     purchaseCost: b.purchaseCost === '' || b.purchaseCost == null ? b.purchaseCost : Number(b.purchaseCost),
     addedOn: b.addedOn,
     conditionCode: b.conditionCode,
+    bodyType: b.bodyType,
     repairCost: b.repairCost === '' || b.repairCost == null ? null : Number(b.repairCost),
     carfaxUrl: b.carfaxUrl === '' ? null : b.carfaxUrl,
   };
@@ -30,6 +31,7 @@ export const vehiclesApi = {
     if (p.q) params.q = p.q;
     if (p.status) params.status = p.status;
     if (p.condition) params.condition = p.condition;
+    if (p.bodyType) params.bodyType = p.bodyType;
     if (p.make) params.make = p.make;
     if (p.model) params.model = p.model;
     if (p.modelYear) params.modelYear = p.modelYear;

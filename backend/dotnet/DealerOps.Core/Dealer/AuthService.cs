@@ -101,12 +101,21 @@ public class AuthService
         var email = LoginIdentifiers.Email(identity.Email);
         var requestedDealerId = request.DealerId;
 
-        var user = _db.AppUsers.FirstOrDefault(u => u.Email != null && u.Email.ToLower() == email && u.Active);
+        // Prefer Google's stable subject id so an email change (G Suite rename, address move)
+        // keeps the same DealerOps account; fall back to email for accounts created before we
+        // stored sub.
+        var user = _db.AppUsers.FirstOrDefault(u => u.GoogleSub == identity.Subject && u.Active)
+                   ?? _db.AppUsers.FirstOrDefault(u => u.Email != null && u.Email.ToLower() == email && u.Active);
 
         // The platform admin is seeded from the environment and keeps password-only sign-in, so
         // control of its mailbox is not enough to reach the admin console (AUTH-15).
         if (user?.Role == AppRole.PlatformAdmin)
             throw new ApiException(ErrorCode.Forbidden, "Sign in with your password as the platform administrator.");
+
+        // Keep stored Google claims in sync with the latest token on every sign-in, so a user
+        // who updated their photo or name in Google sees it reflected here next request.
+        if (user != null)
+            SyncGoogleIdentity(user, identity);
 
         // Already bound to a dealer: just sign in.
         if (user?.DealerId != null)
@@ -117,7 +126,7 @@ public class AuthService
         {
             RequireActiveDealer(requestedDealerId.Value);
             user = user == null
-                ? CreateUnboundGoogleUser(email, identity.Name, requestedDealerId.Value)
+                ? CreateUnboundGoogleUser(email, identity, requestedDealerId.Value)
                 : SetRequestedDealer(user, requestedDealerId.Value);
             return new GoogleSignInResponse("pending_approval", null);
         }
@@ -130,7 +139,7 @@ public class AuthService
         return new GoogleSignInResponse("needs_dealer", null);
     }
 
-    private AppUserEntity CreateUnboundGoogleUser(string email, string? name, long requestedDealerId)
+    private AppUserEntity CreateUnboundGoogleUser(string email, GoogleIdentity identity, long requestedDealerId)
     {
         var username = AvailableUsername(email);
         var user = new AppUserEntity
@@ -139,13 +148,18 @@ public class AuthService
             // No password hash: Login treats an empty hash as "cannot sign in with a password",
             // so this account can only ever come back through Google.
             PasswordHash = "",
-            DisplayName = AvailableDisplayName(name, username),
+            DisplayName = AvailableDisplayName(identity.Name, username),
             Email = email,
             Phone = null,
             Role = AppRole.DealerUser,
             DealerId = null,
             RequestedDealerId = requestedDealerId,
-            Active = true
+            Active = true,
+            GoogleSub = identity.Subject,
+            GivenName = Truncate(identity.GivenName, 120),
+            FamilyName = Truncate(identity.FamilyName, 120),
+            AvatarUrl = identity.Picture,
+            Locale = Truncate(identity.Locale, 16)
         };
 
         using var tx = _db.Database.BeginTransaction();
@@ -181,6 +195,27 @@ public class AuthService
         PostJoinNotification(requestedDealerId, user);
         return user;
     }
+
+    // Refreshes the stored Google claims from the latest ID token. Email is left alone here
+    // (it is normalised elsewhere and the matching path above may have fallen back to it);
+    // display name is left alone so a user's manual edit on the profile page is not overwritten
+    // on every sign-in.
+    private void SyncGoogleIdentity(AppUserEntity user, GoogleIdentity identity)
+    {
+        var changed = false;
+        if (user.GoogleSub != identity.Subject) { user.GoogleSub = identity.Subject; changed = true; }
+        var given = Truncate(identity.GivenName, 120);
+        if (user.GivenName != given) { user.GivenName = given; changed = true; }
+        var family = Truncate(identity.FamilyName, 120);
+        if (user.FamilyName != family) { user.FamilyName = family; changed = true; }
+        if (user.AvatarUrl != identity.Picture) { user.AvatarUrl = identity.Picture; changed = true; }
+        var locale = Truncate(identity.Locale, 16);
+        if (user.Locale != locale) { user.Locale = locale; changed = true; }
+        if (changed) _db.SaveChanges();
+    }
+
+    private static string? Truncate(string? value, int max) =>
+        string.IsNullOrEmpty(value) ? null : (value.Length <= max ? value : value[..max]);
 
     // One notification per fresh request. If the same user is already pending for the same
     // dealer, SetRequestedDealer short-circuits before this point, so no duplicate is posted.

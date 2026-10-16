@@ -53,4 +53,26 @@ public class AppUserEntity
 
     [Column("created_at")]
     public DateTime CreatedAt { get; set; }
+
+    // Google identity claims (openid email profile). Captured on sign-in so later renames in
+    // Google reflect automatically, and so a user who changes their Google email keeps the
+    // same account via the stable Subject id (google_sub) instead of being treated as new.
+    [Column("google_sub")]
+    [MaxLength(64)]
+    public string? GoogleSub { get; set; }
+
+    [Column("given_name")]
+    [MaxLength(120)]
+    public string? GivenName { get; set; }
+
+    [Column("family_name")]
+    [MaxLength(120)]
+    public string? FamilyName { get; set; }
+
+    [Column("avatar_url", TypeName = "TEXT")]
+    public string? AvatarUrl { get; set; }
+
+    [Column("locale")]
+    [MaxLength(16)]
+    public string? Locale { get; set; }
 }

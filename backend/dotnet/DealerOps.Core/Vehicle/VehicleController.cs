@@ -22,6 +22,7 @@ public class VehicleController : ControllerBase
         [FromQuery] string? q,
         [FromQuery] VehicleStatus? status,
         [FromQuery] ConditionCode? condition,
+        [FromQuery] VehicleBodyType? bodyType,
         [FromQuery] string? make,
         [FromQuery] string? model,
         [FromQuery] int? modelYear,
@@ -29,7 +30,7 @@ public class VehicleController : ControllerBase
         [FromQuery] int size = 10)
     {
         return _vehicleService.List(
-            new VehicleFilter(q, status, condition, make, model, modelYear), page, size);
+            new VehicleFilter(q, status, condition, bodyType, make, model, modelYear), page, size);
     }
 
     [HttpPost]

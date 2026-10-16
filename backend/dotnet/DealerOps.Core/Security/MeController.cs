@@ -37,7 +37,8 @@ public class MeController : ControllerBase
             return new MeResponse(
                 user.Username, displayName, AppRole.PlatformAdmin.Value,
                 null, null, null, null, null, null,
-                appUser?.Email, appUser?.Phone, signInMethod);
+                appUser?.Email, appUser?.Phone, signInMethod,
+                appUser?.GivenName, appUser?.FamilyName, appUser?.AvatarUrl, appUser?.Locale);
         }
 
         var roleValue = user.Role == AppRole.DealerUser ? AppRole.DealerUser.Value : null;
@@ -51,7 +52,8 @@ public class MeController : ControllerBase
             dealer?.LegalName, dealer?.ContactPhone,
             dealer?.ContactEmail, dealer?.ContactAddress,
             dealer?.LogoDataUrl,
-            appUser?.Email, appUser?.Phone, signInMethod);
+            appUser?.Email, appUser?.Phone, signInMethod,
+            appUser?.GivenName, appUser?.FamilyName, appUser?.AvatarUrl, appUser?.Locale);
     }
 
     /// <summary>
@@ -129,6 +131,14 @@ public class MeController : ControllerBase
         user.Active = false;
         user.DealerId = null;
         user.RequestedDealerId = null;
+        // Free the email and phone so the same person can sign up again (via Google or
+        // password) and land in a fresh account; the username and audit trail stay for
+        // history. Appending ":deleted:<id>" keeps the row unique against anyone else who
+        // might cancel too.
+        var marker = $":deleted:{user.Id}";
+        if (user.Email != null) user.Email = user.Email + marker;
+        if (user.Phone != null) user.Phone = user.Phone + marker;
+        if (user.GoogleSub != null) user.GoogleSub = user.GoogleSub + marker;
 
         _audit.Record("APP_USER", user.Id, "DELETE", null, username,
             new Dictionary<string, object> { ["self"] = true });

@@ -417,6 +417,11 @@ paths:
           schema:
             $ref: "#/components/schemas/ConditionCode"
           description: Same as `conditionCode`
+        - name: bodyType
+          in: query
+          schema:
+            $ref: "#/components/schemas/VehicleBodyType"
+          description: Exact body-type match
         - $ref: "#/components/parameters/Page"
         - $ref: "#/components/parameters/Size"
       responses:
@@ -1939,6 +1944,11 @@ components:
       type: string
       enum: [CERTIFIED, AS_IS, UNFIT, IRREPARABLE]
 
+    VehicleBodyType:
+      type: string
+      description: Body-type categorisation used by DMS filters and the add/edit form. OTHER covers rare shapes.
+      enum: [SEDAN, SUV, TRUCK, MOTORCYCLE, COUPE, HATCHBACK, VAN, OTHER]
+
     AdKind:
       type: string
       enum: [CASH, FINANCE, LEASE]
@@ -2177,6 +2187,7 @@ components:
         - purchaseCost
         - addedOn
         - conditionCode
+        - bodyType
         - status
         - openWorkOrders
         - version
@@ -2202,6 +2213,8 @@ components:
           description: YYYY-MM-DD
         conditionCode:
           $ref: "#/components/schemas/ConditionCode"
+        bodyType:
+          $ref: "#/components/schemas/VehicleBodyType"
         repairCost:
           type: number
           nullable: true
@@ -2238,7 +2251,7 @@ components:
 
     VehicleCreate:
       type: object
-      required: [make, model, modelYear, vin, source, purchaseCost, addedOn, conditionCode]
+      required: [make, model, modelYear, vin, source, purchaseCost, addedOn, conditionCode, bodyType]
       properties:
         make:
           type: string
@@ -2268,6 +2281,8 @@ components:
           description: YYYY-MM-DD, not in the future
         conditionCode:
           $ref: "#/components/schemas/ConditionCode"
+        bodyType:
+          $ref: "#/components/schemas/VehicleBodyType"
         repairCost:
           type: number
           minimum: 0
@@ -2281,7 +2296,7 @@ components:
 
     VehiclePatch:
       type: object
-      required: [version, make, model, modelYear, vin, source, purchaseCost, addedOn, conditionCode]
+      required: [version, make, model, modelYear, vin, source, purchaseCost, addedOn, conditionCode, bodyType]
       description: Full replacement of this whitelist with the same rules as create. Do not change status/soldOn/soldPrice.
       properties:
         version:
@@ -2315,6 +2330,8 @@ components:
           description: YYYY-MM-DD, not in the future
         conditionCode:
           $ref: "#/components/schemas/ConditionCode"
+        bodyType:
+          $ref: "#/components/schemas/VehicleBodyType"
         repairCost:
           type: number
           minimum: 0

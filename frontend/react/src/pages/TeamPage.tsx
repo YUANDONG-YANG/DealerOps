@@ -1,8 +1,14 @@
 import { useEffect, useState } from 'react';
 import AppLayout from '../layouts/AppLayout';
 import { joinRequestsApi } from '../api/joinRequests';
-import { notificationsApi, type Notification, type JoinRequestPayload } from '../api/notifications';
-import { messageOf } from '../api/http';
+import {
+  JOIN_REQUESTS_CHANGED,
+  emitJoinRequestsChanged,
+  notificationsApi,
+  type JoinRequestPayload,
+  type Notification,
+} from '../api/notifications';
+import { codeOf, messageOf, statusOf } from '../api/http';
 
 type JoinRequestRow = Notification & { kind: 'JOIN_REQUEST'; payload: JoinRequestPayload };
 
@@ -15,7 +21,16 @@ function statusLabel(n: Notification): { text: string; className: string } {
   if (n.resolvedAt == null) return { text: 'Pending', className: 'chip chip-review' };
   if (n.resolvedAction === 'APPROVED') return { text: 'Approved', className: 'chip chip-pass' };
   if (n.resolvedAction === 'REJECTED') return { text: 'Rejected', className: 'chip chip-block' };
+  if (n.resolvedAction === 'CANCELLED') return { text: 'Cancelled', className: 'chip' };
   return { text: 'Resolved', className: 'chip' };
+}
+
+function actionLabel(n: Notification): string {
+  if (n.resolvedAt == null) return '';
+  if (n.resolvedAction === 'APPROVED') return 'Approved';
+  if (n.resolvedAction === 'REJECTED') return 'Rejected';
+  if (n.resolvedAction === 'CANCELLED') return 'Cancelled';
+  return 'Resolved';
 }
 
 /**
@@ -41,19 +56,28 @@ export default function TeamPage() {
     }
   }
 
-  useEffect(() => { void load(); }, []);
+  useEffect(() => {
+    void load();
+    const onChanged = () => void load();
+    window.addEventListener(JOIN_REQUESTS_CHANGED, onChanged);
+    return () => window.removeEventListener(JOIN_REQUESTS_CHANGED, onChanged);
+  }, []);
 
   async function act(username: string, verb: 'approve' | 'reject') {
     setActing(username); setError('');
     try {
       if (verb === 'approve') await joinRequestsApi.approve(username);
       else await joinRequestsApi.reject(username);
-      await load();
     } catch (err) {
-      setError(messageOf(err, `Could not ${verb} the request.`));
+      // Row was already resolved (another admin, or the inbox popover): refresh instead of
+      // surfacing an error for an action that has already been applied.
+      const gone = statusOf(err) === 404 || codeOf(err) === 'NOT_FOUND';
+      if (!gone) setError(messageOf(err, `Could not ${verb} the request.`));
     } finally {
       setActing(null);
     }
+    await load();
+    emitJoinRequestsChanged();
   }
 
   return (
@@ -89,7 +113,7 @@ export default function TeamPage() {
               const pending = r.resolvedAt == null;
               return (
                 <tr key={r.id}>
-                  <td>{r.payload.displayName}</td>
+                  <td style={{ whiteSpace: 'nowrap' }}>{r.payload.displayName}</td>
                   <td>{r.payload.email ?? '—'}</td>
                   <td>{r.payload.username}</td>
                   <td>{new Date(r.createdAt).toLocaleString()}</td>
@@ -121,7 +145,7 @@ export default function TeamPage() {
                           Reject
                         </button>
                       </>
-                    ) : '—'}
+                    ) : actionLabel(r)}
                   </td>
                 </tr>
               );

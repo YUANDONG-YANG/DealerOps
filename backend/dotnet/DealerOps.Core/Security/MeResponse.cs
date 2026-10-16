@@ -15,4 +15,10 @@ public record MeResponse(
     // uses it on the profile page to tell the user which sign-in to keep working.
     string? Email,
     string? Phone,
-    string SignInMethod);
+    string SignInMethod,
+    // Extra identity claims lifted from the Google ID token (openid email profile scope). All
+    // null for a password-only account; the UI uses them for avatar / name split / locale.
+    string? GivenName,
+    string? FamilyName,
+    string? AvatarUrl,
+    string? Locale);

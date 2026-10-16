@@ -10,6 +10,7 @@ public record VehicleResponse(
     decimal PurchaseCost,
     DateOnly AddedOn,
     ConditionCode ConditionCode,
+    VehicleBodyType BodyType,
     decimal? RepairCost,
     string? CarfaxUrl,
     DateOnly? SoldOn,

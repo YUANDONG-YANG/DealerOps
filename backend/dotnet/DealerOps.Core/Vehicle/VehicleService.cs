@@ -42,6 +42,8 @@ public class VehicleService
             query = query.Where(v => v.Status == filter.Status.Value);
         if (filter.Condition.HasValue)
             query = query.Where(v => v.ConditionCode == filter.Condition.Value);
+        if (filter.BodyType.HasValue)
+            query = query.Where(v => v.BodyType == filter.BodyType.Value);
         if (make != null)
             query = query.Where(v => v.Make.ToLower() == make.ToLower());
         if (model != null)
@@ -85,6 +87,7 @@ public class VehicleService
             PurchaseCost = body.PurchaseCost!.Value,
             AddedOn = addedOn,
             ConditionCode = body.ConditionCode!.Value,
+            BodyType = body.BodyType!.Value,
             RepairCost = body.RepairCost,
             CarfaxUrl = body.CarfaxUrl,
             Status = VehicleStatus.InStock,
@@ -128,6 +131,7 @@ public class VehicleService
             body.PurchaseCost ?? vehicle.PurchaseCost,
             body.AddedOn ?? vehicle.AddedOn,
             body.ConditionCode ?? vehicle.ConditionCode,
+            body.BodyType ?? vehicle.BodyType,
             body.RepairCost,
             body.CarfaxUrl);
 
@@ -153,6 +157,7 @@ public class VehicleService
         vehicle.PurchaseCost = next.PurchaseCost;
         vehicle.AddedOn = next.AddedOn;
         vehicle.ConditionCode = next.ConditionCode;
+        vehicle.BodyType = next.BodyType;
         vehicle.RepairCost = next.RepairCost;
         vehicle.CarfaxUrl = next.CarfaxUrl;
         vehicle.UpdatedAt = DateTime.UtcNow;
@@ -275,6 +280,7 @@ public class VehicleService
             vehicle.PurchaseCost,
             vehicle.AddedOn,
             vehicle.ConditionCode,
+            vehicle.BodyType,
             vehicle.RepairCost,
             vehicle.CarfaxUrl,
             vehicle.SoldOn,
@@ -294,6 +300,7 @@ public class VehicleService
         decimal PurchaseCost,
         DateOnly AddedOn,
         ConditionCode ConditionCode,
+        VehicleBodyType BodyType,
         decimal? RepairCost,
         string? CarfaxUrl);
 
@@ -305,7 +312,9 @@ public class VehicleService
             ["vin"] = vehicle.Vin,
             ["source"] = vehicle.Source.ToString(), ["purchaseCost"] = vehicle.PurchaseCost,
             ["addedOn"] = vehicle.AddedOn.ToString("yyyy-MM-dd"),
-            ["conditionCode"] = vehicle.ConditionCode.ToString(), ["status"] = "IN_STOCK"
+            ["conditionCode"] = vehicle.ConditionCode.ToString(),
+            ["bodyType"] = vehicle.BodyType.ToString(),
+            ["status"] = "IN_STOCK"
         };
         if (vehicle.RepairCost != null) fields["repairCost"] = vehicle.RepairCost;
         if (vehicle.CarfaxUrl != null) fields["carfaxUrl"] = vehicle.CarfaxUrl;
@@ -324,6 +333,7 @@ public class VehicleService
         if (vehicle.PurchaseCost != next.PurchaseCost) changed["purchaseCost"] = next.PurchaseCost;
         if (vehicle.AddedOn != next.AddedOn) changed["addedOn"] = next.AddedOn.ToString("yyyy-MM-dd");
         if (vehicle.ConditionCode != next.ConditionCode) changed["conditionCode"] = next.ConditionCode.ToString();
+        if (vehicle.BodyType != next.BodyType) changed["bodyType"] = next.BodyType.ToString();
         if (MoneyChanged(vehicle.RepairCost, next.RepairCost)) changed["repairCost"] = (object?)next.RepairCost ?? "";
         if (vehicle.CarfaxUrl != next.CarfaxUrl) changed["carfaxUrl"] = (object?)next.CarfaxUrl ?? "";
         return changed;
@@ -342,8 +352,8 @@ public class VehicleService
         changed.ContainsKey("make") || changed.ContainsKey("model") ||
         changed.ContainsKey("modelYear") || changed.ContainsKey("vin") ||
         changed.ContainsKey("source") || changed.ContainsKey("purchaseCost") ||
-        changed.ContainsKey("addedOn") || changed.ContainsKey("repairCost") ||
-        changed.ContainsKey("carfaxUrl");
+        changed.ContainsKey("addedOn") || changed.ContainsKey("bodyType") ||
+        changed.ContainsKey("repairCost") || changed.ContainsKey("carfaxUrl");
 
     private static bool MoneyChanged(decimal? current, decimal? next) =>
         current == null || next == null ? current != next : current.Value != next.Value;

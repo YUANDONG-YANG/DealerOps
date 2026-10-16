@@ -12,6 +12,7 @@ interface SessionState {
   dealerLogoDataUrl: string | null;
   displayName: string;
   username: string;
+  avatarUrl: string | null;
   hasBusinessAccess: boolean;
   setProfile: (p: Record<string, unknown>) => void;
   clear: () => void;
@@ -35,6 +36,7 @@ export const useSessionStore = create<SessionState>((set) => ({
   dealerLogoDataUrl: null,
   displayName: '',
   username: '',
+  avatarUrl: null,
   hasBusinessAccess: false,
   setProfile: (p) => {
     const role = (p.role as Role) ?? null;
@@ -49,6 +51,7 @@ export const useSessionStore = create<SessionState>((set) => ({
       dealerLogoDataUrl: (p.dealerLogoDataUrl as string) ?? null,
       displayName: (p.displayName as string) ?? '',
       username: (p.username as string) ?? '',
+      avatarUrl: (p.avatarUrl as string) ?? null,
       hasBusinessAccess: computeAccess(role, dealerId),
     });
   },
@@ -63,6 +66,7 @@ export const useSessionStore = create<SessionState>((set) => ({
       dealerLogoDataUrl: null,
       displayName: '',
       username: '',
+      avatarUrl: null,
       hasBusinessAccess: false,
     }),
 }));

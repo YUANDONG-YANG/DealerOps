@@ -61,6 +61,7 @@ public class AppDbContext : DbContext
             e.HasIndex(v => new { v.DealerId, v.Vin }).IsUnique().HasDatabaseName("uk_vehicle_vin");
             e.Property(v => v.Source).HasConversion(new EnumSnakeCaseConverter<VehicleSource>()).HasMaxLength(32);
             e.Property(v => v.ConditionCode).HasConversion(new EnumSnakeCaseConverter<ConditionCode>()).HasMaxLength(24);
+            e.Property(v => v.BodyType).HasConversion(new EnumSnakeCaseConverter<VehicleBodyType>()).HasMaxLength(16);
             e.Property(v => v.Status).HasConversion(new EnumSnakeCaseConverter<VehicleStatus>()).HasMaxLength(16);
         });
     }
