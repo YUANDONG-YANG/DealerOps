@@ -75,11 +75,10 @@ Wait for `Now listening on: http://0.0.0.0:8081`. Check: http://localhost:8081/a
 ```bash
 cd backend/dotnet/DealerOps.AiService
 export ASPNETCORE_ENVIRONMENT=Development
-export AIMANAGER_API_KEY='paste-your-groq-api-key-here'
 dotnet run
 ```
 
-Replace `paste-your-groq-api-key-here` with your own Groq API key. This sets the key only in the current terminal; do not commit it to Git. Check: http://localhost:8082/actuator/health
+The classroom Groq credential is compiled into `Adapter/AiProviderClient.cs`; no API-key environment variable, resource file or manual configuration is required. Check: http://localhost:8082/actuator/health
 
 If you do not need AI features, omit the `export` line. The service will still start, but AI requests will return `AI_KEY_MISSING`.
 
@@ -135,7 +134,7 @@ All settings have local defaults in `appsettings.json`. Override with environmen
 
 | Environment variable | Default | Description |
 |---|---|---|
-| `AIMANAGER_API_KEY` | _(empty)_ | LLM provider API key for local development |
+| `AIMANAGER_API_KEY` | not used | The fixed classroom Groq credential is compiled into `Adapter/AiProviderClient.cs` |
 | `AiManager__Provider` | `groq` | Provider name |
 | `AiManager__Model` | `qwen/qwen3.8-27b` | Model name |
 | `AiService__InternalToken` | `dealer-internal` | Must match Core and Gateway |
@@ -169,6 +168,6 @@ All settings have local defaults in `appsettings.json`. Override with environmen
 | `dotnet build` fails | Run `dotnet --version` — must be 8.x. On macOS with Homebrew: `export DOTNET_ROOT="/opt/homebrew/opt/dotnet/libexec"` |
 | Core crashes with MySQL error | MySQL is not running, or the database/user was not created (Step 1) |
 | Login works but API returns 401 | `Jwt__DevSecret` on Core differs from `dealerops__jwt__devSecret` on Gateway |
-| AI returns `AI_KEY_MISSING` | Set `AIMANAGER_API_KEY` in the AiService terminal, then restart AiService |
+| AI returns `AI_KEY_MISSING` | Confirm the built-in key constant exists in `Adapter/AiProviderClient.cs`, then rebuild and restart AiService |
 | CORS errors in browser | `dealerops__corsAllowedOrigin` on Gateway must match the frontend URL |
 | Port already in use | The Java backend is running on the same ports — stop it first |

@@ -32,30 +32,22 @@ Use JDK 21, the same as the other Java services.
 | `AI_PORT` | `8082` | this service |
 | `INTERNAL_TOKEN` | `dealer-internal` | `X-Dealer-Internal` (PROTOCOL §B.1). Accepted only when the Spring profile is `dev` or `local`; otherwise set a non-default token shared with gateway and dealer-core. |
 | `SPRING_PROFILES_ACTIVE` | unset | Local classroom: `dev`. Do not set `dev` on Azure. |
-| `AIMANAGER_API_KEY` | empty | this service only |
+| `AIMANAGER_API_KEY` | not used | the fixed classroom Groq credential is compiled into `AiManagerFactory` |
 | `AIMANAGER_GATEWAY_PROVIDER` | `groq` | `groq` / `xai` / `openai` / `claude` / `deepseek` |
 | `AIMANAGER_GATEWAY_MODEL` | `qwen/qwen3.8-27b` | this service |
 | `AIMANAGER_GATEWAY_MAX_TOKENS` | `800` | Keep below free-tier provider output limits |
 
-For an xAI/Grok key, set `AIMANAGER_GATEWAY_PROVIDER=xai`. Use an explicit supported model such as `grok-3-mini` when the account does not accept the `current` alias. Do not label an xAI key as `openai` or `groq`; those providers use different vendor endpoints.
+For the classroom startup path, keep `AIMANAGER_GATEWAY_PROVIDER=groq`. The built-in credential is a Groq credential and is not interchangeable with an xAI, OpenAI, Claude or DeepSeek credential.
 
-If `src/main/resources/ai-key.md` exists locally, it holds whichever provider key you are using (e.g. `GROQ_API_KEY=...` or `XAI_API_KEY=...`). It is ignored by Git and must never be committed. IntelliJ should map it to the variables consumed by this service.
+The classroom Groq credential is intentionally hardcoded in `AiManagerFactory.java` and is not read from `application.yaml`, environment variables or `src/main/resources/ai-key.md`. The resource file is only a reminder and must not contain credentials.
 
 Default (Groq free tier):
 ```text
-AIMANAGER_API_KEY=$GROQ_API_KEY
 AIMANAGER_GATEWAY_PROVIDER=groq
 AIMANAGER_GATEWAY_MODEL=qwen/qwen3.8-27b
 ```
 
-Alternate (xAI/Grok):
-```text
-AIMANAGER_API_KEY=$XAI_API_KEY
-AIMANAGER_GATEWAY_PROVIDER=xai
-AIMANAGER_GATEWAY_MODEL=grok-3-mini
-```
-
-Missing key: immediate **503** `{ "success": false, "code": "AI_KEY_MISSING", "message": "AIMANAGER_API_KEY is missing or invalid." }` (do not wait 15s).
+The fixed classroom key is always available to the service. If it is removed from code, the service returns immediate **503** `{ "success": false, "code": "AI_KEY_MISSING", "message": "AIMANAGER_API_KEY is missing or invalid." }` (do not wait 15s).
 
 ## Internal HTTP
 

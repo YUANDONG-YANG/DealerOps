@@ -150,10 +150,10 @@ To enable AI, get a free Groq key: sign up at https://console.groq.com, open **A
 CORE_PORT=8081;SERVER_ADDRESS=127.0.0.1;LOG_DIR=$PROJECT_DIR$/log-sum;MYSQL_URL=jdbc:mysql://127.0.0.1:3306/dealer_core?useSSL=false&allowPublicKeyRetrieval=true;MYSQL_USER=dealer;MYSQL_PASSWORD=dealer_dev_only;GATEWAY_PUBLIC_URL=http://localhost:8080;AI_BASE_URL=http://127.0.0.1:8082;INTERNAL_TOKEN=dealer-internal;JWT_MODE=dev;DEV_JWT_SECRET=dealer-dev-jwt-secret-change-me;ADMIN_USERNAME=admin;ADMIN_PASSWORD=admin123;ADMIN_EMAIL=admin@example.com
 ```
 
-**ai-service-local** (put your key after `AIMANAGER_API_KEY=`)
+**ai-service-local** (no API-key resource or environment variable is required)
 
 ```text
-AI_PORT=8082;SERVER_ADDRESS=127.0.0.1;LOG_DIR=$PROJECT_DIR$/log-sum;SPRING_APPLICATION_NAME=ai-service;SPRING_PROFILES_ACTIVE=dev;INTERNAL_TOKEN=dealer-internal;AIMANAGER_API_KEY=;AIMANAGER_GATEWAY_PROVIDER=groq;AIMANAGER_GATEWAY_MODEL=qwen/qwen3.8-27b;AIMANAGER_GATEWAY_MAX_TOKENS=800
+AI_PORT=8082;SERVER_ADDRESS=127.0.0.1;LOG_DIR=$PROJECT_DIR$/log-sum;SPRING_APPLICATION_NAME=ai-service;SPRING_PROFILES_ACTIVE=dev;INTERNAL_TOKEN=dealer-internal;AIMANAGER_GATEWAY_PROVIDER=groq;AIMANAGER_GATEWAY_MODEL=qwen/qwen3.8-27b;AIMANAGER_GATEWAY_MAX_TOKENS=800
 ```
 
 **dealer-gateway-local**
@@ -181,11 +181,11 @@ For each service, in the order below:
 <details>
 <summary>Without IntelliJ (terminal, macOS/Linux)</summary>
 
-Run each line in its own terminal from the repository root, in the order above. The checked-in application config files (`application.yml` / `application.yaml`) already default to the local values; only these overrides are needed. `JWT_MODE=dev` must be set explicitly on core and gateway: they refuse to start when it comes only from the config default. Each new terminal needs JDK 21 (see Step 0). `mvn clean` already deletes the service's `target/`. Wait for each readiness URL before starting the next line; leave `AIMANAGER_API_KEY=` empty if you have no key. Stop a service with `Ctrl+C`.
+Run each line in its own terminal from the repository root, in the order above. The checked-in application config files (`application.yml` / `application.yaml`) already default to the local values; only these overrides are needed. `JWT_MODE=dev` must be set explicitly on core and gateway: they refuse to start when it comes only from the config default. Each new terminal needs JDK 21 (see Step 0). `mvn clean` already deletes the service's `target/`. The Groq credential is compiled into the AI service, so beginners do not need `AIMANAGER_API_KEY`, `ai-key.md`, or any additional key file. Wait for each readiness URL before starting the next line; stop a service with `Ctrl+C`.
 
 ```text
 cd backend/java/dealer-core && SERVER_ADDRESS=127.0.0.1 LOG_DIR=../../../log-sum JWT_MODE=dev ADMIN_USERNAME=admin ADMIN_PASSWORD=admin123 ADMIN_EMAIL=admin@example.com mvn clean spring-boot:run
-cd backend/java/ai-service && SERVER_ADDRESS=127.0.0.1 LOG_DIR=../../../log-sum SPRING_PROFILES_ACTIVE=dev AIMANAGER_API_KEY=<your key> mvn clean spring-boot:run
+cd backend/java/ai-service && SERVER_ADDRESS=127.0.0.1 LOG_DIR=../../../log-sum SPRING_PROFILES_ACTIVE=dev mvn clean spring-boot:run
 cd backend/java/dealer-gateway && LOG_DIR=../../../log-sum SPRING_PROFILES_ACTIVE=dev JWT_MODE=dev mvn clean spring-boot:run
 ```
 
@@ -239,7 +239,7 @@ To stop, press `Ctrl+C` in the frontend terminal, then click Stop (■) on the g
 |---|---|
 | core fails with a database or Flyway error | MySQL is not running, or Step 1 was skipped; re-run the `SELECT 1` check. Databases created before 2026-10-07 need the Flyway repair in [design/15-Data-Auth-and-Gateway.md](design/15-Data-Auth-and-Gateway.md) §8.3 |
 | Compile errors such as `invalid target release` | The run configuration or terminal is not using JDK 21 |
-| Ad check returns `AI_UNAVAILABLE` / `AI_KEY_MISSING` | Set `AIMANAGER_API_KEY` on ai-service and restart it |
+| Ad check returns `AI_UNAVAILABLE` / `AI_KEY_MISSING` | Restart/rebuild the AI service and confirm its built-in Groq credential constant is present; no `ai-key.md` or `AIMANAGER_API_KEY` setup is required |
 | Login works but every API call returns 401 | `DEV_JWT_SECRET` differs between core and gateway |
 | Browser shows CORS errors | Open the app at `http://localhost:5173`, not `127.0.0.1:5173` |
 | `Port 8080 (or 8081, 8082, 5173) was already in use` | That service is already running in another tab or terminal. Stop the old one first, or run `lsof -i :8080` to find it |
