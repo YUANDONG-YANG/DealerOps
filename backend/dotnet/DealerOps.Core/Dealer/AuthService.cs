@@ -2,6 +2,7 @@ using DealerOps.Core.Audit;
 using DealerOps.Core.Common.Exceptions;
 using DealerOps.Core.Data;
 using DealerOps.Core.Dealer.Dto;
+using DealerOps.Core.Notifications;
 using DealerOps.Core.Security;
 using Microsoft.EntityFrameworkCore;
 
@@ -21,16 +22,18 @@ public class AuthService
     private readonly IAuditService _audit;
     private readonly NewAccountRules _accountRules;
     private readonly GoogleIdTokenVerifier _google;
+    private readonly NotificationService _notifications;
     private readonly string _unknownUserHash;
 
     public AuthService(AppDbContext db, JwtService jwt, IAuditService audit, NewAccountRules accountRules,
-        GoogleIdTokenVerifier google)
+        GoogleIdTokenVerifier google, NotificationService notifications)
     {
         _db = db;
         _jwt = jwt;
         _audit = audit;
         _accountRules = accountRules;
         _google = google;
+        _notifications = notifications;
         _unknownUserHash = BCrypt.Net.BCrypt.HashPassword(Guid.NewGuid().ToString());
     }
 
@@ -163,6 +166,7 @@ public class AuthService
                 ["requestedDealerId"] = requestedDealerId
             });
         _db.SaveChanges();
+        PostJoinNotification(requestedDealerId, user);
         tx.Commit();
         return user;
     }
@@ -174,8 +178,19 @@ public class AuthService
         _audit.Record("APP_USER", user.Id, "UPDATE", null, user.Username,
             new Dictionary<string, object> { ["requestedDealerId"] = requestedDealerId });
         _db.SaveChanges();
+        PostJoinNotification(requestedDealerId, user);
         return user;
     }
+
+    // One notification per fresh request. If the same user is already pending for the same
+    // dealer, SetRequestedDealer short-circuits before this point, so no duplicate is posted.
+    private void PostJoinNotification(long dealerId, AppUserEntity user) =>
+        _notifications.Create(dealerId, "JOIN_REQUEST", new
+        {
+            username = user.Username,
+            displayName = user.DisplayName,
+            email = user.Email
+        });
 
     private void RequireActiveDealer(long dealerId)
     {

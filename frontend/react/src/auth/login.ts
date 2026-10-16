@@ -13,7 +13,7 @@ function readToken(): string | null {
 }
 
 const ADMIN_PATHS = ['/admin'];
-const DEALER_PATHS = ['/dms', '/crm', '/leads', '/ads'];
+const DEALER_PATHS = ['/dms', '/crm', '/leads', '/ads', '/team'];
 
 /** Landing route for a signed-in user, by role (UI-02). */
 export function roleHome(role: string | null | undefined): string {

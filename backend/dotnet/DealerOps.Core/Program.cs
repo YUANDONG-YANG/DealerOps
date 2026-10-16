@@ -147,6 +147,7 @@ builder.Services.AddScoped<NewAccountRules>();
 builder.Services.AddScoped<DealerAdminService>();
 builder.Services.AddScoped<MembershipService>();
 builder.Services.AddScoped<JoinRequestService>();
+builder.Services.AddScoped<DealerOps.Core.Notifications.NotificationService>();
 builder.Services.AddScoped<MemberDirectoryService>();
 builder.Services.AddScoped<VehicleService>();
 builder.Services.AddScoped<CustomerService>();
@@ -200,7 +201,25 @@ using (var scope = app.Services.CreateScope())
     // first create need an idempotent patch. MySQL 8 rejects IF NOT EXISTS on ADD COLUMN, so
     // the exception for a duplicate column (1060) is swallowed.
     try { db.Database.ExecuteSqlRaw("ALTER TABLE app_user ADD COLUMN requested_dealer_id BIGINT NULL"); }
-    catch (Exception ex) when (ex.ToString().Contains("1060", StringComparison.Ordinal)) { /* already present */ }
+    catch (Exception ex) when (
+        ex.ToString().Contains("Duplicate column", StringComparison.OrdinalIgnoreCase)
+        || ex.ToString().Contains("1060", StringComparison.Ordinal))
+    { /* already present */ }
+    // CREATE TABLE IF NOT EXISTS is supported, so the notification table is created in the
+    // same idempotent spirit as the ALTER above. Dealer-scoped: queries filter by dealer_id
+    // and resolved_at IS NULL to show the inbox; approve/reject flip resolved_at.
+    db.Database.ExecuteSqlRaw(@"
+        CREATE TABLE IF NOT EXISTS notification (
+            id BIGINT PRIMARY KEY AUTO_INCREMENT,
+            dealer_id BIGINT NOT NULL,
+            kind VARCHAR(32) NOT NULL,
+            payload TEXT NOT NULL,
+            created_at DATETIME(6) NOT NULL,
+            resolved_at DATETIME(6) NULL,
+            resolved_by VARCHAR(64) NULL,
+            resolved_action VARCHAR(32) NULL,
+            INDEX ix_notification_dealer_unresolved (dealer_id, resolved_at)
+        )");
 }
 
 // The Gateway merges this document into its own, so the JSON is always served; only the

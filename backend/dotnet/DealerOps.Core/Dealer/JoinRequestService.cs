@@ -3,6 +3,7 @@ using DealerOps.Core.Common.Exceptions;
 using DealerOps.Core.Common.Tenant;
 using DealerOps.Core.Data;
 using DealerOps.Core.Dealer.Dto;
+using DealerOps.Core.Notifications;
 
 namespace DealerOps.Core.Dealer;
 
@@ -18,11 +19,13 @@ public class JoinRequestService
 {
     private readonly AppDbContext _db;
     private readonly IAuditService _audit;
+    private readonly NotificationService _notifications;
 
-    public JoinRequestService(AppDbContext db, IAuditService audit)
+    public JoinRequestService(AppDbContext db, IAuditService audit, NotificationService notifications)
     {
         _db = db;
         _audit = audit;
+        _notifications = notifications;
     }
 
     public List<JoinRequestResponse> List()
@@ -63,6 +66,8 @@ public class JoinRequestService
         _audit.Record("MEMBERSHIP", membership.Id, "CREATE", tenant, ActorUsername(),
             new Dictionary<string, object> { ["username"] = username, ["source"] = "google_request" });
         _db.SaveChanges();
+        _notifications.ResolveByCorrelation(tenant, "JOIN_REQUEST", "username", username,
+            "APPROVED", ActorUsername());
         tx?.Commit();
     }
 
@@ -75,6 +80,8 @@ public class JoinRequestService
         _audit.Record("APP_USER", user.Id, "UPDATE", tenant, ActorUsername(),
             new Dictionary<string, object> { ["username"] = username, ["rejected"] = true });
         _db.SaveChanges();
+        _notifications.ResolveByCorrelation(tenant, "JOIN_REQUEST", "username", username,
+            "REJECTED", ActorUsername());
     }
 
     private AppUserEntity LoadRequest(long tenant, string username) =>

@@ -5,6 +5,7 @@ using DealerOps.Core.Customer;
 using DealerOps.Core.Dealer;
 using DealerOps.Core.Lead;
 using DealerOps.Core.Listing;
+using DealerOps.Core.Notifications;
 using DealerOps.Core.Photo;
 using DealerOps.Core.Vehicle;
 using DealerOps.Core.WorkOrder;
@@ -32,6 +33,7 @@ public class AppDbContext : DbContext
     public DbSet<AuditEventEntity> AuditEvents => Set<AuditEventEntity>();
     public DbSet<VehiclePhotoEntity> VehiclePhotos => Set<VehiclePhotoEntity>();
     public DbSet<WorkOrderEntity> WorkOrders => Set<WorkOrderEntity>();
+    public DbSet<NotificationEntity> Notifications => Set<NotificationEntity>();
 
     public void SetTenantDealerId(long? dealerId) => _tenantDealerId = dealerId;
 

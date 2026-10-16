@@ -2,6 +2,7 @@ import { useState, type ReactNode } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useSessionStore } from '../store/session';
 import { signOut } from '../auth/login';
+import JoinRequestInbox from '../components/JoinRequestInbox';
 
 const icons: Record<string, string> = {
   admin: 'M12 3l8 3v6c0 4.5-3.4 8.3-8 9-4.6-.7-8-4.5-8-9V6l8-3zM9 12l2 2 4-4',
@@ -9,6 +10,7 @@ const icons: Record<string, string> = {
   crm: 'M16 19v-1a4 4 0 00-4-4H7a4 4 0 00-4 4v1M9.5 10a3 3 0 100-6 3 3 0 000 6zM21 19v-1a4 4 0 00-3-3.9M16 4.1a3 3 0 010 5.8',
   ads: 'M4 5h16v11H8l-4 4V5zM9 10.5l2 2 4-4',
   leads: 'M3 5h18l-7 8v6l-4-2v-4L3 5z',
+  team: 'M17 20h5v-2a4 4 0 00-3-3.9M9 20H3v-2a4 4 0 014-4h4a4 4 0 014 4v2M9 11a4 4 0 100-8 4 4 0 000 8zM16 3.1a4 4 0 010 7.8',
 };
 
 export default function AppLayout({ children }: { children: ReactNode }) {
@@ -26,6 +28,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
         { label: 'CRM', to: '/crm', icon: icons.crm },
         { label: 'Leads', to: '/leads', icon: icons.leads },
         { label: 'Ad compliance', to: '/ads', icon: icons.ads },
+        { label: 'Team', to: '/team', icon: icons.team },
       ];
 
   return (
@@ -59,6 +62,9 @@ export default function AppLayout({ children }: { children: ReactNode }) {
             {!isAdmin && session.dealerLogoDataUrl && <img src={session.dealerLogoDataUrl} alt="" className="dealer-logo" />}
             {isAdmin ? 'Platform Admin' : `${session.dealerLegalName || 'Dealership'} · ${session.role}`}
           </span>
+          <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 12 }}>
+            {!isAdmin && session.hasBusinessAccess && <JoinRequestInbox />}
+          </div>
           <div
             className="user-chip"
             onClick={() => setProfileOpen((open) => !open)}

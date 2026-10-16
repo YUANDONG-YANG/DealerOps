@@ -19,6 +19,7 @@ import DmsPage from './pages/DmsPage';
 import CrmPage from './pages/CrmPage';
 import LeadsPage from './pages/LeadsPage';
 import AdsPage from './pages/AdsPage';
+import TeamPage from './pages/TeamPage';
 import NoAccessPage from './pages/NoAccessPage';
 
 /** The profile is loaded once per signed-in session, not on every navigation. */
@@ -128,6 +129,7 @@ export default function AppRoutes() {
           <Route path="/crm" element={<CrmPage />} />
           <Route path="/leads" element={<LeadsPage />} />
           <Route path="/ads" element={<AdsPage />} />
+          <Route path="/team" element={<TeamPage />} />
         </Route>
       </Route>
 
