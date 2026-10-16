@@ -43,7 +43,7 @@ DealerOps.Core proxies NHTSA vPIC for the DMS make/model options and provides `G
 |---|---|---|
 | VIN-01 | `GET /api/v1/catalog/vin/{vin}` returns `vin, make, model, modelYear, bodyClass, engine, country, manufacturer`; blank vPIC values are `null` | Must |
 | VIN-02 | Invalid VIN (not 17 characters, or contains I/O/Q) → **400** `VALIDATION`; vPIC has no make → **404** `NOT_FOUND`; vPIC down → **502** `CATALOG_UNAVAILABLE` | Must |
-| VIN-03 | DMS create form: `Decode` fills make, model, and year only; the user can still edit them; nothing is saved until `Save`. Body class, engine, country, and manufacturer are shown, not stored (the specification's eight vehicle fields do not change) | Must |
+| VIN-03 | DMS create form: `Decode` fills make, model, year, and body type; the user can still edit them; nothing is saved until `Save`. Body type is stored as an **optional** field (`bodyType`, default `OTHER`) and is a list filter; engine, country, and manufacturer are shown, not stored. The specification's eight **required** fields do not change — see SCOPE-BASELINE erratum 8 | Must |
 | VIN-04 | The endpoint is anonymous (landing page demo). It reads no tenant data and writes nothing. Successful decodes are cached in memory | Must |
 
 Open risk: an anonymous endpoint lets anyone use the server as a vPIC proxy. The in-memory cache limits repeat calls; rate limiting stays out of scope (NFR-07 Won't). Revisit if the cloud demo shows abuse.

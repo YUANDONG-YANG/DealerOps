@@ -66,7 +66,6 @@ function validateForm(form: VehicleForm, isSold: boolean): Validation {
   }
   if (!form.source) e.source = 'Required';
   if (!form.conditionCode) e.conditionCode = 'Required';
-  if (!form.bodyType) e.bodyType = 'Required';
   return e;
 }
 

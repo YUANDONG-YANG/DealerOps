@@ -10,12 +10,12 @@ One record per vehicle, tracked from acquisition through sale.
 |---|---|---|---|---|---|---|
 | 1 | Make | `make` | ✅ | Text | 1–50 chars, trimmed | PDF |
 | 2 | Model | `model` | ✅ | Text | 1–50 chars | PDF |
-| 3 | Year | `year` | ✅ | Integer | 1900 ≤ year ≤ current year + 1 | PDF / Derived |
+| 3 | Year | `modelYear` | ✅ | Integer | 1900 ≤ year ≤ current year + 1 | PDF / Derived |
 | 4 | VIN | `vin` | ✅ | Text | 17 chars, upper case, no I / O / Q; **unique within a dealer** | PDF / SCOPE |
 | 5 | Car source | `source` | ✅ | Enum | `TRADE_IN` / `AUCTION` / `PRIVATE_PURCHASE` / `OTHER` | PDF ("etc." → OTHER) |
 | 6 | Purchase cost | `purchaseCost` | ✅ | Money | ≥ 0, two decimals, CAD | PDF |
 | 7 | Date added to garage | `addedOn` | ✅ | Date | Not after today | PDF / Derived |
-| 8 | Vehicle condition | `condition` | ✅ | Enum | `CERTIFIED` / `AS_IS` / `UNFIT` / `IRREPARABLE` | PDF |
+| 8 | Vehicle condition | `conditionCode` | ✅ | Enum | `CERTIFIED` / `AS_IS` / `UNFIT` / `IRREPARABLE` | PDF |
 | 9 | Repair cost | `repairCost` | ❌ | Money | ≥ 0 | PDF |
 | 10 | Carfax report link | `carfaxUrl` | ❌ | URL | `http(s)://`, ≤ 500 chars | PDF |
 | 11 | Date sold | `soldOn` | ❌ | Date | ≥ date added, not after today | PDF / Derived |
@@ -23,7 +23,14 @@ One record per vehicle, tracked from acquisition through sale.
 
 System fields (not in the source, needed to build): `id`, `dealerId`, `status` (`IN_STOCK` / `SOLD`), `version` (optimistic lock), `createdAt`, `updatedAt`.
 
-**No extra fields**: mileage, colour, fuel, stock number, list price, images, etc. are not built (SCOPE: specification PDF fields, no additions or removals).
+**No extra required fields**: mileage, colour, fuel, stock number and list price are not built (SCOPE: specification PDF fields, no additions or removals to the required set).
+
+Two stored additions come from SCOPE-BASELINE errata 7–8, not from this document:
+
+| Field | Code | Required | Notes |
+|---|---|---|---|
+| Body type | `bodyType` | ❌ | Optional, defaults to `OTHER`; prefilled by the vPIC decode and offered as a list filter (erratum 8, design/21 VIN-03) |
+| Photos | — | ❌ | Image Studio upload and enhancement, stored in MySQL (`IMG-01–05`) |
 
 ## 3. Vehicle status
 

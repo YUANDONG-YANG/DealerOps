@@ -21,9 +21,6 @@ public class OmvicRuleEngine
         RegexOptions.IgnoreCase | RegexOptions.Compiled);
     private static readonly Regex LeaseWord = new(@"\b(?:lease|leasing|lessee)\b",
         RegexOptions.IgnoreCase | RegexOptions.Compiled);
-    private static readonly Regex LeaseRent = new(
-        @"\$?\d[\d,]*(?:\.\d{2})?\s*(?:per month|/mo\b|monthly)",
-        RegexOptions.IgnoreCase | RegexOptions.Compiled);
     private static readonly Regex LeaseDown = new(
         @"down payment|due at signing|\$\d[\d,]*.{0,12}down",
         RegexOptions.IgnoreCase | RegexOptions.Compiled);
@@ -171,8 +168,11 @@ public class OmvicRuleEngine
                 hard.Add(Hard("LEASE_STATEMENT_MISSING", "Lease statement is missing from the ad."));
             if (!LeaseTermOnly.IsMatch(text))
                 soft.Add(Soft("LEASE_TERM_MISSING", "Lease term is not stated."));
-            if (!Price.IsMatch(text) && !LeaseRent.IsMatch(text))
-                soft.Add(Soft("LEASE_RENT_MISSING", "Lease rent is not stated."));
+            // Checked against the payment cadence alone. Pairing it with the price rule made
+            // this unreachable: a lease ad with no amount at all is already a PRICE_MISSING
+            // block, so one quoting only a cash price never had its payment amount checked.
+            if (!Payment.IsMatch(text))
+                soft.Add(Soft("LEASE_RENT_MISSING", "Lease payment amount is not stated."));
             if (!LeaseDown.IsMatch(text))
                 soft.Add(Soft("LEASE_DOWN_MISSING", "Lease down payment is not stated."));
 

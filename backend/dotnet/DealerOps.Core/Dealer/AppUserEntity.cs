@@ -61,6 +61,11 @@ public class AppUserEntity
     [MaxLength(64)]
     public string? GoogleSub { get; set; }
 
+    // Firebase Authentication's stable user id for email/password accounts.
+    [Column("firebase_uid")]
+    [MaxLength(128)]
+    public string? FirebaseUid { get; set; }
+
     [Column("given_name")]
     [MaxLength(120)]
     public string? GivenName { get; set; }

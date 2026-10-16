@@ -1,10 +1,20 @@
 # Dealer Ops Requirements Analysis
 
-This folder breaks the two source documents under `requirements/` into requirement items that can be built and accepted.
+This folder breaks the source documents under `requirements/` into requirement items that can be built and accepted.
+
+> **Scope currency (2026-10-16).** Files 01–12 were written against the scope as it stood before
+> 2026-10-08. `design/SCOPE-BASELINE.md` errata 6–8 have since returned several features to scope,
+> so a `Won't` verdict in this folder is **not** a current scope decision on its own. Where this
+> folder and SCOPE-BASELINE disagree, SCOPE-BASELINE wins. The returned features — VIN decode,
+> public landing page, lead follow-up, reconditioning work orders, self sign-up with Google
+> sign-in, Image Studio, and the optional vehicle `bodyType` field — are owned by
+> [21-Feature-Extensions.md](../../design/21-Feature-Extensions.md) (`VIN-01–04`, `LEAD-01–09`,
+> `WO-01–07`, `AUTH-16–23`, `IMG-01–05`); they are deliberately not restated here, so that one
+> document stays their single source of truth.
 
 2026-09-28: course-demo reconciliation is recorded in ../../review/DealerOps-Requirements-Resolution-2026-09-28.md. Current ad decisions are in 04 and acceptance in 06. Reviews 08–11 retain historical findings; their old proposals do not restore deferred features. Scope errata override original disclosure severity.
 
-最新源码核实：[12-Requirements-Code-Verification-2026-09-28.md](12-Requirements-Code-Verification-2026-09-28.md)。包含当前实现证据、实际测试结果及最小收尾项；不将历史建议恢复为开发范围。
+Source verification as of 2026-09-28: [12-Requirements-Code-Verification-2026-09-28.md](12-Requirements-Code-Verification-2026-09-28.md). **Historical only** — it was written against the retired Java / Vue stacks, so its file:line evidence and its V-01–V-04 findings no longer apply to the .NET 10 / React implementation. Do not reopen them as current defects.
 
 ## Sources
 
@@ -12,9 +22,17 @@ This folder breaks the two source documents under `requirements/` into requireme
 |---|---|---|---|
 | SRC-PDF | `../DealerOps-Specification.pdf` (2026-09-21) | Roles, DMS / CRM / ad-compliance fields, cross-cutting rules, page list, known limitations | **Authority for fields and business rules** |
 | SRC-DOC | `../Dos Car dealership.docx` | Product vision (DealerOS): DMS core + CRM + AI compliance assistant + optional Image Studio | Vision / selling points; does not define fields |
+| SRC-DOC2 | `../Dos Car dealership2.docx` | The same vision plus the client notes: questions put to the client, C# as the preferred language, the NHTSA vPIC VIN-decode flow and its returned fields, landing-page contents, a React UI, and a Firebase auth stack | **Authority for the errata 6–8 extensions.** The Firebase stack is **not** adopted; see SCOPE-BASELINE erratum 7 |
 | SRC-SCOPE | `../../design/SCOPE-BASELINE.md` | Signed scope, errata, Out of Scope | Conflict resolution |
 
-Conflict order follows SCOPE-BASELINE: **PPT hard requirements > specification PDF fields > v6 design > UI 12**. Anything in the DOCX beyond the PDF (lead management, Image Studio) is Out of Scope per SCOPE-BASELINE.
+Related reports outside this folder: `../DealerOps-Requirements.md` (English superset report; it defines `NFR-08`), `../DealerOps-Requirements-zh.html` and `../DealerOps-Development-Progress-en.html`.
+
+Conflict order follows SCOPE-BASELINE: **PPT hard requirements > specification PDF fields > v6 design > UI 12**. Items the DOCX files raise beyond the PDF are resolved by SCOPE-BASELINE errata 6–8, not by this folder.
+
+> `Dos Car dealership2.docx` embeds a Firebase web API key and project configuration. The key is a
+> public client identifier rather than a secret, and no Firebase service is used, but the client's
+> own note says not to commit it — raise retention of that file with the credential owner. Do not
+> quote the key in reports, commits, or command output.
 
 ## Files
 

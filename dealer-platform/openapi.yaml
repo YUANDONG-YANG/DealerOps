@@ -2251,7 +2251,7 @@ components:
 
     VehicleCreate:
       type: object
-      required: [make, model, modelYear, vin, source, purchaseCost, addedOn, conditionCode, bodyType]
+      required: [make, model, modelYear, vin, source, purchaseCost, addedOn, conditionCode]
       properties:
         make:
           type: string
@@ -2296,7 +2296,7 @@ components:
 
     VehiclePatch:
       type: object
-      required: [version, make, model, modelYear, vin, source, purchaseCost, addedOn, conditionCode, bodyType]
+      required: [version, make, model, modelYear, vin, source, purchaseCost, addedOn, conditionCode]
       description: Full replacement of this whitelist with the same rules as create. Do not change status/soldOn/soldPrice.
       properties:
         version:

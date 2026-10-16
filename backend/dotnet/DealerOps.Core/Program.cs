@@ -142,6 +142,9 @@ builder.Services.AddHttpContextAccessor();
 builder.Services.AddSingleton<JwtService>();
 // Singleton so Google's signing keys are fetched and cached once, not per sign-in.
 builder.Services.AddSingleton<GoogleIdTokenVerifier>();
+// Firebase verifies email/password identity tokens; the service account credential is loaded
+// from the runtime environment and must never be committed to the repository.
+builder.Services.AddSingleton<FirebaseIdTokenVerifier>();
 builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<NewAccountRules>();
 builder.Services.AddScoped<DealerAdminService>();
@@ -206,6 +209,7 @@ using (var scope = app.Services.CreateScope())
     {
         "ADD COLUMN requested_dealer_id BIGINT NULL",
         "ADD COLUMN google_sub VARCHAR(64) NULL",
+        "ADD COLUMN firebase_uid VARCHAR(128) NULL",
         "ADD COLUMN given_name VARCHAR(120) NULL",
         "ADD COLUMN family_name VARCHAR(120) NULL",
         "ADD COLUMN avatar_url TEXT NULL",

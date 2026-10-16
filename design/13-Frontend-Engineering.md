@@ -56,7 +56,7 @@ Do not add "ticket/lead/dashboard/AuditView" splits. Keep `stores` for session o
 
 ## 2. Route table
 
-Handbook page names: Login / Admin / DMS / CRM / Ad compliance / Assistant, plus the [21](21-Feature-Extensions.md) extensions (Leads and Register). Use only the paths below.
+Handbook page names: Login / Admin / DMS / CRM / Ad compliance / Assistant, plus the [21](21-Feature-Extensions.md) extensions (Leads, Register, Profile and Team). Use only the paths below.
 
 | path | name | component | `meta` | post-login landing |
 |---|---|---|---|---|
@@ -68,13 +68,15 @@ Handbook page names: Login / Admin / DMS / CRM / Ad compliance / Assistant, plus
 | `/crm` | `crm` | `CrmView` | `roles: ['Dealer.User']` | — |
 | `/leads` | `leads` | `LeadsView` | `roles: ['Dealer.User']` | menu item **Leads** after CRM |
 | `/ads` | `ads` | `AdsView` | `roles: ['Dealer.User']` | page title **Ad compliance** |
+| `/team` | `team` | `TeamView` | `roles: ['Dealer.User']` | Join-request queue: approve or reject accounts asking to join this dealership |
+| `/profile` | `profile` | `ProfileView` | any signed-in user | Account self-service: own display name and phone, plus account deletion. Username, role and dealership binding are read-only |
 | `/no-access` | `no-access` | `NoAccessLanding` | — | Signed-in user without business access |
 
-- `/` → if not signed in, show the public landing page (brand, hero, feature cards, VIN decoder, ad-approval steps, `Sign in`, and `Create account`); if signed in, go to `/admin` or `/dms` by role, or `/no-access` without business access. The only API the landing page calls is the anonymous VIN decode (14 §4.6.1); it reads no dealership data. `/login` and `/register` use the local password account API (sign in by email, username, or phone). The DMS **Add vehicle** form has a `Decode` button on the VIN field that prefills make, model, and year from the same endpoint.
+- `/` → if not signed in, show the public landing page (brand, hero, feature cards, VIN decoder, ad-approval steps, `Sign in`, and `Create account`); if signed in, go to `/admin` or `/dms` by role, or `/no-access` without business access. The only API the landing page calls is the anonymous VIN decode (14 §4.6.1); it reads no dealership data. `/login` and `/register` use the local password account API (sign in by email, username, or phone). The DMS **Add vehicle** form has a `Decode` button on the VIN field that prefills make, model, year, and body type from the same endpoint.
 - Unknown path → signed out goes to `/login`; signed in follows the role landing above. Do not build a 404 page.
 - The assistant is a floating panel on staff pages, not a route.
 - **Do not** register: `/audit`, `/tickets`, `/dashboard`, or buyer public pages.
-- `/login` accepts the account's email, username, or phone, plus its password. `/register` accepts a username, a display name, an email and/or phone, and a password. No social-provider buttons or callbacks are present.
+- `/login` accepts the account's email, username, or phone, plus its password. `/register` accepts a username, a display name, an email and/or phone, and a password. Both carry a **Google** sign-in button (AUTH-23, added 2026-10-15), which is hidden when no client id is configured; no other social provider is present.
 - Audit: **hidden at the bottom of the DMS / CRM detail drawer**, calling handbook `GET /audit?entityType=&entityId=`. No standalone Audit page and no menu item.
 
 Query strings (optional deep links): `/dms?vehicleId=`, `/crm?customerId=`, `/ads?vehicleId=` (used by assistant cards), `/leads?leadId=` (CRM customer drawer). Do not put `dealerId` in the route as the tenant authority.
@@ -219,7 +221,9 @@ Left: pick a vehicle + ad form; right: check results. The checklist changes imme
 
 No "publish to an external site". Admin never enters this page.
 
-### 5.7 Assistant `/assistant` (Dealer.User only)
+### 5.7 Assistant — floating panel on staff pages (Dealer.User only)
+
+It has no route of its own; see the route table note above. `AssistantWidget` mounts on every signed-in business page and is hidden on `/` `/login` `/register`.
 
 | Control | Handbook path | Success | Failure |
 |---|---|---|---|

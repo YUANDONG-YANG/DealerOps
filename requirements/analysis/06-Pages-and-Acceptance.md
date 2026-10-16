@@ -11,6 +11,8 @@
 | Ad compliance | Dealer user | Check an ad against OMVIC before publishing | PDF |
 | Assistant | Dealer user | In-dealer read-only AI Q&A | SCOPE erratum 2 |
 
+Delivered as a floating panel on signed-in business pages, not as its own route (design/13 §5.7). The pages added by SCOPE-BASELINE errata 6–7 — public landing `/`, `/register`, `/leads`, `/team`, `/profile` — are specified in design/13 and are not restated here.
+
 ## 2. Page-level requirements
 
 ### Login
@@ -101,7 +103,7 @@ Additional focused checks reuse the same demo records and existing screens/APIs;
 
 | ID | Scenario | Steps | Expected | Covers |
 |---|---|---|---|---|
-| AT-24 | CASH payment triggers finance | Otherwise valid CASH copy includes "$299 per month" and no APR; run Check | BLOCKED FINANCE_APR_MISSING, AI skipped; repeat with APR present to confirm finance soft hints | AD-04, AD-R10–12; complements BE-09 |
+| AT-24 | CASH payment triggers finance | Otherwise valid CASH copy includes "$299 per month" and no APR; run Check. Then add an APR and re-check. Then also add "Cash price $18,900" and re-check | First run: BLOCKED `FINANCE_APR_MISSING` **and** `FINANCE_CASH_PRICE_MISSING`, AI skipped. Second: still BLOCKED on `FINANCE_CASH_PRICE_MISSING` alone, because a per-month amount is not a cash price. Third: no hard finance finding, so the finance soft hints are visible | AD-04, AD-R10–R13; complements BE-09 |
 | AT-25 | Sale before CRM link | Sell an unlinked same-dealer vehicle; link it to a customer; attempt second link and unlink | First link succeeds; second VEHICLE_ALREADY_LINKED; unlink SOLD_LOCKED | CRM-05–08; BE-05/06 |
 | AT-26 | CRM required fields and edit | Try creating with each of the four required fields blank; then create valid customer, edit and reopen | Blank input rejected; valid create/edit persist; history records change without contact values | CRM-01/02/04/11/12; CL-2, BE-11 |
 | AT-27 | Soft findings do not veto | Use otherwise hard-valid copy missing year and finance term; real AI returns successfully | PASSED; saved findings are REVIEW and AI notes retained; Ready/export succeed; no AI veto state | AD-03/08/10/12, AD-R05/12 |

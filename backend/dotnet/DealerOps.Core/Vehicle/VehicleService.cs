@@ -87,7 +87,7 @@ public class VehicleService
             PurchaseCost = body.PurchaseCost!.Value,
             AddedOn = addedOn,
             ConditionCode = body.ConditionCode!.Value,
-            BodyType = body.BodyType!.Value,
+            BodyType = body.BodyType ?? VehicleBodyType.Other,
             RepairCost = body.RepairCost,
             CarfaxUrl = body.CarfaxUrl,
             Status = VehicleStatus.InStock,

@@ -2,6 +2,7 @@ import { type FormEvent, useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import {
   rememberPostLoginRedirect, roleHome, signIn, signInWithGoogle, takePostLoginRedirect,
+  signInWithFirebase,
 } from '../auth/login'
 import { renderGoogleButton } from '../auth/google'
 import { listPublicDealers, type PublicDealer } from '../api/publicDealers'
@@ -87,11 +88,14 @@ export default function LoginPage() {
     }
     setLoading(true)
     try {
-      const result = await signIn(identifier.trim(), password)
+      const signInName = identifier.trim()
+      const result = signInName.includes('@')
+        ? await signInWithFirebase(signInName, password)
+        : await signIn(signInName, password)
       // A saved path is honoured only when this role may open it; otherwise the role home wins.
       navigate(takePostLoginRedirect(result.role) || roleHome(result.role))
     } catch {
-      setError('Invalid sign-in name or password.')
+      setError('Invalid email, sign-in name or password.')
     } finally {
       setLoading(false)
     }

@@ -22,19 +22,20 @@ BLOCK prevents Ready/export; REVIEW is a hint and does not prevent them. Rule co
 | AD-R01 | Dealer registered name missing | BLOCK DEALER_NAME_MISSING |
 | AD-R02 | Dealer contact | All contact missing: BLOCK DEALER_CONTACT_MISSING; partial contact: REVIEW DEALER_CONTACT_INCOMPLETE |
 | AD-R03 | Prior-use cue without clear disclosure | REVIEW PRIOR_USE_UNCLEAR; no cue means no finding |
-| AD-R04 | New/used | REVIEW YEAR_NEW_USED_CONTRADICTION when copy implies new and year is at least two years old; no separate mandatory status field |
+| AD-R04 | New/used contradiction | REVIEW YEAR_NEW_USED_CONTRADICTION when copy implies new and year is at least two years old |
+| AD-R04b | New/used not stated | REVIEW NEW_USED_NOT_STATED when the copy states neither new nor used / pre-owned / second-hand / previously owned. The source lists this as always required; erratum 4 keeps it advisory, so it is a hint rather than a block. It fires on most ads that only say "Sold as-is" |
 | AD-R05 | Year missing | REVIEW YEAR_NOT_IN_COPY |
 | AD-R06 | Warranty claim present | REVIEW WARRANTY_CLAIM_NEEDS_REVIEW |
 | AD-R07 | Price missing | BLOCK PRICE_MISSING |
 | AD-R08 | Condition | BLOCK CONDITION_MISMATCH for Certified claim on a non-certified vehicle; BLOCK CONDITION_UNDISCLOSED if AS_IS / UNFIT / IRREPARABLE is not stated; omitted Certified wording is REVIEW CERTIFIED_NOT_IN_COPY |
 | AD-R10 | Finance APR missing | BLOCK FINANCE_APR_MISSING |
-| AD-R11 | Finance APR placement | REVIEW FINANCE_APR_PROXIMITY for online finance-triggered copy; no proximity finding for RADIO_TV_BILLBOARD |
+| AD-R11 | Finance APR placement | REVIEW FINANCE_APR_PROXIMITY on **every** online finance-triggered ad, with or without an APR; no proximity finding for RADIO_TV_BILLBOARD. The source asks for the APR to be "shown as prominently as the payment", which is a layout property that cannot be judged from copy text, so the hint is raised unconditionally and the AI reviews placement. A clean ad therefore still carries this REVIEW; it does not block (AI-PROTOCOL-AND-RULES §C) |
 | AD-R12 | Finance term missing | REVIEW FINANCE_TERM_MISSING |
-| AD-R13 | Finance cash price / cost of borrowing | Price is covered by R07; no separate cost-of-borrowing rule in this demo |
+| AD-R13 | Finance cash price / cost of borrowing | BLOCK FINANCE_CASH_PRICE_MISSING when no unqualified amount and no cost-of-borrowing wording is present. R07 does **not** cover this: an amount directly followed by a payment cadence (`per month`, `/mo`, `/month`, `a month`, `bi-weekly`, `weekly`) satisfies R07 but is a payment, not a cash price, so finance copy whose only figure is "$299/month" is blocked. Applies to every medium |
 | AD-R14 | Broadcast exception | Waives only R11 proximity review; price and APR remain required; missing term remains a soft hint |
 | AD-R20 | Lease statement missing | BLOCK LEASE_STATEMENT_MISSING |
 | AD-R21 | Lease term missing | REVIEW LEASE_TERM_MISSING |
-| AD-R22 | Lease payment | REVIEW LEASE_RENT_MISSING under the existing engine predicate; general price rule R07 still applies |
+| AD-R22 | Lease payment | REVIEW LEASE_RENT_MISSING when no payment cadence is present (corrected 2026-10-16: the predicate previously also required a missing price, which a PRICE_MISSING block already covered, so the rule could never fire on its own and the lease payment amount went unchecked); general price rule R07 still applies |
 | AD-R23 | Lease APR missing | BLOCK LEASE_APR_MISSING |
 | AD-R24 | Lease upfront payment missing | REVIEW LEASE_DOWN_MISSING |
 | AD-R25 | Annual allowance / excess-km fee | Parsed allowance < 20,000 with no excess-fee wording: BLOCK LEASE_EXCESS_KM_MISSING; exactly 20,000 or more: no excess-fee requirement; allowance unstated: REVIEW LEASE_ALLOWANCE_UNSTATED |
@@ -71,7 +72,7 @@ Finance-triggered means FINANCE, or CASH with a match to the existing APR or PAY
 | AD-14 | Dedicated disclaimer UI/footer | PDF §8 / deferred A8 | Won't this release; explain limitation at defense |
 | AD-15 | Configurable rules / rule editor | PDF §8 / Q-15 | Won't this release; patterns remain in code |
 | AD-16 | External auto-publishing | DOC | Won't |
-| AD-17 | Image Studio | DOC / SCOPE | Won't |
+| AD-17 | Image Studio | DOC2 / SCOPE erratum 7 | **Returned to scope 2026-10-08**; owned by design/21 as `IMG-01–05`. Do not cite this row as an exclusion |
 
 ## 6. Decision matrix
 

@@ -3,7 +3,7 @@
 ## 1. Source points (PDF §4, DOC)
 
 - One record per customer, with purchases linked back to DMS vehicle records.
-- The DOC mentions "lead and customer lifecycle management", but SCOPE rules **leads / follow-up out of scope**; CRM is the four fields plus vehicle links.
+- The DOC mentions "lead and customer lifecycle management". Core CRM here is the four fields plus vehicle links. **Lead follow-up returned to scope on 2026-10-08** (SCOPE-BASELINE erratum 7) and is owned by design/21 as `LEAD-01–09`; sales-funnel reporting remains out of scope.
 
 ## 2. Field details
 
@@ -13,7 +13,7 @@
 | 2 | Email | `email` | ✅ | Email format, ≤ 254 chars, stored lower-case | PDF |
 | 3 | Phone | `phone` | ✅ | 7–20 digits, allows `+ - ( ) space` | PDF / Derived |
 | 4 | Home address | `homeAddress` | ✅ | 1–300 chars, single text field | PDF |
-| 5 | Car(s) purchased | `vehicles` | ❌ | Multi-select link to this dealer's DMS vehicles | PDF (no `*`) |
+| 5 | Car(s) purchased | `linkedVehicles` | ❌ | Multi-select link to this dealer's DMS vehicles | PDF (no `*`) |
 
 > "Car(s) purchased" sits under the Required fields heading but has no asterisk. It is treated as **optional**: a new customer may not have bought yet. See 07 Q-03.
 
@@ -43,7 +43,8 @@
 | CRM-12 | Customer phone / email / address are **never** sent to AI prompts, audit summaries, or assistant answers | SCOPE (privacy) | Must |
 | CRM-13 | A duplicate email within a dealer shows a **warning** but is not blocked (families share email) | Derived | Could |
 | CRM-14 | Deleting customers is not offered in this release | Derived | Won't |
-| CRM-15 | Leads, follow-up tasks, sales funnel | DOC | Won't (excluded by SCOPE) |
+| CRM-15 | Sales-funnel reports and deal transactions | DOC | Won't (excluded by SCOPE) |
+| CRM-16 | Leads and follow-up tasks | DOC2 / SCOPE erratum 7 | **Returned to scope 2026-10-08**; owned by design/21 as `LEAD-01–09`. Do not cite CRM-15 as excluding leads |
 
 ## 5. Typical flow
 

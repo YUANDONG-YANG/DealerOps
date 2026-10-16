@@ -171,7 +171,8 @@ app.Use(async (context, next) =>
     }
     if (method == "POST" && (path.Equals("/api/v1/auth/login", StringComparison.OrdinalIgnoreCase)
                              || path.Equals("/api/v1/auth/register", StringComparison.OrdinalIgnoreCase)
-                             || path.Equals("/api/v1/auth/google", StringComparison.OrdinalIgnoreCase)))
+                             || path.Equals("/api/v1/auth/google", StringComparison.OrdinalIgnoreCase)
+                             || path.Equals("/api/v1/auth/firebase", StringComparison.OrdinalIgnoreCase)))
     {
         await next();
         return;

@@ -1,5 +1,13 @@
 # 需求文档与当前代码核实 — 2026-09-28
 
+> **Historical snapshot — superseded.** Every file:line reference below points at the retired Java
+> `dealer-core` and Vue `dealer-web` stacks (`VehicleService.java`, `DmsView.vue`, Maven commands,
+> gateway YAML CORS tests). The active implementation is .NET 10 under `backend/dotnet/` and React
+> under `frontend/react/`, so the findings V-01–V-04, the build results, and the delivery-evidence
+> items are no longer verifiable against current code and must not be reopened as current defects.
+> Kept for the record of what was checked on 2026-09-28 and why. For current status start from
+> `README.md` and `../DealerOps-Development-Progress-en.html`.
+
 ## 提交前修复更新
 
 本次按“检查后提交推送代码”继续完成最小修复：V-01 已在车辆抽屉展示售出日期/价格；V-02 客户历史合并原有 CUSTOMER_VEHICLE 事件，已删除关系可按本店审计证明查询；V-03 从客户完整 linkedVehicles 建立占用集合，只列未关联车辆并显示 VIN；V-04 支持演示用关键词/问句及库存、已售状态过滤，保留最多五条资源，不提供库存总数。另补 CRM 车辆详情跳转、助手只读提示与规则严重性标签。

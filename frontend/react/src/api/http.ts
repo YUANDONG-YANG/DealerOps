@@ -28,7 +28,9 @@ http.interceptors.request.use(async (config) => {
   }
   config.baseURL = await applyGatewayUrl();
   config.headers = config.headers || {};
-  const isPublicAuth = path.includes('/auth/login') || path.includes('/auth/register');
+  const isPublicAuth = path.includes('/auth/login')
+    || path.includes('/auth/register')
+    || path.includes('/auth/firebase');
   const token = isPublicAuth ? '' : (accessToken() ?? '');
   if (token) config.headers.Authorization = `Bearer ${token}`;
   return config;

@@ -26,4 +26,9 @@ public class AuthController : ControllerBase
     public Task<GoogleSignInResponse> Google(
         [FromBody] GoogleSignInRequest request, CancellationToken cancellationToken) =>
         _authService.GoogleSignIn(request, cancellationToken);
+
+    [HttpPost("firebase")]
+    public Task<LoginResponse> Firebase(
+        [FromBody] FirebaseSignInRequest request, CancellationToken cancellationToken) =>
+        _authService.FirebaseSignIn(request, cancellationToken);
 }

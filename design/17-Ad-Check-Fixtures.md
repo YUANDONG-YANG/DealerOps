@@ -396,6 +396,28 @@ Each item: `id`, `offerType` (= `adKind`), `channel` (= `medium`), `title`, `bod
 
 ---
 
+### FX-23 · LEASE quoting only a cash price (ONLINE)
+
+| | |
+|---|---|
+| **id** | `FX-23` |
+| **offerType** | `LEASE` |
+| **channel** | `ONLINE` |
+| **title** | Lease a 2020 Toyota Camry |
+| **body** | Lease this Camry. Cash price $18,900, 36 months, $2,000 down payment, 6.99% APR, 20,000 km per year. Sold as-is by Prairie Auto Ltd., 403-555-0100, desk@prairie.example, 100 1 Ave SW, Calgary. |
+| **Vehicle/dealership premises** | V-ASIS. Lease statement, APR, term, down payment, allowance, price, dealership/contact, `as-is` present. **No** periodic payment: every amount is a cash price, so no payment cadence matches. |
+| **Fixed rules** | **Needs AI** · soft `LEASE_RENT_MISSING` · call AI · **not** Blocked |
+| **If AI is entered** | Passed with the soft finding retained; the specification's lease payment-amount disclosure is advisory under erratum 4 |
+| **Ready/export** | Yes, once Passed |
+| **Classroom demo** | No |
+
+> Added 2026-10-16 with the `LEASE_RENT_MISSING` predicate correction. Before that fix the rule
+> also required a missing price, which a `PRICE_MISSING` block already covered, so this ad
+> produced no payment finding at all. The other lease fixtures all quote "$399 per month" and
+> are unaffected.
+
+---
+
 ## 4. Coverage check
 
 | Requirement | Fixtures |
@@ -404,6 +426,7 @@ Each item: `id`, `offerType` (= `adKind`), `channel` (= `medium`), `title`, `bod
 | Missing dealership name → Blocked, no AI | FX-02 |
 | FINANCE missing APR → Blocked, no AI | FX-03 |
 | LEASE missing APR → Blocked, no AI | FX-04 |
+| LEASE missing the payment amount → soft only | FX-23 |
 | CERTIFIED / AS_IS / UNFIT / IRREPARABLE undisclosed or misstated | FX-05, FX-06, FX-07, FX-08, FX-18 |
 | Same conditions disclosed | FX-10 (AS_IS), FX-17 (CERTIFIED), FX-19, FX-20 |
 | After price change old check Stale | FX-11 (steps, not an independent body) |

@@ -22,19 +22,87 @@ public class AuthService
     private readonly IAuditService _audit;
     private readonly NewAccountRules _accountRules;
     private readonly GoogleIdTokenVerifier _google;
+    private readonly FirebaseIdTokenVerifier _firebase;
     private readonly NotificationService _notifications;
     private readonly string _unknownUserHash;
 
     public AuthService(AppDbContext db, JwtService jwt, IAuditService audit, NewAccountRules accountRules,
-        GoogleIdTokenVerifier google, NotificationService notifications)
+        GoogleIdTokenVerifier google, FirebaseIdTokenVerifier firebase, NotificationService notifications)
     {
         _db = db;
         _jwt = jwt;
         _audit = audit;
         _accountRules = accountRules;
         _google = google;
+        _firebase = firebase;
         _notifications = notifications;
         _unknownUserHash = BCrypt.Net.BCrypt.HashPassword(Guid.NewGuid().ToString());
+    }
+
+    /// <summary>
+    /// Verifies a Firebase email/password token and exchanges it for the application's JWT.
+    /// Firebase owns the password; DealerOps still owns the local account, role, dealership
+    /// membership and authorization decisions.
+    /// </summary>
+    public async Task<LoginResponse> FirebaseSignIn(
+        FirebaseSignInRequest request, CancellationToken cancellationToken)
+    {
+        var identity = await _firebase.VerifyAsync(request.IdToken.Trim(), cancellationToken);
+        var email = LoginIdentifiers.Email(identity.Email);
+        var user = _db.AppUsers.FirstOrDefault(u => u.FirebaseUid == identity.Uid && u.Active)
+                   ?? _db.AppUsers.FirstOrDefault(u => u.Email != null && u.Email.ToLower() == email && u.Active);
+
+        if (user == null)
+        {
+            var username = string.IsNullOrWhiteSpace(request.Username)
+                ? AvailableUsername(email)
+                : request.Username.Trim();
+            var displayName = string.IsNullOrWhiteSpace(request.DisplayName)
+                ? (identity.DisplayName?.Trim() ?? username)
+                : request.DisplayName.Trim();
+            if (displayName.Length == 0) displayName = username;
+            var contact = _accountRules.CanonicalContact(email, request.Phone);
+            _accountRules.RequireAvailable(username, displayName, contact);
+
+            user = new AppUserEntity
+            {
+                Username = username,
+                // Password verification belongs to Firebase for this account.
+                PasswordHash = "",
+                DisplayName = displayName,
+                Email = contact.Email,
+                Phone = contact.Phone ?? identity.PhoneNumber,
+                Role = AppRole.DealerUser,
+                DealerId = null,
+                Active = true,
+                FirebaseUid = identity.Uid
+            };
+
+            using var tx = _db.Database.BeginTransaction();
+            try
+            {
+                _db.AppUsers.Add(user);
+                _db.SaveChanges();
+            }
+            catch (DbUpdateException ex)
+            {
+                throw _accountRules.Conflict(ex);
+            }
+
+            _audit.Record("APP_USER", user.Id, "CREATE", null, user.Username,
+                new Dictionary<string, object> { ["registration"] = "firebase" });
+            _db.SaveChanges();
+            tx.Commit();
+        }
+        else if (user.FirebaseUid != identity.Uid)
+        {
+            // Link an existing email account on its first Firebase sign-in. The token was
+            // verified by Firebase, so the email is the trusted account matching key here.
+            user.FirebaseUid = identity.Uid;
+            _db.SaveChanges();
+        }
+
+        return new LoginResponse(_jwt.Issue(user), user.Role.Value, user.DisplayName);
     }
 
     public LoginResponse Login(LoginRequest request)

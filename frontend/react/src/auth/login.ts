@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { resolveGatewayUrl } from '../api/gateway';
+import { firebaseRegister, firebaseSignIn, firebaseSignOut } from './firebase';
 
 const TOKEN_KEY = 'dealerops.accessToken';
 const REDIRECT_KEY = 'dealerops.postLoginRedirect';
@@ -81,6 +82,20 @@ export function signIn(identifier: string, password: string) {
   return postAuth('login', { identifier, password });
 }
 
+export async function signInWithFirebase(email: string, password: string) {
+  const credential = await firebaseSignIn(email, password);
+  const idToken = await credential.user.getIdToken();
+  return postAuth('firebase', { idToken });
+}
+
+export async function registerWithFirebase(
+  username: string, displayName: string, email: string, phone: string, password: string,
+) {
+  const credential = await firebaseRegister(email, password, displayName);
+  const idToken = await credential.user.getIdToken();
+  return postAuth('firebase', { idToken, username, displayName, phone: phone || null });
+}
+
 /**
  * Exchanges a Google ID token for this application's own session token. Pass dealerId on the
  * second call, after the user picks a dealership on the 'needs_dealer' screen; omit it on the
@@ -107,7 +122,8 @@ export function register(
   });
 }
 
-export function signOut() {
+export async function signOut() {
+  await firebaseSignOut().catch(() => undefined);
   clearAccount();
   window.location.assign('/login');
 }

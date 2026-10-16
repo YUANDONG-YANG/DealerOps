@@ -17,7 +17,9 @@ public record CreateVehicleRequest(
     [Range(0, double.MaxValue)] decimal? PurchaseCost,
     [Required(ErrorMessage = "Date added is required.")] DateOnly? AddedOn,
     [Required(ErrorMessage = "Vehicle condition is required.")] ConditionCode? ConditionCode,
-    [Required(ErrorMessage = "Vehicle body type is required.")] VehicleBodyType? BodyType,
+    // Optional: the specification's eight required fields do not change. Omitting it stores
+    // VehicleBodyType.Other; the create form prefills it from the vPIC decode.
+    VehicleBodyType? BodyType,
     [Range(0, double.MaxValue)] decimal? RepairCost,
     [MaxLength(500)]
     [RegularExpression(@"(?i)^https?://\S+$", ErrorMessage = "must be an http(s) URL")]

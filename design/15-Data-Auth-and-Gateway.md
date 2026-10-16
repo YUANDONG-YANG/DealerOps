@@ -307,7 +307,10 @@ function runFixedOmvic(listing, vehicle, dealer) -> { hardBlocks[], softGaps[], 
       hasTerm = match(textNorm, /\d+\s*(month|months|mo)\b|term\s*[:=]?\s*\d+/)
       if !hasTerm:
           soft += FINANCE_TERM_MISSING
-      // cash price = hasPrice above (PRICE_MISSING hard). No separate "cost of borrowing" regex (PROTOCOL §C.0a).
+      // A payment amount alone satisfies PRICE_MISSING, so finance copy is checked separately
+      // for a cash price or the cost of borrowing (PROTOCOL §C).
+      if !hasCashPrice(text) AND !match(textNorm, /cost of borrowing|total cost of credit|borrowing cost|finance charge/):
+          hard += FINANCE_CASH_PRICE_MISSING
       if listing.medium != RADIO_TV_BILLBOARD:
           // "interest rate shown next to APR" cannot be reliably regexed → not hard; soft so AI reviews layout
           soft += FINANCE_APR_PROXIMITY
@@ -321,7 +324,9 @@ function runFixedOmvic(listing, vehicle, dealer) -> { hardBlocks[], softGaps[], 
       if !match(textNorm, /lease|leasing|lessee/):
           hard += LEASE_STATEMENT_MISSING
       hasTerm = match(textNorm, /\d+\s*(month|months|mo)\b/)
-      hasRent = hasPrice OR match(textNorm, /\$?\d+.*(per month|\/mo|monthly)/)
+      // Corrected 2026-10-16: the payment cadence alone. Pairing it with hasPrice made the rule
+      // unreachable, so a lease quoting only a cash price never had its payment amount checked.
+      hasRent = showsPayment(text)
       hasDown = match(textNorm, /down payment|due at signing|\$\d+.down/)
       if !hasTerm: soft += LEASE_TERM_MISSING
       if !hasRent: soft += LEASE_RENT_MISSING

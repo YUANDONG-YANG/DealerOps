@@ -245,18 +245,37 @@ static final Pattern APR = Pattern.compile(
     "\\d+(?:\\.\\d+)?\\s*%\\s*(?:apr|annual percentage rate)|apr\\s*[:=]?\\s*\\d+(?:\\.\\d+)?\\s*%",
     Pattern.CASE_INSENSITIVE);
 
+/** One cadence list, shared by PAYMENT and PAYMENT_CADENCE, so "/mo" and "/month" both read
+ *  as a periodic payment. PAYMENT also serves the lease payment-amount check. */
+static final String CADENCE =
+    "(?:per\\s+month|a\\s+month|/\\s*mo(?:nth)?\\b|monthly|bi-?weekly|weekly|per\\s+week|/\\s*wk\\b)";
+
 static final Pattern PAYMENT = Pattern.compile(
-    "\\$?\\d[\\d,]*(?:\\.\\d{2})?\\s*(?:per month|/mo|monthly|bi-?weekly|per week|/wk)",
+    "\\$?\\d[\\d,]*(?:\\.\\d{2})?\\s*" + CADENCE, Pattern.CASE_INSENSITIVE);
+
+/** Anchored at whatever follows an amount: it turns that amount into a periodic payment
+ *  rather than a cash price. */
+static final Pattern PAYMENT_CADENCE = Pattern.compile("^\\s*" + CADENCE, Pattern.CASE_INSENSITIVE);
+
+static final Pattern COST_OF_BORROWING = Pattern.compile(
+    "cost of borrowing|total cost of credit|borrowing cost|finance charge",
     Pattern.CASE_INSENSITIVE);
+
+/** True when at least one advertised amount is not immediately qualified as a periodic
+ *  payment, which is what distinguishes a cash price from "$299 per month". */
+static boolean hasCashPrice(String text) {
+    Matcher m = PRICE.matcher(text);
+    while (m.find()) {
+        if (!PAYMENT_CADENCE.matcher(text.substring(m.end())).find()) return true;
+    }
+    return false;
+}
 
 static final Pattern TERM_MO = Pattern.compile(
     "\\d+\\s*(?:month|months|mo)\\b|term\\s*[:=]?\\s*\\d+",
     Pattern.CASE_INSENSITIVE);
 
 static final Pattern LEASE_WORD = Pattern.compile("\\b(?:lease|leasing|lessee)\\b", Pattern.CASE_INSENSITIVE);
-static final Pattern LEASE_RENT = Pattern.compile(
-    "\\$?\\d[\\d,]*(?:\\.\\d{2})?\\s*(?:per month|/mo|monthly)",
-    Pattern.CASE_INSENSITIVE);
 static final Pattern LEASE_DOWN = Pattern.compile(
     "down payment|due at signing|\\$\\d[\\d,]*.{0,12}down",
     Pattern.CASE_INSENSITIVE);
@@ -277,6 +296,9 @@ static final Pattern IRREP = Pattern.compile("irreparable|salvage|write[\\s-]?of
 
 static final Pattern BRAND_NEW = Pattern.compile(
     "\\b(?:brand[\\s-]?new|never used|0\\s*km|zero kilometres|new car(?!\\s+feel))\\b",
+    Pattern.CASE_INSENSITIVE);
+static final Pattern USED_STATUS = Pattern.compile(
+    "\\b(?:used|pre[\\s-]?owned|second[\\s-]?hand|previously owned)\\b",
     Pattern.CASE_INSENSITIVE);
 
 static final Pattern PRIOR_USE_CUE = Pattern.compile(
@@ -359,15 +381,17 @@ Run the following rules on `text`. After the empty-draft short-circuit you may s
 | `CONDITION_MISMATCH` | `text`, `conditionCode` | `CERTIFIED` hits and `code != CERTIFIED` | **hard** |
 | `CONDITION_UNDISCLOSED` | Same | `code==UNFIT` and no `UNFIT`; or `IRREPARABLE` and no `IRREP`; or `AS_IS` and no `AS_IS`. Also add this code on empty draft | **hard** |
 | `CERTIFIED_NOT_IN_COPY` | Same | `code==CERTIFIED` and no `CERTIFIED` regex | **soft** |
+| `NEW_USED_NOT_STATED` | `text` | Neither `BRAND_NEW` nor `USED_STATUS` hits. The specification lists new/used as always required; erratum 4 keeps the new/old family advisory, so a silent ad is flagged rather than blocked | **soft** |
 | `PRIOR_USE_UNCLEAR` | `text` | `mentionsPriorUseCue(text) && !mentionsPriorUseDisclosure(text)` | **soft** |
 | `WARRANTY_CLAIM_NEEDS_REVIEW` | `text` | `WARRANTY_BOAST` hits | **soft** |
 | `FINANCE_APR_MISSING` | `text`, `adKind==FINANCE`, or `CASH` whose copy matches `APR` or `PAYMENT` (spec §5: "if the ad shows a rate or payment") | `!APR.matcher(text).find()` | **hard** |
 | `FINANCE_TERM_MISSING` | Same | No `TERM_MO` | **soft** |
+| `FINANCE_CASH_PRICE_MISSING` | Same | `!hasCashPrice(text) && !COST_OF_BORROWING`. `hasCashPrice` is true when at least one `PRICE` amount is **not** immediately followed by a payment cadence, so "$299/month" alone is a payment, not a cash price. Applies to every medium: the broadcast exemption waives only `FINANCE_APR_PROXIMITY` | **hard** |
 | `FINANCE_APR_PROXIMITY` | FINANCE or CASH matching APR/PAYMENT, and `medium != RADIO_TV_BILLBOARD` | Cannot reliably regex “shown next to”; **add on every ONLINE finance-triggered ad** (with or without APR; still add soft when hard exists; does not change the hard block) | **soft** |
 | `LEASE_APR_MISSING` | `adKind==LEASE` | No `APR` | **hard** |
 | `LEASE_STATEMENT_MISSING` | Same | No `LEASE_WORD` | **hard** |
 | `LEASE_TERM_MISSING` | Same | No `\d+\s*(month\|months\|mo)\b` | **soft** |
-| `LEASE_RENT_MISSING` | Same | No `PRICE` and no `LEASE_RENT` | **soft** |
+| `LEASE_RENT_MISSING` | Same | No `PAYMENT` (corrected 2026-10-16). Pairing it with `PRICE` made the rule unreachable: an ad with no amount at all is already a `PRICE_MISSING` block, so a lease quoting only a cash price never had its payment amount checked, leaving the specification's lease "Payment amount" disclosure unenforced | **soft** |
 | `LEASE_DOWN_MISSING` | Same | No `LEASE_DOWN` | **soft** |
 | `LEASE_EXCESS_KM_MISSING` | Same | `capturedKm` has a value **and** `km < 20000` **and** no `LEASE_EXCESS` | **hard** |
 | `LEASE_ALLOWANCE_UNSTATED` | Same | `capturedKm` empty | **soft** |
@@ -414,6 +438,9 @@ Result runFixedOmvic(Listing L, VehiclePublic V, DealerPublic D) {
     if (V.conditionCode == AS_IS && !claimedAsIs) hard.add(CONDITION_UNDISCLOSED);
     if (V.conditionCode == CERTIFIED && !claimedCertified) soft.add(CERTIFIED_NOT_IN_COPY);
 
+    if (!BRAND_NEW.matcher(text).find() && !USED_STATUS.matcher(text).find())
+        soft.add(NEW_USED_NOT_STATED);
+
     if (mentionsPriorUseCue(text) && !mentionsPriorUseDisclosure(text))
         soft.add(PRIOR_USE_UNCLEAR);
     if (WARRANTY_BOAST.matcher(text).find()) soft.add(WARRANTY_CLAIM_NEEDS_REVIEW);
@@ -422,6 +449,8 @@ Result runFixedOmvic(Listing L, VehiclePublic V, DealerPublic D) {
         && (APR.matcher(text).find() || PAYMENT.matcher(text).find()))) {
         if (!APR.matcher(text).find()) hard.add(FINANCE_APR_MISSING);
         if (!TERM_MO.matcher(text).find()) soft.add(FINANCE_TERM_MISSING);
+        if (!hasCashPrice(text) && !COST_OF_BORROWING.matcher(text).find())
+            hard.add(FINANCE_CASH_PRICE_MISSING);
         if (L.medium != RADIO_TV_BILLBOARD) soft.add(FINANCE_APR_PROXIMITY);
     }
 
@@ -430,8 +459,7 @@ Result runFixedOmvic(Listing L, VehiclePublic V, DealerPublic D) {
         if (!LEASE_WORD.matcher(text).find()) hard.add(LEASE_STATEMENT_MISSING);
         if (!Pattern.compile("\\d+\\s*(month|months|mo)\\b", CASE_INSENSITIVE).matcher(text).find())
             soft.add(LEASE_TERM_MISSING);
-        if (!PRICE.matcher(text).find() && !LEASE_RENT.matcher(text).find())
-            soft.add(LEASE_RENT_MISSING);
+        if (!PAYMENT.matcher(text).find()) soft.add(LEASE_RENT_MISSING);
         if (!LEASE_DOWN.matcher(text).find()) soft.add(LEASE_DOWN_MISSING);
         OptionalInt km = capturedKm(text);
         if (km.isPresent()) {
