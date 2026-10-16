@@ -11,7 +11,8 @@ DealerOps 的云部署采用 Terraform + Azure App Service，不使用容器：
 ```text
 浏览器
   │
-  ├─ 本地：      http://localhost:5173
+  ├─ 本地 Vue：  http://localhost:5173
+  ├─ 本地 React：http://localhost:5174
   └─ Azure：     https://dealer-ops-dev.azurewebsites.net
                     │
                     └─ React SPA（Vite 构建，Node 20 + pm2 托管）
@@ -59,6 +60,7 @@ Client ID 属于公开前端配置，可以出现在 Vite 构建产物中。它�
 
 ```text
 http://localhost:5173
+http://localhost:5174
 https://dealer-ops-dev.azurewebsites.net
 ```
 
