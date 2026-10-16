@@ -5,6 +5,7 @@ import { useSessionStore } from '../store/session';
 import { getMe, patchMe, deleteMe, type Profile } from '../api/me';
 import { clearAccount, signOut } from '../auth/login';
 import { fieldErrorsOf, messageOf } from '../api/http';
+import { initials } from '../format';
 
 /**
  * Account self-service: the signed-in user's own information, how they got in, and the
@@ -105,7 +106,7 @@ export default function ProfilePage() {
                 style={{ width: 56, height: 56, borderRadius: '50%' }} />
             ) : (
               <div className="user-avatar user-avatar-lg" aria-hidden="true">
-                {(me.displayName || me.username).slice(0, 2).toUpperCase()}
+                {initials(me.displayName || me.username)}
               </div>
             )}
             <div>
@@ -128,7 +129,7 @@ export default function ProfilePage() {
         <form onSubmit={onSave} className="card" style={{ padding: 20, marginBottom: 20 }}>
           <h3 style={{ marginTop: 0 }}>Edit</h3>
           <div className="form-item">
-            <label htmlFor="displayName">Display name</label>
+            <label className="form-label" htmlFor="displayName">Display name</label>
             <input id="displayName" className="input"
               value={displayName}
               onChange={(e) => setDisplayName(e.target.value)}
@@ -136,7 +137,7 @@ export default function ProfilePage() {
             {fieldErrors.displayName && <div className="form-error">{fieldErrors.displayName}</div>}
           </div>
           <div className="form-item">
-            <label htmlFor="phone">Phone</label>
+            <label className="form-label" htmlFor="phone">Phone</label>
             <input id="phone" className="input"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}

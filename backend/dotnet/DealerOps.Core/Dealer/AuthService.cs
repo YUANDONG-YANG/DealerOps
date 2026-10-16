@@ -99,8 +99,13 @@ public class AuthService
         }
         else if (user.FirebaseUid != identity.Uid)
         {
-            // Link an existing email account on its first Firebase sign-in. The token was
-            // verified by Firebase, so the email is the trusted account matching key here.
+            // Link an existing email account on its first Firebase sign-in only when Firebase
+            // has verified the address; otherwise anyone could register that email in Firebase
+            // and take over the account.
+            if (!identity.EmailVerified)
+                throw new ApiException(ErrorCode.EmailTaken,
+                    "This email already belongs to an account. Sign in with that account's password.",
+                    new Dictionary<string, string> { ["email"] = "This email is already registered." });
             user.FirebaseUid = identity.Uid;
             _db.SaveChanges();
         }

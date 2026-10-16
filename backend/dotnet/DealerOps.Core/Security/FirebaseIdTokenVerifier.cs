@@ -39,8 +39,9 @@ public sealed class FirebaseIdTokenVerifier
             : null;
         if (string.IsNullOrWhiteSpace(email))
             throw new ApiException(AppErrorCode.Unauthorized, "Firebase sign-in requires an email address.");
-        if (!bool.TryParse(Claim(decoded, "email_verified"), out var emailVerified) || !emailVerified)
-            throw new ApiException(AppErrorCode.Unauthorized, "Verify your email address before signing in.");
+        // Unverified addresses are accepted for now; AuthService only refuses to link one to an
+        // existing account, since the email cannot prove ownership of that account.
+        bool.TryParse(Claim(decoded, "email_verified"), out var emailVerified);
 
         var displayName = Claim(decoded, "name");
         var phoneNumber = Claim(decoded, "phone_number");

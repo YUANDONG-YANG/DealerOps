@@ -61,7 +61,10 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 builder.Services.AddAuthorization();
 
 builder.Services.AddControllers(options =>
-        options.Filters.Add<ApiExceptionFilter>())
+    {
+        options.Filters.Add<ApiExceptionFilter>();
+        options.ModelBinderProviders.Insert(0, new SnakeCaseEnumModelBinderProvider());
+    })
     .AddJsonOptions(options =>
     {
         options.JsonSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
@@ -82,8 +85,20 @@ static string ToCamelPath(string path) =>
             : JsonNamingPolicy.CamelCase.ConvertName(segment[..bracket]) + segment[bracket..];
     }));
 
+// System.Text.Json and the binder phrase format errors with internal type names and parser
+// positions ("Path: $.make | LineNumber: 0"); those must not reach the browser (contract §1.2).
+static string PublicFieldError(Microsoft.AspNetCore.Mvc.ModelBinding.ModelError error) =>
+    error.Exception != null
+    || error.ErrorMessage.Contains("Path:", StringComparison.Ordinal)
+    || error.ErrorMessage.Contains("DealerOps.", StringComparison.Ordinal)
+        ? "Invalid value."
+        : error.ErrorMessage;
+
 builder.Services.Configure<ApiBehaviorOptions>(options =>
 {
+    // Client errors such as 415 must not become ProblemDetails; UseStatusCodePages below
+    // writes the {code, message, requestId} envelope for them instead.
+    options.SuppressMapClientErrors = true;
     options.InvalidModelStateResponseFactory = context =>
     {
         var fieldErrors = new Dictionary<string, string>();
@@ -92,7 +107,7 @@ builder.Services.Configure<ApiBehaviorOptions>(options =>
             if (entry.Errors.Count == 0) continue;
             var name = key.StartsWith("$.", StringComparison.Ordinal) ? key[2..] : key;
             if (name.Length == 0) name = "request";
-            fieldErrors[ToCamelPath(name)] = entry.Errors[0].ErrorMessage;
+            fieldErrors[ToCamelPath(name)] = PublicFieldError(entry.Errors[0]);
         }
 
         var requestId = context.HttpContext.Items["RequestId"] as string ?? "";
@@ -271,6 +286,23 @@ if (app.Environment.IsDevelopment() || builder.Configuration.GetValue<bool>("Ena
 }
 
 app.UseMiddleware<RequestLoggingMiddleware>();
+// Framework responses with no body (unknown route, wrong method, non-JSON body) get the same
+// error envelope as ApiExceptionFilter (contract §1.2 / §12).
+var bodylessErrors = new Dictionary<int, (ErrorCode Code, string Message)>
+{
+    [404] = (ErrorCode.NotFound, "Not found"),
+    [405] = (ErrorCode.MethodNotAllowed, "Method not allowed"),
+    [415] = (ErrorCode.UnsupportedMediaType, "Request body must be application/json"),
+};
+app.UseStatusCodePages(async context =>
+{
+    var response = context.HttpContext.Response;
+    if (!bodylessErrors.TryGetValue(response.StatusCode, out var error)) return;
+    var requestId = context.HttpContext.Items["RequestId"] as string ?? "";
+    await response.WriteAsJsonAsync(
+        new ErrorBody(error.Code.ToWireCode(), error.Message, requestId),
+        new JsonSerializerOptions(JsonSerializerDefaults.Web));
+});
 // No CORS here: the browser only reaches Core through the Gateway (CLAUDE.md). A duplicate
 // Access-Control-Allow-Origin header from Core would be proxied back by YARP and overwrite
 // the Gateway's specific origin, breaking the browser's CORS check.

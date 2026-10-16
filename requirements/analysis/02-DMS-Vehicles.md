@@ -38,7 +38,7 @@ Two stored additions come from SCOPE-BASELINE errata 7–8, not from this docume
 [new] ──► IN_STOCK ──(enter sold date + sold price)──► SOLD
 ```
 
-- Only two states; no reconditioning, sale-ready, or archive.
+- Only two states; no reconditioning, sale-ready, or archive **state**. Reconditioning work orders (`WO-01–07`, design/21 §4) attach to an in-stock vehicle without adding a state, but an open work order blocks the sale (`WORK_ORDERS_OPEN`) and a completed one adds its cost to `repairCost`.
 - The server derives status: both sale fields present → `SOLD`, otherwise `IN_STOCK`.
 - Undoing a sale is not supported in this release (see 07).
 

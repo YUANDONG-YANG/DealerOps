@@ -114,7 +114,7 @@ Authority conflicts: course PPT > specification fields > BRIEF / 00 > 15 / **14 
 - **Repo:** `dealer-web`
 - **Files:** `src/auth/login.ts` ([15](15-Data-Auth-and-Gateway.md) §8); `src/api/http.ts`; `src/main.ts`; `src/stores/session.ts`.
 - **Must include:**
-  - `signIn(identifier, password)`: `POST /api/v1/auth/login` with `{ identifier, password }`, where `identifier` is the email, username, or phone; store the returned `accessToken` in `sessionStorage`. `signOut` removes it and returns to `/login`.
+  - `signIn(identifier, password)`: `POST /api/v1/auth/login` with `{ identifier, password }`, where `identifier` is the email, username, or phone; store the returned `accessToken` in `sessionStorage`. `signOut` removes it and returns to the landing page `/`.
   - `api/http.ts`: `baseURL = import.meta.env.VITE_GATEWAY_URL`. Request paths written as `/api/v1/...`.
   - Request interceptor: read the stored token; header `Authorization: Bearer <accessToken>`. No silent refresh (the token expires after 1 hour; sign in again).
   - Response: 401 → clear session, return `/login`. 403/404/409/400/502 → throw to in-page `PageState` or `ElMessage`, **not an empty table**.

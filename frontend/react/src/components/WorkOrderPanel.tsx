@@ -1,39 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { http, messageOf } from '../api/http';
+import { messageOf } from '../api/http';
 import { memberLabel, membersApi, type MemberOption } from '../api/members';
 import ConfirmDialog from './ConfirmDialog';
 import { cad } from '../format';
-
-interface WorkOrder {
-  id: number;
-  vehicleId: number;
-  task: string;
-  assigneeUsername: string | null;
-  status: string;
-  dueOn: string | null;
-  cost: number | null;
-  completionNote: string | null;
-  completedOn: string | null;
-  createdAt: string;
-  version: number;
-}
+import { workOrdersApi, type PatchWorkOrderBody, type WorkOrder } from '../api/workOrders';
 
 interface Props {
   vehicleId: number;
   sold: boolean;
   onChanged: () => void;
-}
-
-// PATCH /api/v1/work-orders/{id} takes the full editable state, so every call
-// resends the fields it does not change (21-Feature-Extensions.md §4).
-interface PatchPayload {
-  status: string;
-  task: string;
-  assigneeUsername: string | null;
-  dueOn: string | null;
-  cost: number | null;
-  completionNote: string | null;
-  version: number;
 }
 
 interface EditForm {
@@ -51,7 +26,7 @@ const STATUS_TAG: Record<string, string> = {
 
 const EMPTY_EDIT: EditForm = { task: '', assignee: '', dueOn: '' };
 
-function currentState(wo: WorkOrder): PatchPayload {
+function currentState(wo: WorkOrder): PatchWorkOrderBody {
   return {
     status: wo.status,
     task: wo.task,
@@ -90,7 +65,7 @@ export default function WorkOrderPanel({ vehicleId, sold, onChanged }: Props) {
     setLoading(true);
     setError('');
     try {
-      const r = await http.get(`/api/v1/vehicles/${vehicleId}/work-orders`);
+      const r = await workOrdersApi.list(vehicleId);
       if (seq !== seqRef.current) return;
       setOrders(r.data || []);
     } catch {
@@ -121,7 +96,7 @@ export default function WorkOrderPanel({ vehicleId, sold, onChanged }: Props) {
     setCreateError('');
     setCreating(true);
     try {
-      await http.post(`/api/v1/vehicles/${vehicleId}/work-orders`, {
+      await workOrdersApi.create(vehicleId, {
         task: form.task.trim(),
         assigneeUsername: trimToNull(form.assignee),
         dueOn: trimToNull(form.dueOn),
@@ -137,12 +112,12 @@ export default function WorkOrderPanel({ vehicleId, sold, onChanged }: Props) {
   }
 
   // Returns '' when the work order was updated, otherwise the message to show.
-  async function patch(wo: WorkOrder, payload: PatchPayload): Promise<string> {
+  async function patch(wo: WorkOrder, payload: PatchWorkOrderBody): Promise<string> {
     if (actionBusy != null) return 'Another work order change is still running.';
     setActionBusy(wo.id);
     setError('');
     try {
-      await http.patch(`/api/v1/work-orders/${wo.id}`, payload);
+      await workOrdersApi.patch(wo.id, payload);
       await load();
       onChanged();
       return '';

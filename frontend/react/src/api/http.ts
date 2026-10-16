@@ -53,6 +53,25 @@ http.interceptors.response.use(
   },
 );
 
+type PageResponse<T> = { data: { items?: T[]; totalElements?: number } };
+
+/**
+ * Loads every page of a newest-first list. A row created while the pages load pushes older
+ * rows onto the next page, so rows already collected are skipped by id instead of repeated.
+ */
+export async function collectAllPages<T extends { id: number }>(
+  loadPage: (page: number) => Promise<PageResponse<T>>,
+): Promise<T[]> {
+  const byId = new Map<number, T>();
+  let fetched = 0;
+  for (let page = 0; ; page++) {
+    const { items = [], totalElements = 0 } = (await loadPage(page)).data;
+    for (const item of items) if (!byId.has(item.id)) byId.set(item.id, item);
+    fetched += items.length;
+    if (!items.length || fetched >= totalElements) return [...byId.values()];
+  }
+}
+
 export type ApiErrorInfo = { status?: number; code?: string; message?: string };
 
 type ApiErrorBody = { code?: string; message?: string };

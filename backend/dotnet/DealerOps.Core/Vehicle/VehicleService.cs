@@ -184,8 +184,9 @@ public class VehicleService
     {
         var tenant = RequireTenant();
 
-        if (body.SoldOn == null || body.SoldPrice == null)
-            throw new ApiException(ErrorCode.SoldPairRequired, "Sold date and sold price are both required.");
+        if (body.SoldOn == null || body.SoldPrice == null || body.SoldPrice <= 0)
+            throw new ApiException(ErrorCode.SoldPairRequired,
+                "Sold date and a sold price greater than 0 are both required.");
 
         var vehicle = LoadThisDealer(id);
 
@@ -364,7 +365,11 @@ public class VehicleService
     private static void RequireModelYearInRange(int modelYear)
     {
         if (modelYear > DateTime.UtcNow.Year + 1)
-            throw new ApiException(ErrorCode.Validation, "Model year must not be later than next year.");
+        {
+            const string message = "Model year must not be later than next year.";
+            throw new ApiException(ErrorCode.Validation, message,
+                new Dictionary<string, string> { ["modelYear"] = message });
+        }
     }
 
     private static void RequireAddedOnNotInFuture(DateOnly addedOn)

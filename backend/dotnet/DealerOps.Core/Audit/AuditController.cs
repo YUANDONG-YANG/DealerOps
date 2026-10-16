@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations;
 using DealerOps.Core.Audit.Dto;
 using DealerOps.Core.Common;
 using Microsoft.AspNetCore.Authorization;
@@ -20,10 +21,11 @@ public class AuditController : ControllerBase
     [HttpGet]
     public PageResponse<AuditItem> List(
         [FromQuery] string entityType,
-        [FromQuery] long entityId,
+        // Nullable so a missing id fails [Required] with 400 instead of binding 0 (404).
+        [FromQuery, Required] long? entityId,
         [FromQuery] int page = 0,
         [FromQuery] int size = 10)
     {
-        return _service.List(entityType, entityId, page, size);
+        return _service.List(entityType, entityId!.Value, page, size);
     }
 }

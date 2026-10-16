@@ -37,13 +37,14 @@ export default function DataTable<T extends Record<string, unknown>>({
 
   return (
     <>
+      <div className="table-wrap">
       <table className="table">
         <thead>
           <tr>
             {columns.map((col, ci) => (
               <th key={col.key ?? ci} style={col.width ? { width: col.width } : undefined}>{col.label}</th>
             ))}
-            {actions && <th style={{ width: 190 }}>Actions</th>}
+            {actions && <th style={{ width: '1%' }}>Actions</th>}
           </tr>
         </thead>
         <tbody>
@@ -62,6 +63,7 @@ export default function DataTable<T extends Record<string, unknown>>({
           )}
         </tbody>
       </table>
+      </div>
       <div className="toolbar">
         <span className="muted">{total} {total === 1 ? 'record' : 'records'}</span>
         <div className="pagination">

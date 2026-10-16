@@ -401,7 +401,7 @@ Gateway responsibility ends here: routing, user-JWT validation, blocking interna
 
 ### 8.1 Why this is still not a fifth microservice
 
-Authentication uses a sign-in name (email, username, or phone) plus password (`POST /api/v1/auth/login` and `/register`), a Google ID token (`POST /api/v1/auth/google`, `AUTH-23`, added 2026-10-15), or a Firebase ID token (`POST /api/v1/auth/firebase`, added 2026-10-16). Firebase tokens require `email_verified=true`; platform administrators cannot use Firebase sign-in. A new account from any path starts unbound, and tenancy is resolved per request from the membership table. Core issues DealerOps JWTs; the gateway and core validate those tokens (§8.3's `roles[]`-based RBAC, Gateway + core double validation, `TenantFilter`).
+Authentication uses a sign-in name (email, username, or phone) plus password (`POST /api/v1/auth/login` and `/register`), a Google ID token (`POST /api/v1/auth/google`, `AUTH-23`, added 2026-10-15), or a Firebase ID token (`POST /api/v1/auth/firebase`, added 2026-10-16). Firebase accepts unverified emails but links an existing email account only when `email_verified=true`; platform administrators cannot use Firebase sign-in. A new account from any path starts unbound, and tenancy is resolved per request from the membership table. Core issues DealerOps JWTs; the gateway and core validate those tokens (§8.3's `roles[]`-based RBAC, Gateway + core double validation, `TenantFilter`).
 
 ### Swagger authentication flow
 

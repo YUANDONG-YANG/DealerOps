@@ -354,6 +354,8 @@ export default function DmsPage() {
     } catch (e) {
       if (seq !== detailSeqRef.current) return;
       if (errorCode(e) === 'VALIDATION') setServerErrors(fieldErrorsOf(e));
+      // VIN_DUP carries no fieldErrors, but it is about one field and belongs under it (UI-21).
+      if (errorCode(e) === 'VIN_DUP') setServerErrors({ vin: mapWrite(e) });
       setFormError(mapWrite(e));
     } finally {
       setSaving(false);

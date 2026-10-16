@@ -103,8 +103,11 @@ public class AuditService : IAuditService
 
     private PageResponse<AuditItem> CustomerHistory(long tenant, long customerId, int page, int size)
     {
+        // Link rows carry the customer id only inside the JSON summary, so those are matched in memory.
         var source = _db.AuditEvents
-            .Where(e => e.DealerId == tenant)
+            .Where(e => e.DealerId == tenant
+                && ((e.EntityType == EntityType.Customer && e.EntityId == customerId)
+                    || e.EntityType == EntityType.CustomerVehicle))
             .OrderByDescending(e => e.CreatedAt).ThenByDescending(e => e.Id)
             .ToList();
 

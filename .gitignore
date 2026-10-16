@@ -54,3 +54,7 @@ log-sum/*.log
 
 # TypeScript incremental build cache
 *.tsbuildinfo
+
+# Python bytecode (seed scripts)
+**/__pycache__/
+*.pyc

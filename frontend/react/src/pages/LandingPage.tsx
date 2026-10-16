@@ -1,10 +1,20 @@
-import { type FormEvent, useState } from 'react'
+import { type CSSProperties, type FormEvent, useEffect, useState } from 'react'
 import { Link, Navigate } from 'react-router-dom'
 import { catalogApi, vinDecodeError, type VinDecode } from '../api/catalog'
-import { roleHome } from '../auth/login'
+import { getMe } from '../api/me'
+import { accessToken, roleHome } from '../auth/login'
 import { useSessionStore } from '../store/session'
 import BrandMark from '../components/BrandMark'
 import LandingArt, { type LandingArtKind } from '../components/LandingArt'
+import rav4 from '../assets/landing/rav4.webp'
+import civic from '../assets/landing/civic.webp'
+import f150 from '../assets/landing/f150.webp'
+import conveyorCamry from '../assets/landing/conveyor/camry.jpg'
+import conveyorCivic from '../assets/landing/conveyor/civic.jpg'
+import conveyorCx5 from '../assets/landing/conveyor/cx5.jpg'
+import conveyorF150 from '../assets/landing/conveyor/f150.jpg'
+import conveyorRav4 from '../assets/landing/conveyor/rav4.jpg'
+import conveyorTucson from '../assets/landing/conveyor/tucson.jpg'
 
 const FEATURES: { title: string; text: string; art: LandingArtKind }[] = [
   { title: 'Vehicle inventory', text: 'Record every vehicle with the required fields, search and filter stock, and sell with a locked purchase history.', art: 'inventory' },
@@ -23,28 +33,52 @@ const STEPS: { title: string; text: string; art: LandingArtKind }[] = [
 ]
 
 const PREVIEW_ROWS = [
-  { vehicle: '2021 Toyota RAV4 XLE', status: 'In stock', check: 'Passed', tone: 'ok', color: '#1e3a5f' },
-  { vehicle: '2019 Honda Civic LX', status: 'In stock', check: 'Blocked', tone: 'bad', color: '#3b1f2b' },
-  { vehicle: '2022 Ford F-150 XLT', status: 'Sold', check: 'Stale', tone: 'warn', color: '#2f3320' },
+  { vehicle: '2021 Toyota RAV4 XLE', status: 'In stock', check: 'Passed', tone: 'ok', photo: rav4 },
+  { vehicle: '2019 Honda Civic LX', status: 'In stock', check: 'Blocked', tone: 'bad', photo: civic },
+  { vehicle: '2022 Ford F-150 XLT', status: 'Sold', check: 'Stale', tone: 'warn', photo: f150 },
 ]
 
 const SAMPLE_VIN = '1HGCM82633A004352'
+// Decorative CTA conveyor: ads roll through the compliance gate and come out stamped.
+const CTA_ADS = [
+  { car: '2017 RAV4', price: '$21,900', tone: 'ok', stamp: 'Passed', photo: conveyorRav4 },
+  { car: '2023 Civic', price: '$27,450', tone: 'bad', stamp: 'Blocked', photo: conveyorCivic },
+  { car: '2016 F-150', price: '$28,200', tone: 'ok', stamp: 'Passed', photo: conveyorF150 },
+  { car: '2022 CX-5', price: '$31,800', tone: 'warn', stamp: 'Review', photo: conveyorCx5 },
+  { car: '2017 Camry', price: '$17,100', tone: 'ok', stamp: 'Passed', photo: conveyorCamry },
+  { car: '2022 Tucson', price: '$29,500', tone: 'ok', stamp: 'Passed', photo: conveyorTucson },
+]
+const CTA_STAGGER_S = 3
+
+
+const VIN_FACTS = [
+  ['Make', 'make'],
+  ['Model', 'model'],
+  ['Year', 'modelYear'],
+  ['Body class', 'bodyClass'],
+  ['Engine', 'engine'],
+  ['Country', 'country'],
+  ['Manufacturer', 'manufacturer'],
+] as const satisfies readonly (readonly [string, keyof VinDecode])[]
 
 function vinFacts(d: VinDecode) {
-  return [
-    ['Make', d.make],
-    ['Model', d.model],
-    ['Year', d.modelYear],
-    ['Body class', d.bodyClass],
-    ['Engine', d.engine],
-    ['Country', d.country],
-    ['Manufacturer', d.manufacturer],
-  ] as const
+  return VIN_FACTS.map(([label, key]) => [label, d[key]] as const)
 }
 
 export default function LandingPage() {
   const role = useSessionStore(s => s.role)
+  const setProfile = useSessionStore(s => s.setProfile)
   const [vin, setVin] = useState('')
+
+  // The session store is filled by the route guard, so a fresh load of `/` with a stored token
+  // has no role yet; load the profile here so the redirect below still applies (UI-02).
+  const hasToken = !!accessToken()
+  useEffect(() => {
+    if (role || !hasToken) return
+    let cancelled = false
+    getMe().then(p => { if (!cancelled) setProfile(p) }).catch(() => { /* stay on the landing page */ })
+    return () => { cancelled = true }
+  }, [role, hasToken, setProfile])
   const [decoding, setDecoding] = useState(false)
   const [vinError, setVinError] = useState('')
   const [decoded, setDecoded] = useState<VinDecode>()
@@ -117,8 +151,8 @@ export default function LandingPage() {
             <span className="muted">Preview</span>
           </div>
           {PREVIEW_ROWS.map(row => (
-            <Link key={row.vehicle} to="/login" className="landing-preview-row"
-              style={{ background: row.color }}>
+            <Link key={row.vehicle} to="/login" className="landing-preview-row">
+              <img src={row.photo} alt={`${row.vehicle}, front three-quarter view`} loading="lazy" />
               <div className="landing-preview-text">
                 <strong>{row.vehicle}</strong>
                 <span>{row.status}</span>
@@ -165,7 +199,7 @@ export default function LandingPage() {
             </div>
           )}
         </div>
-        <div className="landing-vin-result" aria-live="polite">
+        <div className={`landing-vin-result${decoded ? '' : ' is-empty'}`} aria-live="polite">
           {decoded ? (
             <>
               <div className="landing-vin-head">
@@ -182,8 +216,14 @@ export default function LandingPage() {
               </dl>
             </>
           ) : (
-            <div className="landing-vin-empty muted">
-              Vehicle details appear here: make, model, year, body class, engine, country, and manufacturer.
+            <div className="landing-vin-empty">
+              <img src={f150} alt="" className="landing-vin-photo" />
+              <span className="landing-eyebrow">Awaiting VIN</span>
+              <strong className="landing-vin-title">Your vehicle, decoded</strong>
+              <p className="landing-vin-lead">Vehicle details appear here:</p>
+              <ul className="landing-vin-fields">
+                {VIN_FACTS.map(([label]) => <li key={label}>{label}</li>)}
+              </ul>
             </div>
           )}
         </div>
@@ -204,13 +244,27 @@ export default function LandingPage() {
       </section>
 
       <section className="landing-cta">
+        <div className="cta-flow" aria-hidden="true">
+          <div className="cta-gate"><span>Compliance check</span></div>
+          {CTA_ADS.map((ad, i) => (
+            <div key={ad.car} className={`cta-ad cta-ad-${ad.tone}`}
+              style={{ '--d': `${-i * CTA_STAGGER_S}s` } as CSSProperties}>
+              <img src={ad.photo} alt="" className="cta-ad-photo" />
+              <strong>{ad.car}</strong>
+              <span className="cta-ad-price">{ad.price}</span>
+              <span className="cta-ad-draft">Ad draft</span>
+              <span className={`cta-ad-stamp landing-chip landing-chip-${ad.tone}`}>{ad.stamp}</span>
+            </div>
+          ))}
+        </div>
         <h2>Ready to get started?</h2>
         <p>Sign in, or create an account and ask your platform administrator to add it to your dealership.</p>
         <Link to="/login"><button className="btn btn-lg">Sign in</button></Link>{' '}
         <Link to="/register"><button className="btn btn-lg">Create account</button></Link>
       </section>
 
-      <p className="landing-credit muted">Vehicle photos by Stephen Andrews, Harrison Fitts, and Caleb White on Unsplash.</p>
+      <p className="landing-credit muted">Vehicle photos by Stephen Andrews, Harrison Fitts, and Caleb White on Unsplash.
+        Conveyor photos from Wikimedia Commons by HJUdall (CC0), and Elise240SX, ShangTW, MercurySable99 and Alexander Migl (CC BY-SA 4.0).</p>
     </div>
   )
 }

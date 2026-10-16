@@ -38,7 +38,7 @@ BLOCK prevents Ready/export; REVIEW is a hint and does not prevent them. Rule co
 | AD-R22 | Lease payment | REVIEW LEASE_RENT_MISSING when no payment cadence is present (corrected 2026-10-16: the predicate previously also required a missing price, which a PRICE_MISSING block already covered, so the rule could never fire on its own and the lease payment amount went unchecked); general price rule R07 still applies |
 | AD-R23 | Lease APR missing | BLOCK LEASE_APR_MISSING |
 | AD-R24 | Lease upfront payment missing | REVIEW LEASE_DOWN_MISSING |
-| AD-R25 | Annual allowance / excess-km fee | Checklist allowance is compared to copy; mismatch or missing copy is REVIEW; allowance < 20,000 with no excess-fee wording is BLOCK LEASE_EXCESS_KM_MISSING; exactly 20,000 or more does not require the fee; no checklist or copy allowance is REVIEW LEASE_ALLOWANCE_UNSTATED |
+| AD-R25 | Annual allowance / excess-km fee | Checklist allowance is compared to copy; mismatch is REVIEW LEASE_ALLOWANCE_MISMATCH and missing copy is REVIEW LEASE_ALLOWANCE_NOT_IN_COPY; when both figures exist the stricter (lower) one decides the fee rule; allowance < 20,000 with no excess-fee wording is BLOCK LEASE_EXCESS_KM_MISSING; exactly 20,000 or more does not require the fee; no checklist or copy allowance is REVIEW LEASE_ALLOWANCE_UNSTATED |
 
 Finance-triggered means FINANCE, or CASH with a match to the existing APR or PAYMENT pattern in title/body. LEASE uses its own rules. No broader natural-language rate detector is added.
 
@@ -68,8 +68,8 @@ Finance-triggered means FINANCE, or CASH with a match to the existing APR or PAY
 | AD-10 | Store each check's time, findings and evaluated content version | Derived | Must |
 | AD-11 | Listing edits or vehicle condition changes invalidate a previous pass | Course triage A5 | Must |
 | AD-12 | Ready/export require a current pass | SCOPE | Must |
-| AD-13 | TXT includes dealer/vehicle public fields, title/body/check time; no customer data or cost | SCOPE | Must |
-| AD-14 | State that compliance output is reference material, not legal advice or OMVIC approval | PDF §8 | Implemented as a notice in the ad-check result UI; no separate page or TXT footer |
+| AD-13 | TXT includes dealer/vehicle public fields, title/body/check time and the AD-14 disclaimer line; no customer data or cost | SCOPE | Must |
+| AD-14 | State that compliance output is reference material, not legal advice or OMVIC approval | PDF §8 | Implemented as a notice in the ad-check result UI and as the closing disclaimer line of the TXT export (design/14 §8.4); no separate page |
 | AD-15 | Configurable rules / rule editor | PDF §8 / Q-15 | Won't this release; patterns remain in code |
 | AD-16 | External auto-publishing | DOC | Won't |
 | AD-17 | Image Studio | DOC2 / SCOPE erratum 7 | **Returned to scope 2026-10-08**; owned by design/21 as `IMG-01–05`. Do not cite this row as an exclusion |

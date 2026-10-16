@@ -1,4 +1,5 @@
 using DealerOps.Core.Audit;
+using DealerOps.Core.Common;
 using DealerOps.Core.Common.Exceptions;
 using DealerOps.Core.Common.Tenant;
 using DealerOps.Core.Data;
@@ -78,7 +79,7 @@ public class WorkOrderService
         var changed = new Dictionary<string, object>();
 
         if (next != order.Status)
-            changed["status"] = next.ToString();
+            changed["status"] = EnumWireName.Of(next);
         if (order.Task != task)
             changed["task"] = true;
         if (order.AssigneeUsername != assignee)

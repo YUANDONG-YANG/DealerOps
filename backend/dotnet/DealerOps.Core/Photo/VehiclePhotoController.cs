@@ -44,7 +44,7 @@ public class VehiclePhotoController : ControllerBase
 
     [HttpPost("{photoId}/enhance")]
     public PhotoItem Enhance(long vehicleId, long photoId, [FromBody] EnhancePhotoRequest request) =>
-        _photoService.Enhance(vehicleId, photoId, request.Preset);
+        _photoService.Enhance(vehicleId, photoId, request.Preset!.Value);
 
     [HttpDelete("{photoId}")]
     public IActionResult Delete(long vehicleId, long photoId)

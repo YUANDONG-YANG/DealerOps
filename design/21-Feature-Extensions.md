@@ -197,12 +197,14 @@ Google authenticates an email address and nothing more. It grants no role and no
 |---|---|---|
 | AUTH-16 | `POST /api/v1/auth/register` accepts `username` (3–64 letters, digits, `.`, `_`, `-`, at least one letter), `displayName`, password, and at least one of a valid `email` or international phone number (country code required). A duplicate username, email, or phone → **409** `USERNAME_TAKEN` / `DISPLAY_NAME_TAKEN` / `EMAIL_TAKEN` / `PHONE_TAKEN`. Full names are unique (trimmed, case-insensitive). Every error names its field in `fieldErrors` with an English message. | Must |
 | AUTH-17 | `POST /api/v1/auth/login` accepts `identifier` = email, username, or phone, and the password. Order: `@` → email; else username; else phone | Must |
-| AUTH-18 | A new account is active but unbound and can access no dealership data until the admin binds it | Must |
+| AUTH-18 | A new account is active but unbound and can access no dealership data until the admin binds it or a member of the requested dealership approves its join request (`AUTH-25`) | Must |
 | AUTH-19 | ~~No social-provider login buttons, routes, credentials, or integrations are present~~ **Superseded 2026-10-15 by AUTH-23.** Still binding for every provider other than Google | Must |
 | AUTH-20 | Admin can create an account with a username and an email and/or phone and bind it; binding an existing account never replaces its credentials | Must |
 | AUTH-21 | The platform admin is seeded from `ADMIN_USERNAME` / `ADMIN_PASSWORD`; `ADMIN_EMAIL` / `ADMIN_PHONE` are optional extra sign-in names | Must |
 | AUTH-22 | Local registration and first admin-created account are audited (`APP_USER`, `CREATE`, actor = the username) | Should |
 | AUTH-23 | `POST /api/v1/auth/google` accepts a Google ID token, verifies it server-side (RS256 against Google's published keys, issuer, audience = the configured client id, expiry, and `email_verified` true), then signs in the account holding that email or creates a new unbound `Dealer.User` for it. The account gets no password, so it can only return through Google. A `Platform.Admin` account is refused and keeps password-only sign-in. An optional `Google:HostedDomain` restricts sign-in to one Google Workspace domain. The button is hidden when no client id is configured. Audited as `APP_USER` / `CREATE` with `registration = google` | Must |
+| AUTH-24 | `POST /api/v1/auth/firebase` accepts a Firebase ID token (SCOPE erratum 9) and signs in the account linked to that Firebase uid, else the account holding that email, else creates an unbound `Dealer.User` (`registration = firebase`). Unverified emails are accepted, but an existing email account is linked to a new uid only when `email_verified` is true (otherwise 409 `EMAIL_TAKEN`). A `Platform.Admin` is refused | Must |
+| AUTH-25 | An unbound account may request to join one dealership. Any active member of that dealership sees the request on `/team` (`GET /api/v1/dealer/join-requests`) and may approve it (creates the membership, audited `MEMBERSHIP` / `CREATE`) or reject it (SCOPE erratum 10). The request is shown to that dealership only | Must |
 
 ### Flow and API
 

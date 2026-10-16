@@ -5,8 +5,8 @@
 | Topic | PDF specification | DOCX brief | Resolution |
 |---|---|---|---|
 | Product name | Dealer Ops | DealerOS | Use Dealer Ops |
-| Sign-in | Username + password | Firebase email/password and Google login (DOCX2) | Local password accounts, BCrypt-hashed; the sign-in name may be email, username or phone, and self-registration is allowed with admin-granted dealership access. Google ID-token sign-in added 2026-10-15 as `AUTH-23`, and Firebase **Auth** on 2026-10-16 as a third path (`POST /api/v1/auth/firebase`), using the client's own Firebase project. Firebase tokens require a verified email and platform-admin accounts are refused. The Firebase **database** is not adopted. A new account from any path starts unbound. See design/SCOPE-BASELINE.md errata 1, 7 and 9 |
-| CRM scope | Four fields + purchase link | Lead and customer lifecycle | Follow the PDF; no leads |
+| Sign-in | Username + password | Firebase email/password and Google login (DOCX2) | Local password accounts, BCrypt-hashed; the sign-in name may be email, username or phone, and self-registration is allowed with admin-granted dealership access. Google ID-token sign-in added 2026-10-15 as `AUTH-23`, and Firebase **Auth** on 2026-10-16 as a third path (`POST /api/v1/auth/firebase`), using the client's own Firebase project. Firebase sign-in is `AUTH-24`: unverified emails are accepted, an existing email account is linked only for a verified email, and platform-admin accounts are refused. Dealership members may approve join requests (`AUTH-25`, SCOPE erratum 10). The Firebase **database** is not adopted. A new account from any path starts unbound. See design/SCOPE-BASELINE.md errata 1, 7 and 9 |
+| CRM scope | Four fields + purchase link | Lead and customer lifecycle | Core CRM follows the PDF. Lead follow-up returned to scope on 2026-10-08 as `LEAD-01–09` (SCOPE erratum 7, design/21 §3); sales-funnel reports and deal transactions stay out (CRM-15) |
 | Compliance check | Checklist + system flags missing items | AI screens automatically | Both: fixed rules first, then AI review |
 | Publishing | "Before a listing is published" | "flagging before publication" | Ready + TXT export (SCOPE erratum 3) |
 | Image Studio | None | Optional module | Built as `IMG-01–05` (SCOPE erratum 7, 2026-10-08) |
@@ -15,6 +15,7 @@
 | Backend language | None | C# preferred (DOCX2) | .NET 10 / ASP.NET Core; Java is retired |
 | AI assistant page | None | None (only the compliance assistant) | Add a read-only assistant page (SCOPE erratum 2) |
 | Inventory / sales monitoring | None | "monitor sales" | No KPI dashboard; filter the list by sold |
+| Garage operations | None | Garage operations | Vehicle-level reconditioning work orders only, built as `WO-01–07` (SCOPE erratum 7, design/21 §4); no garage/service billing, and the vehicle keeps its two states |
 
 ## 2. Ambiguities and assumptions taken
 
@@ -40,7 +41,7 @@
 ## 3. Questions for the client / instructor
 
 1. **Q-04**: Do salespeople prefer "pick a car in CRM = sale done", or "record sale in DMS, CRM only links"? This affects the number of steps and the demo flow.
-2. **Q-07 / Q-08**: May DMS gain "list price" and "new / used" fields for the compliance check? SCOPE currently forbids adding fields.
+2. **Q-07 / Q-08**: May DMS gain "list price" and "new / used" fields for the compliance check? SCOPE currently forbids adding fields; the optional `bodyType` (erratum 8) is the only exception.
 3. **Q-12**: For one vehicle advertised online and on a billboard, are two ads needed?
 4. **Q-05**: Does the demo need to show a vehicle return?
 5. Are the four dealer fields (registered name, phone, email, address) enough? Is the OMVIC registration number needed?

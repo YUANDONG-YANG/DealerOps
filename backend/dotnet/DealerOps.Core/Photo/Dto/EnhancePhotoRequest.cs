@@ -3,4 +3,5 @@ using DealerOps.Core.Photo;
 
 namespace DealerOps.Core.Photo.Dto;
 
-public record EnhancePhotoRequest([Required] PhotoPreset Preset);
+// Nullable so a missing preset fails [Required] instead of silently binding the default (AUTO).
+public record EnhancePhotoRequest([Required] PhotoPreset? Preset);

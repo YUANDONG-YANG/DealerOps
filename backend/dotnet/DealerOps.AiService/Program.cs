@@ -3,7 +3,6 @@ using System.Text.Json.Serialization;
 using DealerOps.AiService.Adapter;
 using DealerOps.AiService.Config;
 using DealerOps.AiService.Middleware;
-using DealerOps.AiService.OpenApi;
 using DealerOps.AiService.Support;
 using DealerOps.Logging;
 using Microsoft.OpenApi.Models;
@@ -55,7 +54,6 @@ builder.Services.AddSwaggerGen(options =>
             }
         }] = Array.Empty<string>()
     });
-    options.DocumentFilter<AiGatewayDocumentFilter>();
 });
 
 var connectMs = int.TryParse(
@@ -64,7 +62,12 @@ var responseMs = int.TryParse(
     builder.Configuration["AiService:ResponseTimeoutMs"], out var r) ? r : 13000;
 
 builder.Services.AddSingleton(new TimedModelCall(connectMs, responseMs));
-builder.Services.AddHttpClient("ai-provider");
+// AI-02: the connect budget is enforced at the socket; TimedModelCall caps the whole call.
+builder.Services.AddHttpClient("ai-provider")
+    .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler
+    {
+        ConnectTimeout = TimeSpan.FromMilliseconds(connectMs)
+    });
 builder.Services.AddSingleton<AiProviderClient>(sp =>
 {
     var httpFactory = sp.GetRequiredService<IHttpClientFactory>();

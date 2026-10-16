@@ -17,6 +17,9 @@ public class AiProviderClient
         ["claude"] = "https://api.anthropic.com/v1"
     };
 
+    // Review and assistant answers must be repeatable, not creative.
+    private const double Temperature = 0.1;
+
     private readonly HttpClient _http;
     private readonly string _model;
     private readonly int _maxTokens;
@@ -55,7 +58,8 @@ public class AiProviderClient
                 new ChatMessage("system", systemPrompt),
                 new ChatMessage("user", userContent)
             },
-            _maxTokens);
+            _maxTokens,
+            Temperature);
 
         var json = JsonSerializer.Serialize(payload, SerializerOptions);
         using var request = new HttpRequestMessage(HttpMethod.Post, $"{_baseUrl}/chat/completions");
@@ -82,7 +86,8 @@ public class AiProviderClient
     private record ChatRequest(
         string Model,
         ChatMessage[] Messages,
-        [property: JsonPropertyName("max_tokens")] int MaxTokens);
+        [property: JsonPropertyName("max_tokens")] int MaxTokens,
+        double Temperature);
 
     private record ChatMessage(string Role, string Content);
 

@@ -30,9 +30,10 @@ public class TenantMiddleware
 
             var path = context.Request.Path.Value ?? "";
             var method = context.Request.Method;
-            var isMeGet = method.Equals("GET", StringComparison.OrdinalIgnoreCase)
-                          && (path.Equals("/api/v1/me", StringComparison.OrdinalIgnoreCase)
-                              || path.Equals("/api/v1/me/", StringComparison.OrdinalIgnoreCase));
+            // /me is the caller's own account, so an unbound user may still read, edit or delete it.
+            var isMe = path.Equals("/api/v1/me", StringComparison.OrdinalIgnoreCase)
+                       || path.Equals("/api/v1/me/", StringComparison.OrdinalIgnoreCase);
+            var isMeGet = isMe && method.Equals("GET", StringComparison.OrdinalIgnoreCase);
 
             var username = context.User.FindFirstValue(ClaimTypes.NameIdentifier)
                            ?? context.User.FindFirstValue("sub");
@@ -45,7 +46,6 @@ public class TenantMiddleware
             var roleClaim = context.User.FindFirstValue("roles")
                             ?? context.User.FindFirstValue(ClaimTypes.Role);
             var role = AppRole.FromValue(roleClaim);
-            var displayName = context.User.FindFirstValue("name") ?? username;
 
             if (role == null && !isMeGet)
             {
@@ -57,7 +57,7 @@ public class TenantMiddleware
 
             if (role == AppRole.PlatformAdmin)
             {
-                if (!SyncAppUser(db, username, displayName, role, null))
+                if (!SyncAppUser(db, username, role, null))
                 {
                     await WriteError(context, ErrorCode.Unauthorized, "Unauthorized");
                     return;
@@ -83,7 +83,7 @@ public class TenantMiddleware
 
                 long? dealerId = rows.Count == 1 ? rows[0].DealerId : null;
 
-                if (!SyncAppUser(db, username, displayName, role, dealerId))
+                if (!SyncAppUser(db, username, role, dealerId))
                 {
                     await WriteError(context, ErrorCode.Unauthorized, "Unauthorized");
                     return;
@@ -100,7 +100,7 @@ public class TenantMiddleware
                     return;
                 }
 
-                if (!isMeGet && dealerId == null)
+                if (!isMe && dealerId == null)
                 {
                     _logger.LogWarning("Rejecting unbound dealer user username={Username} {Method} {Path}",
                         username, method, path);
@@ -112,7 +112,7 @@ public class TenantMiddleware
                 return;
             }
 
-            if (!SyncAppUser(db, username, displayName, null, null))
+            if (!SyncAppUser(db, username, null, null))
             {
                 await WriteError(context, ErrorCode.Unauthorized, "Unauthorized");
                 return;
@@ -126,14 +126,14 @@ public class TenantMiddleware
         }
     }
 
-    private static bool SyncAppUser(AppDbContext db, string username, string displayName,
-        AppRole? jwtRole, long? dealerId)
+    // The display name is not copied from the token: PATCH /me changes it, and a token issued
+    // before that edit would otherwise revert it on the next request.
+    private static bool SyncAppUser(AppDbContext db, string username, AppRole? jwtRole, long? dealerId)
     {
         var user = db.AppUsers.FirstOrDefault(u => u.Username == username);
         if (user == null || !user.Active)
             return false;
 
-        user.DisplayName = displayName.Length > 120 ? displayName[..120] : displayName;
         if (jwtRole != null)
             user.Role = jwtRole;
         user.DealerId = jwtRole == AppRole.PlatformAdmin ? null : dealerId;

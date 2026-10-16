@@ -69,7 +69,21 @@ export default function AdsPage() {
     try {
       const r = await vehiclesApi.list({ page, size: 10 });
       if (seq !== vehicleListSeq.current) return;
-      setVehicles(r.data.items || []); setTotal(r.data.totalElements || 0);
+      const items = r.data.items || [];
+      setVehicles(items); setTotal(r.data.totalElements || 0);
+      // The table shows each vehicle's ad type, medium and check status, so fetch the page's
+      // listings up front. A vehicle without a saved ad (virtual draft, id null) stays "—".
+      const results = await Promise.allSettled(items.map((v: any) => listingsApi.get(v.id)));
+      if (seq !== vehicleListSeq.current) return;
+      setSummaries((s) => {
+        const next = { ...s };
+        results.forEach((res, i) => {
+          if (res.status !== 'fulfilled') return;
+          const l = res.value.data;
+          next[items[i].id] = l.id ? { adKind: l.adKind, medium: l.medium, checkStatus: l.checkStatus } : {};
+        });
+        return next;
+      });
     } catch (e) {
       if (seq !== vehicleListSeq.current) return;
       setVehicles([]);
@@ -155,10 +169,10 @@ export default function AdsPage() {
     } catch (e) {
       if (selected?.id !== vehicleId) return;
       const { status, code } = apiError(e);
-      // A timeout or a dropped connection carries no response at all. It is still an AI
+      // A gateway 5xx, a timeout or a dropped connection (no response at all) is still an AI
       // failure (AD-09), so it must never leave a previous "Passed" badge on screen.
       const noResponse = !(e as { response?: unknown })?.response;
-      if (status === 502 || code === 'AI_UNAVAILABLE' || noResponse) {
+      if ((status ?? 0) >= 500 || code === 'AI_UNAVAILABLE' || noResponse) {
         if (listing.vehicleId !== vehicleId) return;
         setListing((l) => {
           const upd = { ...l, checkStatus: 'AI_UNAVAILABLE' as const, lastCheckId: null, lastCheck: null };

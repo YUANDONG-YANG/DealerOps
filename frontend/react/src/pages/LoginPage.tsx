@@ -89,9 +89,12 @@ export default function LoginPage() {
     setLoading(true)
     try {
       const signInName = identifier.trim()
-      const result = signInName.includes('@')
-        ? await signInWithFirebase(signInName, password)
-        : await signIn(signInName, password)
+      // Local password accounts (admin-issued, self-registered, the seeded admin) sign in by
+      // email too (AUTH-17); only a 401 there falls through to a Firebase-owned password.
+      const result = await signIn(signInName, password).catch((err) => {
+        if (!signInName.includes('@') || err?.response?.status !== 401) throw err
+        return signInWithFirebase(signInName, password)
+      })
       // A saved path is honoured only when this role may open it; otherwise the role home wins.
       navigate(takePostLoginRedirect(result.role) || roleHome(result.role))
     } catch {

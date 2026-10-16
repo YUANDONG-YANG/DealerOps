@@ -84,8 +84,10 @@ export default function TeamPage() {
     <AppLayout>
     <section className="page">
       <header className="page-header">
-        <h1>Team</h1>
-        <p className="muted">Google users who asked to join this dealership. Newest first.</p>
+        <div>
+          <h1>Team</h1>
+          <p className="muted">Google users who asked to join this dealership. Newest first.</p>
+        </div>
       </header>
 
       {error && <div className="alert alert-error">{error}</div>}
@@ -95,6 +97,7 @@ export default function TeamPage() {
       ) : rows.length === 0 ? (
         <div className="state">No join requests yet.</div>
       ) : (
+        <div className="table-wrap">
         <table className="table">
           <thead>
             <tr>
@@ -152,6 +155,7 @@ export default function TeamPage() {
             })}
           </tbody>
         </table>
+        </div>
       )}
     </section>
     </AppLayout>

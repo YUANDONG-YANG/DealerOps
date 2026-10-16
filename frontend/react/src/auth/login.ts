@@ -125,7 +125,7 @@ export function register(
 export async function signOut() {
   await firebaseSignOut().catch(() => undefined);
   clearAccount();
-  window.location.assign('/login');
+  window.location.assign('/');
 }
 
 export function clearAccount() {

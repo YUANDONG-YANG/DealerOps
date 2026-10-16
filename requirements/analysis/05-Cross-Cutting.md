@@ -13,7 +13,7 @@ Source: every modification to a DMS or CRM record is stamped with the acting use
 | AUD-05 | Audit is append-only; entries cannot be edited or deleted | Derived | Must |
 | AUD-06 | Vehicle and customer detail pages show change history, newest first | PDF §6 | Must |
 | AUD-07 | Audit is written in the same transaction as the business write; if the write succeeds, the audit exists | Derived | Must |
-| AUD-08 | Admin dealer / login operations are also audited | Derived | Could |
+| AUD-08 | Admin dealer / login operations are also audited | Derived | Could — implemented (`DEALER` and `MEMBERSHIP` audit rows) |
 | AUD-09 | Ad check results are kept as check history (see AD-10), not as separate audit entries | Derived | Should |
 
 ## 2. Architecture (PDF §6, SCOPE)
@@ -26,13 +26,13 @@ Source: every modification to a DMS or CRM record is stamped with the acting use
 | ARC-04 | Four deployable modules plus IaC: `frontend/react`, `DealerOps.Gateway`, `DealerOps.Core`, `DealerOps.AiService`, with the shared `DealerOps.Logging` library and `dealer-platform` (IaC). The `dealer-web` / `dealer-gateway` / `dealer-core` / `ai-service` names belong to the retired Java / Vue stack | SCOPE | Must |
 | ARC-05 | Synchronous REST + single database; no message queue | SCOPE | Must |
 | ARC-06 | APIs under `/api/v1`; error body `{code, message}` | SCOPE | Must |
-| ARC-07 | Deploy to Azure: Terraform (`deploy/terraform`) + the three .NET 10 services as App Service app artifacts + the React SPA as a Static Web App + CI. Containers and Bicep dropped (2026-10-07, see design/SCOPE-BASELINE.md errata 5); there is no JVM artifact in the active stack | SCOPE (PPT) | Must |
+| ARC-07 | Deploy to Azure: Terraform (`deploy/terraform`) + the three .NET 10 services as App Service app artifacts + the React SPA as static files on a Linux App Service (`azurerm_linux_web_app.web`, served by pm2; SCOPE-BASELINE errata 5 still says Static Web Apps, which does not match `deploy/terraform/main.tf`) + CI. Containers and Bicep dropped (2026-10-07, see design/SCOPE-BASELINE.md errata 5); there is no JVM artifact in the active stack | SCOPE (PPT) | Must |
 
 ## 3. Security (PDF §8, SCOPE)
 
 | ID | Requirement | Source | Priority |
 |---|---|---|---|
-| SEC-01 | Admin-issued username/password; passwords are hashed and salted server-side (BCrypt), never stored in plain text, logged, or returned to the client (reversed 2026-09-30, see design/SCOPE-BASELINE.md errata 1) | PDF §2, §8, SCOPE | Must |
+| SEC-01 | Password accounts (admin-issued or self-registered, AUTH-12); passwords are hashed and salted server-side (BCrypt), never stored in plain text, logged, or returned to the client (reversed 2026-09-30, see design/SCOPE-BASELINE.md errata 1) | PDF §2, §8, SCOPE | Must |
 | SEC-02 | The back end validates JWT signature, audience, and expiry, and authorizes by role | SCOPE | Must |
 | SEC-03 | HTTPS everywhere | SCOPE | Must |
 | SEC-04 | Secrets (DB connection string, AI key) live in Key Vault, never in the repo | SCOPE | Must |
@@ -58,6 +58,6 @@ Source: every modification to a DMS or CRM record is stamped with the acting use
 | NFR-02 | Money in CAD with two decimals; dates shown as `YYYY-MM-DD` | Derived | Should |
 | NFR-03 | UI language is English (Ontario dealers) | Derived | Should |
 | NFR-04 | Database backup strategy | PDF §8 | Should — Azure MySQL managed backups retain 7 days (`deploy/terraform/main.tf`); restore exercise and production RPO/RTO approval remain outstanding |
-| NFR-05 | Public website domain for deployment | PDF §8 | Should — Terraform provisions the Azure-managed `dealer-ops-dev.azurewebsites.net` site hostname and exports `web_public_url`; no separately purchased custom domain is bound |
+| NFR-05 | Public website domain for deployment | PDF §8 | Should — Terraform provisions the Azure-managed `dealer-ops-dev.azurewebsites.net` site hostname and exports `web_public_url`; an optional custom hostname binding exists (`web_custom_domain`) but none is configured |
 | NFR-06 | Desktop browser first; usable at phone width | Derived | Could |
 | NFR-07 | Rate limits, throughput SLOs, PIPEDA retention | SCOPE | Won't |

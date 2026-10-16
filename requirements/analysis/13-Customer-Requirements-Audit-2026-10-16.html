@@ -37,7 +37,7 @@
   <ul>
     <li>Added structured advertisement checklist fields for prior use, offered extended-warranty terms, and lease annual kilometre allowance; the values participate in saved-content versioning and server-side checks.</li>
     <li>Added an optional vehicle association to customer creation while preserving support for a customer who has not purchased a vehicle.</li>
-    <li>Firebase sign-in now requires a verified email and refuses platform-administrator accounts, closing the unsafe email-linking path documented in the scope baseline.</li>
+    <li>Firebase sign-in refuses platform-administrator accounts and links an existing email account only when the email is verified. Unverified emails are otherwise accepted (decided 2026-10-16) so Firebase sign-up works.</li>
     <li>This audit is maintained as HTML for readability and editing.</li>
   </ul>
 
@@ -45,7 +45,7 @@
   <table><thead><tr><th>Area</th><th>Review required</th><th>Status</th></tr></thead><tbody>
     <tr><td>Advertisement checklist</td><td>Structured inputs persist on the tenant-owned listing; changes invalidate the prior check; deterministic rules consume prior-use, warranty and lease-allowance answers.</td><td class="status">Implemented; DealerOps.Core and React production builds pass.</td></tr>
     <tr><td>CRM purchase association</td><td>Creation-time link uses existing customer/vehicle endpoints; vehicle selection is optional and link failure returns the user to the customer detail flow.</td><td class="status">Implemented; React production build passes.</td></tr>
-    <tr><td>Firebase authentication</td><td>Verifier checks <code>email_verified</code>; platform-administrator accounts are refused.</td><td class="status">Implemented; DealerOps.Core build passes.</td></tr>
+    <tr><td>Firebase authentication</td><td>Unverified emails accepted; existing-account linking requires <code>email_verified</code>; platform-administrator accounts are refused.</td><td class="status">Implemented; DealerOps.Core build passes.</td></tr>
     <tr><td>Five client-note extensions</td><td>Active controller/service/UI modules exist for VIN, leads, work orders, authentication and photo studio; this review confirmed routes and major service entry points. Deep manual acceptance of each workflow remains necessary.</td><td class="status">Code present; runtime acceptance not performed.</td></tr>
     <tr><td>Hosting and recovery</td><td>Terraform provisions the public website at its Azure-managed hostname and configures HTTPS; managed backups retain seven days. A live restore exercise remains an operator acceptance item. A separate custom domain is optional, not required for the existing deployed hostname.</td><td class="status">Website domain and backup retention configured; restore exercise not performed.</td></tr>
     <tr><td>Final verification</td><td><code>dotnet build backend/dotnet/DealerOps.Core --no-restore</code>; <code>npm run build</code> in <code>frontend/react</code>. No automated tests were run.</td><td class="status">Both builds pass; existing compiler and bundle-size warnings remain.</td></tr>

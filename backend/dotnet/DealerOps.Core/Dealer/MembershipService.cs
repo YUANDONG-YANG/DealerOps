@@ -4,6 +4,7 @@ using DealerOps.Core.Common.Exceptions;
 using DealerOps.Core.Common.Tenant;
 using DealerOps.Core.Data;
 using DealerOps.Core.Dealer.Dto;
+using DealerOps.Core.Notifications;
 using Microsoft.EntityFrameworkCore;
 
 namespace DealerOps.Core.Dealer;
@@ -13,12 +14,15 @@ public class MembershipService
     private readonly AppDbContext _db;
     private readonly NewAccountRules _accountRules;
     private readonly IAuditService _audit;
+    private readonly NotificationService _notifications;
 
-    public MembershipService(AppDbContext db, NewAccountRules accountRules, IAuditService audit)
+    public MembershipService(AppDbContext db, NewAccountRules accountRules, IAuditService audit,
+        NotificationService notifications)
     {
         _db = db;
         _accountRules = accountRules;
         _audit = audit;
+        _notifications = notifications;
     }
 
     public PageResponse<MemberResponse> List(long dealerId, string? q, int page, int size)
@@ -105,6 +109,14 @@ public class MembershipService
             user.Role = AppRole.DealerUser;
             user.DealerId = dealerId;
             user.Active = true;
+            // An admin bind settles any pending join request, so it cannot resurface in that
+            // dealership's queue after a later unbind.
+            if (user.RequestedDealerId is { } requested)
+            {
+                user.RequestedDealerId = null;
+                _notifications.ResolveByCorrelation(requested, "JOIN_REQUEST", "username", username,
+                    requested == dealerId ? "APPROVED" : "CANCELLED", ActorUsername());
+            }
         }
 
         try { _db.SaveChanges(); }
@@ -160,7 +172,9 @@ public class MembershipService
 
         var total = query.LongCount();
         var items = query.Skip(p * s).Take(s)
-            .Select(u => new PendingUserResponse(u.Username, u.DisplayName, u.Email, u.Phone, u.CreatedAt))
+            .AsEnumerable()
+            .Select(u => new PendingUserResponse(u.Username, u.DisplayName, u.Email, u.Phone,
+                DateTime.SpecifyKind(u.CreatedAt, DateTimeKind.Utc)))
             .ToList();
 
         return new PageResponse<PendingUserResponse>(items, p, s, total);

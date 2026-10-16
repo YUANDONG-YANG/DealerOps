@@ -19,9 +19,9 @@ Delivered as a floating panel on signed-in business pages, not as its own route 
 
 | ID | Requirement |
 |---|---|
-| UI-01 | One username + password sign-in form shared by admins and dealer users (reversed 2026-09-30, see design/SCOPE-BASELINE.md errata 1) |
+| UI-01 | One sign-in form shared by admins and dealer users: an "Email, username or phone number" field plus password (reversed 2026-09-30 and widened 2026-10-08, see design/SCOPE-BASELINE.md errata 1 and 7). The page also offers Google sign-in when a client id is configured (`AUTH-23`) and Firebase email/password sign-in (erratum 9); both are dealer-only and start new accounts unbound |
 | UI-02 | After sign-in, route by role: admin → Admin, dealer user → DMS |
-| UI-03 | A user with no dealer binding sees "Not provisioned yet, contact your administrator" |
+| UI-03 | A user with no dealer binding sees the no-access screen (rendered in place of the requested page, design/13 §2), which says the account is not provisioned yet and asks them to contact their administrator |
 | UI-04 | Unauthenticated access to any internal page redirects to Login |
 
 ### Admin
@@ -62,7 +62,7 @@ Delivered as a floating panel on signed-in business pages, not as its own route 
 | UI-43 | Results listed per rule with ✅ / ❌ / ⚠️ and reason |
 | UI-44 | Status badge: Needs AI / Blocked / AI unavailable / Passed / Stale |
 | UI-45 | Ready and Export TXT buttons are enabled only when Passed and not Stale |
-| UI-46 | The ad-check result panel states that the check is not legal advice and is not OMVIC approval (AD-14) |
+| UI-46 | The ad-check result panel states that the check is not legal advice and is not OMVIC approval (AD-14); the exported TXT ends with the same disclaimer |
 
 ### Assistant
 

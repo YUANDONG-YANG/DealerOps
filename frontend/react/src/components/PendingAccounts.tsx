@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { adminApi, adminErrorCode, type Dealer, type PendingUser } from '../api/admin';
-import { apiError } from '../api/http';
+import { apiError, collectAllPages } from '../api/http';
+import { dateTimeLocal } from '../format';
 
 interface Props {
   /** When set, a pending account binds straight to this dealership and no picker is shown. */
@@ -24,14 +25,7 @@ export default function PendingAccounts({ dealerId, onBound }: Props) {
     };
     const loadDealers = async () => {
       try {
-        const all: Dealer[] = [];
-        let p = 0, n = 0;
-        do {
-          const r = await adminApi.dealers({ page: p, size: 10 });
-          all.push(...(r.data.items || []));
-          n = r.data.totalElements || 0; p++;
-        } while (all.length < n);
-        setDealers(all);
+        setDealers(await collectAllPages<Dealer>((p) => adminApi.dealers({ page: p, size: 10 })));
       } catch { setDealers([]); }
     };
     void loadPending();
@@ -60,6 +54,27 @@ export default function PendingAccounts({ dealerId, onBound }: Props) {
       {error && <p className="danger-text">{error}</p>}
       {pending.length === 0 ? (
         <p className="muted">No accounts are waiting to be bound.</p>
+      ) : dealerId != null ? (
+        // The staff drawer is narrow, so contact details sit under the name instead of in columns.
+        <table className="table">
+          <thead><tr><th>Account</th><th>Actions</th></tr></thead>
+          <tbody>
+            {pending.map((u) => (
+              <tr key={u.username}>
+                <td>
+                  <div>{u.displayName} <span className="muted">({u.username})</span></div>
+                  <div className="muted">{[u.email, u.phone].filter(Boolean).join(' · ') || '—'}</div>
+                  <div className="muted">Registered {dateTimeLocal(u.createdAt)}</div>
+                </td>
+                <td>
+                  <button className="btn-link" disabled={busy === u.username} onClick={() => bindPending(u)}>
+                    {busy === u.username ? 'Binding…' : 'Bind without password'}
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       ) : (
         <table className="table">
           <thead>
@@ -80,7 +95,7 @@ export default function PendingAccounts({ dealerId, onBound }: Props) {
                 <td>{u.displayName}</td>
                 <td>{u.email || '—'}</td>
                 <td>{u.phone || '—'}</td>
-                <td>{u.createdAt}</td>
+                <td>{dateTimeLocal(u.createdAt)}</td>
                 {dealerId == null && (
                   <td>
                     <select className="select" value={selectedDealer[u.username] ?? ''}

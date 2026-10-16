@@ -113,7 +113,7 @@ public class LeadService
         var fields = new Dictionary<string, object>
         {
             ["customerId"] = customerId,
-            ["stage"] = LeadStage.New.ToString()
+            ["stage"] = EnumWireName.Of(LeadStage.New)
         };
         if (body.VehicleId != null)
             fields["vehicleId"] = body.VehicleId;
@@ -154,7 +154,7 @@ public class LeadService
 
         var changed = new Dictionary<string, object>();
         if (lead.Stage != body.Stage)
-            changed["stage"] = body.Stage.ToString();
+            changed["stage"] = EnumWireName.Of(body.Stage);
         if (lead.OwnerUsername != owner)
         {
             RequireMember(tenant, owner);

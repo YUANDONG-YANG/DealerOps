@@ -2,6 +2,7 @@ import { type ReactNode } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useSessionStore } from '../store/session';
 import JoinRequestInbox from '../components/JoinRequestInbox';
+import { initials } from '../format';
 
 const icons: Record<string, string> = {
   admin: 'M12 3l8 3v6c0 4.5-3.4 8.3-8 9-4.6-.7-8-4.5-8-9V6l8-3zM9 12l2 2 4-4',
@@ -17,7 +18,6 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   const location = useLocation();
   const isAdmin = session.role === 'Platform.Admin';
   const name = session.displayName || session.username || 'User';
-  const initials = name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join('');
 
   const items = !session.hasBusinessAccess ? [] : isAdmin
     ? [{ label: 'Admin', to: '/admin', icon: icons.admin }]
@@ -58,7 +58,12 @@ export default function AppLayout({ children }: { children: ReactNode }) {
         <header className="app-header">
           <span className="dealer-chip">
             {!isAdmin && session.dealerLogoDataUrl && <img src={session.dealerLogoDataUrl} alt="" className="dealer-logo" />}
-            {isAdmin ? 'Platform Admin' : `${session.dealerLegalName || 'Dealership'} · ${session.role}`}
+            {isAdmin ? 'Platform Admin' : (
+              <>
+                {session.dealerLegalName || 'Dealership'}
+                <span className="header-role">{session.role}</span>
+              </>
+            )}
           </span>
           <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 12 }}>
             {!isAdmin && session.hasBusinessAccess && <JoinRequestInbox />}
@@ -74,7 +79,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
               <img src={session.avatarUrl} alt="" referrerPolicy="no-referrer"
                 className="user-avatar" style={{ objectFit: 'cover' }} />
             ) : (
-              <div className="user-avatar">{initials}</div>
+              <div className="user-avatar">{initials(name)}</div>
             )}
             <span>{name}</span>
           </Link>

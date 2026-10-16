@@ -11,7 +11,7 @@ public class OmvicRuleEngine
     private static readonly Regex Price = new(
         @"(?:cad|c\$|\$)\s*\d[\d,]*(?:\.\d{2})?|\d[\d,]*(?:\.\d{2})?\s*(?:cad|dollars?)\b",
         RegexOptions.IgnoreCase | RegexOptions.Compiled);
-    private static readonly Regex Phone = new(@"\d{3}[-.\s]?\d{3}[-.\s]?\d{4}", RegexOptions.Compiled);
+    private static readonly Regex Phone = new(@"\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}", RegexOptions.Compiled);
     private static readonly Regex Email = new(@"\S+@\S+\.\S+", RegexOptions.Compiled);
     private static readonly Regex Apr = new(
         @"\d+(?:\.\d+)?\s*%\s*(?:apr|annual percentage rate)|apr\s*[:=]?\s*\d+(?:\.\d+)?\s*%",
@@ -51,7 +51,9 @@ public class OmvicRuleEngine
         @"\b(?:brand[\s-]?new|never used|0\s*km|zero kilometres|new car(?!\s+feel))\b",
         RegexOptions.IgnoreCase | RegexOptions.Compiled);
     private static readonly Regex PriorUseCue = new(
-        @"police|taxi|cab\b|limo(?:usine)?|uber|lyft|rideshare|daily rental|rental (?:car|fleet)|car[- ]share|lease return|ex[- ]lease|former lease|repo(?:ssessed)?|ambulance|driver[- ]ed",
+        // Whole words only, so "report" is not "repo" and "tuber" is not "uber"; pickup cab
+        // styles such as "Crew Cab" describe the body, not taxi use.
+        @"\b(?:police|taxi|(?<!(?:crew|king|double|quad|super|mega|extended|access|regular) )cab|limo(?:usine)?|uber|lyft|rideshare|daily rental|rental (?:car|fleet)|car[- ]share|lease return|ex[- ]lease|former lease|repo(?:ssessed)?|ambulance|driver[- ]ed)\b",
         RegexOptions.IgnoreCase | RegexOptions.Compiled);
     private static readonly Regex PriorUseDisclosure = new(
         @"(?:previously used as|prior use|former(?:ly)? (?:a )?(?:police|taxi|limo(?:usine)?|rental)|ex[- ](?:police|taxi|limo(?:usine)?|rental)|lease return disclosed|disclosed prior use)",

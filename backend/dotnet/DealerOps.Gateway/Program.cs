@@ -130,24 +130,19 @@ app.MapGet("/actuator/release", async (DownstreamHealthCheck healthCheck) =>
 app.UseAuthentication();
 app.UseAuthorization();
 
-// One Gateway OpenAPI document: merge Core and AI operations for the frontend.
+// One Gateway OpenAPI document. Only Core operations are browser-facing: the AI service's
+// /internal/v1/** routes are core-to-AI only and are not browser Swagger operations.
 app.MapGet("/swagger/v1/swagger.json", async (IHttpClientFactory httpClientFactory,
     DownstreamHealthCheck healthCheck) =>
 {
     var corePublishedAt = await healthCheck.CorePublishedAtAsync();
     var http = httpClientFactory.CreateClient("swagger");
     var coreUrl = builder.Configuration["CORE_URL"] ?? "http://localhost:8081";
-    var aiUrl = builder.Configuration["AI_URL"] ?? "http://localhost:8082";
 
     var core = JsonNode.Parse(await http.GetStringAsync($"{coreUrl}/swagger/v1/swagger.json"))!.AsObject();
-    var ai = JsonNode.Parse(await http.GetStringAsync($"{aiUrl}/swagger/v1/swagger.json"))!.AsObject();
-
-    MergeObject(core, ai, "paths");
-    MergeArray(core, ai, "tags");
-    MergeObject(core, ai, "components", nested: true);
     core["info"]!["title"] = "DealerOps Gateway API";
     core["info"]!["description"] =
-        $"Unified Core and AI backend API through the Gateway. Core published {corePublishedAt}.";
+        $"Core backend API through the Gateway. Core published {corePublishedAt}.";
 
     return Results.Json(core);
 });
@@ -206,8 +201,8 @@ app.Use(async (context, next) =>
         return;
     }
 
-    // AUTH-08: the platform admin owns no business data. Core already rejects it, but the
-    // /api/v1/ai/** routes proxy straight to the AI service, so the Gateway must gate it here.
+    // AUTH-08: the platform admin owns no business data. Core also rejects it; the Gateway
+    // gates it here so no business route is reachable with an admin token.
     if (roles == "Platform.Admin"
         && !path.StartsWith("/api/v1/admin", StringComparison.OrdinalIgnoreCase)
         && !path.StartsWith("/api/v1/me", StringComparison.OrdinalIgnoreCase)
@@ -254,44 +249,3 @@ ReleaseInfo.LogStartup(app.Services.GetRequiredService<ILogger<Program>>(), "gat
     app.Services.GetRequiredService<DownstreamHealthCheck>().GatewayPublishedAt);
 
 app.Run();
-
-static void MergeObject(JsonObject target, JsonObject source, string property, bool nested = false)
-{
-    if (nested)
-    {
-        var targetObject = target[property]?.AsObject() ?? new JsonObject();
-        var sourceObject = source[property]?.AsObject();
-        if (sourceObject == null) return;
-        foreach (var (key, value) in sourceObject)
-        {
-            if (value is JsonObject subSource && targetObject[key] is JsonObject subTarget)
-            {
-                foreach (var (subKey, subValue) in subSource)
-                    subTarget[subKey] = subValue?.DeepClone();
-            }
-            else
-            {
-                targetObject[key] = value?.DeepClone();
-            }
-        }
-        target[property] = targetObject;
-        return;
-    }
-
-    var targetMap = target[property]?.AsObject() ?? new JsonObject();
-    var sourceMap = source[property]?.AsObject();
-    if (sourceMap == null) return;
-    foreach (var (key, value) in sourceMap)
-        targetMap[key] = value?.DeepClone();
-    target[property] = targetMap;
-}
-
-static void MergeArray(JsonObject target, JsonObject source, string property)
-{
-    var targetArray = target[property]?.AsArray() ?? new JsonArray();
-    var sourceArray = source[property]?.AsArray();
-    if (sourceArray == null) return;
-    foreach (var value in sourceArray)
-        targetArray.Add(value?.DeepClone());
-    target[property] = targetArray;
-}

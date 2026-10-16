@@ -1,0 +1,20 @@
+{
+  "name": "dealer-ops-e2e",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "bash ./scripts/e2e-stack.sh start && playwright test",
+    "test:only": "playwright test",
+    "test:ui": "playwright test --ui",
+    "stack:start": "bash ./scripts/e2e-stack.sh start",
+    "stack:stop": "bash ./scripts/e2e-stack.sh stop",
+    "report": "playwright show-report",
+    "codegen": "playwright codegen http://localhost:5175",
+    "autofix": "bash ./scripts/autofix.sh"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.64.1",
+    "@types/node": "^26.6.5",
+    "typescript": "^7.0.2"
+  }
+}

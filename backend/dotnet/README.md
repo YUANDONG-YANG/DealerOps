@@ -157,7 +157,6 @@ All settings have local defaults in `appsettings.json`. Override with environmen
 | Swagger UI (唯一外部入口) | http://localhost:8080/swagger/index.html |
 | Swagger 文档 | Gateway 自动合并 Core 和 AI Service API，无需切换 |
 | Gateway OpenAPI JSON | http://localhost:8080/swagger/v1/swagger.json |
-| AI API (经 Gateway) | `POST http://localhost:8080/api/v1/ai/ad-check` / `POST http://localhost:8080/api/v1/ai/assistant` |
 | Gateway health | http://localhost:8080/actuator/health |
 | Core health | http://localhost:8081/actuator/health |
 | AI health | http://localhost:8082/actuator/health |

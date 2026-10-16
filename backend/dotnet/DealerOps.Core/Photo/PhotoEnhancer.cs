@@ -58,7 +58,13 @@ public class PhotoEnhancer
         if ((long)codec.Info.Width * codec.Info.Height > MaxDecodePixels)
             throw new ApiException(ErrorCode.Validation, "Photo dimensions are too large.");
 
-        var bitmap = SKBitmap.Decode(data) ?? throw Unreadable();
+        using var decoded = SKBitmap.Decode(data) ?? throw Unreadable();
+
+        // JPEG output has no alpha channel, so PNG transparency is flattened onto white.
+        var bitmap = new SKBitmap(decoded.Width, decoded.Height);
+        using var canvas = new SKCanvas(bitmap);
+        canvas.Clear(SKColors.White);
+        canvas.DrawBitmap(decoded, 0, 0);
         return bitmap;
     }
 

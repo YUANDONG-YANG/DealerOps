@@ -12,7 +12,7 @@ This folder breaks the source documents under `requirements/` into requirement i
 > `WO-01–07`, `AUTH-16–23`, `IMG-01–05`); they are deliberately not restated here, so that one
 > document stays their single source of truth.
 
-2026-09-28: course-demo reconciliation is recorded in ../../review/DealerOps-Requirements-Resolution-2026-09-28.md. Current ad decisions are in 04 and acceptance in 06. Reviews 08–11 retain historical findings; the customer sources remain the implementation authority. The source audit is [13-Customer-Requirements-Audit-2026-10-16.html](13-Customer-Requirements-Audit-2026-10-16.html). The assistant also supports deterministic counts, as recorded in 05 and 06.
+2026-09-28: course-demo reconciliation is recorded in [DealerOps-Requirements-Resolution-2026-09-28.md](../../review/DealerOps-Requirements-Resolution-2026-09-28.md). Current ad decisions are in 04 and acceptance in 06. Reviews 08–11 retain historical findings; the customer sources remain the implementation authority. The source audit is [13-Customer-Requirements-Audit-2026-10-16.html](13-Customer-Requirements-Audit-2026-10-16.html). The assistant also supports deterministic counts, as recorded in 05 and 06.
 
 Source verification as of 2026-09-28: [12-Requirements-Code-Verification-2026-09-28.md](12-Requirements-Code-Verification-2026-09-28.md). **Historical only** — it was written against the retired Java / Vue stacks, so its file:line evidence and its V-01–V-04 findings no longer apply to the .NET 10 / React implementation. Do not reopen them as current defects.
 
@@ -27,7 +27,7 @@ Source verification as of 2026-09-28: [12-Requirements-Code-Verification-2026-09
 
 Related reports outside this folder: `../DealerOps-Requirements.md` (English superset report; it defines `NFR-08`), `../DealerOps-Requirements-zh.html` and `../DealerOps-Development-Progress-en.html`.
 
-Conflict order follows SCOPE-BASELINE: **PPT hard requirements > specification PDF fields > v6 design > UI 12**. Items the DOCX files raise beyond the PDF are resolved by SCOPE-BASELINE errata 6–8, not by this folder.
+Conflict order follows SCOPE-BASELINE: **PPT hard requirements > specification PDF fields > v6 design > UI 12**. Items the DOCX files raise beyond the PDF are resolved by SCOPE-BASELINE errata 6–9, not by this folder.
 
 > `Dos Car dealership2.docx` embeds Firebase project configuration. Firebase Auth is now used for
 > email/password sign-in; Firebase's database is not used. Keep service-account credentials out
@@ -48,6 +48,7 @@ Conflict order follows SCOPE-BASELINE: **PPT hard requirements > specification P
 | [09-Verification-Checklist.md](09-Verification-Checklist.md) | Historical evidence checklist for 08; references retired Java/Vue files and is not current code evidence |
 | [10-Cursor-Change-Review.md](10-Cursor-Change-Review.md) | Historical review of a specific Cursor worktree snapshot |
 | [11-Cursor-Instructions.md](11-Cursor-Instructions.md) | Historical instructions for a specific Cursor branch; do not execute as current task instructions |
+| [12-Requirements-Code-Verification-2026-09-28.md](12-Requirements-Code-Verification-2026-09-28.md) | Historical source verification against the retired Java/Vue stacks; not current code evidence |
 | [13-Customer-Requirements-Audit-2026-10-16.html](13-Customer-Requirements-Audit-2026-10-16.html) | HTML audit of customer sources, implementation coverage and remaining verification |
 | [Traceability-Matrix.md](Traceability-Matrix.md) | Requirement ID → source → design doc → acceptance case |
 

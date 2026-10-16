@@ -6,7 +6,7 @@ import ConfirmDialog from '../components/ConfirmDialog';
 import PageState from '../components/PageState';
 import PendingAccounts from '../components/PendingAccounts';
 import { adminApi, adminErrorCode, adminErrorStatus, type Dealer, type Member } from '../api/admin';
-import { apiError, fieldErrorsOf } from '../api/http';
+import { apiError, collectAllPages, fieldErrorsOf } from '../api/http';
 
 type FlatMember = Member & { dealerId: number; legalName: string };
 
@@ -23,6 +23,14 @@ function serverDetail(error: unknown): string | undefined {
 }
 
 const LOGO_MAX_PX = 160;
+
+// What to do when a new staff account collides with an existing one (409 *_TAKEN, per field).
+const TAKEN_HINTS: Record<string, string> = {
+  username: 'This username is already in use. Try another one, e.g. add a number or the dealership name.',
+  displayName: 'Another account already uses this display name. Add a middle initial or a surname.',
+  email: 'This email is already used by another account. Use a different email, or leave it blank and enter a phone number.',
+  phone: 'This phone number is already used by another account. Use a different number, or leave it blank and enter an email.',
+};
 
 export default function AdminPage() {
   const [tab, setTab] = useState<'dealers' | 'members'>('dealers');
@@ -91,15 +99,7 @@ export default function AdminPage() {
 
   useEffect(() => { void loadDealers(); }, [loadDealers]);
 
-  const fetchAllDealers = async () => {
-    const all: Dealer[] = [];
-    let p = 0, n = 0;
-    do {
-      const r = await adminApi.dealers({ page: p, size: 10 });
-      all.push(...(r.data.items || [])); n = r.data.totalElements || 0; p++;
-    } while (all.length < n);
-    return all;
-  };
+  const fetchAllDealers = () => collectAllPages<Dealer>((p) => adminApi.dealers({ page: p, size: 10 }));
 
   const fetchDealerMembers = async (dealerId: number, filterQ: string) => {
     const items: Member[] = [];
@@ -241,8 +241,18 @@ export default function AdminPage() {
     } catch (e) {
       const code = adminErrorCode(e);
       const fields = fieldErrorsOf(e);
-      if (Object.keys(fields).length) setMemberErrors(fields);
-      else if (code === 'DUP_MEMBER') setBindError('Staff already bound');
+      if (Object.keys(fields).length) {
+        const conflict = adminErrorStatus(e) === 409;
+        setMemberErrors(Object.fromEntries(Object.entries(fields)
+          .map(([field, text]) => [field, conflict && TAKEN_HINTS[field] ? TAKEN_HINTS[field] : text])));
+        // The username field is off-screen when the drawer is scrolled to the button.
+        setBindError('Some details need changing — see the highlighted fields above.');
+      }
+      else if (code === 'DUP_MEMBER') {
+        // One login belongs to exactly one dealership (AUTH-03), so the username itself is the problem.
+        setBindError('Staff already bound');
+        setMemberErrors({ username: 'This username already belongs to a dealership or the platform admin. Choose another username.' });
+      }
       else if (code === 'VALIDATION' || adminErrorStatus(e) === 400) setBindError(apiError(e).message || 'Check the account details.');
       else if (isForbidden(e)) setBindError('You do not have access to Admin.');
       else setBindError(serverDetail(e) || 'Could not bind staff.');
@@ -389,7 +399,6 @@ export default function AdminPage() {
           Create a new staff account — a temporary password is required. An account that registered itself is bound
           further down without one.
         </div>
-        {bindError && <p className="danger-text">{bindError}</p>}
         <div className="form-item"><label className="form-label form-required">Username</label>
           <input className="input" value={member.username}
             onChange={(e) => setMember((m) => ({ ...m, username: e.target.value }))} />
@@ -408,13 +417,19 @@ export default function AdminPage() {
         <div className="form-item"><label className="form-label">Login email</label>
           <input className="input" type="email" value={member.email}
             onChange={(e) => setMember((m) => ({ ...m, email: e.target.value }))} />
-          {memberErrors.email && <div className="form-error">{memberErrors.email}</div>}
+          {memberErrors.email
+            ? <div className="form-error">{memberErrors.email}</div>
+            : <div className="muted form-hint">Used to sign in. Each email address can belong to only one account.</div>}
         </div>
         <div className="form-item"><label className="form-label">Login phone (email, phone, or both)</label>
           <input className="input" type="tel" value={member.phone}
             onChange={(e) => setMember((m) => ({ ...m, phone: e.target.value }))} />
-          {memberErrors.phone && <div className="form-error">{memberErrors.phone}</div>}
+          {memberErrors.phone
+            ? <div className="form-error">{memberErrors.phone}</div>
+            : <div className="muted form-hint">Include the country code, e.g. +1 416 555 0123. Each number can belong to only one account.</div>}
         </div>
+        {/* Shown next to the button: the drawer is usually scrolled down when the error arrives. */}
+        {bindError && <p className="danger-text">{bindError}</p>}
         <button className="btn btn-primary" disabled={binding} onClick={bind}>
           {binding ? 'Binding…' : 'Create and bind'}
         </button>

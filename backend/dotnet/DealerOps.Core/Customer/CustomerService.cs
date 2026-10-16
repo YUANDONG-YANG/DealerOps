@@ -5,6 +5,7 @@ using DealerOps.Core.Common.Tenant;
 using DealerOps.Core.Customer.Dto;
 using DealerOps.Core.Data;
 using DealerOps.Core.Vehicle;
+using Microsoft.EntityFrameworkCore;
 
 namespace DealerOps.Core.Customer;
 
@@ -139,7 +140,15 @@ public class CustomerService
         };
         using var tx = _db.Database.CurrentTransaction is null ? _db.Database.BeginTransaction() : null;
         _db.CustomerVehicles.Add(row);
-        _db.SaveChanges();
+        try
+        {
+            _db.SaveChanges();
+        }
+        catch (DbUpdateException ex) when ((ex.InnerException?.Message ?? ex.Message).Contains("uk_cv_vehicle"))
+        {
+            // A concurrent request linked the same vehicle after the check above (CRM-07).
+            throw new ApiException(ErrorCode.VehicleAlreadyLinked, "Vehicle is already linked.");
+        }
         _audit.Record("CUSTOMER_VEHICLE", row.Id, "LINK", tenant, ActorUsername(),
             new Dictionary<string, object> { ["customerId"] = customer.Id, ["vehicleId"] = vehicle.Id });
         _db.SaveChanges();

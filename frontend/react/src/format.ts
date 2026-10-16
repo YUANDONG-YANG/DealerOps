@@ -13,3 +13,8 @@ export function dateTimeLocal(value: unknown): string {
   return `${parsed.getFullYear()}-${pad(parsed.getMonth() + 1)}-${pad(parsed.getDate())}`
     + ` ${pad(parsed.getHours())}:${pad(parsed.getMinutes())}`;
 }
+
+// Avatar initials: first letter of the first two words ("E2E Staff" -> "ES").
+export function initials(name: string): string {
+  return name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join('');
+}

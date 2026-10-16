@@ -120,7 +120,7 @@ public class VehicleCatalogService
 
         var bodyClass = Text(r, "BodyClass");
         var decoded = new VinDecodeResponse(
-            key, makeName, Text(r, "Model") ?? "",
+            key, makeName, Text(r, "Model"),
             modelYear,
             bodyClass,
             BodyTypeOf(bodyClass),

@@ -24,7 +24,8 @@ public class AssistantResourceQuery
     private static readonly Regex Filler = new(
         @"\b(?:which|what|who|how|many|show|find|list|search|for|me|the|a|an|all|any|are|is|our|here|please|do|does|we|you|have|has|got|in|of|with|named|called|there)\b",
         RegexOptions.IgnoreCase | RegexOptions.Compiled);
-    private static readonly Regex Punctuation = new(@"[?!,;:""\(\)]", RegexOptions.Compiled);
+    // Apostrophes are split off so "What's" does not leave a stray "'s" search term behind.
+    private static readonly Regex Punctuation = new(@"[?!,;:""'’\(\)]", RegexOptions.Compiled);
     private static readonly char[] WordSeparators = [' ', '\t', '\r', '\n'];
 
     private readonly AppDbContext _db;
@@ -178,7 +179,7 @@ public class AssistantResourceQuery
         // Purchase cost and repair cost are deliberately left off the card.
         return vq.Take(MaxCards).ToList()
             .Select(v => new ResourceCard("VEHICLE", v.Id,
-                $"{v.ModelYear} {v.Make} {v.Model}", v.Status.ToString(), null, null))
+                $"{v.ModelYear} {v.Make} {v.Model}", EnumSnakeCaseConverter<VehicleStatus>.ToWire(v.Status), null, null))
             .ToList();
     }
 

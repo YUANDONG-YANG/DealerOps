@@ -21,7 +21,7 @@ public class AiGatewayClient : IAiGatewayClient
     public async Task<List<AiNote>> AdCheckAsync(AdCheckInternalRequest body)
     {
         var node = await PostAsync("/internal/v1/ad-check", body);
-        if (node == null || !node.Value.TryGetProperty("success", out var s) || !s.GetBoolean())
+        if (node == null || !node.Value.TryGetProperty("success", out var s) || s.ValueKind != JsonValueKind.True)
             throw new AiCallFailed("AI check failed.");
 
         var notes = new List<AiNote>();
@@ -29,7 +29,8 @@ public class AiGatewayClient : IAiGatewayClient
         {
             foreach (var n in arr.EnumerateArray())
             {
-                if (n.TryGetProperty("message", out var msg) && !string.IsNullOrWhiteSpace(msg.GetString()))
+                if (n.ValueKind == JsonValueKind.Object && n.TryGetProperty("message", out var msg) &&
+                    msg.ValueKind == JsonValueKind.String && !string.IsNullOrWhiteSpace(msg.GetString()))
                     notes.Add(new AiNote(msg.GetString()!));
             }
         }
@@ -39,10 +40,11 @@ public class AiGatewayClient : IAiGatewayClient
     public async Task<string> AssistantAsync(AssistantInternalRequest body)
     {
         var node = await PostAsync("/internal/v1/assistant", body);
-        if (node == null || !node.Value.TryGetProperty("success", out var s) || !s.GetBoolean())
+        if (node == null || !node.Value.TryGetProperty("success", out var s) || s.ValueKind != JsonValueKind.True)
             throw new AiCallFailed("AI assistant failed.");
 
-        if (!node.Value.TryGetProperty("summary", out var sum) || string.IsNullOrWhiteSpace(sum.GetString()))
+        if (!node.Value.TryGetProperty("summary", out var sum) || sum.ValueKind != JsonValueKind.String ||
+            string.IsNullOrWhiteSpace(sum.GetString()))
             throw new AiCallFailed("AI assistant failed.");
 
         return sum.GetString()!;

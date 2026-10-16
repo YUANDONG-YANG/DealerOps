@@ -8,17 +8,17 @@ info:
     **Entry:** browsers and external clients call only Gateway `http://localhost:8080`, prefix `/api/v1/**`.
     core=8081 and ai-service=8082 are not public. Bypassing the Gateway must fail.
 
-    **Internal:** `/internal/v1/**` tagged `Internal` with `x-internal: true` is only core calling ai-service through the Gateway.
+    **Internal:** `/internal/v1/**` tagged `Internal` with `x-internal: true` is only core calling ai-service directly at `AiService:BaseUrl` with the `X-Dealer-Internal` header.
     Browsers cannot reach these paths: the Gateway returns **404** (not 401) when the internal header is missing, so the path is not acknowledged.
     Internal AI **success/failure JSON** is pinned by `design/AI-PROTOCOL-AND-RULES.md` §B.2–B.3 (`{success,notes[]}` and `{success,summary}`). That protocol wins over older OpenAPI or 14 §11 wording that only said “notes” / “short text”.
 
     **Tenant / auth (behavior aligned with 15; fields still come only from 14):**
-    - `POST /api/v1/auth/login`, `POST /api/v1/auth/register`, and public VIN decode are anonymous. Login accepts an email, username, or phone as `identifier`; both return a DealerOps HS256 `accessToken` (claims `sub`=username, `name`, `roles`); every other protected operation needs `Authorization: Bearer <accessToken>`.
+    - Anonymous: `POST /api/v1/auth/login`, `/auth/register`, `/auth/google`, `/auth/firebase`, every `GET /api/v1/catalog/**` (makes, models, VIN decode, public dealer directory), and the Gateway's own `GET /actuator/release`. Login accepts an email, username, or phone as `identifier`; the sign-in routes return a DealerOps HS256 `accessToken` (claims `sub`=username, `name`, `roles`); every other `/api/v1` operation needs `Authorization: Bearer <accessToken>`.
     - Roles are only `Platform.Admin` and `Dealer.User`. Ignore client `dealerId` in body / query / header.
     - Staff tenant comes only from the JWT `sub` (the username) → exactly one `membership.active=1` row.
     - Cross-dealership or unknown id in this dealership → **404** `NOT_FOUND` (anti-probing; not 403).
-    - Platform.Admin may call only `GET /me`, `/api/v1/admin/**`, and the anonymous routes. Admin hitting any business URL, staff hitting Admin URLs, or staff without valid membership calling business APIs → **403** `FORBIDDEN`.
-    - `GET /me` is still **200** when authenticated with no dealership (`dealerId=null`).
+    - Platform.Admin may call only `/api/v1/me`, `/api/v1/admin/**`, and the anonymous routes. Admin hitting any business URL, staff hitting Admin URLs, or staff without valid membership calling business APIs → **403** `FORBIDDEN`.
+    - `/me` (GET, PATCH, DELETE) still works when authenticated with no dealership (`dealerId=null`). Every other authenticated route returns **403** for an unbound Dealer.User.
     - Writes that carry `version` must match the current row, otherwise **409** `VERSION_CONFLICT`.
     - Unlink `DELETE .../vehicles/{vehicleId}` → **204**. Sold vehicles cannot be unlinked → **409** `SOLD_LOCKED`.
     - Ad check Blocked / Needs AI / Passed → **200** (Blocked is not an HTTP error). Rules passed but AI failed → **502** `AI_UNAVAILABLE` (check row already written).
@@ -34,9 +34,15 @@ servers:
 
 tags:
   - name: Auth
-    description: Anonymous password sign-in (email, username, or phone) and self sign-up
+    description: Anonymous sign-in (password, Google, Firebase) and self sign-up
   - name: Me
-    description: Current authenticated identity
+    description: Current authenticated identity and self-service profile
+  - name: Catalog
+    description: Anonymous NHTSA vPIC lookups and the public dealer directory
+  - name: JoinRequests
+    description: Dealer.User approval of Google join requests and the dealer inbox
+  - name: Release
+    description: Gateway release timestamps (anonymous)
   - name: AdminDealers
     description: Platform.Admin dealership CRUD
   - name: AdminMemberships
@@ -65,7 +71,7 @@ tags:
     description: Staff assistant (does not write business tables)
   - name: Internal
     description: |
-      Gateway → ai-service. Not reachable from the browser (404).
+      core → ai-service. Not reachable from the browser (404).
       For the core adapter only. Do not generate these client methods as user APIs for the SPA.
       Success JSON is application/json `{success,notes[]}` (ad-check) or `{success,summary}` (assistant), not text/plain.
 
@@ -163,6 +169,113 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
 
+  /api/v1/auth/google:
+    post:
+      tags: [Auth]
+      operationId: googleSignIn
+      summary: Google sign-in (three-way)
+      description: |
+        Anonymous. Verifies a Google ID token server-side (RS256, issuer, audience, expiry, `email_verified`).
+        The account is matched by Google subject, then by email. Result `status`:
+        - `ok`: the account is bound to a dealership; `login` carries the session.
+        - `needs_dealer`: no dealership chosen yet; call again with `dealerId` picked from `GET /api/v1/catalog/dealers`.
+        - `pending_approval`: a join request to `dealerId` is waiting for a member of that dealership (`/api/v1/dealer/join-requests`). A new account is created unbound with no password hash on the call that carries `dealerId`.
+        A Platform.Admin email → **403**. An unknown or inactive `dealerId` → **404**.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GoogleSignInRequest"
+      responses:
+        "200":
+          description: Three-way result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GoogleSignInResponse"
+        "400":
+          $ref: "#/components/responses/Validation"
+        "401":
+          description: Invalid token, or email not verified with Google. code=`UNAUTHORIZED`
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Platform.Admin email, or hosted-domain mismatch. code=`FORBIDDEN`
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: Derived account values collide. code is `USERNAME_TAKEN`, `DISPLAY_NAME_TAKEN`, or `EMAIL_TAKEN`
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Google signing keys unreachable. code=`INTERNAL_ERROR`
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/v1/auth/firebase:
+    post:
+      tags: [Auth]
+      operationId: firebaseSignIn
+      summary: Firebase email/password sign-in or sign-up
+      description: |
+        Anonymous. Firebase owns the password; DealerOps owns the account, role, and membership.
+        The account is matched by Firebase uid, then by email. Unverified emails are accepted, but an existing
+        email account is linked on first use only when the token has `email_verified=true` (else 409 `EMAIL_TAKEN`).
+        No match creates an unbound Dealer.User (no password hash) from the optional `username`, `displayName`, and `phone`;
+        business calls then return **403** until an administrator binds it. A Platform.Admin match → **403**.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FirebaseSignInRequest"
+      responses:
+        "200":
+          description: Signed in (existing or newly created account)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LoginResponse"
+        "400":
+          $ref: "#/components/responses/Validation"
+        "401":
+          description: Token rejected, no email on the token, or email not verified. code=`UNAUTHORIZED`
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Platform.Admin account. code=`FORBIDDEN`
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "409":
+          description: New account values collide (`USERNAME_TAKEN`, `DISPLAY_NAME_TAKEN`, `EMAIL_TAKEN`, `PHONE_TAKEN`), or an unverified email matches an existing account not yet linked to this uid (`EMAIL_TAKEN`)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Firebase signing keys unreachable. code=`INTERNAL_ERROR`
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
   /api/v1/me:
     get:
       tags: [Me]
@@ -178,6 +291,145 @@ paths:
                 $ref: "#/components/schemas/Me"
         "401":
           $ref: "#/components/responses/Unauthorized"
+    patch:
+      tags: [Me]
+      operationId: patchMe
+      summary: Update own display name and phone
+      description: |
+        Username, role, email, and dealership stay fixed. A blank `phone` clears it. Uniqueness is checked against every other account.
+        Audited as `APP_USER`/`UPDATE` with `{self:true}`. Works for an unbound Dealer.User.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MePatch"
+      responses:
+        "200":
+          description: Updated identity (same shape as GET)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Me"
+        "400":
+          $ref: "#/components/responses/Validation"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: code is `DISPLAY_NAME_TAKEN` or `PHONE_TAKEN`; `fieldErrors` names the field
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    delete:
+      tags: [Me]
+      operationId: deleteMe
+      summary: Delete own account (soft delete)
+      description: |
+        Deactivates the account and its memberships, cancels a pending join request, and frees the email, phone, and Google subject
+        for a fresh sign-up. Username and audit history stay. The client must discard its token. Platform.Admin → **403**.
+        Audited as `APP_USER`/`DELETE` with `{self:true}`.
+      responses:
+        "204":
+          description: Deleted, no body
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/v1/dealer/join-requests:
+    get:
+      tags: [JoinRequests]
+      operationId: listJoinRequests
+      summary: Pending Google join requests for the caller's dealership
+      description: Dealer.User with a dealership. Active unbound accounts that requested this dealership, newest first. Not paginated.
+      responses:
+        "200":
+          description: Join requests
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/JoinRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /api/v1/dealer/join-requests/{username}/approve:
+    post:
+      tags: [JoinRequests]
+      operationId: approveJoinRequest
+      summary: Approve a join request
+      description: |
+        Creates or reactivates the membership in the caller's dealership, binds the account, and resolves the
+        `JOIN_REQUEST` notification as `APPROVED`. Audited as `MEMBERSHIP`/`CREATE` with `source=google_request`.
+        No pending request from that username to this dealership → **404**.
+      parameters:
+        - $ref: "#/components/parameters/Username"
+      responses:
+        "204":
+          description: Approved, no body
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/v1/dealer/join-requests/{username}/reject:
+    post:
+      tags: [JoinRequests]
+      operationId: rejectJoinRequest
+      summary: Reject a join request
+      description: |
+        Clears the requested dealership (the account stays, unbound) and resolves the notification as `REJECTED`.
+        Audited as `APP_USER`/`UPDATE`. No pending request → **404**.
+      parameters:
+        - $ref: "#/components/parameters/Username"
+      responses:
+        "204":
+          description: Rejected, no body
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/v1/dealer/notifications:
+    get:
+      tags: [JoinRequests]
+      operationId: listNotifications
+      summary: Dealer-wide inbox
+      description: |
+        Dealer.User with a dealership. Every active member sees the same rows, newest first. Not paginated.
+        Default is unresolved rows only; `includeResolved=true` returns the full history.
+      parameters:
+        - name: includeResolved
+          in: query
+          required: false
+          schema: { type: boolean, default: false }
+      responses:
+        "200":
+          description: Notifications
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Notification"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
 
   /api/v1/admin/dealers:
     get:
@@ -476,12 +728,13 @@ paths:
         "403":
           $ref: "#/components/responses/Forbidden"
 
-  /api/v1/vehicle-catalog/makes:
+  /api/v1/catalog/makes:
     get:
-      tags: [Vehicles]
+      tags: [Catalog]
       operationId: listCatalogMakes
       summary: Make options for the DMS filter
-      description: Dealer.User with a dealership only (Admin or unbound → 403). Union of NHTSA vPIC `car` and `mpv` makes, proxied and cached by dealer-core. Sorted, de-duplicated ignoring case.
+      description: Anonymous (Gateway and core permit every `GET /api/v1/catalog/**`). Union of NHTSA vPIC `car` and `mpv` makes, proxied and cached in memory by dealer-core for 12 hours. Sorted, de-duplicated ignoring case.
+      security: []
       responses:
         "200":
           description: Make names
@@ -491,10 +744,6 @@ paths:
                 type: array
                 items:
                   type: string
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "403":
-          $ref: "#/components/responses/Forbidden"
         "502":
           description: CATALOG_UNAVAILABLE (vPIC unreachable or malformed)
           content:
@@ -502,12 +751,13 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
 
-  /api/v1/vehicle-catalog/models:
+  /api/v1/catalog/models:
     get:
-      tags: [Vehicles]
+      tags: [Catalog]
       operationId: listCatalogModels
       summary: Model options for one make
-      description: Dealer.User with a dealership only (Admin or unbound → 403). NHTSA vPIC `GetModelsForMake`, proxied and cached by dealer-core. Sorted, de-duplicated ignoring case.
+      description: Anonymous. NHTSA vPIC `GetModelsForMake`, proxied and cached in memory by dealer-core for 12 hours (empty results are cached too). Sorted, de-duplicated ignoring case. An unknown make (empty vPIC result) → **404** `NOT_FOUND`.
+      security: []
       parameters:
         - name: make
           in: query
@@ -529,10 +779,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "403":
-          $ref: "#/components/responses/Forbidden"
+        "404":
+          description: NOT_FOUND (vPIC has no models for this make)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
         "502":
           description: CATALOG_UNAVAILABLE (vPIC unreachable or malformed)
           content:
@@ -540,12 +792,12 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
 
-  /api/v1/vehicle-catalog/vin/{vin}:
+  /api/v1/catalog/vin/{vin}:
     get:
-      tags: [Vehicles]
+      tags: [Catalog]
       operationId: decodeVin
       summary: Decode a VIN (public)
-      description: NHTSA vPIC `DecodeVinValues`, proxied and cached by dealer-core. Anonymous; used by the landing page and the DMS Add vehicle form. Stores nothing.
+      description: NHTSA vPIC `DecodeVinValues`, proxied and cached in memory by dealer-core for 12 hours. Anonymous; used by the landing page and the DMS Add vehicle form. Stores nothing.
       security: []
       parameters:
         - name: vin
@@ -579,6 +831,43 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+
+  /api/v1/catalog/dealers:
+    get:
+      tags: [Catalog]
+      operationId: listPublicDealers
+      summary: Public dealer directory
+      description: Anonymous. Active dealerships sorted by legal name, id and legal name only. Used by the Google sign-in dealership picker.
+      security: []
+      responses:
+        "200":
+          description: Active dealerships
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PublicDealer"
+
+  /actuator/release:
+    get:
+      tags: [Release]
+      operationId: getRelease
+      summary: Release timestamps (served by the Gateway itself)
+      description: Anonymous. The Gateway reads core and ai-service release times with a short timeout; an unreachable service shows `unavailable`. Not proxied to core.
+      security: []
+      responses:
+        "200":
+          description: Release times
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  web: { type: string }
+                  gateway: { type: string }
+                  core: { type: string }
+                  ai: { type: string }
 
   /api/v1/vehicles/{id}:
     parameters:
@@ -1185,7 +1474,7 @@ paths:
       operationId: runListingCheck
       summary: Run compliance check
       description: |
-        `version` is the listing optimistic lock. Run the fixed checklist first; if there is no hard block, call Gateway `POST /internal/v1/ad-check` (≤15s).
+        `version` is the listing optimistic lock. Run the fixed checklist first; if there is no hard block, call ai-service `POST /internal/v1/ad-check` (≤15s).
         **Blocked / Needs AI / Passed → HTTP 200** (Blocked is not a 4xx).
         Rules passed but AI timed out or failed → **502** `AI_UNAVAILABLE`; the check row is already written as `UNAVAILABLE`.
       parameters:
@@ -1560,7 +1849,7 @@ paths:
       operationId: internalAdCheck
       summary: Internal ad AI check
       description: |
-        **Not reachable from the browser (Gateway 404).** Only core calls ai-service through the Gateway.
+        **Not reachable from the browser (Gateway 404).** Only core calls ai-service (directly, at `AiService:BaseUrl`).
         Do not forward the user JWT to ai-service. `vehiclePublic` has **no** purchase/repair/sold price.
         Request body remains 14 §11 (`listing` + `vehiclePublic` + `dealerPublic`).
         Success body is PROTOCOL §B.2 JSON `{success:true, notes[]}` (not public `aiNotes` only, not business columns).
@@ -1602,7 +1891,7 @@ paths:
       operationId: internalAssistant
       summary: Internal assistant JSON
       description: |
-        **Not reachable from the browser (Gateway 404).** Only core calls ai-service through the Gateway.
+        **Not reachable from the browser (Gateway 404).** Only core calls ai-service (directly, at `AiService:BaseUrl`).
         Request body remains 14 §11 (`question` + already-filtered `resources`).
         Success body is PROTOCOL §B.3 JSON `{success:true, summary}` (`application/json`, not `text/plain`).
         `summary` is a short non-empty explanation. core re-checks card ids (keep only ids that appeared in this `resources`).
@@ -1641,7 +1930,7 @@ components:
       type: http
       scheme: bearer
       bearerFormat: JWT
-      description: HS256 access token issued by `POST /api/v1/auth/login`. Missing/bad JWT → 401 `UNAUTHORIZED`.
+      description: HS256 access token issued by `POST /api/v1/auth/login`, `/register`, `/google` (status `ok`), or `/firebase`. Missing/bad JWT → 401 `UNAUTHORIZED`.
 
   parameters:
     Page:
@@ -1843,17 +2132,21 @@ components:
       required: [code, message]
       description: |
         Standard error body. No SQL, stacks, or raw model text.
-        `400 VALIDATION` may add `fieldErrors`.
+        `fieldErrors` is present only when a field is named (`VALIDATION`, and the `*_TAKEN` conflicts).
+        Bodies written by the Gateway itself (401/403/404 before core) carry only `code` and `message`.
       properties:
         code:
           $ref: "#/components/schemas/ErrorCode"
         message:
           type: string
+        requestId:
+          type: string
+          description: Correlation id of the core request (matches the core log line); may be empty
         fieldErrors:
           type: object
           additionalProperties:
             type: string
-          description: Optional for VALIDATION only
+          description: Field name → English message; omitted when there is none
 
     ErrorCode:
       type: string
@@ -1870,10 +2163,10 @@ components:
         | METHOD_NOT_ALLOWED | 405 | HTTP method not supported on this path |
         | VERSION_CONFLICT | 409 | version mismatch |
         | DUP_MEMBER | 409 | This dealership already has this active member |
-        | USERNAME_TAKEN | 409 | Sign-up or new member with a username already in use |
-        | DISPLAY_NAME_TAKEN | 409 | Sign-up or new member with a full name already in use (trimmed, case-insensitive) |
-        | EMAIL_TAKEN | 409 | Sign-up or new member with an email already in use |
-        | PHONE_TAKEN | 409 | Sign-up or new member with a phone number already in use |
+        | USERNAME_TAKEN | 409 | Sign-up (password, Google, Firebase) or new member with a username already in use |
+        | DISPLAY_NAME_TAKEN | 409 | Sign-up, new member, or `PATCH /me` with a full name already in use (trimmed, case-insensitive) |
+        | EMAIL_TAKEN | 409 | Sign-up or new member with an email already in use; or a customer email already used in this dealership |
+        | PHONE_TAKEN | 409 | Sign-up, new member, or `PATCH /me` with a phone already in use; or a customer phone already used in this dealership |
         | LEAD_CLOSED | 409 | Change to a WON or LOST lead |
         | WORK_ORDER_CLOSED | 409 | Change to a DONE or CANCELLED work order |
         | WORK_ORDERS_OPEN | 409 | Sell while open work orders exist |
@@ -1882,7 +2175,7 @@ components:
         | CHECK_STALE | 409 | Check is stale on Ready/Export |
         | NOT_PASSED | 409 | Check is not Passed on Ready/Export |
         | UNSUPPORTED_MEDIA_TYPE | 415 | Request body is not `application/json`, or an uploaded photo is not JPEG/PNG |
-        | INTERNAL_ERROR | 500 | Unexpected server error; details are logged server-side only |
+        | INTERNAL_ERROR | 500 | Unexpected server error, or Google/Firebase signing keys unreachable; details are logged server-side only |
         | AI_UNAVAILABLE | 502 | Ad-check AI failed/timed out (check row already written) |
         | CATALOG_UNAVAILABLE | 502 | NHTSA vPIC unreachable or malformed |
       enum:
@@ -1914,8 +2207,8 @@ components:
 
     PageMeta:
       type: object
-      required: [items, page, size, total]
-      description: Page envelope `{items,page,size,total}`. page is zero-based; size defaults and caps at 10.
+      required: [items, page, size, totalElements]
+      description: Page envelope `{items,page,size,totalElements}`. page is zero-based; size defaults and caps at 10.
       properties:
         page:
           type: integer
@@ -1926,7 +2219,7 @@ components:
           minimum: 1
           maximum: 10
           example: 10
-        total:
+        totalElements:
           type: integer
           format: int64
           minimum: 0
@@ -2053,6 +2346,151 @@ components:
           type: string
           nullable: true
           description: The bound dealership's logo as an image data URL (shown in the app header); null when no logo is set
+        email:
+          type: string
+          nullable: true
+          description: The caller's own sign-in email
+        phone:
+          type: string
+          nullable: true
+          description: The caller's own phone
+        signInMethod:
+          type: string
+          enum: [google, password]
+          description: "`google` when the account has no password hash (Google or Firebase provisioned), otherwise `password`"
+        givenName:
+          type: string
+          nullable: true
+          description: From the Google ID token; null for password accounts
+        familyName:
+          type: string
+          nullable: true
+        avatarUrl:
+          type: string
+          nullable: true
+        locale:
+          type: string
+          nullable: true
+
+    MePatch:
+      type: object
+      required: [displayName]
+      properties:
+        displayName:
+          type: string
+          minLength: 1
+          maxLength: 120
+        phone:
+          type: string
+          nullable: true
+          maxLength: 40
+          description: Blank or null clears the phone
+
+    GoogleSignInRequest:
+      type: object
+      required: [idToken]
+      properties:
+        idToken:
+          type: string
+          maxLength: 4096
+          description: Google Identity Services ID token
+        dealerId:
+          type: integer
+          format: int64
+          nullable: true
+          description: Omit on the first call; send the chosen dealership after `needs_dealer`
+
+    GoogleSignInResponse:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [ok, needs_dealer, pending_approval]
+        login:
+          allOf:
+            - $ref: "#/components/schemas/LoginResponse"
+          nullable: true
+          description: Present only when `status=ok`
+
+    FirebaseSignInRequest:
+      type: object
+      required: [idToken]
+      properties:
+        idToken:
+          type: string
+          maxLength: 4096
+          description: Firebase Authentication ID token
+        username:
+          type: string
+          nullable: true
+          maxLength: 64
+          description: Used only when a new account is created; derived from the email when omitted
+        displayName:
+          type: string
+          nullable: true
+          maxLength: 120
+          description: Used only when a new account is created
+        phone:
+          type: string
+          nullable: true
+          maxLength: 40
+          description: Used only when a new account is created
+
+    PublicDealer:
+      type: object
+      required: [id, legalName]
+      properties:
+        id:
+          type: integer
+          format: int64
+        legalName:
+          type: string
+
+    JoinRequest:
+      type: object
+      required: [username, displayName, createdAt]
+      properties:
+        username:
+          type: string
+          description: System username that will be bound on approve
+        displayName:
+          type: string
+        email:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+
+    Notification:
+      type: object
+      required: [id, kind, createdAt, payload]
+      properties:
+        id:
+          type: integer
+          format: int64
+        kind:
+          type: string
+          description: "`JOIN_REQUEST` today; the frontend narrows `payload` by kind"
+        createdAt:
+          type: string
+          format: date-time
+        payload:
+          type: object
+          additionalProperties: true
+          description: "Kind-specific JSON. `JOIN_REQUEST`: `{username, displayName, email}`"
+        resolvedAt:
+          type: string
+          format: date-time
+          nullable: true
+        resolvedBy:
+          type: string
+          nullable: true
+        resolvedAction:
+          type: string
+          nullable: true
+          enum: [APPROVED, REJECTED, CANCELLED]
 
     Dealer:
       type: object
@@ -2942,6 +3380,16 @@ components:
           maxItems: 5
           items:
             $ref: "#/components/schemas/AssistantCard"
+        count:
+          type: object
+          nullable: true
+          description: Present when the question asks how many; the number is computed by core, not by the model
+          required: [count, singularLabel, pluralLabel, summary]
+          properties:
+            count: { type: integer }
+            singularLabel: { type: string }
+            pluralLabel: { type: string }
+            summary: { type: string, example: "There are 2 in-stock vehicles." }
 
     VehiclePublic:
       type: object

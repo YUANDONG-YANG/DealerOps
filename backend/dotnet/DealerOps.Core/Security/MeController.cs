@@ -3,6 +3,7 @@ using DealerOps.Core.Common.Exceptions;
 using DealerOps.Core.Common.Tenant;
 using DealerOps.Core.Data;
 using DealerOps.Core.Dealer;
+using DealerOps.Core.Notifications;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -16,11 +17,13 @@ public class MeController : ControllerBase
 {
     private readonly AppDbContext _db;
     private readonly IAuditService _audit;
+    private readonly NotificationService _notifications;
 
-    public MeController(AppDbContext db, IAuditService audit)
+    public MeController(AppDbContext db, IAuditService audit, NotificationService notifications)
     {
         _db = db;
         _audit = audit;
+        _notifications = notifications;
     }
 
     [HttpGet("me")]
@@ -70,7 +73,8 @@ public class MeController : ControllerBase
                    ?? throw new ApiException(ErrorCode.NotFound, "Account not found.");
 
         var displayName = body.DisplayName.Trim();
-        var phone = string.IsNullOrWhiteSpace(body.Phone) ? null : body.Phone.Trim();
+        // Same canonical form as registration, so the phone stays usable as a sign-in name.
+        var phone = string.IsNullOrWhiteSpace(body.Phone) ? null : LoginIdentifiers.Phone(body.Phone);
 
         if (_db.AppUsers.Any(u => u.Id != user.Id && EF.Functions.Like(u.DisplayName, displayName)))
             throw new ApiException(ErrorCode.DisplayNameTaken, "That full name is already registered.",
@@ -112,21 +116,12 @@ public class MeController : ControllerBase
         foreach (var m in _db.Memberships.Where(m => m.Username == username && m.Active).ToList())
             m.Active = false;
 
-        // Pending join notifications addressed to any dealership now have nothing to resolve,
-        // so mark them cancelled rather than leaving them to haunt that dealer's inbox.
+        // This user's own pending join request has nothing left to resolve, so mark it
+        // cancelled rather than leaving it in that dealer's inbox. Other applicants' requests
+        // to the same dealership are untouched.
         if (user.RequestedDealerId.HasValue)
-        {
-            foreach (var row in _db.Notifications
-                .Where(n => n.DealerId == user.RequestedDealerId
-                            && n.Kind == "JOIN_REQUEST"
-                            && n.ResolvedAt == null)
-                .ToList())
-            {
-                row.ResolvedAt = DateTime.UtcNow;
-                row.ResolvedBy = username;
-                row.ResolvedAction = "CANCELLED";
-            }
-        }
+            _notifications.ResolveByCorrelation(user.RequestedDealerId.Value, "JOIN_REQUEST",
+                "username", username, "CANCELLED", username);
 
         user.Active = false;
         user.DealerId = null;

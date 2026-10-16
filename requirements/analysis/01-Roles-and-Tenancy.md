@@ -42,9 +42,9 @@ The source does not distinguish managers from salespeople; all users inside a de
 | AUTH-07 | A dealer user cannot see any other dealer's data; requesting another dealer's record id returns "not found" (404) and does not reveal whether it exists | PDF §2, SCOPE | Must |
 | AUTH-08 | The admin is rejected (403) on every business API, with no business fields in the response | PDF §2, §6 | Must |
 | AUTH-09 | The server derives the dealer from the signed-in identity and **ignores** any client-supplied `dealerId` | Derived | Must |
-| AUTH-10 | Dealer users cannot create or remove logins | PDF §2 | Must |
+| AUTH-10 | Dealer users cannot create, edit or remove logins. Exception (SCOPE erratum 10, decided 2026-10-16): any active member may approve or reject a pending join request into their own dealership on `/team`, which binds an already-registered account (design/21 `AUTH-25`) | PDF §2 | Must |
 | AUTH-11 | Each user signs in with their own identity; no shared accounts | PDF §2 | Must |
-| AUTH-12 | Sign-in uses a local password account; the server checks a BCrypt hash and issues a signed JWT. The sign-in name may be email, username or phone. Accounts may be admin-issued **or** self-registered, and Google ID-token sign-in is also accepted; either way the account starts unbound and only the admin grants dealership access, so the tenancy boundary is unchanged. Extension IDs `AUTH-16–23` in design/21 own these flows | PDF §2, §8, SCOPE errata 1 and 7 | Must |
+| AUTH-12 | Sign-in uses a local password account; the server checks a BCrypt hash and issues a signed JWT. The sign-in name may be email, username or phone. Accounts may be admin-issued **or** self-registered, and Google ID-token sign-in (`AUTH-23`) and Firebase ID-token sign-in (erratum 9, no ID yet) are also accepted; either way the account starts unbound and only the admin grants dealership access, so the tenancy boundary is unchanged. Extension IDs `AUTH-16–23` in design/21 own these flows | PDF §2, §8, SCOPE errata 1, 7 and 9 | Must |
 | AUTH-13 | A signed-in user with no dealer binding gets 403 on business APIs | SCOPE | Should |
 | AUTH-14 | The same person cannot be bound to the same dealer twice (`DUP_MEMBER`) | SCOPE | Should |
 | AUTH-15 | The admin can view / edit a single dealer's basic info | SCOPE (added in design doc 14) | Should |
@@ -69,13 +69,14 @@ Admin creates dealer → Admin issues login (username + temporary password ↔ d
                                             ↓
                               Admin removes binding → User calls business API → 403
 
-Self sign-up / Google sign-in → account active but UNBOUND → 403 on every business API
+Self sign-up / Google / Firebase sign-in → account active but UNBOUND → 403 on every business API
                                             ↓
                               Admin binds it to a dealer (or approves the join request) → same access as above
 ```
 
-The second path was added by SCOPE-BASELINE errata 7 and is specified in design/21 (`AUTH-16–23`). A
-dealership user reviews incoming join requests on `/team`; the identity provider never grants a
+The second path was added by SCOPE-BASELINE errata 7 and 9 and is specified in design/21 (`AUTH-16–23`). A
+dealership user reviews incoming join requests on `/team` (design/13 §2, design/21 `AUTH-25`,
+SCOPE erratum 10); the identity provider never grants a
 role or a dealership, so tenancy is still resolved per request from the membership table.
 
 ## 7. Edge cases

@@ -32,7 +32,8 @@ public class VehiclePhotoService
         return _db.VehiclePhotos
             .Where(p => p.VehicleId == vehicleId && p.DealerId == tenant)
             .OrderBy(p => p.CreatedAt).ThenBy(p => p.Id)
-            .Select(p => new PhotoItem(p.Id, p.VehicleId, p.ContentType, p.Enhancement, p.UploadedBy, p.CreatedAt))
+            .AsEnumerable()
+            .Select(ToItem)
             .ToList();
     }
 
@@ -112,6 +113,8 @@ public class VehiclePhotoService
 
     private static string ActorUsername() => TenantContext.Get()?.Username ?? "";
 
+    // MySQL returns DATETIME values without a kind; they are stored in UTC (contract §1.3).
     private static PhotoItem ToItem(VehiclePhotoEntity p) =>
-        new(p.Id, p.VehicleId, p.ContentType, p.Enhancement, p.UploadedBy, p.CreatedAt);
+        new(p.Id, p.VehicleId, p.ContentType, p.Enhancement, p.UploadedBy,
+            DateTime.SpecifyKind(p.CreatedAt, DateTimeKind.Utc));
 }

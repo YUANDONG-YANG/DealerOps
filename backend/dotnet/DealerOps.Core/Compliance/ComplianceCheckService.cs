@@ -7,11 +7,20 @@ using DealerOps.Core.Integration;
 using DealerOps.Core.Integration.Dto;
 using DealerOps.Core.Listing;
 using DealerOps.Core.Listing.Dto;
+using DealerOps.Core.Vehicle;
 
 namespace DealerOps.Core.Compliance;
 
 public class ComplianceCheckService
 {
+    // Stored JSON uses the 14 §8.1 element shape (camelCase); reads stay case-insensitive so rows
+    // written with PascalCase keys still load.
+    private static readonly JsonSerializerOptions StoredJson = new()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        PropertyNameCaseInsensitive = true
+    };
+
     private readonly AppDbContext _db;
     private readonly OmvicRuleEngine _ruleEngine;
     private readonly CheckStatusMapper _checkStatusMapper;
@@ -54,9 +63,11 @@ public class ComplianceCheckService
         {
             var notes = _aiGatewayClient.AdCheckAsync(new AdCheckInternalRequest(
                 new ListingPublic(listing.Title, listing.Body,
-                    listing.AdKind.ToString(), listing.Medium.ToString()),
-                new VehiclePublic(vehicle.ModelYear, vehicle.Make, vehicle.Model,
-                    vehicle.Vin, vehicle.ConditionCode.ToString(), vehicle.Source.ToString()),
+                    EnumSnakeCaseConverter<AdKind>.ToWire(listing.AdKind),
+                    EnumSnakeCaseConverter<AdMedium>.ToWire(listing.Medium)),
+                new VehiclePublic(vehicle.ModelYear, vehicle.Make, vehicle.Model, vehicle.Vin,
+                    EnumSnakeCaseConverter<ConditionCode>.ToWire(vehicle.ConditionCode),
+                    EnumSnakeCaseConverter<VehicleSource>.ToWire(vehicle.Source)),
                 new DealerPublic(dealer.LegalName, dealer.ContactPhone,
                     dealer.ContactEmail, dealer.ContactAddress))).GetAwaiter().GetResult();
 
@@ -107,9 +118,9 @@ public class ComplianceCheckService
             DealerId = current.DealerId,
             ListingId = current.Id,
             ContentVersion = evaluatedContentVersion,
-            RuleFindingsJson = JsonSerializer.Serialize(findings),
+            RuleFindingsJson = JsonSerializer.Serialize(findings, StoredJson),
             AiStatus = aiStatus,
-            AiNotes = notes != null ? JsonSerializer.Serialize(notes) : null,
+            AiNotes = notes != null ? JsonSerializer.Serialize(notes, StoredJson) : null,
             Recommendation = recommendation,
             CreatedAt = DateTime.UtcNow
         };
@@ -126,14 +137,14 @@ public class ComplianceCheckService
     private static List<RuleFinding> DeserializeFindings(string? json)
     {
         if (string.IsNullOrWhiteSpace(json)) return [];
-        try { return JsonSerializer.Deserialize<List<RuleFinding>>(json) ?? []; }
+        try { return JsonSerializer.Deserialize<List<RuleFinding>>(json, StoredJson) ?? []; }
         catch { return []; }
     }
 
     private static List<AiNote>? DeserializeNotes(string? json)
     {
         if (string.IsNullOrWhiteSpace(json)) return null;
-        try { return JsonSerializer.Deserialize<List<AiNote>>(json); }
+        try { return JsonSerializer.Deserialize<List<AiNote>>(json, StoredJson); }
         catch { return null; }
     }
 

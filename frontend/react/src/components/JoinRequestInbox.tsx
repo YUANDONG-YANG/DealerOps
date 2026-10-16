@@ -9,6 +9,7 @@ import {
   type Notification,
 } from '../api/notifications';
 import { codeOf, messageOf, statusOf } from '../api/http';
+import { initials } from '../format';
 
 type JoinRequestNotification = Notification & { kind: 'JOIN_REQUEST'; payload: JoinRequestPayload };
 
@@ -91,7 +92,8 @@ export default function JoinRequestInbox() {
     <div className="inbox" ref={containerRef} style={{ position: 'relative' }}>
       <button
         type="button"
-        className="inbox-bell"
+        className={`inbox-bell${open ? ' is-open' : ''}`}
+        aria-expanded={open}
         aria-label={count > 0 ? `${count} join requests` : 'No join requests'}
         onClick={() => setOpen(o => !o)}
       >
@@ -106,41 +108,56 @@ export default function JoinRequestInbox() {
       {open && (
         <div className="inbox-popover" onClick={(e) => e.stopPropagation()}>
           <div className="inbox-head">
-            <strong>Join requests</strong>
-            <button type="button" className="btn-link" onClick={() => { setOpen(false); navigate('/team'); }}>
-              Open Team
+            <div className="inbox-title">
+              <strong>Join requests</strong>
+              {count > 0 && <span className="inbox-count">{count}</span>}
+            </div>
+            <button type="button" className="btn-link inbox-team-link" onClick={() => { setOpen(false); navigate('/team'); }}>
+              Open Team →
             </button>
           </div>
-          {error && <div className="alert alert-error">{error}</div>}
+          {error && <div className="alert alert-error inbox-error">{error}</div>}
           {count === 0 ? (
-            <div className="inbox-empty">No pending requests.</div>
+            <div className="inbox-empty">
+              <span className="inbox-empty-icon" aria-hidden="true">✓</span>
+              <span>You're all caught up.</span>
+            </div>
           ) : (
             <ul className="inbox-list">
-              {rows.map(r => (
-                <li key={r.id} className="inbox-item">
-                  <div>
-                    <strong>{r.payload.displayName}</strong>
-                  </div>
-                  <div className="inbox-actions">
-                    <button
-                      type="button"
-                      className="btn btn-primary"
-                      disabled={acting === r.payload.username}
-                      onClick={() => void act(r.payload.username, 'approve')}
-                    >
-                      Approve
-                    </button>
-                    <button
-                      type="button"
-                      className="btn-link"
-                      disabled={acting === r.payload.username}
-                      onClick={() => void act(r.payload.username, 'reject')}
-                    >
-                      Reject
-                    </button>
-                  </div>
-                </li>
-              ))}
+              {rows.map(r => {
+                const busy = acting === r.payload.username;
+                return (
+                  <li key={r.id} className="inbox-item">
+                    <div className="inbox-who">
+                      <span className="avatar avatar-sm" aria-hidden="true">{initials(r.payload.displayName)}</span>
+                      <div className="inbox-text">
+                        <div className="inbox-name" title={r.payload.displayName}>{r.payload.displayName}</div>
+                        <div className="inbox-meta" title={r.payload.email ?? r.payload.username}>
+                          {r.payload.email ?? r.payload.username}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="inbox-actions">
+                      <button
+                        type="button"
+                        className="btn btn-sm"
+                        disabled={busy}
+                        onClick={() => void act(r.payload.username, 'reject')}
+                      >
+                        Reject
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-sm btn-primary"
+                        disabled={busy}
+                        onClick={() => void act(r.payload.username, 'approve')}
+                      >
+                        Approve
+                      </button>
+                    </div>
+                  </li>
+                );
+              })}
             </ul>
           )}
         </div>

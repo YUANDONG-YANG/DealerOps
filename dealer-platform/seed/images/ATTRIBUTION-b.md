@@ -1,0 +1,81 @@
+# Image attribution (part B)
+
+Real photographs from Wikimedia Commons used as demo seed data. This file covers the second half
+of the vehicle models in `contract/vehicles-plan.json` (Kia Forte through Volkswagen Tiguan, sorted
+alphabetically by make and model) plus ten dealership lot and showroom photos (`lot_<n>.jpg`).
+
+Only freely licensed files are used: CC BY, CC BY-SA, CC0 or public domain. Each license applies to
+the file as listed; see the linked Commons file page for the full license text and any additional
+notices. Every image was downloaded from the Commons 1600 px thumbnail and re-encoded as JPEG with a
+maximum edge of 1600 px; the "Resized" column gives the original and final dimensions. No other
+changes (cropping, retouching) were made. CC BY-SA derivatives are shared under the same license.
+
+| File | Commons source | Author | License | Resized |
+|---|---|---|---|---|
+| `kia_forte_1.jpg` | [2019 Kia Forte S front 3.20.19.jpg](https://commons.wikimedia.org/wiki/File:2019_Kia_Forte_S_front_3.20.19.jpg) | Kevauto | CC BY-SA 4.0 | Yes, 4830x2550 to 1600x845 |
+| `kia_forte_2.jpg` | [2019 Kia Forte S rear 3.20.19.jpg](https://commons.wikimedia.org/wiki/File:2019_Kia_Forte_S_rear_3.20.19.jpg) | Kevauto | CC BY-SA 4.0 | Yes, 4798x2718 to 1600x907 |
+| `kia_forte_3.jpg` | [2019 Kia Forte LXS in Currant Red, front left.jpg](https://commons.wikimedia.org/wiki/File:2019_Kia_Forte_LXS_in_Currant_Red,_front_left.jpg) | Mr.choppers | CC BY-SA 3.0 | Yes, 5096x3248 to 1600x1020 |
+| `kia_sportage_1.jpg` | [2017 Kia Sportage LX AWD, Front Right, 10-31-2021.jpg](https://commons.wikimedia.org/wiki/File:2017_Kia_Sportage_LX_AWD,_Front_Right,_10-31-2021.jpg) | Elise240SX | CC BY-SA 4.0 | Yes, 3876x2340 to 1600x966 |
+| `kia_sportage_2.jpg` | [2017 Kia Sportage LX AWD, Rear Right, 10-31-2021.jpg](https://commons.wikimedia.org/wiki/File:2017_Kia_Sportage_LX_AWD,_Rear_Right,_10-31-2021.jpg) | Elise240SX | CC BY-SA 4.0 | Yes, 4140x2700 to 1600x1043 |
+| `kia_sportage_3.jpg` | [2017 Kia Sportage LX AWD in Pacific Blue, Front Right, 05-10-2022.jpg](https://commons.wikimedia.org/wiki/File:2017_Kia_Sportage_LX_AWD_in_Pacific_Blue,_Front_Right,_05-10-2022.jpg) | Elise240SX | CC BY-SA 4.0 | Yes, 4100x2435 to 1600x950 |
+| `lexus_rx-350_1.jpg` | [2018 Lexus RX 350 F Sport in Sonic Titanium, front left.jpg](https://commons.wikimedia.org/wiki/File:2018_Lexus_RX_350_F_Sport_in_Sonic_Titanium,_front_left.jpg) | Ethan Llamas | CC BY-SA 4.0 | Yes, 5497x3926 to 1600x1143 |
+| `lexus_rx-350_2.jpg` | [Lexus RX 350 F Sport arriere (24121456779).jpg](https://commons.wikimedia.org/wiki/File:Lexus_RX_350_F_Sport_arriere_(24121456779).jpg) | Zytonits | CC BY-SA 2.0 | Yes, 2592x1944 to 1600x1200 |
+| `lexus_rx-350_3.jpg` | [Lexus RX (AL20) Washington DC Metro Area, USA.jpg](https://commons.wikimedia.org/wiki/File:Lexus_RX_(AL20)_Washington_DC_Metro_Area,_USA.jpg) | OWS Photography | CC BY 4.0 | Yes, 2077x1662 to 1600x1280 |
+| `mazda_cx-5_1.jpg` | [Mazda CX-5 (KF) 2.5 Skyactiv-G Sport AWD 2022 (1).jpg](https://commons.wikimedia.org/wiki/File:Mazda_CX-5_(KF)_2.5_Skyactiv-G_Sport_AWD_2022_(1).jpg) | Ethan Llamas | CC BY-SA 4.0 | Yes, 2940x2205 to 1600x1200 |
+| `mazda_cx-5_2.jpg` | [Mazda CX-5 (KF) 2.5 Skyactiv-G Sport AWD 2022 (2).jpg](https://commons.wikimedia.org/wiki/File:Mazda_CX-5_(KF)_2.5_Skyactiv-G_Sport_AWD_2022_(2).jpg) | Ethan Llamas | CC BY-SA 4.0 | Yes, 3456x2592 to 1600x1200 |
+| `mazda_cx-5_3.jpg` | [2022 Mazda CX-5 2.0 front.jpg](https://commons.wikimedia.org/wiki/File:2022_Mazda_CX-5_2.0_front.jpg) | ShangTW | CC BY-SA 4.0 | Yes, 3344x2224 to 1600x1064 |
+| `mazda_mazda3_1.jpg` | [2021 Mazda3 GT Turbo AWD, Front Right, 07-01-2021.jpg](https://commons.wikimedia.org/wiki/File:2021_Mazda3_GT_Turbo_AWD,_Front_Right,_07-01-2021.jpg) | SsmIntrigue | CC BY-SA 4.0 | Yes, 3420x1728 to 1600x808 |
+| `mazda_mazda3_2.jpg` | [2019 Mazda3 Preferred Plus, Rear Right, 11-05-2020.jpg](https://commons.wikimedia.org/wiki/File:2019_Mazda3_Preferred_Plus,_Rear_Right,_11-05-2020.jpg) | SsmIntrigue | CC BY-SA 4.0 | Yes, 3384x1872 to 1600x885 |
+| `mazda_mazda3_3.jpg` | [2018 Mazda3 sedan in Jet Black Mica, front right.jpg](https://commons.wikimedia.org/wiki/File:2018_Mazda3_sedan_in_Jet_Black_Mica,_front_right.jpg) | Mr.choppers | CC BY-SA 3.0 | Yes, 5365x3342 to 1600x997 |
+| `mercedes-benz_c-class_1.jpg` | [2018 Mercedes-Benz C-Class C220d Exclusive.jpg](https://commons.wikimedia.org/wiki/File:2018_Mercedes-Benz_C-Class_C220d_Exclusive.jpg) | Chanokchon | CC BY-SA 4.0 | Yes, 4000x3000 to 1600x1200 |
+| `mercedes-benz_c-class_2.jpg` | [2020 Mercedes-Benz C300 AMG Line Night Edition Premium 2.0 Rear.jpg](https://commons.wikimedia.org/wiki/File:2020_Mercedes-Benz_C300_AMG_Line_Night_Edition_Premium_2.0_Rear.jpg) | Vauxford | CC BY-SA 4.0 | Yes, 4960x2361 to 1600x762 |
+| `mercedes-benz_c-class_3.jpg` | [Mercedes-Benz C-Class W205 FL silver (2).jpg](https://commons.wikimedia.org/wiki/File:Mercedes-Benz_C-Class_W205_FL_silver_(2).jpg) | Damian B Oh | CC BY-SA 4.0 | Yes, 2701x2026 to 1600x1200 |
+| `mini_cooper_1.jpg` | [2019 Mini Hardtop 2-door Cooper, front right, 06-16-2024.jpg](https://commons.wikimedia.org/wiki/File:2019_Mini_Hardtop_2-door_Cooper,_front_right,_06-16-2024.jpg) | MercurySable99 | CC BY-SA 4.0 | Yes, 4554x3531 to 1600x1241 |
+| `mini_cooper_2.jpg` | [2019 Mini Hardtop 2-door Cooper, rear right, 06-16-2024.jpg](https://commons.wikimedia.org/wiki/File:2019_Mini_Hardtop_2-door_Cooper,_rear_right,_06-16-2024.jpg) | MercurySable99 | CC BY-SA 4.0 | Yes, 4531x3514 to 1600x1241 |
+| `mini_cooper_3.jpg` | [2014 Mini Cooper Hardtop (12763086773).jpg](https://commons.wikimedia.org/wiki/File:2014_Mini_Cooper_Hardtop_(12763086773).jpg) | qJake | CC BY-SA 2.0 | Yes, 4288x2848 to 1600x1063 |
+| `nissan_altima_1.jpg` | [2017 Nissan Altima front 3.17.18.jpg](https://commons.wikimedia.org/wiki/File:2017_Nissan_Altima_front_3.17.18.jpg) | Kevauto | CC BY-SA 4.0 | Yes, 5004x2622 to 1600x838 |
+| `nissan_altima_2.jpg` | [2017 Nissan Altima rear 3.17.18.jpg](https://commons.wikimedia.org/wiki/File:2017_Nissan_Altima_rear_3.17.18.jpg) | Kevauto | CC BY-SA 4.0 | Yes, 4859x2339 to 1600x770 |
+| `nissan_altima_3.jpg` | [2017 Nissan Altima (US) front 3.16.18.jpg](https://commons.wikimedia.org/wiki/File:2017_Nissan_Altima_(US)_front_3.16.18.jpg) | Kevauto | CC BY-SA 4.0 | Yes, 5042x2234 to 1600x709 |
+| `nissan_rogue_1.jpg` | [18 Nissan Rogue SL.jpg](https://commons.wikimedia.org/wiki/File:18_Nissan_Rogue_SL.jpg) | HJUdall | CC0 | Yes, 4128x3096 to 1600x1200 |
+| `nissan_rogue_2.jpg` | [2022-2023 Nissan Rogue -- avant.JPG](https://commons.wikimedia.org/wiki/File:2022-2023_Nissan_Rogue_--_avant.JPG) | Bull-Doser | Public domain | Yes, 1913x977 to 1600x817 |
+| `nissan_rogue_3.jpg` | [2022 Nissan Rogue.jpg](https://commons.wikimedia.org/wiki/File:2022_Nissan_Rogue.jpg) | Bull-Doser | Public domain | Yes, 1746x1080 to 1600x990 |
+| `ram_1500_1.jpg` | [2019 Ram 1500 Laramie, front 3.1.20.jpg](https://commons.wikimedia.org/wiki/File:2019_Ram_1500_Laramie,_front_3.1.20.jpg) | Kevauto | CC BY-SA 4.0 | Yes, 4962x2693 to 1600x868 |
+| `ram_1500_2.jpg` | [2019 Ram 1500 Laramie, rear 3.1.20.jpg](https://commons.wikimedia.org/wiki/File:2019_Ram_1500_Laramie,_rear_3.1.20.jpg) | Kevauto | CC BY-SA 4.0 | Yes, 4681x2709 to 1600x926 |
+| `ram_1500_3.jpg` | [2017 Ram 1500 Express Crew Cab, front left, 09-02-2022.jpg](https://commons.wikimedia.org/wiki/File:2017_Ram_1500_Express_Crew_Cab,_front_left,_09-02-2022.jpg) | MercurySable99 | CC BY-SA 4.0 | Yes, 4360x2512 to 1600x922 |
+| `subaru_outback_1.jpg` | [2023 Subaru Outback Premium, front right, 09-09-2023.jpg](https://commons.wikimedia.org/wiki/File:2023_Subaru_Outback_Premium,_front_right,_09-09-2023.jpg) | MercurySable99 | CC BY-SA 4.0 | Yes, 4012x2629 to 1600x1048 |
+| `subaru_outback_2.jpg` | [2022 Subaru Outback Wilderness, rear 4.30.22.jpg](https://commons.wikimedia.org/wiki/File:2022_Subaru_Outback_Wilderness,_rear_4.30.22.jpg) | Kevauto | CC BY-SA 4.0 | Yes, 4670x2608 to 1600x893 |
+| `subaru_outback_3.jpg` | [2016 Subaru Outback 2.5i in Crystal Black Silica, front left, 2024-06-25.jpg](https://commons.wikimedia.org/wiki/File:2016_Subaru_Outback_2.5i_in_Crystal_Black_Silica,_front_left,_2024-06-25.jpg) | Elise240SX | CC BY-SA 4.0 | Yes, 3100x1730 to 1600x893 |
+| `subaru_wrx_1.jpg` | [2019 Subaru WRX Sport-Tech RS Raiu Edition in Cool Grey, Front Left, 01-30-2022.jpg](https://commons.wikimedia.org/wiki/File:2019_Subaru_WRX_Sport-Tech_RS_Raiu_Edition_in_Cool_Grey,_Front_Left,_01-30-2022.jpg) | Elise240SX | CC BY-SA 4.0 | Yes, 4032x2592 to 1600x1028 |
+| `subaru_wrx_2.jpg` | [2019 Subaru WRX Sport-Tech RS Raiu Edition in Cool Grey, Rear Left, 01-30-2022.jpg](https://commons.wikimedia.org/wiki/File:2019_Subaru_WRX_Sport-Tech_RS_Raiu_Edition_in_Cool_Grey,_Rear_Left,_01-30-2022.jpg) | Elise240SX | CC BY-SA 4.0 | Yes, 4056x2520 to 1600x994 |
+| `subaru_wrx_3.jpg` | [Subaru WRX Limited 2016 (54484085625).jpg](https://commons.wikimedia.org/wiki/File:Subaru_WRX_Limited_2016_(54484085625).jpg) | RL GNZLZ from Chile | CC BY-SA 2.0 | Yes, 4882x2748 to 1600x901 |
+| `tesla_model-3_1.jpg` | [2019 Tesla Model 3 Long Range Dual Motor in Red Multi-Coat, front left, 2021-05-30.jpg](https://commons.wikimedia.org/wiki/File:2019_Tesla_Model_3_Long_Range_Dual_Motor_in_Red_Multi-Coat,_front_left,_2021-05-30.jpg) | Elise240SX | CC BY-SA 4.0 | Yes, 3036x1637 to 1600x863 |
+| `tesla_model-3_2.jpg` | [2019 Tesla Model 3 Performance AWD Rear.jpg](https://commons.wikimedia.org/wiki/File:2019_Tesla_Model_3_Performance_AWD_Rear.jpg) | Vauxford | CC BY-SA 4.0 | Yes, 4971x2353 to 1600x758 |
+| `tesla_model-3_3.jpg` | [Tesla Model 3 07-19-2019.jpg](https://commons.wikimedia.org/wiki/File:Tesla_Model_3_07-19-2019.jpg) | SsmIntrigue | CC BY-SA 4.0 | Yes, 4608x2592 to 1600x900 |
+| `toyota_camry_1.jpg` | [2017 Toyota Camry SE, front right, 11-01-2022.jpg](https://commons.wikimedia.org/wiki/File:2017_Toyota_Camry_SE,_front_right,_11-01-2022.jpg) | MercurySable99 | CC BY-SA 4.0 | Yes, 4870x2729 to 1600x897 |
+| `toyota_camry_2.jpg` | [14-17 Toyota Camry SE.jpg](https://commons.wikimedia.org/wiki/File:14-17_Toyota_Camry_SE.jpg) | MooFridge | CC0 | Yes, 4272x2848 to 1600x1067 |
+| `toyota_camry_3.jpg` | [15-17 Toyota Camry SE.jpg](https://commons.wikimedia.org/wiki/File:15-17_Toyota_Camry_SE.jpg) | MercurySable99 | CC BY-SA 4.0 | Yes, 4616x2672 to 1600x926 |
+| `toyota_corolla_1.jpg` | [2017 Toyota Corolla LE front 5.6.18.jpg](https://commons.wikimedia.org/wiki/File:2017_Toyota_Corolla_LE_front_5.6.18.jpg) | Kevauto | CC BY-SA 4.0 | Yes, 4650x2606 to 1600x897 |
+| `toyota_corolla_2.jpg` | [2018 Toyota Corolla LE (facelift), rear 3.31.23.jpg](https://commons.wikimedia.org/wiki/File:2018_Toyota_Corolla_LE_(facelift),_rear_3.31.23.jpg) | Kevauto | CC BY-SA 4.0 | Yes, 3264x1757 to 1600x862 |
+| `toyota_corolla_3.jpg` | [2021 Toyota Corolla LE, front right, 07-13-2024.jpg](https://commons.wikimedia.org/wiki/File:2021_Toyota_Corolla_LE,_front_right,_07-13-2024.jpg) | MercurySable99 | CC BY-SA 4.0 | Yes, 4627x3172 to 1600x1097 |
+| `toyota_rav4_1.jpg` | [Toyota RAV4 2019 (XA50) CUV Quarter Front.jpg](https://commons.wikimedia.org/wiki/File:Toyota_RAV4_2019_(XA50)_CUV_Quarter_Front.jpg) | Alistair Fernandez | CC BY-SA 3.0 | Yes, 2576x1932 to 1600x1200 |
+| `toyota_rav4_2.jpg` | [2017 Toyota Rav4 XLE in Black, Front Right, 08-30-2022.jpg](https://commons.wikimedia.org/wiki/File:2017_Toyota_Rav4_XLE_in_Black,_Front_Right,_08-30-2022.jpg) | Elise240SX | CC BY-SA 4.0 | Yes, 3490x2016 to 1600x924 |
+| `toyota_rav4_3.jpg` | [Toyota RAV4 2019 (XA50) CUV Interior.jpg](https://commons.wikimedia.org/wiki/File:Toyota_RAV4_2019_(XA50)_CUV_Interior.jpg) | Alistair Fernandez | CC BY-SA 3.0 | Yes, 2576x1932 to 1600x1200 |
+| `toyota_tacoma_1.jpg` | [2016 Toyota Tacoma TRD Sport Access Cab 3.5L front 5.14.19.jpg](https://commons.wikimedia.org/wiki/File:2016_Toyota_Tacoma_TRD_Sport_Access_Cab_3.5L_front_5.14.19.jpg) | Kevauto | CC BY-SA 4.0 | Yes, 4725x2444 to 1600x828 |
+| `toyota_tacoma_2.jpg` | [2016 Toyota Tacoma TRD Sport Access Cab 3.5L rear 5.14.19.jpg](https://commons.wikimedia.org/wiki/File:2016_Toyota_Tacoma_TRD_Sport_Access_Cab_3.5L_rear_5.14.19.jpg) | Kevauto | CC BY-SA 4.0 | Yes, 4653x2457 to 1600x845 |
+| `toyota_tacoma_3.jpg` | ['16 Toyota Tacoma Crew Cab.jpg](https://commons.wikimedia.org/wiki/File:%2716_Toyota_Tacoma_Crew_Cab.jpg) | Bull-Doser | Public domain | Yes, 2794x1594 to 1600x913 |
+| `volkswagen_golf_1.jpg` | [2018 Volkswagen Golf R-Line TSi EVO S-A 1.5.jpg](https://commons.wikimedia.org/wiki/File:2018_Volkswagen_Golf_R-Line_TSi_EVO_S-A_1.5.jpg) | Vauxford | CC BY-SA 4.0 | Yes, 4209x2233 to 1600x849 |
+| `volkswagen_golf_2.jpg` | [2018 Volkswagen Golf R-Line TSi EVO S-A 1.5 Rear.jpg](https://commons.wikimedia.org/wiki/File:2018_Volkswagen_Golf_R-Line_TSi_EVO_S-A_1.5_Rear.jpg) | Vauxford | CC BY-SA 4.0 | Yes, 4642x2642 to 1600x911 |
+| `volkswagen_golf_3.jpg` | [VW Golf 2.0 TDI Highline (VII, Facelift) – Frontansicht, 8. Oktober 2017, Düsseldorf.jpg](https://commons.wikimedia.org/wiki/File:VW_Golf_2.0_TDI_Highline_(VII,_Facelift)_%E2%80%93_Frontansicht,_8._Oktober_2017,_D%C3%BCsseldorf.jpg) | © M 93 | CC BY-SA 3.0 de | Yes, 3350x1640 to 1600x783 |
+| `volkswagen_tiguan_1.jpg` | [2020 Volkswagen Tiguan R-Line Auto.jpg](https://commons.wikimedia.org/wiki/File:2020_Volkswagen_Tiguan_R-Line_Auto.jpg) | Calreyn88 | CC BY-SA 4.0 | Yes, 2516x1639 to 1600x1043 |
+| `volkswagen_tiguan_2.jpg` | [2020 Volkswagen Tiguan Life facelift Rear.jpg](https://commons.wikimedia.org/wiki/File:2020_Volkswagen_Tiguan_Life_facelift_Rear.jpg) | Vauxford | CC BY-SA 4.0 | Yes, 4496x3058 to 1600x1088 |
+| `volkswagen_tiguan_3.jpg` | [Volkswagen Tiguan (Mk II) Washington DC Metro Area, USA.jpg](https://commons.wikimedia.org/wiki/File:Volkswagen_Tiguan_(Mk_II)_Washington_DC_Metro_Area,_USA.jpg) | OWS Photography | CC BY 4.0 | Yes, 1921x1537 to 1600x1280 |
+| `lot_1.jpg` | [2021 - Used Car Lot - Outten Chevrolet - 2 - Allentown PA.jpg](https://commons.wikimedia.org/wiki/File:2021_-_Used_Car_Lot_-_Outten_Chevrolet_-_2_-_Allentown_PA.jpg) | Atwngirl | CC BY-SA 4.0 | Yes, 6000x4000 to 1600x1067 |
+| `lot_2.jpg` | [Used car lot in Lansingburgh, New York.jpg](https://commons.wikimedia.org/wiki/File:Used_car_lot_in_Lansingburgh,_New_York.jpg) | Tyler A. McNeil | CC BY-SA 4.0 | Yes, 4629x3085 to 1600x1067 |
+| `lot_3.jpg` | [Griffin Chrysler Dodge Jeep Ram dealership, Lowndes County.jpg](https://commons.wikimedia.org/wiki/File:Griffin_Chrysler_Dodge_Jeep_Ram_dealership,_Lowndes_County.jpg) | Michael Rivera | CC BY-SA 4.0 | Yes, 5184x3456 to 1600x1067 |
+| `lot_4.jpg` | [Lono Avenue Value Center Used Car Lot.JPG](https://commons.wikimedia.org/wiki/File:Lono_Avenue_Value_Center_Used_Car_Lot.JPG) | 293.xx.xxx.xx | CC BY-SA 3.0 | Yes, 3296x2472 to 1600x1200 |
+| `lot_5.jpg` | [Used car lot on the Ballydugan Road - geograph.org.uk - 8050903.jpg](https://commons.wikimedia.org/wiki/File:Used_car_lot_on_the_Ballydugan_Road_-_geograph.org.uk_-_8050903.jpg) | Eric Jones | CC BY-SA 2.0 | Yes, 2911x2183 to 1600x1200 |
+| `lot_6.jpg` | [Citroën car dealer, Huntington, Cheshire.JPG](https://commons.wikimedia.org/wiki/File:Citro%C3%ABn_car_dealer,_Huntington,_Cheshire.JPG) | Rept0n1x | CC BY-SA 3.0 | Yes, 4320x3240 to 1600x1200 |
+| `lot_7.jpg` | [Vertically oriented Canadian flag.jpg](https://commons.wikimedia.org/wiki/File:Vertically_oriented_Canadian_flag.jpg) | Tracklan2 | CC BY-SA 4.0 | Yes, 3024x4032 to 1200x1600 |
+| `lot_8.jpg` | [Used car lot East of Clough - geograph.org.uk - 6639044.jpg](https://commons.wikimedia.org/wiki/File:Used_car_lot_East_of_Clough_-_geograph.org.uk_-_6639044.jpg) | Eric Jones | CC BY-SA 2.0 | Yes, 3812x2860 to 1600x1201 |
+| `lot_9.jpg` | [HK Wan Chai 56 Gloucester Road BEA Harbour View Centre shop Jaguar showroom interior white car Nov-2012.JPG](https://commons.wikimedia.org/wiki/File:HK_Wan_Chai_56_Gloucester_Road_BEA_Harbour_View_Centre_shop_Jaguar_showroom_interior_white_car_Nov-2012.JPG) | Swoodchatla | CC BY-SA 3.0 | Yes, 2592x1936 to 1600x1195 |
+| `lot_10.jpg` | [Fordthorne Showroom.jpg](https://commons.wikimedia.org/wiki/File:Fordthorne_Showroom.jpg) | Fordthorne | CC BY-SA 3.0 | Yes, 1960x1721 to 1600x1405 |

@@ -10,7 +10,7 @@ import { customersApi } from '../api/customers';
 import { vehiclesApi, errorCode, errorStatus } from '../api/vehicles';
 import { auditApi } from '../api/audit';
 import { leadsApi, stageLabel } from '../api/leads';
-import { fieldErrorsOf, messageOf } from '../api/http';
+import { collectAllPages, fieldErrorsOf, messageOf } from '../api/http';
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+$/;
 const PHONE_PATTERN = /^(?=(?:\D*\d){7,20}\D*$)[0-9+\-() ]+$/;
@@ -92,7 +92,6 @@ function mapLink(e: unknown) {
   const code = errorCode(e);
   const status = errorStatus(e);
   if (code === 'VEHICLE_ALREADY_LINKED') return 'Vehicle already linked';
-  if (code === 'WRONG_DEALER_OR_SOLD') return 'Vehicle not available';
   if (status === 404 || code === 'NOT_FOUND') return 'Vehicle not found';
   return 'Could not link vehicle.';
 }
@@ -187,24 +186,9 @@ export default function CrmPage() {
     }
   }, [searchParams.get('customerId')]);
 
-  async function collectAllPages(loadPage: (p: number, size: number) => Promise<{ data: { items?: any[]; totalElements?: number } }>) {
-    const collected: any[] = [];
-    let pageIndex = 0;
-    let totalCount = Infinity;
-    while (collected.length < totalCount) {
-      const r = await loadPage(pageIndex, LINK_OPTION_PAGE_SIZE);
-      const items = r.data.items || [];
-      totalCount = Number(r.data.totalElements) || 0;
-      collected.push(...items);
-      if (!items.length) break;
-      pageIndex++;
-    }
-    return collected;
-  }
-
   async function loadLinkOptions(seq: number) {
     try {
-      const all = await collectAllPages((p, size) => vehiclesApi.list({ page: p, size }));
+      const all = await collectAllPages<any>((p) => vehiclesApi.list({ page: p, size: LINK_OPTION_PAGE_SIZE }));
       if (seq !== editSeqRef.current) return;
       setVehicles(all.filter((x: any) => !x.linkedCustomer));
     } catch {

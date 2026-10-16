@@ -193,8 +193,8 @@ export default function PhotoStudioPanel({ vehicleId }: Props) {
       await photosApi.enhance(vehicleId, photoId, preset);
       await load();
       setVariant('enhanced');
-    } catch {
-      setError('Could not enhance photo.');
+    } catch (e) {
+      setError(messageOf(e, 'Could not enhance photo.'));
     } finally {
       setEnhancing(null);
     }
