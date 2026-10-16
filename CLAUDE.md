@@ -6,7 +6,7 @@ These rules apply to every coding agent in this repository, including Claude, Co
 
 Focus on delivering the requested product behavior quickly and accurately. Prefer a small, complete implementation over speculative architecture, broad refactoring, or unfinished abstractions.
 
-The active implementation is the .NET 8 backend and React frontend. Java and Vue are retired legacy implementations. Do not modify the Java or Vue stacks unless the user explicitly requests legacy-stack work. Do not update multiple implementations for one feature unless the user asks for parity.
+The active implementation is the .NET 10 backend and React frontend. Java and Vue are retired legacy implementations. Do not modify the Java or Vue stacks unless the user explicitly requests legacy-stack work. Do not update multiple implementations for one feature unless the user asks for parity.
 
 ## Before changing code
 
@@ -62,7 +62,7 @@ This project is currently focused on feature development. Do not author tests as
 ## Build and handoff
 
 - Before declaring a change complete, build every affected module and perform a focused manual check when the feature has a user-visible flow.
-- For .NET changes, build the affected solution or project with the repository's .NET 8 setup.
+- For .NET changes, build the affected solution or project with the repository's .NET 10 setup.
 - For React changes, use the package manager and scripts already defined by `frontend/react/package.json`.
 - Only use Maven or the Java toolchain when the user explicitly requests legacy Java work.
 - Report the files changed, validation commands run, and any remaining limitation or failure. Do not claim success when a required build or smoke check failed.

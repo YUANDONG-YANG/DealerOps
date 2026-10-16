@@ -159,7 +159,7 @@ html { scroll-behavior: smooth; }
           <tr><td>范围基线 SCOPE-BASELINE</td><td>课程交付范围、勘误、不做清单</td><td>冲突裁决</td></tr>
         </tbody>
       </table></div>
-      <p>冲突优先级：课程 PPT 硬性要求 &gt; 规格说明书字段 &gt; 当前设计 &gt; UI 规范。有两处已记录的例外：登录使用邮箱、用户名或手机号加密码（勘误 1）；2026-10-07 起放弃 PPT 要求的容器化，改用 Terraform + App Service（勘误 5）。当前实现技术栈为 .NET 8 / ASP.NET Core 与 React 19 / TypeScript / Vite，详见 <code>design/TECHNOLOGY-STACK.md</code>。
+      <p>冲突优先级：课程 PPT 硬性要求 &gt; 规格说明书字段 &gt; 当前设计 &gt; UI 规范。有两处已记录的例外：登录使用邮箱、用户名或手机号加密码（勘误 1）；2026-10-07 起放弃 PPT 要求的容器化，改用 Terraform + App Service（勘误 5）。当前实现技术栈为 .NET 10 / ASP.NET Core 与 React 19 / TypeScript / Vite，详见 <code>design/TECHNOLOGY-STACK.md</code>。
       <h3>优先级说明</h3>
       <div class="legend">
         <span><span class="pri must">必须</span> 来源中明确要求</span>
@@ -533,7 +533,7 @@ PASSED 且版本一致 ──► 可“标记 Ready”并“导出 TXT”</div>
           <tr><td class="id">ARC-04</td><td>四个逻辑应用：React Web、.NET Gateway、.NET Core、.NET AI Service；当前以 DealerOps monorepo 的 <code>frontend/react</code> 与 <code>backend/dotnet</code> 实现</td><td>SCOPE / 当前实现</td><td><span class="pri must">必须</span></td><td class="c"><span class="st st-done">Implemented</span></td></tr>
           <tr><td class="id">ARC-05</td><td>同步 REST + 单一数据库（MySQL 8）；不使用消息队列</td><td>SCOPE</td><td><span class="pri must">必须</span></td><td class="c"><span class="st st-done">Implemented</span></td></tr>
           <tr><td class="id">ARC-06</td><td>接口统一在 <code>/api/v1</code> 下；错误体为 <code>{code, message}</code></td><td>SCOPE</td><td><span class="pri must">必须</span></td><td class="c"><span class="st st-partial">Partial</span><span class="st-note">Gateway, Core and AI error bodies still differ in shape</span></td></tr>
-          <tr><td class="id">ARC-07</td><td>Terraform 部署：三个 .NET 8 服务运行于 Azure App Service，React 前端以静态文件部署到 Azure Static Web Apps，并配 CI/CD；课程评审 2/3 需在云端演示。2026-10-07 起放弃容器化（范围基线勘误 5）</td><td>SCOPE（PPT）</td><td><span class="pri must">必须</span></td><td class="c"><span class="st st-partial">Partial</span><span class="st-note">Terraform uses App Service for the web app; .NET CI/CD does not deploy</span></td></tr>
+          <tr><td class="id">ARC-07</td><td>Terraform 部署：三个 .NET 10 服务运行于 Azure App Service，React 前端以静态文件部署到 Azure Static Web Apps，并配 CI/CD；课程评审 2/3 需在云端演示。2026-10-07 起放弃容器化（范围基线勘误 5）</td><td>SCOPE（PPT）</td><td><span class="pri must">必须</span></td><td class="c"><span class="st st-partial">Partial</span><span class="st-note">Terraform uses App Service for the web app; .NET CI/CD does not deploy</span></td></tr>
         </tbody>
       </table></div>
 
@@ -733,7 +733,7 @@ PASSED 且版本一致 ──► 可“标记 Ready”并“导出 TXT”</div>
       <div class="note change"><strong>2026-10-15 补齐两项必填披露与管理员越权：</strong>新增 <code>NEW_USED_NOT_STATED</code>（REVIEW）覆盖「文案完全未声明二手/新车」——原 R04 只判矛盾；新增 <code>FINANCE_CASH_PRICE_MISSING</code>（BLOCK）覆盖金融广告的现金价/借贷成本——原 R13 认为由 R07 覆盖，实际上「$299/month」这类付款额即可满足 R07，故该豁免不成立。同时修正付款周期匹配（原先只认 <code>/mo</code> 不认 <code>/month</code>，导致 <code>$299/month</code> 完全不触发金融规则）。AUTH-08：Gateway 现对平台管理员访问 <code>/api/v1/**</code> 业务接口（含绕过 Core 的 <code>/api/v1/ai/**</code>）返回 403，仅放行 <code>/api/v1/admin</code>、<code>/api/v1/me</code>、<code>/api/v1/auth</code>。AUD-07：绑定员工时会员行与审计行改为同一事务提交。</div>
       <div class="note change"><strong>2026-10-08 登录标识扩展：</strong>保留密码登录与管理员控制车行绑定；账号使用邮箱、用户名或手机号中的任意一个作为登录标识。服务端 BCrypt 哈希存储并签发 JWT，不依赖外部身份服务或 Microsoft 账号。KAN-5 书面确认仍待完成。</div>
       <div class="note change"><strong>2026-10-07 身份数据模型调整：</strong>重写 <code>V1__init.sql</code>（及 <code>V20260930_1</code>），身份列直接定义为用户名：<code>app_user.username</code>（唯一）、<code>membership.username</code>、<code>audit_event.actor_username</code>，原 Entra 的 <code>entra_tenant_id</code> / <code>entra_oid</code> / <code>actor_oid</code> 列不再存在；此前已建库需按 <code>design/15-Data-Auth-and-Gateway.md</code> §8.3 修复 Flyway 历史。接口字段同步改为 <code>username</code> / <code>actorUsername</code>。JWT 除标准声明（<code>iss</code>、<code>aud</code>、<code>iat</code>、<code>exp</code>）外只携带 <code>sub</code>（用户名）、<code>name</code>、<code>roles</code>，不含 oid / tid。</div>
-      <div class="note change"><strong>2026-10-07 部署方式调整：</strong>放弃容器化（无 Dockerfile、镜像仓库或容器宿主），三个 .NET 8 服务部署到 Azure App Service，React 前端部署到 Azure Static Web Apps，基础设施即代码使用 Terraform。仅放弃 PPT 的 NN-05，尚待讲师确认（勘误 5）。</div>
+      <div class="note change"><strong>2026-10-07 部署方式调整：</strong>放弃容器化（无 Dockerfile、镜像仓库或容器宿主），三个 .NET 10 服务部署到 Azure App Service，React 前端部署到 Azure Static Web Apps，基础设施即代码使用 Terraform。仅放弃 PPT 的 NN-05，尚待讲师确认（勘误 5）。</div>
       <div class="tbl"><table>
         <thead><tr><th>勘误</th><th>内容</th></tr></thead>
         <tbody>

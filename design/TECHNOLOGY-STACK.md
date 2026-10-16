@@ -4,7 +4,7 @@ This is the current implementation baseline for DealerOps. New design, code, dep
 
 | Area | Current implementation |
 |---|---|
-| Backend | .NET 8 / ASP.NET Core |
+| Backend | .NET 10 / ASP.NET Core |
 | Core service | `backend/dotnet/DealerOps.Core` |
 | Gateway | `backend/dotnet/DealerOps.Gateway` with YARP |
 | AI service | `backend/dotnet/DealerOps.AiService` |

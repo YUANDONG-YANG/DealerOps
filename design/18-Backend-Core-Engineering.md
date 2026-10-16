@@ -1,6 +1,6 @@
 # 18 · Backend dealer-core engineering design (legacy Java reference)
 
-> **Deprecated:** This document describes the former Java/Spring implementation. The current backend is .NET 8 / ASP.NET Core in `backend/dotnet/DealerOps.Core`; use that code and its `.csproj` as the implementation source of truth. The Java paths and class names below are retained only for historical reference.
+> **Deprecated:** This document describes the former Java/Spring implementation. The current backend is .NET 10 / ASP.NET Core in `backend/dotnet/DealerOps.Core`; use that code and its `.csproj` as the implementation source of truth. The Java paths and class names below are retained only for historical reference.
 
 - Status: **legacy reference only**
 - **HTTP follows [14-Backend-API-Contract.md](14-Backend-API-Contract.md)** (paths, DTOs, error codes, envelope). This document does not start a second contract or rewrite 14 JSON.

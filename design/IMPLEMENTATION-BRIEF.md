@@ -17,7 +17,7 @@ Conflict priority: **PPT > specification fields > [DEVELOPMENT-DESIGN.md](DEVELO
 Source design: sibling checkout named `DealerOS-Design`  
 Implementation skeleton: this repository
 
-This repository already contains the .NET 8 backend apps (`DealerOps.Core`, `DealerOps.Gateway`, `DealerOps.AiService`) and the React frontend in `frontend/react`, plus `dealer-platform` (OpenAPI, API notes, `env.example`) and `deploy/` (the Terraform stack and the app upload script). Each app has source and a build file (`*.csproj` / `package.json`); none has a Dockerfile, and there is no Compose file. Local startup is the MySQL service, three .NET services, and the React dev server ([README](../README.md)). Do not scaffold Java or Vue projects.
+This repository already contains the .NET 10 backend apps (`DealerOps.Core`, `DealerOps.Gateway`, `DealerOps.AiService`) and the React frontend in `frontend/react`, plus `dealer-platform` (OpenAPI, API notes, `env.example`) and `deploy/` (the Terraform stack and the app upload script). Each app has source and a build file (`*.csproj` / `package.json`); none has a Dockerfile, and there is no Compose file. Local startup is the MySQL service, three .NET services, and the React dev server ([README](../README.md)). Do not scaffold Java or Vue projects.
 
 ### Coding-AI reading order
 
@@ -60,7 +60,7 @@ A multi-tenant back office for independent dealers: each dealership has its own 
 
 | Item | Must |
 |---|---|
-| Languages | Backend **.NET 8 / ASP.NET Core**. Frontend **React 19 + TypeScript + Vite**. UI in English. |
+| Languages | Backend **.NET 10 / ASP.NET Core**. Frontend **React 19 + TypeScript + Vite**. UI in English. |
 | Repositories | Current implementation is the DealerOps monorepo: `backend/dotnet/` contains Gateway, Core, AI, and shared logging; `frontend/react/` contains the SPA. |
 | Entry | Browser-to-service HTTP **only through the .NET Gateway**. Core / AI are internal. Bypassing Gateway must fail. |
 | Identity | **Email, username, or phone + password** ([SCOPE-BASELINE.md](SCOPE-BASELINE.md) errata 1). `POST /api/v1/auth/login` resolves the sign-in name and BCrypt hash on `app_user.password_hash`; dealer-core issues an HS256 JWT (`sub`=username, `name`, `roles`). Roles only `Platform.Admin`, `Dealer.User`. New accounts are created with a username and an email and/or phone, then bound to `dealer_id` by the admin (unbind = soft deactivate). No social-provider login. **Authoritative design:** [15-Data-Auth-and-Gateway.md](15-Data-Auth-and-Gateway.md) §8. |

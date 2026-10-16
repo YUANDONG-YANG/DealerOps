@@ -2,7 +2,7 @@
 
 Version: current (v6) · 2026-09-23  
 Status: fills gaps for the `dealer-core` entity layer and `dealer-gateway` configuration; **not** OpenAPI, **not** a business implementation.  
-**Current implementation note:** active services are .NET 8 / ASP.NET Core under `backend/dotnet/`; Java/Spring/Flyway snippets below are historical and must not be implemented. The public Swagger entry is the .NET Gateway at `/swagger/index.html`.
+**Current implementation note:** active services are .NET 10 / ASP.NET Core under `backend/dotnet/`; Java/Spring/Flyway snippets below are historical and must not be implemented. The public Swagger entry is the .NET Gateway at `/swagger/index.html`.
 **Password auth (email, username, or phone as the sign-in name)** is owned here in §8; keep [README.md](../README.md) "Step 6. Sign in" consistent with it.
 
 ## Conflict order and SQL baseline
@@ -531,7 +531,7 @@ Minimum set required by 07 (one demo resource group), written as Terraform in `d
 | Resource | Count | Role |
 |---|---|---|
 | App Service plan (Linux, `B2`) | 1 | Hosts the three .NET apps |
-| Linux Web App, .NET 8 | **3**: gateway, core, ai | `dotnet publish` artifacts. No image, no registry |
+| Linux Web App, .NET 10 | **3**: gateway, core, ai | `dotnet publish` artifacts. No image, no registry |
 | Static Web App (Free) | 1 | The built SPA |
 | MySQL Flexible Server | 1, database `dealer_core`, TLS required | EF Core in core owns the schema |
 | Key Vault | 1 | `INTERNAL-TOKEN`, `MYSQL-PASSWORD`, `JWT-SIGNING-SECRET`, optional `AIMANAGER-API-KEY` and `ADMIN-PASSWORD` |
@@ -594,7 +594,7 @@ Platform disk encryption may use defaults. MySQL is not open to the internet: th
 
 ## 12. Runtime version (current implementation)
 
-The active backend runtime is **.NET 8 / ASP.NET Core**. The active frontend runtime is **React 19 + TypeScript + Vite** on Node 20+. Java/Spring and Vue references in this document are historical course material and are not implementation instructions.
+The active backend runtime is **.NET 10 / ASP.NET Core**. The active frontend runtime is **React 19 + TypeScript + Vite** on Node 20+. Java/Spring and Vue references in this document are historical course material and are not implementation instructions.
 
 ---
 

@@ -2,7 +2,7 @@
 
 ## Conclusion
 
-The web has many dealership / DMS / CRM course projects. Against this course (.NET 8 + React 19, admin-issued username/password, Gateway-only API access, five pages + assistant widget): **none of them can be a whole-repo base**.
+The web has many dealership / DMS / CRM course projects. Against this course (.NET 10 + React 19, admin-issued username/password, Gateway-only API access, five pages + assistant widget): **none of them can be a whole-repo base**.
 You may compare page rhythm. Do not pull someone else's domain model, login, buyer site, or scaffold into this course's repos.
 
 ## Course boundary (coding must not expand this)

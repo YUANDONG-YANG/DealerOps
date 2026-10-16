@@ -23,7 +23,7 @@ Adaptation notes for the local reference copies: [REUSE-PLAN.md](REUSE-PLAN.md).
 
 ## How to use this while coding
 
-- Current implementation stack is fixed: **.NET 8 / ASP.NET Core + React 19 / TypeScript / Vite**, with Gateway-only browser traffic. The reference copies may use Java, Vue, Laravel, or other stacks; their code is historical research only. Do not treat any dealership course repo as the base.
+- Current implementation stack is fixed: **.NET 10 / ASP.NET Core + React 19 / TypeScript / Vite**, with Gateway-only browser traffic. The reference copies may use Java, Vue, Laravel, or other stacks; their code is historical research only. Do not treat any dealership course repo as the base.
 - Pages are only: **Login, Admin, DMS, CRM, Ad compliance**, plus a floating Assistant widget on staff pages (see `design/AI-CODING-FRONTEND.md` FE-T10). No buyer site. No KPI home page.
 - GitHub course projects: copy **interaction rhythm** only (tables, filters, drawers, confirms). Fields, state machines, isolation, auth, and compliance follow the design docs.
 - If this directory still has cloned source (for example `carventory/`), open it locally to inspect interaction only. Do not wire it into Compose. Do not use it as scaffolding.

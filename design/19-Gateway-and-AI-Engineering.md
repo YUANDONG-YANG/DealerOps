@@ -1,6 +1,6 @@
 # 19 · Gateway and ai-service engineering design (legacy Java reference)
 
-> **Deprecated:** This document describes the former Spring Cloud Gateway/Java implementation. The current services are .NET 8 / ASP.NET Core in `backend/dotnet/DealerOps.Gateway` and `backend/dotnet/DealerOps.AiService`; use those projects as the implementation source of truth.
+> **Deprecated:** This document describes the former Spring Cloud Gateway/Java implementation. The current services are .NET 10 / ASP.NET Core in `backend/dotnet/DealerOps.Gateway` and `backend/dotnet/DealerOps.AiService`; use those projects as the implementation source of truth.
 
 - Status: **legacy reference only**
 - **Routes, JWT, CORS, internal header, direct-access failure, why no standalone auth repo, why no Service Bus: follow [15](15-Data-Auth-and-Gateway.md).** This document does not set new principles; it only writes file-splittable config and adapter boundaries.

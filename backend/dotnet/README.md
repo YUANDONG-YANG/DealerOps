@@ -1,6 +1,6 @@
 # DealerOps .NET Backend
 
-C# / .NET 8 port of the Java backend. Three projects in one solution, matching the Java microservice split:
+C# / .NET 10 port of the Java backend. Three projects in one solution, matching the Java microservice split:
 
 | Project | Port | Java equivalent | Role |
 |---|---|---|---|

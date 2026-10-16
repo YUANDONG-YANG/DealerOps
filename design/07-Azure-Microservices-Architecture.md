@@ -8,9 +8,9 @@ Four independently deployable services, four pipelines, and four deployable arti
 |---|---|---|---|
 | UI | dealer-web | React 19 + TypeScript + Vite | A |
 | Auth | dealer-core (email, username, or phone + password; [15](15-Data-Auth-and-Gateway.md) §8) | JWT, BCrypt password hash | C configures |
-| Data | dealer-core | .NET 8 ASP.NET Core + EF Core + one MySQL | C |
-| AI | ai-service | .NET 8 ASP.NET Core, no database | B |
-| Entry | dealer-gateway | .NET 8 ASP.NET Core Gateway | C, A reviews |
+| Data | dealer-core | .NET 10 ASP.NET Core + EF Core + one MySQL | C |
+| AI | ai-service | .NET 10 ASP.NET Core, no database | B |
+| Entry | dealer-gateway | .NET 10 ASP.NET Core Gateway | C, A reviews |
 
 ## Diagrams
 
@@ -76,7 +76,7 @@ Do not use Service Bus, outbox, DLQ, or a second database. Do not deploy the Git
 
 ## Minimum Azure set
 
-One resource group, created with **Terraform** (`deploy/terraform`): one Linux App Service plan, three Linux Web Apps running the .NET 8 apps (`gateway`, `core`, `ai`), one Static Web App for the React SPA, one MySQL Flexible Server, one Key Vault, one user-assigned identity, Log Analytics, and Application Insights. **No container registry and no container images:** App Service runs the published .NET applications, and the SPA is uploaded as static files.
+One resource group, created with **Terraform** (`deploy/terraform`): one Linux App Service plan, three Linux Web Apps running the .NET 10 apps (`gateway`, `core`, `ai`), one Static Web App for the React SPA, one MySQL Flexible Server, one Key Vault, one user-assigned identity, Log Analytics, and Application Insights. **No container registry and no container images:** App Service runs the published .NET applications, and the SPA is uploaded as static files.
 
 HTTPS everywhere; App Service terminates TLS. Secrets live in Key Vault and reach the apps as app-setting references resolved through the user-assigned identity, so no app setting holds a secret value. MySQL is reached over a TLS-required connection and its firewall admits Azure services plus named operator addresses; platform encryption left on is enough, and no VNet or private endpoint is added. `core` and `ai` get App Service hostnames but deny every caller except the `AzureCloud` service tag, which is how the "browser reaches the Gateway only" rule survives without an internal-only ingress. That rule is coarser than a private ingress: it stops a browser, not another Azure tenant, so the internal header and the JWT checks stay the real authorization.
 

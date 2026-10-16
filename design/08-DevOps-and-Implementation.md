@@ -6,9 +6,9 @@ Version v6.0 · 2026-09-21
 
 ```text
 dealer-web        React 19 + Vite + TypeScript, built to dist/ + its own compile pipeline
-dealer-gateway    ASP.NET Core .NET 8, published as an app + pipeline
-dealer-core       ASP.NET Core .NET 8 + EF Core, published as an app + pipeline
-ai-service        ASP.NET Core .NET 8, published as an app + pipeline
+dealer-gateway    ASP.NET Core .NET 10, published as an app + pipeline
+dealer-core       ASP.NET Core .NET 10 + EF Core, published as an app + pipeline
+ai-service        ASP.NET Core .NET 10, published as an app + pipeline
 dealer-platform   env.example, OpenAPI, API notes (no business code)
 deploy            Terraform for the Azure resources + the app upload script
 ```

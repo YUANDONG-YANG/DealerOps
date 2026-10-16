@@ -15,7 +15,7 @@ Version v6.0 · 2026-09-21
 
 Deliver only what the course requires: business per [DealerOps-Specification.pdf](../requirements/DealerOps-Specification.pdf), technology per [Non-Negotiable-Project-Requirements.pptx](../tech-stack/Non-Negotiable-Project-Requirements.pptx). Do not expand scope.
 
-- **Current technology stack:** backend **.NET 8 / ASP.NET Core**, frontend **React 19 + TypeScript + Vite**. See [TECHNOLOGY-STACK.md](TECHNOLOGY-STACK.md) for the authoritative baseline.
+- **Current technology stack:** backend **.NET 10 / ASP.NET Core**, frontend **React 19 + TypeScript + Vite**. See [TECHNOLOGY-STACK.md](TECHNOLOGY-STACK.md) for the authoritative baseline.
 - Java/Spring Boot and Vue designs are legacy references only. They are not current implementation guidance; use `backend/dotnet/` and `frontend/react/`.
 - Current implementation is the DealerOps monorepo: `backend/dotnet/` contains Gateway, Core, AI, and shared logging; `frontend/react/` contains the React SPA. `dealer-platform` holds the shared contract/config surface; `deploy/` holds Terraform.
 - Architecture diagrams (service boundaries, Azure deployment, AI workflow) are [07-Azure-Microservices-Architecture.md](07-Azure-Microservices-Architecture.md) and the SVG sources in [diagrams/](diagrams/). The PPT requires a diagram at the Sprint 1 review.

@@ -18,7 +18,7 @@ Browser ──> dealer-web (5173) ──> dealer-gateway (8080) ──> dealer-c
 | `backend/java/dealer-gateway/` | Spring Cloud Gateway: the only API entry for the browser (`/api/v1/**`), validates JWT |
 | `backend/java/dealer-core/` | Spring Boot + Flyway + MySQL: all business APIs, login, and admin |
 | `backend/java/ai-service/` | Internal AI adapter around the vendored `ai-manager` sources; no database |
-| `backend/dotnet/` | C# / .NET 8 backend port (DealerOps.Core, DealerOps.AiService, DealerOps.Gateway) |
+| `backend/dotnet/` | C# / .NET 10 backend port (DealerOps.Core, DealerOps.AiService, DealerOps.Gateway) |
 | `dealer-platform/` | `openapi.yaml`, `API.md`, `env.example` |
 | `deploy/` | Terraform + Azure deployment ([deploy/README.md](deploy/README.md)) |
 | `design/` | Design documents, the source of truth ([design/README.md](design/README.md)) |
@@ -29,7 +29,7 @@ The browser only talks to the gateway on `8080`. Core (`8081`) and ai-service (`
 
 ### One-command start (recommended for beginners)
 
-After installing .NET 8, Node.js 20+, MySQL 8, and Git, run this from the repository root:
+After installing .NET 10, Node.js 20+, MySQL 8, and Git, run this from the repository root:
 
 ```bash
 ./start-local.sh
@@ -276,7 +276,7 @@ It connects to the same gateway on port 8080. To use it as the primary frontend,
 
 ## .NET backend (alternative)
 
-The C# backend at `backend/dotnet/` is a port of the Java services. Prerequisites: .NET 8 SDK.
+The C# backend at `backend/dotnet/` is a port of the Java services. Prerequisites: .NET 10 SDK.
 
 ```text
 brew install dotnet     # macOS

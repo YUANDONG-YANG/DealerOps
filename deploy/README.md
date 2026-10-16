@@ -47,9 +47,9 @@ One resource group, `dealerops-rg` by default. Names follow the pinned `${prefix
 | Resource | Name | Role |
 |---|---|---|
 | App Service plan | `dealerops-plan` | One Linux plan, `B2` by default, for the three .NET apps and the SPA |
-| Linux Web App | `dealerops-gateway` | .NET 8. **The only public API origin.** YARP reverse proxy, JWT validation |
-| Linux Web App | `dealerops-core` | .NET 8. Business APIs, EF Core, JWT issuing. Access restricted to Azure-internal callers |
-| Linux Web App | `dealerops-ai` | .NET 8. `ai-service`. Restricted the same way |
+| Linux Web App | `dealerops-gateway` | .NET 10. **The only public API origin.** YARP reverse proxy, JWT validation |
+| Linux Web App | `dealerops-core` | .NET 10. Business APIs, EF Core, JWT issuing. Access restricted to Azure-internal callers |
+| Linux Web App | `dealerops-ai` | .NET 10. `ai-service`. Restricted the same way |
 | Linux Web App | `dealer-ops-dev` | Node 20. The built React SPA, served by pm2 with SPA fallback at `https://dealer-ops-dev.azurewebsites.net` |
 | MySQL Flexible Server | `dealerops-mysql` | `B_Standard_B1ms`, database `dealer_core`, TLS required |
 | Key Vault | `dealerops-kv` | `INTERNAL-TOKEN`, `MYSQL-PASSWORD`, `JWT-SIGNING-SECRET`, and when configured `AIMANAGER-API-KEY` and `ADMIN-PASSWORD` |
@@ -193,7 +193,7 @@ az webapp deploy \
   --src-path ../deploy.zip
 ```
 
-`--type zip` extracts to `/home/site/wwwroot/`, and the .NET 8 stack starts the app on its own. Each app binds `8080` inside the sandbox (`GATEWAY_PORT` for the gateway, `Kestrel__Endpoints__Http__Url` for core and ai, `pm2 --port` for the SPA, with `WEBSITES_PORT` telling the platform where to route); App Service terminates HTTPS on 443 in front of it. The local `8081` / `8082` split only matters on a developer machine.
+`--type zip` extracts to `/home/site/wwwroot/`, and the .NET 10 stack starts the app on its own. Each app binds `8080` inside the sandbox (`GATEWAY_PORT` for the gateway, `Kestrel__Endpoints__Http__Url` for core and ai, `pm2 --port` for the SPA, with `WEBSITES_PORT` telling the platform where to route); App Service terminates HTTPS on 443 in front of it. The local `8081` / `8082` split only matters on a developer machine.
 
 The first start after an upload takes about a minute: `dealer-core` runs EF Core `EnsureCreated` against `dealerops-mysql` before it answers health checks.
 

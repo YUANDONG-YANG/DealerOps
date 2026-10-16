@@ -5,7 +5,7 @@
 #   ./deploy-apps.sh            # all four
 #   ./deploy-apps.sh core web   # only these
 #
-# Needs: az (logged in), terraform, .NET 8 SDK, Node 20 + npm/pnpm.
+# Needs: az (logged in), terraform, .NET 10 SDK, Node 20 + npm/pnpm.
 # Procedure and verification: ../README.md
 set -euo pipefail
 
