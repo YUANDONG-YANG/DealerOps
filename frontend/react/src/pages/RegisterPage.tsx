@@ -2,6 +2,7 @@ import { type FormEvent, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { apiError, fieldErrorsOf } from '../api/http'
 import { register, registerWithFirebase, roleHome } from '../auth/login'
+import { describeError } from '../api/errors'
 
 const USERNAME_RX = /^(?=.*[A-Za-z])[A-Za-z0-9._-]{3,64}$/
 const EMAIL_RX = /^[^@\s]+@[^@\s]+\.[^@\s]+$/
@@ -86,7 +87,7 @@ export default function RegisterPage() {
       if (Object.keys(newErrors).length) {
         setServerErrors(newErrors)
       } else {
-        setError(message || 'Could not create the account. Try again.')
+        setError(describeError(err, 'create the account'))
       }
     } finally {
       setLoading(false)

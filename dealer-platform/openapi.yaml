@@ -606,6 +606,42 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
 
+  /api/v1/admin/dealers/{id}/members/{username}/password:
+    put:
+      tags: [AdminMemberships]
+      operationId: resetMemberPassword
+      summary: Reset a staff password
+      description: |
+        Sets a new password for an active member who forgot theirs; the admin tells the person out of band. Success **204** with no body.
+        Only `signInMethod=password` accounts qualify. A Google or Firebase account → **400** `VALIDATION` with a `password` field error, because that provider owns the password.
+        No active binding of that username at this dealership → 404. Audit `APP_USER`/`UPDATE` `{username, passwordReset:true}` without the password.
+      parameters:
+        - $ref: "#/components/parameters/DealerId"
+        - $ref: "#/components/parameters/Username"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [password]
+              properties:
+                password:
+                  type: string
+                  minLength: 8
+                  maxLength: 72
+      responses:
+        "204":
+          description: Password changed, no body
+        "400":
+          $ref: "#/components/responses/Validation"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
   /api/v1/admin/pending-users:
     get:
       tags: [AdminMemberships]
@@ -2571,7 +2607,7 @@ components:
 
     Member:
       type: object
-      required: [username, displayName, role, active]
+      required: [username, displayName, role, active, signInMethod]
       properties:
         username:
           type: string
@@ -2581,6 +2617,12 @@ components:
           $ref: "#/components/schemas/Role"
         active:
           type: boolean
+        signInMethod:
+          type: string
+          enum: [password, google, firebase]
+          description: |
+            `password` when the account has a DealerOps password (an admin can reset it), even if Google or Firebase sign-in was linked later.
+            Otherwise `firebase` or `google`: that provider owns the password and an admin cannot change it.
 
     MemberBind:
       type: object

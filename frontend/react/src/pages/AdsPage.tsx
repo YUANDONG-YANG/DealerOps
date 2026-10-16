@@ -10,6 +10,7 @@ import {
   listingsApi, readyExportMessageAsync, saveMessage,
   type CheckStatus, type Listing,
 } from '../api/listings';
+import { describeError } from '../api/errors';
 
 function kindLabel(kind?: string) {
   if (kind === 'CASH') return 'Cash';
@@ -89,7 +90,7 @@ export default function AdsPage() {
       setVehicles([]);
       const { status, code } = apiError(e);
       if (status === 403 || code === 'FORBIDDEN') setListForbidden(true);
-      else setListError('Could not load listing.');
+      else setListError(describeError(e, 'load vehicles'));
     } finally {
       if (seq === vehicleListSeq.current) setListLoading(false);
     }
@@ -114,7 +115,7 @@ export default function AdsPage() {
       if (seq !== listingLoadSeq.current) return;
       const { status, code } = apiError(e);
       if (status === 403 || code === 'FORBIDDEN') setListingForbidden(true);
-      else setListingError(status === 404 || code === 'NOT_FOUND' ? 'Vehicle not found' : 'Could not load listing.');
+      else setListingError(status === 404 || code === 'NOT_FOUND' ? 'Vehicle not found. It may have been deleted; refresh the list.' : describeError(e, 'load the ad'));
     } finally {
       if (seq === listingLoadSeq.current) setListingLoading(false);
     }
@@ -180,10 +181,10 @@ export default function AdsPage() {
           return upd;
         });
         setActionError('AI review is unavailable. The advertisement did not pass; run the check again.');
-      } else if (code === 'VERSION_CONFLICT') setActionError('Refresh and retry');
-      else if (status === 404 || code === 'NOT_FOUND') setActionError('Vehicle not found');
+      } else if (code === 'VERSION_CONFLICT') setActionError('Refresh and retry: someone else changed this record after you opened it. Reopen it to load the latest version, then make your change again.');
+      else if (status === 404 || code === 'NOT_FOUND') setActionError('Vehicle not found. It may have been deleted; refresh the list.');
       else if (status === 403 || code === 'FORBIDDEN') setActionError('You do not have access to Ad compliance.');
-      else setActionError('Could not load listing.');
+      else setActionError(describeError(e, 'run the compliance check'));
     } finally { setChecking(false); }
   };
 

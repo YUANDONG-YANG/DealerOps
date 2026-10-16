@@ -7,6 +7,7 @@ import PageState from '../components/PageState';
 import PendingAccounts from '../components/PendingAccounts';
 import { adminApi, adminErrorCode, adminErrorStatus, type Dealer, type Member } from '../api/admin';
 import { apiError, collectAllPages, fieldErrorsOf } from '../api/http';
+import { describeError, errorReason } from '../api/errors';
 
 type FlatMember = Member & { dealerId: number; legalName: string };
 
@@ -14,22 +15,40 @@ function isForbidden(e: unknown) {
   return adminErrorCode(e) === 'FORBIDDEN' || adminErrorStatus(e) === 403;
 }
 
+const DEALER_FIELDS = [
+  ['legalName', 'Legal name'], ['contactPhone', 'Contact phone'],
+  ['contactEmail', 'Contact email'], ['contactAddress', 'Contact address'],
+] as const;
+const DEALER_LABELS: Record<string, string> = Object.fromEntries(DEALER_FIELDS);
+
 function serverDetail(error: unknown): string | undefined {
   const parts: string[] = [];
   const message = apiError(error).message?.trim();
   if (message) parts.push(message);
-  for (const [field, text] of Object.entries(fieldErrorsOf(error))) parts.push(`${field}: ${text}`);
+  for (const [field, text] of Object.entries(fieldErrorsOf(error))) parts.push(`${DEALER_LABELS[field] ?? field}: ${text}`);
   return parts.length ? parts.join(' ') : undefined;
 }
 
 const LOGO_MAX_PX = 160;
 
+const PROVIDER_NAMES: Record<string, string> = { google: 'Google', firebase: 'Firebase' };
+
+function SignInTag({ method }: { method: Member['signInMethod'] }) {
+  return method === 'password'
+    ? <span className="tag">Password</span>
+    : <span className="tag tag-info">{PROVIDER_NAMES[method]} sign-in</span>;
+}
+
 // What to do when a new staff account collides with an existing one (409 *_TAKEN, per field).
+const FIELD_LABELS: Record<string, string> = {
+  username: 'Username', displayName: 'Display name', password: 'Temporary password', email: 'Login email', phone: 'Login phone',
+};
+
 const TAKEN_HINTS: Record<string, string> = {
-  username: 'This username is already in use. Try another one, e.g. add a number or the dealership name.',
-  displayName: 'Another account already uses this display name. Add a middle initial or a surname.',
-  email: 'This email is already used by another account. Use a different email, or leave it blank and enter a phone number.',
-  phone: 'This phone number is already used by another account. Use a different number, or leave it blank and enter an email.',
+  username: 'Pick another username, e.g. add a number or the dealership name (kevin.ng2, kevin.parkway).',
+  displayName: 'Display names are unique across the platform. Add a middle initial or the full surname.',
+  email: 'Use a different email, or leave this blank and enter a phone number instead.',
+  phone: 'Use a different number, or leave this blank and enter an email instead.',
 };
 
 export default function AdminPage() {
@@ -63,12 +82,19 @@ export default function AdminPage() {
   const [member, setMember] = useState({ username: '', displayName: '', password: '', email: '', phone: '' });
   const [bindError, setBindError] = useState('');
   const [memberErrors, setMemberErrors] = useState<Record<string, string>>({});
+  const [memberHints, setMemberHints] = useState<Record<string, string>>({});
   const [binding, setBinding] = useState(false);
   const [statusBusy, setStatusBusy] = useState('');
 
   const [confirm, setConfirm] = useState(false);
   const [pendingUnbind, setPendingUnbind] = useState<{ dealerId: number; username: string } | null>(null);
   const [unbindError, setUnbindError] = useState('');
+  const [resetTarget, setResetTarget] = useState<{ dealerId: number; username: string } | null>(null);
+  const [resetPassword, setResetPassword] = useState('');
+  const [resetConfirm, setResetConfirm] = useState('');
+  const [resetError, setResetError] = useState('');
+  const [resetNotice, setResetNotice] = useState('');
+  const [resetting, setResetting] = useState(false);
   // Bumped to remount the status checkboxes so a cancelled confirm snaps back to the stored state.
   const [statusRevert, setStatusRevert] = useState(0);
   // Bumped to remount the pending lists after a membership change adds or removes a pending account.
@@ -91,7 +117,7 @@ export default function AdminPage() {
       if (seq !== dealersLoadSeq.current) return;
       setRows([]); setTotal(0);
       setForbidden(isForbidden(e));
-      if (!isForbidden(e)) setError('Could not load dealerships.');
+      if (!isForbidden(e)) setError(describeError(e, 'load dealerships'));
     } finally {
       if (seq === dealersLoadSeq.current) setLoading(false);
     }
@@ -129,7 +155,7 @@ export default function AdminPage() {
       if (seq !== membersLoadSeq.current) return;
       setFlatMembers([]);
       setMembersForbidden(isForbidden(e));
-      if (!isForbidden(e)) setMembersError('Could not load dealerships.');
+      if (!isForbidden(e)) setMembersError(describeError(e, 'load members'));
     } finally {
       if (seq === membersLoadSeq.current) setMembersLoading(false);
     }
@@ -146,7 +172,7 @@ export default function AdminPage() {
     } catch (e) {
       if (seq !== drawerMembersLoadSeq.current) return;
       if (isForbidden(e)) setDrawerError('You do not have access to Admin.');
-      else setDrawerError('Could not load dealerships.');
+      else setDrawerError(describeError(e, 'load this dealership\'s staff'));
     }
   };
 
@@ -199,8 +225,9 @@ export default function AdminPage() {
 
   const createDealer = async () => {
     setFormError('');
-    if (!form.legalName || !form.contactPhone || !form.contactEmail || !form.contactAddress) {
-      setFormError('Check required contact fields'); return;
+    const empty = DEALER_FIELDS.filter(([key]) => !form[key].trim()).map(([, label]) => label);
+    if (empty.length) {
+      setFormError(`Check required contact fields: ${empty.join(', ')} ${empty.length > 1 ? 'are' : 'is'} empty.`); return;
     }
     if (creating) return; setCreating(true);
     try {
@@ -217,21 +244,30 @@ export default function AdminPage() {
     } catch (e) {
       const code = adminErrorCode(e);
       if (code === 'VALIDATION' || adminErrorStatus(e) === 400)
-        setFormError(serverDetail(e) || 'Check required contact fields');
+        setFormError(`Check required contact fields: ${serverDetail(e) || errorReason(e)}`);
       else if (code === 'VERSION_CONFLICT' || adminErrorStatus(e) === 409) {
-        setFormError('This dealership changed elsewhere. Close and reopen Edit.');
+        setFormError('This dealership was changed by someone else after you opened it. Close this form and click Edit again to load the latest details.');
         await loadDealers();
       } else if (isForbidden(e)) setFormError('You do not have access to Admin.');
-      else setFormError(serverDetail(e) || (editingDealer ? 'Could not save dealership.' : 'Could not create dealership.'));
+      else setFormError(describeError(e, editingDealer ? 'save the dealership' : 'create the dealership'));
     } finally { setCreating(false); }
   };
 
   const bind = async () => {
-    setBindError(''); setMemberErrors({});
+    setBindError(''); setMemberErrors({}); setMemberHints({});
     if (!staffDealer) return;
-    if (!member.username || !member.displayName || !member.password
-      || (!member.email.trim() && !member.phone.trim())) {
-      setBindError('Enter the account details and an email or phone number.'); return;
+    const missing: Record<string, string> = {};
+    if (!member.username.trim()) missing.username = 'Enter a username.';
+    if (!member.displayName.trim()) missing.displayName = 'Enter the display name.';
+    if (!member.password) missing.password = 'Enter a temporary password.';
+    if (!member.email.trim() && !member.phone.trim()) {
+      missing.email = 'Enter an email address or a phone number.';
+      missing.phone = 'Enter an email address or a phone number.';
+    }
+    if (Object.keys(missing).length) {
+      setMemberErrors(missing);
+      setBindError(`Fill in: ${Object.keys(missing).map((f) => FIELD_LABELS[f]).join(', ')}.`);
+      return;
     }
     if (binding) return; setBinding(true);
     try {
@@ -241,21 +277,19 @@ export default function AdminPage() {
     } catch (e) {
       const code = adminErrorCode(e);
       const fields = fieldErrorsOf(e);
-      if (Object.keys(fields).length) {
-        const conflict = adminErrorStatus(e) === 409;
-        setMemberErrors(Object.fromEntries(Object.entries(fields)
-          .map(([field, text]) => [field, conflict && TAKEN_HINTS[field] ? TAKEN_HINTS[field] : text])));
-        // The username field is off-screen when the drawer is scrolled to the button.
-        setBindError('Some details need changing — see the highlighted fields above.');
+      setMemberErrors(fields);
+      if (code === 'DUP_MEMBER') {
+        // The server names the dealership that already owns this login (AUTH-03).
+        setBindError(apiError(e).message || 'Staff already bound');
+      } else if (Object.keys(fields).length) {
+        if (adminErrorStatus(e) === 409) {
+          setMemberHints(Object.fromEntries(Object.keys(fields).filter((f) => TAKEN_HINTS[f]).map((f) => [f, TAKEN_HINTS[f]])));
+        }
+        // The drawer is usually scrolled to the button, so name the fields here as well.
+        setBindError(`Fix: ${Object.keys(fields).map((f) => FIELD_LABELS[f] ?? f).join(', ')} — see the messages under each field.`);
       }
-      else if (code === 'DUP_MEMBER') {
-        // One login belongs to exactly one dealership (AUTH-03), so the username itself is the problem.
-        setBindError('Staff already bound');
-        setMemberErrors({ username: 'This username already belongs to a dealership or the platform admin. Choose another username.' });
-      }
-      else if (code === 'VALIDATION' || adminErrorStatus(e) === 400) setBindError(apiError(e).message || 'Check the account details.');
       else if (isForbidden(e)) setBindError('You do not have access to Admin.');
-      else setBindError(serverDetail(e) || 'Could not bind staff.');
+      else setBindError(describeError(e, 'create the staff account'));
     } finally { setBinding(false); }
   };
 
@@ -267,9 +301,9 @@ export default function AdminPage() {
       await refreshMemberships(dealerId);
     } catch (e) {
       setStatusRevert((n) => n + 1);
-      if (adminErrorCode(e) === 'DUP_MEMBER') alert('Already active at another dealership. Deactivate it there first.');
+      if (adminErrorCode(e) === 'DUP_MEMBER') alert(apiError(e).message || 'This login is already active at another dealership. Unbind it there first.');
       else if (isForbidden(e)) alert('You do not have access to Admin.');
-      else alert(serverDetail(e) || 'Could not activate staff.');
+      else alert(describeError(e, `reactivate ${username}`));
     } finally { setStatusBusy(''); }
   };
 
@@ -281,10 +315,48 @@ export default function AdminPage() {
       setConfirm(false); setPendingUnbind(null);
       await refreshMemberships(dealerId);
     } catch (e) {
-      if (adminErrorCode(e) === 'NOT_FOUND') setUnbindError('Member not found');
+      if (adminErrorCode(e) === 'NOT_FOUND') setUnbindError(`Member not found: ${username} is no longer on this dealership's staff. Refresh the list.`);
       else if (isForbidden(e)) setUnbindError('You do not have access to Admin.');
-      else setUnbindError(serverDetail(e) || 'Could not unbind staff.');
+      else setUnbindError(describeError(e, `unbind ${username}`));
     }
+  };
+
+  const openReset = (dealerId: number, username: string) => {
+    setResetTarget({ dealerId, username }); setResetPassword(''); setResetConfirm(''); setResetError(''); setResetNotice('');
+  };
+
+  const submitReset = async () => {
+    if (!resetTarget || resetting) return;
+    const { dealerId, username } = resetTarget;
+    if (resetPassword.length < 8 || resetPassword.length > 72) {
+      setResetError('Use 8-72 characters for the new password.'); return;
+    }
+    if (resetPassword !== resetConfirm) {
+      setResetError('The two passwords do not match. Type the same password in both fields.'); return;
+    }
+    setResetting(true); setResetError('');
+    try {
+      await adminApi.resetPassword(dealerId, username, resetPassword);
+      setResetTarget(null); setResetPassword(''); setResetConfirm('');
+      setResetNotice(`Password for ${username} was reset. Give the new password to them directly; it is not emailed.`);
+    } catch (e) {
+      if (adminErrorCode(e) === 'NOT_FOUND') setResetError(`${username} is no longer active staff at this dealership. Refresh the list.`);
+      else setResetError(describeError(e, `reset the password for ${username}`));
+    } finally { setResetting(false); }
+  };
+
+  // Google and Firebase accounts sign in with a password held by that provider, so there is
+  // nothing for the admin to reset here.
+  const passwordAction = (dealerId: number, m: Member) => {
+    if (!m.active) return null;
+    if (m.signInMethod === 'password')
+      return <button className="btn-link" onClick={() => openReset(dealerId, m.username)}>Reset password</button>;
+    const provider = PROVIDER_NAMES[m.signInMethod];
+    return (
+      <span className="muted" title={`${m.username} signs in with ${provider}. Ask them to use ${provider}'s password recovery.`}>
+        Password managed by {provider}
+      </span>
+    );
   };
 
   return (
@@ -336,6 +408,7 @@ export default function AdminPage() {
               <button className="btn" onClick={() => { setMemberPage(0); loadFlatMembers(); }}>Search</button>
               <button className="btn" onClick={() => { setMemberQ(''); setMemberPage(0); loadFlatMembers(); }}>Reset</button>
             </div>
+            {resetNotice && !memberDrawer && <p className="success-text">{resetNotice}</p>}
             <PageState loading={membersLoading} error={membersError} forbidden={membersForbidden}
               empty={!membersLoading && !membersError && !membersForbidden && !flatMembers.length}
               emptyText="No members yet." loadingText="Loading members…"
@@ -344,6 +417,7 @@ export default function AdminPage() {
                 columns={[
                   { label: 'Username', render: (r) => r.username },
                   { key: 'legalName', label: 'Dealership' },
+                  { label: 'Sign-in', render: (r) => <SignInTag method={r.signInMethod} /> },
                   { label: 'Status', render: (r) => (
                     <label className="switch-label">
                       <input type="checkbox" key={`${r.dealerId}:${r.username}:${statusRevert}`}
@@ -353,6 +427,7 @@ export default function AdminPage() {
                       {r.active ? 'Active' : 'Inactive'}
                     </label>
                   )},
+                  { label: 'Password', render: (r) => passwordAction(r.dealerId, r) },
                 ]}
               />
             </PageState>
@@ -403,11 +478,13 @@ export default function AdminPage() {
           <input className="input" value={member.username}
             onChange={(e) => setMember((m) => ({ ...m, username: e.target.value }))} />
           {memberErrors.username && <div className="form-error">{memberErrors.username}</div>}
+          {memberHints.username && <div className="muted form-hint">{memberHints.username}</div>}
         </div>
         <div className="form-item"><label className="form-label form-required">Display name</label>
           <input className="input" value={member.displayName}
             onChange={(e) => setMember((m) => ({ ...m, displayName: e.target.value }))} />
           {memberErrors.displayName && <div className="form-error">{memberErrors.displayName}</div>}
+          {memberHints.displayName && <div className="muted form-hint">{memberHints.displayName}</div>}
         </div>
         <div className="form-item"><label className="form-label form-required">Temporary password</label>
           <input className="input" type="password" value={member.password}
@@ -417,16 +494,16 @@ export default function AdminPage() {
         <div className="form-item"><label className="form-label">Login email</label>
           <input className="input" type="email" value={member.email}
             onChange={(e) => setMember((m) => ({ ...m, email: e.target.value }))} />
-          {memberErrors.email
-            ? <div className="form-error">{memberErrors.email}</div>
-            : <div className="muted form-hint">Used to sign in. Each email address can belong to only one account.</div>}
+          {memberErrors.email && <div className="form-error">{memberErrors.email}</div>}
+          <div className="muted form-hint">{memberHints.email
+            ?? 'Used to sign in. Each email address can belong to only one account.'}</div>
         </div>
         <div className="form-item"><label className="form-label">Login phone (email, phone, or both)</label>
           <input className="input" type="tel" value={member.phone}
             onChange={(e) => setMember((m) => ({ ...m, phone: e.target.value }))} />
-          {memberErrors.phone
-            ? <div className="form-error">{memberErrors.phone}</div>
-            : <div className="muted form-hint">Include the country code, e.g. +1 416 555 0123. Each number can belong to only one account.</div>}
+          {memberErrors.phone && <div className="form-error">{memberErrors.phone}</div>}
+          <div className="muted form-hint">{memberHints.phone
+            ?? 'Include the country code, e.g. +1 416 555 0123. Each number can belong to only one account.'}</div>
         </div>
         {/* Shown next to the button: the drawer is usually scrolled down when the error arrives. */}
         {bindError && <p className="danger-text">{bindError}</p>}
@@ -434,17 +511,27 @@ export default function AdminPage() {
           {binding ? 'Binding…' : 'Create and bind'}
         </button>
         <div style={{ marginTop: 20 }}>
-          <table className="table">
-            <thead><tr><th>Username</th><th>Name</th><th>Status</th><th>Actions</th></tr></thead>
+          {resetNotice && <p className="success-text">{resetNotice}</p>}
+          <table className="table staff-table">
+            {/* The drawer is narrow: name and sign-in method sit under the username so Actions stays visible. */}
+            <thead><tr><th>Account</th><th>Status</th><th>Actions</th></tr></thead>
             <tbody>
               {drawerMembers.map((m) => (
                 <tr key={m.username}>
-                  <td>{m.username}</td>
-                  <td>{m.displayName}</td>
+                  <td>
+                    <div className="staff-account">
+                      <span className="staff-username">{m.username}</span>
+                      {m.displayName !== m.username && <span className="muted">{m.displayName}</span>}
+                      <SignInTag method={m.signInMethod} />
+                    </div>
+                  </td>
                   <td><span className={`tag ${m.active ? 'tag-success' : ''}`}>{m.active ? 'Active' : 'Inactive'}</span></td>
                   <td>
                     {staffDealer && m.active && (
-                      <button className="btn-link danger" onClick={() => setStatus(staffDealer.id, m.username, false)}>Unbind</button>
+                      <div className="row-actions">
+                        {passwordAction(staffDealer.id, m)}
+                        <button className="btn-link danger" onClick={() => setStatus(staffDealer.id, m.username, false)}>Unbind</button>
+                      </div>
                     )}
                   </td>
                 </tr>
@@ -463,6 +550,27 @@ export default function AdminPage() {
         onCancel={() => { setConfirm(false); setPendingUnbind(null); setStatusRevert((n) => n + 1); }}
         onConfirm={unbind}
       />
+
+      <ConfirmDialog open={resetTarget != null} title={`Reset password for ${resetTarget?.username ?? ''}`}
+        confirmLabel={resetting ? 'Saving…' : 'Set password'}
+        onCancel={() => { if (!resetting) setResetTarget(null); }}
+        onConfirm={submitReset}>
+        <label className="form-label" htmlFor="reset-password">New password</label>
+        {/* Plain text with autofill off: the admin must see exactly what they typed, and the
+            browser must not drop the admin's own saved password into this field. */}
+        <input id="reset-password" className="input" type="text" autoComplete="off" autoFocus
+          data-lpignore="true" spellCheck={false}
+          value={resetPassword} onChange={(e) => setResetPassword(e.target.value)} />
+        <label className="form-label" htmlFor="reset-password-confirm" style={{ marginTop: 12 }}>Type it again</label>
+        <input id="reset-password-confirm" className="input" type="text" autoComplete="off"
+          data-lpignore="true" spellCheck={false}
+          value={resetConfirm} onChange={(e) => setResetConfirm(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter') void submitReset(); }} />
+        <p className="muted form-hint">
+          8-72 characters. Their old password stops working right away. Give the new one to them directly; DealerOps does not email it.
+        </p>
+        {resetError && <p className="danger-text">{resetError}</p>}
+      </ConfirmDialog>
     </AppLayout>
   );
 }

@@ -68,7 +68,8 @@ async function fillBindForm(drawer: Locator, staff: { username: string; displayN
 }
 
 function memberRow(drawer: Locator, username: string) {
-  return drawer.locator('tbody tr').filter({ has: drawer.page().getByRole('cell', { name: username, exact: true }) });
+  // The account cell stacks username, display name and sign-in method; match the username line.
+  return drawer.locator('tbody tr').filter({ has: drawer.page().getByText(username, { exact: true }) });
 }
 
 async function register(request: APIRequestContext) {
@@ -175,7 +176,8 @@ test.describe('admin member management', () => {
     await expect(memberRow(drawer, staff.username)).toBeVisible();
     await fillBindForm(drawer, staff);
     await drawer.getByRole('button', { name: 'Create and bind' }).click();
-    await expect(drawer.locator('.danger-text')).toHaveText('Staff already bound');
+    // The DUP_MEMBER message names the dealership where the login is already active.
+    await expect(drawer.locator('.danger-text')).toContainText(`already active staff at ${dealer.legalName}`);
     await expect(drawer.locator('tbody tr').filter({ hasText: staff.username })).toHaveCount(1);
 
     // Still active at another dealership: one login belongs to one dealership.
@@ -183,13 +185,14 @@ test.describe('admin member management', () => {
     drawer = await openStaffDrawer(page, other);
     await fillBindForm(drawer, staff);
     await drawer.getByRole('button', { name: 'Create and bind' }).click();
-    await expect(drawer.locator('.danger-text')).toHaveText('Staff already bound');
+    await expect(drawer.locator('.danger-text')).toContainText(`already active staff at ${dealer.legalName}`);
+    await expect(drawer.locator('.danger-text')).toContainText('only one dealership');
     await expect(memberRow(drawer, staff.username)).toHaveCount(0);
 
     // The admin's own username is never bound or demoted.
     await fillBindForm(drawer, { ...newStaff(), username: env.admin.identifier });
     await drawer.getByRole('button', { name: 'Create and bind' }).click();
-    await expect(drawer.locator('.danger-text')).toHaveText('Staff already bound');
+    await expect(drawer.locator('.danger-text')).toContainText('platform admin account');
     await expect(memberRow(drawer, env.admin.identifier)).toHaveCount(0);
   });
 

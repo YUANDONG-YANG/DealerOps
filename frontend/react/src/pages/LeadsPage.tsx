@@ -11,6 +11,7 @@ import { errorCode, errorStatus, vehiclesApi } from '../api/vehicles';
 import { auditApi } from '../api/audit';
 import { LEAD_STAGES, isClosedStage, leadsApi, stageLabel, type LeadStage } from '../api/leads';
 import { memberLabel, membersApi, type MemberOption } from '../api/members';
+import { describeError } from '../api/errors';
 
 function vehicleLabel(v: Record<string, unknown> | null | undefined) {
   if (!v) return '—';
@@ -19,12 +20,12 @@ function vehicleLabel(v: Record<string, unknown> | null | undefined) {
 
 function mapWrite(e: unknown, fallback: string) {
   const code = errorCode(e);
-  if (code === 'VALIDATION') return messageOf(e, 'Check required fields');
-  if (code === 'WRONG_DEALER_OR_SOLD') return 'Vehicle must be in stock at this dealership';
-  if (code === 'VERSION_CONFLICT') return 'Refresh and retry';
-  if (code === 'LEAD_CLOSED') return 'Won and lost leads cannot be changed';
+  if (code === 'VALIDATION') return messageOf(e, 'Check required fields: some fields are missing or invalid.');
+  if (code === 'WRONG_DEALER_OR_SOLD') return 'Vehicle must be in stock at this dealership. Pick a vehicle that is not sold.';
+  if (code === 'VERSION_CONFLICT') return 'Refresh and retry: someone else changed this record after you opened it. Reopen it to load the latest version, then make your change again.';
+  if (code === 'LEAD_CLOSED') return 'Won and lost leads cannot be changed. Create a new lead to follow up again.';
   if (errorStatus(e) === 404 || code === 'NOT_FOUND') return 'Lead not found';
-  return fallback;
+  return describeError(e, fallback);
 }
 
 export default function LeadsPage() {
@@ -79,7 +80,7 @@ export default function LeadsPage() {
     } catch (e) {
       if (seq !== listSeq.current) return;
       if (errorStatus(e) === 403 || errorCode(e) === 'FORBIDDEN') setForbidden(true);
-      else setError('Could not load leads.');
+      else setError(describeError(e, 'load leads'));
       setRows([]);
     } finally {
       if (seq === listSeq.current) setLoading(false);
@@ -129,7 +130,7 @@ export default function LeadsPage() {
       setCreateOpen(false); await load();
     } catch (e) {
       setCreateFieldErrors(fieldErrorsOf(e));
-      setCreateError(mapWrite(e, 'Could not save lead.'));
+      setCreateError(mapWrite(e, 'save lead'));
     } finally { setCreating(false); }
   };
 
@@ -162,7 +163,7 @@ export default function LeadsPage() {
       if (seq !== detailSeq.current) return;
       setDetailOpen(false);
       const missing = errorStatus(e) === 404 || errorCode(e) === 'NOT_FOUND';
-      alert(missing ? 'Lead not found' : 'Could not load lead.');
+      alert(missing ? 'Lead not found. It may have been deleted; refresh the list.' : describeError(e, 'load lead'));
     }
   };
 
@@ -178,7 +179,7 @@ export default function LeadsPage() {
         lostReason: edit.stage === 'LOST' ? edit.lostReason.trim() : null, version: selected.version,
       });
       fillEdit(r.data); await load(); await loadAudit(r.data.id, detailSeq.current);
-    } catch (err) { setEditError(mapWrite(err, 'Could not save lead.')); }
+    } catch (err) { setEditError(mapWrite(err, 'save lead')); }
     finally { setSaving(false); }
   };
 
@@ -191,7 +192,7 @@ export default function LeadsPage() {
       setSelected((s: any) => ({ ...s, notes: [r.data, ...(s.notes || [])] }));
       setNoteText('');
       await loadAudit(selected.id, detailSeq.current);
-    } catch (e) { setNoteError(mapWrite(e, 'Could not add note.')); }
+    } catch (e) { setNoteError(mapWrite(e, 'add note')); }
     finally { setAddingNote(false); }
   };
 

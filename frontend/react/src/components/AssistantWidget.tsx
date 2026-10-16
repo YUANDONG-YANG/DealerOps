@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { assistantApi, type AssistantCardDto, type AskResponse } from '../api/assistant'
 import { codeOf, statusOf } from '../api/http'
 import AssistantCard from './AssistantCard'
+import { describeError } from '../api/errors'
 
 interface Turn {
   id: number
@@ -56,7 +57,7 @@ export default function AssistantWidget() {
       } else if (statusOf(err) === 400 || codeOf(err) === 'VALIDATION') {
         errorMsg = 'The assistant could not read that question. Try rephrasing it.'
       } else {
-        errorMsg = 'Could not ask assistant.'
+        errorMsg = describeError(err, 'ask the assistant')
       }
       setTurns(prev => prev.map(t => t.id === turn.id ? { ...t, pending: false, error: errorMsg } : t))
     }

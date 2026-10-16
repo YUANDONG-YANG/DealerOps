@@ -6,6 +6,7 @@ import { getMe, patchMe, deleteMe, type Profile } from '../api/me';
 import { clearAccount, signOut } from '../auth/login';
 import { fieldErrorsOf, messageOf } from '../api/http';
 import { initials } from '../format';
+import { describeError } from '../api/errors';
 
 /**
  * Account self-service: the signed-in user's own information, how they got in, and the
@@ -35,7 +36,7 @@ export default function ProfilePage() {
         setDisplayName(data.displayName);
         setPhone(data.phone ?? '');
       } catch (err) {
-        setError(messageOf(err, 'Could not load your profile.'));
+        setError(describeError(err, 'load your profile'));
       } finally {
         setLoading(false);
       }
@@ -55,7 +56,7 @@ export default function ProfilePage() {
       setSavedMessage('Profile saved.');
     } catch (err) {
       setFieldErrors(fieldErrorsOf(err));
-      setError(messageOf(err, 'Could not save your profile.'));
+      setError(describeError(err, 'save your profile'));
     } finally {
       setSaving(false);
     }
@@ -68,7 +69,7 @@ export default function ProfilePage() {
       clearAccount();
       navigate('/login?notice=deleted', { replace: true });
     } catch (err) {
-      setError(messageOf(err, 'Could not delete your account.'));
+      setError(describeError(err, 'delete your account'));
       setDeleting(false);
     }
   }

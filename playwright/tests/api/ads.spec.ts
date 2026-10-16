@@ -31,6 +31,13 @@ async function check(api: Api, vehicleId: number, draft: Parameters<Api['saveLis
   return api.runCheck(listing);
 }
 
+/** Like check(), for cases that need the real AI: a 502 from the provider is an environment skip. */
+async function checkWithAi(api: Api, vehicleId: number, draft: Parameters<Api['saveListing']>[1]) {
+  const result = await check(api, vehicleId, draft);
+  test.skip(result.httpStatus === 502, 'AI provider returned 502 AI_UNAVAILABLE (environment)');
+  return result;
+}
+
 test.describe('rules that block (AI skipped)', () => {
   test('AT-12 / AD-R07 / AD-07: a CASH ad without a price is BLOCKED and AI is not called', async ({ staffApi }) => {
     const v = await staffApi.createVehicle();
@@ -233,7 +240,7 @@ test.describe('with the real AI', () => {
     const customer = await staffApi.createCustomer();
     await expectStatus(await staffApi.put(`/api/v1/customers/${customer.id}/vehicles/${v.id}`), 200);
 
-    const { httpStatus, check: result } = await check(staffApi, v.id, compliantCash(v));
+    const { httpStatus, check: result } = await checkWithAi(staffApi, v.id, compliantCash(v));
     expect(httpStatus).toBe(200);
     expect(result.checkStatus).toBe('PASSED');
     expect(result.aiStatus).toBe('SUCCESS');
@@ -263,7 +270,7 @@ test.describe('with the real AI', () => {
   }) => {
     test.skip(!(await aiAvailable(request)), 'AI service is not UP');
     const v = await staffApi.createVehicle();
-    const { check: result } = await check(staffApi, v.id, compliantCash(v));
+    const { check: result } = await checkWithAi(staffApi, v.id, compliantCash(v));
     expect(result.checkStatus).toBe('PASSED');
 
     const edited = await staffApi.saveListing(v.id, compliantCash(v, '$17,500'));
@@ -275,7 +282,7 @@ test.describe('with the real AI', () => {
   test('DMS-15: a condition change stales a pass; a cost change does not', async ({ staffApi, request }) => {
     test.skip(!(await aiAvailable(request)), 'AI service is not UP');
     const v = await staffApi.createVehicle({ conditionCode: 'AS_IS' });
-    const { check: result } = await check(staffApi, v.id, compliantCash(v));
+    const { check: result } = await checkWithAi(staffApi, v.id, compliantCash(v));
     expect(result.checkStatus).toBe('PASSED');
 
     const editBody = (current: Vehicle, change: object) => ({
@@ -296,7 +303,7 @@ test.describe('with the real AI', () => {
   test('AT-27: REVIEW findings do not veto a pass', async ({ staffApi, request }) => {
     test.skip(!(await aiAvailable(request)), 'AI service is not UP');
     const v = await staffApi.createVehicle();
-    const { check: result } = await check(staffApi, v.id, {
+    const { check: result } = await checkWithAi(staffApi, v.id, {
       ...compliantCash(v), title: 'Toyota Camry',
       body: `Used Toyota Camry, sold as-is. Cash price $18,900. ${dealer.legalName}, ${contacts}.`,
     });

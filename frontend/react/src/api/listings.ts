@@ -1,4 +1,5 @@
 import { apiError, http, parseApiError } from './http';
+import { describeError } from './errors';
 
 export { apiError };
 
@@ -73,12 +74,12 @@ export function applyCheckToListing(listing: Listing, check: CheckResult): Listi
 }
 
 function mapReadyExport({ status, code }: { status?: number; code?: string; message?: string }): string {
-  if (code === 'CHECK_STALE') return 'Check is stale. Run check again';
-  if (code === 'NOT_PASSED') return 'Check has not passed';
-  if (code === 'VERSION_CONFLICT') return 'Refresh and retry';
-  if (status === 404 || code === 'NOT_FOUND') return 'Vehicle not found';
+  if (code === 'CHECK_STALE') return 'Check is stale: the ad was edited after its last compliance check. Click Run check again.';
+  if (code === 'NOT_PASSED') return 'Check has not passed: fix the blocking findings listed under the check result, save, and run the check again.';
+  if (code === 'VERSION_CONFLICT') return 'Refresh and retry: someone else changed this record after you opened it. Reopen it to load the latest version, then make your change again.';
+  if (status === 404 || code === 'NOT_FOUND') return 'Vehicle not found. It may have been deleted; refresh the list.';
   if (status === 403 || code === 'FORBIDDEN') return 'You do not have access to Ad compliance.';
-  return 'Check has not passed';
+  return 'Check has not passed: run the compliance check and fix any blocking findings first.';
 }
 
 export async function readyExportMessageAsync(error: unknown): Promise<string> {
@@ -87,11 +88,11 @@ export async function readyExportMessageAsync(error: unknown): Promise<string> {
 
 export function saveMessage(error: unknown): string {
   const { status, code } = apiError(error);
-  if (code === 'VERSION_CONFLICT') return 'Refresh and retry';
-  if (code === 'VALIDATION' || status === 400) return 'Check required fields';
-  if (status === 404 || code === 'NOT_FOUND') return 'Vehicle not found';
+  if (code === 'VERSION_CONFLICT') return 'Refresh and retry: someone else changed this record after you opened it. Reopen it to load the latest version, then make your change again.';
+  if (code === 'VALIDATION' || status === 400) return `Check required fields: ${apiError(error).message || 'the title and body cannot be empty.'}`;
+  if (status === 404 || code === 'NOT_FOUND') return 'Vehicle not found. It may have been deleted; refresh the list.';
   if (status === 403 || code === 'FORBIDDEN') return 'You do not have access to Ad compliance.';
-  return 'Could not load listing.';
+  return describeError(error, 'save the ad');
 }
 
 export const listingsApi = {

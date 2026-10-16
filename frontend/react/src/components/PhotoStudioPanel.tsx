@@ -11,6 +11,7 @@ import {
   type PhotoVariant,
 } from '../api/photos';
 import ConfirmDialog from './ConfirmDialog';
+import { describeError } from '../api/errors';
 
 interface Props {
   vehicleId: number;
@@ -59,9 +60,9 @@ export default function PhotoStudioPanel({ vehicleId }: Props) {
       const r = await photosApi.list(vehicleId);
       if (seq !== seqRef.current) return;
       setPhotos(r.data || []);
-    } catch {
+    } catch (e) {
       if (seq !== seqRef.current) return;
-      setError('Could not load photos.');
+      setError(describeError(e, 'load photos'));
     } finally {
       if (seq === seqRef.current) setLoading(false);
     }
@@ -142,10 +143,10 @@ export default function PhotoStudioPanel({ vehicleId }: Props) {
         }
         showPreview(url);
       })
-      .catch(() => {
+      .catch((e) => {
         if (!active) return;
         showPreview(null);
-        setPreviewError('Could not load this photo.');
+        setPreviewError(describeError(e, 'load this photo'));
       })
       .finally(() => {
         if (active) setPreviewLoading(false);
@@ -178,7 +179,7 @@ export default function PhotoStudioPanel({ vehicleId }: Props) {
         setVariant('original');
       }
     } catch (e) {
-      setError(messageOf(e, 'Could not upload photo.'));
+      setError(describeError(e, 'upload photo'));
     } finally {
       setUploading(false);
       resetFileInput();
@@ -194,7 +195,7 @@ export default function PhotoStudioPanel({ vehicleId }: Props) {
       await load();
       setVariant('enhanced');
     } catch (e) {
-      setError(messageOf(e, 'Could not enhance photo.'));
+      setError(describeError(e, 'enhance photo'));
     } finally {
       setEnhancing(null);
     }
@@ -207,8 +208,8 @@ export default function PhotoStudioPanel({ vehicleId }: Props) {
     try {
       await photosApi.delete(vehicleId, photoId);
       await load();
-    } catch {
-      setError('Could not delete photo.');
+    } catch (e) {
+      setError(describeError(e, 'delete photo'));
     } finally {
       setDeleting(false);
     }

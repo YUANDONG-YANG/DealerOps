@@ -11,6 +11,7 @@ import { vehiclesApi, errorCode, errorStatus } from '../api/vehicles';
 import { auditApi } from '../api/audit';
 import { leadsApi, stageLabel } from '../api/leads';
 import { collectAllPages, fieldErrorsOf, messageOf } from '../api/http';
+import { describeError } from '../api/errors';
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+$/;
 const PHONE_PATTERN = /^(?=(?:\D*\d){7,20}\D*$)[0-9+\-() ]+$/;
@@ -80,28 +81,28 @@ function validateCustomer(form: CustomerForm): Validation {
 function mapCustomerWrite(e: unknown) {
   const code = errorCode(e);
   const status = errorStatus(e);
-  if (code === 'VALIDATION') return messageOf(e, 'Check required fields');
-  if (code === 'EMAIL_TAKEN') return messageOf(e, 'That email is already used by another customer.');
-  if (code === 'PHONE_TAKEN') return messageOf(e, 'That phone number is already used by another customer.');
-  if (code === 'VERSION_CONFLICT') return 'Refresh and retry';
-  if (status === 404 || code === 'NOT_FOUND') return 'Customer not found';
-  return 'Could not save customer.';
+  if (code === 'VALIDATION') return messageOf(e, 'Check required fields: some fields are missing or invalid.');
+  if (code === 'EMAIL_TAKEN') return `${messageOf(e, 'That email is already used by another customer.')} Search CRM for this email to open the existing customer.`;
+  if (code === 'PHONE_TAKEN') return `${messageOf(e, 'That phone number is already used by another customer.')} Search CRM for this number to open the existing customer.`;
+  if (code === 'VERSION_CONFLICT') return 'Refresh and retry: someone else changed this record after you opened it. Reopen it to load the latest version, then make your change again.';
+  if (status === 404 || code === 'NOT_FOUND') return 'Customer not found. It may have been deleted by a colleague; refresh the list.';
+  return describeError(e, 'save customer');
 }
 
 function mapLink(e: unknown) {
   const code = errorCode(e);
   const status = errorStatus(e);
-  if (code === 'VEHICLE_ALREADY_LINKED') return 'Vehicle already linked';
-  if (status === 404 || code === 'NOT_FOUND') return 'Vehicle not found';
-  return 'Could not link vehicle.';
+  if (code === 'VEHICLE_ALREADY_LINKED') return 'Vehicle already linked to another customer. Unlink it from that customer first.';
+  if (status === 404 || code === 'NOT_FOUND') return 'Vehicle not found in your inventory. Check the VIN or refresh the list.';
+  return describeError(e, 'link vehicle');
 }
 
 function mapUnlink(e: unknown) {
   const code = errorCode(e);
   const status = errorStatus(e);
-  if (code === 'SOLD_LOCKED') return 'Sold vehicles cannot be unlinked';
-  if (status === 404 || code === 'NOT_FOUND') return 'Link not found';
-  return 'Could not unlink vehicle.';
+  if (code === 'SOLD_LOCKED') return 'Sold vehicles cannot be unlinked: the sale record keeps its buyer.';
+  if (status === 404 || code === 'NOT_FOUND') return 'Link not found. It may already have been removed; refresh the customer.';
+  return describeError(e, 'unlink vehicle');
 }
 
 const CUSTOMER_FIELDS: { key: keyof CustomerForm; label: string }[] = [
@@ -157,7 +158,7 @@ export default function CrmPage() {
     } catch (e) {
       if (seq !== listSeqRef.current) return;
       if (errorStatus(e) === 403 || errorCode(e) === 'FORBIDDEN') setForbidden(true);
-      else setError('Could not load customers.');
+      else setError(describeError(e, 'load customers'));
       setRows([]);
     } finally {
       if (seq === listSeqRef.current) setLoading(false);
@@ -259,7 +260,7 @@ export default function CrmPage() {
       setForm(blankForm());
       setDrawer(false);
       const missing = errorStatus(e) === 404 || errorCode(e) === 'NOT_FOUND';
-      setError(missing ? 'Customer not found' : 'Could not load customer.');
+      setError(missing ? 'Customer not found. It may have been deleted; refresh the list.' : describeError(e, 'load customer'));
     }
   }
 

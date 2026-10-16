@@ -30,6 +30,13 @@ public class AdminMemberController : ControllerBase
     public IActionResult Add(long id, [FromBody] CreateMemberRequest body) =>
         StatusCode(201, _membershipService.Add(id, body));
 
+    [HttpPut("{username}/password")]
+    public IActionResult ResetPassword(long id, string username, [FromBody] ResetMemberPasswordRequest body)
+    {
+        _membershipService.ResetPassword(id, username, body);
+        return NoContent();
+    }
+
     [HttpDelete("{username}")]
     public IActionResult Remove(long id, string username)
     {

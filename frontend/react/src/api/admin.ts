@@ -5,7 +5,10 @@ export type Dealer = {
   contactAddress: string; logoDataUrl: string | null; active: boolean; staffCount?: number; version: number;
 };
 
-export type Member = { username: string; displayName: string; role: string; active: boolean };
+/** `password`: a DealerOps password an admin can reset. `google` / `firebase`: that provider owns the password. */
+export type SignInMethod = 'password' | 'google' | 'firebase';
+
+export type Member = { username: string; displayName: string; role: string; active: boolean; signInMethod: SignInMethod };
 
 export type Page<T> = { items: T[]; page: number; size: number; totalElements: number };
 
@@ -30,6 +33,8 @@ export const adminApi = {
   bind: (id: number, body: BindMemberBody) => http.post<Member>(`/api/v1/admin/dealers/${id}/members`, body),
   pendingUsers: (p: { q?: string; page?: number } = {}) =>
     http.get<Page<PendingUser>>('/api/v1/admin/pending-users', { params: { ...p, size: 10 } }),
+  resetPassword: (id: number, username: string, password: string) =>
+    http.put(`/api/v1/admin/dealers/${id}/members/${encodeURIComponent(username)}/password`, { password }),
   unbind: (id: number, username: string) =>
     http.delete(`/api/v1/admin/dealers/${id}/members/${encodeURIComponent(username)}`),
 };

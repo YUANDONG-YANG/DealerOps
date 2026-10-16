@@ -37,7 +37,8 @@ public class MembershipService
             .Select(m =>
             {
                 var user = _db.AppUsers.FirstOrDefault(u => u.Username == m.Username);
-                return new MemberResponse(m.Username, user?.DisplayName ?? "", AppRole.DealerUser.Value, m.Active);
+                return new MemberResponse(m.Username, user?.DisplayName ?? "", AppRole.DealerUser.Value, m.Active,
+                    SignInMethod(user));
             })
             .Where(item => Matches(item, q))
             .ToList();
@@ -49,6 +50,9 @@ public class MembershipService
         return new PageResponse<MemberResponse>(all.GetRange(from, to - from), p, s, all.Count);
     }
 
+    private static ApiException DuplicateMember(string username, string message) =>
+        new(ErrorCode.DupMember, message, new Dictionary<string, string> { ["username"] = message });
+
     public MemberResponse Add(long dealerId, CreateMemberRequest body)
     {
         TenantGuard.RequireAdmin();
@@ -57,10 +61,19 @@ public class MembershipService
 
         var existing = _db.AppUsers.FirstOrDefault(u => u.Username == username);
         if (existing != null && existing.Role == AppRole.PlatformAdmin)
-            throw new ApiException(ErrorCode.DupMember, "Username belongs to a platform admin");
+            throw DuplicateMember(username,
+                $"'{username}' is the platform admin account and cannot be dealership staff. Choose a different username.");
 
-        if (_db.Memberships.Any(m => m.Username == username && m.Active))
-            throw new ApiException(ErrorCode.DupMember, "Membership already exists");
+        // Admin-only endpoint, so naming the other dealership reveals nothing across tenants and
+        // tells the admin exactly where the login already lives (AUTH-03: one login, one dealership).
+        var activeAt = _db.Memberships.Where(m => m.Username == username && m.Active)
+            .Join(_db.Dealers, m => m.DealerId, d => d.Id, (m, d) => new { d.Id, d.LegalName })
+            .FirstOrDefault();
+        if (activeAt != null)
+            throw DuplicateMember(username, activeAt.Id == dealerId
+                ? $"'{username}' is already active staff at {activeAt.LegalName}. It is listed in this dealership's staff table."
+                : $"'{username}' is already active staff at {activeAt.LegalName}. A login can belong to only one dealership: "
+                  + $"choose a different username, or unbind '{username}' from {activeAt.LegalName} first.");
 
         NewAccountRules.Contact? contact = null;
         if (existing == null)
@@ -127,8 +140,50 @@ public class MembershipService
         _db.SaveChanges();
         tx?.Commit();
 
-        return new MemberResponse(membership.Username, user.DisplayName, AppRole.DealerUser.Value, membership.Active);
+        return new MemberResponse(membership.Username, user.DisplayName, AppRole.DealerUser.Value, membership.Active,
+            SignInMethod(user));
     }
+
+    /// <summary>
+    /// Sets a new password for an active staff member who forgot theirs. Only accounts with a
+    /// DealerOps password qualify: Google and Firebase accounts sign in with a password that
+    /// lives at that provider, so the person must reset it there.
+    /// </summary>
+    public void ResetPassword(long dealerId, string username, ResetMemberPasswordRequest body)
+    {
+        TenantGuard.RequireAdmin();
+        RequireDealer(dealerId);
+
+        if (!_db.Memberships.Any(m => m.DealerId == dealerId && m.Username == username && m.Active))
+            throw new ApiException(ErrorCode.NotFound, "Not found");
+        var user = _db.AppUsers.FirstOrDefault(u => u.Username == username && u.Active)
+            ?? throw new ApiException(ErrorCode.NotFound, "Not found");
+
+        var method = SignInMethod(user);
+        if (method != "password")
+        {
+            var provider = method == "firebase" ? "Firebase" : "Google";
+            var message = $"'{username}' signs in with {provider}, so the password is managed by {provider}, "
+                          + $"not DealerOps. Ask them to use the {provider} password recovery for their email.";
+            throw new ApiException(ErrorCode.Validation, message,
+                new Dictionary<string, string> { ["password"] = message });
+        }
+
+        user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(body.Password);
+        // The password itself is never written to the audit trail.
+        _audit.Record("APP_USER", user.Id, "UPDATE", dealerId, ActorUsername(),
+            new Dictionary<string, object> { ["username"] = username, ["passwordReset"] = true });
+        _db.SaveChanges();
+    }
+
+    /// <summary>
+    /// How the account signs in. A Google or Firebase sign-in linked to an account that already
+    /// had a DealerOps password still counts as <c>password</c>: that password keeps working.
+    /// </summary>
+    private static string SignInMethod(AppUserEntity? user) =>
+        !string.IsNullOrEmpty(user?.PasswordHash) ? "password"
+        : user?.FirebaseUid != null ? "firebase"
+        : "google";
 
     public void Remove(long dealerId, string username)
     {

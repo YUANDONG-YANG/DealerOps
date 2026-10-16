@@ -1,4 +1,5 @@
 import { http, apiError } from './http';
+import { describeError } from './errors';
 
 export type VinDecode = {
   make: string; model: string | null; modelYear: number | null;
@@ -15,7 +16,7 @@ export const catalogApi = {
 export function vinDecodeError(err: unknown): string {
   const { status, code } = apiError(err);
   if (code === 'VALIDATION') return 'VIN must be 17 characters (no I, O, Q).';
-  if (code === 'NOT_FOUND') return 'VIN not found in the NHTSA catalog.';
-  if (status === 502 || code === 'CATALOG_UNAVAILABLE') return 'NHTSA catalog unavailable. Try again later.';
-  return 'Could not decode VIN.';
+  if (code === 'NOT_FOUND') return 'VIN not found in the NHTSA catalog. Double-check the 17 characters, or enter the vehicle details yourself.';
+  if (status === 502 || code === 'CATALOG_UNAVAILABLE') return 'NHTSA catalog unavailable. Try again in a minute, or enter the make, model and year yourself.';
+  return describeError(err, 'decode VIN');
 }

@@ -10,6 +10,7 @@ import {
 } from '../api/notifications';
 import { codeOf, messageOf, statusOf } from '../api/http';
 import { initials } from '../format';
+import { describeError } from '../api/errors';
 
 type JoinRequestNotification = Notification & { kind: 'JOIN_REQUEST'; payload: JoinRequestPayload };
 
@@ -78,7 +79,7 @@ export default function JoinRequestInbox() {
       // The request is already resolved (by another admin or in the Team page): drop it from
       // the list silently instead of surfacing an error for an action that no longer applies.
       const gone = statusOf(err) === 404 || codeOf(err) === 'NOT_FOUND';
-      if (!gone) setError(messageOf(err, `Could not ${verb} the request.`));
+      if (!gone) setError(describeError(err, `${verb} the request`));
     } finally {
       setActing(null);
     }

@@ -332,7 +332,8 @@ Dealership missing → 404. Paginated envelope (`page`/`size`/`q` matches `displ
       "username": "alex.dealer",
       "displayName": "Alex Dealer",
       "role": "Dealer.User",
-      "active": true
+      "active": true,
+      "signInMethod": "password"
     }
   ],
   "page": 0,
@@ -340,6 +341,8 @@ Dealership missing → 404. Paginated envelope (`page`/`size`/`q` matches `displ
   "totalElements": 1
 }
 ```
+
+`signInMethod` is `password` when the account has a DealerOps password hash (even if Google or Firebase sign-in was linked later), otherwise `firebase` when it has a Firebase UID, otherwise `google`. Only `password` accounts can be reset through 3.7a.
 
 The table has no staff-email column: the API **does not invent email**. The UI "staff email" filter can use `q` on existing columns.
 
@@ -357,6 +360,14 @@ Binding an already-unbound person again is treated as **reactivation**, not 409 
 ### 3.7 `DELETE /api/v1/admin/dealers/{id}/members/{username}` → 204
 
 Unbind; do not delete the `app_user` account. No such binding → 404.
+
+### 3.7a `PUT /api/v1/admin/dealers/{id}/members/{username}/password` → 204
+
+```json
+{ "password": "temporary-pass-2" }
+```
+
+Platform.Admin sets a new password for an active member who forgot theirs, and tells the person out of band. `password` is 8-72 characters, else `400 VALIDATION`. No active binding of that username at this dealership → 404. A `google` or `firebase` account (see 3.5) → `400 VALIDATION` with a `password` field error: that provider owns the password, so the person resets it there. Audit `APP_USER`/`UPDATE` `{username, passwordReset:true}`; the password is never logged or returned. Existing session tokens stay valid until they expire.
 
 ### 3.8 `GET /api/v1/admin/pending-users`
 

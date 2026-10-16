@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { adminApi, adminErrorCode, type Dealer, type PendingUser } from '../api/admin';
 import { apiError, collectAllPages } from '../api/http';
 import { dateTimeLocal } from '../format';
+import { describeError } from '../api/errors';
 
 interface Props {
   /** When set, a pending account binds straight to this dealership and no picker is shown. */
@@ -41,8 +42,8 @@ export default function PendingAccounts({ dealerId, onBound }: Props) {
       setPending((list) => list.filter((u) => u.username !== user.username));
       onBound?.();
     } catch (e) {
-      if (adminErrorCode(e) === 'DUP_MEMBER') setError('Already bound to a dealership');
-      else setError(apiError(e).message || 'Could not bind this account.');
+      if (adminErrorCode(e) === 'DUP_MEMBER') setError(apiError(e).message || `${user.username} is already bound to a dealership.`);
+      else setError(describeError(e, `bind ${user.username}`));
     } finally { setBusy(''); }
   };
 

@@ -15,6 +15,7 @@ import { catalogApi, vinDecodeError } from '../api/catalog';
 import { listingsApi, checkStatusLabel } from '../api/listings';
 import { auditApi } from '../api/audit';
 import { fieldErrorsOf, messageOf } from '../api/http';
+import { describeError } from '../api/errors';
 
 const SOURCES = ['TRADE_IN', 'AUCTION', 'PRIVATE_PURCHASE', 'OTHER'] as const;
 const CONDITIONS = ['CERTIFIED', 'AS_IS', 'UNFIT', 'IRREPARABLE'] as const;
@@ -119,14 +120,14 @@ function vehicleToForm(data: any): VehicleForm {
 function mapWrite(e: unknown) {
   const code = errorCode(e);
   const status = errorStatus(e);
-  if (code === 'VIN_DUP') return 'VIN already in this dealership';
-  if (code === 'VALIDATION') return messageOf(e, 'Check required fields');
-  if (code === 'SOLD_LOCKED') return 'Purchase fields are locked';
-  if (code === 'VERSION_CONFLICT') return 'Refresh and retry';
-  if (code === 'SOLD_PAIR_REQUIRED') return 'Sold date and price are required together';
-  if (code === 'WORK_ORDERS_OPEN') return 'Finish or cancel open work orders before selling';
-  if (status === 404 || code === 'NOT_FOUND') return 'Vehicle not found';
-  return 'Could not save vehicle.';
+  if (code === 'VIN_DUP') return 'VIN already in this dealership. Search the inventory for this VIN and edit that vehicle instead.';
+  if (code === 'VALIDATION') return messageOf(e, 'Check required fields: some fields are missing or invalid.');
+  if (code === 'SOLD_LOCKED') return 'Purchase fields are locked because this vehicle is sold. Only repair cost and the Carfax link can still change.';
+  if (code === 'VERSION_CONFLICT') return 'Refresh and retry: someone else changed this record after you opened it. Reopen it to load the latest version, then make your change again.';
+  if (code === 'SOLD_PAIR_REQUIRED') return 'Sold date and price are required together. Enter both, with a price above $0.';
+  if (code === 'WORK_ORDERS_OPEN') return 'Finish or cancel open work orders before selling. Open the vehicle\'s Work orders section to close them.';
+  if (status === 404 || code === 'NOT_FOUND') return 'Vehicle not found. It may have been deleted by a colleague; refresh the list.';
+  return describeError(e, 'save vehicle');
 }
 
 const yearOptions = Array.from({ length: new Date().getFullYear() + 2 - 1900 }, (_, i) => new Date().getFullYear() + 1 - i);
@@ -183,7 +184,7 @@ export default function DmsPage() {
     } catch (e) {
       if (seq !== listSeqRef.current) return;
       if (errorStatus(e) === 403 || errorCode(e) === 'FORBIDDEN') setForbidden(true);
-      else setError('Could not load vehicles.');
+      else setError(describeError(e, 'load vehicles'));
       setRows([]);
     } finally {
       if (seq === listSeqRef.current) setLoading(false);
@@ -298,7 +299,7 @@ export default function DmsPage() {
       setForm(blankForm());
       setDrawer(false);
       const missing = errorStatus(e) === 404 || errorCode(e) === 'NOT_FOUND';
-      setError(missing ? 'Vehicle not found' : 'Could not load vehicle.');
+      setError(missing ? 'Vehicle not found. It may have been deleted; refresh the list.' : describeError(e, 'load vehicle'));
     }
   }
 
@@ -395,7 +396,7 @@ export default function DmsPage() {
     } catch (e) {
       if (seq !== detailSeqRef.current) return;
       const missing = errorStatus(e) === 404 || errorCode(e) === 'NOT_FOUND';
-      setError(missing ? 'Vehicle not found' : 'Could not open sale.');
+      setError(missing ? 'Vehicle not found. It may have been deleted; refresh the list.' : describeError(e, 'open sale'));
     }
   }
 

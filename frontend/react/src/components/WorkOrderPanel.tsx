@@ -4,6 +4,7 @@ import { memberLabel, membersApi, type MemberOption } from '../api/members';
 import ConfirmDialog from './ConfirmDialog';
 import { cad } from '../format';
 import { workOrdersApi, type PatchWorkOrderBody, type WorkOrder } from '../api/workOrders';
+import { describeError } from '../api/errors';
 
 interface Props {
   vehicleId: number;
@@ -68,9 +69,9 @@ export default function WorkOrderPanel({ vehicleId, sold, onChanged }: Props) {
       const r = await workOrdersApi.list(vehicleId);
       if (seq !== seqRef.current) return;
       setOrders(r.data || []);
-    } catch {
+    } catch (e) {
       if (seq !== seqRef.current) return;
-      setError('Could not load work orders.');
+      setError(describeError(e, 'load work orders'));
     } finally {
       if (seq === seqRef.current) setLoading(false);
     }
@@ -105,7 +106,7 @@ export default function WorkOrderPanel({ vehicleId, sold, onChanged }: Props) {
       await load();
       onChanged();
     } catch (e) {
-      setCreateError(messageOf(e, 'Could not create work order.'));
+      setCreateError(describeError(e, 'create work order'));
     } finally {
       setCreating(false);
     }
@@ -122,7 +123,7 @@ export default function WorkOrderPanel({ vehicleId, sold, onChanged }: Props) {
       onChanged();
       return '';
     } catch (e) {
-      const message = messageOf(e, 'Could not update work order.');
+      const message = describeError(e, 'update work order');
       setError(message);
       return message;
     } finally {

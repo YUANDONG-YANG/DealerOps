@@ -9,6 +9,7 @@ import {
   type Notification,
 } from '../api/notifications';
 import { codeOf, messageOf, statusOf } from '../api/http';
+import { describeError } from '../api/errors';
 
 type JoinRequestRow = Notification & { kind: 'JOIN_REQUEST'; payload: JoinRequestPayload };
 
@@ -50,7 +51,7 @@ export default function TeamPage() {
       const list = await notificationsApi.list(true);
       setRows(list.filter(isJoinRequest));
     } catch (err) {
-      setError(messageOf(err, 'Could not load the inbox.'));
+      setError(describeError(err, 'load the inbox'));
     } finally {
       setLoading(false);
     }
@@ -72,7 +73,7 @@ export default function TeamPage() {
       // Row was already resolved (another admin, or the inbox popover): refresh instead of
       // surfacing an error for an action that has already been applied.
       const gone = statusOf(err) === 404 || codeOf(err) === 'NOT_FOUND';
-      if (!gone) setError(messageOf(err, `Could not ${verb} the request.`));
+      if (!gone) setError(describeError(err, `${verb} the request`));
     } finally {
       setActing(null);
     }
