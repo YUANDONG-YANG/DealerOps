@@ -28,9 +28,6 @@ public class AiProviderClient
     public AiProviderClient(HttpClient http, IConfiguration config)
     {
         _http = http;
-        // Keep local startup simple: appsettings.json is the default, while a
-        // non-empty environment variable can still override it. An empty
-        // environment variable should not hide the working local defaults.
         _apiKey = FirstNonEmpty(config["AIMANAGER_API_KEY"], config["AiManager:ApiKey"]);
         var provider = FirstNonEmpty(config["AIMANAGER_GATEWAY_PROVIDER"], config["AiManager:Provider"], "groq");
         _model = FirstNonEmpty(config["AIMANAGER_GATEWAY_MODEL"], config["AiManager:Model"], "qwen/qwen3.8-27b");

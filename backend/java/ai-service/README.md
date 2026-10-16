@@ -32,14 +32,14 @@ Use JDK 21, the same as the other Java services.
 | `AI_PORT` | `8082` | this service |
 | `INTERNAL_TOKEN` | `dealer-internal` | `X-Dealer-Internal` (PROTOCOL §B.1). Accepted only when the Spring profile is `dev` or `local`; otherwise set a non-default token shared with gateway and dealer-core. |
 | `SPRING_PROFILES_ACTIVE` | unset | Local classroom: `dev`. Do not set `dev` on Azure. |
-| `AIMANAGER_API_KEY` | not used | the fixed classroom Groq credential is compiled into `AiManagerFactory` |
+| `AIMANAGER_API_KEY` | empty | Groq/model provider key; local only or Azure Key Vault reference |
 | `AIMANAGER_GATEWAY_PROVIDER` | `groq` | `groq` / `xai` / `openai` / `claude` / `deepseek` |
 | `AIMANAGER_GATEWAY_MODEL` | `qwen/qwen3.8-27b` | this service |
 | `AIMANAGER_GATEWAY_MAX_TOKENS` | `800` | Keep below free-tier provider output limits |
 
-For the classroom startup path, keep `AIMANAGER_GATEWAY_PROVIDER=groq`. The built-in credential is a Groq credential and is not interchangeable with an xAI, OpenAI, Claude or DeepSeek credential.
+For the classroom startup path, keep `AIMANAGER_GATEWAY_PROVIDER=groq`. The credential must be supplied through `AIMANAGER_API_KEY`; do not place it in source code or commit it. It is not interchangeable with an xAI, OpenAI, Claude or DeepSeek credential.
 
-The classroom Groq credential is intentionally hardcoded in `AiManagerFactory.java` and is not read from `application.yaml`, environment variables or `src/main/resources/ai-key.md`. The resource file is only a reminder and must not contain credentials.
+The service reads the credential from `AIMANAGER_API_KEY` / `aimanager.api-key`. `src/main/resources/ai-key.md` is only a local reminder and must never contain a real credential.
 
 Default (Groq free tier):
 ```text
@@ -47,7 +47,7 @@ AIMANAGER_GATEWAY_PROVIDER=groq
 AIMANAGER_GATEWAY_MODEL=qwen/qwen3.8-27b
 ```
 
-The fixed classroom key is always available to the service. If it is removed from code, the service returns immediate **503** `{ "success": false, "code": "AI_KEY_MISSING", "message": "AIMANAGER_API_KEY is missing or invalid." }` (do not wait 15s).
+If the key is absent, the service returns immediate **503** `{ "success": false, "code": "AI_KEY_MISSING", "message": "AIMANAGER_API_KEY is missing or invalid." }` (do not wait 15s).
 
 ## Internal HTTP
 
