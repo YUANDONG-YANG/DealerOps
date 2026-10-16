@@ -91,7 +91,7 @@ builder.Services.AddAuthorization(options =>
 // CORS
 var corsOrigin = builder.Configuration["CORS_ALLOWED_ORIGIN"]
                  ?? builder.Configuration["dealerops:corsAllowedOrigin"]
-                 ?? "http://localhost:5173";
+                 ?? "http://localhost:5174";
 
 builder.Services.AddCors(options =>
 {

@@ -53,7 +53,9 @@ public class CustomerService
         var total = query.Count();
         var items = query.OrderByDescending(c => c.CreatedAt).ThenByDescending(c => c.Id)
             .Skip(p * s).Take(s)
-            .AsEnumerable()
+            // Materialised before projecting: the projection below queries the database
+            // per row, which cannot share the connection with a still-open result set.
+            .ToList()
             .Select(ToListItem).ToList();
 
         return new PageResponse<CustomerListItem>(items, p, s, total);
@@ -66,6 +68,7 @@ public class CustomerService
         var email = NormalizeEmail(body.Email);
         var phone = body.Phone.Trim();
         var homeAddress = body.HomeAddress.Trim();
+        RequireUniqueContact(tenant, email, phone, excludingId: null);
         var customer = new CustomerEntity
         {
             DealerId = tenant,
@@ -102,6 +105,7 @@ public class CustomerService
         var email = NormalizeEmail(body.Email);
         var phone = body.Phone.Trim();
         var homeAddress = body.HomeAddress.Trim();
+        RequireUniqueContact(tenant, email, phone, excludingId: customer.Id);
         var fieldSummary = ContactFieldChanges(
             customer.Name, customer.Email, customer.Phone, customer.HomeAddress,
             name, email, phone, homeAddress);

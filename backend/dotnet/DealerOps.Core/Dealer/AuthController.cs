@@ -23,7 +23,7 @@ public class AuthController : ControllerBase
         StatusCode(201, _authService.Register(request));
 
     [HttpPost("google")]
-    public Task<LoginResponse> Google(
+    public Task<GoogleSignInResponse> Google(
         [FromBody] GoogleSignInRequest request, CancellationToken cancellationToken) =>
         _authService.GoogleSignIn(request, cancellationToken);
 }

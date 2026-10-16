@@ -58,7 +58,9 @@ public class LeadService
         var total = query.Count();
         var items = query.OrderByDescending(l => l.CreatedAt).ThenByDescending(l => l.Id)
             .Skip(p * s).Take(s)
-            .AsEnumerable()
+            // Materialised before projecting: the projection below queries the database
+            // per row, which cannot share the connection with a still-open result set.
+            .ToList()
             .Select(lead => new LeadListItem(
                 lead.Id,
                 lead.CustomerId,

@@ -92,24 +92,42 @@ public class AuthService
     /// (AUTH-13, AUTH-14). Tenancy is unchanged — it is resolved per request from the
     /// membership table, never from the identity provider.
     /// </summary>
-    public async Task<LoginResponse> GoogleSignIn(GoogleSignInRequest request, CancellationToken cancellationToken)
+    public async Task<GoogleSignInResponse> GoogleSignIn(GoogleSignInRequest request, CancellationToken cancellationToken)
     {
         var identity = await _google.VerifyAsync(request.IdToken.Trim(), cancellationToken);
         var email = LoginIdentifiers.Email(identity.Email);
+        var requestedDealerId = request.DealerId;
 
         var user = _db.AppUsers.FirstOrDefault(u => u.Email != null && u.Email.ToLower() == email && u.Active);
-        if (user == null)
-            return ProvisionGoogleUser(email, identity.Name);
 
         // The platform admin is seeded from the environment and keeps password-only sign-in, so
         // control of its mailbox is not enough to reach the admin console (AUTH-15).
-        if (user.Role == AppRole.PlatformAdmin)
+        if (user?.Role == AppRole.PlatformAdmin)
             throw new ApiException(ErrorCode.Forbidden, "Sign in with your password as the platform administrator.");
 
-        return new LoginResponse(_jwt.Issue(user), user.Role.Value, user.DisplayName);
+        // Already bound to a dealer: just sign in.
+        if (user?.DealerId != null)
+            return new GoogleSignInResponse("ok",
+                new LoginResponse(_jwt.Issue(user), user.Role!.Value, user.DisplayName));
+
+        if (requestedDealerId.HasValue)
+        {
+            RequireActiveDealer(requestedDealerId.Value);
+            user = user == null
+                ? CreateUnboundGoogleUser(email, identity.Name, requestedDealerId.Value)
+                : SetRequestedDealer(user, requestedDealerId.Value);
+            return new GoogleSignInResponse("pending_approval", null);
+        }
+
+        // No dealer picked yet: the UI must show the selector. An already-pending account also
+        // reports "pending_approval" so a repeat sign-in does not loop through the selector.
+        if (user?.RequestedDealerId != null)
+            return new GoogleSignInResponse("pending_approval", null);
+
+        return new GoogleSignInResponse("needs_dealer", null);
     }
 
-    private LoginResponse ProvisionGoogleUser(string email, string? name)
+    private AppUserEntity CreateUnboundGoogleUser(string email, string? name, long requestedDealerId)
     {
         var username = AvailableUsername(email);
         var user = new AppUserEntity
@@ -123,6 +141,7 @@ public class AuthService
             Phone = null,
             Role = AppRole.DealerUser,
             DealerId = null,
+            RequestedDealerId = requestedDealerId,
             Active = true
         };
 
@@ -138,11 +157,30 @@ public class AuthService
         }
 
         _audit.Record("APP_USER", user.Id, "CREATE", null, user.Username,
-            new Dictionary<string, object> { ["registration"] = "google" });
+            new Dictionary<string, object>
+            {
+                ["registration"] = "google",
+                ["requestedDealerId"] = requestedDealerId
+            });
         _db.SaveChanges();
         tx.Commit();
+        return user;
+    }
 
-        return new LoginResponse(_jwt.Issue(user), user.Role.Value, user.DisplayName);
+    private AppUserEntity SetRequestedDealer(AppUserEntity user, long requestedDealerId)
+    {
+        if (user.RequestedDealerId == requestedDealerId) return user;
+        user.RequestedDealerId = requestedDealerId;
+        _audit.Record("APP_USER", user.Id, "UPDATE", null, user.Username,
+            new Dictionary<string, object> { ["requestedDealerId"] = requestedDealerId });
+        _db.SaveChanges();
+        return user;
+    }
+
+    private void RequireActiveDealer(long dealerId)
+    {
+        if (!_db.Dealers.Any(d => d.Id == dealerId && d.Active))
+            throw new ApiException(ErrorCode.NotFound, "Dealership not found.");
     }
 
     private string AvailableUsername(string email)

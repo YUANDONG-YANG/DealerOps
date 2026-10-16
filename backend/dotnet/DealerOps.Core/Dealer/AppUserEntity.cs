@@ -34,6 +34,12 @@ public class AppUserEntity
     [Column("dealer_id")]
     public long? DealerId { get; set; }
 
+    // The dealer this account asked to join (self-service onboarding). Any active member of
+    // that dealer can approve the request, which moves the user into DealerId and clears
+    // this field; a reject just clears it. Always null for Platform.Admin accounts.
+    [Column("requested_dealer_id")]
+    public long? RequestedDealerId { get; set; }
+
     [Column("active")]
     public bool Active { get; set; } = true;
 

@@ -54,7 +54,9 @@ public class VehicleService
             .OrderByDescending(v => v.CreatedAt)
             .ThenByDescending(v => v.Id)
             .Skip(p * s).Take(s)
-            .AsEnumerable()
+            // Materialised before projecting: the projection below queries the database
+            // per row, which cannot share the connection with a still-open result set.
+            .ToList()
             .Select(ToResponse)
             .ToList();
 

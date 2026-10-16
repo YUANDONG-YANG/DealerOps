@@ -139,10 +139,6 @@ builder.Services.AddSwaggerGen(options =>
 });
 builder.Services.AddHttpContextAccessor();
 
-builder.Services.AddCors(options =>
-    options.AddDefaultPolicy(policy =>
-        policy.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader()));
-
 builder.Services.AddSingleton<JwtService>();
 // Singleton so Google's signing keys are fetched and cached once, not per sign-in.
 builder.Services.AddSingleton<GoogleIdTokenVerifier>();
@@ -156,7 +152,11 @@ builder.Services.AddScoped<CustomerService>();
 builder.Services.AddScoped<LeadService>();
 builder.Services.AddScoped<WorkOrderService>();
 builder.Services.AddScoped<ListingService>();
-builder.Services.AddScoped<IAuditService, AuditService>();
+// AuditController reads the audit trail through AuditService.List, which is not on
+// IAuditService, so the concrete type is registered and the interface resolves to the
+// same scoped instance.
+builder.Services.AddScoped<AuditService>();
+builder.Services.AddScoped<IAuditService>(sp => sp.GetRequiredService<AuditService>());
 builder.Services.AddScoped<ComplianceCheckService>();
 builder.Services.AddScoped<OmvicRuleEngine>();
 builder.Services.AddScoped<CheckStatusMapper>();
@@ -195,6 +195,11 @@ using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     db.Database.EnsureCreated();
+    // EnsureCreated does nothing when the table already exists, so new columns added after the
+    // first create need an idempotent patch. MySQL 8 rejects IF NOT EXISTS on ADD COLUMN, so
+    // the exception for a duplicate column (1060) is swallowed.
+    try { db.Database.ExecuteSqlRaw("ALTER TABLE app_user ADD COLUMN requested_dealer_id BIGINT NULL"); }
+    catch (Exception ex) when (ex.ToString().Contains("1060", StringComparison.Ordinal)) { /* already present */ }
 }
 
 // The Gateway merges this document into its own, so the JSON is always served; only the
@@ -209,7 +214,9 @@ if (app.Environment.IsDevelopment() || builder.Configuration.GetValue<bool>("Ena
 }
 
 app.UseMiddleware<RequestLoggingMiddleware>();
-app.UseCors();
+// No CORS here: the browser only reaches Core through the Gateway (CLAUDE.md). A duplicate
+// Access-Control-Allow-Origin header from Core would be proxied back by YARP and overwrite
+// the Gateway's specific origin, breaking the browser's CORS check.
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseMiddleware<TenantMiddleware>();
