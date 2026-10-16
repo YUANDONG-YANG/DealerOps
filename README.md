@@ -27,6 +27,20 @@ The browser only talks to the gateway on `8080`. Core (`8081`) and ai-service (`
 
 ## Local development startup
 
+### One-command start (recommended for beginners)
+
+After installing .NET 8, Node.js 20+, MySQL 8, and Git, run this from the repository root:
+
+```bash
+./start-local.sh
+```
+
+The launcher creates the local database and default development account, installs the React dependencies on first use, starts Core, AI Service, Gateway, and the React frontend, and writes service logs under `log-sum/`. Open http://localhost:5174 when it reports that startup is complete.
+
+AI is optional for local development. If `AIMANAGER_API_KEY` is empty, all services still start and the rest of the application remains usable; only AI requests return `AI_KEY_MISSING`. To enable AI, put your own key in the automatically created, Git-ignored file `dealer-platform/.env.local`, then run `./start-local.sh` again. Never commit that file.
+
+Press `Ctrl+C` in the launcher terminal to stop the services started by the script.
+
 These steps are written for macOS and assume no prior setup. Follow them top to bottom and do not skip a check. On Windows, install the same tool versions from their official installers instead of Homebrew (Step 0) and set `JAVA_HOME` to the JDK 21 folder in System Environment Variables; Steps 1–6 in IntelliJ are the same.
 
 You will end up with five programs running at the same time, started **in this order**. Wait for each one to be healthy before starting the next:
