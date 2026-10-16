@@ -31,8 +31,18 @@ output "web_app_name" {
 }
 
 output "web_public_url" {
-  description = "Public SPA origin. Already set as the gateway CORS_ALLOWED_ORIGIN."
-  value       = "https://${azurerm_linux_web_app.web.default_hostname}"
+  description = "Public SPA origin. Uses the optional custom domain when configured; otherwise the Azure-managed hostname."
+  value       = var.web_custom_domain != "" ? "https://${var.web_custom_domain}" : "https://${azurerm_linux_web_app.web.default_hostname}"
+}
+
+output "web_custom_domain_target" {
+  description = "CNAME target for web_custom_domain. Use this in the domain DNS zone before applying a custom hostname."
+  value       = var.web_custom_domain != "" ? azurerm_linux_web_app.web.default_hostname : null
+}
+
+output "web_custom_domain_verification_id" {
+  description = "Azure TXT ownership-verification value for web_custom_domain; publish as an asuid.<hostname> TXT record when required by the DNS provider."
+  value       = var.web_custom_domain != "" ? azurerm_linux_web_app.web.custom_domain_verification_id : null
 }
 
 output "swagger_url" {

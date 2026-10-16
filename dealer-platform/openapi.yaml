@@ -1830,6 +1830,11 @@ components:
         model: { type: string, nullable: true }
         modelYear: { type: integer, nullable: true }
         bodyClass: { type: string, nullable: true }
+        bodyType:
+          allOf:
+            - $ref: "#/components/schemas/VehicleBodyType"
+          nullable: true
+          description: vPIC body class mapped to the DMS body type (unrecognised classes map to OTHER); null when vPIC returns no body class. Used to prefill the create form.
         engine: { type: string, nullable: true, example: "3.0L 6-cyl Gasoline" }
         country: { type: string, nullable: true }
         manufacturer: { type: string, nullable: true }
@@ -2614,6 +2619,16 @@ components:
           $ref: "#/components/schemas/AdKind"
         medium:
           $ref: "#/components/schemas/AdMedium"
+        priorUse:
+          $ref: "#/components/schemas/ListingPriorUse"
+        warrantyTerms:
+          type: string
+          nullable: true
+          description: Extended warranty terms recorded in the salesperson checklist; null when no warranty is offered
+        annualKmAllowance:
+          type: integer
+          nullable: true
+          description: Lease annual kilometre allowance recorded in the salesperson checklist
         status:
           $ref: "#/components/schemas/ListingStatus"
         contentVersion:
@@ -2649,6 +2664,28 @@ components:
           $ref: "#/components/schemas/AdKind"
         medium:
           $ref: "#/components/schemas/AdMedium"
+        priorUse:
+          $ref: "#/components/schemas/ListingPriorUse"
+        warrantyTerms:
+          type: string
+          nullable: true
+          maxLength: 2000
+        annualKmAllowance:
+          type: integer
+          nullable: true
+          minimum: 1
+          maximum: 1000000
+      description: |
+        `title`, `body`, `adKind` and `medium` follow merge-patch semantics on a later save.
+        The salesperson checklist answers (`priorUse`, `warrantyTerms`, `annualKmAllowance`) are
+        sent on every save and are replaced as a unit: an omitted or `null` answer clears it.
+        Changing any answer invalidates a previous check, like a copy edit.
+
+    ListingPriorUse:
+      type: string
+      nullable: true
+      enum: [POLICE_EMERGENCY, TAXI_LIMO, DAILY_RENTAL, OTHER, null]
+      description: Previous use declared in the salesperson checklist; null when not applicable or unknown
 
     ListingVersionBody:
       type: object

@@ -57,7 +57,7 @@ Source: every modification to a DMS or CRM record is stamped with the acting use
 | NFR-01 | Lists default to 10 per page | SCOPE | Must |
 | NFR-02 | Money in CAD with two decimals; dates shown as `YYYY-MM-DD` | Derived | Should |
 | NFR-03 | UI language is English (Ontario dealers) | Derived | Should |
-| NFR-04 | Database backup strategy | PDF §8 | Should |
-| NFR-05 | Own domain for deployment | PDF §8 | Should |
+| NFR-04 | Database backup strategy | PDF §8 | Should — Azure MySQL managed backups retain 7 days (`deploy/terraform/main.tf`); restore exercise and production RPO/RTO approval remain outstanding |
+| NFR-05 | Public website domain for deployment | PDF §8 | Should — Terraform provisions the Azure-managed `dealer-ops-dev.azurewebsites.net` site hostname and exports `web_public_url`; no separately purchased custom domain is bound |
 | NFR-06 | Desktop browser first; usable at phone width | Derived | Could |
 | NFR-07 | Rate limits, throughput SLOs, PIPEDA retention | SCOPE | Won't |

@@ -16,6 +16,11 @@ The source requires both of these on every ad, and neither had a rule before; `P
 |---|---|---|
 | `NEW_USED_NOT_STATED` | REVIEW | Neither a new-vehicle phrase nor used / pre-owned / second-hand / previously owned appears in the copy. Advisory rather than blocking, because erratum 4 keeps the new/old family a prompt. |
 | `FINANCE_CASH_PRICE_MISSING` | BLOCK | A finance-triggered ad states no cash price and no cost of borrowing. An amount directly followed by a payment cadence (`per month`, `/mo`, `/month`, `a month`, `bi-weekly`, `weekly`) is a payment, not a cash price. Applies to every medium: the broadcast exemption waives only `FINANCE_APR_PROXIMITY`. |
+| `WARRANTY_TERMS_MISSING` | REVIEW | The salesperson checklist records extended warranty terms that do not appear in the copy. |
+| `LEASE_ALLOWANCE_NOT_IN_COPY` | REVIEW | Lease: the checklist records an annual kilometre allowance but the copy states none. |
+| `LEASE_ALLOWANCE_MISMATCH` | REVIEW | Lease: the checklist allowance differs from the one printed in the copy. `LEASE_EXCESS_KM_MISSING` is then judged on the **lower** of the two figures. |
+
+Checklist answers are optional. With no answers recorded, every rule behaves exactly as before, so fixtures FX-01–FX-23 are unaffected; FX-24 covers the stricter-allowance case.
 
 Effect on the fixtures below: none of the expected BLOCK/PASS outcomes change. Every payment-bearing fixture already states `Cash price $18,900`, so `FINANCE_CASH_PRICE_MISSING` does not fire. Fixtures whose copy says `Sold as-is` but never `used` now carry one extra REVIEW finding, `NEW_USED_NOT_STATED`; REVIEW findings do not block, so each fixture's state is unchanged.
 
@@ -418,6 +423,27 @@ Each item: `id`, `offerType` (= `adKind`), `channel` (= `medium`), `title`, `bod
 
 ---
 
+### FX-24 · LEASE where the copy allowance is stricter than the checklist (ONLINE)
+
+| | |
+|---|---|
+| **id** | `FX-24` |
+| **offerType** | `LEASE` |
+| **channel** | `ONLINE` |
+| **checklist** | `annualKmAllowance = 24000` |
+| **title** | Lease a 2020 Toyota Camry |
+| **body** | Lease this used Camry. $399 per month, 36 months, $2,000 down payment, 6.99% APR, 16,000 km per year. Cash price $18,900. Sold as-is by Prairie Auto Ltd., 403-555-0100, desk@prairie.example, 100 1 Ave SW, Calgary. |
+| **Vehicle/dealership premises** | V-ASIS. Everything required is present except an excess-km fee. The checklist says 24,000 km but the ad prints 16,000 km. |
+| **Fixed rules** | **Blocked** · `LEASE_EXCESS_KM_MISSING` (the lower figure, 16,000, decides) + soft `LEASE_ALLOWANCE_MISMATCH` · do not call AI · HTTP 200 |
+| **If AI is entered** | do not call AI |
+| **Ready/export** | No |
+| **Classroom demo** | No |
+
+> Added 2026-10-16. Before the fix the checklist figure was preferred, so this ad was not blocked
+> even though what it publishes — 16,000 km/year — requires an excess-km fee.
+
+---
+
 ## 4. Coverage check
 
 | Requirement | Fixtures |
@@ -427,6 +453,7 @@ Each item: `id`, `offerType` (= `adKind`), `channel` (= `medium`), `title`, `bod
 | FINANCE missing APR → Blocked, no AI | FX-03 |
 | LEASE missing APR → Blocked, no AI | FX-04 |
 | LEASE missing the payment amount → soft only | FX-23 |
+| Checklist allowance vs copy allowance → the stricter decides | FX-24 |
 | CERTIFIED / AS_IS / UNFIT / IRREPARABLE undisclosed or misstated | FX-05, FX-06, FX-07, FX-08, FX-18 |
 | Same conditions disclosed | FX-10 (AS_IS), FX-17 (CERTIFIED), FX-19, FX-20 |
 | After price change old check Stale | FX-11 (steps, not an independent body) |

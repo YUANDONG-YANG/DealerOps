@@ -428,15 +428,17 @@ Who: `Dealer.User` with a dealership; Admin or unbound staff → **403** (§1.3)
 
 #### 4.6.1 VIN decode: `GET /api/v1/catalog/vin/{vin}` (public)
 
-Decodes one VIN through vPIC `DecodeVinValues`. Used by the signed-out landing page VIN decoder and by the DMS **Add vehicle** form (`Decode` prefills make, model, and year). **Anonymous:** no JWT required; the gateway and core both permit `GET` on this path only. Response (blank vPIC values become `null`; `engine` is built from displacement, cylinders, and primary fuel):
+Decodes one VIN through vPIC `DecodeVinValues`. Used by the signed-out landing page VIN decoder and by the DMS **Add vehicle** form (`Decode` prefills make, model, year, and body type). **Anonymous:** no JWT required; the gateway and core both permit `GET` on this path only. Response (blank vPIC values become `null`; `engine` is built from displacement, cylinders, and primary fuel):
 
 ```json
 { "vin": "1HGCM82633A004352", "make": "HONDA", "model": "Accord", "modelYear": 2003,
-  "bodyClass": "Coupe", "engine": "3.0L 6-cyl Gasoline", "country": "UNITED STATES (USA)",
+  "bodyClass": "Coupe", "bodyType": "COUPE", "engine": "3.0L 6-cyl Gasoline", "country": "UNITED STATES (USA)",
   "manufacturer": "AMERICAN HONDA MOTOR CO., INC." }
 ```
 
-Successful decodes are cached in memory until dealer-core restarts. Errors: VIN not 17 characters or contains I/O/Q → `400 VALIDATION`; vPIC returns no make → `404 NOT_FOUND`; vPIC unreachable or malformed → `502 CATALOG_UNAVAILABLE`. Nothing is stored; the decode never creates a vehicle. The DMS form shows body class, engine, country, and manufacturer under the VIN field for reference; they are not saved (VIN-03).
+`bodyType` maps vPIC's free-text body class onto the DMS enum (SUV / utility / crossover → `SUV`, pickup / truck → `TRUCK`, van → `VAN`, hatchback / liftback → `HATCHBACK`, coupe → `COUPE`, sedan / saloon → `SEDAN`, motorcycle / scooter → `MOTORCYCLE`, anything else → `OTHER`); it is `null` when vPIC returns no body class.
+
+Successful decodes are cached in memory until dealer-core restarts. Errors: VIN not 17 characters or contains I/O/Q → `400 VALIDATION`; vPIC returns no make → `404 NOT_FOUND`; vPIC unreachable or malformed → `502 CATALOG_UNAVAILABLE`. Nothing is stored; the decode never creates a vehicle. The DMS form shows body class, engine, country, and manufacturer under the VIN field for reference; they are not saved. Only the mapped `bodyType` is stored, as the vehicle's optional body type once the user saves (VIN-03).
 
 ### 4.7 Work orders (Dealer.User)
 
@@ -651,7 +653,7 @@ If a row exists, `id` has a value and `lastCheck` is the latest check summary or
 ### 7.2 `PATCH /api/v1/vehicles/{id}/listing`
 
 No row → **INSERT**. Increment `contentVersion`, return `status` to `DRAFT`, void old checks (shown as `checkStatus=STALE` or `NEEDS_AI`, see §8).  
-V1 `title`/`body` are NOT NULL: on the first save (INSERT) an omitted or blank `title`/`body` is written as **`''`** (15), and an omitted `adKind`/`medium` defaults to `CASH`/`ONLINE`. On a later save the body is a merge patch: an omitted or `null` field keeps the stored value, and an explicit blank `title`/`body` stores `''`. `title` ≤ 200 characters.
+V1 `title`/`body` are NOT NULL: on the first save (INSERT) an omitted or blank `title`/`body` is written as **`''`** (15), and an omitted `adKind`/`medium` defaults to `CASH`/`ONLINE`. On a later save the body/title/kind/medium follow merge-patch semantics. Checklist properties (`priorUse`, `warrantyTerms`, `annualKmAllowance`) are sent on every form save; `null` clears the saved answer. This ensures answer edits invalidate the existing check. `title` ≤ 200 characters; warranty terms ≤ 2,000; annual allowance 1–1,000,000 km.
 
 First create may omit `version` or send `0`. Later requests must send the current `version`.
 
@@ -661,11 +663,14 @@ First create may omit `version` or send `0`. Later requests must send the curren
   "title": "2020 Toyota Camry",
   "body": "Cash price $18900. Sold as-is by Prairie Auto Ltd. 403-555-0100 ...",
   "adKind": "CASH",
-  "medium": "ONLINE"
+  "medium": "ONLINE",
+  "priorUse": null,
+  "warrantyTerms": null,
+  "annualKmAllowance": null
 }
 ```
 
-`adKind`: `CASH`\|`FINANCE`\|`LEASE`. `medium`: `ONLINE`\|`RADIO_TV_BILLBOARD`.  
+`adKind`: `CASH`\|`FINANCE`\|`LEASE`. `medium`: `ONLINE`\|`RADIO_TV_BILLBOARD`. `priorUse`: `POLICE_EMERGENCY`\|`TAXI_LIMO`\|`DAILY_RENTAL`\|`OTHER` or `null`.
 Response matches 7.1 (now persisted). `404` / `409 VERSION_CONFLICT` / `400 VALIDATION`.
 
 ---
@@ -762,7 +767,7 @@ Only when the current check is Passed **and** not Stale. Success 200, listing `s
 ### 8.4 `POST /api/v1/listings/{id}/exports`
 
 Body same as ready: `{ "version": 3 }`. Same 409/404.  
-Success: **200** plain text. Content = dealership public four fields + vehicle public fields (year/make/model/vin/condition/source, **no cost**) + title/body + check time. Do not write customers.
+Success: **200** plain text. Content = dealership public four fields + vehicle public fields (year/make/model/vin/condition, **no cost**) + title/body + check time, then a closing disclaimer line: "This check is not legal advice and is not an OMVIC approval. Confirm current disclosure requirements with OMVIC before publishing." (AD-14, specification §8). Do not write customers.
 
 ---
 

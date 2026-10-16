@@ -9,6 +9,7 @@ namespace DealerOps.Core.Security;
 public record FirebaseIdentity(
     string Uid,
     string Email,
+    bool EmailVerified,
     string? DisplayName,
     string? PhoneNumber);
 
@@ -38,10 +39,12 @@ public sealed class FirebaseIdTokenVerifier
             : null;
         if (string.IsNullOrWhiteSpace(email))
             throw new ApiException(AppErrorCode.Unauthorized, "Firebase sign-in requires an email address.");
+        if (!bool.TryParse(Claim(decoded, "email_verified"), out var emailVerified) || !emailVerified)
+            throw new ApiException(AppErrorCode.Unauthorized, "Verify your email address before signing in.");
 
         var displayName = Claim(decoded, "name");
         var phoneNumber = Claim(decoded, "phone_number");
-        return new FirebaseIdentity(decoded.Uid, email, displayName, phoneNumber);
+        return new FirebaseIdentity(decoded.Uid, email, emailVerified, displayName, phoneNumber);
     }
 
     private static string? Claim(FirebaseToken token, string name) =>

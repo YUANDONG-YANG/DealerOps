@@ -14,6 +14,17 @@ variable "web_app_name" {
   default     = "dealer-ops-dev"
 }
 
+variable "web_custom_domain" {
+  description = "Optional custom hostname for the React SPA (for example www.example.com). Leave empty to use the Azure-managed azurewebsites.net hostname. The domain owner must point a CNAME to the app's default hostname before apply."
+  type        = string
+  default     = ""
+
+  validation {
+    condition     = var.web_custom_domain == "" || can(regex("^[A-Za-z0-9]([A-Za-z0-9.-]*[A-Za-z0-9])?$", var.web_custom_domain))
+    error_message = "web_custom_domain must be a hostname without a scheme or path, such as www.example.com."
+  }
+}
+
 variable "mysql_location" {
   description = "MySQL Flexible Server region. Azure for Students cannot provision MySQL in Canada Central (ProvisionNotSupportedForRegion); check another region with az mysql flexible-server list-skus --location <region>."
   type        = string

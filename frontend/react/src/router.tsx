@@ -91,7 +91,8 @@ function AuthGuard() {
   }
   if (status === 'redirect') return null;
 
-  if (!hasBusinessAccess(session)) {
+  // Profile is about the signed-in account, so an unbound user can still edit or delete it.
+  if (!hasBusinessAccess(session) && location.pathname !== '/profile') {
     return <NoAccessPage />;
   }
 

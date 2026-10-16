@@ -12,7 +12,7 @@ This folder breaks the source documents under `requirements/` into requirement i
 > `WO-01–07`, `AUTH-16–23`, `IMG-01–05`); they are deliberately not restated here, so that one
 > document stays their single source of truth.
 
-2026-09-28: course-demo reconciliation is recorded in ../../review/DealerOps-Requirements-Resolution-2026-09-28.md. Current ad decisions are in 04 and acceptance in 06. Reviews 08–11 retain historical findings; their old proposals do not restore deferred features. Scope errata override original disclosure severity. This folder was re-audited against the complete four-page customer PDF on 2026-10-16; see [13-PDF-Requirements-Audit-2026-10-16.md](13-PDF-Requirements-Audit-2026-10-16.md). The current assistant also supports deterministic counts, as recorded in 05 and 06.
+2026-09-28: course-demo reconciliation is recorded in ../../review/DealerOps-Requirements-Resolution-2026-09-28.md. Current ad decisions are in 04 and acceptance in 06. Reviews 08–11 retain historical findings; the customer sources remain the implementation authority. The source audit is [13-Customer-Requirements-Audit-2026-10-16.html](13-Customer-Requirements-Audit-2026-10-16.html). The assistant also supports deterministic counts, as recorded in 05 and 06.
 
 Source verification as of 2026-09-28: [12-Requirements-Code-Verification-2026-09-28.md](12-Requirements-Code-Verification-2026-09-28.md). **Historical only** — it was written against the retired Java / Vue stacks, so its file:line evidence and its V-01–V-04 findings no longer apply to the .NET 10 / React implementation. Do not reopen them as current defects.
 
@@ -48,7 +48,7 @@ Conflict order follows SCOPE-BASELINE: **PPT hard requirements > specification P
 | [09-Verification-Checklist.md](09-Verification-Checklist.md) | Historical evidence checklist for 08; references retired Java/Vue files and is not current code evidence |
 | [10-Cursor-Change-Review.md](10-Cursor-Change-Review.md) | Historical review of a specific Cursor worktree snapshot |
 | [11-Cursor-Instructions.md](11-Cursor-Instructions.md) | Historical instructions for a specific Cursor branch; do not execute as current task instructions |
-| [13-PDF-Requirements-Audit-2026-10-16.md](13-PDF-Requirements-Audit-2026-10-16.md) | Current source-by-source audit of the customer PDF, analysis decomposition, ambiguities and code-verification results |
+| [13-Customer-Requirements-Audit-2026-10-16.html](13-Customer-Requirements-Audit-2026-10-16.html) | HTML audit of customer sources, implementation coverage and remaining verification |
 | [Traceability-Matrix.md](Traceability-Matrix.md) | Requirement ID → source → design doc → acceptance case |
 
 ## Requirement ID scheme

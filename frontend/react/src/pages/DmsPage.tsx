@@ -430,7 +430,8 @@ export default function DmsPage() {
         make: d.make,
         model: d.model || form.model,
         modelYear: d.modelYear ? String(d.modelYear) : form.modelYear,
-      }, { ...touched, make: true, model: true, modelYear: true });
+        bodyType: d.bodyType || form.bodyType,
+      }, { ...touched, make: true, model: true, modelYear: true, bodyType: true });
       if (d.make) {
         catalogApi.models(d.make).then(r => setFormModelOptions(r.data)).catch(() => {});
       }

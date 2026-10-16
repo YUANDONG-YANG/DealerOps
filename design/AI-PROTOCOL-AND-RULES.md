@@ -363,7 +363,7 @@ static OptionalInt capturedKm(String text) {
 The specification PDF lists many ad disclosures as flat “always required / must disclose.” This course engine still uses only two buckets:
 
 - **hard (`BLOCK`, 10 codes)** — missing price, missing dealer name, fully missing dealer contact, condition mismatch/undisclosed for AS_IS/UNFIT/IRREPARABLE, FINANCE APR, FINANCE cash price or cost of borrowing, LEASE APR, LEASE statement, LEASE excess-km when allowance &lt; 20,000. An empty draft is not a separate rule: it simply fails several of these at once. Non-empty `hard[]` → `BLOCKED` / `SKIPPED`, **do not call AI**.
-- **soft (`REVIEW`, 13 codes)** — everything else that is regex-checkable but not a publish gate: incomplete contact, year omitted, new/used contradiction, new/used not stated, certified not restated, prior-use cue without disclosure, warranty mention, FINANCE term, FINANCE APR proximity (ONLINE), LEASE term/payment/down, LEASE allowance unstated. Soft findings travel with the check and feed AI review; they **do not** alone block Ready.
+- **soft (`REVIEW`)** — everything else that is regex-checkable or supported by salesperson checklist answers but not a publish gate: incomplete contact, year omitted, new/used contradiction, new/used not stated, certified not restated, prior-use cue/checklist category without clear matching disclosure, missing recorded warranty terms from copy, warranty mention, FINANCE term, FINANCE APR proximity (ONLINE), LEASE term/payment/down, unstated checklist/copy allowance, and checklist/copy allowance mismatch. Soft findings travel with the check and feed AI review; they **do not** alone block Ready.
 
 **Deliberate course choices (do not “fix” by promoting soft → hard or adding columns without instructor sign-off):**
 
@@ -392,7 +392,8 @@ Run every rule below on `text`; there is **no** empty-draft short-circuit. An em
 | `CONDITION_UNDISCLOSED` | Same | `code==UNFIT` and no `UNFIT`; or `IRREPARABLE` and no `IRREP`; or `AS_IS` and no `AS_IS` | **hard** |
 | `CERTIFIED_NOT_IN_COPY` | Same | `code==CERTIFIED` and no `CERTIFIED` regex | **soft** |
 | `NEW_USED_NOT_STATED` | `text` | Neither `BRAND_NEW` nor `USED_STATUS` hits. The specification lists new/used as always required; erratum 4 keeps the new/old family advisory, so a silent ad is flagged rather than blocked | **soft** |
-| `PRIOR_USE_UNCLEAR` | `text` | `mentionsPriorUseCue(text) && !mentionsPriorUseDisclosure(text)` | **soft** |
+| `PRIOR_USE_UNCLEAR` | `text`, salesperson `priorUse` | A recognized prior-use cue or checklist category is present without a matching clear disclosure | **soft** |
+| `WARRANTY_TERMS_MISSING` | `text`, salesperson `warrantyTerms` | Recorded offered terms are not present in ad copy | **soft** |
 | `WARRANTY_CLAIM_NEEDS_REVIEW` | `text` | `WARRANTY_BOAST` hits | **soft** |
 | `FINANCE_APR_MISSING` | `text`, `adKind==FINANCE`, or `CASH` whose copy matches `APR` or `PAYMENT` (spec §5: "if the ad shows a rate or payment") | `!APR.matcher(text).find()` | **hard** |
 | `FINANCE_TERM_MISSING` | Same | No `TERM_MO` | **soft** |
@@ -403,8 +404,10 @@ Run every rule below on `text`; there is **no** empty-draft short-circuit. An em
 | `LEASE_TERM_MISSING` | Same | No `\d+[\s-]*(month\|months\|mo)\b` | **soft** |
 | `LEASE_RENT_MISSING` | Same | No `PAYMENT` (corrected 2026-10-16). Pairing it with `PRICE` made the rule unreachable: an ad with no amount at all is already a `PRICE_MISSING` block, so a lease quoting only a cash price never had its payment amount checked, leaving the specification's lease "Payment amount" disclosure unenforced | **soft** |
 | `LEASE_DOWN_MISSING` | Same | No `LEASE_DOWN` | **soft** |
-| `LEASE_EXCESS_KM_MISSING` | Same | `capturedKm` has a value **and** `km < 20000` **and** no `LEASE_EXCESS` | **hard** |
-| `LEASE_ALLOWANCE_UNSTATED` | Same | `capturedKm` empty | **soft** |
+| `LEASE_EXCESS_KM_MISSING` | Same, salesperson `annualKmAllowance` | The **stricter** (lower) of the checklist allowance and the copy allowance — whichever are present — is below 20,000 and no `LEASE_EXCESS` is stated. Corrected 2026-10-16: preferring the checklist figure let an ad that prints 16,000 km/year without an excess fee pass whenever the checklist recorded 20,000 or more | **hard** |
+| `LEASE_ALLOWANCE_UNSTATED` | Same | Neither checklist nor copy provides an annual allowance | **soft** |
+| `LEASE_ALLOWANCE_NOT_IN_COPY` | Same, salesperson `annualKmAllowance` | Checklist has an allowance but the ad copy does not | **soft** |
+| `LEASE_ALLOWANCE_MISMATCH` | Same, salesperson `annualKmAllowance` | Checklist allowance differs from the ad copy | **soft** |
 
 Empty draft (`blank(title) && blank(body)`): no short-circuit. The ordinary rules always yield hard `PRICE_MISSING`, `DEALER_NAME_MISSING` and `DEALER_CONTACT_MISSING`, plus `CONDITION_UNDISCLOSED` when the vehicle is AS_IS / UNFIT / IRREPARABLE (a CERTIFIED vehicle gets soft `CERTIFIED_NOT_IN_COPY` instead). The result is always Blocked, so the AI is never called.
 
@@ -469,7 +472,17 @@ Result runFixedOmvic(Listing L, VehiclePublic V, DealerPublic D) {
         if (!PAYMENT.matcher(text).find()) soft.add(LEASE_RENT_MISSING);
         if (!LEASE_DOWN.matcher(text).find()) soft.add(LEASE_DOWN_MISSING);
         OptionalInt km = capturedKm(text);
-        if (km.isPresent()) {
+        Integer declared = L.annualKmAllowance;   // salesperson checklist, may be null
+        if (declared != null) {
+            int effective = declared;
+            if (km.isEmpty()) soft.add(LEASE_ALLOWANCE_NOT_IN_COPY);
+            else {
+                if (km.getAsInt() != declared) soft.add(LEASE_ALLOWANCE_MISMATCH);
+                effective = Math.min(declared, km.getAsInt());   // the stricter figure decides
+            }
+            if (effective < 20000 && !LEASE_EXCESS.matcher(text).find())
+                hard.add(LEASE_EXCESS_KM_MISSING);
+        } else if (km.isPresent()) {
             if (km.getAsInt() < 20000 && !LEASE_EXCESS.matcher(text).find())
                 hard.add(LEASE_EXCESS_KM_MISSING);
         } else {

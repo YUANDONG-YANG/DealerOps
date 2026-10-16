@@ -2,7 +2,7 @@ import { http, apiError } from './http';
 
 export type VinDecode = {
   make: string; model: string; modelYear: number | null;
-  bodyClass: string | null; engine: string | null;
+  bodyClass: string | null; bodyType: string | null; engine: string | null;
   country: string | null; manufacturer: string | null;
 };
 

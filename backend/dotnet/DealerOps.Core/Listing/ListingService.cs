@@ -115,6 +115,8 @@ public class ListingService
         if (last != null)
             text.Append("Checked at: ").AppendLine(
                 DateTime.SpecifyKind(last.CreatedAt, DateTimeKind.Utc).ToString("O"));
+        text.AppendLine()
+            .AppendLine("This check is not legal advice and is not an OMVIC approval. Confirm current disclosure requirements with OMVIC before publishing.");
 
         return text.ToString();
     }

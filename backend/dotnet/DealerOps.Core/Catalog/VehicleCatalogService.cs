@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using DealerOps.Core.Common.Exceptions;
+using DealerOps.Core.Vehicle;
 using Microsoft.Extensions.Caching.Memory;
 
 namespace DealerOps.Core.Catalog;
@@ -117,10 +118,12 @@ public class VehicleCatalogService
             && int.TryParse(yearStr, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsedYear))
             modelYear = parsedYear;
 
+        var bodyClass = Text(r, "BodyClass");
         var decoded = new VinDecodeResponse(
             key, makeName, Text(r, "Model") ?? "",
             modelYear,
-            Text(r, "BodyClass"),
+            bodyClass,
+            BodyTypeOf(bodyClass),
             engineParts.Count > 0 ? string.Join(" ", engineParts) : null,
             Text(r, "PlantCountry"), Text(r, "Manufacturer"));
 
@@ -151,5 +154,22 @@ public class VehicleCatalogService
         if (!r.TryGetProperty(field, out var prop)) return null;
         var val = prop.GetString()?.Trim();
         return string.IsNullOrEmpty(val) ? null : val;
+    }
+
+    // Maps vPIC's free-text BodyClass onto the DMS body types. Utility classes are tested first
+    // because "Sport Utility Vehicle (SUV)/Multi-Purpose Vehicle (MPV)" also contains "Vehicle".
+    private static VehicleBodyType? BodyTypeOf(string? bodyClass)
+    {
+        if (bodyClass is null) return null;
+        var c = bodyClass.ToLowerInvariant();
+        if (c.Contains("utility") || c.Contains("suv") || c.Contains("cuv") || c.Contains("mpv"))
+            return VehicleBodyType.Suv;
+        if (c.Contains("motorcycle") || c.Contains("scooter")) return VehicleBodyType.Motorcycle;
+        if (c.Contains("pickup") || c.Contains("truck")) return VehicleBodyType.Truck;
+        if (c.Contains("van")) return VehicleBodyType.Van;
+        if (c.Contains("hatchback") || c.Contains("liftback")) return VehicleBodyType.Hatchback;
+        if (c.Contains("coupe")) return VehicleBodyType.Coupe;
+        if (c.Contains("sedan") || c.Contains("saloon")) return VehicleBodyType.Sedan;
+        return VehicleBodyType.Other;
     }
 }

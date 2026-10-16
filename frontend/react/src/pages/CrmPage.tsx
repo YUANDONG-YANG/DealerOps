@@ -234,7 +234,7 @@ export default function CrmPage() {
   }
 
   function openCreate() {
-    editSeqRef.current++;
+    const seq = ++editSeqRef.current;
     setSelected(null);
     setForm(blankForm());
     setFormError('');
@@ -247,6 +247,7 @@ export default function CrmPage() {
     setVehicleQuery('');
     setCustomerLeads([]);
     setDrawer(true);
+    void loadLinkOptions(seq);
   }
 
   async function openEdit(id: number) {
@@ -294,7 +295,17 @@ export default function CrmPage() {
         await reload();
         await openEdit(selected.id);
       } else {
-        await customersApi.create(payload);
+        const created = await customersApi.create(payload);
+        if (linkId !== undefined) {
+          try {
+            await customersApi.link(created.data.id, linkId);
+          } catch (e) {
+            await reload();
+            await openEdit(created.data.id);
+            setLinkError(`Customer was created, but vehicle linking failed: ${mapLink(e)}`);
+            return;
+          }
+        }
         setDrawer(false);
         await reload();
       }
@@ -421,6 +432,15 @@ export default function CrmPage() {
               )}
             </div>
           ))}
+          {!selected && <div className="form-item">
+            <label className="form-label" htmlFor="customer-purchased-vehicle">Car(s) purchased</label>
+            <select id="customer-purchased-vehicle" className="select" value={linkId ?? ''}
+              onChange={e => setLinkId(e.target.value ? Number(e.target.value) : undefined)}>
+              <option value="">No vehicle linked yet</option>
+              {vehicles.map(v => <option key={v.id} value={v.id}>{vehicleOptionLabel(v)}</option>)}
+            </select>
+            <span className="muted">Optional for customers who have not purchased a vehicle.</span>
+          </div>}
           {formError && <p className="danger-text">{formError}</p>}
           <button type="submit" className="btn btn-primary" disabled={saving}>{saving ? 'Saving…' : 'Save'}</button>
         </form>

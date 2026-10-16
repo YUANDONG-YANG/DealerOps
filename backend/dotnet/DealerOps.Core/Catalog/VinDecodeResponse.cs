@@ -1,3 +1,5 @@
+using DealerOps.Core.Vehicle;
+
 namespace DealerOps.Core.Catalog;
 
 public record VinDecodeResponse(
@@ -6,6 +8,7 @@ public record VinDecodeResponse(
     string? Model,
     int? ModelYear,
     string? BodyClass,
+    VehicleBodyType? BodyType,
     string? Engine,
     string? Country,
     string? Manufacturer);

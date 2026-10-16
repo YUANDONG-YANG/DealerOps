@@ -1,6 +1,6 @@
 # 11 Instructions for Cursor
 
-> Historical task instructions issued 2026-09-25. Do not execute for the current worktree; the branch, Java paths, and task scope described below are obsolete. See the current PDF and code audit in [13-PDF-Requirements-Audit-2026-10-16.md](13-PDF-Requirements-Audit-2026-10-16.md).
+> Historical task instructions issued 2026-09-25. Do not execute for the current worktree; the branch, Java paths, and task scope described below are obsolete. See the current customer-source and code audit in [13-Customer-Requirements-Audit-2026-10-16.html](13-Customer-Requirements-Audit-2026-10-16.html).
 
 ## Development phase: no test authoring
 

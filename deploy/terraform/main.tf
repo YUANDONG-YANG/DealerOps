@@ -55,7 +55,7 @@ locals {
   core_internal_url  = "https://${local.core_app_name}.azurewebsites.net"
   ai_internal_url    = "https://${local.ai_app_name}.azurewebsites.net"
   gateway_public_url = "https://${local.gateway_app_name}.azurewebsites.net"
-  web_public_origin  = "https://${local.web_app_name}.azurewebsites.net"
+  web_public_origin  = var.web_custom_domain != "" ? "https://${var.web_custom_domain}" : "https://${local.web_app_name}.azurewebsites.net"
   # The gateway allows exactly one browser origin. Default is this stack's own SPA; a team
   # that builds its own frontend elsewhere points it at that origin instead.
   cors_allowed_origin = var.cors_allowed_origin != "" ? var.cors_allowed_origin : local.web_public_origin
@@ -137,6 +137,14 @@ resource "azurerm_key_vault_secret" "internal_token" {
 resource "azurerm_key_vault_secret" "mysql_password" {
   name         = "MYSQL-PASSWORD"
   value        = local.mysql_admin_password
+  key_vault_id = azurerm_key_vault.kv.id
+}
+
+# The full connection string embeds the password, so it is a secret in its own right (SEC-04)
+# and is referenced from Key Vault rather than written into the app settings.
+resource "azurerm_key_vault_secret" "mysql_connection_string" {
+  name         = "MYSQL-CONNECTION-STRING"
+  value        = "Server=${azurerm_mysql_flexible_server.mysql.fqdn};Port=3306;Database=${local.mysql_database_name};User=${var.mysql_admin_username};Password=${local.mysql_admin_password};SslMode=Required"
   key_vault_id = azurerm_key_vault.kv.id
 }
 
@@ -243,6 +251,27 @@ resource "azurerm_linux_web_app" "web" {
   }
 }
 
+# Optional customer-owned hostname. The DNS CNAME must be configured before applying;
+# Azure issues and renews the managed TLS certificate after ownership is validated.
+resource "azurerm_app_service_custom_hostname_binding" "web" {
+  count               = var.web_custom_domain == "" ? 0 : 1
+  hostname            = var.web_custom_domain
+  app_service_name    = azurerm_linux_web_app.web.name
+  resource_group_name = azurerm_resource_group.rg.name
+}
+
+resource "azurerm_app_service_managed_certificate" "web" {
+  count                      = var.web_custom_domain == "" ? 0 : 1
+  custom_hostname_binding_id = azurerm_app_service_custom_hostname_binding.web[0].id
+}
+
+resource "azurerm_app_service_certificate_binding" "web" {
+  count               = var.web_custom_domain == "" ? 0 : 1
+  hostname_binding_id = azurerm_app_service_custom_hostname_binding.web[0].id
+  certificate_id      = azurerm_app_service_managed_certificate.web[0].id
+  ssl_state           = "SniEnabled"
+}
+
 # dealer-gateway: the only API origin the browser is allowed to call.
 resource "azurerm_linux_web_app" "gateway" {
   name                            = local.gateway_app_name
@@ -324,7 +353,7 @@ resource "azurerm_linux_web_app" "core" {
     local.common_app_settings,
     {
       Kestrel__Endpoints__Http__Url = local.kestrel_url
-      ConnectionStrings__Default    = "Server=${azurerm_mysql_flexible_server.mysql.fqdn};Port=3306;Database=${local.mysql_database_name};User=${var.mysql_admin_username};Password=${local.mysql_admin_password};SslMode=Required"
+      ConnectionStrings__Default    = "@Microsoft.KeyVault(SecretUri=${azurerm_key_vault_secret.mysql_connection_string.versionless_id})"
       AiService__BaseUrl            = local.ai_internal_url
       AiService__InternalToken      = "@Microsoft.KeyVault(SecretUri=${azurerm_key_vault_secret.internal_token.versionless_id})"
       Jwt__DevSecret                = "@Microsoft.KeyVault(SecretUri=${azurerm_key_vault_secret.jwt_signing_secret.versionless_id})"

@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { useSessionStore } from '../store/session';
-import { checkStatusLabel, isCheckStatus, type Listing, type RuleFinding } from '../api/listings';
+import { checkStatusLabel, isCheckStatus, type Listing, type PriorUse, type RuleFinding } from '../api/listings';
 import StatusTag from './StatusTag';
 
 type ChecklistItem = { label: string; codes: string[] };
@@ -43,7 +43,7 @@ function buildChecklist(listing: Listing): ChecklistItem[] {
       { label: 'Rent / payment', codes: ['LEASE_RENT_MISSING'] },
       { label: 'APR', codes: ['LEASE_APR_MISSING'] },
       { label: 'Down payment', codes: ['LEASE_DOWN_MISSING'] },
-      { label: 'Low-km excess charges', codes: ['LEASE_EXCESS_KM_MISSING', 'LEASE_ALLOWANCE_UNSTATED'] },
+      { label: 'Annual kilometre allowance and excess charges', codes: ['LEASE_EXCESS_KM_MISSING', 'LEASE_ALLOWANCE_UNSTATED', 'LEASE_ALLOWANCE_NOT_IN_COPY', 'LEASE_ALLOWANCE_MISMATCH'] },
     );
   }
   return items;
@@ -109,7 +109,7 @@ export default function AdWorkspace({ listing, onChange, vehicle, readOnly, pick
                 Year {String(vehicle?.modelYear ?? '—')} · Condition {conditionLabel(vehicle?.conditionCode as string)} · Dealership {session.dealerLegalName || '—'}
               </p>
               <p className="muted">
-                Contact {session.dealerContactPhone || '—'} · {session.dealerContactEmail || '—'}
+                Contact {session.dealerContactPhone || '—'} · {session.dealerContactEmail || '—'} · {session.dealerContactAddress || '—'}
               </p>
               <div className="form-item"><label className="form-label">Title</label>
                 <input className="input" value={listing.title} disabled={formDisabled}
@@ -133,7 +133,7 @@ export default function AdWorkspace({ listing, onChange, vehicle, readOnly, pick
               </div>
               <div className="form-item"><label className="form-label">Previous use</label>
                 <select className="select" value={listing.priorUse ?? ''} disabled={formDisabled}
-                  onChange={(e) => onChange({ ...listing, priorUse: e.target.value || null })}>
+                  onChange={(e) => onChange({ ...listing, priorUse: (e.target.value || null) as PriorUse | null })}>
                   <option value="">Not applicable / unknown</option>
                   <option value="POLICE_EMERGENCY">Police or emergency vehicle</option>
                   <option value="TAXI_LIMO">Taxi or limousine</option>
@@ -176,7 +176,7 @@ export default function AdWorkspace({ listing, onChange, vehicle, readOnly, pick
               ))}
             </ul>
             <p className="muted" style={{ fontSize: 12, marginTop: 8 }}>
-              Display only. Marks show the last server check; pass or block comes from the server, not this list.
+              Marks show the last server check; pass or block comes from the server, not this list. The previous-use, warranty and kilometre answers on the left are part of that check.
             </p>
             <h4 style={{ margin: '16px 0 8px', fontSize: 15, fontWeight: 600 }}>Rule findings</h4>
             {findings.length > 0 ? (

@@ -52,6 +52,9 @@ public class AuthService
         var user = _db.AppUsers.FirstOrDefault(u => u.FirebaseUid == identity.Uid && u.Active)
                    ?? _db.AppUsers.FirstOrDefault(u => u.Email != null && u.Email.ToLower() == email && u.Active);
 
+        if (user?.Role == AppRole.PlatformAdmin)
+            throw new ApiException(ErrorCode.Forbidden, "Firebase sign-in is not available for platform administrators.");
+
         if (user == null)
         {
             var username = string.IsNullOrWhiteSpace(request.Username)

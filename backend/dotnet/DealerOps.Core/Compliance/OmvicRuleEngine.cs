@@ -137,10 +137,17 @@ public class OmvicRuleEngine
             soft.Add(Soft("NEW_USED_NOT_STATED",
                 "The ad does not state whether the vehicle is new or used."));
 
-        if ((PriorUseCue.IsMatch(text) || !string.IsNullOrWhiteSpace(listing.PriorUse)) &&
-            !PriorUseDisclosure.IsMatch(text))
+        var priorUseDisclosed = listing.PriorUse switch
+        {
+            "POLICE_EMERGENCY" => Regex.IsMatch(text, @"(?:previously|formerly|prior|ex)[\s\S]{0,30}(?:police|emergency)|(?:police|emergency)[\s\S]{0,30}(?:previously used|prior use|former)", RegexOptions.IgnoreCase),
+            "TAXI_LIMO" => Regex.IsMatch(text, @"(?:previously|formerly|prior|ex)[\s\S]{0,30}(?:taxi|cab\b|limo)|(?:taxi|cab\b|limo)[\s\S]{0,30}(?:previously used|prior use|former)", RegexOptions.IgnoreCase),
+            "DAILY_RENTAL" => Regex.IsMatch(text, @"(?:previously|formerly|prior|ex)[\s\S]{0,30}rental|rental[\s\S]{0,30}(?:previously used|prior use|former)", RegexOptions.IgnoreCase),
+            "OTHER" => PriorUseDisclosure.IsMatch(text),
+            _ => PriorUseDisclosure.IsMatch(text)
+        };
+        if (((PriorUseCue.IsMatch(text) || !string.IsNullOrWhiteSpace(listing.PriorUse)) && !priorUseDisclosed))
             soft.Add(Soft("PRIOR_USE_UNCLEAR", "Prior use is mentioned without a clear disclosure."));
-        if (!string.IsNullOrWhiteSpace(listing.WarrantyTerms) && !WarrantyBoast.IsMatch(text))
+        if (!string.IsNullOrWhiteSpace(listing.WarrantyTerms) && !ContainsNormalized(text, listing.WarrantyTerms))
             soft.Add(Soft("WARRANTY_TERMS_MISSING", "Extended warranty terms are recorded but are not stated in the ad."));
         if (WarrantyBoast.IsMatch(text))
             soft.Add(Soft("WARRANTY_CLAIM_NEEDS_REVIEW", "Warranty claim needs review."));
@@ -183,7 +190,19 @@ public class OmvicRuleEngine
             if (!kmMatch.Success) kmMatch = LeaseKmAllowanceAnnualFirst.Match(text);
             if (listing.AnnualKmAllowance is int declaredAllowance)
             {
-                if (declaredAllowance < 20000 && !LeaseExcess.IsMatch(text))
+                // The stricter of the two figures decides: an ad that prints 16,000 km/year must
+                // disclose the excess-km fee even if the checklist recorded 24,000.
+                var effectiveAllowance = declaredAllowance;
+                if (!kmMatch.Success)
+                    soft.Add(Soft("LEASE_ALLOWANCE_NOT_IN_COPY", "Recorded annual kilometre allowance is not stated in the ad."));
+                else
+                {
+                    var copyAllowance = int.Parse(kmMatch.Groups["km"].Value.Replace(",", "").Replace(" ", ""));
+                    if (copyAllowance != declaredAllowance)
+                        soft.Add(Soft("LEASE_ALLOWANCE_MISMATCH", "Annual kilometre allowance in the ad differs from the salesperson checklist."));
+                    effectiveAllowance = Math.Min(declaredAllowance, copyAllowance);
+                }
+                if (effectiveAllowance < 20000 && !LeaseExcess.IsMatch(text))
                     hard.Add(Hard("LEASE_EXCESS_KM_MISSING", "Excess kilometre fees are missing."));
             }
             else if (kmMatch.Success)

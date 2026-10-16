@@ -14,7 +14,8 @@ Source item → requirement ID → design doc → acceptance case. Design docs a
 | SCOPE | VIN unique per dealer | DMS-03 | 14 | AT-06 |
 | SCOPE | Sold lock | DMS-11, DMS-12 | 14 | AT-08 / BE-03; repeat Sell must return SOLD_LOCKED |
 | PDF §4 | 4 customer fields | CRM-01, CRM-02 | 00, 14 | AT-26; CL-2 |
-| PDF §4 | Purchase linked to DMS | CRM-05–09 | 14 | AT-09/10/25; BE-05 (same-store stock/sold and cross-store); BE-06 |
+| PDF §4 | Purchase linked to DMS | CRM-05–09 | 14 | AT-09/10/25/29; BE-05 (same-store stock/sold and cross-store); BE-06 |
+| PDF §5 | Salesperson checklist answers and disclosure checks | AD-02, AD-R03/06/25 | 04, 15 §6, PROTOCOL §C | AT-28 |
 | PDF §5 / SCOPE erratum 4 | Course BLOCK/REVIEW disclosures | AD-R01–R08 | 15 §6, PROTOCOL §C, 17 | AT-12/16/27; FX rule fixtures (individual findings) |
 | PDF §5 | Finance ads | AD-R10–R13 | 15 §6, PROTOCOL §C, 17 | AT-13/24/27 |
 | PDF §5 | Radio / TV / billboard exemption | AD-R14 | 17 | AT-14 |
@@ -36,7 +37,7 @@ Source item → requirement ID → design doc → acceptance case. Design docs a
 | DOC2 | Image Studio | IMG-01–05 | 21 §7 | EXT cases in 16 |
 | DOC | Sales-funnel reports | CRM-15 (Won't) | — | — |
 
-Display-only checklist AD-02 / UI-40 → AT-28. Soft review and AI outcome AD-03/08/10/12 → AT-27. Existing classroom demo set stays unchanged; AT-24–28 are short regression checks using the same records.
+Structured salesperson checklist AD-02 / UI-40 → AT-28. Soft review and AI outcome AD-03/08/10/12 → AT-27. Existing classroom demo set stays unchanged; AT-24–28 are short regression checks using the same records.
 
 ## Known coverage gaps
 

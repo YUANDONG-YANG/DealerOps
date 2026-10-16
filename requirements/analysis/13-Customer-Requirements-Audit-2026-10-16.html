@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>DealerOps Customer Requirements Audit</title>
+  <style>
+    :root { color-scheme: light; --ink:#17212b; --muted:#5c6b78; --line:#d7e0e7; --surface:#fff; --soft:#f3f7fa; --accent:#145b8c; }
+    body { margin:0; background:#edf2f6; color:var(--ink); font:16px/1.55 system-ui,-apple-system,"Segoe UI",sans-serif; }
+    main { max-width:1120px; margin:32px auto; padding:36px; background:var(--surface); box-shadow:0 8px 32px #1b334014; }
+    h1,h2 { line-height:1.2; } h1 { margin-top:0; font-size:2rem; } h2 { margin-top:2rem; border-bottom:1px solid var(--line); padding-bottom:.4rem; }
+    p,li { max-width:90ch; } .meta,.muted { color:var(--muted); } .callout { border-left:4px solid var(--accent); background:var(--soft); padding:12px 16px; }
+    table { width:100%; border-collapse:collapse; margin:1rem 0 1.5rem; font-size:.94rem; } th,td { border:1px solid var(--line); padding:9px 11px; text-align:left; vertical-align:top; } th { background:var(--soft); }
+    .status { font-weight:650; } .gap { color:#8a3b00; } code { background:var(--soft); padding:.1rem .3rem; border-radius:4px; }
+    @media(max-width:700px) { main { margin:0; padding:20px; } table { display:block; overflow-x:auto; } }
+    @media print { body { background:white; } main { margin:0; padding:0; box-shadow:none; } }
+  </style>
+</head>
+<body>
+<main>
+  <h1>DealerOps Customer Requirements Audit</h1>
+  <p class="meta">Audit date: 2026-10-16 · Sources: customer DOCX files, <em>DealerOps-Specification.pdf</em>, and <em>DealerOps-Development-Progress-en.html</em>.</p>
+  <p class="callout"><strong>Audit status:</strong> Implementation is in progress. This report tracks customer-source coverage, not formal client sign-off. Items marked implemented have been found in active .NET/React source; builds are not a substitute for end-to-end acceptance.</p>
+
+  <h2>Source coverage</h2>
+  <table><thead><tr><th>Source</th><th>Coverage represented</th><th>Current implementation / remaining work</th></tr></thead><tbody>
+    <tr><td>Specification PDF §1–2</td><td>Multi-tenant dealership data, roles, shared DMS/CRM/ad application</td><td>Dealer-scoped services, authorization and Gateway routes exist; verify through focused two-dealer acceptance.</td></tr>
+    <tr><td>Specification PDF §3</td><td>DMS vehicle fields, lifecycle, acquisition/sale data</td><td>Vehicle CRUD and sale lifecycle are implemented; optional body type is an extension. Source/build review only in this audit.</td></tr>
+    <tr><td>Specification PDF §4</td><td>Customer profile and purchased-car links</td><td>Existing customer detail supports multiple links. Customer creation now includes an optional initial vehicle association; customers without a purchase remain creatable.</td></tr>
+    <tr><td>Specification PDF §5</td><td>Ad disclosures, salesperson checklist, medium-specific finance rules</td><td>Structured prior-use, warranty-terms and annual-lease-kilometre inputs persist with the listing and inform deterministic checks. Existing course severity policy remains where it intentionally softens source severity.</td></tr>
+    <tr><td>Specification PDF §6–8</td><td>Audit/security, requested pages, hosting, backup and known limitations</td><td>Audit surfaces and pages exist. Terraform provisions the Azure-managed <code>dealer-ops-dev.azurewebsites.net</code> website domain and exports <code>web_public_url</code>. MySQL managed backups retain seven days; recovery is operator-driven. No separate custom domain is bound.</td></tr>
+    <tr><td>Customer notes DOCX</td><td>VIN decode, lead follow-up, reconditioning work orders, registration/authentication, Image Studio</td><td>All five extensions are recorded as implemented in <code>design/21-Feature-Extensions.md</code>; this audit is checking each active route, workflow, tenant boundary, persistence and frontend entry point rather than relying on that summary alone.</td></tr>
+    <tr><td>Progress HTML</td><td>Delivery claims and known deviations</td><td>Count answers and Firebase sign-in are present. A stale account-takeover warning was corrected in code; this report is the current audit record.</td></tr>
+  </tbody></table>
+
+  <h2>Corrections made during this audit</h2>
+  <ul>
+    <li>Added structured advertisement checklist fields for prior use, offered extended-warranty terms, and lease annual kilometre allowance; the values participate in saved-content versioning and server-side checks.</li>
+    <li>Added an optional vehicle association to customer creation while preserving support for a customer who has not purchased a vehicle.</li>
+    <li>Firebase sign-in now requires a verified email and refuses platform-administrator accounts, closing the unsafe email-linking path documented in the scope baseline.</li>
+    <li>This audit is maintained as HTML for readability and editing.</li>
+  </ul>
+
+  <h2>Remaining audit checklist</h2>
+  <table><thead><tr><th>Area</th><th>Review required</th><th>Status</th></tr></thead><tbody>
+    <tr><td>Advertisement checklist</td><td>Structured inputs persist on the tenant-owned listing; changes invalidate the prior check; deterministic rules consume prior-use, warranty and lease-allowance answers.</td><td class="status">Implemented; DealerOps.Core and React production builds pass.</td></tr>
+    <tr><td>CRM purchase association</td><td>Creation-time link uses existing customer/vehicle endpoints; vehicle selection is optional and link failure returns the user to the customer detail flow.</td><td class="status">Implemented; React production build passes.</td></tr>
+    <tr><td>Firebase authentication</td><td>Verifier checks <code>email_verified</code>; platform-administrator accounts are refused.</td><td class="status">Implemented; DealerOps.Core build passes.</td></tr>
+    <tr><td>Five client-note extensions</td><td>Active controller/service/UI modules exist for VIN, leads, work orders, authentication and photo studio; this review confirmed routes and major service entry points. Deep manual acceptance of each workflow remains necessary.</td><td class="status">Code present; runtime acceptance not performed.</td></tr>
+    <tr><td>Hosting and recovery</td><td>Terraform provisions the public website at its Azure-managed hostname and configures HTTPS; managed backups retain seven days. A live restore exercise remains an operator acceptance item. A separate custom domain is optional, not required for the existing deployed hostname.</td><td class="status">Website domain and backup retention configured; restore exercise not performed.</td></tr>
+    <tr><td>Final verification</td><td><code>dotnet build backend/dotnet/DealerOps.Core --no-restore</code>; <code>npm run build</code> in <code>frontend/react</code>. No automated tests were run.</td><td class="status">Both builds pass; existing compiler and bundle-size warnings remain.</td></tr>
+  </tbody></table>
+  <p class="muted">No automated tests or live user workflows are claimed by this report. The report itself is English-only.</p>
+</main>
+</body>
+</html>

@@ -56,7 +56,7 @@ Delivered as a floating panel on signed-in business pages, not as its own route 
 
 | ID | Requirement |
 |---|---|
-| UI-40 | Pick a vehicle → edit title, body, kind, medium; view the checklist (no additional answer fields) |
+| UI-40 | Pick a vehicle → edit title, body, kind and medium; enter prior-use, offered-warranty and (for lease) annual-kilometre checklist answers |
 | UI-41 | Show year, condition, dealer name, and contact info pulled from DMS / dealer profile |
 | UI-42 | "Check" button with a loading state (up to 15 s) |
 | UI-43 | Results listed per rule with ✅ / ❌ / ⚠️ and reason |
@@ -108,7 +108,8 @@ Additional focused checks reuse the same demo records and existing screens/APIs;
 | AT-25 | Sale before CRM link | Sell an unlinked same-dealer vehicle; link it to a customer; attempt second link and unlink | First link succeeds; second VEHICLE_ALREADY_LINKED; unlink SOLD_LOCKED | CRM-05–08; BE-05/06 |
 | AT-26 | CRM required fields and edit | Try creating with each of the four required fields blank; then create valid customer, edit and reopen | Blank input rejected; valid create/edit persist; history records change without contact values | CRM-01/02/04/11/12; CL-2, BE-11 |
 | AT-27 | Soft findings do not veto | Use otherwise hard-valid copy missing year and finance term; real AI returns successfully | PASSED; saved findings are REVIEW and AI notes retained; Ready/export succeed; no AI veto state | AD-03/08/10/12, AD-R05/12 |
-| AT-28 | Checklist is display only | Select CASH, FINANCE, LEASE and switch medium | Displayed checklist follows selection; no prior-use/warranty/km answer fields or required ticks | AD-02, UI-40 |
+| AT-28 | Salesperson checklist answers persist and inform checks | Enter a prior-use category and warranty terms; save and reload. For a lease, enter annual km, save and check copy with matching/missing/mismatched allowance | Values survive reload; changing an answer makes the previous check stale; findings reflect missing prior-use/warranty disclosure and lease allowance mismatch; broadcast still skips prominence only | AD-02, AD-R03/06/25, UI-40 |
+| AT-29 | Create customer with or without a purchased car | Create one customer with an unlinked dealer vehicle selected; create another without a vehicle | First customer shows the linked vehicle; second is saved with no vehicle; selecting a vehicle from another dealer is impossible | CRM-01, CRM-05–09 |
 | AT-40 | Assistant aggregate count | Ask for in-stock vehicles, sold vehicles, customers, listings and a supported listing check status; repeat with another dealer's data present | Each answer equals the full matching count for the signed-in dealer, including when more than five records match; no other dealer's rows affect the answer; ask with AI service unavailable and receive the same count | AI-03, UI-52 |
 
 These cases define expected behavior; execution results must be recorded separately. Existing BE/FE/CL references are in design/16-Acceptance-and-Test.md.

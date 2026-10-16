@@ -18,6 +18,7 @@
 # ── Region ──────────────────────────────────────────────────────────
 # location                = "canadacentral"
 # web_app_name            = "dealer-ops-dev"
+# web_custom_domain       = "" # optional, e.g. "www.example.com"; configure its CNAME before apply
 # mysql_location          = "canadaeast"
 
 # ── Naming ──────────────────────────────────────────────────────────

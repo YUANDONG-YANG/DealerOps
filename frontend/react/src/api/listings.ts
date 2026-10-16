@@ -5,6 +5,7 @@ export { apiError };
 export type CheckStatus = 'BLOCKED' | 'NEEDS_AI' | 'PASSED' | 'STALE' | 'AI_UNAVAILABLE';
 export type AdKind = 'CASH' | 'FINANCE' | 'LEASE';
 export type Medium = 'ONLINE' | 'RADIO_TV_BILLBOARD';
+export type PriorUse = 'POLICE_EMERGENCY' | 'TAXI_LIMO' | 'DAILY_RENTAL' | 'OTHER';
 
 export interface RuleFinding {
   ruleId: string;
@@ -32,7 +33,7 @@ export interface Listing {
   body: string;
   adKind: AdKind;
   medium: Medium;
-  priorUse: string | null;
+  priorUse: PriorUse | null;
   warrantyTerms: string | null;
   annualKmAllowance: number | null;
   status: string;
