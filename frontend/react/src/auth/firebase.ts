@@ -9,20 +9,12 @@ import {
 } from 'firebase/auth'
 
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID,
-}
-
-const missing = Object.entries(firebaseConfig)
-  .filter(([, value]) => !value)
-  .map(([key]) => key)
-
-if (missing.length > 0) {
-  throw new Error(`Missing Firebase configuration: ${missing.join(', ')}`)
+  apiKey: 'AIzaSyC60CS2NNLpslRXsMvThWS3E8NINVniqs8',
+  authDomain: 'dealer-ops-c0851.firebaseapp.com',
+  projectId: 'dealer-ops-c0851',
+  storageBucket: 'dealer-ops-c0851.firebasestorage.app',
+  messagingSenderId: '5817410828',
+  appId: '1:5817410828:web:717e6daeb9a840aa399529',
 }
 
 const app = initializeApp(firebaseConfig)

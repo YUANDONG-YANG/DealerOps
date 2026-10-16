@@ -22,7 +22,7 @@ Source verification as of 2026-09-28: [12-Requirements-Code-Verification-2026-09
 |---|---|---|---|
 | SRC-PDF | `../DealerOps-Specification.pdf` (2026-09-21) | Roles, DMS / CRM / ad-compliance fields, cross-cutting rules, page list, known limitations | **Authority for fields and business rules** |
 | SRC-DOC | `../Dos Car dealership.docx` | Product vision (DealerOS): DMS core + CRM + AI compliance assistant + optional Image Studio | Vision / selling points; does not define fields |
-| SRC-DOC2 | `../Dos Car dealership2.docx` | The same vision plus the client notes: questions put to the client, C# as the preferred language, the NHTSA vPIC VIN-decode flow and its returned fields, landing-page contents, a React UI, and a Firebase auth stack | **Authority for the errata 6–8 extensions.** The Firebase stack is **not** adopted; see SCOPE-BASELINE erratum 7 |
+| SRC-DOC2 | `../Dos Car dealership2.docx` | The same vision plus the client notes: questions put to the client, C# as the preferred language, the NHTSA vPIC VIN-decode flow and its returned fields, landing-page contents, a React UI, and a Firebase auth stack | **Authority for the errata 6–9 extensions.** Firebase **Auth** was adopted on 2026-10-16 (erratum 9); the Firebase **database** was not — MySQL stays the only application database |
 | SRC-SCOPE | `../../design/SCOPE-BASELINE.md` | Signed scope, errata, Out of Scope | Conflict resolution |
 
 Related reports outside this folder: `../DealerOps-Requirements.md` (English superset report; it defines `NFR-08`), `../DealerOps-Requirements-zh.html` and `../DealerOps-Development-Progress-en.html`.

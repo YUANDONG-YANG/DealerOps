@@ -14,14 +14,11 @@ public record FirebaseIdentity(
 
 public sealed class FirebaseIdTokenVerifier
 {
-    private readonly string _projectId;
+    private const string ProjectId = "dealer-ops-c0851";
     private FirebaseAuth? _auth;
 
-    public FirebaseIdTokenVerifier(IConfiguration configuration)
+    public FirebaseIdTokenVerifier()
     {
-        _projectId = (configuration["Firebase:ProjectId"] ?? "").Trim();
-        if (_projectId.Length == 0)
-            throw new InvalidOperationException("Firebase:ProjectId is required.");
     }
 
     public async Task<FirebaseIdentity> VerifyAsync(string idToken, CancellationToken cancellationToken)
@@ -62,7 +59,7 @@ public sealed class FirebaseIdTokenVerifier
                 var app = FirebaseApp.Create(new AppOptions
                 {
                     Credential = credential,
-                    ProjectId = _projectId,
+                    ProjectId = ProjectId,
                 });
                 return _auth = FirebaseAuth.GetAuth(app);
             }

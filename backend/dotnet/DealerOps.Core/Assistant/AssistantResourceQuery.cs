@@ -3,6 +3,7 @@ using DealerOps.Core.Assistant.Dto;
 using DealerOps.Core.Compliance;
 using DealerOps.Core.Customer;
 using DealerOps.Core.Data;
+using DealerOps.Core.Listing;
 using DealerOps.Core.Vehicle;
 using Microsoft.EntityFrameworkCore;
 
@@ -15,9 +16,11 @@ public class AssistantResourceQuery
 
     private static readonly Regex InStockRx = new(@"\bin[ -]stock\b", RegexOptions.IgnoreCase | RegexOptions.Compiled);
     private static readonly Regex SoldRx = new(@"\bsold\b", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+    private static readonly Regex UnsoldRx = new(@"\bunsold\b", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+    private static readonly Regex CountRx = new(@"\b(?:how many|count|total|number of|quantity)\b", RegexOptions.IgnoreCase | RegexOptions.Compiled);
     private static readonly Regex VehicleWord = new(@"\b(?:vehicles?|cars?|inventory|stock|vin)\b", RegexOptions.IgnoreCase | RegexOptions.Compiled);
     private static readonly Regex CustomerWord = new(@"\b(?:customers?|clients?|buyers?|owners?)\b", RegexOptions.IgnoreCase | RegexOptions.Compiled);
-    private static readonly Regex ListingWord = new(@"\b(?:listings?|ads?|advertis\w*|compliance|checks?|blocked|passed|stale)\b", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+    private static readonly Regex ListingWord = new(@"\b(?:listings?|ads?|advertis\w*|compliance|checks?|blocked|passed|stale|needs?|ai|unavailable)\b", RegexOptions.IgnoreCase | RegexOptions.Compiled);
     private static readonly Regex Filler = new(
         @"\b(?:which|what|who|how|many|show|find|list|search|for|me|the|a|an|all|any|are|is|our|here|please|do|does|we|you|have|has|got|in|of|with|named|called|there)\b",
         RegexOptions.IgnoreCase | RegexOptions.Compiled);
@@ -90,19 +93,81 @@ public class AssistantResourceQuery
         return cards;
     }
 
+    /// <summary>
+    /// Computes aggregate answers from the complete, tenant-scoped query instead of
+    /// asking the model to count the deliberately truncated resource cards.
+    /// </summary>
+    public CountResult? Count(long tenantDealerId, string? text)
+    {
+        var question = Punctuation.Replace(text?.Trim() ?? "", " ");
+        if (!CountRx.IsMatch(question)) return null;
+
+        var vehicleStatus = InStockRx.IsMatch(question) || UnsoldRx.IsMatch(question)
+            ? VehicleStatus.InStock
+            : SoldRx.IsMatch(question) ? VehicleStatus.Sold : (VehicleStatus?)null;
+        var checkStatus = CheckStatus(question);
+        var vehicleAsked = vehicleStatus != null || VehicleWord.IsMatch(question);
+        var customerAsked = CustomerWord.IsMatch(question);
+        var listingAsked = checkStatus != null || ListingWord.IsMatch(question);
+
+        // “How many are there?” is intentionally not guessed. The user must name
+        // the resource type so a count cannot silently report the wrong dataset.
+        if (!vehicleAsked && !customerAsked && !listingAsked) return null;
+
+        var q = question;
+        q = InStockRx.Replace(q, " ");
+        q = UnsoldRx.Replace(q, " ");
+        q = SoldRx.Replace(q, " ");
+        q = CountRx.Replace(q, " ");
+        q = VehicleWord.Replace(q, " ");
+        q = CustomerWord.Replace(q, " ");
+        q = ListingWord.Replace(q, " ");
+        q = Filler.Replace(q, " ");
+        var terms = SearchTerms(q);
+
+        if (vehicleAsked && !customerAsked && !listingAsked)
+        {
+            IQueryable<VehicleEntity> query = _db.Vehicles.AsNoTracking()
+                .Where(v => v.DealerId == tenantDealerId);
+            if (vehicleStatus != null) query = query.Where(v => v.Status == vehicleStatus);
+            query = ApplyVehicleTerms(query, terms);
+            var count = query.Count();
+            var label = vehicleStatus == VehicleStatus.InStock ? "vehicles in stock"
+                : vehicleStatus == VehicleStatus.Sold ? "sold vehicles" : "vehicles";
+            return new CountResult(count, label);
+        }
+
+        if (customerAsked && !listingAsked && !vehicleAsked)
+        {
+            IQueryable<CustomerEntity> query = _db.Customers.AsNoTracking()
+                .Where(c => c.DealerId == tenantDealerId);
+            foreach (var term in terms)
+            {
+                var t = term;
+                query = query.Where(c => c.Name.Contains(t));
+            }
+            return new CountResult(query.Count(), terms.Count == 0 ? "customers" : "matching customers");
+        }
+
+        if (listingAsked && !customerAsked && !vehicleAsked)
+        {
+            var rows = ListingRows(tenantDealerId, terms);
+            var count = checkStatus == null
+                ? rows.Count
+                : rows.Count(x => _checkStatusMapper.Derive(x.l, x.check) == checkStatus);
+            return new CountResult(count, checkStatus == null ? "listings" : $"{checkStatus} listings");
+        }
+
+        return null;
+    }
+
     private List<ResourceCard> VehicleCards(long tenantDealerId, VehicleStatus? status, List<string> terms)
     {
         IQueryable<VehicleEntity> vq = _db.Vehicles.AsNoTracking()
             .Where(v => v.DealerId == tenantDealerId);
         if (status != null)
             vq = vq.Where(v => v.Status == status);
-        foreach (var term in terms)
-        {
-            var t = term;
-            vq = vq.Where(v =>
-                v.Vin.Contains(t) || v.Make.Contains(t) || v.Model.Contains(t)
-                || v.ModelYear.ToString() == t);
-        }
+        vq = ApplyVehicleTerms(vq, terms);
 
         // Purchase cost and repair cost are deliberately left off the card.
         return vq.Take(MaxCards).ToList()
@@ -129,41 +194,61 @@ public class AssistantResourceQuery
 
     private List<ResourceCard> ListingCards(long tenantDealerId, List<string> terms)
     {
-        var lq = from l in _db.Listings.AsNoTracking()
-                 join v in _db.Vehicles.AsNoTracking() on l.VehicleId equals v.Id
-                 where l.DealerId == tenantDealerId
-                 select new { l, v };
-
-        foreach (var term in terms)
-        {
-            var t = term;
-            lq = lq.Where(x =>
-                x.l.Title.Contains(t) || x.v.Make.Contains(t) || x.v.Model.Contains(t)
-                || x.v.Vin.Contains(t));
-        }
-
-        var rows = lq.Take(MaxCards).ToList();
-        var checkIds = rows.Where(x => x.l.LastCheckId != null)
-            .Select(x => x.l.LastCheckId!.Value)
-            .Distinct()
-            .ToList();
-        var checks = checkIds.Count == 0
-            ? new Dictionary<long, ComplianceCheckEntity>()
-            : _db.ComplianceChecks.AsNoTracking()
-                .Where(c => checkIds.Contains(c.Id))
-                .ToDictionary(c => c.Id);
+        var rows = ListingRows(tenantDealerId, terms).Take(MaxCards).ToList();
 
         return rows.Select(x =>
         {
-            ComplianceCheckEntity? lastCheck = null;
-            if (x.l.LastCheckId != null)
-                checks.TryGetValue(x.l.LastCheckId.Value, out lastCheck);
             var label = string.IsNullOrWhiteSpace(x.l.Title)
                 ? $"{x.v.ModelYear} {x.v.Make} {x.v.Model}"
                 : x.l.Title;
             return new ResourceCard("LISTING", x.l.Id, label, null, x.v.Id,
-                _checkStatusMapper.Derive(x.l, lastCheck));
+                _checkStatusMapper.Derive(x.l, x.check));
         }).ToList();
+    }
+
+    private IQueryable<VehicleEntity> ApplyVehicleTerms(IQueryable<VehicleEntity> query, List<string> terms)
+    {
+        foreach (var term in terms)
+        {
+            var t = term;
+            query = query.Where(v =>
+                v.Vin.Contains(t) || v.Make.Contains(t) || v.Model.Contains(t)
+                || v.ModelYear.ToString() == t);
+        }
+        return query;
+    }
+
+    private List<(ListingEntity l, VehicleEntity v, ComplianceCheckEntity? check)> ListingRows(long tenantDealerId, List<string> terms)
+    {
+        var lq = from l in _db.Listings.AsNoTracking()
+                 join v in _db.Vehicles.AsNoTracking() on l.VehicleId equals v.Id
+                 where l.DealerId == tenantDealerId
+                 select new { l, v };
+        foreach (var term in terms)
+        {
+            var t = term;
+            lq = lq.Where(x => x.l.Title.Contains(t) || x.v.Make.Contains(t)
+                || x.v.Model.Contains(t) || x.v.Vin.Contains(t));
+        }
+        var rows = lq.ToList();
+        var checkIds = rows.Where(x => x.l.LastCheckId != null).Select(x => x.l.LastCheckId!.Value).Distinct().ToList();
+        var checks = checkIds.Count == 0 ? new Dictionary<long, ComplianceCheckEntity>()
+            : _db.ComplianceChecks.AsNoTracking().Where(c => checkIds.Contains(c.Id)).ToDictionary(c => c.Id);
+        return rows.Select(x =>
+        {
+            checks.TryGetValue(x.l.LastCheckId ?? 0, out var check);
+            return (x.l, x.v, check);
+        }).ToList();
+    }
+
+    private static string? CheckStatus(string question)
+    {
+        if (Regex.IsMatch(question, @"\bblocked\b", RegexOptions.IgnoreCase)) return CheckStatusMapper.Blocked;
+        if (Regex.IsMatch(question, @"\bpassed\b", RegexOptions.IgnoreCase)) return CheckStatusMapper.Passed;
+        if (Regex.IsMatch(question, @"\bstale\b", RegexOptions.IgnoreCase)) return CheckStatusMapper.Stale;
+        if (Regex.IsMatch(question, @"\bneeds?\s+ai\b", RegexOptions.IgnoreCase)) return CheckStatusMapper.NeedsAi;
+        if (Regex.IsMatch(question, @"\bai[ -]unavailable\b", RegexOptions.IgnoreCase)) return CheckStatusMapper.AiUnavailable;
+        return null;
     }
 
     private static List<string> SearchTerms(string q)
@@ -175,4 +260,9 @@ public class AssistantResourceQuery
             .Take(MaxTerms)
             .ToList();
     }
+}
+
+public record CountResult(int Count, string Label)
+{
+    public string Summary => $"There {(Count == 1 ? "is" : "are")} {Count} {Label}.";
 }

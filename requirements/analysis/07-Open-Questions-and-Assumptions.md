@@ -5,7 +5,7 @@
 | Topic | PDF specification | DOCX brief | Resolution |
 |---|---|---|---|
 | Product name | Dealer Ops | DealerOS | Use Dealer Ops |
-| Sign-in | Username + password | Firebase email/password and Google login (DOCX2) | Local password accounts, BCrypt-hashed; the sign-in name may be email, username or phone, and self-registration is allowed with admin-granted dealership access. Google ID-token sign-in added 2026-10-15 as `AUTH-23`. Firebase itself is **not** adopted. See design/SCOPE-BASELINE.md errata 1 and 7 |
+| Sign-in | Username + password | Firebase email/password and Google login (DOCX2) | Local password accounts, BCrypt-hashed; the sign-in name may be email, username or phone, and self-registration is allowed with admin-granted dealership access. Google ID-token sign-in added 2026-10-15 as `AUTH-23`, and Firebase **Auth** on 2026-10-16 as a third path (`POST /api/v1/auth/firebase`), using the client's own Firebase project. The Firebase **database** is not adopted. DealerOps still owns the account, role, dealership binding and JWT on every path. See design/SCOPE-BASELINE.md errata 1, 7 and 9 |
 | CRM scope | Four fields + purchase link | Lead and customer lifecycle | Follow the PDF; no leads |
 | Compliance check | Checklist + system flags missing items | AI screens automatically | Both: fixed rules first, then AI review |
 | Publishing | "Before a listing is published" | "flagging before publication" | Ready + TXT export (SCOPE erratum 3) |

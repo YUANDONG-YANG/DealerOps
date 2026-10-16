@@ -21,6 +21,11 @@ public class AssistantService
         TenantGuard.RequireDealerUser();
         var tenant = TenantGuard.RequireTenantId();
         var cards = _resourceQuery.Load(tenant, body.Text);
+        var count = _resourceQuery.Count(tenant, body.Text);
+        if (count != null)
+        {
+            return new AskResponse(count.Summary, true, cards);
+        }
 
         try
         {

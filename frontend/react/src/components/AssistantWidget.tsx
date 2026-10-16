@@ -13,9 +13,10 @@ interface Turn {
 }
 
 const SUGGESTIONS = [
+  'How many vehicles are in stock?',
+  'How many customers do we have?',
   'Which Toyota vehicles are in stock?',
-  'Any unsold trucks?',
-  'Find customer Smith',
+  'How many blocked ads are there?',
 ]
 
 let nextId = 1

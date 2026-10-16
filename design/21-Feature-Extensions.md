@@ -12,7 +12,7 @@ Source: the client notes in `requirements/Dos Car dealership2.docx` and the orig
 
 Ground rules for every item:
 
-- **Add, do not rewrite.** The active stack is .NET 10 / ASP.NET Core, React 19 + TypeScript + Vite, one MySQL database, and Gateway-only browser traffic. The old Java/Vue wording is historical and the client notes' Firebase stack is not adopted.
+- **Add, do not rewrite.** The active stack is .NET 10 / ASP.NET Core, React 19 + TypeScript + Vite, one MySQL database, and Gateway-only browser traffic. The old Java/Vue wording is historical. The client notes' Firebase **database** stack is not adopted — MySQL stays the only application database — but Firebase **Auth** landed on 2026-10-16 as a third sign-in path; see SCOPE-BASELINE erratum 9.
 - Every new table carries `dealer_id` and uses the existing tenant filter (`TenantOwned`, `TenantGuard.requireDealerUser()`); another dealership's id is **404**, as for vehicles and customers.
 - Every new business write is audited in the same transaction through `AuditService`.
 - New migrations follow the naming rule in `CLAUDE.md` (`V{YYYYMMDD}_{n}__{action}.sql`); never edit an applied migration.

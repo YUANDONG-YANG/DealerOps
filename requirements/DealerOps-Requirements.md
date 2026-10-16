@@ -237,7 +237,7 @@ The spec PDF has no such page. It is added by scope erratum 2 to meet the course
 |---|---|---|
 | AI-01 | Ad compliance uses a real LLM review, not a simulated one | Must |
 | AI-02 | AI calls time out after 15 s, and a failure is never shown as passed | Must |
-| AI-03 | Read-only Q&A inside the dealership. It finds this dealership's vehicles, customers and ad listings (with check status) by keyword (make, VIN, customer name, and so on) and returns up to 5 resource cards with a short answer. It does not count inventory or customer totals. When the model is unavailable, the cards are still returned. It never writes to the database | Must |
+| AI-03 | Read-only Q&A inside the dealership. It finds this dealership's vehicles, customers and ad listings (with check status) by keyword (make, VIN, customer name, and so on), supports deterministic aggregate counts for vehicles, customers and listing check statuses, and returns up to 5 resource cards with a short answer. Counts come from the complete tenant-scoped query, never from the truncated cards. When the model is unavailable, the cards are still returned. It never writes to the database | Must |
 | AI-04 | The assistant sees only this dealership's data. Answers contain no purchase cost and no customer phone, email or address | Must |
 | AI-05 | AI notes come back as an array, each with at least a `message`. Rule codes (`ruleId`) and severity (BLOCK / REVIEW) belong to rule results and are shown apart from AI notes | Should |
 

@@ -70,7 +70,7 @@ Handbook page names: Login / Admin / DMS / CRM / Ad compliance / Assistant, plus
 | `/ads` | `ads` | `AdsView` | `roles: ['Dealer.User']` | page title **Ad compliance** |
 | `/team` | `team` | `TeamView` | `roles: ['Dealer.User']` | Join-request queue: approve or reject accounts asking to join this dealership |
 | `/profile` | `profile` | `ProfileView` | any signed-in user | Account self-service: own display name and phone, plus account deletion. Username, role and dealership binding are read-only |
-| `/no-access` | `no-access` | `NoAccessLanding` | — | Signed-in user without business access |
+| — | `no-access` | `NoAccessLanding` | — | Signed-in user without business access. A guard renders it **in place of** the requested page; it has no path of its own |
 
 - `/` → if not signed in, show the public landing page (brand, hero, feature cards, VIN decoder, ad-approval steps, `Sign in`, and `Create account`); if signed in, go to `/admin` or `/dms` by role, or `/no-access` without business access. The only API the landing page calls is the anonymous VIN decode (14 §4.6.1); it reads no dealership data. `/login` and `/register` use the local password account API (sign in by email, username, or phone). The DMS **Add vehicle** form has a `Decode` button on the VIN field that prefills make, model, year, and body type from the same endpoint.
 - Unknown path → signed out goes to `/login`; signed in follows the role landing above. Do not build a 404 page.
@@ -107,7 +107,7 @@ Email, username, or phone plus password; the username is also the backend accoun
 |---|---|
 | `VITE_GATEWAY_URL` | sole API root; local `http://localhost:8080` |
 
-- **Sign-in button**: one email/username/phone field + password field, one `Sign in` button. No social-provider redirect.
+- **Sign-in button**: one email/username/phone field + password field, one `Sign in` button, plus the Google button rendered by Google Identity Services (`AUTH-23`), hidden when no client id is configured. No other social provider and no redirect flow — Google returns an ID token in-page.
 - **Login call**: `src/auth/login.ts` posts `{ identifier, password }` to `POST ${VITE_GATEWAY_URL}/api/v1/auth/login`; `identifier` is the email, username, or phone. It stores the returned JWT in `sessionStorage`.
 - **Session**: after a successful login, `GET ${VITE_GATEWAY_URL}/api/v1/me` (14: `role`, `dealerId`, `dealerLegalName`; for Admin the last two are `null`). Top-bar dealership name: staff uses `dealerLegalName` (placeholder `Dealership` if empty); Admin is always `Platform Admin`.
 - **Gateway only**: `api/http.ts` uses `baseURL = import.meta.env.VITE_GATEWAY_URL`, path prefix `/api/v1`. Do not point axios at 8081/8082. Do not call `/internal/v1/**`.
