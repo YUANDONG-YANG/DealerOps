@@ -8,4 +8,7 @@ public record PatchListingRequest(
     [MaxLength(200)] string? Title,
     string? Body,
     AdKind? AdKind,
-    AdMedium? Medium);
+    AdMedium? Medium,
+    [MaxLength(32)] string? PriorUse,
+    [MaxLength(2000)] string? WarrantyTerms,
+    [Range(1, 1000000)] int? AnnualKmAllowance);

@@ -32,6 +32,9 @@ export interface Listing {
   body: string;
   adKind: AdKind;
   medium: Medium;
+  priorUse: string | null;
+  warrantyTerms: string | null;
+  annualKmAllowance: number | null;
   status: string;
   contentVersion: number;
   lastCheckId: number | null;
@@ -59,6 +62,7 @@ export function checkStatusLabel(value: unknown): string {
 export function emptyListing(vehicleId = 0): Listing {
   return {
     id: null, vehicleId, title: '', body: '', adKind: 'CASH', medium: 'ONLINE',
+    priorUse: null, warrantyTerms: null, annualKmAllowance: null,
     status: 'DRAFT', contentVersion: 1, lastCheckId: null, lastCheck: null, checkStatus: null, version: 0,
   };
 }
@@ -91,7 +95,7 @@ export function saveMessage(error: unknown): string {
 
 export const listingsApi = {
   get: (vehicleId: number) => http.get<Listing>(`/api/v1/vehicles/${vehicleId}/listing`),
-  save: (vehicleId: number, body: { version: number; title: string; body: string; adKind: AdKind; medium: Medium }) =>
+  save: (vehicleId: number, body: { version: number; title: string; body: string; adKind: AdKind; medium: Medium; priorUse: string | null; warrantyTerms: string | null; annualKmAllowance: number | null }) =>
     http.patch<Listing>(`/api/v1/vehicles/${vehicleId}/listing`, body),
   check: (listingId: number, body: { version: number }) =>
     http.post<CheckResult>(`/api/v1/listings/${listingId}/checks`, body, { timeout: 20000 }),

@@ -24,10 +24,10 @@ Source item → requirement ID → design doc → acceptance case. Design docs a
 | PDF §6 | Audit trail | AUD-01–07 | 14, 18 | AT-11/26, BE-11 (visible audit/PII); AUD-05/07 require implementation inspection, not proved by AT-11 |
 | PDF §6 | Shared back end | ARC-01, ARC-02 | 07, 00 | CL-2 + CL-5; Review 1 architecture inspection confirms shared backend/database |
 | PDF §7 | 5 pages | UI-01–04, UI-10–13, UI-20–24, UI-30–33, UI-40–46, UI-50–51 (29 ids; the ranges are not contiguous) | 12, 13 | FE-01–09, CL-1–6, AT-26/28; UI-46 deferred |
-| SCOPE | Assistant page | AI-03, AI-04, UI-50–51 | 10 | AT-21, AT-22 |
+| SCOPE + user request (2026-10-16) | Assistant panel, read-only lookup, deterministic counts | AI-03, AI-04, UI-50–52 | 10 | AT-21, AT-22, AT-40 |
 | SCOPE (PPT) | Gateway | ARC-03 | 19 | AT-23 |
 | PDF §8 | Password security | SEC-01–04 (reversed 2026-09-30, see design/SCOPE-BASELINE.md errata 1) | 15 §8 | CL-1/2; Review 2 Azure HTTPS, BCrypt hash + JWT and Key Vault evidence |
-| PDF §8 | Disclaimer / updatable rules | AD-14, AD-15 | 04 §5 / 07 Q-15 | Deferred; not demo acceptance gates |
+| PDF §8 | Compliance notice / rules update without code changes | AD-14, AD-15 | 04 §5 / 07 Q-15 | UI notice implemented; rule editor/configuration deferred as a production discussion item |
 | PDF §8 | Own hosting, backups | NFR-04, NFR-05, ARC-07 | 08, deploy/README.md | Review 2/3 Azure deployment evidence; custom domain and restore exercise are not added gates |
 | DOC2 | VIN decode and public landing page | VIN-01–04 | 21 §2, 13 §2, 14 §4.6.1 | EXT cases in 16 |
 | DOC2 | Lead follow-up | LEAD-01–09 | 21 §3, 13 §5.5a | EXT cases in 16 |

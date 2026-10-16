@@ -22,7 +22,7 @@ function buildChecklist(listing: Listing): ChecklistItem[] {
     { label: 'Dealership name and contacts', codes: ['DEALER_NAME_MISSING', 'DEALER_CONTACT_MISSING', 'DEALER_CONTACT_INCOMPLETE'] },
     { label: 'Prior use (when applicable)', codes: ['PRIOR_USE_UNCLEAR'] },
     { label: 'New/used and year', codes: ['NEW_USED_NOT_STATED', 'YEAR_NOT_IN_COPY', 'YEAR_NEW_USED_CONTRADICTION'] },
-    { label: 'Extended warranty (if any)', codes: ['WARRANTY_CLAIM_NEEDS_REVIEW'] },
+    { label: 'Extended warranty (if any)', codes: ['WARRANTY_CLAIM_NEEDS_REVIEW', 'WARRANTY_TERMS_MISSING'] },
     { label: 'Price', codes: ['PRICE_MISSING'] },
     { label: 'Condition', codes: ['CONDITION_MISMATCH', 'CONDITION_UNDISCLOSED', 'CERTIFIED_NOT_IN_COPY'] },
   ];
@@ -131,6 +131,24 @@ export default function AdWorkspace({ listing, onChange, vehicle, readOnly, pick
                   <option value="ONLINE">Online</option><option value="RADIO_TV_BILLBOARD">Radio / TV / Billboard</option>
                 </select>
               </div>
+              <div className="form-item"><label className="form-label">Previous use</label>
+                <select className="select" value={listing.priorUse ?? ''} disabled={formDisabled}
+                  onChange={(e) => onChange({ ...listing, priorUse: e.target.value || null })}>
+                  <option value="">Not applicable / unknown</option>
+                  <option value="POLICE_EMERGENCY">Police or emergency vehicle</option>
+                  <option value="TAXI_LIMO">Taxi or limousine</option>
+                  <option value="DAILY_RENTAL">Daily rental</option>
+                  <option value="OTHER">Other prior use</option>
+                </select>
+              </div>
+              <div className="form-item"><label className="form-label">Extended warranty terms (if offered)</label>
+                <textarea className="input" rows={3} maxLength={2000} value={listing.warrantyTerms ?? ''} disabled={formDisabled}
+                  onChange={(e) => onChange({ ...listing, warrantyTerms: e.target.value || null })} />
+              </div>
+              {listing.adKind === 'LEASE' && <div className="form-item"><label className="form-label">Annual kilometre allowance</label>
+                <input className="input" type="number" min={1} max={1000000} value={listing.annualKmAllowance ?? ''} disabled={formDisabled}
+                  onChange={(e) => onChange({ ...listing, annualKmAllowance: e.target.value ? Number(e.target.value) : null })} />
+              </div>}
               {readOnly && <p className="muted">This vehicle is sold. The advertisement is read-only.</p>}
               {actionsSlot}
             </>

@@ -137,8 +137,11 @@ public class OmvicRuleEngine
             soft.Add(Soft("NEW_USED_NOT_STATED",
                 "The ad does not state whether the vehicle is new or used."));
 
-        if (PriorUseCue.IsMatch(text) && !PriorUseDisclosure.IsMatch(text))
+        if ((PriorUseCue.IsMatch(text) || !string.IsNullOrWhiteSpace(listing.PriorUse)) &&
+            !PriorUseDisclosure.IsMatch(text))
             soft.Add(Soft("PRIOR_USE_UNCLEAR", "Prior use is mentioned without a clear disclosure."));
+        if (!string.IsNullOrWhiteSpace(listing.WarrantyTerms) && !WarrantyBoast.IsMatch(text))
+            soft.Add(Soft("WARRANTY_TERMS_MISSING", "Extended warranty terms are recorded but are not stated in the ad."));
         if (WarrantyBoast.IsMatch(text))
             soft.Add(Soft("WARRANTY_CLAIM_NEEDS_REVIEW", "Warranty claim needs review."));
 
@@ -178,7 +181,12 @@ public class OmvicRuleEngine
 
             var kmMatch = LeaseKmAllowance.Match(text);
             if (!kmMatch.Success) kmMatch = LeaseKmAllowanceAnnualFirst.Match(text);
-            if (kmMatch.Success)
+            if (listing.AnnualKmAllowance is int declaredAllowance)
+            {
+                if (declaredAllowance < 20000 && !LeaseExcess.IsMatch(text))
+                    hard.Add(Hard("LEASE_EXCESS_KM_MISSING", "Excess kilometre fees are missing."));
+            }
+            else if (kmMatch.Success)
             {
                 var km = int.Parse(kmMatch.Groups["km"].Value.Replace(",", "").Replace(" ", ""));
                 if (km < 20000 && !LeaseExcess.IsMatch(text))

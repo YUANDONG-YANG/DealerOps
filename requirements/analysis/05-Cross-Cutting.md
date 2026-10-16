@@ -46,7 +46,7 @@ Source: every modification to a DMS or CRM record is stamped with the acting use
 |---|---|---|---|
 | AI-01 | Ad compliance uses a real LLM review (not a rule simulation) | DOC, SCOPE | Must |
 | AI-02 | The AI call budget is 15 s in total, configured as a 2 s connect timeout plus a 13 s response timeout, not one setting; a failure is never shown as a pass | SCOPE | Must |
-| AI-03 | In-dealer read-only Q&A assistant: keyword search over this dealership's vehicles, customers and ads, returning at most five resource cards; never writes to the database. Aggregate answers such as inventory or customer **counts** are not implemented — do not demo a count question | SCOPE erratum 2 | Must |
+| AI-03 | In-dealer read-only Q&A assistant: keyword search over this dealership's vehicles, customers and ads, returning at most five resource cards; deterministically answers supported aggregate counts from the complete tenant-scoped query; never writes to the database | SCOPE erratum 2; user requirement 2026-10-16 | Must |
 | AI-04 | The assistant sees only its own dealer's data; answers never include purchase cost or customer phone / email / address | SCOPE | Must |
 | AI-05 | AI output is structured (issue code + severity + explanation) for display | Derived | Should |
 

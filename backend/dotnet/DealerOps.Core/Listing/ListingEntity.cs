@@ -31,6 +31,16 @@ public class ListingEntity : ITenantOwned
     [Column("medium")]
     public AdMedium Medium { get; set; }
 
+    [Column("prior_use")]
+    [MaxLength(32)]
+    public string? PriorUse { get; set; }
+
+    [Column("warranty_terms", TypeName = "TEXT")]
+    public string? WarrantyTerms { get; set; }
+
+    [Column("annual_km_allowance")]
+    public int? AnnualKmAllowance { get; set; }
+
     [Column("status")]
     public ListingStatus Status { get; set; }
 

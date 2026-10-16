@@ -229,6 +229,19 @@ using (var scope = app.Services.CreateScope())
         ex.ToString().Contains("Duplicate column", StringComparison.OrdinalIgnoreCase)
         || ex.ToString().Contains("1060", StringComparison.Ordinal))
     { /* already present */ }
+    foreach (var column in new[]
+    {
+        "ADD COLUMN prior_use VARCHAR(32) NULL",
+        "ADD COLUMN warranty_terms TEXT NULL",
+        "ADD COLUMN annual_km_allowance INT NULL",
+    })
+    {
+        try { db.Database.ExecuteSqlRaw($"ALTER TABLE listing {column}"); }
+        catch (Exception ex) when (
+            ex.ToString().Contains("Duplicate column", StringComparison.OrdinalIgnoreCase)
+            || ex.ToString().Contains("1060", StringComparison.Ordinal))
+        { /* already present */ }
+    }
     // CREATE TABLE IF NOT EXISTS is supported, so the notification table is created in the
     // same idempotent spirit as the ALTER above. Dealer-scoped: queries filter by dealer_id
     // and resolved_at IS NULL to show the inbox; approve/reject flip resolved_at.

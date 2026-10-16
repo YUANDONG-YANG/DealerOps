@@ -7,7 +7,12 @@ export type AssistantCardDto = {
   status?: string; vehicleId?: number; checkStatus?: string;
 };
 
-export type AskResponse = { summary: string | null; summaryAvailable: boolean; cards: AssistantCardDto[] };
+export type AskResponse = {
+  summary: string | null;
+  summaryAvailable: boolean;
+  cards: AssistantCardDto[];
+  count?: { count: number; singularLabel: string; pluralLabel: string; summary: string } | null;
+};
 
 export const assistantApi = {
   ask: (text: string) => http.post<AskResponse>('/api/v1/assistant/ask', { text }),

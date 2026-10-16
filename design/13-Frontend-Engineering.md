@@ -69,7 +69,7 @@ Handbook page names: Login / Admin / DMS / CRM / Ad compliance / Assistant, plus
 | `/leads` | `leads` | `LeadsView` | `roles: ['Dealer.User']` | menu item **Leads** after CRM |
 | `/ads` | `ads` | `AdsView` | `roles: ['Dealer.User']` | page title **Ad compliance** |
 | `/team` | `team` | `TeamView` | `roles: ['Dealer.User']` | Join-request queue: approve or reject accounts asking to join this dealership |
-| `/profile` | `profile` | `ProfileView` | any signed-in user | Account self-service: own display name and phone, plus account deletion. Username, role and dealership binding are read-only |
+| `/profile` | `profile` | `ProfileView` | Platform admin and **bound** dealership users | Account self-service: own display name and phone, plus account deletion. Username, role and dealership binding are read-only. An **unbound** account gets the no-access shell here too, because `AuthGuard` requires business access — so a freshly self-registered user cannot reach account deletion until bound |
 | — | `no-access` | `NoAccessLanding` | — | Signed-in user without business access. A guard renders it **in place of** the requested page; it has no path of its own |
 
 - `/` → if not signed in, show the public landing page (brand, hero, feature cards, VIN decoder, ad-approval steps, `Sign in`, and `Create account`); if signed in, go to `/admin` or `/dms` by role, or `/no-access` without business access. The only API the landing page calls is the anonymous VIN decode (14 §4.6.1); it reads no dealership data. `/login` and `/register` use the local password account API (sign in by email, username, or phone). The DMS **Add vehicle** form has a `Decode` button on the VIN field that prefills make, model, year, and body type from the same endpoint.

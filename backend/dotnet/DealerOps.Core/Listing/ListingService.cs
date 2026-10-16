@@ -49,6 +49,9 @@ public class ListingService
                 Body = BlankToEmpty(body.Body),
                 AdKind = body.AdKind ?? AdKind.Cash,
                 Medium = body.Medium ?? AdMedium.Online,
+                PriorUse = body.PriorUse,
+                WarrantyTerms = body.WarrantyTerms,
+                AnnualKmAllowance = body.AnnualKmAllowance,
                 Status = ListingStatus.Draft,
                 ContentVersion = 1,
                 LastCheckId = null,
@@ -145,6 +148,9 @@ public class ListingService
             listing.Body,
             listing.AdKind,
             listing.Medium,
+            listing.PriorUse,
+            listing.WarrantyTerms,
+            listing.AnnualKmAllowance,
             listing.Status,
             listing.ContentVersion,
             listing.LastCheckId,
@@ -154,7 +160,7 @@ public class ListingService
     }
 
     private static ListingResponse VirtualDraft(long vehicleId) =>
-        new(0, vehicleId, "", "", AdKind.Cash, AdMedium.Online, ListingStatus.Draft,
+        new(0, vehicleId, "", "", AdKind.Cash, AdMedium.Online, null, null, null, ListingStatus.Draft,
             1, null, null, CheckStatusMapper.NeedsAi, 0);
 
     private void RequireVehicle(long vehicleId, long tenant)
@@ -184,6 +190,21 @@ public class ListingService
         if (body.Medium != null && row.Medium != body.Medium.Value)
         {
             row.Medium = body.Medium.Value;
+            changed = true;
+        }
+        if (row.PriorUse != body.PriorUse)
+        {
+            row.PriorUse = body.PriorUse;
+            changed = true;
+        }
+        if (row.WarrantyTerms != body.WarrantyTerms)
+        {
+            row.WarrantyTerms = body.WarrantyTerms;
+            changed = true;
+        }
+        if (row.AnnualKmAllowance != body.AnnualKmAllowance)
+        {
+            row.AnnualKmAllowance = body.AnnualKmAllowance;
             changed = true;
         }
         return changed;

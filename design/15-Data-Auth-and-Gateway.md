@@ -241,10 +241,8 @@ function runFixedOmvic(listing, vehicle, dealer) -> { hardBlocks[], softGaps[], 
   hard[]   = []          // hard miss → BLOCKED, do not call AI
   soft[]   = []          // rules passed but still recommend AI review of fuzzy items
 
-  // --- empty draft ---
-  if blank(listing.title) AND blank(listing.body):
-      hard += PRICE_MISSING, DEALER_NAME_MISSING, CONDITION_UNDISCLOSED
-      return blocked(hard)
+  // --- empty draft: no special case ---
+  // The rules below already block it (price, name, and contact all missing). PROTOCOL §C.1.
 
   // --- price (always) ---
   hasPrice = match(text, /(?:cad|c\$|\$)\s*\d[\d,]*(?:\.\d{2})?|\d[\d,]*(?:\.\d{2})?\s*(?:cad|dollars?)\b/i)
@@ -264,15 +262,18 @@ function runFixedOmvic(listing, vehicle, dealer) -> { hardBlocks[], softGaps[], 
           soft += DEALER_CONTACT_INCOMPLETE   // only one contact shown: not a hard block; give to AI
 
   // --- year / new vs used (always) ---
-  // No separate used/new status field (PROTOCOL §C.0a). Contradiction is soft only.
+  // No separate used/new status field (PROTOCOL §C.0a). Both new/used checks are soft.
   year = vehicle.modelYear
-  if !contains(text, str(year)):
-      soft += YEAR_NOT_IN_COPY               // structured year exists, copy omitted it → not a hard block
-  // contradictory "new/used" wording (copy says brand new but year <= currentYear-2) → soft, hand to AI
+  if !match(text, /(?<!\d)<year>(?!\d)/):
+      soft += YEAR_NOT_IN_COPY               // digit boundaries: "$32,019" is not model year 2019
+  if brandNew(text) AND year <= currentYear - 2:
+      soft += YEAR_NEW_USED_CONTRADICTION
+  if !brandNew(text) AND !match(textNorm, /\b(used|pre[\s-]?owned|second[\s-]?hand|previously owned)\b/):
+      soft += NEW_USED_NOT_STATED            // spec lists new/used as always required; erratum 4 keeps it advisory
 
   // --- conditionCode (always; compare to the vehicle, not an imagined stock tag) ---
   code = vehicle.conditionCode   // CERTIFIED | AS_IS | UNFIT | IRREPARABLE
-  claimedCertified = match(textNorm, /certified|cpo|certifi/)
+  claimedCertified = match(strip(textNorm, /\b(not|never|non)[\s-]*certified\b/), /\b(certified|cpo)\b/)  // "not certified" is a denial, not a claim
   claimedAsIs      = match(textNorm, /as[\s-]?is|as is/)
   claimedUnfit     = match(textNorm, /unfit|not roadworthy|not fit/)
   claimedIrrep     = match(textNorm, /irreparable|salvage|write[\s-]?off/)
@@ -294,8 +295,8 @@ function runFixedOmvic(listing, vehicle, dealer) -> { hardBlocks[], softGaps[], 
   if mentionsPriorUseCue(textNorm) AND !mentionsPriorUseDisclosure(textNorm):
       soft += PRIOR_USE_UNCLEAR
 
-  // --- extended warranty (always "if the copy claims one") ---
-  if match(textNorm, /extended warranty|warranty included|free warranty/):
+  // --- warranty (always "if offered") ---
+  if match(textNorm, /\bwarrant(y|ies)\b/):  // any mention, including "no warranty"
       soft += WARRANTY_CLAIM_NEEDS_REVIEW    // not a hard block; AI reviews completeness of terms
 
   // --- FINANCE extras ---
@@ -400,7 +401,7 @@ Gateway responsibility ends here: routing, user-JWT validation, blocking interna
 
 ### 8.1 Why this is still not a fifth microservice
 
-Authentication uses a sign-in name (email, username, or phone) plus password (`POST /api/v1/auth/login` and `/register`), a Google ID token (`POST /api/v1/auth/google`, `AUTH-23`, added 2026-10-15), or a Firebase ID token (`POST /api/v1/auth/firebase`, SCOPE-BASELINE erratum 9, added 2026-10-16). Entra ID and every social provider other than Google stay out of scope. None of these paths grants a role or a dealership, so the admin still binds the account and tenancy is always resolved from the membership table. Core issues DealerOps JWTs; the gateway and core validate those tokens (§8.3's `roles[]`-based RBAC, Gateway + core double validation, `TenantFilter`).
+Authentication uses a sign-in name (email, username, or phone) plus password (`POST /api/v1/auth/login` and `/register`), a Google ID token (`POST /api/v1/auth/google`, `AUTH-23`, added 2026-10-15), or a Firebase ID token (`POST /api/v1/auth/firebase`, SCOPE-BASELINE erratum 9, added 2026-10-16). Entra ID and every social provider other than Google stay out of scope. A *new* account from any of these paths starts unbound, and tenancy is resolved per request from the membership table. **Known defect:** the Firebase path links an existing account by email without checking `email_verified` and without refusing `Platform.Admin`, which lets anyone take over an existing account, including the admin — see SCOPE-BASELINE erratum 9. The Google path does check both. Core issues DealerOps JWTs; the gateway and core validate those tokens (§8.3's `roles[]`-based RBAC, Gateway + core double validation, `TenantFilter`).
 
 ### Swagger authentication flow
 

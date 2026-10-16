@@ -1,7 +1,7 @@
 # 17 · Ad-compliance check samples / AI evaluation fixtures
 
 Version: current (v6) · 2026-09-21  
-**Current.** Fixed rules and reason codes follow the [15-Data-Auth-and-Gateway.md](15-Data-Auth-and-Gateway.md) section 6 pseudocode. Check HTTP, five states, Blocked=200, and `AI_UNAVAILABLE`=502 follow [14-Backend-API-Contract.md](14-Backend-API-Contract.md) section 8.  
+**Current.** Fixed rules and reason codes follow [AI-PROTOCOL-AND-RULES.md](AI-PROTOCOL-AND-RULES.md) §C, which pins the patterns and severities and overrides the older [15-Data-Auth-and-Gateway.md](15-Data-Auth-and-Gateway.md) section 6 pseudocode where they differ; the engine (`DealerOps.Core/Compliance/OmvicRuleEngine.cs`) is the final authority. Check HTTP, five states, Blocked=200, and `AI_UNAVAILABLE`=502 follow [14-Backend-API-Contract.md](14-Backend-API-Contract.md) section 8.  
 This document **only** provides runnable ad-text fixtures and expected states. It is not a rule implementation, not OpenAPI, and not an OMVIC certification. System output may only be "rule hits + review advice"; **do not** write OMVIC approved / certified in the UI or reports.
 
 Retired `05` is not a current requirement. This document only borrows its "repeatable English samples + expected rules" intent and rewrites it for v6 `CASH` / `FINANCE` / `LEASE` and `ONLINE` / `RADIO_TV_BILLBOARD`. Finance/lease checks are **In Scope** (align 00 / 15); do not follow the reference draft that said finance cannot be done.
@@ -406,7 +406,7 @@ Each item: `id`, `offerType` (= `adKind`), `channel` (= `medium`), `title`, `bod
 | **title** | Lease a 2020 Toyota Camry |
 | **body** | Lease this Camry. Cash price $18,900, 36 months, $2,000 down payment, 6.99% APR, 20,000 km per year. Sold as-is by Prairie Auto Ltd., 403-555-0100, desk@prairie.example, 100 1 Ave SW, Calgary. |
 | **Vehicle/dealership premises** | V-ASIS. Lease statement, APR, term, down payment, allowance, price, dealership/contact, `as-is` present. **No** periodic payment: every amount is a cash price, so no payment cadence matches. |
-| **Fixed rules** | **Needs AI** · soft `LEASE_RENT_MISSING` · call AI · **not** Blocked |
+| **Fixed rules** | **Needs AI** · soft `LEASE_RENT_MISSING` and `NEW_USED_NOT_STATED` (the copy never says "used") · call AI · **not** Blocked |
 | **If AI is entered** | Passed with the soft finding retained; the specification's lease payment-amount disclosure is advisory under erratum 4 |
 | **Ready/export** | Yes, once Passed |
 | **Classroom demo** | No |
@@ -445,5 +445,5 @@ Suggested classroom order: FX-01 → FX-03 → FX-10 (real AI) → export TXT �
 - Do not treat this file as an "OMVIC approved" checklist.
 - Do not invent Service Bus / async ad review / a second database.
 - Do not require the implementation group to add columns for APR, extended warranty, or prior use; APR is found in the body only.
-- Empty draft (title/body both empty) follows 15: hard-block `PRICE_MISSING` + `DEALER_NAME_MISSING` + `CONDITION_UNDISCLOSED`; no standalone ad body.
+- Empty draft (title/body both empty) has no special case: the ordinary rules hard-block `PRICE_MISSING` + `DEALER_NAME_MISSING` + `DEALER_CONTACT_MISSING`, plus `CONDITION_UNDISCLOSED` for an AS_IS / UNFIT / IRREPARABLE vehicle; no standalone ad body.
 - Assistant Q&A is not in this fixture set.

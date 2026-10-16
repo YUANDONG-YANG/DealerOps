@@ -62,7 +62,7 @@ Delivered as a floating panel on signed-in business pages, not as its own route 
 | UI-43 | Results listed per rule with ✅ / ❌ / ⚠️ and reason |
 | UI-44 | Status badge: Needs AI / Blocked / AI unavailable / Passed / Stale |
 | UI-45 | Ready and Export TXT buttons are enabled only when Passed and not Stale |
-| UI-46 | Dedicated disclaimer UI is deferred (AD-14); explain at defense that Passed is not legal approval |
+| UI-46 | The ad-check result panel states that the check is not legal advice and is not OMVIC approval (AD-14) |
 
 ### Assistant
 
@@ -70,6 +70,7 @@ Delivered as a floating panel on signed-in business pages, not as its own route 
 |---|---|
 | UI-50 | Chat input + answer area; answers may include vehicle / customer card links |
 | UI-51 | Clear notice that the assistant is read-only and never changes data |
+| UI-52 | Count questions show a deterministic total calculated from all matching records in the signed-in dealer, independent of the five-card display limit |
 
 ## 3. Acceptance cases
 
@@ -108,6 +109,7 @@ Additional focused checks reuse the same demo records and existing screens/APIs;
 | AT-26 | CRM required fields and edit | Try creating with each of the four required fields blank; then create valid customer, edit and reopen | Blank input rejected; valid create/edit persist; history records change without contact values | CRM-01/02/04/11/12; CL-2, BE-11 |
 | AT-27 | Soft findings do not veto | Use otherwise hard-valid copy missing year and finance term; real AI returns successfully | PASSED; saved findings are REVIEW and AI notes retained; Ready/export succeed; no AI veto state | AD-03/08/10/12, AD-R05/12 |
 | AT-28 | Checklist is display only | Select CASH, FINANCE, LEASE and switch medium | Displayed checklist follows selection; no prior-use/warranty/km answer fields or required ticks | AD-02, UI-40 |
+| AT-40 | Assistant aggregate count | Ask for in-stock vehicles, sold vehicles, customers, listings and a supported listing check status; repeat with another dealer's data present | Each answer equals the full matching count for the signed-in dealer, including when more than five records match; no other dealer's rows affect the answer; ask with AI service unavailable and receive the same count | AI-03, UI-52 |
 
 These cases define expected behavior; execution results must be recorded separately. Existing BE/FE/CL references are in design/16-Acceptance-and-Test.md.
 

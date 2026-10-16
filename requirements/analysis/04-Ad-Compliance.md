@@ -23,9 +23,9 @@ BLOCK prevents Ready/export; REVIEW is a hint and does not prevent them. Rule co
 | AD-R02 | Dealer contact | All contact missing: BLOCK DEALER_CONTACT_MISSING; partial contact: REVIEW DEALER_CONTACT_INCOMPLETE |
 | AD-R03 | Prior-use cue without clear disclosure | REVIEW PRIOR_USE_UNCLEAR; no cue means no finding |
 | AD-R04 | New/used contradiction | REVIEW YEAR_NEW_USED_CONTRADICTION when copy implies new and year is at least two years old |
-| AD-R04b | New/used not stated | REVIEW NEW_USED_NOT_STATED when the copy states neither new nor used / pre-owned / second-hand / previously owned. The source lists this as always required; erratum 4 keeps it advisory, so it is a hint rather than a block. It fires on most ads that only say "Sold as-is" |
 | AD-R05 | Year missing | REVIEW YEAR_NOT_IN_COPY |
-| AD-R06 | Warranty claim present | REVIEW WARRANTY_CLAIM_NEEDS_REVIEW |
+| AD-R05b | New/used not stated | REVIEW NEW_USED_NOT_STATED when the copy states neither new nor used / pre-owned / second-hand / previously owned. The source lists this as always required; erratum 4 keeps it advisory, so it is a hint rather than a block. It fires on most ads that only say "Sold as-is". ID matches the progress reports |
+| AD-R06 | Warranty mentioned | REVIEW WARRANTY_CLAIM_NEEDS_REVIEW on **any** mention of "warranty", including "no warranty" |
 | AD-R07 | Price missing | BLOCK PRICE_MISSING |
 | AD-R08 | Condition | BLOCK CONDITION_MISMATCH for Certified claim on a non-certified vehicle; BLOCK CONDITION_UNDISCLOSED if AS_IS / UNFIT / IRREPARABLE is not stated; omitted Certified wording is REVIEW CERTIFIED_NOT_IN_COPY |
 | AD-R10 | Finance APR missing | BLOCK FINANCE_APR_MISSING |
@@ -69,7 +69,7 @@ Finance-triggered means FINANCE, or CASH with a match to the existing APR or PAY
 | AD-11 | Listing edits or vehicle condition changes invalidate a previous pass | Course triage A5 | Must |
 | AD-12 | Ready/export require a current pass | SCOPE | Must |
 | AD-13 | TXT includes dealer/vehicle public fields, title/body/check time; no customer data or cost | SCOPE | Must |
-| AD-14 | Dedicated disclaimer UI/footer | PDF §8 / deferred A8 | Won't this release; explain limitation at defense |
+| AD-14 | State that compliance output is reference material, not legal advice or OMVIC approval | PDF §8 | Implemented as a notice in the ad-check result UI; no separate page or TXT footer |
 | AD-15 | Configurable rules / rule editor | PDF §8 / Q-15 | Won't this release; patterns remain in code |
 | AD-16 | External auto-publishing | DOC | Won't |
 | AD-17 | Image Studio | DOC2 / SCOPE erratum 7 | **Returned to scope 2026-10-08**; owned by design/21 as `IMG-01–05`. Do not cite this row as an exclusion |
@@ -78,7 +78,7 @@ Finance-triggered means FINANCE, or CASH with a match to the existing APR or PAY
 
 | Copy | Medium | Rules |
 |---|---|---|
-| CASH without APR/payment match | Any | R01–R08 |
+| CASH without APR/payment match | Any | R01–R08 (the range includes R05b, which fires on most ads) |
 | FINANCE or CASH with APR/payment match | ONLINE | R01–R08, R10–R13 |
 | FINANCE or CASH with APR/payment match | RADIO_TV_BILLBOARD | Same, except R11 proximity hint is waived; R10 APR and R07 price still apply |
 | LEASE, parsed allowance >= 20,000 | Any | R01–R08, R20–R24 |

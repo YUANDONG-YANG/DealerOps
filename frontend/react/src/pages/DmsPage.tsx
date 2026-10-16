@@ -650,7 +650,7 @@ export default function DmsPage() {
           </div>
 
           <div className="form-item">
-            <label className="form-label form-required">Body type</label>
+            <label className="form-label">Body type</label>
             <select className="select" value={form.bodyType} onChange={e => updateForm('bodyType', e.target.value, true)} disabled={isSold}>
               {form.bodyType && !BODY_TYPES.includes(form.bodyType as (typeof BODY_TYPES)[number]) && (
                 <option value={form.bodyType}>{enumLabel(form.bodyType)}</option>

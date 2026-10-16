@@ -24,7 +24,7 @@ public class AssistantService
         var count = _resourceQuery.Count(tenant, body.Text);
         if (count != null)
         {
-            return new AskResponse(count.Summary, true, cards);
+            return new AskResponse(count.Summary, true, cards, count);
         }
 
         try

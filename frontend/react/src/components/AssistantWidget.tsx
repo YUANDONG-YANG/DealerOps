@@ -183,9 +183,9 @@ export default function AssistantWidget() {
                                   <AssistantCard key={`${c.kind}-${c.id}`} card={c} onOpen={() => openCard(c)} />
                                 ))}
                               </div>
-                            ) : (
+                            ) : !turn.result.count ? (
                               <div className="muted chat-note">No matching records. Try a make, VIN or customer name.</div>
-                            )}
+                            ) : null}
                           </>
                         )}
                       </div>

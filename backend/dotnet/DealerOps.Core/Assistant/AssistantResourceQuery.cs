@@ -132,9 +132,11 @@ public class AssistantResourceQuery
             if (vehicleStatus != null) query = query.Where(v => v.Status == vehicleStatus);
             query = ApplyVehicleTerms(query, terms);
             var count = query.Count();
-            var label = vehicleStatus == VehicleStatus.InStock ? "vehicles in stock"
-                : vehicleStatus == VehicleStatus.Sold ? "sold vehicles" : "vehicles";
-            return new CountResult(count, label);
+            var (singular, plural) = vehicleStatus == VehicleStatus.InStock
+                ? ("vehicle in stock", "vehicles in stock")
+                : vehicleStatus == VehicleStatus.Sold ? ("sold vehicle", "sold vehicles")
+                : ("vehicle", "vehicles");
+            return new CountResult(count, singular, plural);
         }
 
         if (customerAsked && !listingAsked && !vehicleAsked)
@@ -146,7 +148,9 @@ public class AssistantResourceQuery
                 var t = term;
                 query = query.Where(c => c.Name.Contains(t));
             }
-            return new CountResult(query.Count(), terms.Count == 0 ? "customers" : "matching customers");
+            var (singular, plural) = terms.Count == 0
+                ? ("customer", "customers") : ("matching customer", "matching customers");
+            return new CountResult(query.Count(), singular, plural);
         }
 
         if (listingAsked && !customerAsked && !vehicleAsked)
@@ -155,7 +159,9 @@ public class AssistantResourceQuery
             var count = checkStatus == null
                 ? rows.Count
                 : rows.Count(x => _checkStatusMapper.Derive(x.l, x.check) == checkStatus);
-            return new CountResult(count, checkStatus == null ? "listings" : $"{checkStatus} listings");
+            var (singular, plural) = checkStatus == null
+                ? ("listing", "listings") : ($"{checkStatus} listing", $"{checkStatus} listings");
+            return new CountResult(count, singular, plural);
         }
 
         return null;
@@ -262,7 +268,7 @@ public class AssistantResourceQuery
     }
 }
 
-public record CountResult(int Count, string Label)
+public record CountResult(int Count, string SingularLabel, string PluralLabel)
 {
-    public string Summary => $"There {(Count == 1 ? "is" : "are")} {Count} {Label}.";
+    public string Summary => $"There {(Count == 1 ? "is" : "are")} {Count} {(Count == 1 ? SingularLabel : PluralLabel)}.";
 }

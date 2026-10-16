@@ -1,5 +1,7 @@
 # 10 Review of Cursor's Changes
 
+> Historical review of a specific 2026-09-25 worktree snapshot. The stated Java file paths, branch contents, and findings are not current implementation evidence. See [13-PDF-Requirements-Audit-2026-10-16.md](13-PDF-Requirements-Audit-2026-10-16.md) for the current review.
+
 Review date: 2026-09-25. Scope: the uncommitted working tree after commit `d7b7872`. 79 modified files plus about 25 new files (+2,593 / −606 lines) across `dealer-core`, `ai-service`, `dealer-web`, `design/`, and `requirements/`.
 
 Method: read Cursor's own record (`ANALYSIS-LOG.md` "Code verification and fixes", 08 "Resolution"), then checked each claim against the code. No tests were run and no code was changed by this review.

@@ -25,7 +25,7 @@ function mediumLabel(medium?: string) {
 }
 
 function contentKey(row: Listing) {
-  return JSON.stringify([row.title ?? '', row.body ?? '', row.adKind, row.medium]);
+  return JSON.stringify([row.title ?? '', row.body ?? '', row.adKind, row.medium, row.priorUse, row.warrantyTerms, row.annualKmAllowance]);
 }
 
 export default function AdsPage() {
@@ -126,7 +126,8 @@ export default function AdsPage() {
     try {
       const r = await listingsApi.save(vehicleId, {
         version: listing.version || 0, title: listing.title ?? '', body: listing.body ?? '',
-        adKind: listing.adKind, medium: listing.medium,
+        adKind: listing.adKind, medium: listing.medium, priorUse: listing.priorUse,
+        warrantyTerms: listing.warrantyTerms, annualKmAllowance: listing.annualKmAllowance,
       });
       if (selected?.id !== vehicleId) return;
       const merged = { ...emptyListing(vehicleId), ...r.data, vehicleId };

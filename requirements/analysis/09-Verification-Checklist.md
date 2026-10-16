@@ -1,5 +1,7 @@
 # 09 Verification Checklist
 
+> Historical checklist for the 2026-09-25 design review. Its line references point to a retired Java/Vue design snapshot and are not current evidence. See [13-PDF-Requirements-Audit-2026-10-16.md](13-PDF-Requirements-Audit-2026-10-16.md) for the current review.
+
 Every finding from [08-Design-Review.md](08-Design-Review.md), with the exact evidence to open and what to look for. Paths are relative to the repo root. Line numbers are as of commit `2cecbe4`.
 
 Fill in the **Verdict** column: `Confirmed` / `Rejected` / `Partly` + a note.
