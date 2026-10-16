@@ -266,7 +266,7 @@ resource "azurerm_linux_web_app" "gateway" {
     app_command_line                  = "dotnet DealerOps.Gateway.dll"
 
     application_stack {
-      dotnet_version = "8.0"
+      dotnet_version = "10.0"
     }
   }
 
@@ -309,7 +309,7 @@ resource "azurerm_linux_web_app" "core" {
     app_command_line                  = "dotnet DealerOps.Core.dll"
 
     application_stack {
-      dotnet_version = "8.0"
+      dotnet_version = "10.0"
     }
 
     ip_restriction {
@@ -369,7 +369,7 @@ resource "azurerm_linux_web_app" "ai" {
     app_command_line                  = "dotnet DealerOps.AiService.dll"
 
     application_stack {
-      dotnet_version = "8.0"
+      dotnet_version = "10.0"
     }
 
     ip_restriction {
