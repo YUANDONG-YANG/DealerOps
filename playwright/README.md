@@ -36,6 +36,7 @@ The script refuses to start if it would use the shared ports or database. Logs a
 | --- | --- |
 | `npm test` | Rebuild and (re)start the private stack, then run the full suite |
 | `npm run test:only -- tests/crm.spec.ts` | Run specs against the already running stack |
+| `npm run test:roles` | Start the private stack and walk every page as the admin and the dealer user (desktop and phone) |
 | `npm run stack:start` / `npm run stack:stop` | Start or stop the private stack |
 | `npm run test:ui` | Interactive UI mode with time-travel debugging |
 | `npm run report` | Open the last HTML report |
@@ -70,6 +71,10 @@ at the same time, give each run its own `--output` directory so they do not clea
 that change accounts create their own throwaway dealership and staff instead. Specs sign in by calling the login API and
 injecting the token into `sessionStorage`, so only `auth.spec.ts` exercises the login form.
 
+The same setup also seeds the team's standard dealer-user account (`lafe`, see
+`E2E_DEALER_USER`) into `E2E Motors`, so `npm run test:roles` signs in with the same two accounts
+developers use on the shared development stack: the platform admin and that dealer user.
+
 Seeding only runs against `localhost` unless `E2E_ALLOW_REMOTE_SEED=1` is set. All of it lands in
 `dealer_core_e2e`, so the development database stays clean.
 
@@ -83,6 +88,7 @@ All values are read from environment variables with local defaults (`support/env
 | `E2E_GATEWAY_URL` | `http://127.0.0.1:18080` |
 | `E2E_ADMIN_USER` / `E2E_ADMIN_PASSWORD` | local admin from `start-local.sh` |
 | `E2E_STAFF_USER` / `E2E_STAFF_PASSWORD` | seeded staff account |
+| `E2E_DEALER_USER` / `E2E_DEALER_PASSWORD` | standard dealer-user account for `test:roles` (local default in `support/env.ts`) |
 | `E2E_DEALER_NAME` | `E2E Motors` |
 
 Never commit real credentials; pass them through the environment.

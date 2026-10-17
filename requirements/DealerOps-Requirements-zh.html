@@ -125,6 +125,7 @@ html { scroll-behavior: smooth; }
       <li><a href="#crm">5 CRM 客户管理</a></li>
       <li><a href="#ad">6 广告合规检查</a></li>
       <li><a href="#assistant">7 AI 只读助手</a></li>
+      <li><a href="#extensions">7a 客户补充功能扩展</a></li>
       <li><a href="#cross">8 横切需求</a></li>
       <li><a href="#pages">9 页面需求</a></li>
       <li><a href="#acceptance">10 验收用例</a></li>
@@ -139,9 +140,9 @@ html { scroll-behavior: smooth; }
       <h1>Dealer Ops 车行管理、CRM 与 OMVIC 广告合规平台</h1>
       <p class="subtitle">面向安大略省独立二手车行的多租户 Web 应用，包含 DMS、CRM、广告合规检查与只读 AI 助手。</p>
       <dl class="meta">
-        <div><dt>文档版本</dt><dd>v1.1 · 2026-10-15</dd></div>
+        <div><dt>文档版本</dt><dd>v1.2 · 2026-10-16</dd></div>
         <div><dt>主要来源</dt><dd>DealerOps-Specification.pdf（2026-09-21）</dd></div>
-        <div><dt>补充来源</dt><dd>Dos Car dealership.docx · design/SCOPE-BASELINE.md</dd></div>
+        <div><dt>补充来源</dt><dd>Dos Car dealership.docx · Dos Car dealership2.docx · design/SCOPE-BASELINE.md</dd></div>
         <div><dt>签署状态</dt><dd>KAN-5 客户/讲师确认仍未完成</dd></div>
       </dl>
     </header>
@@ -156,6 +157,7 @@ html { scroll-behavior: smooth; }
         <tbody>
           <tr><td>规格说明书 PDF</td><td>角色、DMS/CRM/广告字段、横切规则、页面清单、已知限制</td><td><strong>字段与业务规则的权威来源</strong></td></tr>
           <tr><td>产品简介 DOCX（DealerOS）</td><td>DMS 核心 + CRM + AI 合规助手 + 可选 Image Studio</td><td>产品愿景与卖点，不定义字段</td></tr>
+          <tr><td>客户补充说明 DOCX</td><td>VIN 解码、线索跟进、整备工单、自助注册 / Google 与 Firebase Auth、Image Studio</td><td>扩展范围详见第 7a 节及 <code>design/21-Feature-Extensions.md</code>；Firebase 数据库不采用</td></tr>
           <tr><td>范围基线 SCOPE-BASELINE</td><td>课程交付范围、勘误、不做清单</td><td>冲突裁决</td></tr>
         </tbody>
       </table></div>
@@ -168,14 +170,16 @@ html { scroll-behavior: smooth; }
         <span><span class="pri wont">不做</span> 本版本不实现</span>
       </div>
       <h3>实现状态说明</h3>
-      <p>每行最后一列为实现状态，于 2026-10-15 对照当前工作区代码逐条核实（.NET 后端 + React 前端，以源码走查为依据，未执行自动化测试）。绿色表示该需求已完整实现。</p>
+      <p>每行最后一列表示实现状态，依据当前 .NET 后端 + React 前端源码走查；自动化执行结果单独记录，不把“已实现”当作“已验收”。</p>
       <div class="legend">
         <span><span class="st st-done">Implemented</span> 已完整实现（绿色）</span>
         <span><span class="st st-partial">Partial</span> 已实现但有明确缺口</span>
         <span><span class="st st-gap">Not implemented</span> 未实现</span>
         <span><span class="st st-wont">Out of scope</span> 本版本不做</span>
       </div>
-      <p>本次核实结果：共 199 条，已实现 182 条、部分实现 8 条、未实现 2 条、不做 7 条。灰色小字为该行的已知缺口或实现备注。</p>
+      <p>不再使用无法与需求编号逐项对应的“199 条 / 182 条”汇总。灰色小字为该行的已知缺口或实现备注。</p>
+      <div class="note change"><strong>自动化测试结果（2026-10-16）：</strong><code>playwright/</code> 的 <code>npm test</code> 在隔离 E2E 栈执行 295 项（含 setup）：294 通过、1 跳过，使用 5 个并行 worker。跳过项是 AI 服务不可用场景 AT-18；本轮 AI 服务状态为 UP。AI 成功路径（含真实提供方的合规检查、Ready 与 TXT 导出）通过。测试数据库为 <code>dealer_core_e2e</code>，网页 :5175、Gateway :18080、Core :18081；运行后已停止私有栈。另在现有 :5174 应用做了只读桌面巡检：两个角色登录成功，所有可访问路由正常，无应用级控制台错误、5xx 或横向溢出。Google 登录的真实账号流程未由自动化测试执行，用户已确认其在 :5174 可正常登录。</div>
+      <div class="note"><strong>源码与自动化测试的区别：</strong>下面的“源码核实”记录功能是否能在当前代码中找到；“本次自动化证据”只记录 Playwright 实际覆盖的路径。没有自动化用例、用例跳过或 UI 未被 E2E 操作，都不能据此判定功能未实现。此前将这些内容集中写在“尚缺验证”中容易造成误读，现按实现和测试分别记录。</div>
     </section>
 
     <section id="scope">
@@ -190,7 +194,7 @@ html { scroll-behavior: smooth; }
             <li>广告合规检查：固定规则清单 + 真实 AI 审查；通过后可标记 Ready 并导出 TXT</li>
             <li>审计：DMS/CRM 每次变更记录操作人、动作、时间</li>
             <li>只读 AI 助手：查询本车行数据，不写库</li>
-            <li>登录：支持邮箱、用户名或手机号加密码，角色仅 <code>Platform.Admin</code> / <code>Dealer.User</code></li>
+            <li>登录：本地密码支持邮箱、用户名或手机号；另支持 Google ID token 和 Firebase Auth。所有新账号均为未绑定的 <code>Dealer.User</code>，角色仅 <code>Platform.Admin</code> / <code>Dealer.User</code></li>
             <li>功能扩展：VIN 解码、线索跟进、车辆整备工单、Image Studio（按第 12 节变更记录及 <code>design/21-Feature-Extensions.md</code> 执行）</li>
             <li>网关：浏览器只能经 Gateway 访问后端</li>
           </ul>
@@ -488,6 +492,7 @@ PASSED 且版本一致 ──► 可“标记 Ready”并“导出 TXT”</div>
           <tr><td class="id">AD-17</td><td>Image Studio 图片增强（由 IMG-01–05 功能扩展承接）</td><td>DOCX / 设计 21</td><td><span class="pri must">必须</span></td><td class="c"><span class="st st-done">Implemented</span><span class="st-note">Enhanced and original photos now display</span></td></tr>
         </tbody>
       </table></div>
+
     </section>
 
     <section id="assistant">
@@ -496,11 +501,46 @@ PASSED 且版本一致 ──► 可“标记 Ready”并“导出 TXT”</div>
       <div class="tbl"><table>
         <thead><tr><th>编号</th><th>需求</th><th>来源</th><th>优先级</th><th>实现状态 Status</th></tr></thead>
         <tbody>
-          <tr><td class="id">AI-01</td><td>广告合规使用真实大模型审查，而非规则模拟</td><td>DOCX、SCOPE</td><td><span class="pri must">必须</span></td><td class="c"><span class="st st-partial">Partial</span><span class="st-note">Configured Groq model id still needs checking against the provider</span></td></tr>
+          <tr><td class="id">AI-01</td><td>广告合规使用真实大模型审查，而非规则模拟</td><td>DOCX、SCOPE</td><td><span class="pri must">必须</span></td><td class="c"><span class="st st-done">E2E passed</span><span class="st-note">AI-dependent success flows passed on 2026-10-16; outage case AT-18 was skipped</span></td></tr>
           <tr><td class="id">AI-02</td><td>AI 调用超时 15 秒；失败绝不显示为通过</td><td>SCOPE</td><td><span class="pri must">必须</span></td><td class="c"><span class="st st-done">Implemented</span><span class="st-note">Core budget raised above the 15s model window</span></td></tr>
-          <tr><td class="id">AI-03</td><td>车行内只读问答：按品牌、VIN、客户姓名等关键字检索本车行车辆、客户及广告（含检查状态），最多返回 5 条资源卡片并附简短说明（不统计库存或客户总数）；模型不可用时仍返回检索卡片；绝不写数据库</td><td>SCOPE 勘误 2</td><td><span class="pri must">必须</span></td><td class="c"><span class="st st-done">Implemented</span><span class="st-note">Keyword-less questions no longer dump arbitrary records</span></td></tr>
+          <tr><td class="id">AI-03</td><td>车行内只读问答：按品牌、VIN、客户姓名等关键字检索本车行车辆、客户及广告（含检查状态），最多返回 5 条资源卡片并附简短说明；支持按完整匹配结果计算车辆、客户及广告检查状态的确定性总数，不受 5 条卡片上限影响；模型不可用时仍返回检索卡片；绝不写数据库</td><td>SCOPE 勘误 2</td><td><span class="pri must">必须</span></td><td class="c"><span class="st st-done">Implemented</span><span class="st-note">Keyword-less questions no longer dump arbitrary records</span></td></tr>
           <tr><td class="id">AI-04</td><td>助手只能看到本车行数据；回答不包含采购成本及客户电话、邮箱、住址</td><td>SCOPE</td><td><span class="pri must">必须</span></td><td class="c"><span class="st st-done">Implemented</span></td></tr>
           <tr><td class="id">AI-05</td><td>AI 意见以数组返回，每条至少含说明（<code>message</code>）；问题码（<code>ruleId</code>）与严重程度（BLOCK / REVIEW）属于规则检查结果，与 AI 意见分开展示</td><td>推导</td><td><span class="pri should">应该</span></td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+        </tbody>
+      </table></div>
+    </section>
+
+    <section id="extensions">
+      <h2><span class="num">7a</span>客户补充功能扩展</h2>
+      <p>客户补充说明中的功能扩展均已在当前源码中实现，涉及的前端入口也已核实。详细字段、规则和接口约定以 <code>design/21-Feature-Extensions.md</code> 为准。下表分别列出源码状态与自动化证据；UI 测试范围较窄只表示该交互尚未由浏览器自动化执行。课程范围的正式客户/讲师签署仍待 KAN-5 确认。</p>
+      <div class="tbl"><table>
+        <thead><tr><th>需求编号</th><th>功能与范围</th><th>源码核实</th><th>本次自动化证据</th><th>未覆盖的自动化路径</th></tr></thead>
+        <tbody>
+          <tr><td class="id">VIN-01–04</td><td>匿名 VIN 解码、vPIC 字段映射；首页解码；DMS 新建表单预填 make / model / year / body type</td><td>Core 解码服务及 DMS 表单 Decode、预填逻辑和首页解码 UI 均已实现</td><td>API 解码、错误、匿名访问及首页交互用例通过</td><td>DMS 表单 Decode → 核对预填且未保存车辆的浏览器用例</td></tr>
+          <tr><td class="id">LEAD-01–09</td><td>线索创建、阶段、负责人、跟进日期、追加备注、审计与租户隔离；助手不得读取线索</td><td>线索服务/API、前端页面和助手只查询车辆/客户/广告的实现均存在</td><td>线索 API 与主要 UI 流程通过</td><td>LEAD-09 助手上下文排除线索及备注的专门回归用例</td></tr>
+          <tr><td class="id">WO-01–07</td><td>车辆整备工单、OPEN / IN_PROGRESS / DONE / CANCELLED 流程、成本回写、售车限制、未完成数量</td><td>工单 API、DMS 抽屉内 WorkOrderPanel、状态流程及售车限制均已实现</td><td>API 生命周期/租户权限及 UI 未完成数量、售车拦截用例通过</td><td>DMS 中创建、状态操作、完成表单和取消确认的浏览器操作用例</td></tr>
+          <tr><td class="id">AUTH-16–25</td><td>自助注册、邮箱/用户名/手机号登录、Google 与 Firebase 登录、未绑定账号、入店申请和成员审批</td><td>密码、Google、Firebase 登录与注册代码，以及入店审批服务和 UI 均已实现</td><td>密码注册/登录及 AUTH-25 模拟队列 UI 用例通过；用户确认 Google 可在 :5174 登录</td><td>AUTH-23/24 外部 token 交换自动化；AUTH-25 UI 与后端持久化、租户边界的端到端联测</td></tr>
+          <tr><td class="id">IMG-01–05</td><td>照片上传、增强、查看、删除、审计及租户隔离</td><td>PhotoStudioPanel、照片 API、存储/增强服务及租户校验均已实现</td><td>API 文件校验、增强结果、原图/增强图读取、删除、审计和隔离用例通过</td><td>Image Studio 浏览器上传/增强/查看/删除工作流用例</td></tr>
+          <tr><td class="id">AI-03 / UI-52 / AT-40</td><td>确定性计数按完整的本车行结果计算，与最多五条资源卡片无关</td><td>助手实现完整租户查询并单独返回聚合计数；广告状态计数也有对应逻辑</td><td>API/UI 覆盖客户和在库车辆计数；API 用例也断言资源卡片最多五条</td><td>本轮未覆盖已售车/广告状态计数、同车行超过五条匹配数据的稳定精确断言，以及 AI 不可用时的计数</td></tr>
+          <tr><td class="id">AI-02 / AT-18</td><td>AI 服务不可用时广告检查失败关闭，不得标记 Ready 或导出</td><td>检查、Ready 与导出路径均实现失败关闭逻辑</td><td>本轮该用例因 AI 服务状态为 UP 而跳过；不是失败，也不代表该功能缺失</td><td>在 AI 服务不可用的测试环境运行 AT-18</td></tr>
+          <tr><td class="id">SEC-06</td><td>广告正文作为不可信数据传给 AI，防止提示词注入改变结论</td><td>提示构造已将广告正文隔离并标注为不可信内容</td><td>本轮没有专门的提示词注入回归用例</td><td>增加并执行 SEC-06 专项对抗用例</td></tr>
+        </tbody>
+      </table></div>
+      <h3>扩展验收场景（EXT-01–EXT-10）</h3>
+      <p>以下场景定义扩展功能的人工验收步骤和预期结果，来源为 <code>design/16-Acceptance-and-Test.md</code> §5a；列在此处不表示本轮已逐项执行。</p>
+      <div class="tbl"><table>
+        <thead><tr><th>编号</th><th>场景</th><th>验收步骤与预期结果</th></tr></thead>
+        <tbody>
+          <tr><td class="id">EXT-01</td><td>VIN 解码</td><td>未登录时在首页解码有效 VIN，再在 DMS 新建车辆时解码；首页显示车辆信息，表单预填品牌/型号/年份并显示参考信息，保存前不创建车辆；含 I/O/Q 的 VIN 被拒绝；未登录访问车辆 API 返回 401。</td></tr>
+          <tr><td class="id">EXT-02</td><td>线索流程</td><td>创建含新客户、在库车辆、负责人和备注的线索；设为 CONTACTED 并填过去的跟进日期，再尝试转 LOST。缺少原因时拒绝；补原因后进入只读状态；追加备注仍可用；后续阶段修改返回 LEAD_CLOSED；客户、逾期筛选和 CREATE/UPDATE/NOTE 审计均正确，审计不含备注正文。</td></tr>
+          <tr><td class="id">EXT-03</td><td>线索隔离</td><td>其他车行读取该线索返回 404；平台管理员读取线索列表返回 403；使用已售车辆创建线索返回 WRONG_DEALER_OR_SOLD。</td></tr>
+          <tr><td class="id">EXT-04</td><td>整备工单</td><td>为在库车辆创建工单并开始处理；未完成时售车返回 WORK_ORDERS_OPEN；完成时填写说明和成本，维修成本及车辆审计更新、未完成数量归零；已完成工单不可修改；车辆可售出，售出后不可新建工单；其他车行访问返回 404。</td></tr>
+          <tr><td class="id">EXT-05</td><td>自助注册</td><td>注册含用户名、姓名、邮箱、电话和密码的账号，分别用邮箱、用户名、电话登录；账号进入 /no-access，业务 API 返回 403；重复用户名、邮箱、电话分别返回对应 409 字段错误。</td></tr>
+          <tr><td class="id">EXT-06</td><td>管理员绑定</td><td>管理员在 Members → Pending accounts 中绑定新账号，无需重设密码；用户仍可用原凭据登录并进入 /dms，待处理列表不再显示该账号。</td></tr>
+          <tr><td class="id">EXT-07</td><td>登录名规则</td><td>验证缺少邮箱和电话、纯数字用户名、格式错误邮箱/电话会被拒绝；重复用户名返回 409；带空格和连字符的电话号码可登录；错误密码返回 401。</td></tr>
+          <tr><td class="id">EXT-08</td><td>图片上传</td><td>上传 1 MB JPEG 和 PNG 后显示缩略图；3 MB 图片提示超过 2 MB；伪装成 JPG 的文本返回 415；每辆车第 11 张图片被拒绝。</td></tr>
+          <tr><td class="id">EXT-09</td><td>图片增强</td><td>对 JPEG 执行 Auto fix，切换 Original/Enhanced，再执行 Sharpen；增强图与原图不同且长边不超过 1600 px，原图保持不变，新的增强结果替换旧结果，并写入 VEHICLE_PHOTO UPDATE 审计。</td></tr>
+          <tr><td class="id">EXT-10</td><td>图片隔离与删除</td><td>其他车行读取该图片返回 404；所属车行删除后缩略图消失且图片内容返回 404；平台管理员访问图片返回 403。</td></tr>
         </tbody>
       </table></div>
     </section>
@@ -533,7 +573,7 @@ PASSED 且版本一致 ──► 可“标记 Ready”并“导出 TXT”</div>
           <tr><td class="id">ARC-04</td><td>四个逻辑应用：React Web、.NET Gateway、.NET Core、.NET AI Service；当前以 DealerOps monorepo 的 <code>frontend/react</code> 与 <code>backend/dotnet</code> 实现</td><td>SCOPE / 当前实现</td><td><span class="pri must">必须</span></td><td class="c"><span class="st st-done">Implemented</span></td></tr>
           <tr><td class="id">ARC-05</td><td>同步 REST + 单一数据库（MySQL 8）；不使用消息队列</td><td>SCOPE</td><td><span class="pri must">必须</span></td><td class="c"><span class="st st-done">Implemented</span></td></tr>
           <tr><td class="id">ARC-06</td><td>接口统一在 <code>/api/v1</code> 下；错误体为 <code>{code, message}</code></td><td>SCOPE</td><td><span class="pri must">必须</span></td><td class="c"><span class="st st-partial">Partial</span><span class="st-note">Gateway, Core and AI error bodies still differ in shape</span></td></tr>
-          <tr><td class="id">ARC-07</td><td>Terraform 部署：三个 .NET 10 服务运行于 Azure App Service，React 前端以静态文件部署到 Azure Static Web Apps，并配 CI/CD；课程评审 2/3 需在云端演示。2026-10-07 起放弃容器化（范围基线勘误 5）</td><td>SCOPE（PPT）</td><td><span class="pri must">必须</span></td><td class="c"><span class="st st-partial">Partial</span><span class="st-note">Terraform uses App Service for the web app; .NET CI/CD does not deploy</span></td></tr>
+          <tr><td class="id">ARC-07</td><td>Terraform 部署：三个 .NET 10 服务以 zip 包运行于 Azure App Service，React 前端构建后部署到 App Service Web 应用；CI 负责编译和校验，<code>deploy/deploy.sh</code> 负责发布（加 <code>--seed</code> 可导入演示数据）；课程评审 2/3 需在云端演示。2026-10-07 起放弃容器化（范围基线勘误 5）</td><td>SCOPE（PPT）</td><td><span class="pri must">必须</span></td><td class="c"><span class="st st-partial">Partial</span><span class="st-note">Terraform uses App Service for the web app; .NET CI/CD does not deploy</span></td></tr>
         </tbody>
       </table></div>
 
@@ -613,14 +653,14 @@ PASSED 且版本一致 ──► 可“标记 Ready”并“导出 TXT”</div>
           <tr><td class="id">UI-45</td><td>广告合规</td><td>Ready 与导出 TXT 按钮仅在已通过且未过期时可用</td><td class="c"><span class="st st-done">Implemented</span></td></tr>
           <tr><td class="id">UI-46</td><td>广告合规</td><td>专用免责声明界面延后（AD-14）；结果面板已有一行提示“不构成法律意见/OMVIC 批准”，答辩时说明“通过”不等于法律批准</td><td class="c"><span class="st st-done">Implemented</span></td></tr>
           <tr><td class="id">UI-50</td><td>AI 助手</td><td>输入框 + 回答区；回答可包含车辆 / 客户卡片链接</td><td class="c"><span class="st st-done">Implemented</span></td></tr>
-          <tr><td class="id">UI-51</td><td>AI 助手</td><td>明确提示助手只读，不会修改数据</td><td class="c"><span class="st st-done">Implemented</span><span class="st-note">Panel states it will never modify data</span></td></tr>
+          <tr><td class="id">UI-51</td><td>AI 助手</td><td>明确提示助手只读，不会修改数据</td><td class="c"><span class="st st-done">Implemented</span><span class="st-note">Panel states it will never modify data</span></td></tr><tr><td class="id">UI-52</td><td>AI 助手</td><td>库存、客户及广告状态计数按本车行全部匹配记录计算，与最多五张资源卡片数量无关</td><td class="c"><span class="st st-partial">Partial E2E</span><span class="st-note">Customer count UI covered; see AT-40 gaps</span></td></tr>
         </tbody>
       </table></div>
     </section>
 
     <section id="acceptance">
       <h2><span class="num">10</span>验收用例</h2>
-      <p>以下用例定义预期行为，不代表已执行的测试结果。课堂最小演示集：AT-01、AT-03、AT-12、AT-13、AT-17、AT-19。</p>
+      <p>以下用例定义预期行为；实现状态与实际执行结果分开记录。课堂最小演示集：AT-01、AT-03、AT-12、AT-13、AT-17、AT-19。</p>
       <div class="tbl"><table>
         <thead><tr><th>编号</th><th>场景</th><th>步骤</th><th>预期结果</th><th>覆盖</th><th>实现状态 Status</th></tr></thead>
         <tbody>
@@ -640,8 +680,8 @@ PASSED 且版本一致 ──► 可“标记 Ready”并“导出 TXT”</div>
           <tr><td class="id">AT-14</td><td>广播豁免</td><td>FINANCE + RADIO_TV_BILLBOARD，有价格/APR、缺期限、APR 远离价格；再删掉 APR</td><td>第一次无位置提示、缺期限仅 REVIEW；第二次 BLOCKED <code>FINANCE_APR_MISSING</code></td><td>AD-R10–R14</td><td class="c"><span class="st st-done">Implemented</span></td></tr>
           <tr><td class="id">AT-15</td><td>租赁 20,000 km 边界</td><td>其余租赁项齐全，文案写 20,000 km/年，不写超里程费</td><td>无 <code>LEASE_EXCESS_KM_MISSING</code>；改为 19,999 时 BLOCKED <code>LEASE_EXCESS_KM_MISSING</code></td><td>AD-R25</td><td class="c"><span class="st st-done">Implemented</span></td></tr>
           <tr><td class="id">AT-16</td><td>车况不符</td><td>DMS 为 AS_IS，广告写 Certified</td><td>BLOCKED <code>CONDITION_MISMATCH</code>，不调 AI</td><td>AD-R08</td><td class="c"><span class="st st-done">Implemented</span></td></tr>
-          <tr><td class="id">AT-17</td><td>真实 AI 通过</td><td>完全合规的广告</td><td>PASSED；Ready 与 TXT 导出可用</td><td>AI-01、AD-08、AD-12</td><td class="c"><span class="st st-partial">Partial</span><span class="st-note">Needs a working provider key to reach PASSED</span></td></tr>
-          <tr><td class="id">AT-18</td><td>AI 不可用</td><td>硬性项全部合规的广告，在 AI 服务停止时检查</td><td>检查返回 502 <code>AI_UNAVAILABLE</code>，状态为 AI_UNAVAILABLE；Ready / 导出返回 <code>NOT_PASSED</code></td><td>AD-09、AI-02</td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+          <tr><td class="id">AT-17</td><td>真实 AI 通过</td><td>完全合规的广告</td><td>PASSED；Ready 与 TXT 导出可用</td><td>AI-01、AD-08、AD-12</td><td class="c"><span class="st st-done">E2E passed</span><span class="st-note">2026-10-16</span></td></tr>
+          <tr><td class="id">AT-18</td><td>AI 不可用</td><td>硬性项全部合规的广告，在 AI 服务停止时检查</td><td>检查返回 502 <code>AI_UNAVAILABLE</code>，状态为 AI_UNAVAILABLE；Ready / 导出返回 <code>NOT_PASSED</code></td><td>AD-09、AI-02</td><td class="c"><span class="st st-done">Implemented</span><span class="st-note">源码已实现；本轮自动化因 AI 服务在线而跳过</span></td></tr>
           <tr><td class="id">AT-19</td><td>过期</td><td>通过后修改正文中的价格</td><td>STALE；导出返回 <code>CHECK_STALE</code></td><td>AD-11</td><td class="c"><span class="st st-done">Implemented</span></td></tr>
           <tr><td class="id">AT-20</td><td>TXT 内容</td><td>导出文件</td><td>含车行与车辆公开信息；无客户和成本</td><td>AD-13</td><td class="c"><span class="st st-done">Implemented</span></td></tr>
           <tr><td class="id">AT-21</td><td>助手只读</td><td>提问“把车辆 X 标记为已售”</td><td>拒绝；数据库不变</td><td>AI-03</td><td class="c"><span class="st st-done">Implemented</span></td></tr>
@@ -663,6 +703,7 @@ PASSED 且版本一致 ──► 可“标记 Ready”并“导出 TXT”</div>
           <tr><td class="id">AT-37</td><td>车行资料与车况拦截</td><td>车行资料缺电话和邮箱；DMS 为 UNFIT 而广告未写车况；LEASE 广告未声明租赁、无 APR</td><td>分别得到 <code>DEALER_CONTACT_INCOMPLETE</code>（REVIEW）、BLOCKED <code>CONDITION_UNDISCLOSED</code>、BLOCKED <code>LEASE_STATEMENT_MISSING</code> + <code>LEASE_APR_MISSING</code></td><td>AD-R02、AD-R08、AD-R20、AD-R23</td><td class="c"><span class="st st-done">Implemented</span></td></tr>
           <tr><td class="id">AT-38</td><td>管理员不可读业务数据</td><td>管理员调用车辆、客户、广告、助手的列表与详情接口</td><td>全部 403，无业务字段</td><td>AUTH-08、ARC-03</td><td class="c"><span class="st st-done">Implemented</span></td></tr>
           <tr><td class="id">AT-39</td><td>发布时间可见</td><td>部署（或本地清理重建）后打开任意页面与 Gateway Swagger；查看三个 .NET 服务启动日志；停掉 ai-service 后刷新页面</td><td>左下角显示 web / gateway / core / ai 四个与本次发布一致的 UTC 时间；Swagger 描述显示 Core 发布时间；每个服务日志有 <code>Release: &lt;service&gt; published &lt;time&gt;</code>；AI 停止后显示 <code>unavailable</code>，页面仍可用</td><td>NFR-08</td><td class="c"><span class="st st-done">Implemented</span><span class="st-note">Release wiring rebuilt and verified live</span></td></tr>
+          <tr><td class="id">AT-40</td><td>助手聚合计数</td><td>询问在库车、已售车、客户、广告及广告检查状态的数量；匹配记录超过 5 条时再查，并加入另一车行数据；AI 不可用时再次询问</td><td>返回本车行完整匹配数，不以最多 5 张卡片代替总数；另一车行数据不影响结果；AI 不可用仍返回相同计数</td><td>AI-03、UI-52</td><td class="c"><span class="st st-partial">Partial E2E</span><span class="st-note">Customer/in-stock counts only; see section 7a</span></td></tr>
         </tbody>
       </table></div>
     </section>

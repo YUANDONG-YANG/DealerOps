@@ -24,13 +24,23 @@ function staff(username: string, displayName: string): Account {
   return { username, displayName, email: `${username}@example.com`, password: staffPassword };
 }
 
+// The team's standard dealer-user account for role walkthroughs (`npm run test:roles`). It
+// exists in the shared development database and is seeded into the private stack so the same
+// sign-in works in both; local-only, like the admin default.
+const dealerUser: Account = {
+  username: process.env.E2E_DEALER_USER ?? 'lafe',
+  displayName: 'Lafe',
+  email: 'lafe@example.com',
+  password: process.env.E2E_DEALER_PASSWORD ?? 'admin1234',
+};
+
 // Dealer A has two staff (shared-data checks, AUTH-06); dealer B exists for isolation checks.
 const dealerA: SeedDealer = {
   legalName: process.env.E2E_DEALER_NAME ?? 'E2E Motors',
   contactPhone: '403-555-0199',
   contactEmail: 'e2e.dealer@example.com',
   contactAddress: '1 Test Street, Calgary, AB',
-  staff: [staff(process.env.E2E_STAFF_USER ?? 'e2e.staff', 'E2E Staff'), staff('e2e.staff2', 'E2E Staff Two')],
+  staff: [staff(process.env.E2E_STAFF_USER ?? 'e2e.staff', 'E2E Staff'), staff('e2e.staff2', 'E2E Staff Two'), dealerUser],
 };
 
 const dealerB: SeedDealer = {
@@ -59,4 +69,5 @@ export const env = {
   staff: dealerA.staff[0],
   staff2: dealerA.staff[1],
   rival: dealerB.staff[0],
+  dealerUser,
 };

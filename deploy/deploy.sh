@@ -6,6 +6,7 @@
 #   ./deploy/deploy.sh --apply         # apply Terraform, then publish all apps
 #   ./deploy/deploy.sh --apply web     # apply Terraform, then publish only React
 #   ./deploy/deploy.sh web gateway     # publish selected apps without applying Terraform
+#   ./deploy/deploy.sh --apply --seed  # apply, publish all apps, then load the local demo data
 #
 # Terraform apply is intentionally opt-in because it can create or modify Azure
 # resources. The default mode only runs the application upload script.
@@ -14,17 +15,23 @@ set -euo pipefail
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 terraform_dir="${script_dir}/terraform"
 app_script="${terraform_dir}/deploy-apps.sh"
+seed_script="${script_dir}/seed/import-to-azure.sh"
 apply_terraform=false
+seed_data=false
 targets=()
 
 usage() {
-  sed -n '2,10p' "$0"
+  sed -n '2,11p' "$0"
 }
 
 while [ "$#" -gt 0 ]; do
   case "$1" in
     --apply)
       apply_terraform=true
+      shift
+      ;;
+    --seed)
+      seed_data=true
       shift
       ;;
     --help|-h)
@@ -52,7 +59,12 @@ if [ "${apply_terraform}" = true ]; then
 fi
 
 if [ "${#targets[@]}" -eq 0 ]; then
-  exec "${app_script}"
+  "${app_script}"
+else
+  "${app_script}" "${targets[@]}"
 fi
 
-exec "${app_script}" "${targets[@]}"
+if [ "${seed_data}" = true ]; then
+  echo "==> loading demo data (deploy/seed/dealer_core_seed.sql.gz)"
+  "${seed_script}"
+fi

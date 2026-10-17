@@ -203,7 +203,9 @@ textarea.input, .textarea { height: auto; padding: 10px 12px; resize: vertical; 
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: var(--tracking);
-  align-self: center;
+  /* Stretch to the row height so the dt and dd borders line up; center the label inside. */
+  display: flex;
+  align-items: center;
 }
 .definition-list dd { font-size: 14px; overflow-wrap: anywhere; }
 
@@ -257,6 +259,11 @@ textarea.input, .textarea { height: auto; padding: 10px 12px; resize: vertical; 
 .table tr:last-child td { border-bottom: none; }
 .table tbody tr { transition: background .15s; }
 .table tbody tr:hover { background: #f7f7f9; }
+/* Keep row actions in view while a wide table scrolls sideways; the wrap is the scroll container. */
+.table-wrap > .table { overflow: visible; }
+.table .col-actions { position: sticky; right: 0; }
+.table td.col-actions { background: var(--surface); box-shadow: inset 1px 0 0 var(--border); }
+.table tbody tr:hover td.col-actions { background: #f7f7f9; }
 
 /* Drawer */
 .drawer-overlay {
@@ -1544,7 +1551,7 @@ div.state {
 }
 @media (max-width: 900px) {
   .page { padding: 20px; }
-  .ad-grid { grid-template-columns: 1fr; }
+  .ad-grid { grid-template-columns: minmax(0, 1fr); }
   .landing { padding: 0 24px 48px; }
   .landing-hero, .landing-vin { grid-template-columns: 1fr; }
   .landing-hero h1 { font-size: 38px; }

@@ -43,6 +43,8 @@ output "web_custom_domain_target" {
 output "web_custom_domain_verification_id" {
   description = "Azure TXT ownership-verification value for web_custom_domain; publish as an asuid.<hostname> TXT record when required by the DNS provider."
   value       = var.web_custom_domain != "" ? azurerm_linux_web_app.web.custom_domain_verification_id : null
+  # azurerm 4.x marks the attribute sensitive; read it with `terraform output -raw` when needed.
+  sensitive = true
 }
 
 output "swagger_url" {

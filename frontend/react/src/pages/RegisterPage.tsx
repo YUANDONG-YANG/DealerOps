@@ -105,27 +105,28 @@ export default function RegisterPage() {
         {error && <div className="alert alert-error">{error}</div>}
         <form onSubmit={handleSubmit}>
           <div className="form-item">
-            <input className="input" placeholder="Username" autoComplete="username"
+            <input className="input" placeholder="Username" aria-label="Username" autoComplete="username"
               value={form.username} onChange={e => set('username', e.target.value)} />
             {fieldError('username') && <div className="field-error">{fieldError('username')}</div>}
           </div>
           <div className="form-item">
-            <input className="input" placeholder="Full name" autoComplete="name"
+            <input className="input" placeholder="Full name" aria-label="Full name" autoComplete="name"
               value={form.displayName} onChange={e => set('displayName', e.target.value)} />
             {fieldError('displayName') && <div className="field-error">{fieldError('displayName')}</div>}
           </div>
           <div className="form-item">
-            <input className="input" type="email" placeholder="Email" autoComplete="email"
+            <input className="input" type="email" placeholder="Email" aria-label="Email" autoComplete="email"
               value={form.email} onChange={e => set('email', e.target.value)} />
             {fieldError('email') && <div className="field-error">{fieldError('email')}</div>}
           </div>
           <div className="form-item">
-            <input className="input" type="tel" placeholder="Phone (email, phone, or both)" autoComplete="tel"
+            <input className="input" type="tel" placeholder="Phone (email, phone, or both)" aria-label="Phone (email, phone, or both)" autoComplete="tel"
               value={form.phone} onChange={e => set('phone', e.target.value)} />
             {fieldError('phone') && <div className="field-error">{fieldError('phone')}</div>}
           </div>
           <div className="form-item">
             <input className="input" type="password" placeholder="Password (at least 8 characters)"
+              aria-label="Password (at least 8 characters)"
               autoComplete="new-password"
               value={form.password} onChange={e => set('password', e.target.value)} />
             {fieldError('password') && <div className="field-error">{fieldError('password')}</div>}

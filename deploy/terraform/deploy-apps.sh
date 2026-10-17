@@ -12,9 +12,15 @@ set -euo pipefail
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 repo="$(cd "${here}/../.." && pwd)"
 
-for tool in az terraform dotnet npm; do
+for tool in az terraform dotnet npm zip tar curl seq; do
   command -v "${tool}" >/dev/null 2>&1 || { echo "Missing required tool: ${tool}" >&2; exit 1; }
 done
+
+# Build output goes to a scratch directory, never into the source tree: a publish folder inside a
+# project directory is picked up as content by the next `dotnet publish`, and installing into
+# frontend/react would rewrite the pnpm-managed node_modules the local dev servers run from.
+work="$(mktemp -d "${TMPDIR:-/tmp}/dealerops-deploy.XXXXXX")"
+trap 'rm -rf "${work}"' EXIT
 
 tf() { terraform -chdir="${here}" output -raw "$1" 2>/dev/null || true; }
 
@@ -45,8 +51,9 @@ ai_app="$(from_output_or_local ai_app_name local.ai_app_name)"
 gateway_app="$(from_output_or_local gateway_app_name local.gateway_app_name)"
 web_app="$(from_output_or_local web_app_name local.web_app_name)"
 gateway_url="$(from_output_or_local gateway_public_url local.gateway_public_url)"
+web_url="$(from_output_or_local web_public_url local.web_public_origin)"
 
-for deployment_value in resource_group core_app ai_app gateway_app web_app gateway_url; do
+for deployment_value in resource_group core_app ai_app gateway_app web_app gateway_url web_url; do
   if [ -z "${!deployment_value}" ] || [ "${!deployment_value}" = "null" ]; then
     echo "Could not resolve ${deployment_value} from Terraform outputs or locals." >&2
     exit 1
@@ -69,18 +76,21 @@ deploy_dotnet() {
     --settings "PUBLISHED_AT=${published_at}" --output none
 
   echo "==> ${project}: publish"
-  dotnet publish "${project_dir}" -c Release -o "${project_dir}/publish" --nologo -v quiet
+  # Leftovers of older runs of this script would otherwise be published as content files.
+  rm -rf "${project_dir}/publish" "${project_dir}/deploy.zip"
+  dotnet publish "${project_dir}" -c Release -o "${work}/${project}" --nologo -v quiet
+  [ -f "${work}/${project}/${project}.dll" ] || { echo "Publish of ${project} produced no ${project}.dll" >&2; exit 1; }
 
   echo "==> ${project}: zip and upload to ${app}"
-  (cd "${project_dir}/publish" && zip -r -q "${project_dir}/deploy.zip" .)
+  (cd "${work}/${project}" && zip -r -q "${work}/${project}.zip" .)
   az webapp deploy \
     --resource-group "${resource_group}" \
     --name "${app}" \
     --type zip \
-    --src-path "${project_dir}/deploy.zip" \
+    --src-path "${work}/${project}.zip" \
     --async false \
+    --track-status false \
     --output none
-  rm -rf "${project_dir}/publish" "${project_dir}/deploy.zip"
 }
 
 for target in "$@"; do
@@ -97,13 +107,19 @@ for target in "$@"; do
     web)
       echo "==> react frontend: build against ${gateway_url}"
       (
-        cd "${repo}/frontend/react"
-        npm install
+        # Clean copy plus `npm ci` from package-lock.json: reproducible, and the working tree's
+        # node_modules stays untouched.
+        mkdir -p "${work}/web"
+        tar -C "${repo}/frontend/react" --exclude=./node_modules --exclude=./dist \
+          --exclude=./tsconfig.tsbuildinfo -cf - . | tar -C "${work}/web" -xf -
+        cd "${work}/web"
+        npm ci --no-audit --no-fund
         VITE_GATEWAY_URL="${gateway_url}" \
         VITE_PUBLISHED_AT="${published_at}" \
           npm run build
+        grep -rqF "${gateway_url#https://}" dist/assets \
+          || { echo "SPA build does not contain ${gateway_url}" >&2; exit 1; }
         echo "==> react frontend: zip and upload dist/ to ${web_app}"
-        rm -f web.zip
         (cd dist && zip -r -q ../web.zip .)
         az webapp deploy \
           --resource-group "${resource_group}" \
@@ -111,8 +127,8 @@ for target in "$@"; do
           --type zip \
           --src-path web.zip \
           --async false \
+          --track-status false \
           --output none
-        rm -f web.zip
       )
       ;;
     *)
@@ -122,8 +138,55 @@ for target in "$@"; do
   esac
 done
 
+deployed_web=false
+deployed_backend=false
+for target in "$@"; do
+  case "${target}" in
+    web) deployed_web=true ;;
+    *) deployed_backend=true ;;
+  esac
+done
+
+# az's startup tracking misreads the failed first start of an app Terraform created with no code
+# (exit 155 before the first upload) and reports a failed deploy, so uploads skip it and this
+# check waits for the gateway to report core and ai healthy instead. A web-only deploy skips it.
+if [ "${deployed_backend}" = true ]; then
+  backend_healthy() {
+    echo "${health}" | grep -q '"core":{"status":"UP"' && echo "${health}" | grep -q '"ai":{"status":"UP"'
+  }
+  echo "==> waiting for ${gateway_url}/actuator/health to report core and ai UP"
+  health=""
+  for _ in $(seq 1 60); do
+    health="$(curl -fsS --max-time 30 "${gateway_url}/actuator/health" 2>/dev/null || true)"
+    backend_healthy && break
+    sleep 10
+  done
+  backend_healthy \
+    || { echo "Services did not become healthy within 10 minutes: ${health:-no response}" >&2; exit 1; }
+fi
+
+# A zip deploy that left only hostingstart.html still "succeeds", so check the served SPA itself:
+# the root must return the built index.html, and a client route must load it through SPA fallback.
+if [ "${deployed_web}" = true ]; then
+  spa_serves() {
+    local body
+    body="$(curl -fsS --max-time 30 "$1" 2>/dev/null)" && echo "${body}" | grep -q '<div id="root">'
+  }
+  echo "==> waiting for ${web_url}/ to serve the SPA"
+  web_ok=false
+  for _ in $(seq 1 30); do
+    if spa_serves "${web_url}/" && spa_serves "${web_url}/login"; then
+      web_ok=true
+      break
+    fi
+    sleep 10
+  done
+  [ "${web_ok}" = true ] \
+    || { echo "SPA not served at ${web_url}/ and ${web_url}/login within 5 minutes. Check /home/site/wwwroot/index.html and the pm2 startup log." >&2; exit 1; }
+fi
+
 echo
 echo "Published ${published_at}"
-echo "Web     $(tf web_public_url)"
+echo "Web     ${web_url}"
 echo "Gateway ${gateway_url}/actuator/health"
 echo "Swagger $(tf swagger_url)"

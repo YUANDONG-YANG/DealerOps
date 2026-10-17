@@ -84,6 +84,8 @@ export async function renderGoogleButton(
     text: 'continue_with',
     shape: 'rectangular',
     logo_alignment: 'center',
-    width: 316,
+    // Google renders a fixed-width iframe; fit it to the slot so narrow phones do not scroll
+    // sideways. Google accepts widths from 200 to 400 px.
+    width: Math.max(200, Math.min(316, Math.floor(target.clientWidth) || 316)),
   });
 }

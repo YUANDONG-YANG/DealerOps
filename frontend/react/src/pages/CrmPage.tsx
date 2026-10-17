@@ -16,8 +16,7 @@ import { describeError } from '../api/errors';
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+$/;
 const PHONE_PATTERN = /^(?=(?:\D*\d){7,20}\D*$)[0-9+\-() ]+$/;
 const SEARCH_DEBOUNCE_MS = 300;
-// The vehicle list has no server-side "unlinked" filter, so every page is collected
-// and filtered here. 100 is the largest page size the API accepts.
+// 100 is the largest page size the API accepts.
 const LINK_OPTION_PAGE_SIZE = 100;
 
 interface CustomerForm {
@@ -189,9 +188,11 @@ export default function CrmPage() {
 
   async function loadLinkOptions(seq: number) {
     try {
-      const all = await collectAllPages<any>((p) => vehiclesApi.list({ page: p, size: LINK_OPTION_PAGE_SIZE }));
+      const all = await collectAllPages<any>((p) => vehiclesApi.list({
+        page: p, size: LINK_OPTION_PAGE_SIZE, unlinkedOnly: true,
+      }));
       if (seq !== editSeqRef.current) return;
-      setVehicles(all.filter((x: any) => !x.linkedCustomer));
+      setVehicles(all);
     } catch {
       if (seq !== editSeqRef.current) return;
       setVehicles([]);
@@ -382,9 +383,9 @@ export default function CrmPage() {
           <button className="btn btn-primary" onClick={openCreate}>Add customer</button>
         </div>
         <div className="filters">
-          <input className="input" placeholder="Name / Email / Phone" value={filters.q}
+          <input className="input" placeholder="Name / Email / Phone" aria-label="Name / Email / Phone" value={filters.q}
             onChange={e => { setFilters(f => ({ ...f, q: e.target.value })); setPage(0); }} />
-          <select className="select" value={filters.linked}
+          <select className="select" aria-label="Link status" value={filters.linked}
             onChange={e => { setFilters(f => ({ ...f, linked: e.target.value })); setPage(0); }}>
             <option value="">Any</option>
             <option value="true">Linked</option>

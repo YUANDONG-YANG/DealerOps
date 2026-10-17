@@ -386,7 +386,7 @@ The Admin Members tab lists these under **Pending accounts** with `Add to dealer
 
 Admin hitting any URL in this section → **403** `FORBIDDEN` (same as CRM/ads/assistant; the body must not contain vin/cost or other business fields). Staff sees this dealership only. Staff with no valid membership → **403** (see §1.3).
 
-List query: `q` (substring of VIN / make / model), `make` and `model` (exact match, ignoring case), `modelYear` (exact), `status`=`IN_STOCK`\|`SOLD`, `condition` (that is `conditionCode`), `bodyType` (exact), `page`, `size`. Blank values are ignored and the filters combine with AND. Default `createdAt` descending.
+List query: `q` (substring of VIN / make / model), `make` and `model` (exact match, ignoring case), `modelYear` (exact), `status`=`IN_STOCK`\|`SOLD`, `condition` (that is `conditionCode`), `bodyType` (exact), `unlinkedOnly`=`true` (exclude vehicles linked to any customer), `page`, `size`. Blank values are ignored and the filters combine with AND. Default `createdAt` descending.
 
 ### 4.1 `GET /api/v1/vehicles`
 

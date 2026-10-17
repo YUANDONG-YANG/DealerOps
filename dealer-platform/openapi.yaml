@@ -710,6 +710,12 @@ paths:
           schema:
             $ref: "#/components/schemas/VehicleBodyType"
           description: Exact body-type match
+        - name: unlinkedOnly
+          in: query
+          schema:
+            type: boolean
+            default: false
+          description: When true, excludes vehicles linked to any customer
         - $ref: "#/components/parameters/Page"
         - $ref: "#/components/parameters/Size"
       responses:

@@ -44,7 +44,7 @@ export default function DataTable<T extends Record<string, unknown>>({
             {columns.map((col, ci) => (
               <th key={col.key ?? ci} style={col.width ? { width: col.width } : undefined}>{col.label}</th>
             ))}
-            {actions && <th style={{ width: '1%' }}>Actions</th>}
+            {actions && <th className="col-actions" style={{ width: '1%' }}>Actions</th>}
           </tr>
         </thead>
         <tbody>
@@ -55,7 +55,7 @@ export default function DataTable<T extends Record<string, unknown>>({
                   {col.render ? col.render(row) : col.key ? String((row as Record<string, unknown>)[col.key] ?? '') : ''}
                 </td>
               ))}
-              {actions && <td>{actions(row)}</td>}
+              {actions && <td className="col-actions">{actions(row)}</td>}
             </tr>
           ))}
           {rows.length === 0 && (

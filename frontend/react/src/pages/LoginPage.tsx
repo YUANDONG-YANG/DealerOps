@@ -190,6 +190,7 @@ export default function LoginPage() {
               type="text"
               className="input"
               placeholder="Email, username or phone number"
+              aria-label="Email, username or phone number"
               autoComplete="username"
               value={identifier}
               onChange={e => setIdentifier(e.target.value)}
@@ -201,6 +202,7 @@ export default function LoginPage() {
                 type={showPw ? 'text' : 'password'}
                 className="input"
                 placeholder="Password"
+                aria-label="Password"
                 autoComplete="current-password"
                 value={password}
                 onChange={e => setPassword(e.target.value)}

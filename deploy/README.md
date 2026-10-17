@@ -197,6 +197,22 @@ az webapp deploy \
 
 The first start after an upload takes about a minute: `dealer-core` runs EF Core `EnsureCreated` against `dealerops-mysql` before it answers health checks.
 
+## 5a. Load the demo data (optional)
+
+The cloud database starts empty apart from the seeded admin. To demo with the same dealerships, vehicles, photos, customers, leads and sign-ins as the local development database:
+
+```text
+deploy/seed/export-local-data.sh         # local dealer_core -> deploy/seed/dealer_core_seed.sql.gz
+deploy/seed/import-to-azure.sh           # load it into dealerops-mysql
+```
+
+or in one go with the deployment: `./deploy/deploy.sh --apply --seed`.
+
+- The export holds data only. `dealer-core` creates the schema on its first start; the import waits for it, empties every table and loads the rows, so it can be repeated to reset the demo.
+- Accounts keep their local passwords, including the platform admin. The Terraform-generated `admin_password` no longer applies after an import.
+- The import opens a MySQL firewall rule for the operator's current IP and removes it when done, then restarts `dealer-core`.
+- `flyway_schema_history` (retired Java stack) is not exported. Timestamps are exported as stored (`--skip-tz-utc`), so they stay UTC in Azure.
+
 ## 6. Verify
 
 ```text

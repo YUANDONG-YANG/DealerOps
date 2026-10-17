@@ -50,6 +50,8 @@ public class VehicleService
             query = query.Where(v => v.Model.ToLower() == model.ToLower());
         if (filter.ModelYear.HasValue)
             query = query.Where(v => v.ModelYear == filter.ModelYear.Value);
+        if (filter.UnlinkedOnly)
+            query = query.Where(v => !_db.CustomerVehicles.Any(cv => cv.VehicleId == v.Id));
 
         var total = query.LongCount();
         var items = query

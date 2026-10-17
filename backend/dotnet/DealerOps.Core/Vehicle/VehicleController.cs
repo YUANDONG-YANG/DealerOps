@@ -26,11 +26,12 @@ public class VehicleController : ControllerBase
         [FromQuery] string? make,
         [FromQuery] string? model,
         [FromQuery] int? modelYear,
+        [FromQuery] bool unlinkedOnly = false,
         [FromQuery] int page = 0,
         [FromQuery] int size = 10)
     {
         return _vehicleService.List(
-            new VehicleFilter(q, status, condition, bodyType, make, model, modelYear), page, size);
+            new VehicleFilter(q, status, condition, bodyType, make, model, modelYear, unlinkedOnly), page, size);
     }
 
     [HttpPost]

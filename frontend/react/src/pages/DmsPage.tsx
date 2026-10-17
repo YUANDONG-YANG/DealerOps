@@ -520,34 +520,34 @@ export default function DmsPage() {
         </div>
         <div className="filters">
           {catalogUnavailable ? (
-            <input className="input" placeholder="Make" value={drafts.make} onChange={e => setDrafts(d => ({ ...d, make: e.target.value }))} />
+            <input className="input" placeholder="Make" aria-label="Make" value={drafts.make} onChange={e => setDrafts(d => ({ ...d, make: e.target.value }))} />
           ) : (
-            <select className="select" value={filters.make} onChange={e => onMakeChange(e.target.value)}>
+            <select className="select" aria-label="Make" value={filters.make} onChange={e => onMakeChange(e.target.value)}>
               <option value="">Make</option>
               {makeOptions.map(m => <option key={m} value={m}>{m}</option>)}
             </select>
           )}
-          <input className="input" placeholder="Model" list="dms-filter-models" value={drafts.model}
+          <input className="input" placeholder="Model" aria-label="Model" list="dms-filter-models" value={drafts.model}
             onChange={e => setDrafts(d => ({ ...d, model: e.target.value }))} />
           <datalist id="dms-filter-models">
             {modelOptions.map(m => <option key={m} value={m} />)}
           </datalist>
-          <select className="select" value={filters.modelYear} onChange={e => changeFilter({ modelYear: e.target.value })}>
+          <select className="select" aria-label="Year" value={filters.modelYear} onChange={e => changeFilter({ modelYear: e.target.value })}>
             <option value="">Year</option>
             {yearOptions.map(y => <option key={y} value={y}>{y}</option>)}
           </select>
-          <input className="input" placeholder="Search VIN, make or model" value={drafts.q}
+          <input className="input" placeholder="Search VIN, make or model" aria-label="Search VIN, make or model" value={drafts.q}
             onChange={e => setDrafts(d => ({ ...d, q: e.target.value }))} />
-          <select className="select" value={filters.status} onChange={e => changeFilter({ status: e.target.value })}>
+          <select className="select" aria-label="Status" value={filters.status} onChange={e => changeFilter({ status: e.target.value })}>
             <option value="">Status</option>
             <option value="IN_STOCK">In stock</option>
             <option value="SOLD">Sold</option>
           </select>
-          <select className="select" value={filters.condition} onChange={e => changeFilter({ condition: e.target.value })}>
+          <select className="select" aria-label="Condition" value={filters.condition} onChange={e => changeFilter({ condition: e.target.value })}>
             <option value="">Condition</option>
             {CONDITIONS.map(c => <option key={c} value={c}>{enumLabel(c)}</option>)}
           </select>
-          <select className="select" value={filters.bodyType} onChange={e => changeFilter({ bodyType: e.target.value })}>
+          <select className="select" aria-label="Body type" value={filters.bodyType} onChange={e => changeFilter({ bodyType: e.target.value })}>
             <option value="">Body type</option>
             {BODY_TYPES.map(b => <option key={b} value={b}>{enumLabel(b)}</option>)}
           </select>

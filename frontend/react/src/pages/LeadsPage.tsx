@@ -215,15 +215,15 @@ export default function LeadsPage() {
           <button className="btn btn-primary" onClick={openCreate}>Add lead</button>
         </div>
         <div className="filters">
-          <input className="input" value={filters.q} placeholder="Customer name"
+          <input className="input" value={filters.q} placeholder="Customer name" aria-label="Customer name"
             onChange={(e) => setFilters((f) => ({ ...f, q: e.target.value }))}
             onKeyDown={(e) => e.key === 'Enter' && load(0)} />
-          <select className="select" value={filters.stage}
+          <select className="select" aria-label="Stage" value={filters.stage}
             onChange={(e) => setFilters((f) => ({ ...f, stage: e.target.value }))}>
             <option value="">Stage</option>
             {LEAD_STAGES.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
           </select>
-          <select className="select" value={filters.owner}
+          <select className="select" aria-label="Owner" value={filters.owner}
             onChange={(e) => setFilters((f) => ({ ...f, owner: e.target.value }))}>
             <option value="">Owner</option>
             {owners.map((o) => <option key={o.username} value={o.username}>{memberLabel(o)}</option>)}

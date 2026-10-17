@@ -185,7 +185,7 @@ export default function LandingPage() {
           </p>
           <form onSubmit={onVinSubmit} className="input-group">
             <input className="input" value={vin} onChange={e => setVin(e.target.value)}
-              maxLength={17} placeholder="17-character VIN" />
+              maxLength={17} placeholder="17-character VIN" aria-label="VIN" />
             <button type="submit" className="btn" disabled={decoding}>
               {decoding ? 'Decoding…' : 'Decode'}
             </button>

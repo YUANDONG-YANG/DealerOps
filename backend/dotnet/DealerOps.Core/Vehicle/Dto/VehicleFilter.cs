@@ -7,4 +7,5 @@ public record VehicleFilter(
     VehicleBodyType? BodyType,
     string? Make,
     string? Model,
-    int? ModelYear);
+    int? ModelYear,
+    bool UnlinkedOnly = false);

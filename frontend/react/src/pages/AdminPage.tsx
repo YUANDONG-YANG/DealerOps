@@ -374,7 +374,7 @@ export default function AdminPage() {
         {tab === 'dealers' && (
           <>
             <div className="filters">
-              <input className="input" value={q} placeholder="Dealership name" onChange={(e) => setQ(e.target.value)} />
+              <input className="input" value={q} placeholder="Dealership name" aria-label="Dealership name" onChange={(e) => setQ(e.target.value)} />
               <button className="btn" onClick={() => { setPage(0); loadDealers(); }}>Search</button>
               <button className="btn" onClick={() => { setQ(''); setPage(0); }}>Reset</button>
             </div>
@@ -404,7 +404,7 @@ export default function AdminPage() {
         {tab === 'members' && (
           <>
             <div className="filters">
-              <input className="input" value={memberQ} placeholder="Username" onChange={(e) => setMemberQ(e.target.value)} />
+              <input className="input" value={memberQ} placeholder="Username" aria-label="Username" onChange={(e) => setMemberQ(e.target.value)} />
               <button className="btn" onClick={() => { setMemberPage(0); loadFlatMembers(); }}>Search</button>
               <button className="btn" onClick={() => { setMemberQ(''); setMemberPage(0); loadFlatMembers(); }}>Reset</button>
             </div>

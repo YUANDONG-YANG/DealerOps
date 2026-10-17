@@ -68,6 +68,9 @@ locals {
     APPLICATIONINSIGHTS_CONNECTION_STRING = azurerm_application_insights.appi.connection_string
     # Release time on every app; deploy-apps.sh overwrites it on each deploy.
     PUBLISHED_AT = var.published_at
+    # The services default to a log-sum folder three levels above the app, which is outside the
+    # writable App Service storage; /home persists across restarts.
+    LOG_DIR = "/home/LogFiles/dealerops"
   }
 }
 
@@ -355,6 +358,7 @@ resource "azurerm_linux_web_app" "core" {
       Kestrel__Endpoints__Http__Url = local.kestrel_url
       ConnectionStrings__Default    = "@Microsoft.KeyVault(SecretUri=${azurerm_key_vault_secret.mysql_connection_string.versionless_id})"
       AiService__BaseUrl            = local.ai_internal_url
+      EnableSwagger                 = "true"
       AiService__InternalToken      = "@Microsoft.KeyVault(SecretUri=${azurerm_key_vault_secret.internal_token.versionless_id})"
       Jwt__DevSecret                = "@Microsoft.KeyVault(SecretUri=${azurerm_key_vault_secret.jwt_signing_secret.versionless_id})"
     },

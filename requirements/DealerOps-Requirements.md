@@ -260,7 +260,7 @@ The spec PDF has no such page. It is added by scope erratum 2 to meet the course
 | ARC-04 | Four apps: `dealer-web`, `dealer-gateway`, `dealer-core`, `ai-service` | Must |
 | ARC-05 | Synchronous REST and one MySQL 8 database, with no message queue | Must |
 | ARC-06 | APIs live under `/api/v1`, and the error body is `{code, message}` | Must |
-| ARC-07 | Terraform deploys the three Java services as JARs on Azure App Service and the front end as static files on Azure Static Web Apps, with CI/CD. Course reviews 2 and 3 are demonstrated in the cloud. There are no containers (erratum 5) | Must |
+| ARC-07 | Terraform deploys the three .NET 10 services as zip packages on Azure App Service and the built React front end on an App Service web app; CI compiles and validates, and `deploy/deploy.sh` publishes (optionally loading demo data with `--seed`). Course reviews 2 and 3 are demonstrated in the cloud. There are no containers (erratum 5) | Must |
 | SEC-01 | Passwords are BCrypt-hashed on the server and never logged or exposed to the front end | Must |
 | SEC-02 | The gateway and core both validate the JWT signature, issuer, audience and expiry. The gateway rejects unknown roles, and core authorizes by role (admin ↔ staff crossover returns 403) | Must |
 | SEC-03 | HTTPS everywhere in the cloud | Must |

@@ -35,6 +35,7 @@ export const vehiclesApi = {
     if (p.make) params.make = p.make;
     if (p.model) params.model = p.model;
     if (p.modelYear) params.modelYear = p.modelYear;
+    if (p.unlinkedOnly) params.unlinkedOnly = true;
     return http.get('/api/v1/vehicles', { params });
   },
   get: (id: number) => http.get(`/api/v1/vehicles/${id}`),
