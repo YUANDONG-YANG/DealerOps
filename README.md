@@ -2,297 +2,122 @@
 
 Multi-tenant back office for independent used-car dealers: DMS (vehicles), CRM (customers and leads), and OMVIC ad compliance with a real AI review. A platform admin opens dealerships and binds staff; staff only see their own dealership.
 
-Private GitHub: [YUANDONG-YANG/DealerOps](https://github.com/YUANDONG-YANG/DealerOps).
+GitHub: [YUANDONG-YANG/DealerOps](https://github.com/YUANDONG-YANG/DealerOps) (public). Live demo: https://dealer-ops-dev.azurewebsites.net (when the Azure stack is deployed).
 
 ## Architecture at a glance
 
 ```text
-Browser ──> dealer-web (5173) ──> dealer-gateway (8080) ──> dealer-core (8081) ──> MySQL (3306)
+Browser ──> dealer-web (5174) ──> dealer-gateway (8080) ──> dealer-core (8081) ──> MySQL (3306)
                                                                   └──> ai-service (8082) ──> LLM provider
 ```
 
 | Folder | What it is |
 |---|---|
-| `frontend/vue/` | Vue 3 + Element Plus frontend (Vite, port 5173) |
-| `frontend/react/` | React 19 + TypeScript frontend rewrite (Vite, port 5174) |
-| `backend/java/dealer-gateway/` | Spring Cloud Gateway: the only API entry for the browser (`/api/v1/**`), validates JWT |
-| `backend/java/dealer-core/` | Spring Boot + Flyway + MySQL: all business APIs, login, and admin |
-| `backend/java/ai-service/` | Internal AI adapter around the vendored `ai-manager` sources; no database |
-| `backend/dotnet/` | C# / .NET 10 backend port (DealerOps.Core, DealerOps.AiService, DealerOps.Gateway) |
-| `dealer-platform/` | `openapi.yaml`, `API.md`, `env.example` |
-| `deploy/` | Terraform + Azure deployment ([deploy/README.md](deploy/README.md)) |
+| `frontend/react/` | React 19 + TypeScript frontend (Vite, port 5174) |
+| `backend/dotnet/DealerOps.Gateway/` | YARP gateway: the only API entry for the browser (`/api/v1/**`), validates JWT, CORS |
+| `backend/dotnet/DealerOps.Core/` | ASP.NET Core + EF Core + MySQL: all business APIs, login, admin, audit |
+| `backend/dotnet/DealerOps.AiService/` | Internal AI adapter (ad review, assistant); no database |
+| `dealer-platform/` | `openapi.yaml`, `API.md`, `env.example`, and the demo seed generator (`seed/`) |
+| `playwright/` | Browser end-to-end tests on a private stack ([playwright/README.md](playwright/README.md)) |
+| `deploy/` | Terraform + Azure App Service deployment ([deploy/README.md](deploy/README.md)) |
 | `design/` | Design documents, the source of truth ([design/README.md](design/README.md)) |
+| `requirements/` | Customer sources and the requirements specification |
 
-The browser only talks to the gateway on `8080`. Core (`8081`) and ai-service (`8082`) listen on `127.0.0.1` and must not be called from the browser. Everything runs as plain processes; there are no containers.
+The browser only talks to the gateway on `8080`. Core (`8081`) and ai-service (`8082`) must not be called from the browser. Everything runs as plain processes; there are no containers. The Java and Vue implementations have been removed.
 
-## Local development startup
+## Local development
 
-### One-command start (recommended for beginners)
+### Prerequisites
 
-After installing .NET 10, Node.js 20+, MySQL 8, and Git, run this from the repository root:
+| Tool | Version | macOS install |
+|---|---|---|
+| .NET SDK | 10 | `brew install dotnet` |
+| Node.js | 20 or newer | `brew install node` |
+| MySQL | 8.4 | `brew install mysql@8.4 && brew link --force mysql@8.4` |
+| Git | any | `brew install git` |
+
+### One-command start
+
+From the repository root:
 
 ```bash
 ./start-local.sh
 ```
 
-The launcher creates the local database and default development account, installs the React dependencies on first use, starts Core, AI Service, Gateway, and the React frontend, and writes service logs under `log-sum/`. Open http://localhost:5174 when it reports that startup is complete.
+The launcher starts MySQL if needed, creates the `dealer_core` database and the `dealer` user, installs the React dependencies on first use, then starts Core, AI Service, Gateway and the React dev server, and writes logs to `log-sum/`. Open http://localhost:5174 when it reports that startup is complete. Press `Ctrl+C` to stop everything it started.
 
-AI is optional for local development. If `AIMANAGER_API_KEY` is empty, all services still start and the rest of the application remains usable; only AI requests return `AI_KEY_MISSING`. To enable AI, put your own key in the automatically created, Git-ignored file `dealer-platform/.env.local`, then run `./start-local.sh` again. Never commit that file.
+Core creates the tables itself on first start (EF Core `EnsureCreated` plus column patches); there are no migrations to run.
 
-Press `Ctrl+C` in the launcher terminal to stop the services started by the script.
+AI is optional. Without `AIMANAGER_API_KEY` everything works except the AI review and assistant answers, which return `AI_KEY_MISSING`. To enable AI, put your key in `dealer-platform/.env.local` (created on first run and Git-ignored) and run `./start-local.sh` again. Never commit that file.
 
-These steps are written for macOS and assume no prior setup. Follow them top to bottom and do not skip a check. On Windows, install the same tool versions from their official installers instead of Homebrew (Step 0) and set `JAVA_HOME` to the JDK 21 folder in System Environment Variables; Steps 1–6 in IntelliJ are the same.
+### Starting the services by hand
 
-You will end up with five programs running at the same time, started **in this order**. Wait for each one to be healthy before starting the next:
+`start-local.sh` is the reference for environment variables. In separate terminals, in this order:
 
-```text
-MySQL → dealer-core → ai-service → dealer-gateway → dealer-web
+```bash
+dotnet run --project backend/dotnet/DealerOps.Core --no-launch-profile       # 8081
+dotnet run --project backend/dotnet/DealerOps.AiService --no-launch-profile  # 8082
+dotnet run --project backend/dotnet/DealerOps.Gateway --no-launch-profile    # 8080
+cd frontend/react && npm install && npm run dev                              # 5174
 ```
 
-**Words used below**
+Wait for `http://127.0.0.1:<port>/actuator/health` to report `UP` before starting the next one.
 
-| Word | Meaning |
-|---|---|
-| Terminal | The command-line app. On macOS press `Cmd+Space`, type `Terminal`, press Enter. Type a command, press Enter, and wait until the prompt comes back |
-| Repository root | The `DealerOps` folder you clone in Step 0. "Run from the repository root" means first run `cd` into that folder |
-| Run configuration | A saved "how to start this program" entry in IntelliJ |
-| Readiness URL | A web address that shows `{"status":"UP"}` when a service has started correctly |
+### Accounts and demo data
 
-### Step 0. Install the tools and get the code
+| Account | Sign in with | Password | Role | Lands on |
+|---|---|---|---|---|
+| Platform admin | `admin` or `admin@example.com` | `admin123` | `Platform.Admin` | `/admin` |
+| Dealer user | `lafe` | `admin1234` | `Dealer.User` (dealership "Mazda") | `/dms` |
 
-1. **Install Homebrew** (the macOS package installer). Paste this into Terminal and follow the prompts (it asks for your Mac password; nothing appears as you type it, which is normal):
-
-   ```text
-   /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-   ```
-
-   When it finishes, it prints two or three `echo ... eval ...` lines under **Next steps**. Copy and run them, then close and reopen Terminal.
-
-2. **Install the tools**:
-
-   ```text
-   brew install openjdk@21 maven node mysql@8.4 git
-   brew link --force mysql@8.4
-   sudo ln -sfn "$(brew --prefix)/opt/openjdk@21/libexec/openjdk.jdk" /Library/Java/JavaVirtualMachines/openjdk-21.jdk
-   ```
-
-3. **Install IntelliJ IDEA** from https://www.jetbrains.com/idea/download/ (Community edition is free; students can get Ultimate free with a school email).
-
-4. **Point Terminal at JDK 21.** Run this once so every new Terminal window uses JDK 21:
-
-   ```text
-   echo 'export JAVA_HOME=$(/usr/libexec/java_home -v 21)' >> ~/.zshrc
-   source ~/.zshrc
-   ```
-
-5. **Check everything.** Each command must print a version; if one says `command not found`, redo the step above:
-
-   | Command | Must show |
-   |---|---|
-   | `java -version` | `21` (not 25) |
-   | `mvn -v` | `3.9` or newer, and `Java version: 21` |
-   | `node -v` | `v20` or newer |
-   | `mysql --version` | `8.4` |
-   | `git --version` | any version |
-
-6. **Get the code.** The repository is private: ask the project owner to add your GitHub account first. Then:
-
-   ```text
-   mkdir -p ~/IdeaProjects && cd ~/IdeaProjects
-   git clone https://github.com/YUANDONG-YANG/DealerOps.git
-   cd DealerOps
-   ```
-
-   If Git asks for a password, use a GitHub personal access token, not your GitHub password. `~/IdeaProjects/DealerOps` is now your repository root.
-
-### Step 1. Start MySQL and create the database
-
-```text
-brew services start mysql@8.4
-mysql -u root
-```
-
-Wait about ten seconds after the first line. The second line opens the MySQL prompt, which looks like `mysql>`. A fresh Homebrew MySQL has no root password; if yours has one, use `mysql -u root -p` and type it.
-
-At the `mysql>` prompt, paste all of these lines at once and press Enter (one-time setup):
-
-```sql
-CREATE DATABASE IF NOT EXISTS dealer_core CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
-CREATE USER IF NOT EXISTS 'dealer'@'localhost' IDENTIFIED BY 'dealer_dev_only';
-CREATE USER IF NOT EXISTS 'dealer'@'127.0.0.1' IDENTIFIED BY 'dealer_dev_only';
-GRANT ALL PRIVILEGES ON dealer_core.* TO 'dealer'@'localhost';
-GRANT ALL PRIVILEGES ON dealer_core.* TO 'dealer'@'127.0.0.1';
-FLUSH PRIVILEGES;
-exit;
-```
-
-You are back at the normal Terminal prompt. Check that the app user works:
-
-```text
-mysql -h 127.0.0.1 -P 3306 -u dealer -pdealer_dev_only dealer_core -e "SELECT 1"
-```
-
-It must print a small table containing `1`. A password warning above it is normal.
-
-Tables are created automatically by Flyway when `dealer-core` starts.
-
-### Step 2. Get an AI model key (optional)
-
-`ai-service` carries the `ai-manager` library as vendored source, so there is nothing extra to clone or install. You can skip this step: without a key, everything starts and works except the AI features (ad check AI review and assistant answers), which fail with `AI_KEY_MISSING`.
-
-To enable AI, get a free Groq key: sign up at https://console.groq.com, open **API Keys**, click **Create API Key**, and copy the key (it starts with `gsk_`). You paste it in Step 3. Never commit it or share it in chat. Other providers: [backend/java/ai-service/README.md](backend/java/ai-service/README.md).
-
-### Step 3. Create the IntelliJ run configurations
-
-1. **Open the project.** In IntelliJ choose **File → Open…**, select the `DealerOps` folder (the repository root, not a subfolder), and click **Trust Project** if asked. A progress bar at the bottom right shows the Maven import; wait until it disappears (the first time can take several minutes while it downloads libraries).
-2. **Select JDK 21.** Open **File → Project Structure → Project → SDK**. If no `21` entry is listed, choose **Add SDK → JDK…** and pick `/Library/Java/JavaVirtualMachines/openjdk-21.jdk`. Then open **Settings → Build, Execution, Deployment → Build Tools → Maven → Importing** and set **JDK for importer** to the same JDK 21.
-3. **Create the three run configurations.** For each row in the table below:
-   1. Choose **Run → Edit Configurations…**, click **+**, and pick **Spring Boot** (IntelliJ Community has no Spring Boot entry; pick **Application** instead).
-   2. Type the **Name** from the table. Set the JDK drop-down to 21, the module drop-down (labelled `-cp`) to the **Module**, and **Main class** to the class from the table.
-   3. If there is no **Environment variables** box, click **Modify options → Environment variables** to show it. Paste that service's line from below into it.
-   4. Click **Apply**, then add the next one. Click **OK** when all three exist.
-
-| Name | Module | Main class |
-|---|---|---|
-| `dealer-core-local` | `dealer-core` | `com.dealerops.core.DealerCoreApplication` |
-| `ai-service-local` | `ai-service` | `ca.sait.dealerops.aiservice.AiServiceApplication` |
-| `dealer-gateway-local` | `dealer-gateway` | `ca.sait.dealerops.gateway.GatewayApplication` |
-
-**dealer-core-local**
-
-```text
-CORE_PORT=8081;SERVER_ADDRESS=127.0.0.1;LOG_DIR=$PROJECT_DIR$/log-sum;MYSQL_URL=jdbc:mysql://127.0.0.1:3306/dealer_core?useSSL=false&allowPublicKeyRetrieval=true;MYSQL_USER=dealer;MYSQL_PASSWORD=dealer_dev_only;GATEWAY_PUBLIC_URL=http://localhost:8080;AI_BASE_URL=http://127.0.0.1:8082;INTERNAL_TOKEN=dealer-internal;JWT_MODE=dev;DEV_JWT_SECRET=dealer-dev-jwt-secret-change-me;ADMIN_USERNAME=admin;ADMIN_PASSWORD=admin123;ADMIN_EMAIL=admin@example.com
-```
-
-**ai-service-local** (set the key locally; never commit it)
-
-```text
-AI_PORT=8082;SERVER_ADDRESS=127.0.0.1;LOG_DIR=$PROJECT_DIR$/log-sum;SPRING_APPLICATION_NAME=ai-service;SPRING_PROFILES_ACTIVE=dev;INTERNAL_TOKEN=dealer-internal;AIMANAGER_API_KEY=<local-secret>;AIMANAGER_GATEWAY_PROVIDER=groq;AIMANAGER_GATEWAY_MODEL=qwen/qwen3.8-27b;AIMANAGER_GATEWAY_MAX_TOKENS=800
-```
-
-**dealer-gateway-local**
-
-```text
-GATEWAY_PORT=8080;CORE_URL=http://127.0.0.1:8081;AI_URL=http://127.0.0.1:8082;LOG_DIR=$PROJECT_DIR$/log-sum;SPRING_PROFILES_ACTIVE=dev;INTERNAL_TOKEN=dealer-internal;CORS_ALLOWED_ORIGIN=http://localhost:5173;JWT_MODE=dev;DEV_JWT_SECRET=dealer-dev-jwt-secret-change-me
-```
-
-These are local-only values. Never reuse them in the cloud, and never commit API keys. Reference list: [dealer-platform/env.example](dealer-platform/env.example).
-
-### Step 4. Start the three Java services
-
-For each service, in the order below:
-
-1. Clean it: delete **that service's own** `target/` folder, or in the **Maven** tool window expand the module and double-click **Lifecycle → clean**.
-2. Choose its run configuration in the drop-down at the top right of IntelliJ and click the green **Run** (▶) button. A Run tab opens at the bottom with log output. It has started when you see a line like `Started DealerCoreApplication in ... seconds`. Do not close the tab; closing or stopping (■) it stops the service.
-3. Open its readiness URL in a web browser. Move on only when the page shows `{"status":"UP"}`. If it does not, scroll the Run tab for the first `ERROR` line and check [Troubleshooting](#troubleshooting).
-
-| Order | Run | Wait for |
-|---|---|---|
-| 1 | `dealer-core-local` | http://127.0.0.1:8081/actuator/health/readiness |
-| 2 | `ai-service-local` | http://127.0.0.1:8082/actuator/health/readiness |
-| 3 | `dealer-gateway-local` | http://127.0.0.1:8080/actuator/health/readiness |
-
-<details>
-<summary>Without IntelliJ (terminal, macOS/Linux)</summary>
-
-Run each line in its own terminal from the repository root, in the order above. The checked-in application config files (`application.yml` / `application.yaml`) already default to the local values; only these overrides are needed. `JWT_MODE=dev` must be set explicitly on core and gateway: they refuse to start when it comes only from the config default. Each new terminal needs JDK 21 (see Step 0). `mvn clean` already deletes the service's `target/`. Set `AIMANAGER_API_KEY` from a local secret manager or terminal environment; do not put it in `ai-key.md` or commit it. Wait for each readiness URL before starting the next line; stop a service with `Ctrl+C`.
-
-```text
-cd backend/java/dealer-core && SERVER_ADDRESS=127.0.0.1 LOG_DIR=../../../log-sum JWT_MODE=dev ADMIN_USERNAME=admin ADMIN_PASSWORD=admin123 ADMIN_EMAIL=admin@example.com mvn clean spring-boot:run
-cd backend/java/ai-service && SERVER_ADDRESS=127.0.0.1 LOG_DIR=../../../log-sum SPRING_PROFILES_ACTIVE=dev AIMANAGER_API_KEY=<local-secret> mvn clean spring-boot:run
-cd backend/java/dealer-gateway && LOG_DIR=../../../log-sum SPRING_PROFILES_ACTIVE=dev JWT_MODE=dev mvn clean spring-boot:run
-```
-
-</details>
-
-### Step 5. Start the frontend
-
-Only after the gateway is `UP`, open IntelliJ's terminal (**View → Tool Windows → Terminal**). It opens at the repository root. Run:
-
-```text
-cd frontend/vue
-cp .env.example .env    # first time only
-npm ci                  # first time, or after package.json changes
-npm run dev
-```
-
-When it prints `Local: http://localhost:5173/`, open that address in the browser. Leave this terminal running; `Ctrl+C` stops the frontend.
-
-### Step 6. Sign in
-
-| Account | Login | Password | Lands on |
-|---|---|---|---|
-| Platform admin | `admin` or `admin@example.com` | `admin123` | `/admin` |
-
-There is no demo business data. As admin, create a dealership on `/admin`, then use **Bind staff** to create a staff account (username, email and/or phone, temporary password of at least 8 characters). Sign out and sign in as that staff user to reach `/dms`. Self-registered accounts land on `/no-access` until the admin binds them under **Admin → Members → Pending accounts**.
-
-The admin is seeded from `ADMIN_USERNAME` / `ADMIN_PASSWORD` only on the first start; changing them later does not change an existing password. Sign-in design: [design/15-Data-Auth-and-Gateway.md](design/15-Data-Auth-and-Gateway.md) §8.
-
-### Next time
-
-Steps 0–3 are one-time setup. On later days:
-
-1. Start MySQL if it is not running: `brew services start mysql@8.4`.
-2. In IntelliJ, run `dealer-core-local`, `ai-service-local`, then `dealer-gateway-local`, waiting for each readiness URL.
-3. In the IntelliJ terminal: `cd frontend/vue` then `npm run dev`.
-
-To stop, press `Ctrl+C` in the frontend terminal, then click Stop (■) on the gateway, ai-service, and core Run tabs.
+The admin is seeded from `ADMIN_USERNAME` / `ADMIN_PASSWORD` on the first start only. `lafe` and the rest of the demo data live in the shared development database; to load the generated demo dealerships, vehicles, photos, customers, leads and listings into a fresh database, see [dealer-platform/seed/README.md](dealer-platform/seed/README.md). Self-registered accounts land on the no-access page until the admin binds them under **Admin → Members → Pending accounts**.
 
 ### Useful URLs
 
 | What | URL |
 |---|---|
-| Web app | http://localhost:5173/ |
-| Swagger UI | http://localhost:8080/swagger-ui/index.html |
-| OpenAPI JSON | http://localhost:8080/v3/api-docs |
+| Web app | http://localhost:5174/ |
+| Gateway health | http://localhost:8080/actuator/health |
+| Release times of all four apps | http://localhost:8080/actuator/release |
+| Swagger UI | http://localhost:8080/swagger/index.html |
 | Logs | `log-sum/<service>-<date>.log` |
 
 ### Troubleshooting
 
 | Symptom | Fix |
 |---|---|
-| core fails with a database or Flyway error | MySQL is not running, or Step 1 was skipped; re-run the `SELECT 1` check. Databases created before 2026-10-07 need the Flyway repair in [design/15-Data-Auth-and-Gateway.md](design/15-Data-Auth-and-Gateway.md) §8.3 |
-| Compile errors such as `invalid target release` | The run configuration or terminal is not using JDK 21 |
-| Ad check returns `AI_UNAVAILABLE` / `AI_KEY_MISSING` | Set `AIMANAGER_API_KEY` only in the local service environment or Azure Key Vault reference, then restart the AI service |
-| Login works but every API call returns 401 | `DEV_JWT_SECRET` differs between core and gateway |
-| Browser shows CORS errors | Open the app at `http://localhost:5173`, not `127.0.0.1:5173` |
-| `Port 8080 (or 8081, 8082, 5173) was already in use` | That service is already running in another tab or terminal. Stop the old one first, or run `lsof -i :8080` to find it |
-| `brew: command not found` or `mysql: command not found` | Run the **Next steps** lines Homebrew printed (Step 0.1), or `brew link --force mysql@8.4`, then reopen Terminal |
-| IntelliJ shows red code everywhere | The Maven import has not finished, or the project SDK is not 21. Wait, then open the **Maven** tool window and click **Reload All Maven Projects** (⟳) |
-| `npm ci` fails | Check `node -v` is 20 or newer, then retry |
+| Core fails with a database error | MySQL is not running: `brew services start mysql@8.4`, then rerun `./start-local.sh` |
+| Ad check returns `AI_UNAVAILABLE` / `AI_KEY_MISSING` | Set `AIMANAGER_API_KEY` in `dealer-platform/.env.local` and restart |
+| Login works but every API call returns 401 | The JWT secret differs between core and gateway; start both through `start-local.sh` |
+| Browser shows CORS errors | Open `http://localhost:5174`, not `127.0.0.1:5174` |
+| Google sign-in shows "origin is not allowed" | The Google OAuth client authorizes `http://localhost:5174` and the Azure web URL only; other ports (such as the test stack on 5175) cannot use Google sign-in |
+| `Port ... already in use` | The service is already running; find it with `lsof -i :8080` |
 | Anything else | Check `log-sum/` first ([design/20-Observability.md](design/20-Observability.md)) |
 
-## React frontend (alternative)
+## Testing
 
-The React frontend at `frontend/react/` is a full TypeScript rewrite of the Vue app. To run it instead of (or alongside) the Vue frontend:
+Browser end-to-end tests run against a private stack (web 5175, gateway 18080, core 18081, database `dealer_core_e2e`), so they never write to the development database.
 
-```text
-cd frontend/react
-npm install             # first time
-npm run dev             # starts on http://localhost:5174
+```bash
+cd playwright
+npm install && npx playwright install chromium   # first time
+npm test                                         # rebuild the private stack and run the full suite
+npm run test:roles                               # walk every page as admin and lafe, desktop and phone width
 ```
 
-It connects to the same gateway on port 8080. To use it as the primary frontend, set `CORS_ALLOWED_ORIGIN=http://localhost:5174` on the gateway run configuration.
+Details, layout and the `autofix` loop: [playwright/README.md](playwright/README.md).
 
-## .NET backend (alternative)
+## Cloud deployment (Azure)
 
-The C# backend at `backend/dotnet/` is a port of the Java services. Prerequisites: .NET 10 SDK.
+Terraform creates the App Service plan, the four web apps, MySQL Flexible Server, Key Vault and monitoring; a script uploads the apps. One command deploys everything and loads the local demo data:
 
-```text
-brew install dotnet     # macOS
-
-cd backend/dotnet
-dotnet build            # verify: 0 errors, 0 warnings
+```bash
+az login
+deploy/seed/export-local-data.sh      # local dealer_core -> deploy/seed/dealer_core_seed.sql.gz (Git-ignored)
+./deploy/deploy.sh --apply --seed     # terraform apply, upload all apps, wait for health, import the data
 ```
 
-To run the .NET core service (port 8081):
-
-```text
-cd backend/dotnet/DealerOps.Core
-dotnet run
-```
-
-The .NET backend uses the same MySQL database and the same environment variables as the Java version. See each project's `appsettings.json` for configuration.
+After an import the cloud accepts the same sign-ins as the local database (`admin` / `admin123`, `lafe` / `admin1234`). `terraform destroy` in `deploy/terraform` removes the whole stack; apply and destroy can be repeated. Full procedure, verification and cost control: [deploy/README.md](deploy/README.md).
 
 ## AI agent MCP servers
 
@@ -316,4 +141,4 @@ Claude Code asks each developer to approve project servers on first use. Never c
 | Testing and team acceptance | [design/TESTING-AND-ACCEPTANCE-GUIDE.md](design/TESTING-AND-ACCEPTANCE-GUIDE.md) |
 | Cloud deployment (Terraform + Azure) | [deploy/README.md](deploy/README.md) |
 | Delivery status | [project-plan/Implementation-Delivery-Status.md](project-plan/Implementation-Delivery-Status.md) |
-| Contributor and AI-agent rules (including the current no-test-authoring rule) | [CLAUDE.md](CLAUDE.md) |
+| Contributor and AI-agent rules | [CLAUDE.md](CLAUDE.md) |

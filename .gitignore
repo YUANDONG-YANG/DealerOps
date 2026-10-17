@@ -58,3 +58,6 @@ log-sum/*.log
 # Python bytecode (seed scripts)
 **/__pycache__/
 *.pyc
+
+# Demo data exported by deploy/seed/export-local-data.sh
+deploy/seed/*.sql.gz
