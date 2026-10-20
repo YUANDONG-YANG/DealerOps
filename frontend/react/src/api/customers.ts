@@ -12,6 +12,7 @@ export const customersApi = {
     http.post('/api/v1/customers', b),
   update: (id: number, b: { version: number; name: string; email: string; phone: string; homeAddress: string }) =>
     http.patch(`/api/v1/customers/${id}`, b),
+  delete: (id: number) => http.delete(`/api/v1/customers/${id}`),
   link: (id: number, vehicleId: number) => http.put(`/api/v1/customers/${id}/vehicles/${vehicleId}`),
   unlink: (id: number, vehicleId: number) => http.delete(`/api/v1/customers/${id}/vehicles/${vehicleId}`),
 };

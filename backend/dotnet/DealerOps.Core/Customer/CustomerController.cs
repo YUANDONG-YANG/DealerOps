@@ -42,4 +42,11 @@ public class CustomerController : ControllerBase
     {
         return _service.Patch(id, body);
     }
+
+    [HttpDelete("{id}")]
+    public IActionResult Delete(long id)
+    {
+        _service.Delete(id);
+        return NoContent();
+    }
 }

@@ -307,13 +307,14 @@ resource "azurerm_linux_web_app" "gateway" {
     CORE_URL                    = local.core_internal_url
     AI_URL                      = local.ai_internal_url
     CORS_ALLOWED_ORIGIN         = local.cors_allowed_origin
+    WEB_PUBLISHED_AT            = ""
     "dealerops__internalToken"  = "@Microsoft.KeyVault(SecretUri=${azurerm_key_vault_secret.internal_token.versionless_id})"
     "dealerops__jwt__devSecret" = "@Microsoft.KeyVault(SecretUri=${azurerm_key_vault_secret.jwt_signing_secret.versionless_id})"
   })
 
   lifecycle {
     # The deploy step stamps the real publish timestamp after the zip upload.
-    ignore_changes = [app_settings["PUBLISHED_AT"]]
+    ignore_changes = [app_settings["PUBLISHED_AT"], app_settings["WEB_PUBLISHED_AT"]]
   }
 }
 

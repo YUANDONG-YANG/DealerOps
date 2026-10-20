@@ -105,6 +105,11 @@ for target in "$@"; do
       deploy_dotnet DealerOps.Gateway "${gateway_app}"
       ;;
     web)
+      # Same clock as PUBLISHED_AT on the three .NET apps. Gateway reports it as web time.
+      echo "==> gateway: stamp WEB_PUBLISHED_AT=${published_at}"
+      az webapp config appsettings set \
+        --resource-group "${resource_group}" --name "${gateway_app}" \
+        --settings "WEB_PUBLISHED_AT=${published_at}" --output none
       echo "==> react frontend: build against ${gateway_url}"
       (
         # Clean copy plus `npm ci` from package-lock.json: reproducible, and the working tree's

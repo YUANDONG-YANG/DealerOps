@@ -1,6 +1,6 @@
 import axios from 'axios';
 import { resolveGatewayUrl } from '../api/gateway';
-import { firebaseRegister, firebaseSignIn, firebaseSignOut } from './firebase';
+import { firebaseSignIn, firebaseSignOut } from './firebase';
 
 const TOKEN_KEY = 'dealerops.accessToken';
 const REDIRECT_KEY = 'dealerops.postLoginRedirect';
@@ -60,14 +60,10 @@ export function takePostLoginRedirect(role: string | null | undefined): string {
 type LoginResponse = { accessToken: string; role: string; displayName: string };
 
 /**
- * Google sign-in is three-way: an already-bound account signs straight in; a brand-new Google
- * account first lands on 'needs_dealer' so the user can pick a dealership; after the pick, it
- * sits at 'pending_approval' until a member of that dealership approves the join request.
+ * Google sign-in always starts a session. An account with no dealership lands on the no-access
+ * page, where it can ask one dealership to approve it (AUTH-25).
  */
-export type GoogleSignInResult =
-  | { status: 'ok'; login: LoginResponse }
-  | { status: 'needs_dealer' }
-  | { status: 'pending_approval' };
+export type GoogleSignInResult = { status: 'ok'; login: LoginResponse };
 
 async function postAuth(path: string, body: object) {
   const baseURL = await resolveGatewayUrl();
@@ -88,27 +84,14 @@ export async function signInWithFirebase(email: string, password: string) {
   return postAuth('firebase', { idToken });
 }
 
-export async function registerWithFirebase(
-  username: string, displayName: string, email: string, phone: string, password: string,
-) {
-  const credential = await firebaseRegister(email, password, displayName);
-  const idToken = await credential.user.getIdToken();
-  return postAuth('firebase', { idToken, username, displayName, phone: phone || null });
-}
-
 /**
- * Exchanges a Google ID token for this application's own session token. Pass dealerId on the
- * second call, after the user picks a dealership on the 'needs_dealer' screen; omit it on the
- * first call so the server can report which branch to take.
+ * Exchanges a Google ID token for this application's session. An unbound account is signed in
+ * and lands on the no-access screen, where it can request one dealership.
  */
-export async function signInWithGoogle(idToken: string, dealerId?: number): Promise<GoogleSignInResult> {
+export async function signInWithGoogle(idToken: string): Promise<GoogleSignInResult> {
   const baseURL = await resolveGatewayUrl();
-  const body: Record<string, unknown> = { idToken };
-  if (dealerId != null) body.dealerId = dealerId;
-  const { data } = await axios.post<GoogleSignInResult>(`${baseURL}/api/v1/auth/google`, body);
-  if (data.status === 'ok') {
-    try { sessionStorage.setItem(TOKEN_KEY, data.login.accessToken); } catch { /* ignore */ }
-  }
+  const { data } = await axios.post<GoogleSignInResult>(`${baseURL}/api/v1/auth/google`, { idToken });
+  try { sessionStorage.setItem(TOKEN_KEY, data.login.accessToken); } catch { /* ignore */ }
   return data;
 }
 

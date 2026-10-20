@@ -1,42 +1,28 @@
-# Compile and test only. The cloud deploy is a JAR upload run by an operator (deploy/README.md).
-# If the course later splits four git remotes, copy this file to that repo as .github/workflows/ci.yml
-# and set working-directory to ".".
+# Build the active .NET 10 dealer-core project. Cloud deploy is an operator step (deploy/README.md).
 name: dealer-core
 on:
   pull_request:
     paths:
-      - "backend/java/dealer-core/**"
+      - "backend/dotnet/DealerOps.Core/**"
+      - "backend/dotnet/DealerOps.Logging/**"
+      - "backend/dotnet/DealerOps.Core.sln"
       - ".github/workflows/dealer-core.yml"
   push:
     branches: [main]
     paths:
-      - "backend/java/dealer-core/**"
+      - "backend/dotnet/DealerOps.Core/**"
+      - "backend/dotnet/DealerOps.Logging/**"
+      - "backend/dotnet/DealerOps.Core.sln"
       - ".github/workflows/dealer-core.yml"
   workflow_dispatch:
 
-defaults:
-  run:
-    working-directory: backend/java/dealer-core
-
 jobs:
-  compile:
+  build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-java@v6
+      - uses: actions/setup-dotnet@v5
         with:
-          distribution: temurin
-          java-version: "21"
-          cache: maven
+          dotnet-version: "10.0.x"
       - run: echo "repo=${{ github.repository }}"
-      - run: mvn -B -DskipTests compile
-      - name: Unit tests
-        run: mvn -B test
-      - name: Integration tests (Testcontainers MySQL 8.4)
-        if: success()
-        run: |
-          if docker info >/dev/null 2>&1; then
-            mvn -B -DJWT_MODE=dev verify
-          else
-            echo "Docker is not available; skipping *IT (Flyway V1 on mysql:8.4)."
-          fi
+      - run: dotnet build backend/dotnet/DealerOps.Core/DealerOps.Core.csproj --nologo

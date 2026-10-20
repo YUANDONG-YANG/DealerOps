@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using DealerOps.Core.Common;
 
 namespace DealerOps.Core.Vehicle.Dto;
 
@@ -6,8 +7,8 @@ namespace DealerOps.Core.Vehicle.Dto;
 // Supplied values are still range-checked.
 public record PatchVehicleRequest(
     [Required] int Version,
-    [Required][MaxLength(50)] string Make,
-    [Required][MaxLength(50)] string Model,
+    [NotBlank][MaxLength(50)] string Make,
+    [NotBlank][MaxLength(50)] string Model,
     [Required][Range(1900, int.MaxValue)] int ModelYear,
     [Required]
     [RegularExpression(@"^[A-HJ-NPR-Za-hj-npr-z0-9]{17}$",

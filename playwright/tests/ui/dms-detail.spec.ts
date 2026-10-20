@@ -136,6 +136,7 @@ test('UI-22 / DMS-08 / CRM-10 / AUD-06: vehicle detail shows all fields, the cus
   // History: newest first, with actor username, action and time.
   await expectHistory(drawer, staffApi, vehicle.id, [
     ['UPDATE', env.staff2.username],
+    ['LINK', env.staff.username],
     ['CREATE', env.staff.username],
   ]);
 
@@ -152,7 +153,7 @@ test('AT-11 / AUD-06: editing a vehicle in the drawer adds an UPDATE by the sign
 }) => {
   const { vehicle } = await seedVehicle(staffApi, staff2Api);
   const drawer = await openFromList(page, vehicle);
-  await expect(auditRows(drawer)).toHaveCount(2);
+  await expect(auditRows(drawer)).toHaveCount(3);
 
   const repair = field(drawer, 'Repair cost').locator('input');
   await repair.fill('950');
@@ -165,6 +166,7 @@ test('AT-11 / AUD-06: editing a vehicle in the drawer adds an UPDATE by the sign
   await expectHistory(drawer, staffApi, vehicle.id, [
     ['UPDATE', env.staff.username],
     ['UPDATE', env.staff2.username],
+    ['LINK', env.staff.username],
     ['CREATE', env.staff.username],
   ]);
 });
@@ -194,6 +196,7 @@ test('UI-22 / DMS-08 / AUD-06: a sold vehicle opened by link shows the sale, the
   await expectHistory(drawer, staffApi, vehicle.id, [
     ['SELL', env.staff.username],
     ['UPDATE', env.staff2.username],
+    ['LINK', env.staff.username],
     ['CREATE', env.staff.username],
   ]);
 });

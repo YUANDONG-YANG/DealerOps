@@ -89,11 +89,6 @@ export default function AdWorkspace({ listing, onChange, vehicle, readOnly, pick
   const aiNotes = listing.lastCheck?.aiNotes || [];
   const checklist = buildChecklist(listing);
   const statusLabel = checkStatusLabel(listing.checkStatus);
-  // AI_UNAVAILABLE is a failed check, so it is kept apart from the STALE warning tone.
-  const statusType = listing.checkStatus === 'PASSED' ? 'tag-success'
-    : listing.checkStatus === 'BLOCKED' || listing.checkStatus === 'AI_UNAVAILABLE' ? 'tag-danger'
-    : listing.checkStatus === 'NEEDS_AI' ? 'tag-info'
-    : 'tag-warning';
   const evaluated = listing.checkStatus === 'PASSED' || listing.checkStatus === 'BLOCKED';
   const formDisabled = !hasSelection || readOnly;
 
@@ -165,7 +160,7 @@ export default function AdWorkspace({ listing, onChange, vehicle, readOnly, pick
         ) : (
           <>
             {isCheckStatus(listing.checkStatus) && (
-              <div style={{ marginBottom: 12 }}><StatusTag status={listing.checkStatus} tone={statusType.replace('tag-', '') as 'success' | 'danger' | 'warning' | 'info'}>{statusLabel}</StatusTag></div>
+              <div style={{ marginBottom: 12 }}><StatusTag status={listing.checkStatus}>{statusLabel}</StatusTag></div>
             )}
             <h4 style={{ margin: '16px 0 8px', fontSize: 15, fontWeight: 600 }}>Checklist</h4>
             <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
@@ -194,7 +189,14 @@ export default function AdWorkspace({ listing, onChange, vehicle, readOnly, pick
               <>
                 <h4 style={{ margin: '16px 0 8px', fontSize: 15, fontWeight: 600 }}>AI notes</h4>
                 <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-                  {aiNotes.map((n, i) => <li key={i} style={{ padding: '4px 0' }}>{n.message}</li>)}
+                  {aiNotes.map((n, i) => (
+                    <li key={i} style={{ padding: '4px 0' }}>
+                      <strong>{n.severity || 'Note'}{n.code ? ` · ${n.code}` : ''}</strong>: {n.message}
+                      {n.explanation && n.explanation !== n.message && (
+                        <div className="muted">{n.explanation}</div>
+                      )}
+                    </li>
+                  ))}
                 </ul>
               </>
             )}

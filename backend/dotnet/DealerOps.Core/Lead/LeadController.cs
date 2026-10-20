@@ -17,6 +17,9 @@ public class LeadController : ControllerBase
         _service = service;
     }
 
+    [HttpGet("report/funnel")]
+    public SalesFunnelReport Funnel() => _service.Funnel();
+
     [HttpGet]
     public PageResponse<LeadListItem> List(
         [FromQuery] string? q,

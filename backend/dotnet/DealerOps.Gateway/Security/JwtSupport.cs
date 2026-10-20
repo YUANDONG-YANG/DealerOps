@@ -10,8 +10,6 @@ public static class JwtSupport
     public const string DefaultDevSecret = "dealer-dev-jwt-secret-change-me";
     public const int MinHmacKeyBytes = 32;
 
-    public static bool IsWellKnownDevSecret(string secret) => secret == DefaultDevSecret;
-
     public static SymmetricSecurityKey HmacSecret(string secret)
     {
         if (string.IsNullOrWhiteSpace(secret))
@@ -34,9 +32,17 @@ public static class JwtSupport
 
     public static string ResolveDevSecret(IConfiguration config)
     {
-        var secret = config["DEV_JWT_SECRET"]
-                     ?? config["dealerops:jwt:devSecret"]
-                     ?? DefaultDevSecret;
+        var secret = First(config["DEV_JWT_SECRET"], config["dealerops:jwt:devSecret"]);
+        if (string.IsNullOrWhiteSpace(secret))
+            throw new InvalidOperationException(
+                "JWT signing secret is not configured. Set DEV_JWT_SECRET or dealerops__jwt__devSecret.");
         return secret;
+    }
+
+    private static string? First(params string?[] values)
+    {
+        foreach (var value in values)
+            if (!string.IsNullOrWhiteSpace(value)) return value;
+        return null;
     }
 }

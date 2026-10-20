@@ -110,6 +110,8 @@ public class ListingService
         text.Append("VIN: ").AppendLine(vehicle.Vin);
         text.Append("Condition: ")
             .AppendLine(EnumSnakeCaseConverter<ConditionCode>.ToWire(vehicle.ConditionCode));
+        text.Append("Source: ")
+            .AppendLine(EnumSnakeCaseConverter<VehicleSource>.ToWire(vehicle.Source));
         text.Append("Title: ").AppendLine(listing.Title);
         text.Append("Body: ").AppendLine(listing.Body);
         if (last != null)

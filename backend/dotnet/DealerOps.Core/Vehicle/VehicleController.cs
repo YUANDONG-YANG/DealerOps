@@ -41,6 +41,9 @@ public class VehicleController : ControllerBase
         return StatusCode(201, _vehicleService.Create(body));
     }
 
+    [HttpGet("report/sales")]
+    public SalesReport SalesReport() => _vehicleService.SalesReport();
+
     [HttpGet("{id}")]
     public VehicleResponse Get(long id)
     {
@@ -57,5 +60,12 @@ public class VehicleController : ControllerBase
     public VehicleResponse Sell(long id, [FromBody] SellVehicleRequest body)
     {
         return _vehicleService.Sell(id, body);
+    }
+
+    [HttpDelete("{id}")]
+    public IActionResult Delete(long id)
+    {
+        _vehicleService.Delete(id);
+        return NoContent();
     }
 }

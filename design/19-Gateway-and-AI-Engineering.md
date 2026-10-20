@@ -184,13 +184,13 @@ Same port set as 15 §10 (`env.example`): web `5173`, gateway **`8080`**, core *
 
 | Demo | Expect |
 |---|---|
-| Page `fetch('http://localhost:8081/api/v1/vehicles')` (with or without Bearer) | browser blocks (no CORS). Product entry is not 8081 |
+| Page `fetch('http://localhost:8081/api/v1/vehicles')` (with or without Bearer) | browser blocks (no CORS). A non-browser client without `X-Dealer-Internal` gets **404** `{code, message}` |
 | Same request via `http://localhost:8080/api/v1/vehicles` + Bearer | 200 or a business error (401/403/404…) |
-| Page `fetch('http://localhost:8082/internal/v1/ad-check')` | no CORS; even a non-browser client without the internal header → **404** |
-| Page `fetch('http://localhost:8080/internal/v1/ad-check')` (no internal header) | Gateway **404** |
+| `curl` to core `8081` or ai-service `8082` without `X-Dealer-Internal` | **404** `{code, message}` on every path, including health |
+| Page `fetch('http://localhost:8080/internal/v1/ad-check')` (no internal header) | Gateway **404** `{code, message}` |
 | Azure | core / ai **internal** Ingress; public FQDNs are web + gateway only |
 
-Local binding: Gateway on 8080; core and ai set `SERVER_ADDRESS=127.0.0.1` so they are not on `0.0.0.0` for the whole class to scan. Classroom backup: if `curl` 8081 still works, say "no CORS / no public net / needs intranet"; **do not** rely on turning the firewall off as the only evidence.
+The gateway stamps `X-Dealer-Internal` on the outbound proxy and on its own health and OpenAPI fetches. Direct access fails because that credential is absent, not because a firewall was turned off.
 
 ### 1.6 Half-page defense pointer (Auth domain)
 
@@ -275,7 +275,7 @@ Adapter:
 2. user = the JSON above
 3. check `AIResponse.isSuccess()` first, then parse content
 4. `finally` `closeConversation`
-5. Fold model output into **notes for core to write as `aiNotes`** (14: elements at least `{ "message": "..." }`). **Do not** persist `compliance_check` in this service
+5. Fold model output into **notes for core to write as `aiNotes`** (14: elements `{ "code", "severity", "explanation", "message" }`, `severity` `REVIEW` or `INFO`). **Do not** persist `compliance_check` in this service
 
 Transport / timeout / missing Key: return **5xx or an agreed failure body** (pick one and lock it); **core** records `UNAVAILABLE` and returns **502 `AI_UNAVAILABLE`** to the outside (14 §8.2). ai-service **must not write business tables or return five states to the browser itself**.
 

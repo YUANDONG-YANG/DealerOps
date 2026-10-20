@@ -15,7 +15,8 @@ public class AiGatewayClient : IAiGatewayClient
     {
         _httpClient = httpClient;
         _httpContextAccessor = httpContextAccessor;
-        _timeoutMs = config.GetValue("AiService:ResponseTimeoutMs", 13000);
+        // Past the provider's 15s budget so the failure response can be persisted (AI-02).
+        _timeoutMs = config.GetValue("AiService:ResponseTimeoutMs", 16000);
     }
 
     public async Task<List<AiNote>> AdCheckAsync(AdCheckInternalRequest body)
@@ -29,9 +30,14 @@ public class AiGatewayClient : IAiGatewayClient
         {
             foreach (var n in arr.EnumerateArray())
             {
-                if (n.ValueKind == JsonValueKind.Object && n.TryGetProperty("message", out var msg) &&
-                    msg.ValueKind == JsonValueKind.String && !string.IsNullOrWhiteSpace(msg.GetString()))
-                    notes.Add(new AiNote(msg.GetString()!));
+                if (n.ValueKind != JsonValueKind.Object) continue;
+                var message = NoteText(n, "message");
+                if (string.IsNullOrWhiteSpace(message)) continue;
+                notes.Add(new AiNote(
+                    NoteText(n, "code") ?? "NOTE",
+                    AiNoteSeverity.Normalize(NoteText(n, "severity")),
+                    NoteText(n, "explanation") ?? message,
+                    message));
             }
         }
         return notes;
@@ -49,6 +55,11 @@ public class AiGatewayClient : IAiGatewayClient
 
         return sum.GetString()!;
     }
+
+    private static string? NoteText(JsonElement node, string name) =>
+        node.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String
+            ? value.GetString()
+            : null;
 
     private async Task<JsonElement?> PostAsync(string path, object body)
     {

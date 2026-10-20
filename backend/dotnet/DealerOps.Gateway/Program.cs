@@ -8,6 +8,8 @@ using DealerOps.Logging;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Security.Claims;
+using Yarp.ReverseProxy.Forwarder;
+using Yarp.ReverseProxy.Transforms;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -104,13 +106,37 @@ builder.Services.AddCors(options =>
     });
 });
 
-// YARP
-builder.Services.AddReverseProxy()
-    .LoadFromConfig(builder.Configuration.GetSection("ReverseProxy"));
+var internalHeaderName = builder.Configuration["dealerops:internalHeaderName"] ?? "X-Dealer-Internal";
+var internalToken = FirstConfigured(
+    builder.Configuration["INTERNAL_TOKEN"],
+    builder.Configuration["dealerops:internalToken"]);
+if (string.IsNullOrWhiteSpace(internalToken))
+    throw new InvalidOperationException(
+        "INTERNAL_TOKEN is not configured. Set INTERNAL_TOKEN or dealerops__internalToken.");
 
-// Health check dependencies
-builder.Services.AddHttpClient("health");
-builder.Services.AddHttpClient("swagger");
+// YARP. The browser never sends the internal credential (InternalRouteFilter rejects it on
+// /api/v1). Stamp it only on the outbound proxy so Core and AI can require it.
+builder.Services.AddReverseProxy()
+    .LoadFromConfig(builder.Configuration.GetSection("ReverseProxy"))
+    .AddTransforms(context =>
+    {
+        context.AddRequestTransform(transformContext =>
+        {
+            transformContext.ProxyRequest.Headers.Remove(internalHeaderName);
+            transformContext.ProxyRequest.Headers.TryAddWithoutValidation(internalHeaderName, internalToken);
+            return ValueTask.CompletedTask;
+        });
+    });
+
+// Health and OpenAPI fetches are server-side, so they carry the same credential.
+builder.Services.AddHttpClient("health", client =>
+{
+    client.DefaultRequestHeaders.TryAddWithoutValidation(internalHeaderName, internalToken);
+});
+builder.Services.AddHttpClient("swagger", client =>
+{
+    client.DefaultRequestHeaders.TryAddWithoutValidation(internalHeaderName, internalToken);
+});
 builder.Services.AddSingleton<DownstreamHealthCheck>();
 
 var app = builder.Build();
@@ -234,10 +260,27 @@ app.Use(async (context, next) =>
         || path.StartsWith("/ai-swagger", StringComparison.OrdinalIgnoreCase))
         && !devMode)
     {
-        context.Response.StatusCode = 404;
+        context.Response.StatusCode = StatusCodes.Status404NotFound;
+        await context.Response.WriteAsJsonAsync(
+            new { code = "NOT_FOUND", message = "Not found" },
+            new JsonSerializerOptions(JsonSerializerDefaults.Web));
         return;
     }
     await next();
+});
+
+// A destination that never answers would otherwise be a bodyless 502. Keep that status and
+// write the same {code, message} envelope. A downstream body is left as the destination sent it.
+app.Use(async (context, next) =>
+{
+    await next();
+    if (context.Features.Get<IForwarderErrorFeature>() is null || context.Response.HasStarted)
+        return;
+    if (context.Response.StatusCode < 400)
+        context.Response.StatusCode = StatusCodes.Status502BadGateway;
+    await context.Response.WriteAsJsonAsync(
+        new { code = "INTERNAL_ERROR", message = "Unexpected server error." },
+        new JsonSerializerOptions(JsonSerializerDefaults.Web));
 });
 
 // Catch-all 404 for unmatched routes (runs after YARP)
@@ -249,3 +292,10 @@ ReleaseInfo.LogStartup(app.Services.GetRequiredService<ILogger<Program>>(), "gat
     app.Services.GetRequiredService<DownstreamHealthCheck>().GatewayPublishedAt);
 
 app.Run();
+
+static string? FirstConfigured(params string?[] values)
+{
+    foreach (var value in values)
+        if (!string.IsNullOrWhiteSpace(value)) return value;
+    return null;
+}

@@ -105,7 +105,7 @@ const ALL_TOUCHED: Record<string, boolean> = {
 const FILTER_DEBOUNCE_MS = 350;
 
 function blankForm(): VehicleForm {
-  return { make: '', model: '', modelYear: '', vin: '', source: 'AUCTION', purchaseCost: '', addedOn: '', conditionCode: 'AS_IS', bodyType: 'SEDAN', repairCost: '', carfaxUrl: '' };
+  return { make: '', model: '', modelYear: '', vin: '', source: 'AUCTION', purchaseCost: '', addedOn: '', conditionCode: 'AS_IS', bodyType: '', repairCost: '', carfaxUrl: '' };
 }
 
 function vehicleToForm(data: any): VehicleForm {
@@ -122,7 +122,7 @@ function mapWrite(e: unknown) {
   const status = errorStatus(e);
   if (code === 'VIN_DUP') return 'VIN already in this dealership. Search the inventory for this VIN and edit that vehicle instead.';
   if (code === 'VALIDATION') return messageOf(e, 'Check required fields: some fields are missing or invalid.');
-  if (code === 'SOLD_LOCKED') return 'Purchase fields are locked because this vehicle is sold. Only repair cost and the Carfax link can still change.';
+  if (code === 'SOLD_LOCKED') return 'This vehicle is sold. Make, model, year, VIN, source, purchase cost, date added, repair cost, and the Carfax link are locked, and it cannot be sold again.';
   if (code === 'VERSION_CONFLICT') return 'Refresh and retry: someone else changed this record after you opened it. Reopen it to load the latest version, then make your change again.';
   if (code === 'SOLD_PAIR_REQUIRED') return 'Sold date and price are required together. Enter both, with a price above $0.';
   if (code === 'WORK_ORDERS_OPEN') return 'Finish or cancel open work orders before selling. Open the vehicle\'s Work orders section to close them.';
@@ -159,6 +159,8 @@ export default function DmsPage() {
   const [decoding, setDecoding] = useState(false);
   const [adStatus, setAdStatus] = useState('');
   const [audit, setAudit] = useState<any[]>([]);
+  const [auditPage, setAuditPage] = useState(0);
+  const [auditTotal, setAuditTotal] = useState(0);
 
   const [formModelOptions, setFormModelOptions] = useState<string[]>([]);
 
@@ -307,21 +309,24 @@ export default function DmsPage() {
     try {
       const r = await listingsApi.get(id);
       if (seq !== detailSeqRef.current) return;
-      setAdStatus(checkStatusLabel(r.data.checkStatus) || 'Not checked');
+      setAdStatus(r.data.checkStatus || 'NOT_CHECKED');
     } catch {
       if (seq !== detailSeqRef.current) return;
       setAdStatus('');
     }
   }
 
-  async function loadAudit(id: number, seq: number) {
+  async function loadAudit(id: number, seq: number, page = 0) {
     try {
-      const r = await auditApi.list({ entityType: 'VEHICLE', entityId: id });
+      const r = await auditApi.list({ entityType: 'VEHICLE', entityId: id, page, size: 10 });
       if (seq !== detailSeqRef.current) return;
       setAudit(r.data.items || []);
+      setAuditPage(r.data.page ?? page);
+      setAuditTotal(r.data.totalElements ?? 0);
     } catch {
       if (seq !== detailSeqRef.current) return;
       setAudit([]);
+      setAuditTotal(0);
     }
   }
 
@@ -360,6 +365,18 @@ export default function DmsPage() {
       setFormError(mapWrite(e));
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function removeVehicle() {
+    if (!edit || !window.confirm('Delete this vehicle from active inventory? Its listing, closed work orders, and audit history are kept.')) return;
+    try {
+      await vehiclesApi.delete(edit.id);
+      setDrawer(false);
+      setEdit(null);
+      await load();
+    } catch (e) {
+      setFormError(describeError(e, 'delete vehicle'));
     }
   }
 
@@ -656,6 +673,7 @@ export default function DmsPage() {
           <div className="form-item">
             <label className="form-label">Body type</label>
             <select className="select" value={form.bodyType} onChange={e => updateForm('bodyType', e.target.value, true)} disabled={isSold}>
+              {!edit?.id && <option value="">Not set</option>}
               {form.bodyType && !BODY_TYPES.includes(form.bodyType as (typeof BODY_TYPES)[number]) && (
                 <option value={form.bodyType}>{enumLabel(form.bodyType)}</option>
               )}
@@ -694,13 +712,16 @@ export default function DmsPage() {
           {edit?.id && (
             <div className="form-item">
               <label className="form-label">Ad check status</label>
-              <span>{adStatus || '—'}</span>
+              {adStatus
+                ? <StatusTag status={adStatus}>{checkStatusLabel(adStatus) || 'Not checked'}</StatusTag>
+                : <span>—</span>}
             </div>
           )}
 
           {formError && <p className="danger-text">{formError}</p>}
           <div style={{ display: 'flex', gap: 8 }}>
             <button type="submit" className="btn btn-primary" disabled={saving}>{saving ? 'Saving…' : 'Save'}</button>
+            {edit && edit.status !== 'SOLD' && <button type="button" className="btn danger" style={{ marginLeft: 8 }} onClick={() => void removeVehicle()}>Delete vehicle</button>}
             {edit?.id && !isSold && (
               <button type="button" className="btn" onClick={beginSell}>Mark as sold</button>
             )}
@@ -709,7 +730,14 @@ export default function DmsPage() {
 
         {edit?.id && <WorkOrderPanel vehicleId={edit.id} sold={isSold} onChanged={refreshAfterWorkOrder} />}
         {edit?.id && <PhotoStudioPanel vehicleId={edit.id} />}
-        {edit?.id && <AuditTrail rows={audit} />}
+        {edit?.id && (
+          <AuditTrail
+            rows={audit}
+            page={auditPage}
+            total={auditTotal}
+            onPage={(p) => void loadAudit(edit.id, detailSeqRef.current, p)}
+          />
+        )}
       </FormDrawer>
 
       <ConfirmDialog open={sellOpen} title={sellTitle} confirmLabel="Confirm sale" onCancel={() => setSellOpen(false)} onConfirm={sell}>

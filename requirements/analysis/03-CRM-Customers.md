@@ -41,7 +41,7 @@
 | CRM-10 | Navigate from vehicle detail to its customer and back | Derived | Should |
 | CRM-11 | Create, edit, link, and unlink all write audit entries | PDF §6 | Must |
 | CRM-12 | Customer phone / email / address are **never** sent to AI prompts, audit summaries, or assistant answers | SCOPE (privacy) | Must |
-| CRM-13 | Duplicate email/phone handling is unspecified by the customer PDF. Current code rejects duplicate email and phone within a dealer; this is an implementation constraint, not a sourced Must. Confirm whether shared household contact details should be allowed before treating it as a product requirement | Derived / unresolved | Could |
+| CRM-13 | Duplicate email/phone handling is unspecified by the customer PDF. A customer email shared inside a dealership is saved with an `emailWarning` (household email); a duplicate phone is still rejected with `PHONE_TAKEN` | Derived | Could |
 | CRM-14 | Deleting customers is not offered in this release | Derived | Won't |
 | CRM-15 | Sales-funnel reports and deal transactions | DOC | Won't (excluded by SCOPE) |
 | CRM-16 | Leads and follow-up tasks | DOC2 / SCOPE erratum 7 | **Returned to scope 2026-10-08**; owned by design/21 as `LEAD-01–09`. Do not cite CRM-15 as excluding leads |

@@ -11,9 +11,10 @@ interface Props {
 function defaultTone(status: string): StatusTone {
   const value = status.toUpperCase();
   if (['PASSED', 'IN_STOCK', 'DONE', 'ACTIVE'].includes(value)) return 'success';
-  if (['BLOCKED', 'SOLD', 'FAILED', 'CANCELLED'].includes(value)) return 'danger';
-  if (['STALE', 'AI_UNAVAILABLE', 'NEEDS_AI', 'REVIEW', 'PENDING'].includes(value)) return 'warning';
-  if (['RUNNING', 'IN_PROGRESS'].includes(value)) return 'info';
+  // AI_UNAVAILABLE is a failed check, so it shares the BLOCKED tone rather than the STALE one.
+  if (['BLOCKED', 'AI_UNAVAILABLE', 'SOLD', 'FAILED', 'CANCELLED'].includes(value)) return 'danger';
+  if (['STALE', 'REVIEW', 'PENDING'].includes(value)) return 'warning';
+  if (['NEEDS_AI', 'RUNNING', 'IN_PROGRESS'].includes(value)) return 'info';
   return 'neutral';
 }
 

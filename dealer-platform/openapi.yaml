@@ -173,14 +173,14 @@ paths:
     post:
       tags: [Auth]
       operationId: googleSignIn
-      summary: Google sign-in (three-way)
+      summary: Google sign-in
       description: |
         Anonymous. Verifies a Google ID token server-side (RS256, issuer, audience, expiry, `email_verified`).
-        The account is matched by Google subject, then by email. Result `status`:
-        - `ok`: the account is bound to a dealership; `login` carries the session.
-        - `needs_dealer`: no dealership chosen yet; call again with `dealerId` picked from `GET /api/v1/catalog/dealers`.
-        - `pending_approval`: a join request to `dealerId` is waiting for a member of that dealership (`/api/v1/dealer/join-requests`). A new account is created unbound with no password hash on the call that carries `dealerId`.
-        A Platform.Admin email → **403**. An unknown or inactive `dealerId` → **404**.
+        The account is matched by Google subject, then by email. A Dealer.User always gets `status=ok` with a
+        session, bound or not; a missing account is created unbound with no password hash. An unbound account
+        files its join request from the no-access page (`POST /api/v1/me/join-request`). An optional `dealerId`
+        records that request in the same call when the account has none pending; an unknown or inactive
+        `dealerId` is ignored. A Platform.Admin email → **403**.
       security: []
       requestBody:
         required: true
@@ -190,7 +190,7 @@ paths:
               $ref: "#/components/schemas/GoogleSignInRequest"
       responses:
         "200":
-          description: Three-way result
+          description: Session for the account
           content:
             application/json:
               schema:
@@ -343,11 +343,65 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
 
+  /api/v1/me/join-request:
+    get:
+      tags: [Me]
+      operationId: getMyJoinRequest
+      summary: The caller's pending join request
+      description: Signed-in Dealer.User, including unbound. Platform.Admin → **403**.
+      responses:
+        "200":
+          description: The one pending request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MyJoinRequest"
+        "204":
+          description: No request is pending
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+    post:
+      tags: [Me]
+      operationId: fileMyJoinRequest
+      summary: Ask one dealership to approve this account (AUTH-25)
+      description: |
+        An unbound Dealer.User requests one active dealership; repeating the same request is a no-op and
+        posts no second notification. A different dealership while one is pending → **400** `VALIDATION`.
+        Already a member, or Platform.Admin → **403**. Unknown or inactive dealership → **404**.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [dealerId]
+              properties:
+                dealerId:
+                  type: integer
+                  format: int64
+      responses:
+        "200":
+          description: The pending request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MyJoinRequest"
+        "400":
+          $ref: "#/components/responses/Validation"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
   /api/v1/dealer/join-requests:
     get:
       tags: [JoinRequests]
       operationId: listJoinRequests
-      summary: Pending Google join requests for the caller's dealership
+      summary: Pending join requests for the caller's dealership
       description: Dealer.User with a dealership. Active unbound accounts that requested this dealership, newest first. Not paginated.
       responses:
         "200":
@@ -370,7 +424,7 @@ paths:
       summary: Approve a join request
       description: |
         Creates or reactivates the membership in the caller's dealership, binds the account, and resolves the
-        `JOIN_REQUEST` notification as `APPROVED`. Audited as `MEMBERSHIP`/`CREATE` with `source=google_request`.
+        `JOIN_REQUEST` notification as `APPROVED`. Audited as `MEMBERSHIP`/`CREATE` with `source=join_request`.
         No pending request from that username to this dealership → **404**.
       parameters:
         - $ref: "#/components/parameters/Username"
@@ -430,6 +484,48 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
+
+  /api/v1/admin/compliance-rules:
+    get:
+      tags: [AdminCompliance]
+      operationId: listComplianceRules
+      summary: Platform-admin compliance rule catalog
+      responses:
+        "200":
+          description: Effective global rule settings
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/ComplianceRule" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /api/v1/admin/compliance-rules/{ruleId}:
+    parameters:
+      - name: ruleId
+        in: path
+        required: true
+        schema: { type: string }
+    put:
+      tags: [AdminCompliance]
+      operationId: updateComplianceRule
+      summary: Configure an existing compliance rule
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ComplianceRuleUpdate" }
+      responses:
+        "200":
+          description: Updated rule
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ComplianceRule" }
+        "400": { $ref: "#/components/responses/Validation" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
 
   /api/v1/admin/dealers:
     get:
@@ -531,9 +627,9 @@ paths:
       tags: [AdminMemberships]
       operationId: listMembers
       summary: Dealership members
-      description: Unknown dealership → 404. `q` matches `displayName` or `username`. Do not invent email.
+      description: Unknown dealership → 404. `q` matches `displayName`, `username`, `email`, or `phone`.
       parameters:
-        - $ref: "#/components/parameters/QDisplayOrUsername"
+        - $ref: "#/components/parameters/QMember"
         - $ref: "#/components/parameters/Page"
         - $ref: "#/components/parameters/Size"
       responses:
@@ -980,6 +1076,19 @@ paths:
                   value:
                     code: VERSION_CONFLICT
                     message: version does not match.
+    delete:
+      tags: [Vehicles]
+      operationId: deleteVehicle
+      summary: Soft delete a vehicle while retaining sales and audit history
+      description: |
+        Sold → **409** `SOLD_LOCKED`. Linked to a customer → **409** `VEHICLE_ALREADY_LINKED` (unlink first).
+        Open work orders → **409** `WORK_ORDERS_OPEN`. The deleted vehicle keeps its VIN, so reusing it returns **400** `VIN_DUP`.
+      responses:
+        "204": { description: Deleted from active inventory }
+        "409": { description: "SOLD_LOCKED, VEHICLE_ALREADY_LINKED or WORK_ORDERS_OPEN" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
 
   /api/v1/vehicles/{id}/sell:
     post:
@@ -1285,7 +1394,7 @@ paths:
           in: query
           schema:
             type: string
-          description: name / email / phone
+          description: name / email / phone. A phone-like term (only digits, spaces, `-`, `(`, `)`, `+`, `.`) with 3 or more digits also matches the phone ignoring spaces, `-`, `(`, `)` and `+`.
         - name: linked
           in: query
           schema:
@@ -1329,7 +1438,7 @@ paths:
         "403":
           $ref: "#/components/responses/Forbidden"
         "409":
-          description: Email or phone is already used by another customer in this dealership. code is `EMAIL_TAKEN` or `PHONE_TAKEN`; `fieldErrors` names the taken field.
+          description: Phone is already used by another customer in this dealership (`PHONE_TAKEN`, `fieldErrors.phone`). A duplicate email is saved and returned as `emailWarning`.
           content:
             application/json:
               schema:
@@ -1384,11 +1493,20 @@ paths:
           $ref: "#/components/responses/NotFound"
         "409":
           description: |
-            Version conflict (`VERSION_CONFLICT`), or email/phone already used by another customer in this dealership (`EMAIL_TAKEN` or `PHONE_TAKEN`, with `fieldErrors` naming the taken field).
+            Version conflict (`VERSION_CONFLICT`), or phone already used by another customer in this dealership (`PHONE_TAKEN`, with `fieldErrors.phone`). A duplicate email is saved and returned as `emailWarning`.
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+    delete:
+      tags: [Customers]
+      operationId: deleteCustomer
+      summary: Soft delete a customer while retaining sales and audit history
+      responses:
+        "204": { description: Removed from active CRM lists }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
 
   /api/v1/customers/{id}/vehicles/{vehicleId}:
     put:
@@ -1675,6 +1793,7 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
+
     post:
       tags: [Leads]
       operationId: createLead
@@ -1703,6 +1822,36 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
+
+  /api/v1/vehicles/report/sales:
+    get:
+      tags: [Vehicles]
+      operationId: getSalesReport
+      summary: Tenant-scoped vehicle sales summary (units, revenue, gross profit, months)
+      responses:
+        "200":
+          description: Sales summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SalesReport"
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /api/v1/leads/report/funnel:
+    get:
+      tags: [Leads]
+      operationId: getSalesFunnel
+      summary: Current tenant-scoped lead stage distribution
+      responses:
+        "200":
+          description: Stage counts and shares of all leads, open lead count, and won rate over closed leads (won ÷ (won + lost))
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SalesFunnelReport"
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
 
   /api/v1/leads/{id}:
     parameters:
@@ -1804,10 +1953,12 @@ paths:
                 type: array
                 items:
                   type: object
-                  required: [username, displayName]
+                  required: [username, displayName, source]
                   properties:
                     username: { type: string }
                     displayName: { type: string, description: Falls back to the username }
+                    source:
+                      $ref: "#/components/schemas/AccountSource"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -1823,6 +1974,7 @@ paths:
         Admin → **403** `FORBIDDEN` for every entity type.
         Staff may query `VEHICLE`|`CUSTOMER`|`CUSTOMER_VEHICLE`|`LEAD`|`WORK_ORDER`|`VEHICLE_PHOTO`; `DEALER`/`MEMBERSHIP` → **403**; any other type → **400** `VALIDATION`.
         `CUSTOMER` history also includes the `CUSTOMER_VEHICLE` link/unlink events of that customer.
+        `VEHICLE` history also includes the `CUSTOMER_VEHICLE` link/unlink and `VEHICLE_PHOTO` events of that vehicle.
         `fieldSummary` has no full customer phone/email/home address.
       parameters:
         - name: entityType
@@ -1908,7 +2060,7 @@ paths:
               $ref: "#/components/schemas/InternalAdCheckRequest"
       responses:
         "200":
-          description: HTTP 200 and `success=true`. `notes` may be `[]`; each item at least `{message}`.
+          description: HTTP 200 and `success=true`. `notes` may be `[]`; each item is `{code, severity, explanation, message}`.
           content:
             application/json:
               schema:
@@ -1916,7 +2068,10 @@ paths:
               example:
                 success: true
                 notes:
-                  - message: No additional misleading claims found.
+                  - code: CLEAR
+                    severity: INFO
+                    explanation: No additional misleading claims found.
+                    message: No additional misleading claims found.
         "502":
           $ref: "#/components/responses/InternalAiProviderFailed"
         "503":
@@ -1998,12 +2153,12 @@ components:
       schema:
         type: string
       description: Matches legalName
-    QDisplayOrUsername:
+    QMember:
       name: q
       in: query
       schema:
         type: string
-      description: Matches displayName or username
+      description: Matches displayName, username, email, or phone
     DealerId:
       name: id
       in: path
@@ -2067,7 +2222,8 @@ components:
       schema:
         type: string
       description: |
-        Internal call header. Browsers must not send it (CORS does not expose it). Missing header → 404.
+        Internal call header. Browsers must not send it (CORS does not expose it). Missing or wrong header → 404 `{code, message}`.
+        Core and ai-service require it on every path. The gateway adds it on the outbound proxy and on its server-side health and OpenAPI fetches, and rejects a client-supplied value on `/api/v1`.
         Not a user JWT. Value comes from env / Key Vault.
 
   responses:
@@ -2152,6 +2308,25 @@ components:
             message: Model did not return a usable result.
 
   schemas:
+    ComplianceRule:
+      type: object
+      required: [ruleId, enabled, severity, message, updatedBy, updatedAt]
+      properties:
+        ruleId: { type: string }
+        enabled: { type: boolean }
+        severity: { type: string, enum: [BLOCK, REVIEW] }
+        message: { type: string }
+        updatedBy: { type: string }
+        updatedAt: { type: string, format: date-time, nullable: true }
+
+    ComplianceRuleUpdate:
+      type: object
+      required: [enabled]
+      properties:
+        enabled: { type: boolean }
+        severity: { type: string, enum: [BLOCK, REVIEW], nullable: true }
+        message: { type: string, maxLength: 500, nullable: true }
+
     VinDecode:
       type: object
       required: [vin, make]
@@ -2207,7 +2382,7 @@ components:
         | DUP_MEMBER | 409 | This dealership already has this active member |
         | USERNAME_TAKEN | 409 | Sign-up (password, Google, Firebase) or new member with a username already in use |
         | DISPLAY_NAME_TAKEN | 409 | Sign-up, new member, or `PATCH /me` with a full name already in use (trimmed, case-insensitive) |
-        | EMAIL_TAKEN | 409 | Sign-up or new member with an email already in use; or a customer email already used in this dealership |
+        | EMAIL_TAKEN | 409 | Sign-up or new member with an email already in use. Customer email is not rejected; a shared customer email is `emailWarning` on the saved detail |
         | PHONE_TAKEN | 409 | Sign-up, new member, or `PATCH /me` with a phone already in use; or a customer phone already used in this dealership |
         | LEAD_CLOSED | 409 | Change to a WON or LOST lead |
         | WORK_ORDER_CLOSED | 409 | Change to a DONE or CANCELLED work order |
@@ -2440,20 +2615,17 @@ components:
           type: integer
           format: int64
           nullable: true
-          description: Omit on the first call; send the chosen dealership after `needs_dealer`
+          description: Optional. Records a join request to this active dealership when none is pending; otherwise ignored
 
     GoogleSignInResponse:
       type: object
-      required: [status]
+      required: [status, login]
       properties:
         status:
           type: string
-          enum: [ok, needs_dealer, pending_approval]
+          enum: [ok]
         login:
-          allOf:
-            - $ref: "#/components/schemas/LoginResponse"
-          nullable: true
-          description: Present only when `status=ok`
+          $ref: "#/components/schemas/LoginResponse"
 
     FirebaseSignInRequest:
       type: object
@@ -2504,6 +2676,16 @@ components:
         createdAt:
           type: string
           format: date-time
+        source:
+          $ref: "#/components/schemas/AccountSource"
+
+    AccountSource:
+      type: string
+      nullable: true
+      enum: [google, firebase, password, admin, null]
+      description: |
+        How the account was created: Google sign-in, Firebase email sign-up, the registration
+        form, or added by a platform admin. Null when unknown (for example seed data).
 
     Notification:
       type: object
@@ -2521,7 +2703,7 @@ components:
         payload:
           type: object
           additionalProperties: true
-          description: "Kind-specific JSON. `JOIN_REQUEST`: `{username, displayName, email}`"
+          description: "Kind-specific JSON. `JOIN_REQUEST`: `{username, displayName, email, source}`; `source` is the applicant's AccountSource, read at request time"
         resolvedAt:
           type: string
           format: date-time
@@ -2613,7 +2795,7 @@ components:
 
     Member:
       type: object
-      required: [username, displayName, role, active, signInMethod]
+      required: [username, displayName, role, active, signInMethod, email, phone]
       properties:
         username:
           type: string
@@ -2629,6 +2811,14 @@ components:
           description: |
             `password` when the account has a DealerOps password (an admin can reset it), even if Google or Firebase sign-in was linked later.
             Otherwise `firebase` or `google`: that provider owns the password and an admin cannot change it.
+        email:
+          type: string
+          nullable: true
+          description: The account's own sign-in email (UI-12).
+        phone:
+          type: string
+          nullable: true
+          description: The account's own sign-in phone (UI-12).
 
     MemberBind:
       type: object
@@ -2942,6 +3132,20 @@ components:
         version:
           type: integer
           format: int64
+        emailWarning:
+          type: string
+          description: Present only on a create or update response when another customer of this dealership already uses the email. The save still succeeded (CRM-13).
+
+    MyJoinRequest:
+      type: object
+      required: [dealerId]
+      properties:
+        dealerId:
+          type: integer
+          format: int64
+        legalName:
+          type: string
+          nullable: true
 
     CustomerWrite:
       type: object
@@ -3030,11 +3234,21 @@ components:
 
     AiNote:
       type: object
-      required: [message]
-      description: Structured model notes; each element at least `{message}`
+      required: [code, severity, explanation, message]
+      description: Structured model note. Rule findings are a separate object and are not given these issue codes.
       properties:
+        code:
+          type: string
+          description: Short issue identifier, such as MISLEADING_CLAIM or CLEAR
+        severity:
+          type: string
+          enum: [REVIEW, INFO]
+        explanation:
+          type: string
+          description: Why the note was raised
         message:
           type: string
+          description: Human-readable note
 
     Check:
       type: object
@@ -3301,6 +3515,47 @@ components:
       type: string
       enum: [NEW, CONTACTED, QUALIFIED, WON, LOST]
 
+    FunnelStageCount:
+      type: object
+      required: [stage, count, percentOfTotal]
+      properties:
+        stage: { $ref: "#/components/schemas/LeadStage" }
+        count: { type: integer, format: int64 }
+        percentOfTotal: { type: number, format: decimal }
+
+    SalesFunnelReport:
+      type: object
+      required: [totalLeads, openLeads, stages, wonRatePercent]
+      properties:
+        totalLeads: { type: integer, format: int64 }
+        openLeads: { type: integer, format: int64, description: "NEW, CONTACTED or QUALIFIED" }
+        stages:
+          type: array
+          items: { $ref: "#/components/schemas/FunnelStageCount" }
+        wonRatePercent: { type: number, format: decimal, description: "WON ÷ (WON + LOST); 0 when no lead is closed" }
+
+    SalesReport:
+      type: object
+      required: [soldCount, revenue, grossProfit, averageDaysToSell, inStockCount, inventoryCost, months]
+      properties:
+        soldCount: { type: integer }
+        revenue: { type: number, format: decimal, description: Sum of sold prices }
+        grossProfit: { type: number, format: decimal, description: Sold price minus purchase and repair cost }
+        averageDaysToSell: { type: number, format: decimal, nullable: true, description: soldOn minus addedOn; null with no sales }
+        inStockCount: { type: integer }
+        inventoryCost: { type: number, format: decimal, description: Purchase plus repair cost of in-stock vehicles }
+        months:
+          type: array
+          description: Twelve most recent months with a sale, newest first
+          items:
+            type: object
+            required: [month, soldCount, revenue, grossProfit]
+            properties:
+              month: { type: string, example: "2026-10" }
+              soldCount: { type: integer }
+              revenue: { type: number, format: decimal }
+              grossProfit: { type: number, format: decimal }
+
     LeadVehicle:
       type: object
       nullable: true
@@ -3498,7 +3753,7 @@ components:
       type: object
       required: [success, notes]
       description: |
-        PROTOCOL §B.2 success. `success` must be `true`. `notes` may be `[]`; each element at least `{message}`.
+        PROTOCOL §B.2 success. `success` must be `true`. `notes` may be `[]`; each element is `{code, severity, explanation, message}`.
         core writes `notes` as-is onto public `Check.aiNotes`. Ban `recommendation` / `checkStatus` / `ruleFindings`.
       properties:
         success:

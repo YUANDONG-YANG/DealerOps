@@ -11,8 +11,7 @@ public class OmvicRuleEngine
     private static readonly Regex Price = new(
         @"(?:cad|c\$|\$)\s*\d[\d,]*(?:\.\d{2})?|\d[\d,]*(?:\.\d{2})?\s*(?:cad|dollars?)\b",
         RegexOptions.IgnoreCase | RegexOptions.Compiled);
-    private static readonly Regex Phone = new(@"\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}", RegexOptions.Compiled);
-    private static readonly Regex Email = new(@"\S+@\S+\.\S+", RegexOptions.Compiled);
+    private static readonly Regex PhoneLike = new(@"\+?\d[\d\s().-]{5,}\d", RegexOptions.Compiled);
     private static readonly Regex Apr = new(
         @"\d+(?:\.\d+)?\s*%\s*(?:apr|annual percentage rate)|apr\s*[:=]?\s*\d+(?:\.\d+)?\s*%",
         RegexOptions.IgnoreCase | RegexOptions.Compiled);
@@ -95,9 +94,13 @@ public class OmvicRuleEngine
         if (!ContainsNormalized(text, dealer.LegalName))
             hard.Add(Hard("DEALER_NAME_MISSING", "Dealership legal name is missing from the ad."));
 
-        bool hasPhone = ContainsNormalized(text, Digits(dealer.ContactPhone)) || Phone.IsMatch(text);
-        bool hasEmail = ContainsNormalized(text, dealer.ContactEmail) || Email.IsMatch(text);
-        bool hasAddr = ContainsNormalized(text, dealer.ContactAddress);
+        // The dealership's own phone and email must appear. Any other phone or email in the
+        // copy does not satisfy the check (AD-06). Legal name and address stay required too.
+        bool hasPhone = HasDealerPhone(text, dealer.ContactPhone);
+        bool hasEmail = !string.IsNullOrWhiteSpace(dealer.ContactEmail)
+            && ContainsNormalized(text, dealer.ContactEmail);
+        bool hasAddr = !string.IsNullOrWhiteSpace(dealer.ContactAddress)
+            && ContainsNormalized(text, dealer.ContactAddress);
 
         if (!(hasPhone && hasEmail && hasAddr))
         {
@@ -238,6 +241,17 @@ public class OmvicRuleEngine
 
     private static bool IsBlank(string? s) => string.IsNullOrWhiteSpace(s);
     private static string Digits(string? s) => s == null ? "" : Regex.Replace(s, @"\D", "");
+
+    // Compares digits only, so "(403) 555-0100" in the copy matches a stored "+1 403-555-0100".
+    // The last ten digits decide, which ignores a leading country code on either side.
+    private static bool HasDealerPhone(string text, string? phone)
+    {
+        var wanted = LastDigits(Digits(phone));
+        if (wanted.Length < 7) return false;
+        return PhoneLike.Matches(text).Any(m => LastDigits(Digits(m.Value)) == wanted);
+    }
+
+    private static string LastDigits(string digits) => digits.Length > 10 ? digits[^10..] : digits;
 
     private static bool ContainsNormalized(string haystack, string? needle)
     {

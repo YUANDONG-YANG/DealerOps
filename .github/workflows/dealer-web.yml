@@ -1,23 +1,23 @@
-# Compile only. The cloud deploy uploads dist/ to Azure Static Web Apps (deploy/README.md).
+# Build the active React app. Cloud deploy uploads dist/ to the Linux App Service (deploy/README.md).
 name: dealer-web
 on:
   pull_request:
     paths:
-      - "dealer-web/**"
+      - "frontend/react/**"
       - ".github/workflows/dealer-web.yml"
   push:
     branches: [main]
     paths:
-      - "dealer-web/**"
+      - "frontend/react/**"
       - ".github/workflows/dealer-web.yml"
   workflow_dispatch:
 
 defaults:
   run:
-    working-directory: dealer-web
+    working-directory: frontend/react
 
 jobs:
-  compile:
+  build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -25,7 +25,7 @@ jobs:
         with:
           node-version: "20"
           cache: npm
-          cache-dependency-path: dealer-web/package-lock.json
+          cache-dependency-path: frontend/react/package-lock.json
       - run: echo "repo=${{ github.repository }}"
       - run: npm ci
       - run: npm run build

@@ -1,12 +1,13 @@
 using System.ComponentModel.DataAnnotations;
+using DealerOps.Core.Common;
 
 namespace DealerOps.Core.Vehicle.Dto;
 
 // Value-type fields are nullable so that [Required] reports a missing JSON property
 // instead of silently binding the default enum / 0 / 0001-01-01.
 public record CreateVehicleRequest(
-    [Required][MaxLength(50)] string Make,
-    [Required][MaxLength(50)] string Model,
+    [NotBlank][MaxLength(50)] string Make,
+    [NotBlank][MaxLength(50)] string Model,
     [Required][Range(1900, int.MaxValue)] int ModelYear,
     [Required]
     [RegularExpression(@"^[A-HJ-NPR-Za-hj-npr-z0-9]{17}$",

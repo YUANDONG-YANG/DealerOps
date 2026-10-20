@@ -48,8 +48,9 @@ function fieldError(page: Page, placeholder: string) {
 
 async function expectNoAccessScreen(page: Page, username?: string) {
   await expect(page.getByRole('heading', { name: 'No access' })).toBeVisible();
-  await expect(page.getByText('Not provisioned yet. Your account is not linked to a dealership.')).toBeVisible();
-  await expect(page.getByText('Contact your platform administrator to be added.')).toBeVisible();
+  await expect(page.getByText('Your account is not provisioned yet. Contact your administrator.')).toBeVisible();
+  await expect(page.getByText('Or ask to join one dealership. A member there can approve the request.')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Request to join' })).toBeVisible();
   if (username) await expect(page.getByText(`@${username}`)).toBeVisible();
 }
 

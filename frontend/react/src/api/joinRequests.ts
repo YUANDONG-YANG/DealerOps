@@ -5,6 +5,7 @@ export type JoinRequest = {
   displayName: string;
   email: string | null;
   createdAt: string;
+  source: string | null;
 };
 
 export const joinRequestsApi = {

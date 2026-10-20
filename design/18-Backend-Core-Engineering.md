@@ -375,11 +375,11 @@ Align 15 §10 / 08: browser-to-service HTTP **only** goes through Gateway `8080`
 
 | Item | Requirement |
 |---|---|
-| Listen | bind **8081** only (`CORE_PORT`), on `127.0.0.1` locally (`SERVER_ADDRESS`). Azure: App Service access restrictions deny every caller but Azure-internal ones |
+| Listen | bind **8081** only (`CORE_PORT`). A direct caller without `X-Dealer-Internal` gets **404**. Azure: App Service access restrictions deny every caller but Azure-internal ones |
 | CORS | **do not** configure `http://localhost:5173`. Direct `fetch(8081)` must be blocked by the browser |
 | Routes | implement `/api/v1/**` business only. Do not implement `/internal/v1/**` for the browser |
 | Outbound | AI calls add the internal header only; see section 7 |
-| Demo | Gateway + user JWT `/api/v1/**` is the product entry. If `curl 127.0.0.1:8081` still works locally, that only proves "no CORS / no public net" and **cannot** be treated as a public API |
+| Demo | Gateway + user JWT `/api/v1/**` is the product entry. A direct call to core without `X-Dealer-Internal` returns **404** `{code, message, requestId}`, with or without a user JWT |
 
 ---
 

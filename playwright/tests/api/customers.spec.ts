@@ -133,8 +133,12 @@ test('CRM-11 / AUD-02 / AUD-04 / CRM-12: customer history records changes withou
   }
 });
 
-test('CRM duplicate contacts in the same dealer are rejected per field', async ({ staffApi }) => {
+test('CRM-13: a duplicate email is saved with a warning; a duplicate phone is rejected', async ({ staffApi }) => {
   const customer = await staffApi.createCustomer();
-  await expectError(await staffApi.post('/api/v1/customers', customerBody({ email: customer.email })), 409, 'EMAIL_TAKEN');
+  const duplicateEmail = await staffApi.post('/api/v1/customers', customerBody({ email: customer.email }));
+  await expectStatus(duplicateEmail, 201);
+  const saved = await duplicateEmail.json();
+  expect(saved.email).toBe(customer.email);
+  expect(saved.emailWarning).toMatch(/already uses this email/i);
   await expectError(await staffApi.post('/api/v1/customers', customerBody({ phone: customer.phone })), 409, 'PHONE_TAKEN');
 });

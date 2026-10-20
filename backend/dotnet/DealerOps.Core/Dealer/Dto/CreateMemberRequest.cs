@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using DealerOps.Core.Common;
 
 namespace DealerOps.Core.Dealer.Dto;
 
@@ -8,5 +9,5 @@ public record CreateMemberRequest(
     string Username,
     [MaxLength(120)] string? DisplayName,
     [MinLength(8)][MaxLength(72)] string? Password,
-    [EmailAddress][MaxLength(254)] string? Email,
+    [OptionalEmailAddress][MaxLength(254)] string? Email,
     [MaxLength(40)] string? Phone);

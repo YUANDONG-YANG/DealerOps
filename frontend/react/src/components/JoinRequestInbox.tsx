@@ -1,25 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { joinRequestsApi } from '../api/joinRequests';
-import {
-  JOIN_REQUESTS_CHANGED,
-  emitJoinRequestsChanged,
-  notificationsApi,
-  type JoinRequestPayload,
-  type Notification,
-} from '../api/notifications';
-import { codeOf, messageOf, statusOf } from '../api/http';
+import { joinRequestsApi, type JoinRequest } from '../api/joinRequests';
+import { accountSourceLabel } from '../api/members';
+import { JOIN_REQUESTS_CHANGED, emitJoinRequestsChanged } from '../api/notifications';
+import { codeOf, statusOf } from '../api/http';
 import { initials } from '../format';
 import { describeError } from '../api/errors';
 
-type JoinRequestNotification = Notification & { kind: 'JOIN_REQUEST'; payload: JoinRequestPayload };
-
-function isJoinRequest(n: Notification): n is JoinRequestNotification {
-  return n.kind === 'JOIN_REQUEST'
-    && typeof (n.payload as Record<string, unknown>)?.username === 'string';
-}
-
 const POLL_MS = 30_000;
+const PAGE_SIZE = 10;
 
 /**
  * In-app inbox for Google join requests. Lives in the header so a Dealer.User sees new
@@ -33,7 +22,8 @@ const POLL_MS = 30_000;
  */
 export default function JoinRequestInbox() {
   const navigate = useNavigate();
-  const [rows, setRows] = useState<JoinRequestNotification[]>([]);
+  const [rows, setRows] = useState<JoinRequest[]>([]);
+  const [page, setPage] = useState(0);
   const [open, setOpen] = useState(false);
   const [error, setError] = useState('');
   const [acting, setActing] = useState<string | null>(null);
@@ -41,8 +31,7 @@ export default function JoinRequestInbox() {
 
   async function load() {
     try {
-      const list = await notificationsApi.list();
-      setRows(list.filter(isJoinRequest));
+      setRows(await joinRequestsApi.list());
       setError('');
     } catch { /* keep the stale list rather than clearing the badge on a transient blip */ }
   }
@@ -88,6 +77,9 @@ export default function JoinRequestInbox() {
   }
 
   const count = rows.length;
+  const pageCount = Math.max(1, Math.ceil(count / PAGE_SIZE));
+  const safePage = Math.min(page, pageCount - 1);
+  const visible = rows.slice(safePage * PAGE_SIZE, safePage * PAGE_SIZE + PAGE_SIZE);
 
   return (
     <div className="inbox" ref={containerRef} style={{ position: 'relative' }}>
@@ -125,17 +117,18 @@ export default function JoinRequestInbox() {
             </div>
           ) : (
             <ul className="inbox-list">
-              {rows.map(r => {
-                const busy = acting === r.payload.username;
+              {visible.map(r => {
+                const busy = acting === r.username;
                 return (
-                  <li key={r.id} className="inbox-item">
+                  <li key={r.username} className="inbox-item">
                     <div className="inbox-who">
-                      <span className="avatar avatar-sm" aria-hidden="true">{initials(r.payload.displayName)}</span>
+                      <span className="avatar avatar-sm" aria-hidden="true">{initials(r.displayName)}</span>
                       <div className="inbox-text">
-                        <div className="inbox-name" title={r.payload.displayName}>{r.payload.displayName}</div>
-                        <div className="inbox-meta" title={r.payload.email ?? r.payload.username}>
-                          {r.payload.email ?? r.payload.username}
+                        <div className="inbox-name" title={r.displayName}>{r.displayName}</div>
+                        <div className="inbox-meta" title={r.email ?? r.username}>
+                          {r.email ?? r.username}
                         </div>
+                        <div className="inbox-meta">{accountSourceLabel(r.source)}</div>
                       </div>
                     </div>
                     <div className="inbox-actions">
@@ -143,7 +136,7 @@ export default function JoinRequestInbox() {
                         type="button"
                         className="btn btn-sm"
                         disabled={busy}
-                        onClick={() => void act(r.payload.username, 'reject')}
+                        onClick={() => void act(r.username, 'reject')}
                       >
                         Reject
                       </button>
@@ -151,7 +144,7 @@ export default function JoinRequestInbox() {
                         type="button"
                         className="btn btn-sm btn-primary"
                         disabled={busy}
-                        onClick={() => void act(r.payload.username, 'approve')}
+                        onClick={() => void act(r.username, 'approve')}
                       >
                         Approve
                       </button>
@@ -159,6 +152,13 @@ export default function JoinRequestInbox() {
                   </li>
                 );
               })}
+              {count > PAGE_SIZE && (
+                <li className="inbox-item">
+                  <button type="button" className="btn-link" disabled={safePage <= 0} onClick={() => setPage(p => Math.max(0, p - 1))}>Previous</button>
+                  <span className="muted">{safePage + 1} / {pageCount}</span>
+                  <button type="button" className="btn-link" disabled={safePage >= pageCount - 1} onClick={() => setPage(p => p + 1)}>Next</button>
+                </li>
+              )}
             </ul>
           )}
         </div>

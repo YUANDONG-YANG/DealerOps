@@ -101,7 +101,7 @@ Request-body shape remains 14 §11 (`listing` + `vehiclePublic` without cost + `
 {
   "success": true,
   "notes": [
-    { "message": "No additional misleading claims found." }
+    { "code": "NOTE", "severity": "INFO", "explanation": "No additional misleading claims found.", "message": "No additional misleading claims found." }
   ]
 }
 ```
@@ -109,7 +109,7 @@ Request-body shape remains 14 §11 (`listing` + `vehiclePublic` without cost + `
 | Field | Type | Rule |
 |---|---|---|
 | `success` | boolean | Must be `true` |
-| `notes` | array | Non-empty; each element at least `{ "message": string }`. A blank model reply is `502 AI_PROVIDER_FAILED`, not `200` + `[]`. core writes `aiNotes` as-is |
+| `notes` | array | Non-empty; each element is `{ "code", "severity", "explanation", "message" }` (design/14). `severity` is `REVIEW` or `INFO` only: AI notes never block, so any other model value is stored as `REVIEW`. A blank model reply is `502 AI_PROVIDER_FAILED`, not `200` + `[]`. core writes `aiNotes` as-is |
 
 Ban inventing `recommendation` / `checkStatus` / `ruleFindings` in the success body. The five states are written by core. On success and the model does not require a hard block → core: `recommendation=PASSED`, `aiStatus=SUCCESS`.
 
@@ -384,7 +384,7 @@ Run every rule below on `text`; there is **no** empty-draft short-circuit. An em
 |---|---|---|---|
 | `PRICE_MISSING` | `text` | `!PRICE.matcher(text).find()` | **hard** |
 | `DEALER_NAME_MISSING` | `text`, `dealer.legalName` | `!containsNormalized(text, legalName)`. “the dealership” does not count as the name | **hard** |
-| `DEALER_CONTACT_MISSING` | `text`, three dealership contacts | Phone: `containsNormalized(text, digits(phone))` **or** `PHONE`; email: contains the original **or** `EMAIL`; address: contains `contactAddress`. **All three missing** | **hard** |
+| `DEALER_CONTACT_MISSING` | `text`, three dealership contacts | Phone: a phone-like run in the copy whose last ten digits equal the dealership phone's (formatting ignored); email: contains the dealership email; address: contains `contactAddress`. **All three missing** | **hard** |
 | `DEALER_CONTACT_INCOMPLETE` | Same | Not all three present, but at least one | **soft** |
 | `YEAR_NOT_IN_COPY` | `text`, `vehicle.modelYear` | Copy does not contain `modelYear` as a standalone number (digit boundaries, so "$32,019" does not count as 2019) | **soft** |
 | `YEAR_NEW_USED_CONTRADICTION` | `text`, `modelYear`, calendar year `Y` | `BRAND_NEW` hits **and** `modelYear <= Y - 2` (15 did not define a function: this document pins it; **soft**, hand to AI) | **soft** |
@@ -423,8 +423,8 @@ Result runFixedOmvic(Listing L, VehiclePublic V, DealerPublic D) {
     if (!PRICE.matcher(text).find()) hard.add(PRICE_MISSING);
     if (!containsNormalized(text, D.legalName)) hard.add(DEALER_NAME_MISSING);
 
-    boolean hasPhone = containsNormalized(text, digits(D.contactPhone)) || PHONE.matcher(text).find();
-    boolean hasEmail = containsNormalized(text, D.contactEmail) || EMAIL.matcher(text).find();
+    boolean hasPhone = hasDealerPhone(text, D.contactPhone); // last ten digits, formatting ignored
+    boolean hasEmail = containsNormalized(text, D.contactEmail);
     boolean hasAddr  = containsNormalized(text, D.contactAddress);
     if (!(hasPhone && hasEmail && hasAddr)) {
         if (!(hasPhone || hasEmail || hasAddr)) hard.add(DEALER_CONTACT_MISSING);

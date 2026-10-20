@@ -34,9 +34,17 @@ public static class JwtSupport
 
     public static string ResolveDevSecret(IConfiguration config)
     {
-        var configured = config["DEV_JWT_SECRET"] ?? config["Jwt:DevSecret"];
-        if (string.IsNullOrWhiteSpace(configured) || IsWellKnownDevSecret(configured))
-            return DefaultDevSecret;
+        var configured = First(config["DEV_JWT_SECRET"], config["Jwt:DevSecret"]);
+        if (string.IsNullOrWhiteSpace(configured))
+            throw new InvalidOperationException(
+                "JWT signing secret is not configured. Set DEV_JWT_SECRET or Jwt__DevSecret.");
         return configured;
+    }
+
+    private static string? First(params string?[] values)
+    {
+        foreach (var value in values)
+            if (!string.IsNullOrWhiteSpace(value)) return value;
+        return null;
     }
 }

@@ -1,4 +1,7 @@
 using System.Text.Json;
+using System.Text.Json.Nodes;
+using DealerOps.Core.Data;
+using DealerOps.Core.Dealer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -16,21 +19,38 @@ namespace DealerOps.Core.Notifications;
 public class NotificationController : ControllerBase
 {
     private readonly NotificationService _service;
+    private readonly AppDbContext _db;
 
-    public NotificationController(NotificationService service) { _service = service; }
+    public NotificationController(NotificationService service, AppDbContext db)
+    {
+        _service = service;
+        _db = db;
+    }
 
     // includeResolved=false (default) is the inbox feed; includeResolved=true is the message
     // history page. Both are scoped to the caller's tenant by the service layer.
     [HttpGet]
-    public List<NotificationResponse> List([FromQuery] bool includeResolved = false) =>
-        _service.List(includeResolved).Select(ToResponse).ToList();
-
-    private static NotificationResponse ToResponse(NotificationEntity entity)
+    public List<NotificationResponse> List([FromQuery] bool includeResolved = false)
     {
-        var payload = JsonSerializer.Deserialize<JsonElement>(entity.Payload);
-        return new NotificationResponse(
-            entity.Id, entity.Kind, entity.CreatedAt, payload,
-            entity.ResolvedAt, entity.ResolvedBy, entity.ResolvedAction);
+        var rows = _service.List(includeResolved)
+            .Select(n => (entity: n, payload: JsonNode.Parse(n.Payload) as JsonObject ?? new JsonObject()))
+            .ToList();
+
+        // A join request also shows how the applicant's account was created (Google, email
+        // sign-up, registration form or admin), read live so older requests get it too.
+        var applicants = rows.Where(r => r.entity.Kind == "JOIN_REQUEST")
+            .Select(r => r.payload["username"]?.GetValue<string>())
+            .OfType<string>();
+        var sources = AccountSource.For(_db, applicants);
+        foreach (var (entity, payload) in rows)
+        {
+            if (entity.Kind == "JOIN_REQUEST" && payload["username"]?.GetValue<string>() is { } username)
+                payload["source"] = sources.GetValueOrDefault(username);
+        }
+
+        return rows.Select(r => new NotificationResponse(
+            r.entity.Id, r.entity.Kind, r.entity.CreatedAt, JsonSerializer.SerializeToElement(r.payload),
+            r.entity.ResolvedAt, r.entity.ResolvedBy, r.entity.ResolvedAction)).ToList();
     }
 }
 

@@ -94,15 +94,55 @@ public class AdCheckAdapter
             if (text.Length < MinNoteChars) continue;          // blank, bullet or stray fragment
             if (text.StartsWith("```", StringComparison.Ordinal)) continue;  // code fence, not a finding
             if (!text.Any(char.IsLetter)) continue;            // rules such as "--------"
-            if (notes.Any(note => note.Message == text)) continue;
 
-            if (text.Length > MaxNoteChars)
-                text = string.Concat(text.AsSpan(0, MaxNoteChars).TrimEnd(), "...");
-
-            notes.Add(new AiNote(text));
+            var note = ParseNote(text);
+            if (string.IsNullOrWhiteSpace(note.Message)) continue;
+            if (notes.Any(existing => existing.Message == note.Message)) continue;
+            notes.Add(note);
         }
         return notes;
     }
+
+    private static AiNote ParseNote(string text)
+    {
+        var trimmed = text.Trim();
+        if (trimmed.StartsWith('{') && trimmed.EndsWith('}'))
+        {
+            try
+            {
+                using var doc = JsonDocument.Parse(trimmed);
+                var root = doc.RootElement;
+                var message = NoteField(root, "message");
+                if (!string.IsNullOrWhiteSpace(message))
+                {
+                    return new AiNote(
+                        Cap(NoteField(root, "code") ?? "NOTE", 64),
+                        NoteSeverity(NoteField(root, "severity")),
+                        Cap(NoteField(root, "explanation") ?? message, MaxNoteChars),
+                        Cap(message, MaxNoteChars));
+                }
+            }
+            catch (JsonException)
+            {
+                // A prose line is still a note; the fields below keep the wire shape.
+            }
+        }
+
+        var body = Cap(trimmed, MaxNoteChars);
+        return new AiNote("NOTE", "REVIEW", body, body);
+    }
+
+    private static string? NoteField(JsonElement root, string name) =>
+        root.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String
+            ? value.GetString()?.Trim()
+            : null;
+
+    // AI notes are advisory (AD-08): only REVIEW or INFO is kept, anything else reads as REVIEW.
+    private static string NoteSeverity(string? severity) =>
+        string.Equals(severity, "INFO", StringComparison.OrdinalIgnoreCase) ? "INFO" : "REVIEW";
+
+    private static string Cap(string text, int max) =>
+        text.Length <= max ? text : string.Concat(text.AsSpan(0, max).TrimEnd(), "...");
 
     private static string WithoutListMarker(string line)
     {

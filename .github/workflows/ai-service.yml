@@ -1,31 +1,26 @@
-# Compile only. The cloud deploy is a JAR upload run by an operator (deploy/README.md).
+# Build the active .NET 10 AI service. Cloud deploy is an operator step (deploy/README.md).
 name: ai-service
 on:
   pull_request:
     paths:
-      - "backend/java/ai-service/**"
+      - "backend/dotnet/DealerOps.AiService/**"
+      - "backend/dotnet/DealerOps.Logging/**"
       - ".github/workflows/ai-service.yml"
   push:
     branches: [main]
     paths:
-      - "backend/java/ai-service/**"
+      - "backend/dotnet/DealerOps.AiService/**"
+      - "backend/dotnet/DealerOps.Logging/**"
       - ".github/workflows/ai-service.yml"
   workflow_dispatch:
 
-defaults:
-  run:
-    working-directory: backend/java/ai-service
-
 jobs:
-  compile:
+  build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-java@v6
+      - uses: actions/setup-dotnet@v5
         with:
-          distribution: temurin
-          java-version: "21"
-          cache: maven
+          dotnet-version: "10.0.x"
       - run: echo "repo=${{ github.repository }}"
-      - name: Compile with the vendored ai-manager sources
-        run: mvn -B -DskipTests compile
+      - run: dotnet build backend/dotnet/DealerOps.AiService/DealerOps.AiService.csproj --nologo

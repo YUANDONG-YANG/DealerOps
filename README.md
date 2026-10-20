@@ -61,7 +61,7 @@ dotnet run --project backend/dotnet/DealerOps.Gateway --no-launch-profile    # 8
 cd frontend/react && npm install && npm run dev                              # 5174
 ```
 
-Wait for `http://127.0.0.1:<port>/actuator/health` to report `UP` before starting the next one.
+Wait for `http://127.0.0.1:<port>/actuator/health` to report `UP` before starting the next one. Core (8081) and ai-service (8082) answer 404 unless the request carries `X-Dealer-Internal: <INTERNAL_TOKEN>`; the gateway (8080) answers 404 when it does.
 
 ### Accounts and demo data
 

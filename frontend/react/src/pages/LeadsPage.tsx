@@ -12,6 +12,7 @@ import { auditApi } from '../api/audit';
 import { LEAD_STAGES, isClosedStage, leadsApi, stageLabel, type LeadStage } from '../api/leads';
 import { memberLabel, membersApi, type MemberOption } from '../api/members';
 import { describeError } from '../api/errors';
+import { dateTimeLocal } from '../format';
 
 function vehicleLabel(v: Record<string, unknown> | null | undefined) {
   if (!v) return '—';
@@ -382,7 +383,7 @@ export default function LeadsPage() {
             {!(selected.notes || []).length && <p className="muted">No notes yet.</p>}
             {(selected.notes || []).map((n: any) => (
               <div key={n.id} className="lead-note">
-                <div className="muted">{n.authorUsername} · {n.createdAt}</div>
+                <div className="muted">{n.authorUsername} · {dateTimeLocal(n.createdAt)}</div>
                 <div style={{ whiteSpace: 'pre-wrap', marginTop: 4 }}>{n.body}</div>
               </div>
             ))}

@@ -1,10 +1,6 @@
 import { http } from './http';
 
-/**
- * Dealer-wide inbox: every active member of the dealership sees the same unread list, and the
- * first to approve or reject takes a row off everyone else's screen. Payload is a kind-specific
- * JSON blob the frontend narrows by `kind`.
- */
+/** Dealer-wide inbox row. Payload is a kind-specific JSON blob the frontend narrows by `kind`. */
 export type Notification = {
   id: number;
   kind: string;
@@ -28,6 +24,7 @@ export type JoinRequestPayload = {
   username: string;
   displayName: string;
   email: string | null;
+  source: string | null;
 };
 
 // Fires whenever the inbox or the Team page changes a join request so that whichever other

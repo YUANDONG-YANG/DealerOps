@@ -28,6 +28,10 @@ http.interceptors.request.use(async (config) => {
   }
   config.baseURL = await applyGatewayUrl();
   config.headers = config.headers || {};
+  // A FormData body must not keep the JSON content type, or the multipart boundary is lost.
+  if (typeof FormData !== 'undefined' && config.data instanceof FormData) {
+    delete config.headers['Content-Type'];
+  }
   const isPublicAuth = path.includes('/auth/login')
     || path.includes('/auth/register')
     || path.includes('/auth/firebase');

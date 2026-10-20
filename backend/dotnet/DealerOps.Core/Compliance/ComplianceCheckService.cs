@@ -25,15 +25,18 @@ public class ComplianceCheckService
     private readonly OmvicRuleEngine _ruleEngine;
     private readonly CheckStatusMapper _checkStatusMapper;
     private readonly IAiGatewayClient _aiGatewayClient;
+    private readonly ComplianceRuleService _ruleSettings;
 
     public ComplianceCheckService(
         AppDbContext db, OmvicRuleEngine ruleEngine,
-        CheckStatusMapper checkStatusMapper, IAiGatewayClient aiGatewayClient)
+        CheckStatusMapper checkStatusMapper, IAiGatewayClient aiGatewayClient,
+        ComplianceRuleService ruleSettings)
     {
         _db = db;
         _ruleEngine = ruleEngine;
         _checkStatusMapper = checkStatusMapper;
         _aiGatewayClient = aiGatewayClient;
+        _ruleSettings = ruleSettings;
     }
 
     public CheckResponse Check(long listingId, VersionBody body)
@@ -52,9 +55,17 @@ public class ComplianceCheckService
                      ?? throw new ApiException(ErrorCode.NotFound, "Not found");
 
         var omvic = _ruleEngine.Run(listing, vehicle, dealer);
-        if (omvic.HardBlocked)
+        var overrides = _ruleSettings.Overrides();
+        var findings = omvic.Findings
+            .Where(f => !overrides.TryGetValue(f.RuleId, out var rule) || rule.Enabled)
+            .Select(f => overrides.TryGetValue(f.RuleId, out var rule)
+                ? f with { Severity = rule.Severity ?? f.Severity, Message = rule.Message ?? f.Message }
+                : f)
+            .ToList();
+        var hardBlocked = findings.Any(f => string.Equals(f.Severity, "BLOCK", StringComparison.OrdinalIgnoreCase));
+        if (hardBlocked)
         {
-            var saved = PersistCheck(listing, evaluatedContentVersion, omvic.Findings,
+            var saved = PersistCheck(listing, evaluatedContentVersion, findings,
                 AiStatus.Skipped, null, Recommendation.Blocked);
             return ToDto(listing, saved)!;
         }
@@ -71,13 +82,13 @@ public class ComplianceCheckService
                 new DealerPublic(dealer.LegalName, dealer.ContactPhone,
                     dealer.ContactEmail, dealer.ContactAddress))).GetAwaiter().GetResult();
 
-            var saved = PersistCheck(listing, evaluatedContentVersion, omvic.Findings,
+            var saved = PersistCheck(listing, evaluatedContentVersion, findings,
                 AiStatus.Success, notes, Recommendation.Passed);
             return ToDto(listing, saved)!;
         }
         catch (AiCallFailed)
         {
-            PersistCheck(listing, evaluatedContentVersion, omvic.Findings,
+            PersistCheck(listing, evaluatedContentVersion, findings,
                 AiStatus.Unavailable, null, Recommendation.Unavailable);
             throw new ApiException(ErrorCode.AiUnavailable, "Ad check AI is unavailable.");
         }
@@ -144,7 +155,17 @@ public class ComplianceCheckService
     private static List<AiNote>? DeserializeNotes(string? json)
     {
         if (string.IsNullOrWhiteSpace(json)) return null;
-        try { return JsonSerializer.Deserialize<List<AiNote>>(json, StoredJson); }
+        try
+        {
+            return JsonSerializer.Deserialize<List<AiNote>>(json, StoredJson)?
+                .Select(n => n with
+                {
+                    Code = string.IsNullOrWhiteSpace(n.Code) ? "NOTE" : n.Code,
+                    Severity = AiNoteSeverity.Normalize(n.Severity),
+                    Explanation = string.IsNullOrWhiteSpace(n.Explanation) ? n.Message : n.Explanation,
+                })
+                .ToList();
+        }
         catch { return null; }
     }
 

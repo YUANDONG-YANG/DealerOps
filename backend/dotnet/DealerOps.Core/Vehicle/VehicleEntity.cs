@@ -73,4 +73,7 @@ public class VehicleEntity : ITenantOwned
 
     [Column("updated_at")]
     public DateTime UpdatedAt { get; set; }
+
+    [Column("deleted_at")]
+    public DateTime? DeletedAt { get; set; }
 }

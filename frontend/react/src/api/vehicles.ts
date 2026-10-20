@@ -10,7 +10,7 @@ export function errorCode(error: unknown): string {
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function vehicleWriteBody(b: any) {
-  return {
+  const body: Record<string, unknown> = {
     make: b.make,
     model: b.model,
     modelYear: b.modelYear === '' || b.modelYear == null ? b.modelYear : Number(b.modelYear),
@@ -19,10 +19,12 @@ function vehicleWriteBody(b: any) {
     purchaseCost: b.purchaseCost === '' || b.purchaseCost == null ? b.purchaseCost : Number(b.purchaseCost),
     addedOn: b.addedOn,
     conditionCode: b.conditionCode,
-    bodyType: b.bodyType,
     repairCost: b.repairCost === '' || b.repairCost == null ? null : Number(b.repairCost),
     carfaxUrl: b.carfaxUrl === '' ? null : b.carfaxUrl,
   };
+  // Omitted body type lets the API default a new vehicle to OTHER (VIN-03).
+  if (b.bodyType) body.bodyType = b.bodyType;
+  return body;
 }
 
 export const vehiclesApi = {
@@ -48,4 +50,5 @@ export const vehiclesApi = {
       soldPrice: b.soldPrice === '' || b.soldPrice == null ? b.soldPrice : Number(b.soldPrice),
       version: b.version,
     }),
+  delete: (id: number) => http.delete(`/api/v1/vehicles/${id}`),
 };

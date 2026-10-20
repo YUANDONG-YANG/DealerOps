@@ -30,9 +30,10 @@ public class TenantMiddleware
 
             var path = context.Request.Path.Value ?? "";
             var method = context.Request.Method;
-            // /me is the caller's own account, so an unbound user may still read, edit or delete it.
+            // /me and /me/join-request are the caller's own account. An unbound user may
+            // read, edit, or delete the account and file one dealership join request.
             var isMe = path.Equals("/api/v1/me", StringComparison.OrdinalIgnoreCase)
-                       || path.Equals("/api/v1/me/", StringComparison.OrdinalIgnoreCase);
+                       || path.Equals("/api/v1/me/join-request", StringComparison.OrdinalIgnoreCase);
             var isMeGet = isMe && method.Equals("GET", StringComparison.OrdinalIgnoreCase);
 
             var username = context.User.FindFirstValue(ClaimTypes.NameIdentifier)

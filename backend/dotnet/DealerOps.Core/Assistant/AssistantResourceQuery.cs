@@ -22,7 +22,7 @@ public class AssistantResourceQuery
     private static readonly Regex CustomerWord = new(@"\b(?:customers?|clients?|buyers?|owners?)\b", RegexOptions.IgnoreCase | RegexOptions.Compiled);
     private static readonly Regex ListingWord = new(@"\b(?:listings?|ads?|advertis\w*|compliance|checks?|blocked|passed|stale|needs?|ai|unavailable)\b", RegexOptions.IgnoreCase | RegexOptions.Compiled);
     private static readonly Regex Filler = new(
-        @"\b(?:which|what|who|how|many|show|find|list|search|for|me|the|a|an|all|any|are|is|our|here|please|do|does|we|you|have|has|got|in|of|with|named|called|there)\b",
+        @"\b(?:which|what|who|how|many|show|find|list|search|for|me|the|a|an|all|any|are|is|our|here|please|do|does|we|you|have|has|got|in|of|with|named|called|there|and|or|vs|versus|both|plus)\b",
         RegexOptions.IgnoreCase | RegexOptions.Compiled);
     // Apostrophes are split off so "What's" does not leave a stray "'s" search term behind.
     private static readonly Regex Punctuation = new(@"[?!,;:""'’\(\)]", RegexOptions.Compiled);
@@ -51,6 +51,7 @@ public class AssistantResourceQuery
         q = SoldRx.Replace(q, " ");
 
         // Words naming a record type steer the ranking only; they are never searched for.
+        var checkStatus = CheckStatus(question);
         var vehicleAsked = status != null || VehicleWord.IsMatch(q);
         var customerAsked = CustomerWord.IsMatch(q);
         var listingAsked = ListingWord.IsMatch(q);
@@ -63,15 +64,16 @@ public class AssistantResourceQuery
         var terms = SearchTerms(q);
         if (terms.Count == 0)
         {
-            // Nothing to search for: return no cards so the answer can ask for a make, VIN or customer name.
-            return [];
+            // A check status alone ("blocked ads") still names a set of ads; otherwise there is
+            // nothing to search for, so the answer can ask for a make, VIN or customer name.
+            return checkStatus == null ? [] : ListingCards(tenantDealerId, terms, checkStatus);
         }
 
         var groups = new List<(int Rank, List<ResourceCard> Cards)>
         {
             (vehicleAsked ? 0 : 1, VehicleCards(tenantDealerId, status, terms)),
             (customerAsked ? 0 : 1, CustomerCards(tenantDealerId, terms)),
-            (listingAsked ? 0 : 1, ListingCards(tenantDealerId, terms))
+            (listingAsked || checkStatus != null ? 0 : 1, ListingCards(tenantDealerId, terms, checkStatus))
         };
 
         // Record types the question points at come first, but every type that matched
@@ -107,9 +109,12 @@ public class AssistantResourceQuery
             ? VehicleStatus.InStock
             : SoldRx.IsMatch(question) ? VehicleStatus.Sold : (VehicleStatus?)null;
         var checkStatus = CheckStatus(question);
-        var vehicleAsked = vehicleStatus != null || VehicleWord.IsMatch(question);
         var customerAsked = CustomerWord.IsMatch(question);
         var listingAsked = checkStatus != null || ListingWord.IsMatch(question);
+        // A check status ("blocked", "passed") belongs to listings, so "how many vehicles are
+        // blocked" counts listings only and does not add the whole vehicle total.
+        var vehicleAsked = vehicleStatus != null
+            || (VehicleWord.IsMatch(question) && checkStatus == null);
 
         // “How many are there?” is intentionally not guessed. The user must name
         // the resource type so a count cannot silently report the wrong dataset.
@@ -126,46 +131,55 @@ public class AssistantResourceQuery
         q = Filler.Replace(q, " ");
         var terms = SearchTerms(q);
 
-        if (vehicleAsked && !customerAsked && !listingAsked)
-        {
-            IQueryable<VehicleEntity> query = _db.Vehicles.AsNoTracking()
-                .Where(v => v.DealerId == tenantDealerId);
-            if (vehicleStatus != null) query = query.Where(v => v.Status == vehicleStatus);
-            query = ApplyVehicleTerms(query, terms);
-            var count = query.Count();
-            var (singular, plural) = vehicleStatus == VehicleStatus.InStock
-                ? ("vehicle in stock", "vehicles in stock")
-                : vehicleStatus == VehicleStatus.Sold ? ("sold vehicle", "sold vehicles")
-                : ("vehicle", "vehicles");
-            return new CountResult(count, singular, plural);
-        }
+        CountResult? vehicles = vehicleAsked ? CountVehicles(tenantDealerId, vehicleStatus, terms) : null;
+        CountResult? customers = customerAsked ? CountCustomers(tenantDealerId, terms) : null;
+        CountResult? listings = listingAsked ? CountListings(tenantDealerId, terms, checkStatus) : null;
+        var parts = new[] { vehicles, customers, listings }.Where(p => p != null).Cast<CountResult>().ToList();
+        if (parts.Count == 0) return null;
+        if (parts.Count == 1) return parts[0];
 
-        if (customerAsked && !listingAsked && !vehicleAsked)
-        {
-            IQueryable<CustomerEntity> query = _db.Customers.AsNoTracking()
-                .Where(c => c.DealerId == tenantDealerId);
-            foreach (var term in terms)
-            {
-                var t = term;
-                query = query.Where(c => c.Name.Contains(t));
-            }
-            var (singular, plural) = terms.Count == 0
-                ? ("customer", "customers") : ("matching customer", "matching customers");
-            return new CountResult(query.Count(), singular, plural);
-        }
+        // A question that names more than one record type gets each full total (AI-03).
+        // Leftover search words still narrow each total; with none, it is the whole dealership.
+        var summary = string.Join(" ", parts.Select(p => p.Summary));
+        return new CountResult(parts.Sum(p => p.Count), "record", "records", summary);
+    }
 
-        if (listingAsked && !customerAsked && !vehicleAsked)
-        {
-            var rows = ListingRows(tenantDealerId, terms);
-            var count = checkStatus == null
-                ? rows.Count
-                : rows.Count(x => _checkStatusMapper.Derive(x.l, x.check) == checkStatus);
-            var (singular, plural) = checkStatus == null
-                ? ("listing", "listings") : ($"{checkStatus} listing", $"{checkStatus} listings");
-            return new CountResult(count, singular, plural);
-        }
+    private CountResult CountVehicles(long tenantDealerId, VehicleStatus? vehicleStatus, List<string> terms)
+    {
+        IQueryable<VehicleEntity> query = _db.Vehicles.AsNoTracking()
+            .Where(v => v.DealerId == tenantDealerId);
+        if (vehicleStatus != null) query = query.Where(v => v.Status == vehicleStatus);
+        query = ApplyVehicleTerms(query, terms);
+        var (singular, plural) = vehicleStatus == VehicleStatus.InStock
+            ? ("vehicle in stock", "vehicles in stock")
+            : vehicleStatus == VehicleStatus.Sold ? ("sold vehicle", "sold vehicles")
+            : ("vehicle", "vehicles");
+        return new CountResult(query.Count(), singular, plural);
+    }
 
-        return null;
+    private CountResult CountCustomers(long tenantDealerId, List<string> terms)
+    {
+        IQueryable<CustomerEntity> query = _db.Customers.AsNoTracking()
+            .Where(c => c.DealerId == tenantDealerId);
+        foreach (var term in terms)
+        {
+            var t = term;
+            query = query.Where(c => c.Name.Contains(t));
+        }
+        var (singular, plural) = terms.Count == 0
+            ? ("customer", "customers") : ("matching customer", "matching customers");
+        return new CountResult(query.Count(), singular, plural);
+    }
+
+    private CountResult CountListings(long tenantDealerId, List<string> terms, string? checkStatus)
+    {
+        var rows = ListingRows(tenantDealerId, terms);
+        var count = checkStatus == null
+            ? rows.Count
+            : rows.Count(x => _checkStatusMapper.Derive(x.l, x.check) == checkStatus);
+        var (singular, plural) = checkStatus == null
+            ? ("listing", "listings") : ($"{checkStatus} listing", $"{checkStatus} listings");
+        return new CountResult(count, singular, plural);
     }
 
     private List<ResourceCard> VehicleCards(long tenantDealerId, VehicleStatus? status, List<string> terms)
@@ -199,18 +213,19 @@ public class AssistantResourceQuery
             .ToList();
     }
 
-    private List<ResourceCard> ListingCards(long tenantDealerId, List<string> terms)
+    private List<ResourceCard> ListingCards(long tenantDealerId, List<string> terms, string? checkStatus)
     {
-        var rows = ListingRows(tenantDealerId, terms).Take(MaxCards).ToList();
-
-        return rows.Select(x =>
-        {
-            var label = string.IsNullOrWhiteSpace(x.l.Title)
-                ? $"{x.v.ModelYear} {x.v.Make} {x.v.Model}"
-                : x.l.Title;
-            return new ResourceCard("LISTING", x.l.Id, label, null, x.v.Id,
-                _checkStatusMapper.Derive(x.l, x.check));
-        }).ToList();
+        return ListingRows(tenantDealerId, terms)
+            .Select(x => (x.l, x.v, status: _checkStatusMapper.Derive(x.l, x.check)))
+            .Where(x => checkStatus == null || x.status == checkStatus)
+            .Take(MaxCards)
+            .Select(x =>
+            {
+                var label = string.IsNullOrWhiteSpace(x.l.Title)
+                    ? $"{x.v.ModelYear} {x.v.Make} {x.v.Model}"
+                    : x.l.Title;
+                return new ResourceCard("LISTING", x.l.Id, label, null, x.v.Id, x.status);
+            }).ToList();
     }
 
     private IQueryable<VehicleEntity> ApplyVehicleTerms(IQueryable<VehicleEntity> query, List<string> terms)
@@ -269,7 +284,8 @@ public class AssistantResourceQuery
     }
 }
 
-public record CountResult(int Count, string SingularLabel, string PluralLabel)
+public record CountResult(int Count, string SingularLabel, string PluralLabel, string? SummaryText = null)
 {
-    public string Summary => $"There {(Count == 1 ? "is" : "are")} {Count} {(Count == 1 ? SingularLabel : PluralLabel)}.";
+    public string Summary => SummaryText
+        ?? $"There {(Count == 1 ? "is" : "are")} {Count} {(Count == 1 ? SingularLabel : PluralLabel)}.";
 }

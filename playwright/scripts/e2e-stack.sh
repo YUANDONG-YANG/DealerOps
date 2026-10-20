@@ -37,7 +37,16 @@ load_env() {
 }
 
 create_db() {
+  if [[ ! "$STACK_DB_NAME" =~ ^[A-Za-z0-9_]+$ ]]; then
+    say "refusing to use an invalid database name"
+    return 1
+  fi
+  local reset_statement=""
+  if [[ "$STACK_DB_NAME" == "dealer_core_e2e" || "${E2E_RESET_DB:-0}" == "1" ]]; then
+    reset_statement="DROP DATABASE IF EXISTS $STACK_DB_NAME;"
+  fi
   mysql -h 127.0.0.1 -P 3306 -u root <<SQL
+$reset_statement
 CREATE DATABASE IF NOT EXISTS $STACK_DB_NAME CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
 GRANT ALL PRIVILEGES ON $STACK_DB_NAME.* TO 'dealer'@'localhost';
 GRANT ALL PRIVILEGES ON $STACK_DB_NAME.* TO 'dealer'@'127.0.0.1';
@@ -86,7 +95,8 @@ spawn() {
 
 wait_ready() {
   for _ in $(seq 1 90); do
-    if curl -fsS -o /dev/null "http://127.0.0.1:$STACK_CORE_PORT/actuator/health" 2>/dev/null \
+    if curl -fsS -H "X-Dealer-Internal: $INTERNAL_TOKEN" -o /dev/null \
+        "http://127.0.0.1:$STACK_CORE_PORT/actuator/health" 2>/dev/null \
       && curl -fsS "http://127.0.0.1:$STACK_GATEWAY_PORT/actuator/health" 2>/dev/null | grep -q '"core":{"status":"UP"}' \
       && curl -fsS -o /dev/null "http://localhost:$STACK_WEB_PORT/" 2>/dev/null; then
       say "ready: web http://localhost:$STACK_WEB_PORT, gateway http://127.0.0.1:$STACK_GATEWAY_PORT, db $STACK_DB_NAME"

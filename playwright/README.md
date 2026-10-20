@@ -27,8 +27,10 @@ runs them with the React dev server on their own ports and database:
 | Core | `http://127.0.0.1:18081` |
 | Database | `dealer_core_e2e` (created on first start; schema by `EnsureCreated`) |
 
-The script refuses to start if it would use the shared ports or database. Logs are in
-`.stack/logs/`. Override with `E2E_CORE_PORT`, `E2E_GATEWAY_PORT`, `E2E_WEB_PORT`, `E2E_DB_NAME`.
+The script refuses to start if it would use the shared ports or database. The default
+`dealer_core_e2e` database is recreated on each stack start so runs begin with clean data. A
+custom `E2E_DB_NAME` is preserved unless `E2E_RESET_DB=1` is set. Logs are in `.stack/logs/`.
+Override with `E2E_CORE_PORT`, `E2E_GATEWAY_PORT`, `E2E_WEB_PORT`, `E2E_DB_NAME`.
 
 ## Running
 

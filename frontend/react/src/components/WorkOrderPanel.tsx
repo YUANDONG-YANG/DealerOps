@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { messageOf } from '../api/http';
 import { memberLabel, membersApi, type MemberOption } from '../api/members';
 import ConfirmDialog from './ConfirmDialog';
-import { cad } from '../format';
+import { cad, dateTimeLocal } from '../format';
 import { workOrdersApi, type PatchWorkOrderBody, type WorkOrder } from '../api/workOrders';
 import { describeError } from '../api/errors';
 
@@ -59,7 +59,9 @@ export default function WorkOrderPanel({ vehicleId, sold, onChanged }: Props) {
   const [doneNote, setDoneNote] = useState('');
   const [doneError, setDoneError] = useState('');
   const [cancelTarget, setCancelTarget] = useState<WorkOrder | null>(null);
+  const [page, setPage] = useState(0);
   const seqRef = useRef(0);
+  const pageSize = 10;
 
   const load = useCallback(async () => {
     const seq = ++seqRef.current;
@@ -77,7 +79,7 @@ export default function WorkOrderPanel({ vehicleId, sold, onChanged }: Props) {
     }
   }, [vehicleId]);
 
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => { setPage(0); void load(); }, [load]);
 
   useEffect(() => {
     let active = true;
@@ -103,6 +105,7 @@ export default function WorkOrderPanel({ vehicleId, sold, onChanged }: Props) {
         dueOn: trimToNull(form.dueOn),
       });
       setForm(EMPTY_EDIT);
+      setPage(0); // the new work order is listed first
       await load();
       onChanged();
     } catch (e) {
@@ -230,7 +233,7 @@ export default function WorkOrderPanel({ vehicleId, sold, onChanged }: Props) {
       )}
 
       {orders.length === 0 && !loading && <p className="muted">No work orders.</p>}
-      {orders.map(wo => (
+      {orders.slice(page * pageSize, page * pageSize + pageSize).map(wo => (
         <div key={wo.id} style={{ padding: '8px 0', borderBottom: '1px solid var(--border)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div>
@@ -244,7 +247,7 @@ export default function WorkOrderPanel({ vehicleId, sold, onChanged }: Props) {
             </span>
           </div>
           <div className="muted" style={{ fontSize: 12 }}>
-            {wo.createdAt}
+            {dateTimeLocal(wo.createdAt)}
             {wo.completionNote && <> · {wo.completionNote}</>}
           </div>
 
@@ -312,6 +315,16 @@ export default function WorkOrderPanel({ vehicleId, sold, onChanged }: Props) {
           )}
         </div>
       ))}
+      {orders.length > pageSize && (
+        <div className="toolbar">
+          <span className="muted">{orders.length} work orders</span>
+          <div className="pagination">
+            <button type="button" disabled={page <= 0} onClick={() => setPage(p => p - 1)}>&lsaquo;</button>
+            <span className="muted">{page + 1} / {Math.ceil(orders.length / pageSize)}</span>
+            <button type="button" disabled={(page + 1) * pageSize >= orders.length} onClick={() => setPage(p => p + 1)}>&rsaquo;</button>
+          </div>
+        </div>
+      )}
 
       <ConfirmDialog
         open={doneTarget != null}

@@ -5,11 +5,14 @@ import FormDrawer from '../components/FormDrawer';
 import ConfirmDialog from '../components/ConfirmDialog';
 import PageState from '../components/PageState';
 import PendingAccounts from '../components/PendingAccounts';
+import ComplianceRulesPanel from '../components/ComplianceRulesPanel';
 import { adminApi, adminErrorCode, adminErrorStatus, type Dealer, type Member } from '../api/admin';
 import { apiError, collectAllPages, fieldErrorsOf } from '../api/http';
 import { describeError, errorReason } from '../api/errors';
 
 type FlatMember = Member & { dealerId: number; legalName: string };
+
+const memberContact = (m: Member) => [m.email, m.phone].filter(Boolean).join(' / ') || '—';
 
 function isForbidden(e: unknown) {
   return adminErrorCode(e) === 'FORBIDDEN' || adminErrorStatus(e) === 403;
@@ -52,7 +55,7 @@ const TAKEN_HINTS: Record<string, string> = {
 };
 
 export default function AdminPage() {
-  const [tab, setTab] = useState<'dealers' | 'members'>('dealers');
+  const [tab, setTab] = useState<'dealers' | 'members' | 'rules'>('dealers');
   const [rows, setRows] = useState<Dealer[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(0);
@@ -271,7 +274,13 @@ export default function AdminPage() {
     }
     if (binding) return; setBinding(true);
     try {
-      await adminApi.bind(staffDealer.id, member);
+      await adminApi.bind(staffDealer.id, {
+        ...member,
+        username: member.username.trim(),
+        displayName: member.displayName.trim(),
+        email: member.email.trim() || undefined,
+        phone: member.phone.trim() || undefined,
+      });
       setMember({ username: '', displayName: '', password: '', email: '', phone: '' });
       await refreshMemberships(staffDealer.id);
     } catch (e) {
@@ -369,6 +378,7 @@ export default function AdminPage() {
         <div className="tab-bar">
           <button className={`tab-btn ${tab === 'dealers' ? 'active' : ''}`} onClick={() => setTab('dealers')}>Dealerships</button>
           <button className={`tab-btn ${tab === 'members' ? 'active' : ''}`} onClick={() => { setTab('members'); loadFlatMembers(); }}>Members</button>
+          <button className={`tab-btn ${tab === 'rules' ? 'active' : ''}`} onClick={() => setTab('rules')}>Ad rules</button>
         </div>
 
         {tab === 'dealers' && (
@@ -404,7 +414,7 @@ export default function AdminPage() {
         {tab === 'members' && (
           <>
             <div className="filters">
-              <input className="input" value={memberQ} placeholder="Username" aria-label="Username" onChange={(e) => setMemberQ(e.target.value)} />
+              <input className="input" value={memberQ} placeholder="Username, name, email or phone" aria-label="Search members" onChange={(e) => setMemberQ(e.target.value)} />
               <button className="btn" onClick={() => { setMemberPage(0); loadFlatMembers(); }}>Search</button>
               <button className="btn" onClick={() => { setMemberQ(''); setMemberPage(0); loadFlatMembers(); }}>Reset</button>
             </div>
@@ -417,6 +427,7 @@ export default function AdminPage() {
                 columns={[
                   { label: 'Username', render: (r) => r.username },
                   { key: 'legalName', label: 'Dealership' },
+                  { label: 'Contact', render: (r) => memberContact(r) },
                   { label: 'Sign-in', render: (r) => <SignInTag method={r.signInMethod} /> },
                   { label: 'Status', render: (r) => (
                     <label className="switch-label">
@@ -434,6 +445,7 @@ export default function AdminPage() {
             <PendingAccounts key={pendingReload} onBound={() => { void loadFlatMembers(); void loadDealers(); }} />
           </>
         )}
+        {tab === 'rules' && <ComplianceRulesPanel />}
       </div>
 
       <FormDrawer title={editingDealer ? 'Edit dealership' : 'New dealership'} open={drawer} onClose={() => setDrawer(false)}>
@@ -522,6 +534,7 @@ export default function AdminPage() {
                     <div className="staff-account">
                       <span className="staff-username">{m.username}</span>
                       {m.displayName !== m.username && <span className="muted">{m.displayName}</span>}
+                      <span className="muted">{memberContact(m)}</span>
                       <SignInTag method={m.signInMethod} />
                     </div>
                   </td>

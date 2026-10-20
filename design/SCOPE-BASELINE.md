@@ -30,7 +30,7 @@ Classroom demo: two dealerships and two staff isolated; Admin hitting vehicle AP
 
 ## Out of Scope (do not write back into scope)
 
-Garage / service billing · buyer site / public inventory / visitor inquiry · OEM portal · KPI dashboards · CSV import · Service Bus / outbox / DLQ / second database / vector store · third-party auto-listing · payments · custom model SDK · standalone contracts repo · mileage / colour / fuel / stock number / list price and other fields outside the specification. Password auth is **no longer** out of scope — see errata item 1. Reconditioning work orders, lead follow-up, VIN decode, and email/phone self sign-up are feature extensions — see errata item 7. Vehicle `bodyType` is the one stored field outside the specification field list, as an optional field — see errata item 8.
+Garage / service billing · buyer site / public inventory / visitor inquiry · OEM portal · KPI dashboards · CSV import · Service Bus / outbox / DLQ / second database / vector store · payments · custom model SDK · standalone contracts repo · mileage / colour / fuel / stock number / list price and other fields outside the specification. Password auth is **no longer** out of scope — see errata item 1. Reconditioning work orders, lead follow-up, VIN decode, and email/phone self sign-up are feature extensions — see errata item 7. Vehicle `bodyType` is the one stored field outside the specification field list, as an optional field — see errata item 8.
 
 > C# was listed here while the stack was Java. It is no longer out of scope: the active backend **is** .NET 10 / ASP.NET Core, per [TECHNOLOGY-STACK.md](TECHNOLOGY-STACK.md). The client notes state C# as the preferred language.
 
@@ -38,9 +38,8 @@ Garage / service billing · buyer site / public inventory / visitor inquiry · O
 
 This course build does **not** include:
 
-- Per-user or per-dealer rate limits / quotas on `/assistant/ask` and listing checks (classroom demo; Azure spend is watched manually).
-- Throughput / concurrency SLOs and CRUD latency budgets (only the existing **15s AI timeout** budget applies).
-- PIPEDA retention schedules or field-level masking beyond keeping platform encryption on and **not** putting phone / email / address into AI prompts, audit `fieldSummary`, or assistant cards (already required elsewhere — not a new privacy program).
+- NFR-07 was brought into the delivery scope on 2026-10-19. Its rate-limit values, throughput SLO targets, and PIPEDA retention periods/data categories are not specified and require a policy decision before implementation.
+- AD-16 was brought into the delivery scope on 2026-10-19. Since this is a student capstone with no real dealer account or marketplace authorization, the acceptance flow simulates publishing to named marketplaces in the browser and clearly states that no external ad is sent. Real marketplace integration remains conditional on an approved API/feed and credentials.
 - API v2 / compatibility policy (only `/api/v1` exists for this course).
 - A full observability schema (Application Insights may appear in architecture docs; no new log-field specification here).
 
@@ -67,9 +66,9 @@ Already deferred in the proposal and still out of this version: OCR, third-party
 
 1. **Auth = password, with email, username, or phone as the sign-in name**; the user chose this on 2026-10-08. Accounts register with a username plus an email and/or phone. Password hashing and admin-controlled dealership binding remain; the username also keys membership, audit, and the JWT subject. Entra ID and every social provider other than Google stay out of scope; **Google ID-token sign-in was added 2026-10-15 as AUTH-23** (see [21-Feature-Extensions.md](21-Feature-Extensions.md) §6), which grants no role and no dealership, so an admin still binds the account. See [15-Data-Auth-and-Gateway.md](15-Data-Auth-and-Gateway.md) §8. KAN-5 (client/instructor sign-off) is still open, so this scope is not yet formally re-confirmed in writing.
 2. **Add Assistant as specification section 7** (the specification has no such page; PPT requires a real-AI core feature → in-dealership read-only assistant).  
-3. **publish = Ready + TXT export** (not external publishing, and not listing on a buyer site).  
+3. **publish = Ready + TXT export** for the original scope. AD-16's later capstone extension adds an explicitly simulated marketplace publish/unpublish flow; it does not claim or perform external publication.
 4. **Some OMVIC disclosures are review hints, not blockers** (year, new/used, warranty terms, prior use, finance term, lease term/payment/down). See [AI-PROTOCOL-AND-RULES.md](AI-PROTOCOL-AND-RULES.md) §C.0a.
-5. ~~**Containerization** (NN-05: Docker images for the four apps, pushed to a registry, run as Container Apps).~~ **Dropped (2026-10-07):** the developer chose **Terraform + Azure App Service**, so there is no Dockerfile, Compose file, container registry, or container host in this project. The three .NET services deploy as .NET 10 app artifacts to App Service and the React SPA as static files to Static Web Apps. Rationale and the trade-offs accepted: [deploy/publish-options.md](../deploy/publish-options.md).
+5. ~~**Containerization** (NN-05: Docker images for the four apps, pushed to a registry, run as Container Apps).~~ **Dropped (2026-10-07), hosting corrected 2026-10-19:** the developer chose **Terraform + Azure Linux App Service**, so there is no Dockerfile, Compose file, container registry, or container host in this project. The three .NET services deploy as .NET 10 app artifacts to Linux App Service. The React SPA is a Linux App Service as well: `pm2 serve` hosts the built `dist/` with SPA fallback (`deploy/terraform/main.tf`). It is not Azure Static Web Apps. Rationale and the trade-offs accepted: [deploy/publish-options.md](../deploy/publish-options.md).
 
    **What is *not* affected.** NN-06 names "Bicep/Terraform/ARM", so `deploy/terraform` satisfies infrastructure as code on its own terms — that requirement is met, not reversed. NN-04 (live public cloud), NN-07 (CI/CD), and NN-08–11 (JWT/RBAC, HTTPS, Key Vault, no plaintext secrets) are unaffected. **NN-05 is the single item given up.** Like item 1, this is a developer decision and is **not yet re-signed**; raise NN-05 with the instructor if containerization is graded on its own.
 6. **Public landing page and VIN decode (added 2026-10-08).** Signed-out visitors at `/` see the product landing page, `Sign in`, `Create account`, and a public VIN decoder. The decoder and DMS Add vehicle form use dealer-core's vPIC proxy ([14](14-Backend-API-Contract.md) §4.6.1); it stores nothing. No inventory or buyer enquiry is exposed, so this is not the out-of-scope buyer site. Design: [13-Frontend-Engineering.md](13-Frontend-Engineering.md) §2. The requested implementation is complete; instructor scope confirmation remains administrative follow-up.
@@ -83,7 +82,7 @@ Already deferred in the proposal and still out of this version: OCR, third-party
 
 ## Signature / email confirmation
 
-Confirm: the tables above are this course’s grading and demo scope; garage/service billing, sales funnel reports, buyer site, and Service Bus are **not** in scope; the errata 6–7 extensions are in scope. The team roster is [TEAM.md](TEAM.md).
+The user expanded delivery scope on 2026-10-19 to include DMS-17, CRM-14, CRM-15, AD-15, AD-16, and NFR-07. DMS-17 and CRM-14 use soft deletion; CRM-15 is a current tenant-scoped stage distribution and won-rate snapshot; AD-15 provides a global admin rule editor. AD-16 uses a browser simulation because the capstone has no dealer account or marketplace authorization. NFR-07 still needs policy values. Historical funnel trends remain outside this change.
 
 | Role | Name | Repo focus |
 |---|---|---|

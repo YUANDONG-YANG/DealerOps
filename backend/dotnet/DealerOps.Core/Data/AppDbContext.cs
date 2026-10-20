@@ -34,6 +34,7 @@ public class AppDbContext : DbContext
     public DbSet<VehiclePhotoEntity> VehiclePhotos => Set<VehiclePhotoEntity>();
     public DbSet<WorkOrderEntity> WorkOrders => Set<WorkOrderEntity>();
     public DbSet<NotificationEntity> Notifications => Set<NotificationEntity>();
+    public DbSet<RuleOverrideEntity> RuleOverrides => Set<RuleOverrideEntity>();
 
     public void SetTenantDealerId(long? dealerId) => _tenantDealerId = dealerId;
 
@@ -98,7 +99,22 @@ public class AppDbContext : DbContext
     {
         mb.Entity<LeadEntity>(e =>
         {
+            e.Property(l => l.DealerId).IsRequired();
             e.Property(l => l.Stage).HasConversion(new EnumSnakeCaseConverter<LeadStage>()).HasMaxLength(16);
+            e.HasIndex(l => new { l.DealerId, l.Stage }).HasDatabaseName("idx_lead_dealer_stage");
+            e.HasOne<DealerEntity>().WithMany().HasForeignKey(l => l.DealerId)
+                .HasConstraintName("fk_lead_dealer").OnDelete(DeleteBehavior.Restrict);
+            e.HasOne<CustomerEntity>().WithMany().HasForeignKey(l => l.CustomerId)
+                .HasConstraintName("fk_lead_customer").OnDelete(DeleteBehavior.Restrict);
+            e.HasOne<VehicleEntity>().WithMany().HasForeignKey(l => l.VehicleId)
+                .HasConstraintName("fk_lead_vehicle").OnDelete(DeleteBehavior.Restrict);
+        });
+        mb.Entity<LeadNoteEntity>(e =>
+        {
+            e.Property(n => n.DealerId).IsRequired();
+            e.HasIndex(n => n.LeadId).HasDatabaseName("idx_lead_note_lead");
+            e.HasOne<LeadEntity>().WithMany().HasForeignKey(n => n.LeadId)
+                .HasConstraintName("fk_lead_note_lead").OnDelete(DeleteBehavior.Restrict);
         });
     }
 
@@ -106,7 +122,13 @@ public class AppDbContext : DbContext
     {
         mb.Entity<WorkOrderEntity>(e =>
         {
+            e.Property(w => w.DealerId).IsRequired();
             e.Property(w => w.Status).HasConversion(new EnumSnakeCaseConverter<WorkOrderStatus>()).HasMaxLength(16);
+            e.HasIndex(w => new { w.DealerId, w.VehicleId, w.Status }).HasDatabaseName("idx_work_order_vehicle");
+            e.HasOne<DealerEntity>().WithMany().HasForeignKey(w => w.DealerId)
+                .HasConstraintName("fk_work_order_dealer").OnDelete(DeleteBehavior.Restrict);
+            e.HasOne<VehicleEntity>().WithMany().HasForeignKey(w => w.VehicleId)
+                .HasConstraintName("fk_work_order_vehicle").OnDelete(DeleteBehavior.Restrict);
         });
     }
 
@@ -114,7 +136,13 @@ public class AppDbContext : DbContext
     {
         mb.Entity<VehiclePhotoEntity>(e =>
         {
+            e.Property(p => p.DealerId).IsRequired();
             e.Property(p => p.Enhancement).HasConversion(new EnumSnakeCaseConverter<PhotoPreset>()).HasMaxLength(16);
+            e.HasIndex(p => new { p.DealerId, p.VehicleId }).HasDatabaseName("idx_vehicle_photo_vehicle");
+            e.HasOne<DealerEntity>().WithMany().HasForeignKey(p => p.DealerId)
+                .HasConstraintName("fk_vehicle_photo_dealer").OnDelete(DeleteBehavior.Restrict);
+            e.HasOne<VehicleEntity>().WithMany().HasForeignKey(p => p.VehicleId)
+                .HasConstraintName("fk_vehicle_photo_vehicle").OnDelete(DeleteBehavior.Restrict);
         });
     }
 
@@ -150,15 +178,17 @@ public class AppDbContext : DbContext
 
     private void ApplyTenantFilters(ModelBuilder mb)
     {
-        mb.Entity<VehicleEntity>().HasQueryFilter(e => _tenantDealerId == null || e.DealerId == _tenantDealerId);
-        mb.Entity<CustomerEntity>().HasQueryFilter(e => _tenantDealerId == null || e.DealerId == _tenantDealerId);
-        mb.Entity<CustomerVehicleEntity>().HasQueryFilter(e => _tenantDealerId == null || e.DealerId == _tenantDealerId);
-        mb.Entity<ListingEntity>().HasQueryFilter(e => _tenantDealerId == null || e.DealerId == _tenantDealerId);
-        mb.Entity<ComplianceCheckEntity>().HasQueryFilter(e => _tenantDealerId == null || e.DealerId == _tenantDealerId);
-        mb.Entity<LeadEntity>().HasQueryFilter(e => _tenantDealerId == null || e.DealerId == _tenantDealerId);
-        mb.Entity<LeadNoteEntity>().HasQueryFilter(e => _tenantDealerId == null || e.DealerId == _tenantDealerId);
-        mb.Entity<WorkOrderEntity>().HasQueryFilter(e => _tenantDealerId == null || e.DealerId == _tenantDealerId);
-        mb.Entity<VehiclePhotoEntity>().HasQueryFilter(e => _tenantDealerId == null || e.DealerId == _tenantDealerId);
+        // Fail closed: a request with no dealership must not read every dealership (SEC-05).
+        // Admin services do not query these tables; they stay on dealer, membership, and app_user.
+        mb.Entity<VehicleEntity>().HasQueryFilter(e => _tenantDealerId != null && e.DealerId == _tenantDealerId && e.DeletedAt == null);
+        mb.Entity<CustomerEntity>().HasQueryFilter(e => _tenantDealerId != null && e.DealerId == _tenantDealerId && e.DeletedAt == null);
+        mb.Entity<CustomerVehicleEntity>().HasQueryFilter(e => _tenantDealerId != null && e.DealerId == _tenantDealerId);
+        mb.Entity<ListingEntity>().HasQueryFilter(e => _tenantDealerId != null && e.DealerId == _tenantDealerId);
+        mb.Entity<ComplianceCheckEntity>().HasQueryFilter(e => _tenantDealerId != null && e.DealerId == _tenantDealerId);
+        mb.Entity<LeadEntity>().HasQueryFilter(e => _tenantDealerId != null && e.DealerId == _tenantDealerId);
+        mb.Entity<LeadNoteEntity>().HasQueryFilter(e => _tenantDealerId != null && e.DealerId == _tenantDealerId);
+        mb.Entity<WorkOrderEntity>().HasQueryFilter(e => _tenantDealerId != null && e.DealerId == _tenantDealerId);
+        mb.Entity<VehiclePhotoEntity>().HasQueryFilter(e => _tenantDealerId != null && e.DealerId == _tenantDealerId);
     }
 
     public override int SaveChanges(bool acceptAllChangesOnSuccess)

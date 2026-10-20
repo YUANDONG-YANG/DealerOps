@@ -33,10 +33,18 @@ public class CustomerService
             var term = q.Trim();
             // Email is stored lower-case, so match it against the lower-cased term (CRM-03).
             var emailTerm = term.ToLowerInvariant();
+            // Phones keep the formatting they were typed with, so "4035550123" must still find
+            // "403-555-0123": a phone-like term is compared digits only, stripping the symbols
+            // the phone rule allows. Terms with letters (names, emails) never take this path.
+            var phoneDigits = term.All(ch => char.IsDigit(ch) || " -()+.".Contains(ch))
+                ? new string(term.Where(char.IsDigit).ToArray())
+                : "";
             query = query.Where(c =>
                 c.Name.Contains(term) ||
                 c.Email.Contains(emailTerm) ||
-                c.Phone.Contains(term));
+                c.Phone.Contains(term) ||
+                (phoneDigits.Length >= 3 && c.Phone.Replace(" ", "").Replace("-", "").Replace("(", "")
+                    .Replace(")", "").Replace("+", "").Contains(phoneDigits)));
         }
 
         if (linked.HasValue)
@@ -69,7 +77,8 @@ public class CustomerService
         var email = NormalizeEmail(body.Email);
         var phone = body.Phone.Trim();
         var homeAddress = body.HomeAddress.Trim();
-        RequireUniqueContact(tenant, email, phone, excludingId: null);
+        RequireUniquePhone(tenant, phone, excludingId: null);
+        var emailWarning = DuplicateEmailWarning(tenant, email, excludingId: null);
         var customer = new CustomerEntity
         {
             DealerId = tenant,
@@ -87,7 +96,7 @@ public class CustomerService
             ContactFieldChanges(null, null, null, null, name, email, phone, homeAddress));
         _db.SaveChanges();
         tx?.Commit();
-        return ToDetail(customer);
+        return ToDetail(customer, emailWarning);
     }
 
     public CustomerDetail Get(long id)
@@ -106,7 +115,8 @@ public class CustomerService
         var email = NormalizeEmail(body.Email);
         var phone = body.Phone.Trim();
         var homeAddress = body.HomeAddress.Trim();
-        RequireUniqueContact(tenant, email, phone, excludingId: customer.Id);
+        RequireUniquePhone(tenant, phone, excludingId: customer.Id);
+        var emailWarning = DuplicateEmailWarning(tenant, email, excludingId: customer.Id);
         var fieldSummary = ContactFieldChanges(
             customer.Name, customer.Email, customer.Phone, customer.HomeAddress,
             name, email, phone, homeAddress);
@@ -119,7 +129,7 @@ public class CustomerService
 
         _audit.Record("CUSTOMER", customer.Id, "UPDATE", tenant, ActorUsername(), fieldSummary);
         _db.SaveChanges();
-        return ToDetail(customer);
+        return ToDetail(customer, emailWarning);
     }
 
     public LinkResponse Link(long customerId, long vehicleId)
@@ -144,9 +154,10 @@ public class CustomerService
         {
             _db.SaveChanges();
         }
-        catch (DbUpdateException ex) when ((ex.InnerException?.Message ?? ex.Message).Contains("uk_cv_vehicle"))
+        catch (DbUpdateException ex) when (DuplicateKey.Is(ex))
         {
             // A concurrent request linked the same vehicle after the check above (CRM-07).
+            // Error 1062 is enough: customer_vehicle's only unique key is the vehicle id.
             throw new ApiException(ErrorCode.VehicleAlreadyLinked, "Vehicle is already linked.");
         }
         _audit.Record("CUSTOMER_VEHICLE", row.Id, "LINK", tenant, ActorUsername(),
@@ -154,6 +165,16 @@ public class CustomerService
         _db.SaveChanges();
         tx?.Commit();
         return new LinkResponse(row.Id, row.CustomerId, row.VehicleId, row.LinkedAt);
+    }
+
+    public void Delete(long id)
+    {
+        var tenant = RequireTenant();
+        var customer = LoadThisDealer(id);
+        customer.DeletedAt = DateTime.UtcNow;
+        _audit.Record("CUSTOMER", customer.Id, "DELETE", tenant, ActorUsername(),
+            new Dictionary<string, object> { ["deleted"] = true });
+        _db.SaveChanges();
     }
 
     public void Unlink(long customerId, long vehicleId)
@@ -198,7 +219,7 @@ public class CustomerService
             customer.HomeAddress, brief, links.Count, customer.Version);
     }
 
-    private CustomerDetail ToDetail(CustomerEntity customer)
+    private CustomerDetail ToDetail(CustomerEntity customer, string? emailWarning = null)
     {
         var tenant = customer.DealerId;
         var items = _db.CustomerVehicles
@@ -212,22 +233,13 @@ public class CustomerService
 
         return new CustomerDetail(
             customer.Id, customer.Name, customer.Email, customer.Phone,
-            customer.HomeAddress, items, customer.Version);
+            customer.HomeAddress, items, customer.Version, emailWarning);
     }
 
-    // Email and phone must be unique inside the dealership. On a Patch, excludingId skips the
-    // customer being edited so saving without changing the contact fields does not self-collide.
-    private void RequireUniqueContact(long tenant, string email, string phone, long? excludingId)
+    // Phone stays unique inside the dealership. Email may be shared (CRM-13): the caller
+    // warns and still saves. On a Patch, excludingId skips the customer being edited.
+    private void RequireUniquePhone(long tenant, string phone, long? excludingId)
     {
-        var duplicateEmail = _db.Customers.Any(c =>
-            c.DealerId == tenant && c.Email == email && (excludingId == null || c.Id != excludingId));
-        if (duplicateEmail)
-        {
-            const string message = "That email is already used by another customer.";
-            throw new ApiException(ErrorCode.EmailTaken, message,
-                new Dictionary<string, string> { ["email"] = message });
-        }
-
         var duplicatePhone = _db.Customers.Any(c =>
             c.DealerId == tenant && c.Phone == phone && (excludingId == null || c.Id != excludingId));
         if (duplicatePhone)
@@ -236,6 +248,15 @@ public class CustomerService
             throw new ApiException(ErrorCode.PhoneTaken, message,
                 new Dictionary<string, string> { ["phone"] = message });
         }
+    }
+
+    private string? DuplicateEmailWarning(long tenant, string email, long? excludingId)
+    {
+        var duplicateEmail = _db.Customers.Any(c =>
+            c.DealerId == tenant && c.Email == email && (excludingId == null || c.Id != excludingId));
+        return duplicateEmail
+            ? "Another customer at this dealership already uses this email. The customer was saved."
+            : null;
     }
 
     private static Dictionary<string, object> ContactFieldChanges(

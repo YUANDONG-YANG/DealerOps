@@ -1,4 +1,5 @@
 import type { AssistantCardDto } from '../api/assistant';
+import StatusTag from './StatusTag';
 
 const KINDS: Record<string, { label: string; tagClass: string; action: string }> = {
   VEHICLE: { label: 'Vehicle', tagClass: 'tag', action: 'Open in DMS' },
@@ -27,7 +28,9 @@ export default function AssistantCard({ card, onOpen }: { card: AssistantCardDto
     >
       <div className="assistant-card-head">
         <span className={kind.tagClass}>{kind.label}</span>
-        {(card.status || card.checkStatus) && <span className="muted">{pretty(card.status || card.checkStatus)}</span>}
+        {(card.status || card.checkStatus) && (
+          <StatusTag status={card.status || card.checkStatus || ''}>{pretty(card.status || card.checkStatus)}</StatusTag>
+        )}
       </div>
       <strong className="assistant-card-label">{card.label}</strong>
       <div className="assistant-card-action">{kind.action} &rarr;</div>

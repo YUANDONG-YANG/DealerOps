@@ -25,6 +25,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
         { label: 'DMS', to: '/dms', icon: icons.dms },
         { label: 'CRM', to: '/crm', icon: icons.crm },
         { label: 'Leads', to: '/leads', icon: icons.leads },
+        { label: 'Sales report', to: '/reports/sales-funnel', icon: icons.leads },
         { label: 'Ad compliance', to: '/ads', icon: icons.ads },
         { label: 'Team', to: '/team', icon: icons.team },
       ];

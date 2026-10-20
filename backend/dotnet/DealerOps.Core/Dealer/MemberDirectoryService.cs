@@ -15,17 +15,19 @@ public class MemberDirectoryService
         TenantGuard.RequireDealerUser();
         var tenant = TenantContext.Get()!.TenantDealerId!.Value;
 
-        return _db.Memberships
+        var members = _db.Memberships
             .Where(m => m.DealerId == tenant && m.Active)
             .OrderBy(m => m.Username)
-            .ToList()
+            .ToList();
+        var sources = AccountSource.For(_db, members.Select(m => m.Username));
+        return members
             .Select(m =>
             {
                 var displayName = _db.AppUsers
                     .Where(u => u.Username == m.Username)
                     .Select(u => u.DisplayName)
                     .FirstOrDefault() ?? m.Username;
-                return new MemberOption(m.Username, displayName);
+                return new MemberOption(m.Username, displayName, sources.GetValueOrDefault(m.Username));
             })
             .ToList();
     }

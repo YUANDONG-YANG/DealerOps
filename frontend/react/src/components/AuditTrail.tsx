@@ -21,8 +21,18 @@ function summaryText(raw: unknown): string {
     .join(', ');
 }
 
-export default function AuditTrail({ rows }: { rows: AuditRow[] }) {
-  if (!rows.length) return null;
+export default function AuditTrail({
+  rows, page = 0, total, onPage,
+}: {
+  rows: AuditRow[];
+  page?: number;
+  total?: number;
+  onPage?: (page: number) => void;
+}) {
+  const count = total ?? rows.length;
+  const pageSize = 10;
+  const pageCount = Math.max(1, Math.ceil(count / pageSize));
+  if (!rows.length && count === 0) return null;
   return (
     <div className="detail-audit">
       <div className="muted">Audit</div>
@@ -46,6 +56,16 @@ export default function AuditTrail({ rows }: { rows: AuditRow[] }) {
           ))}
         </tbody>
       </table>
+      {onPage && pageCount > 1 && (
+        <div className="toolbar">
+          <span className="muted">{count} events</span>
+          <div className="pagination">
+            <button type="button" disabled={page <= 0} onClick={() => onPage(page - 1)}>&lsaquo;</button>
+            <span className="muted">{page + 1} / {pageCount}</span>
+            <button type="button" disabled={page >= pageCount - 1} onClick={() => onPage(page + 1)}>&rsaquo;</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

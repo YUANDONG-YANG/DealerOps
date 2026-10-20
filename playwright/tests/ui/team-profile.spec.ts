@@ -22,6 +22,16 @@ type Throwaway = {
   token: string;
 };
 
+type JoinRequestHistory = {
+  id: number;
+  kind: string;
+  createdAt: string;
+  payload: Record<string, unknown>;
+  resolvedAt: string | null;
+  resolvedBy: string | null;
+  resolvedAction: string | null;
+};
+
 function randomPhone() {
   return `+1403${randomDigits(7)}`;
 }
@@ -165,6 +175,9 @@ test.describe('/team', () => {
       payload: { username: 'bob.ray', displayName: 'Bob Ray', email: null },
       resolvedAt: now, resolvedBy: 'someone.else', resolvedAction: 'REJECTED',
     };
+    let inboxRows = [{
+      username: 'ada.lee', displayName: 'Ada Lee', email: 'ada@example.com', createdAt: now,
+    }];
     let approved = false;
 
     await page.route('**/api/v1/dealer/notifications**', (route: Route) => {
@@ -175,10 +188,13 @@ test.describe('/team', () => {
       const rows = history ? [current, rejected] : approved ? [] : [pending];
       return route.fulfill({ status: 200, json: rows });
     });
+    await page.route('**/api/v1/dealer/join-requests', (route: Route) =>
+      route.fulfill({ status: 200, json: inboxRows }));
     const approveCalls: string[] = [];
     await page.route('**/api/v1/dealer/join-requests/*/approve', (route: Route) => {
       approveCalls.push(route.request().url());
       approved = true;
+      inboxRows = [];
       return route.fulfill({ status: 204, body: '' });
     });
 
@@ -216,7 +232,7 @@ test.describe('/team', () => {
     await signInAs(page, me.token);
 
     const now = new Date().toISOString();
-    let pending = [
+    let history: JoinRequestHistory[] = [
       { id: 9101, kind: 'JOIN_REQUEST', createdAt: now,
         payload: { username: 'cy.tan', displayName: 'Cy Tan', email: 'cy@example.com' },
         resolvedAt: null, resolvedBy: null, resolvedAction: null },
@@ -228,11 +244,20 @@ test.describe('/team', () => {
         resolvedAt: null, resolvedBy: null, resolvedAction: null },
     ];
     await page.route('**/api/v1/dealer/notifications**', (route: Route) =>
+      route.fulfill({ status: 200, json: history }));
+    let pending = [
+      { username: 'cy.tan', displayName: 'Cy Tan', email: 'cy@example.com', createdAt: now },
+      { username: 'di.wu', displayName: 'Di Wu', email: null, createdAt: now },
+    ];
+    await page.route('**/api/v1/dealer/join-requests', (route: Route) =>
       route.fulfill({ status: 200, json: pending }));
     const rejectCalls: string[] = [];
     await page.route('**/api/v1/dealer/join-requests/*/reject', (route: Route) => {
       rejectCalls.push(route.request().url());
-      pending = pending.filter((n) => (n.payload as { username?: string }).username !== 'cy.tan');
+      pending = pending.filter((n) => n.username !== 'cy.tan');
+      history = history.map(n => n.id === 9101
+        ? { ...n, resolvedAt: now, resolvedBy: me.username, resolvedAction: 'REJECTED' }
+        : n);
       return route.fulfill({ status: 204, body: '' });
     });
 
@@ -272,8 +297,14 @@ test.describe('/team', () => {
       payload: { username: 'ed.kim', displayName: 'Ed Kim', email: 'ed@example.com' },
       resolvedAt: null as string | null, resolvedBy: null as string | null, resolvedAction: null as string | null,
     };
+    let inboxRows = [{
+      username: 'ed.kim', displayName: 'Ed Kim', email: 'ed@example.com', createdAt: now,
+    }];
     await page.route('**/api/v1/dealer/notifications**', (route: Route) => route.fulfill({ status: 200, json: [row] }));
+    await page.route('**/api/v1/dealer/join-requests', (route: Route) =>
+      route.fulfill({ status: 200, json: inboxRows }));
     await page.route('**/api/v1/dealer/join-requests/*/approve', (route: Route) => {
+      inboxRows = [];
       Object.assign(row, { resolvedAt: now, resolvedBy: 'other.member', resolvedAction: 'APPROVED' });
       return route.fulfill({
         status: 404,

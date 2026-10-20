@@ -26,3 +26,16 @@ export async function patchMe(body: PatchProfileBody) {
 export async function deleteMe() {
   await http.delete('/api/v1/me');
 }
+
+export type MyJoinRequest = { dealerId: number; legalName: string | null };
+
+export async function myJoinRequest(): Promise<MyJoinRequest | null> {
+  const response = await http.get<MyJoinRequest>('/api/v1/me/join-request', {
+    validateStatus: (status) => status === 200 || status === 204,
+  });
+  return response.status === 204 ? null : response.data;
+}
+
+export async function fileJoinRequest(dealerId: number) {
+  return (await http.post<MyJoinRequest>('/api/v1/me/join-request', { dealerId })).data;
+}

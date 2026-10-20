@@ -125,7 +125,7 @@ There are two statuses, `IN_STOCK` and `SOLD`, and the server derives them. A ve
 | DMS-14 | Create, edit and sell each write an audit record | Must |
 | DMS-15 | Changing the condition turns a passed ad check into Stale. Other vehicle or dealer fields do not | Must |
 | DMS-16 | The detail view may show profit (sold price − purchase cost − repair cost). It is not stored | Could |
-| DMS-17 | Deleting vehicles, which is excluded to protect audit and sales records | Won't |
+| DMS-17 | Soft delete vehicles from active inventory while retaining sales, work-order, and audit history | Must. Implemented through `DELETE /api/v1/vehicles/{id}` and the DMS detail flow. |
 
 **Edge cases:**
 - Year = current + 1 is accepted; current + 2 is rejected.
@@ -163,12 +163,12 @@ There are two statuses, `IN_STOCK` and `SOLD`, and the server derives them. A ve
 | CRM-11 | Create, edit, link and unlink each write an audit record | Must |
 | CRM-12 | A customer's phone, email and address never reach AI prompts, audit summaries or assistant answers | Must |
 | CRM-13 | A duplicate email in the same dealership shows a warning but is saved | Could |
-| CRM-14 | Deleting customers | Won't |
-| CRM-15 | Sales funnel reports | Won't. Lead follow-up is implemented separately under LEAD-01–09 in design/21-Feature-Extensions.md. |
+| CRM-14 | Soft delete customers from active CRM lists while retaining sales and audit history | Must. Implemented through `DELETE /api/v1/customers/{id}` and the CRM detail flow. |
+| CRM-15 | Sales funnel reports | Must. Implemented on `/reports/sales-funnel`: current stage distribution, open pipeline and won rate over closed leads, plus vehicle sales (units, revenue, gross profit, days to sell, last 12 sales months). Lead-stage history trends are not included. |
 
 ## 5. Ad compliance (OMVIC)
 
-"Publish" means marking the ad Ready and exporting it as TXT. There is no external platform and no buyer page. The check reads only the title, the body, the DMS vehicle and the public dealer profile. No vehicle fields are added and no salesperson questionnaire is collected. Prior use or a warranty that the copy never mentions cannot be inferred; this is an accepted demo limitation.
+"Publish" means marking the ad Ready and exporting it as TXT. There is no external platform and no buyer page. The check reads the title, the body, the DMS vehicle, the public dealer profile and the salesperson's checklist answers (prior-use category, extended-warranty terms when offered, annual lease kilometre allowance; PDF §5). No vehicle fields are added.
 
 The ad belongs to one vehicle of the dealership, and each vehicle has one ad. An empty draft can be saved but cannot pass. The kind is `CASH` / `FINANCE` / `LEASE`, and the medium is `ONLINE` / `RADIO_TV_BILLBOARD`.
 
@@ -212,7 +212,7 @@ An ad is **finance-triggered** when its kind is `FINANCE`, or its kind is `CASH`
 | ID | Requirement | Priority |
 |---|---|---|
 | AD-01 | Create and edit one ad draft per vehicle of the dealership | Must |
-| AD-02 | Show a checklist for the chosen kind and medium. It is display only and collects no answers | Must |
+| AD-02 | Show a checklist for the chosen kind and medium, and collect the salesperson's answers that the copy cannot prove: prior-use category, extended-warranty terms (when offered) and annual lease kilometre allowance. The answers are saved with the ad and feed the check | Must |
 | AD-03 | Run the BLOCK / REVIEW rules and store results with reason codes | Must |
 | AD-04 | Trigger the rules by kind, by medium and by APR / payment patterns in `CASH` copy. `LEASE` uses the lease rules | Must |
 | AD-05 | Year and condition come from DMS | Must |
@@ -225,8 +225,8 @@ An ad is **finance-triggered** when its kind is `FINANCE`, or its kind is `CASH`
 | AD-12 | Ready and export require a pass on the current version | Must |
 | AD-13 | The TXT file holds the dealer's name and contact, the vehicle's year / make / model / VIN / condition / source, the title, the body and the check time. It holds no customer data and no cost | Must |
 | AD-14 | A dedicated disclaimer screen. It is deferred: the result panel shows a one-line disclaimer, and the limit is explained orally at the defense | Won't |
-| AD-15 | Configurable rules or a rule editor; the rules stay in `OmvicRuleEngine` | Won't |
-| AD-16 | Auto-publishing to external platforms | Won't |
+| AD-15 | Configurable rules or a rule editor; the rules stay in `OmvicRuleEngine` | Must. Platform admins can enable/disable rules, change severity and message; changes stale prior checks. |
+| AD-16 | Marketplace publishing workflow | Must. For the student capstone, demonstrate target selection and publish/unpublish status using an explicitly labeled browser simulation; do not claim an external listing was created. A live connector requires an approved marketplace API/feed and dealer authorization. |
 | AD-17 | Image Studio (superseded by IMG-01–05 in design/21-Feature-Extensions.md) | Must |
 
 ## 6. Read-only AI assistant
@@ -274,7 +274,7 @@ The spec PDF has no such page. It is added by scope erratum 2 to meet the course
 | NFR-04 | Database backup policy (MySQL Flexible Server keeps backups for 7 days) | Should |
 | NFR-05 | Custom domain. It is not configured yet; the default Azure host names are used | Should |
 | NFR-06 | Desktop first, usable at phone width | Could |
-| NFR-07 | Rate limits, throughput SLOs and PIPEDA retention | Won't |
+| NFR-07 | Rate limits, throughput SLOs and PIPEDA retention | Must. Awaiting limit values, SLO targets, and retention periods/data categories. |
 | NFR-08 | After every deploy, the release time (UTC) of all four apps is visible. Each Java service logs one startup line. The Swagger description shows dealer-core's time. The bottom left of every web page lists web / gateway / core / ai, read from the gateway's anonymous `GET /actuator/release`. The deploy step stamps `PUBLISHED_AT`; without it, the build time is used ([design/20-Observability.md](../design/20-Observability.md) §5) | Must |
 
 ## 8. Pages
@@ -286,7 +286,7 @@ The spec PDF has no such page. It is added by scope erratum 2 to meet the course
 | Admin | `/admin` | Admin | Dealership list: name, contact, staff count (UI-10). Create a dealership (UI-11). List and bind staff (username, display name, email and/or phone, temporary password), with confirmation before unbinding (UI-12). **Pending accounts** binds self sign-ups without a password. No vehicle, customer or ad entry points (UI-13) |
 | DMS | `/dms` | Dealer user | List columns: year make model, VIN, source, condition, cost (CAD), date added, status, with search, filters and paging (UI-20). Add and edit with `*` on required fields, client-side validation and per-field server errors (UI-21). Detail with all fields, the customer, the ad check status and the history (UI-22). Sell as a separate action that takes the date and the price together (UI-23). Locked fields are read-only after sale (UI-24). VIN `Decode` prefills make/model/year; the drawer adds **Work orders** (open count in the list; selling is blocked while any are open) and **Image Studio** photos with Auto fix / Brighten / Sharpen ([design/21](../design/21-Feature-Extensions.md)) |
 | CRM / leads | `/crm`, `/leads` | Dealer user | CRM retains customer management and adds customer-linked leads; `/leads` supports follow-up pipeline, assignments, due dates, and append-only notes |
-| Ads | `/ads` | Dealer user | Pick a vehicle, edit title / body / kind / medium, and view the checklist with no answer fields (UI-40). DMS and dealer values shown (UI-41). A Check button with a loading state of up to 15 s (UI-42). A ✅ / ❌ / ⚠️ result per rule (UI-43). Status badges: Needs AI review / Blocked / AI unavailable / Passed / Stale (UI-44). Ready and Export TXT are enabled only when the ad is passed and not stale (UI-45). A one-line disclaimer, with the dedicated screen deferred (UI-46) |
+| Ads | `/ads` | Dealer user | Pick a vehicle, edit title / body / kind / medium, and view the checklist and answer its prior-use, warranty and lease-kilometre fields (UI-40). DMS and dealer values shown (UI-41). A Check button with a loading state of up to 15 s (UI-42). A ✅ / ❌ / ⚠️ result per rule (UI-43). Status badges: Needs AI review / Blocked / AI unavailable / Passed / Stale (UI-44). Ready and Export TXT are enabled only when the ad is passed and not stale (UI-45). A one-line disclaimer, with the dedicated screen deferred (UI-46) |
 | Assistant | floating panel on staff pages (no route) | Dealer user | An input box and answers with vehicle / customer cards (UI-50). A clear read-only notice (UI-51) |
 
 ## 9. Open items

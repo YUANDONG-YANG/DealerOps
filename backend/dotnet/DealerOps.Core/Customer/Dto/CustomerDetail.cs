@@ -7,4 +7,6 @@ public record CustomerDetail(
     string? Phone,
     string? HomeAddress,
     List<LinkedVehicleItem> LinkedVehicles,
-    int Version);
+    int Version,
+    // Set when the saved email matches another customer here. The save still succeeds (CRM-13).
+    string? EmailWarning = null);

@@ -81,11 +81,12 @@ builder.Services.AddSingleton<AiExceptionFilter>();
 
 var app = builder.Build();
 
-// The Gateway is the only Swagger UI entry point; the JSON is always served for its aggregation.
-app.UseSwagger();
-
+// Credential check before Swagger so a direct browser cannot read the document.
 app.UseMiddleware<RequestLoggingMiddleware>();
 app.UseMiddleware<InternalGuardFilter>();
+
+// The Gateway is the only Swagger UI entry point; the JSON is always served for its aggregation.
+app.UseSwagger();
 app.MapControllers();
 
 ReleaseInfo.LogStartup(app.Services.GetRequiredService<ILogger<Program>>(), "ai",

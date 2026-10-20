@@ -68,7 +68,7 @@ Handbook page names: Login / Admin / DMS / CRM / Ad compliance / Assistant, plus
 | `/crm` | `crm` | `CrmView` | `roles: ['Dealer.User']` | — |
 | `/leads` | `leads` | `LeadsView` | `roles: ['Dealer.User']` | menu item **Leads** after CRM |
 | `/ads` | `ads` | `AdsView` | `roles: ['Dealer.User']` | page title **Ad compliance** |
-| `/team` | `team` | `TeamView` | `roles: ['Dealer.User']` | Join-request queue: approve or reject accounts asking to join this dealership |
+| `/team` | `team` | `TeamView` | `roles: ['Dealer.User']` | Join-request history (`GET /dealer/notifications?includeResolved=true`): approve or reject pending requests; resolved rows show the outcome, who settled it, and when |
 | `/profile` | `profile` | `ProfileView` | any signed-in user, **including unbound** | Account self-service: own display name and phone, plus account deletion. Username, role and dealership binding are read-only. `AuthGuard` exempts this one path from the business-access check, and the no-access shell links to it (**Manage account**), so a freshly registered account can still edit or delete itself |
 | — | `no-access` | `NoAccessLanding` | — | Signed-in user without business access. A guard renders it **in place of** the requested page; it has no path of its own |
 
@@ -106,6 +106,7 @@ Email, username, or phone plus password; the username is also the backend accoun
 | Variable | Purpose |
 |---|---|
 | `VITE_GATEWAY_URL` | sole API root; local `http://localhost:8080` |
+| `VITE_FIREBASE_*` | Firebase web config for email sign-in (`src/auth/firebase.ts`). Values live in `frontend/react/.env.local`, which is Git-ignored (client handoff: never commit them). Empty disables only the Firebase fallback |
 
 - **Sign-in button**: one email/username/phone field + password field, one `Sign in` button, plus the Google button rendered by Google Identity Services (`AUTH-23`), hidden when no client id is configured. No other social provider and no redirect flow — Google returns an ID token in-page.
 - **Login call**: `src/auth/login.ts` posts `{ identifier, password }` to `POST ${VITE_GATEWAY_URL}/api/v1/auth/login`; `identifier` is the email, username, or phone. It stores the returned JWT in `sessionStorage`.
@@ -219,7 +220,7 @@ Left: pick a vehicle + ad form; right: check results. The checklist changes imme
 | `Mark ready` | `POST /listings/{id}/ready` | right state | `409 CHECK_STALE` Check is stale. Run check again; `409 NOT_PASSED` Check has not passed |
 | `Export TXT` | `POST /listings/{id}/exports` → `text/plain` download | do not change the table | same 409s; clickable only when **Passed and not Stale** |
 
-No "publish to an external site". Admin never enters this page.
+No live external publishing. The AD-16 capstone extension provides a browser-only marketplace simulation with explicit disclosure that it does not contact external platforms. Admin never enters this page.
 
 ### 5.7 Assistant — floating panel on staff pages (Dealer.User only)
 

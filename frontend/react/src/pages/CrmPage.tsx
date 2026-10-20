@@ -81,7 +81,6 @@ function mapCustomerWrite(e: unknown) {
   const code = errorCode(e);
   const status = errorStatus(e);
   if (code === 'VALIDATION') return messageOf(e, 'Check required fields: some fields are missing or invalid.');
-  if (code === 'EMAIL_TAKEN') return `${messageOf(e, 'That email is already used by another customer.')} Search CRM for this email to open the existing customer.`;
   if (code === 'PHONE_TAKEN') return `${messageOf(e, 'That phone number is already used by another customer.')} Search CRM for this number to open the existing customer.`;
   if (code === 'VERSION_CONFLICT') return 'Refresh and retry: someone else changed this record after you opened it. Reopen it to load the latest version, then make your change again.';
   if (status === 404 || code === 'NOT_FOUND') return 'Customer not found. It may have been deleted by a colleague; refresh the list.';
@@ -137,6 +136,11 @@ export default function CrmPage() {
   const [linkError, setLinkError] = useState('');
   const [customerLeads, setCustomerLeads] = useState<any[]>([]);
   const [audit, setAudit] = useState<any[]>([]);
+  const [auditPage, setAuditPage] = useState(0);
+  const [auditTotal, setAuditTotal] = useState(0);
+  const [emailWarning, setEmailWarning] = useState('');
+  const [leadPage, setLeadPage] = useState(0);
+  const [leadTotal, setLeadTotal] = useState(0);
 
   const [confirmVisible, setConfirmVisible] = useState(false);
   const [unlinkVehicleId, setUnlinkVehicleId] = useState<number | null>(null);
@@ -199,23 +203,31 @@ export default function CrmPage() {
     }
   }
 
-  async function loadCustomerLeads(id: number, seq: number) {
+  async function loadCustomerLeads(id: number, seq: number, page = 0) {
     try {
-      const r = await leadsApi.list({ customerId: id, size: 10 });
-      if (seq === editSeqRef.current) setCustomerLeads(r.data.items || []);
+      const r = await leadsApi.list({ customerId: id, page, size: 10 });
+      if (seq !== editSeqRef.current) return;
+      setCustomerLeads(r.data.items || []);
+      setLeadPage(r.data.page ?? page);
+      setLeadTotal(r.data.totalElements ?? 0);
     } catch {
-      if (seq === editSeqRef.current) setCustomerLeads([]);
+      if (seq !== editSeqRef.current) return;
+      setCustomerLeads([]);
+      setLeadTotal(0);
     }
   }
 
-  async function loadAudit(id: number, seq: number) {
+  async function loadAudit(id: number, seq: number, page = 0) {
     try {
-      const r = await auditApi.list({ entityType: 'CUSTOMER', entityId: id });
+      const r = await auditApi.list({ entityType: 'CUSTOMER', entityId: id, page, size: 10 });
       if (seq !== editSeqRef.current) return;
       setAudit(r.data.items || []);
+      setAuditPage(r.data.page ?? page);
+      setAuditTotal(r.data.totalElements ?? 0);
     } catch {
       if (seq !== editSeqRef.current) return;
       setAudit([]);
+      setAuditTotal(0);
     }
   }
 
@@ -227,6 +239,7 @@ export default function CrmPage() {
     setValidationErrors({});
     setServerErrors({});
     setLinkError('');
+    setEmailWarning('');
     setAudit([]);
     setVehicles([]);
     setLinkId(undefined);
@@ -242,6 +255,7 @@ export default function CrmPage() {
     setValidationErrors({});
     setServerErrors({});
     setLinkError('');
+    setEmailWarning('');
     setAudit([]);
     setCustomerLeads([]);
     setLinkId(undefined);
@@ -280,6 +294,8 @@ export default function CrmPage() {
         setSelected({ ...selected, ...saved.data });
         await reload();
         await openEdit(selected.id);
+        // openEdit clears the form state, so the CRM-13 warning is set after it.
+        setEmailWarning(saved.data.emailWarning || '');
       } else {
         const created = await customersApi.create(payload);
         if (linkId !== undefined) {
@@ -288,17 +304,24 @@ export default function CrmPage() {
           } catch (e) {
             await reload();
             await openEdit(created.data.id);
+            setEmailWarning(created.data.emailWarning || '');
             setLinkError(`Customer was created, but vehicle linking failed: ${mapLink(e)}`);
             return;
           }
         }
-        setDrawer(false);
         await reload();
+        if (created.data.emailWarning) {
+          // Keep the drawer open on the new customer so the shared-email warning is seen (CRM-13).
+          await openEdit(created.data.id);
+          setEmailWarning(created.data.emailWarning);
+        } else {
+          setDrawer(false);
+        }
       }
     } catch (e) {
       const code = errorCode(e);
-      // VALIDATION and the two uniqueness codes carry fieldErrors; show them inline on the field.
-      if (code === 'VALIDATION' || code === 'EMAIL_TAKEN' || code === 'PHONE_TAKEN') {
+      // VALIDATION and PHONE_TAKEN carry fieldErrors; show them inline on the field.
+      if (code === 'VALIDATION' || code === 'PHONE_TAKEN') {
         setServerErrors(fieldErrorsOf(e));
       }
       setFormError(mapCustomerWrite(e));
@@ -338,6 +361,18 @@ export default function CrmPage() {
       await openEdit(customerId);
     } catch (e) {
       setLinkError(mapUnlink(e));
+    }
+  }
+
+  async function removeCustomer() {
+    if (!selected || !window.confirm('Delete this customer from active CRM lists? Their sales and audit history will be retained.')) return;
+    try {
+      await customersApi.delete(selected.id);
+      setDrawer(false);
+      setSelected(null);
+      await reload();
+    } catch (e) {
+      setFormError(describeError(e, 'delete customer'));
     }
   }
 
@@ -427,8 +462,10 @@ export default function CrmPage() {
             </select>
             <span className="muted">Optional for customers who have not purchased a vehicle.</span>
           </div>}
+          {emailWarning && <div className="alert">{emailWarning}</div>}
           {formError && <p className="danger-text">{formError}</p>}
           <button type="submit" className="btn btn-primary" disabled={saving}>{saving ? 'Saving…' : 'Save'}</button>
+          {selected && <button type="button" className="btn danger" style={{ marginLeft: 8 }} onClick={() => void removeCustomer()}>Delete customer</button>}
         </form>
 
         {selected && (
@@ -495,8 +532,22 @@ export default function CrmPage() {
                 <span className="muted"> · Follow-up {l.nextFollowUpOn || '—'}</span>
               </div>
             ))}
+            {leadTotal > 10 && selected && (
+              <div className="toolbar">
+                <button type="button" className="btn" disabled={leadPage <= 0}
+                  onClick={() => void loadCustomerLeads(selected.id, editSeqRef.current, leadPage - 1)}>Previous</button>
+                <span className="muted">{leadPage + 1} / {Math.ceil(leadTotal / 10)}</span>
+                <button type="button" className="btn" disabled={(leadPage + 1) * 10 >= leadTotal}
+                  onClick={() => void loadCustomerLeads(selected.id, editSeqRef.current, leadPage + 1)}>Next</button>
+              </div>
+            )}
 
-            <AuditTrail rows={audit} />
+            <AuditTrail
+              rows={audit}
+              page={auditPage}
+              total={auditTotal}
+              onPage={(p) => selected && void loadAudit(selected.id, editSeqRef.current, p)}
+            />
           </>
         )}
       </FormDrawer>

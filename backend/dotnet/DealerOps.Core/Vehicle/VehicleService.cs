@@ -75,8 +75,9 @@ public class VehicleService
         var addedOn = body.AddedOn!.Value;
         RequireAddedOnNotInFuture(addedOn);
 
-        if (_db.Vehicles.Any(v => v.DealerId == tenant && v.Vin == vin))
-            throw new ApiException(ErrorCode.VinDup, "VIN already exists in this dealership.");
+        // Deleted vehicles keep their VIN under the unique key, so the check includes them.
+        if (_db.Vehicles.IgnoreQueryFilters().Any(v => v.DealerId == tenant && v.Vin == vin))
+            throw new ApiException(ErrorCode.VinDup, "VIN already exists in this dealership, possibly on a deleted vehicle.");
 
         var vehicle = new VehicleEntity
         {
@@ -99,13 +100,45 @@ public class VehicleService
 
         using var tx = _db.Database.BeginTransaction();
         _db.Vehicles.Add(vehicle);
-        _db.SaveChanges();
+        SaveOrVinDuplicate();
         _audit.Record("VEHICLE", vehicle.Id, "CREATE",
             tenant, ActorUsername(), CreatedVehicleFields(vehicle));
         _db.SaveChanges();
         tx.Commit();
 
         return ToResponse(vehicle);
+    }
+
+    public SalesReport SalesReport()
+    {
+        var tenant = RequireTenant();
+        var vehicles = _db.Vehicles.AsNoTracking()
+            .Where(v => v.DealerId == tenant)
+            .Select(v => new { v.Status, v.PurchaseCost, v.RepairCost, v.AddedOn, v.SoldOn, v.SoldPrice })
+            .ToList();
+        var sold = vehicles
+            .Where(v => v.Status == VehicleStatus.Sold && v.SoldOn != null && v.SoldPrice != null)
+            .Select(v => (SoldOn: v.SoldOn!.Value, Price: v.SoldPrice!.Value,
+                Profit: v.SoldPrice!.Value - v.PurchaseCost - (v.RepairCost ?? 0),
+                Days: v.SoldOn!.Value.DayNumber - v.AddedOn.DayNumber))
+            .ToList();
+        var inStock = vehicles.Where(v => v.Status == VehicleStatus.InStock).ToList();
+
+        var months = sold
+            .GroupBy(s => $"{s.SoldOn.Year:D4}-{s.SoldOn.Month:D2}")
+            .OrderByDescending(g => g.Key)
+            .Take(12)
+            .Select(g => new MonthlySales(g.Key, g.Count(), g.Sum(s => s.Price), g.Sum(s => s.Profit)))
+            .ToList();
+
+        return new SalesReport(
+            sold.Count,
+            sold.Sum(s => s.Price),
+            sold.Sum(s => s.Profit),
+            sold.Count == 0 ? null : Math.Round((decimal)sold.Average(s => s.Days), 1),
+            inStock.Count,
+            inStock.Sum(v => v.PurchaseCost + (v.RepairCost ?? 0)),
+            months);
     }
 
     public VehicleResponse Get(long id)
@@ -145,8 +178,8 @@ public class VehicleService
         if (vehicle.Status == VehicleStatus.Sold && PurchaseFieldsChanged(changed))
             throw new ApiException(ErrorCode.SoldLocked, "Sold vehicle is locked.");
 
-        if (changed.ContainsKey("vin") && _db.Vehicles.Any(v => v.DealerId == tenant && v.Vin == next.Vin))
-            throw new ApiException(ErrorCode.VinDup, "VIN already exists in this dealership.");
+        if (changed.ContainsKey("vin") && _db.Vehicles.IgnoreQueryFilters().Any(v => v.DealerId == tenant && v.Vin == next.Vin))
+            throw new ApiException(ErrorCode.VinDup, "VIN already exists in this dealership, possibly on a deleted vehicle.");
 
         if (changed.Count == 0)
             return ToResponse(vehicle);
@@ -177,7 +210,7 @@ public class VehicleService
 
         _audit.Record("VEHICLE", vehicle.Id, "UPDATE",
             tenant, ActorUsername(), changed);
-        _db.SaveChanges();
+        SaveOrVinDuplicate();
 
         return ToResponse(vehicle);
     }
@@ -237,14 +270,33 @@ public class VehicleService
         if (vehicle.Status == VehicleStatus.Sold)
             throw new ApiException(ErrorCode.SoldLocked, "Sold vehicle is locked.");
 
-        if (cost == 0)
-            return;
-
-        vehicle.RepairCost = (vehicle.RepairCost ?? 0) + cost;
+        // The cost is added to the repair cost (WO-04). A zero cost still sets an empty repair
+        // cost to 0; when nothing changes, no audit row is written.
+        var repairCost = (vehicle.RepairCost ?? 0) + cost;
+        if (vehicle.RepairCost == repairCost) return;
+        vehicle.RepairCost = repairCost;
 
         _audit.Record("VEHICLE", vehicle.Id, "UPDATE",
             tenant, ActorUsername(),
             new Dictionary<string, object> { ["repairCost"] = vehicle.RepairCost! });
+        _db.SaveChanges();
+    }
+
+    public void Delete(long id)
+    {
+        var tenant = RequireTenant();
+        var vehicle = LoadThisDealer(id);
+        // A sale or customer link is the purchase record (CRM "car(s) purchased"), and open work
+        // orders are live work; deleting the vehicle would hide them, so each must be settled first.
+        if (vehicle.Status == VehicleStatus.Sold)
+            throw new ApiException(ErrorCode.SoldLocked, "Sold vehicle cannot be deleted.");
+        if (_db.CustomerVehicles.Any(cv => cv.VehicleId == vehicle.Id))
+            throw new ApiException(ErrorCode.VehicleAlreadyLinked, "Unlink the customer before deleting this vehicle.");
+        if (CountOpenWorkOrders(vehicle) > 0)
+            throw new ApiException(ErrorCode.WorkOrdersOpen, "Finish or cancel open work orders before deleting.");
+        vehicle.DeletedAt = DateTime.UtcNow;
+        _audit.Record("VEHICLE", vehicle.Id, "DELETE", tenant, ActorUsername(),
+            new Dictionary<string, object> { ["deleted"] = true });
         _db.SaveChanges();
     }
 
@@ -360,6 +412,19 @@ public class VehicleService
 
     private static bool MoneyChanged(decimal? current, decimal? next) =>
         current == null || next == null ? current != next : current.Value != next.Value;
+
+    // A concurrent insert can pass the read above and still hit uk_vehicle_vin (DMS-03).
+    private void SaveOrVinDuplicate()
+    {
+        try
+        {
+            _db.SaveChanges();
+        }
+        catch (DbUpdateException ex) when (DuplicateKey.Is(ex))
+        {
+            throw new ApiException(ErrorCode.VinDup, "VIN already exists in this dealership.");
+        }
+    }
 
     private static string? TrimToNull(string? value) =>
         string.IsNullOrWhiteSpace(value) ? null : value.Trim();

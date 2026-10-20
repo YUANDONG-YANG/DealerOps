@@ -4,6 +4,7 @@ import AppLayout from '../layouts/AppLayout';
 import DataTable from '../components/DataTable';
 import PageState from '../components/PageState';
 import AdWorkspace from '../components/AdWorkspace';
+import StatusTag from '../components/StatusTag';
 import { vehiclesApi } from '../api/vehicles';
 import {
   apiError, applyCheckToListing, checkStatusLabel, emptyListing,
@@ -48,6 +49,8 @@ export default function AdsPage() {
   const [checking, setChecking] = useState(false);
   const [readyBusy, setReadyBusy] = useState(false);
   const [exportBusy, setExportBusy] = useState(false);
+  const [publishPlatform, setPublishPlatform] = useState('Kijiji');
+  const [demoPublish, setDemoPublish] = useState<{ platform: string; reference: string; publishedAt: string } | null>(null);
   const [savedContent, setSavedContent] = useState(contentKey(emptyListing()));
   const vehicleListSeq = useRef(0);
   const listingLoadSeq = useRef(0);
@@ -58,6 +61,14 @@ export default function AdsPage() {
   const canRunCheck = !!listing.id && !sold && !unsaved;
   const canMarkReady = !!listing.id && listing.checkStatus === 'PASSED' && !sold && !unsaved;
   const canExport = !!listing.id && listing.checkStatus === 'PASSED' && !sold && !unsaved;
+  const canSimulatePublish = !!listing.id && listing.status === 'READY' && listing.checkStatus === 'PASSED' && !sold && !unsaved;
+
+  const loadDemoPublish = (vehicleId: number) => {
+    try {
+      const value = localStorage.getItem(`dealerops-demo-publish-${vehicleId}`);
+      setDemoPublish(value ? JSON.parse(value) : null);
+    } catch { setDemoPublish(null); }
+  };
 
   const rememberSummary = (row: Listing) => {
     if (!row.vehicleId) return;
@@ -101,6 +112,8 @@ export default function AdsPage() {
   const select = async (vehicle: any) => {
     const seq = ++listingLoadSeq.current;
     setSelected(vehicle); setListingError(''); setListingForbidden(false); setActionError('');
+    setDemoPublish(null);
+    loadDemoPublish(vehicle.id);
     setListingLoading(true); loadedListingVehicleIdRef.current = null;
     const empty = emptyListing(vehicle.id);
     setListing(empty); setSavedContent(contentKey(empty));
@@ -121,6 +134,23 @@ export default function AdsPage() {
     }
   };
 
+  const simulatePublish = () => {
+    if (!selected?.id || !canSimulatePublish) return;
+    const result = {
+      platform: publishPlatform,
+      reference: `DEMO-${selected.id}-${Date.now().toString(36).toUpperCase()}`,
+      publishedAt: new Date().toISOString(),
+    };
+    localStorage.setItem(`dealerops-demo-publish-${selected.id}`, JSON.stringify(result));
+    setDemoPublish(result);
+  };
+
+  const simulateUnpublish = () => {
+    if (!selected?.id) return;
+    localStorage.removeItem(`dealerops-demo-publish-${selected.id}`);
+    setDemoPublish(null);
+  };
+
   const refreshListing = async () => {
     if (!selected?.id) return;
     const seq = listingLoadSeq.current;
@@ -131,6 +161,7 @@ export default function AdsPage() {
     setListing(merged); setSavedContent(contentKey(merged));
     loadedListingVehicleIdRef.current = vehicleId;
     rememberSummary(merged);
+    return merged;
   };
 
   const save = async () => {
@@ -170,17 +201,26 @@ export default function AdsPage() {
     } catch (e) {
       if (selected?.id !== vehicleId) return;
       const { status, code } = apiError(e);
-      // A gateway 5xx, a timeout or a dropped connection (no response at all) is still an AI
-      // failure (AD-09), so it must never leave a previous "Passed" badge on screen.
+      // AD-09: a stored AI failure is never a pass. A dropped call that never reached Core must
+      // not hide the check already on file, so reload that listing and keep its status.
       const noResponse = !(e as { response?: unknown })?.response;
       if ((status ?? 0) >= 500 || code === 'AI_UNAVAILABLE' || noResponse) {
         if (listing.vehicleId !== vehicleId) return;
-        setListing((l) => {
-          const upd = { ...l, checkStatus: 'AI_UNAVAILABLE' as const, lastCheckId: null, lastCheck: null };
-          rememberSummary(upd);
-          return upd;
-        });
-        setActionError('AI review is unavailable. The advertisement did not pass; run the check again.');
+        try {
+          const stored = await refreshListing();
+          if (stored && stored.checkStatus !== 'PASSED') {
+            setActionError('AI review is unavailable. The advertisement did not pass; run the check again.');
+          }
+        } catch {
+          if (listing.vehicleId !== vehicleId) return;
+          setListing((l) => {
+            if (l.vehicleId !== vehicleId || l.checkStatus !== 'PASSED') return l;
+            const upd = { ...l, checkStatus: 'AI_UNAVAILABLE' as const, lastCheckId: null, lastCheck: null };
+            rememberSummary(upd);
+            return upd;
+          });
+          setActionError('AI review is unavailable. The advertisement did not pass; run the check again.');
+        }
       } else if (code === 'VERSION_CONFLICT') setActionError('Refresh and retry: someone else changed this record after you opened it. Reopen it to load the latest version, then make your change again.');
       else if (status === 404 || code === 'NOT_FOUND') setActionError('Vehicle not found. It may have been deleted; refresh the list.');
       else if (status === 403 || code === 'FORBIDDEN') setActionError('You do not have access to Ad compliance.');
@@ -235,7 +275,7 @@ export default function AdsPage() {
     <AppLayout>
       <div className="page">
         <div className="page-header">
-          <div><h1>Ad compliance</h1><span className="muted">Check an advertisement before export</span></div>
+          <div><h1>Ad compliance</h1><span className="muted">Check and prepare an advertisement</span></div>
         </div>
         <AdWorkspace listing={listing} onChange={setListing} vehicle={selected} readOnly={sold}
           pickerSlot={
@@ -252,7 +292,10 @@ export default function AdsPage() {
                     { label: 'Vehicle', render: (r: any) => `${r.modelYear} ${r.make} ${r.model}` },
                     { label: 'Type', render: (r: any) => kindLabel(summaries[r.id]?.adKind) },
                     { label: 'Medium', render: (r: any) => mediumLabel(summaries[r.id]?.medium) },
-                    { label: 'Check status', render: (r: any) => checkStatusLabel(summaries[r.id]?.checkStatus) || '—' },
+                    { label: 'Check status', render: (r: any) => {
+                      const s = summaries[r.id]?.checkStatus;
+                      return s ? <StatusTag status={s}>{checkStatusLabel(s)}</StatusTag> : '—';
+                    } },
                   ]}
                   actions={(r: any) => <button className="btn-link" onClick={() => select(r)}>Open</button>}
                 />
@@ -272,6 +315,28 @@ export default function AdsPage() {
                 <button className="btn" disabled={!canMarkReady || readyBusy} onClick={markReady}>{readyBusy ? 'Marking…' : 'Mark ready'}</button>
                 <button className="btn" disabled={!canExport || exportBusy} onClick={exportTxt}>{exportBusy ? 'Exporting…' : 'Export TXT'}</button>
               </div>
+              <section className="card" style={{ marginTop: 16 }} aria-label="Demo publishing">
+                <div className="card-header">Marketplace publishing demo</div>
+                <p className="muted">This student project has no marketplace account or publishing authorization. Actions here are simulated in this browser; no ad is sent to Kijiji or another external platform.</p>
+                {demoPublish ? (
+                  <div>
+                    <p><strong>Simulated status:</strong> Published to {demoPublish.platform} (demo)</p>
+                    <p className="muted">Reference: {demoPublish.reference} · {new Date(demoPublish.publishedAt).toLocaleString()}</p>
+                    <button className="btn" disabled={!selected || sold} onClick={simulateUnpublish}>Simulate unpublish</button>
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
+                    <label htmlFor="demo-publish-platform">Target platform</label>
+                    <select id="demo-publish-platform" value={publishPlatform} onChange={(e) => setPublishPlatform(e.target.value)}>
+                      <option value="Kijiji">Kijiji (simulation)</option>
+                      <option value="AutoTrader.ca">AutoTrader.ca (simulation)</option>
+                      <option value="Other marketplace">Other marketplace (simulation)</option>
+                    </select>
+                    <button className="btn" disabled={!canSimulatePublish} onClick={simulatePublish}>Simulate publish</button>
+                    {!canSimulatePublish && <span className="muted">Save the ad, pass the compliance check, and mark it ready first.</span>}
+                  </div>
+                )}
+              </section>
             </>
           }
         />

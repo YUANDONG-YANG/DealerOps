@@ -175,7 +175,10 @@ public class AuthService
     {
         var identity = await _google.VerifyAsync(request.IdToken.Trim(), cancellationToken);
         var email = LoginIdentifiers.Email(identity.Email);
-        var requestedDealerId = request.DealerId;
+        // An unknown or inactive dealership in the optional dealerId is ignored, never an error.
+        var requestedDealerId = request.DealerId is long id && _db.Dealers.Any(d => d.Id == id && d.Active)
+            ? request.DealerId
+            : null;
 
         // Prefer Google's stable subject id so an email change (G Suite rename, address move)
         // keeps the same DealerOps account; fall back to email for accounts created before we
@@ -193,29 +196,20 @@ public class AuthService
         if (user != null)
             SyncGoogleIdentity(user, identity);
 
-        // Already bound to a dealer: just sign in.
-        if (user?.DealerId != null)
-            return new GoogleSignInResponse("ok",
-                new LoginResponse(_jwt.Issue(user), user.Role!.Value, user.DisplayName));
+        // A signed-in unbound account lands on the no-access screen and files its own join
+        // request (AUTH-25). Google therefore always returns a session, including when the
+        // account has no dealership yet. An optional dealerId still records that request.
+        if (user == null)
+            user = CreateUnboundGoogleUser(email, identity, requestedDealerId);
+        else if (user.DealerId == null && user.RequestedDealerId == null && requestedDealerId.HasValue)
+            SetRequestedDealer(user, requestedDealerId.Value);
+        // An account that already has a pending request keeps it; signing in never fails on it.
 
-        if (requestedDealerId.HasValue)
-        {
-            RequireActiveDealer(requestedDealerId.Value);
-            user = user == null
-                ? CreateUnboundGoogleUser(email, identity, requestedDealerId.Value)
-                : SetRequestedDealer(user, requestedDealerId.Value);
-            return new GoogleSignInResponse("pending_approval", null);
-        }
-
-        // No dealer picked yet: the UI must show the selector. An already-pending account also
-        // reports "pending_approval" so a repeat sign-in does not loop through the selector.
-        if (user?.RequestedDealerId != null)
-            return new GoogleSignInResponse("pending_approval", null);
-
-        return new GoogleSignInResponse("needs_dealer", null);
+        return new GoogleSignInResponse("ok",
+            new LoginResponse(_jwt.Issue(user), user.Role!.Value, user.DisplayName));
     }
 
-    private AppUserEntity CreateUnboundGoogleUser(string email, GoogleIdentity identity, long requestedDealerId)
+    private AppUserEntity CreateUnboundGoogleUser(string email, GoogleIdentity identity, long? requestedDealerId)
     {
         var username = AvailableUsername(email);
         var user = new AppUserEntity
@@ -249,27 +243,24 @@ public class AuthService
             throw _accountRules.Conflict(ex);
         }
 
-        _audit.Record("APP_USER", user.Id, "CREATE", null, user.Username,
-            new Dictionary<string, object>
-            {
-                ["registration"] = "google",
-                ["requestedDealerId"] = requestedDealerId
-            });
+        var summary = new Dictionary<string, object> { ["registration"] = "google" };
+        if (requestedDealerId.HasValue)
+            summary["requestedDealerId"] = requestedDealerId.Value;
+        _audit.Record("APP_USER", user.Id, "CREATE", null, user.Username, summary);
         _db.SaveChanges();
-        PostJoinNotification(requestedDealerId, user);
+        if (requestedDealerId.HasValue)
+            PostJoinNotification(requestedDealerId.Value, user);
         tx.Commit();
         return user;
     }
 
-    private AppUserEntity SetRequestedDealer(AppUserEntity user, long requestedDealerId)
+    private void SetRequestedDealer(AppUserEntity user, long requestedDealerId)
     {
-        if (user.RequestedDealerId == requestedDealerId) return user;
         user.RequestedDealerId = requestedDealerId;
         _audit.Record("APP_USER", user.Id, "UPDATE", null, user.Username,
             new Dictionary<string, object> { ["requestedDealerId"] = requestedDealerId });
         _db.SaveChanges();
         PostJoinNotification(requestedDealerId, user);
-        return user;
     }
 
     // Refreshes the stored Google claims from the latest ID token. Email is left alone here
@@ -293,8 +284,7 @@ public class AuthService
     private static string? Truncate(string? value, int max) =>
         string.IsNullOrEmpty(value) ? null : (value.Length <= max ? value : value[..max]);
 
-    // One notification per fresh request. If the same user is already pending for the same
-    // dealer, SetRequestedDealer short-circuits before this point, so no duplicate is posted.
+    // One notification per fresh request: SetRequestedDealer only runs when nothing is pending.
     private void PostJoinNotification(long dealerId, AppUserEntity user) =>
         _notifications.Create(dealerId, "JOIN_REQUEST", new
         {
@@ -302,12 +292,6 @@ public class AuthService
             displayName = user.DisplayName,
             email = user.Email
         });
-
-    private void RequireActiveDealer(long dealerId)
-    {
-        if (!_db.Dealers.Any(d => d.Id == dealerId && d.Active))
-            throw new ApiException(ErrorCode.NotFound, "Dealership not found.");
-    }
 
     private string AvailableUsername(string email)
     {

@@ -7,6 +7,7 @@ using DealerOps.Core.Customer.Dto;
 using DealerOps.Core.Data;
 using DealerOps.Core.Lead.Dto;
 using DealerOps.Core.Vehicle;
+using Microsoft.EntityFrameworkCore;
 
 namespace DealerOps.Core.Lead;
 
@@ -76,6 +77,27 @@ public class LeadService
         return new PageResponse<LeadListItem>(items, p, s, total);
     }
 
+    public SalesFunnelReport Funnel()
+    {
+        var tenant = RequireTenant();
+        var counts = _db.Leads.Where(l => l.DealerId == tenant)
+            .GroupBy(l => l.Stage)
+            .Select(group => new { Stage = group.Key, Count = group.LongCount() })
+            .ToDictionary(row => row.Stage, row => row.Count);
+        var total = counts.Values.Sum();
+        var stages = Enum.GetValues<LeadStage>().Select(stage =>
+        {
+            var count = counts.GetValueOrDefault(stage);
+            return new FunnelStageCount(EnumWireName.Of(stage), count,
+                total == 0 ? 0 : Math.Round((decimal)count * 100 / total, 1));
+        }).ToList();
+        var won = counts.GetValueOrDefault(LeadStage.Won);
+        var closed = won + counts.GetValueOrDefault(LeadStage.Lost);
+        var open = counts.Where(c => !c.Key.IsClosed()).Sum(c => c.Value);
+        return new SalesFunnelReport(total, open, stages,
+            closed == 0 ? 0 : Math.Round((decimal)won * 100 / closed, 1));
+    }
+
     public LeadDetail Create(CreateLeadRequest body)
     {
         var tenant = RequireTenant();
@@ -91,7 +113,7 @@ public class LeadService
         var owner = TrimToNull(body.OwnerUsername);
         RequireMember(tenant, owner);
         RequireInStockVehicle(tenant, body.VehicleId);
-        var note = TrimToNull(body.Note);
+        var note = OptionalNote(body.Note);
 
         // The customer, the lead, the first note, and their audit rows commit together (LEAD-01, AUD-07).
         using var tx = _db.Database.BeginTransaction();
@@ -115,8 +137,10 @@ public class LeadService
             ["customerId"] = customerId,
             ["stage"] = EnumWireName.Of(LeadStage.New)
         };
-        if (body.VehicleId != null)
-            fields["vehicleId"] = body.VehicleId;
+        // Optional fields are recorded only when set, so the history shows no empty values.
+        if (body.VehicleId != null) fields["vehicleId"] = body.VehicleId;
+        if (owner != null) fields["ownerUsername"] = owner;
+        if (body.NextFollowUpOn != null) fields["nextFollowUpOn"] = body.NextFollowUpOn.Value.ToString("yyyy-MM-dd");
 
         Audit(lead.Id, "CREATE", tenant, fields);
         _db.SaveChanges();
@@ -189,7 +213,7 @@ public class LeadService
         var tenant = RequireTenant();
         var lead = Load(id, tenant);
         using var tx = _db.Database.BeginTransaction();
-        var note = WriteNote(lead, body.Body.Trim());
+        var note = WriteNote(lead, RequireNote(body.Body, "body"));
         tx.Commit();
         return ToNote(note);
     }
@@ -230,9 +254,10 @@ public class LeadService
         return new LeadNoteItem(note.Id, note.AuthorUsername, note.Body, note.CreatedAt);
     }
 
+    // A lead keeps showing its customer and vehicle after either is soft-deleted (lead history).
     private string CustomerName(LeadEntity lead)
     {
-        return _db.Customers
+        return _db.Customers.IgnoreQueryFilters()
             .Where(c => c.Id == lead.CustomerId && c.DealerId == lead.DealerId)
             .Select(c => c.Name)
             .FirstOrDefault() ?? "";
@@ -241,7 +266,7 @@ public class LeadService
     private LeadVehicleBrief? VehicleBrief(LeadEntity lead)
     {
         if (lead.VehicleId == null) return null;
-        var v = _db.Vehicles.FirstOrDefault(
+        var v = _db.Vehicles.IgnoreQueryFilters().FirstOrDefault(
             v => v.Id == lead.VehicleId && v.DealerId == lead.DealerId);
         return v == null ? null : new LeadVehicleBrief(v.Id, v.Vin, v.ModelYear, v.Make, v.Model, v.Status);
     }
@@ -283,6 +308,26 @@ public class LeadService
     private static string? TrimToNull(string? value)
     {
         return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+    }
+
+    // An omitted create note is fine. A note that was sent, including whitespace, must be 1–2000
+    // after trim (LEAD-07). The text itself is never copied into the audit.
+    private static string? OptionalNote(string? raw)
+    {
+        if (raw == null) return null;
+        return RequireNote(raw, "note");
+    }
+
+    private static string RequireNote(string? raw, string field)
+    {
+        var text = raw?.Trim() ?? "";
+        if (text.Length is < 1 or > 2000)
+        {
+            const string message = "Note must be 1–2000 characters.";
+            throw new ApiException(ErrorCode.Validation, message,
+                new Dictionary<string, string> { [field] = message });
+        }
+        return text;
     }
 
     private static long RequireTenant()

@@ -59,6 +59,16 @@ Expected output: **0 errors**. Core may currently print two existing nullable wa
 
 Open three terminals. Keep all three terminals running. Start the services in this order and wait for the health check to respond before opening the next terminal.
 
+The tracked `appsettings.json` files leave the database connection, JWT signing secret, and internal token empty, and each service refuses to start without them. Run these local-development values in **every** terminal first (they match the repository-root `start-local.sh`; use your own database credentials if they differ):
+
+```bash
+export MYSQL_URL='Server=127.0.0.1;Port=3306;Database=dealer_core;User=dealer;Password=dealer_dev_only'
+export DEV_JWT_SECRET='dealer-dev-jwt-secret-change-me'
+export INTERNAL_TOKEN='dealer-internal'
+```
+
+These well-known values are accepted only in local `dev` JWT mode; cloud builds read real secrets from Key Vault.
+
 **Terminal 1 — DealerOps.Core (port 8081)**
 
 ```bash
@@ -116,16 +126,16 @@ In each terminal, press `Ctrl+C`. MySQL can remain running for the next session.
 
 ## Configuration
 
-All settings have local defaults in `appsettings.json`. Override with environment variables using the `__` separator for nested keys.
+Committed `appsettings.json` leaves the database connection, JWT signing secret, and internal token empty. Set them in the environment (see `dealer-platform/env.example`). Other settings have local defaults in `appsettings.json`. Override nested keys with `__`.
 
 ### DealerOps.Core
 
 | Environment variable | Default | Description |
 |---|---|---|
-| `ConnectionStrings__Default` | `Server=localhost;Port=3306;Database=dealer_core;User=dealer;Password=dealer_dev_only` | MySQL connection string |
-| `Jwt__DevSecret` | `dealer-dev-jwt-secret-change-me` | HS256 signing secret (must match gateway) |
+| `ConnectionStrings__Default` | _(empty; required)_ | MySQL connection string. Cloud uses the Key Vault reference |
+| `Jwt__DevSecret` | _(empty; required)_ | HS256 signing secret (must match gateway). Also read as `DEV_JWT_SECRET` |
 | `AiService__BaseUrl` | `http://127.0.0.1:8082` | AI service URL |
-| `AiService__InternalToken` | `dealer-internal` | Shared internal header value |
+| `AiService__InternalToken` | _(empty; required)_ | Shared internal header value. Also read as `INTERNAL_TOKEN` |
 | `ADMIN_USERNAME` | _(empty)_ | Platform admin username (seed on first start) |
 | `ADMIN_PASSWORD` | _(empty)_ | Platform admin password (seed on first start) |
 | `ADMIN_EMAIL` | _(empty)_ | Platform admin email |
@@ -138,14 +148,14 @@ All settings have local defaults in `appsettings.json`. Override with environmen
 | `AIMANAGER_API_KEY` | _(empty)_ | LLM provider API key for local development; use a Key Vault reference in Azure |
 | `AiManager__Provider` | `groq` | Provider name |
 | `AiManager__Model` | `qwen/qwen3.8-27b` | Model name |
-| `AiService__InternalToken` | `dealer-internal` | Must match Core and Gateway |
+| `AiService__InternalToken` | _(empty; required)_ | Must match Core and Gateway. Also read as `INTERNAL_TOKEN` |
 
 ### DealerOps.Gateway
 
 | Environment variable | Default | Description |
 |---|---|---|
-| `dealerops__jwt__devSecret` | `dealer-dev-jwt-secret-change-me` | Must match Core |
-| `dealerops__internalToken` | `dealer-internal` | Must match Core and AiService |
+| `dealerops__jwt__devSecret` | _(empty; required)_ | Must match Core. Also read as `DEV_JWT_SECRET` |
+| `dealerops__internalToken` | _(empty; required)_ | Must match Core and AiService. Also read as `INTERNAL_TOKEN` |
 | `dealerops__corsAllowedOrigin` | `http://localhost:5173` | Browser origin for CORS |
 
 ## Useful URLs (after all three are running)

@@ -21,7 +21,7 @@ export interface CheckResult {
   contentVersion: number;
   ruleFindings?: RuleFinding[] | null;
   aiStatus?: string;
-  aiNotes?: { message: string }[] | null;
+  aiNotes?: { code?: string | null; severity?: string | null; explanation?: string | null; message: string }[] | null;
   recommendation?: string;
   checkStatus: CheckStatus;
   createdAt?: string;

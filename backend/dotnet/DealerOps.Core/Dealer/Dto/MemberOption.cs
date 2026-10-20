@@ -1,3 +1,4 @@
 namespace DealerOps.Core.Dealer.Dto;
 
-public record MemberOption(string Username, string? DisplayName);
+/// <param name="Source">How the account was created (see <see cref="AccountSource"/>), null when unknown.</param>
+public record MemberOption(string Username, string? DisplayName, string? Source);

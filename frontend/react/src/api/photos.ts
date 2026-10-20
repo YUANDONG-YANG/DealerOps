@@ -36,8 +36,10 @@ export const photosApi = {
   upload: (vehicleId: number, file: File) => {
     const form = new FormData();
     form.append('file', file);
+    // The shared client defaults to application/json. Drop that header so the runtime
+    // sets multipart/form-data with a boundary (IMG-01).
     return http.post<PhotoItem>(base(vehicleId), form, {
-      headers: { 'Content-Type': 'multipart/form-data' },
+      headers: { 'Content-Type': undefined },
     });
   },
 

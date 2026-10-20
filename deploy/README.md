@@ -60,6 +60,8 @@ Six of those names are global, not just unique inside the resource group: the fo
 
 App settings hold no secret values. Each secret is an App Service Key Vault reference (`@Microsoft.KeyVault(SecretUri=...)`) resolved through `dealerops-uai`.
 
+MySQL Flexible Server keeps automated backups for 7 days (`backup_retention_days = 7` in `deploy/terraform/main.tf`). To restore, an operator creates a new server from a backup in that window (Azure portal or `az mysql flexible-server restore`), then points the core connection string at the restored server and confirms the app is healthy. `web_custom_domain` stays empty unless an operator sets it.
+
 `dealerops-core` and `dealerops-ai` keep the "not a browser entry point" rule from [design/15-Data-Auth-and-Gateway.md](../design/15-Data-Auth-and-Gateway.md) §10. App Service has no internal-only ingress on a Basic plan, so instead both apps set `ip_restriction_default_action = "Deny"` and allow only the `AzureCloud` service tag. `dealerops-gateway` runs inside Azure and gets through; a browser on the public internet is refused by the platform before the request reaches the app.
 
 That tag is deliberately coarse. A rule built from the plan's own outbound addresses would be tighter, but those addresses only exist after `apply`, so they cannot appear in a `plan` — and they change when the plan scales. The network rule stops browsers, not another Azure-hosted caller, so `X-Dealer-Internal` and the JWT checks remain the real authorization, the same as locally.

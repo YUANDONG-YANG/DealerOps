@@ -252,8 +252,10 @@ function runFixedOmvic(listing, vehicle, dealer) -> { hardBlocks[], softGaps[], 
   // --- dealership name and contact (always) ---
   if !containsNormalized(text, dealer.legalName):
       hard += DEALER_NAME_MISSING
-  hasPhone = containsNormalized(text, digits(dealer.contactPhone)) OR match(text, /\d{3}[-.\s]?\d{3}[-.\s]?\d{4}/)
-  hasEmail = containsNormalized(text, dealer.contactEmail) OR match(text, /\S+@\S+\.\S+/)
+  // The dealership's own phone and email must appear; another phone or email does not count.
+  // Phones compare digits only (last ten), so "(403) 555-0100" matches "+1 403-555-0100".
+  hasPhone = any phone-like run in text whose last 10 digits == last 10 digits(dealer.contactPhone)
+  hasEmail = containsNormalized(text, dealer.contactEmail)
   hasAddr  = containsNormalized(text, dealer.contactAddress)
   if !(hasPhone AND hasEmail AND hasAddr):
       if !(hasPhone OR hasEmail OR hasAddr):
@@ -384,14 +386,15 @@ The two internal paths (same as the handbook; this section only defines entry, n
 
 Do all three; missing one will be torn apart in defense:
 
-1. **Gateway predicate:** `/internal/v1/**` requires header `X-Dealer-Internal: <INTERNAL_TOKEN>` (value from env / Key Vault, **not** the user JWT). Browser without this header → Gateway **404**. The well-known default `dealer-internal` is accepted only when the Spring profile is `dev` or `local`. Any other profile must set a non-default `INTERNAL_TOKEN` shared by gateway, ai-service, and dealer-core. Gateway and ai-service refuse to start on that default.
+1. **Gateway predicate:** `/internal/v1/**` requires header `X-Dealer-Internal: <INTERNAL_TOKEN>` (value from env / Key Vault, **not** the user JWT). Browser without this header → Gateway **404** `{code, message}`. The well-known default `dealer-internal` is accepted only when `JWT_MODE=dev`. Any other mode must set a non-default `INTERNAL_TOKEN` shared by gateway, ai-service, and dealer-core. Gateway and ai-service refuse to start on that default.
 2. **core outbound:** add that header when calling AI; **do not** forward the user JWT to ai-service (ai-service has no users and no database).
-3. **ai-service:** bind in-cluster only; missing internal header → 404. Even a direct 8082 connection fails.
+3. **ai-service:** every path, including health and OpenAPI, requires the header. Missing or wrong → **404** `{code, message}`. A direct connection to 8082 fails.
+4. **core inbound:** every path, including health and OpenAPI, requires the same header. Missing or wrong → **404** `{code, message, requestId}`. The gateway adds the header on the outbound proxy and on its server-side health and OpenAPI calls. It still rejects a client-supplied header on any non-internal path.
 
 `/api/v1/**` **must not** be forwarded to ai-service.  
 core **must not** be configured with browser-reachable public Ingress.
 
-Gateway responsibility ends here: routing, user-JWT validation, blocking internal, and rejecting a client-supplied `X-Dealer-Internal` on any non-internal path with **404** (`InternalRouteFilter`; a `RemoveRequestHeader` route filter fails on read-only headers in Spring Cloud Gateway 4.1.5 with Spring Framework 6.1.14). No business writes, no MySQL, no model SDK.
+Gateway responsibility ends here: routing, user-JWT validation, blocking internal, stamping `X-Dealer-Internal` on the outbound proxy only, and rejecting a client-supplied `X-Dealer-Internal` on any non-internal path with **404** (`InternalRouteFilter`). No business writes, no MySQL, no model SDK.
 
 ---
 
@@ -519,7 +522,7 @@ One defense sentence: the proposal's async was scope creep; this course uses syn
 | ai-service | **8082** (`AI_PORT`) | must fail |
 | MySQL | 3306 | not for the browser |
 
-There is no orchestrator locally: each process is started by hand. Gateway binds `0.0.0.0:8080`; core and ai set `SERVER_ADDRESS=127.0.0.1` so they are **not** on `0.0.0.0` for the whole class to scan. Loopback-only still counts as "browser cross-origin fail".
+There is no orchestrator locally: each process is started by hand. Gateway binds `0.0.0.0:8080` and is the only browser origin. Core and ai-service reject every direct call that lacks `X-Dealer-Internal` with **404** `{code, message}` (core also includes `requestId`). The gateway adds that header on the outbound proxy only. Loopback binding is not the control: a client on the same machine still fails without the credential.
 
 ### 10.2 Configuration principles (demo-able in Sprint 1)
 

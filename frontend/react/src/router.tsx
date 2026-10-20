@@ -18,6 +18,7 @@ import AdminPage from './pages/AdminPage';
 import DmsPage from './pages/DmsPage';
 import CrmPage from './pages/CrmPage';
 import LeadsPage from './pages/LeadsPage';
+import SalesFunnelPage from './pages/SalesFunnelPage';
 import AdsPage from './pages/AdsPage';
 import TeamPage from './pages/TeamPage';
 import ProfilePage from './pages/ProfilePage';
@@ -132,6 +133,7 @@ export default function AppRoutes() {
           <Route path="/dms" element={<DmsPage />} />
           <Route path="/crm" element={<CrmPage />} />
           <Route path="/leads" element={<LeadsPage />} />
+          <Route path="/reports/sales-funnel" element={<SalesFunnelPage />} />
           <Route path="/ads" element={<AdsPage />} />
           <Route path="/team" element={<TeamPage />} />
         </Route>

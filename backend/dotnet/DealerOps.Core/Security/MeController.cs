@@ -3,6 +3,7 @@ using DealerOps.Core.Common.Exceptions;
 using DealerOps.Core.Common.Tenant;
 using DealerOps.Core.Data;
 using DealerOps.Core.Dealer;
+using DealerOps.Core.Dealer.Dto;
 using DealerOps.Core.Notifications;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -18,13 +19,27 @@ public class MeController : ControllerBase
     private readonly AppDbContext _db;
     private readonly IAuditService _audit;
     private readonly NotificationService _notifications;
+    private readonly JoinRequestService _joinRequests;
 
-    public MeController(AppDbContext db, IAuditService audit, NotificationService notifications)
+    public MeController(AppDbContext db, IAuditService audit, NotificationService notifications,
+        JoinRequestService joinRequests)
     {
         _db = db;
         _audit = audit;
         _notifications = notifications;
+        _joinRequests = joinRequests;
     }
+
+    [HttpGet("me/join-request")]
+    public ActionResult<MyJoinRequestResponse> MyJoinRequest()
+    {
+        var pending = _joinRequests.Current();
+        return pending == null ? NoContent() : pending;
+    }
+
+    [HttpPost("me/join-request")]
+    public MyJoinRequestResponse FileJoinRequest([FromBody] FileJoinRequest body) =>
+        _joinRequests.File(body.DealerId);
 
     [HttpGet("me")]
     public MeResponse Me()

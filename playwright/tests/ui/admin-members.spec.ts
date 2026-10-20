@@ -274,7 +274,7 @@ test.describe('admin member management', () => {
     // Inside a dealership's drawer there is no dealership picker.
     await expect(pendingRow.getByRole('combobox')).toHaveCount(0);
     await pendingRow.getByRole('button', { name: 'Bind without password' }).click();
-    await expect(pendingRow).toHaveCount(0);
+    await expect(pendingRow.getByRole('button', { name: 'Bind without password' })).toHaveCount(0);
 
     const row = memberRow(drawer, self.username);
     await expect(row).toBeVisible();

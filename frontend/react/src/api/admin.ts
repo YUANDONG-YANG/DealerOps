@@ -8,7 +8,10 @@ export type Dealer = {
 /** `password`: a DealerOps password an admin can reset. `google` / `firebase`: that provider owns the password. */
 export type SignInMethod = 'password' | 'google' | 'firebase';
 
-export type Member = { username: string; displayName: string; role: string; active: boolean; signInMethod: SignInMethod };
+export type Member = {
+  username: string; displayName: string; role: string; active: boolean; signInMethod: SignInMethod;
+  email: string | null; phone: string | null;
+};
 
 export type Page<T> = { items: T[]; page: number; size: number; totalElements: number };
 
@@ -16,7 +19,9 @@ export type CreateDealerBody = { legalName: string; contactPhone: string; contac
 
 export type PatchDealerBody = CreateDealerBody & { version: number; active: boolean; logoDataUrl: string | null };
 
-export type BindMemberBody = { username: string; displayName?: string; password?: string; email?: string; phone?: string };
+export type BindMemberBody = {
+  username: string; displayName?: string; password?: string; email?: string | null; phone?: string | null;
+};
 
 export type PendingUser = { username: string; displayName: string; email: string | null; phone: string | null; createdAt: string };
 

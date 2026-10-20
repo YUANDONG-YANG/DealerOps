@@ -300,8 +300,7 @@ test.describe('CRM create and edit', () => {
     await expect(page.getByText('No customers match.')).toBeVisible();
   });
 
-  test('CRM-01: duplicate email shows the server field error', async ({ staffPage: page, staffApi, allowBrowserErrors }) => {
-    allowBrowserErrors(/409|Conflict/);
+  test('CRM-13: duplicate email is saved and the drawer shows the warning', async ({ staffPage: page, staffApi }) => {
     const existing = await staffApi.createCustomer();
     const c = customerBody({ email: existing.email });
 
@@ -313,13 +312,17 @@ test.describe('CRM create and edit', () => {
     const created = waitForCustomerWrite(page, 'POST');
     await drawer.getByRole('button', { name: 'Save' }).click();
     const res = await created;
-    expect(res.status()).toBe(409);
-    expect((await res.json()).code).toBe('EMAIL_TAKEN');
+    expect(res.status()).toBe(201);
+    const saved = await res.json();
+    expect(saved.email).toBe(existing.email);
+    expect(saved.emailWarning).toMatch(/already uses this email/i);
 
     await expect(drawer).toBeVisible();
-    await expect(fieldItem(drawer, 'Email').locator('.form-error')).toBeVisible();
+    await expect(drawer.getByText(saved.emailWarning)).toBeVisible();
+    await expect(fieldItem(drawer, 'Email').locator('.form-error')).toHaveCount(0);
     await expect(fieldItem(drawer, 'Phone').locator('.form-error')).toHaveCount(0);
-    await expect(drawer.locator('.danger-text')).toBeVisible();
+    const reread = await staffApi.get(`/api/v1/customers/${saved.id}`);
+    expect(((await reread.json()) as Customer).email).toBe(existing.email);
   });
 
   test('CRM-01: duplicate phone shows the server field error', async ({ staffPage: page, staffApi, allowBrowserErrors }) => {
@@ -344,8 +347,7 @@ test.describe('CRM create and edit', () => {
     await expect(drawer.locator('.danger-text')).toBeVisible();
   });
 
-  test('CRM-02: editing to another customer\'s email shows the server field error', async ({ staffPage: page, staffApi, allowBrowserErrors }) => {
-    allowBrowserErrors(/409|Conflict/);
+  test('CRM-13: editing to another customer\'s email saves and shows the warning', async ({ staffPage: page, staffApi }) => {
     const first = await staffApi.createCustomer();
     const second = await staffApi.createCustomer();
 
@@ -357,11 +359,14 @@ test.describe('CRM create and edit', () => {
     const saved = waitForCustomerWrite(page, 'PATCH');
     await drawer.getByRole('button', { name: 'Save' }).click();
     const res = await saved;
-    expect(res.status()).toBe(409);
-    expect((await res.json()).code).toBe('EMAIL_TAKEN');
-    await expect(fieldItem(drawer, 'Email').locator('.form-error')).toBeVisible();
+    expect(res.status()).toBe(200);
+    const body = await res.json();
+    expect(body.email).toBe(first.email);
+    expect(body.emailWarning).toMatch(/already uses this email/i);
+    await expect(drawer.getByText(body.emailWarning)).toBeVisible();
+    await expect(fieldItem(drawer, 'Email').locator('.form-error')).toHaveCount(0);
 
     const reread = await staffApi.get(`/api/v1/customers/${second.id}`);
-    expect(((await reread.json()) as Customer).email).toBe(second.email);
+    expect(((await reread.json()) as Customer).email).toBe(first.email);
   });
 });

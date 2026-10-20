@@ -110,11 +110,15 @@ for url in \
   http://127.0.0.1:8082/actuator/health \
   http://127.0.0.1:8080/actuator/health; do
   ready=0
+  # core and ai-service answer 404 without the internal header, health included; the gateway
+  # answers 404 when a caller sends it.
+  probe=(curl -fsS "$url")
+  [[ "$url" == *:8080/* ]] || probe=(curl -fsS -H "X-Dealer-Internal: ${INTERNAL_TOKEN}" "$url")
   for _ in {1..60}; do
-    if curl -fsS "$url" >/dev/null 2>&1; then ready=1; break; fi
+    if "${probe[@]}" >/dev/null 2>&1; then ready=1; break; fi
     sleep 1
   done
-  ((ready)) || warn "服务尚未响应：$url（详情见 $LOG_DIR）"
+  ((ready)) || warn "服务尚未响应：${url}（详情见 ${LOG_DIR}）"
 done
 
 if [[ -z "$AIMANAGER_API_KEY" ]]; then

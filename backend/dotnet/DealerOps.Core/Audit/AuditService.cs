@@ -4,6 +4,7 @@ using DealerOps.Core.Common;
 using DealerOps.Core.Common.Exceptions;
 using DealerOps.Core.Common.Tenant;
 using DealerOps.Core.Data;
+using Microsoft.EntityFrameworkCore;
 
 namespace DealerOps.Core.Audit;
 
@@ -84,6 +85,8 @@ public class AuditService : IAuditService
 
         if (type == "CUSTOMER")
             return CustomerHistory(tenant, entityId, page, size);
+        if (type == "VEHICLE")
+            return VehicleHistory(tenant, entityId, page, size);
 
         var p = Paging.ClampPage(page);
         var s = Paging.ClampSize(size);
@@ -129,6 +132,11 @@ public class AuditService : IAuditService
             })
             .Select(ToItem).ToList();
 
+        return PageOf(events, page, size);
+    }
+
+    private static PageResponse<AuditItem> PageOf(List<AuditItem> events, int page, int size)
+    {
         var p = Paging.ClampPage(page);
         var s = Paging.ClampSize(size);
         var from = Math.Min(p * s, events.Count);
@@ -136,12 +144,41 @@ public class AuditService : IAuditService
         return new PageResponse<AuditItem>(events.GetRange(from, to - from), p, s, events.Count);
     }
 
+    private static bool SummaryIdEquals(Dictionary<string, object>? summary, string key, long id)
+    {
+        if (summary == null || !summary.TryGetValue(key, out var val)) return false;
+        if (val is JsonElement je && je.TryGetInt64(out var parsed)) return parsed == id;
+        if (val is long l) return l == id;
+        if (val is int i) return i == id;
+        return false;
+    }
+
+    private PageResponse<AuditItem> VehicleHistory(long tenant, long vehicleId, int page, int size)
+    {
+        // Photo rows stay in the vehicle history after the photo itself is deleted (IMG-04);
+        // customer link/unlink rows appear here as well as in the customer history (AUD-06).
+        var source = _db.AuditEvents
+            .Where(e => e.DealerId == tenant
+                && ((e.EntityType == EntityType.Vehicle && e.EntityId == vehicleId)
+                    || e.EntityType == EntityType.VehiclePhoto
+                    || e.EntityType == EntityType.CustomerVehicle))
+            .OrderByDescending(e => e.CreatedAt).ThenByDescending(e => e.Id)
+            .ToList();
+
+        var events = source
+            .Where(e => e.EntityType == EntityType.Vehicle
+                || SummaryIdEquals(DeserializeSummary(e.FieldSummary), "vehicleId", vehicleId))
+            .Select(ToItem).ToList();
+
+        return PageOf(events, page, size);
+    }
+
     private void AssertEntityInDealer(string type, long entityId, long tenant)
     {
         bool found = type switch
         {
-            "VEHICLE" => _db.Vehicles.Any(v => v.Id == entityId && v.DealerId == tenant),
-            "CUSTOMER" => _db.Customers.Any(c => c.Id == entityId && c.DealerId == tenant),
+            "VEHICLE" => _db.Vehicles.IgnoreQueryFilters().Any(v => v.Id == entityId && v.DealerId == tenant),
+            "CUSTOMER" => _db.Customers.IgnoreQueryFilters().Any(c => c.Id == entityId && c.DealerId == tenant),
             "CUSTOMER_VEHICLE" =>
                 _db.CustomerVehicles.Any(cv => cv.Id == entityId && cv.DealerId == tenant)
                 || _db.AuditEvents.Any(e => e.DealerId == tenant

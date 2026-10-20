@@ -46,7 +46,7 @@ DealerOps.Core proxies NHTSA vPIC for the DMS make/model options and provides `G
 | VIN-03 | DMS create form: `Decode` fills make, model, year, and body type; the user can still edit them; nothing is saved until `Save`. Body type is stored as an **optional** field (`bodyType`, default `OTHER`) and is a list filter; engine, country, and manufacturer are shown, not stored. The specification's eight **required** fields do not change — see SCOPE-BASELINE erratum 8 | Must |
 | VIN-04 | The endpoint is anonymous (landing page demo). It reads no tenant data and writes nothing. Successful decodes are cached in memory | Must |
 
-Open risk: an anonymous endpoint lets anyone use the server as a vPIC proxy. The in-memory cache limits repeat calls; rate limiting stays out of scope (NFR-07 Won't). Revisit if the cloud demo shows abuse.
+Open risk: an anonymous endpoint lets anyone use the server as a vPIC proxy. The in-memory cache limits repeat calls; rate limits are included in the expanded NFR-07 scope, but endpoint limits await the policy decision recorded in [SCOPE-BASELINE.md](SCOPE-BASELINE.md).
 
 ### Delivery and acceptance
 
@@ -69,6 +69,7 @@ A lead is one sales opportunity: a customer interested in (optionally) one vehic
 | LEAD-07 | Notes are append-only, newest first, with author and time | Must |
 | LEAD-08 | Create, stage/owner/date changes, and notes are audited (`LEAD`; `CREATE`, `UPDATE`, `NOTE`); note text is not copied into the audit | Must |
 | LEAD-09 | Lead notes and lead data are never sent to AI; the assistant does not read leads in this version | Must |
+| CRM-15 | Dealer users can view a tenant-scoped sales funnel report with the count and share of leads in each stage and the won rate | Must |
 
 `WON` does not sell the vehicle. The sale stays the existing DMS sell action, and the customer link stays the existing CRM link.
 
@@ -119,6 +120,8 @@ CREATE TABLE sales_lead_note (
 | `GET /api/v1/members` | — | 200 `[{ username, displayName }]` of this dealership's active members, sorted by username; shared by the lead owner select/filter and the work-order assignee select (14 §5.6) |
 
 Lead history is readable with `GET /api/v1/audit?entityType=LEAD&entityId=`.
+
+`GET /api/v1/leads/report/funnel` returns all five lead stages (including zero counts), `totalLeads`, `openLeads`, and `wonRatePercent`. Stage share uses all current dealership leads; won rate uses closed leads only (`WON / (WON + LOST)`), so open leads do not count as losses. The same page shows the vehicle sales summary from `GET /api/v1/vehicles/report/sales`. This is a current snapshot, not a date-range or historical trend report.
 
 Backend placement: new package `com.dealerops.core.lead` following the `customer` package layout (controller, service, entity, repository, dto). Reuse `CustomerService` to create the customer and `MembershipRepository` to validate the owner; do not duplicate customer validation.
 
@@ -224,7 +227,7 @@ The `app_user` table keeps the unique `username` and adds nullable `phone`; uniq
 - `/login`: one "Email, username or phone number" field + password; no social sign-in buttons.
 - `/register`: username, display name, email and/or phone, and password.
 - Admin-created staff accounts need an email and/or phone; the seeded platform admin needs only a username.
-- `/no-access`: asks the user to contact their administrator and displays the username as support information.
+- `/no-access`: a signed-in user with no dealership, including Google, sees that the account is not provisioned yet, the username, and a way to request one dealership. A member of that dealership approves or rejects it on `/team`.
 - Admin Members tab: pending accounts show email and phone and can be bound without changing credentials.
 
 ## 6. Image Studio (P5)
@@ -270,7 +273,16 @@ Gateway: the photo paths use their own route `dealer-core-photos` without `Cache
 
 An **Image Studio** section in the DMS vehicle drawer, between Work orders and Audit: `Upload photo` (JPEG/PNG and 2 MB checked in the browser first), a large preview with an Original / Enhanced toggle, preset buttons `Auto fix` / `Brighten` / `Sharpen`, `Delete` with a second confirmation, and a thumbnail strip.
 
-## 7. Manual acceptance
+## 7. Configurable ad compliance rules
+
+AD-15 is implemented as a platform-admin editor for the existing OMVIC rule catalog. Each rule can be enabled or disabled, changed between `BLOCK` and `REVIEW`, and given a custom finding message. Rule configuration is global and stored in `compliance_rule_override`; dealer users cannot read or modify it. Any saved change increments listing content versions across dealerships, so every prior check becomes stale and must be rerun before Ready or export. The engine retains ownership of the rule logic; this editor only controls how a failed rule is applied and presented.
+
+| Method and path | Result |
+|---|---|
+| `GET /api/v1/admin/compliance-rules` | Platform-admin catalog with effective settings |
+| `PUT /api/v1/admin/compliance-rules/{ruleId}` | Save `enabled`, `severity`, and `message`; unknown rule → 404, invalid severity → 400 |
+
+## 8. Manual acceptance
 
 The full, current steps are [16-Acceptance-and-Test.md](16-Acceptance-and-Test.md) §5a (EXT-01–EXT-10); this table is the summary.
 

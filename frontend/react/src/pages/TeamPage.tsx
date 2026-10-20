@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import AppLayout from '../layouts/AppLayout';
 import { joinRequestsApi } from '../api/joinRequests';
+import { accountSourceLabel, membersApi, type MemberOption } from '../api/members';
 import {
   JOIN_REQUESTS_CHANGED,
   emitJoinRequestsChanged,
@@ -8,8 +9,11 @@ import {
   type JoinRequestPayload,
   type Notification,
 } from '../api/notifications';
-import { codeOf, messageOf, statusOf } from '../api/http';
+import { codeOf, statusOf } from '../api/http';
+import { dateTimeLocal } from '../format';
 import { describeError } from '../api/errors';
+
+const PAGE_SIZE = 10;
 
 type JoinRequestRow = Notification & { kind: 'JOIN_REQUEST'; payload: JoinRequestPayload };
 
@@ -26,21 +30,15 @@ function statusLabel(n: Notification): { text: string; className: string } {
   return { text: 'Resolved', className: 'chip' };
 }
 
-function actionLabel(n: Notification): string {
-  if (n.resolvedAt == null) return '';
-  if (n.resolvedAction === 'APPROVED') return 'Approved';
-  if (n.resolvedAction === 'REJECTED') return 'Rejected';
-  if (n.resolvedAction === 'CANCELLED') return 'Cancelled';
-  return 'Resolved';
-}
-
 /**
- * Dealership inbox history: every notification scoped to the current tenant, newest first.
- * Pending rows still carry the Approve / Reject actions; resolved rows show who settled it
- * and when, so the dealership keeps an audit trail of its own membership decisions.
+ * This dealership's current members (with how each account was created) and its join-request history (GET /api/v1/dealer/notifications?includeResolved=true).
+ * Pending rows carry Approve / Reject for any active member; resolved rows show who settled
+ * them and when. Newest first, 10 per page.
  */
 export default function TeamPage() {
   const [rows, setRows] = useState<JoinRequestRow[]>([]);
+  const [members, setMembers] = useState<MemberOption[]>([]);
+  const [page, setPage] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [acting, setActing] = useState<string | null>(null);
@@ -48,10 +46,11 @@ export default function TeamPage() {
   async function load() {
     setLoading(true); setError('');
     try {
-      const list = await notificationsApi.list(true);
+      const [list, memberList] = await Promise.all([notificationsApi.list(true), membersApi.list()]);
       setRows(list.filter(isJoinRequest));
+      setMembers(memberList.data);
     } catch (err) {
-      setError(describeError(err, 'load the inbox'));
+      setError(describeError(err, 'load join requests'));
     } finally {
       setLoading(false);
     }
@@ -70,8 +69,6 @@ export default function TeamPage() {
       if (verb === 'approve') await joinRequestsApi.approve(username);
       else await joinRequestsApi.reject(username);
     } catch (err) {
-      // Row was already resolved (another admin, or the inbox popover): refresh instead of
-      // surfacing an error for an action that has already been applied.
       const gone = statusOf(err) === 404 || codeOf(err) === 'NOT_FOUND';
       if (!gone) setError(describeError(err, `${verb} the request`));
     } finally {
@@ -81,23 +78,51 @@ export default function TeamPage() {
     emitJoinRequestsChanged();
   }
 
+  const pageCount = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
+  const safePage = Math.min(page, pageCount - 1);
+  const visible = rows.slice(safePage * PAGE_SIZE, safePage * PAGE_SIZE + PAGE_SIZE);
+
   return (
     <AppLayout>
     <section className="page">
       <header className="page-header">
         <div>
           <h1>Team</h1>
-          <p className="muted">Google users who asked to join this dealership. Newest first.</p>
+          <p className="muted">Current members and how each joined, then everyone who asked to join this dealership, newest first.</p>
         </div>
       </header>
 
       {error && <div className="alert alert-error">{error}</div>}
+
+      {!loading && members.length > 0 && (
+        <div className="table-wrap" style={{ marginBottom: 24 }}>
+        <table className="table">
+          <thead>
+            <tr>
+              <th>Member</th>
+              <th>Username</th>
+              <th>Source</th>
+            </tr>
+          </thead>
+          <tbody>
+            {members.map(m => (
+              <tr key={m.username}>
+                <td style={{ whiteSpace: 'nowrap' }}>{m.displayName}</td>
+                <td>{m.username}</td>
+                <td><span className="tag">{accountSourceLabel(m.source)}</span></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        </div>
+      )}
 
       {loading ? (
         <div className="state">Loading…</div>
       ) : rows.length === 0 ? (
         <div className="state">No join requests yet.</div>
       ) : (
+        <>
         <div className="table-wrap">
         <table className="table">
           <thead>
@@ -105,6 +130,7 @@ export default function TeamPage() {
               <th>Name</th>
               <th>Email</th>
               <th>Username</th>
+              <th>Source</th>
               <th>Requested</th>
               <th>Status</th>
               <th>Resolved</th>
@@ -112,24 +138,24 @@ export default function TeamPage() {
             </tr>
           </thead>
           <tbody>
-            {rows.map(r => {
+            {visible.map(r => {
               const status = statusLabel(r);
-              const pending = r.resolvedAt == null;
               return (
                 <tr key={r.id}>
                   <td style={{ whiteSpace: 'nowrap' }}>{r.payload.displayName}</td>
                   <td>{r.payload.email ?? '—'}</td>
                   <td>{r.payload.username}</td>
-                  <td>{new Date(r.createdAt).toLocaleString()}</td>
+                  <td><span className="tag">{accountSourceLabel(r.payload.source)}</span></td>
+                  <td>{dateTimeLocal(r.createdAt)}</td>
                   <td><span className={status.className}>{status.text}</span></td>
                   <td>
                     {r.resolvedAt
-                      ? <>{new Date(r.resolvedAt).toLocaleString()}<br />
+                      ? <>{dateTimeLocal(r.resolvedAt)}<br />
                           <span className="muted">by {r.resolvedBy}</span></>
                       : '—'}
                   </td>
                   <td>
-                    {pending ? (
+                    {r.resolvedAt == null ? (
                       <>
                         <button
                           type="button"
@@ -149,7 +175,7 @@ export default function TeamPage() {
                           Reject
                         </button>
                       </>
-                    ) : actionLabel(r)}
+                    ) : '—'}
                   </td>
                 </tr>
               );
@@ -157,6 +183,17 @@ export default function TeamPage() {
           </tbody>
         </table>
         </div>
+        {rows.length > PAGE_SIZE && (
+          <div className="toolbar">
+            <span className="muted">{rows.length} requests</span>
+            <div className="pagination">
+              <button type="button" disabled={safePage <= 0} onClick={() => setPage(p => Math.max(0, p - 1))}>&lsaquo;</button>
+              <span className="muted">{safePage + 1} / {pageCount}</span>
+              <button type="button" disabled={safePage >= pageCount - 1} onClick={() => setPage(p => p + 1)}>&rsaquo;</button>
+            </div>
+          </div>
+        )}
+        </>
       )}
     </section>
     </AppLayout>

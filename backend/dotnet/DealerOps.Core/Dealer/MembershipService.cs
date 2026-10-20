@@ -38,7 +38,7 @@ public class MembershipService
             {
                 var user = _db.AppUsers.FirstOrDefault(u => u.Username == m.Username);
                 return new MemberResponse(m.Username, user?.DisplayName ?? "", AppRole.DealerUser.Value, m.Active,
-                    SignInMethod(user));
+                    SignInMethod(user), user?.Email, user?.Phone);
             })
             .Where(item => Matches(item, q))
             .ToList();
@@ -135,13 +135,19 @@ public class MembershipService
         try { _db.SaveChanges(); }
         catch (DbUpdateException ex) { throw _accountRules.Conflict(ex); }
 
+        // First creation of the login (AUTH-22). The actor is the new username. The password
+        // is never written into the summary. The membership row below stays as well.
+        if (existing == null)
+            _audit.Record("APP_USER", user.Id, "CREATE", null, username,
+                new Dictionary<string, object> { ["username"] = username, ["registration"] = "admin" });
+
         _audit.Record("MEMBERSHIP", membership.Id, "CREATE", dealerId, ActorUsername(),
             new Dictionary<string, object> { ["username"] = username });
         _db.SaveChanges();
         tx?.Commit();
 
         return new MemberResponse(membership.Username, user.DisplayName, AppRole.DealerUser.Value, membership.Active,
-            SignInMethod(user));
+            SignInMethod(user), user.Email, user.Phone);
     }
 
     /// <summary>
@@ -257,7 +263,9 @@ public class MembershipService
         if (string.IsNullOrWhiteSpace(q)) return true;
         var needle = q.Trim().ToLowerInvariant();
         return (item.DisplayName ?? "").ToLowerInvariant().Contains(needle)
-               || (item.Username ?? "").ToLowerInvariant().Contains(needle);
+               || (item.Username ?? "").ToLowerInvariant().Contains(needle)
+               || (item.Email ?? "").ToLowerInvariant().Contains(needle)
+               || (item.Phone ?? "").Contains(needle);
     }
 
     private static string ActorUsername() => TenantContext.Get()?.Username ?? "";

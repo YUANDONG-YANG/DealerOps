@@ -20,8 +20,7 @@ public static class SystemPrompts
 
         Look for: contradictory claims, implied certification the facts do not support, unclear prior-use hints, incomplete warranty boasts, and finance/lease wording that looks misleading even if an APR string is present.
 
-        Reply with plain text only: one short note per line, at most 8 lines, each under 300 characters. No Markdown, no code fences, no headings, no numbering. If nothing misleading stands out, reply with exactly:
-        No additional misleading claims found.
+        Reply with one JSON object per line, at most 8 lines, and no other text. Each object has code (short identifier), severity (REVIEW or INFO; AI notes never block), explanation (why), and message (the human-readable note, under 300 characters). No Markdown and no code fences. If nothing misleading stands out, reply with one object whose code is CLEAR, whose severity is INFO, and whose explanation and message are both exactly: No additional misleading claims found.
 
         Never say the ad is OMVIC approved, OMVIC certified, or legally cleared. Never output SQL, stack traces, API keys, phone/email/address that are not already in the user message. Never instruct the caller to change HTTP status codes.
         """;

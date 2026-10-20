@@ -1,39 +1,31 @@
 import { initializeApp } from 'firebase/app'
 import {
-  createUserWithEmailAndPassword,
   getAuth,
   signOut as signOutFirebase,
   signInWithEmailAndPassword,
-  updateProfile,
+  type Auth,
   type UserCredential,
 } from 'firebase/auth'
 
-const firebaseConfig = {
-  apiKey: 'AIzaSyC60CS2NNLpslRXsMvThWS3E8NINVniqs8',
-  authDomain: 'dealer-ops-c0851.firebaseapp.com',
-  projectId: 'dealer-ops-c0851',
-  storageBucket: 'dealer-ops-c0851.firebasestorage.app',
-  messagingSenderId: '5817410828',
-  appId: '1:5817410828:web:717e6daeb9a840aa399529',
-}
+// Read from frontend/react/.env.local (Git-ignored), never committed. Without an API key the
+// app runs without Firebase email sign-in; DealerOps password and Google sign-in still work.
+const env = import.meta.env
+const firebaseAuth: Auth | null = env.VITE_FIREBASE_API_KEY
+  ? getAuth(initializeApp({
+      apiKey: env.VITE_FIREBASE_API_KEY,
+      authDomain: env.VITE_FIREBASE_AUTH_DOMAIN,
+      projectId: env.VITE_FIREBASE_PROJECT_ID,
+      storageBucket: env.VITE_FIREBASE_STORAGE_BUCKET,
+      messagingSenderId: env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+      appId: env.VITE_FIREBASE_APP_ID,
+    }))
+  : null
 
-const app = initializeApp(firebaseConfig)
-export const firebaseAuth = getAuth(app)
-
-export function firebaseSignOut(): Promise<void> {
-  return signOutFirebase(firebaseAuth)
+export async function firebaseSignOut(): Promise<void> {
+  if (firebaseAuth) await signOutFirebase(firebaseAuth)
 }
 
 export function firebaseSignIn(email: string, password: string): Promise<UserCredential> {
+  if (!firebaseAuth) return Promise.reject(new Error('Firebase is not configured.'))
   return signInWithEmailAndPassword(firebaseAuth, email, password)
-}
-
-export async function firebaseRegister(
-  email: string,
-  password: string,
-  displayName: string,
-): Promise<UserCredential> {
-  const credential = await createUserWithEmailAndPassword(firebaseAuth, email, password)
-  await updateProfile(credential.user, { displayName })
-  return credential
 }
