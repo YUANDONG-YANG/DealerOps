@@ -50,7 +50,7 @@ Two stored additions come from SCOPE-BASELINE errata 7–8, not from this docume
 | DMS-02 | Repair cost and Carfax link are optional | PDF §3 | Must |
 | DMS-03 | VIN is unique within a dealer (`VIN_DUP` on duplicate); different dealers may hold the same VIN | SCOPE | Must |
 | DMS-04 | VIN is upper-cased and validated as 17-character format | Derived | Should |
-| DMS-05 | Car source and condition are dropdowns limited to the enum values | PDF §3 | Must |
+| DMS-05 | Car source and condition are dropdowns limited to the enum values; a new vehicle has neither pre-selected | PDF §3 | Must |
 | DMS-06 | Vehicle list: paged (10 per page by default), newest first | SCOPE | Must |
 | DMS-07 | The list supports keyword search on VIN / make / model and filters on status and condition | SCOPE | Should |
 | DMS-08 | Vehicle detail shows all fields, the linked customer, and audit history | PDF §3, §6 | Must |

@@ -10,21 +10,17 @@ import WorkOrderPanel from '../components/WorkOrderPanel';
 import PhotoStudioPanel from '../components/PhotoStudioPanel';
 import StatusTag from '../components/StatusTag';
 import { vehiclesApi, errorCode, errorStatus } from '../api/vehicles';
-import { cad } from '../format';
+import { customersApi } from '../api/customers';
+import { cad, enumLabel } from '../format';
 import { catalogApi, vinDecodeError } from '../api/catalog';
 import { listingsApi, checkStatusLabel } from '../api/listings';
 import { auditApi } from '../api/audit';
-import { fieldErrorsOf, messageOf } from '../api/http';
+import { collectAllPages, fieldErrorsOf, messageOf } from '../api/http';
 import { describeError } from '../api/errors';
 
 const SOURCES = ['TRADE_IN', 'AUCTION', 'PRIVATE_PURCHASE', 'OTHER'] as const;
 const CONDITIONS = ['CERTIFIED', 'AS_IS', 'UNFIT', 'IRREPARABLE'] as const;
 const BODY_TYPES = ['SEDAN', 'SUV', 'TRUCK', 'MOTORCYCLE', 'COUPE', 'HATCHBACK', 'VAN', 'OTHER'] as const;
-
-function enumLabel(v: string) {
-  const s = String(v || '').split('_').join(' ').toLowerCase();
-  return s ? s.charAt(0).toUpperCase() + s.slice(1) : '';
-}
 
 function profit(v: { soldPrice?: unknown; purchaseCost?: unknown; repairCost?: unknown }) {
   if (v.soldPrice == null || v.soldPrice === '' || v.purchaseCost == null || v.purchaseCost === '') return null;
@@ -105,14 +101,14 @@ const ALL_TOUCHED: Record<string, boolean> = {
 const FILTER_DEBOUNCE_MS = 350;
 
 function blankForm(): VehicleForm {
-  return { make: '', model: '', modelYear: '', vin: '', source: 'AUCTION', purchaseCost: '', addedOn: '', conditionCode: 'AS_IS', bodyType: '', repairCost: '', carfaxUrl: '' };
+  return { make: '', model: '', modelYear: '', vin: '', source: '', purchaseCost: '', addedOn: '', conditionCode: '', bodyType: '', repairCost: '', carfaxUrl: '' };
 }
 
 function vehicleToForm(data: any): VehicleForm {
   return {
     make: data.make ?? '', model: data.model ?? '', modelYear: data.modelYear != null ? String(data.modelYear) : '',
-    vin: data.vin ?? '', source: data.source ?? 'AUCTION', purchaseCost: data.purchaseCost != null ? String(data.purchaseCost) : '',
-    addedOn: data.addedOn ?? '', conditionCode: data.conditionCode ?? 'AS_IS', bodyType: data.bodyType ?? 'OTHER',
+    vin: data.vin ?? '', source: data.source ?? '', purchaseCost: data.purchaseCost != null ? String(data.purchaseCost) : '',
+    addedOn: data.addedOn ?? '', conditionCode: data.conditionCode ?? '', bodyType: data.bodyType ?? 'OTHER',
     repairCost: data.repairCost != null ? String(data.repairCost) : '', carfaxUrl: data.carfaxUrl ?? '',
   };
 }
@@ -165,7 +161,8 @@ export default function DmsPage() {
   const [formModelOptions, setFormModelOptions] = useState<string[]>([]);
 
   const [sellOpen, setSellOpen] = useState(false);
-  const [sellForm, setSellForm] = useState({ soldOn: '', soldPrice: '' });
+  const [sellForm, setSellForm] = useState({ soldOn: '', soldPrice: '', buyerId: '' });
+  const [buyers, setBuyers] = useState<any[]>([]);
   const [sellError, setSellError] = useState('');
 
   const listSeqRef = useRef(0);
@@ -396,8 +393,11 @@ export default function DmsPage() {
 
   function beginSell() {
     setSellError('');
-    setSellForm({ soldOn: '', soldPrice: '' });
+    setSellForm({ soldOn: '', soldPrice: '', buyerId: '' });
     setSellOpen(true);
+    // The buyer list is optional help for linking the sale to a CRM customer.
+    collectAllPages<any>((p) => customersApi.list({ page: p, size: 100 }))
+      .then(setBuyers).catch(() => setBuyers([]));
   }
 
   async function openSell(id: number) {
@@ -431,6 +431,13 @@ export default function DmsPage() {
     const seq = detailSeqRef.current;
     try {
       await vehiclesApi.sell(edit.id, { soldOn, soldPrice: price, version: edit.version });
+      if (sellForm.buyerId) {
+        try {
+          await customersApi.link(Number(sellForm.buyerId), edit.id);
+        } catch (e) {
+          setError(`Vehicle sold, but linking the buyer failed: ${describeError(e, 'link buyer')} Link it from the CRM page.`);
+        }
+      }
       if (seq === detailSeqRef.current) { setSellOpen(false); setDrawer(false); }
       await load();
     } catch (e) {
@@ -639,6 +646,9 @@ export default function DmsPage() {
                     onBlur={() => blurForm(field.key)} disabled={isSold} />
                 )}
                 {field.key === 'vin' && !edit && vinFacts && <div className="muted" style={{ marginTop: 4 }}>{vinFacts}</div>}
+                {field.key === 'carfaxUrl' && URL_PATTERN.test(form.carfaxUrl) && (
+                  <a href={form.carfaxUrl} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-block', marginTop: 4 }}>Open Carfax report</a>
+                )}
               </div>
               {(validationErrors[field.key] || serverErrors[field.key]) && (
                 <div className="form-error">{validationErrors[field.key] || serverErrors[field.key]}</div>
@@ -649,6 +659,7 @@ export default function DmsPage() {
           <div className="form-item">
             <label className="form-label form-required">Source</label>
             <select className="select" value={form.source} onChange={e => updateForm('source', e.target.value, true)} disabled={isSold}>
+              {!form.source && <option value="">Select source</option>}
               {/* Virtual option for a value the backend already knows but the frontend enum
                   does not list yet — stops the stored row from silently flipping on save. */}
               {form.source && !SOURCES.includes(form.source as (typeof SOURCES)[number]) && (
@@ -662,6 +673,7 @@ export default function DmsPage() {
           <div className="form-item">
             <label className="form-label form-required">Condition</label>
             <select className="select" value={form.conditionCode} onChange={e => updateForm('conditionCode', e.target.value, true)}>
+              {!form.conditionCode && <option value="">Select condition</option>}
               {form.conditionCode && !CONDITIONS.includes(form.conditionCode as (typeof CONDITIONS)[number]) && (
                 <option value={form.conditionCode}>{enumLabel(form.conditionCode)}</option>
               )}
@@ -681,6 +693,14 @@ export default function DmsPage() {
             </select>
             {(validationErrors.bodyType || serverErrors.bodyType) && <div className="form-error">{validationErrors.bodyType || serverErrors.bodyType}</div>}
           </div>
+
+          {edit?.id && !isSold && (
+            <>
+              {/* Optional fields set by the sell action; an in-stock vehicle shows them empty. */}
+              <div className="form-item"><label className="form-label">Sold date</label><span>—</span></div>
+              <div className="form-item"><label className="form-label">Sold price</label><span>—</span></div>
+            </>
+          )}
 
           {isSold && (
             <>
@@ -748,6 +768,17 @@ export default function DmsPage() {
         <div className="form-item">
           <label className="form-label form-required">Sold price</label>
           <input className="input" value={sellForm.soldPrice} onChange={e => setSellForm(f => ({ ...f, soldPrice: e.target.value }))} />
+        </div>
+        <div className="form-item">
+          <label className="form-label">Buyer (CRM customer)</label>
+          {edit?.linkedCustomer ? (
+            <span>{edit.linkedCustomer.name}</span>
+          ) : (
+            <select className="select" aria-label="Buyer" value={sellForm.buyerId} onChange={e => setSellForm(f => ({ ...f, buyerId: e.target.value }))}>
+              <option value="">Not linked yet</option>
+              {buyers.map(c => <option key={c.id} value={String(c.id)}>{c.name} · {c.phone}</option>)}
+            </select>
+          )}
         </div>
         {sellError && <p className="danger-text">{sellError}</p>}
       </ConfirmDialog>

@@ -60,7 +60,7 @@ All dealer users have the same permissions; the sources do not distinguish manag
 | ID | Requirement | Priority |
 |---|---|---|
 | AUTH-01 | Only two roles: platform admin and dealer user | Must |
-| AUTH-02 | Admin creates a dealership with at least a registered name, phone, email and address. The ad rule for dealer name and contact uses these fields | Must |
+| AUTH-02 | Admin creates a dealership with at least a registered name, phone, email and address. The email must be valid, each value fits its column, and values are trimmed. The ad rule for dealer name and contact uses these fields | Must |
 | AUTH-03 | Admin creates a dealership login with username, display name, temporary password (at least 8 characters), and an email and/or phone. One login belongs to one dealership | Must |
 | AUTH-04 | Admin lists a dealership's logins | Must |
 | AUTH-05 | Admin removes a login, and its business access ends immediately. Removal is a soft unbind: the account and its history stay. A removed user can still sign in but sees only the no-access page | Must |
@@ -84,7 +84,7 @@ All dealer users have the same permissions; the sources do not distinguish manag
 Rules that follow from this:
 - Audit records keep the actor's username after the login is removed.
 - Removing a dealership's last login keeps its data, and new logins can be bound later.
-- Re-binding to the same dealership reactivates the existing binding and resets the temporary password. Binding to a different dealership creates a new binding row.
+- Re-binding to the same dealership reactivates the existing binding. The account keeps its own password, as the API contract states (design/14 §3.6); if the person has forgotten it, the admin uses the separate reset-password action. Binding to a different dealership creates a new binding row.
 
 ## 3. DMS (vehicles)
 
@@ -109,16 +109,16 @@ There are two statuses, `IN_STOCK` and `SOLD`, and the server derives them. A ve
 
 | ID | Requirement | Priority |
 |---|---|---|
-| DMS-01 | Add a vehicle. All 8 required fields must be present, with an error per field | Must |
+| DMS-01 | Add a vehicle. All 8 required fields must be present, with an error per field. Money (purchase cost, repair cost, sold price) has at most two decimals; more is refused, never rounded | Must |
 | DMS-02 | Repair cost and Carfax URL are optional on create. Sold date and sold price are optional fields entered only through the sell action, and must be sent together (DMS-10) | Must |
 | DMS-03 | VIN is unique per dealership; a duplicate returns `VIN_DUP`. Two dealerships may hold the same VIN | Must |
 | DMS-04 | VIN is upper-cased and must be 17 letters or digits with no I/O/Q | Should |
-| DMS-05 | Source and condition are drop-downs that accept only the enum values | Must |
+| DMS-05 | Source and condition are drop-downs that accept only the enum values. A new vehicle starts with neither chosen, so the user must pick both. The condition `AS_IS` is shown as "As-is" | Must |
 | DMS-06 | The list is paged (10 per page), newest first | Must |
 | DMS-07 | Keyword search on VIN / make / model, plus filters on status and condition | Should |
-| DMS-08 | The detail view shows all fields, the linked customer and the audit history | Must |
+| DMS-08 | The detail view shows all fields, the linked customer and the audit history; an in-stock vehicle shows sold date and sold price as empty. A stored Carfax URL is shown as a link that opens the report | Must |
 | DMS-09 | Every non-sold field of an in-stock vehicle can be edited; the sold fields are set only by the sell action | Must |
-| DMS-10 | Sold date and sold price are entered together. Sending only one returns `SOLD_PAIR_REQUIRED` | Must |
+| DMS-10 | Sold date and sold price are entered together. Sending only one returns `SOLD_PAIR_REQUIRED`. The sell dialog can also name the buyer from CRM, which links the vehicle to that customer (CRM-05) | Must |
 | DMS-11 | After sale, these purchase fields are locked: make, model, year, VIN, source, purchase cost, date added, repair cost and Carfax. A change returns `SOLD_LOCKED` | Must |
 | DMS-12 | A sold vehicle cannot be sold again; a second sale returns `SOLD_LOCKED` | Must |
 | DMS-13 | Writes carry `version`. A mismatch returns `VERSION_CONFLICT`, and the UI asks the user to refresh | Should |
@@ -152,7 +152,7 @@ There are two statuses, `IN_STOCK` and `SOLD`, and the server derives them. A ve
 |---|---|---|
 | CRM-01 | Add a customer. All four fields are required, with an error per field | Must |
 | CRM-02 | Edit the four fields | Must |
-| CRM-03 | The list shows 10 per page, with search on name / email / phone | Must |
+| CRM-03 | The list shows 10 per page with name, email, phone, home address and the purchased vehicles, and searches on name / email / phone | Must |
 | CRM-04 | The detail view shows the customer, the linked vehicles (year make model, VIN, status) and the audit history | Must |
 | CRM-05 | Link an unlinked vehicle of this dealership (in stock or sold) from the customer detail | Must |
 | CRM-06 | The link picker lists only vehicles that can be linked: none from other dealerships and none already linked | Must |
@@ -178,25 +178,25 @@ The rule IDs are AD-R01 to R08, R10 to R14 and R20 to R25. There is no R09 and n
 |---|---|---|
 | AD-R01 | Dealer registered name missing | BLOCK `DEALER_NAME_MISSING` |
 | AD-R02 | Dealer contact | All missing: BLOCK `DEALER_CONTACT_MISSING`. Some missing: REVIEW `DEALER_CONTACT_INCOMPLETE` |
-| AD-R03 | Hint of prior use (police / emergency, taxi / limousine, daily lease / rental) without a clear disclosure | REVIEW `PRIOR_USE_UNCLEAR` |
+| AD-R03 | Hint of prior use (police / emergency, taxi / limousine, daily lease / rental) in the copy, or a prior-use category recorded in the checklist, without a clear disclosure | REVIEW `PRIOR_USE_UNCLEAR` |
 | AD-R04 | Copy says new (brand new / never used / 0 km / new car) but the model year is ≤ current year − 2 | REVIEW `YEAR_NEW_USED_CONTRADICTION` |
 | AD-R05 | Year not in the copy | REVIEW `YEAR_NOT_IN_COPY` |
 | AD-R06 | Warranty claim present (extended warranty, warranty included, free warranty) | REVIEW `WARRANTY_CLAIM_NEEDS_REVIEW` |
 | AD-R07 | Price missing | BLOCK `PRICE_MISSING` |
 | AD-R08 | Condition | "Certified" on a vehicle that is not certified: BLOCK `CONDITION_MISMATCH`. `AS_IS` / `UNFIT` / `IRREPARABLE` not stated: BLOCK `CONDITION_UNDISCLOSED`. Certified vehicle with no certified wording: REVIEW `CERTIFIED_NOT_IN_COPY` |
 | AD-R10 | Finance-triggered ad without APR | BLOCK `FINANCE_APR_MISSING` |
-| AD-R11 | APR placement (online) | REVIEW `FINANCE_APR_PROXIMITY`, raised on every online finance-triggered ad. Not checked for `RADIO_TV_BILLBOARD` |
-| AD-R12 | Finance term missing | REVIEW `FINANCE_TERM_MISSING` |
-| AD-R13 | Cash price / cost of borrowing | Covered by R07; there is no separate rule |
+| AD-R11 | APR as prominent as the payment (online) | REVIEW `FINANCE_APR_PROXIMITY` when the copy shows an APR and a payment amount but no APR is printed next to (within 80 characters of) a payment. Not checked for `RADIO_TV_BILLBOARD` |
+| AD-R12 | Finance term missing (a warranty length such as "12 month warranty" is not a term) | REVIEW `FINANCE_TERM_MISSING` |
+| AD-R13 | Cash price / cost of borrowing | A finance-triggered ad with no cash price and no cost of borrowing: BLOCK `FINANCE_CASH_PRICE_MISSING`. An amount followed by a payment cadence, "down" or "due at signing" is not a cash price |
 | AD-R14 | Broadcast exemption | Exempts R11 only. Price and APR are still required, and a missing term is still an R12 hint |
 | AD-R20 | Lease ad does not say it is a lease | BLOCK `LEASE_STATEMENT_MISSING` |
 | AD-R21 | Lease term missing | REVIEW `LEASE_TERM_MISSING` |
 | AD-R22 | Lease payment missing | REVIEW `LEASE_RENT_MISSING` (R07 still applies) |
 | AD-R23 | Lease APR missing | BLOCK `LEASE_APR_MISSING` |
-| AD-R24 | Lease down payment missing | REVIEW `LEASE_DOWN_MISSING` |
-| AD-R25 | Annual km allowance | Below 20,000 with no excess-km charge: BLOCK `LEASE_EXCESS_KM_MISSING`. 20,000 or more: nothing required. No allowance stated: REVIEW `LEASE_ALLOWANCE_UNSTATED` |
+| AD-R24 | Lease down payment missing: the upfront amount (or an explicit $0 / zero down) is not stated | REVIEW `LEASE_DOWN_MISSING` |
+| AD-R25 | Annual km allowance | Below 20,000 with no per-km excess charge (such as `$0.12/km`): BLOCK `LEASE_EXCESS_KM_MISSING`. 20,000 or more: nothing required. No allowance stated: REVIEW `LEASE_ALLOWANCE_UNSTATED` |
 
-An ad is **finance-triggered** when its kind is `FINANCE`, or its kind is `CASH` and the title or body matches an APR or a payment amount pattern (an amount per month, bi-weekly or per week). `LEASE` ads use the lease rules instead.
+An ad is **finance-triggered** when its kind is `FINANCE`, or its kind is `CASH` and the title or body shows an interest rate (labelled APR or not, such as "0% financing") or a payment amount (an amount per month, bi-weekly or per week). `LEASE` ads use the lease rules instead.
 
 **Check flow and states:**
 - Before any check, the state is `NEEDS_AI`.
@@ -214,7 +214,7 @@ An ad is **finance-triggered** when its kind is `FINANCE`, or its kind is `CASH`
 | AD-01 | Create and edit one ad draft per vehicle of the dealership | Must |
 | AD-02 | Show a checklist for the chosen kind and medium, and collect the salesperson's answers that the copy cannot prove: prior-use category, extended-warranty terms (when offered) and annual lease kilometre allowance. The answers are saved with the ad and feed the check | Must |
 | AD-03 | Run the BLOCK / REVIEW rules and store results with reason codes | Must |
-| AD-04 | Trigger the rules by kind, by medium and by APR / payment patterns in `CASH` copy. `LEASE` uses the lease rules | Must |
+| AD-04 | Trigger the rules by kind, by medium and by rate / payment patterns in `CASH` copy. `LEASE` uses the lease rules | Must |
 | AD-05 | Year and condition come from DMS | Must |
 | AD-06 | Dealer name and contact come from the dealer profile | Must |
 | AD-07 | A hard-rule hit skips AI and returns `BLOCKED` | Must |
@@ -246,7 +246,7 @@ The spec PDF has no such page. It is added by scope erratum 2 to meet the course
 | ID | Requirement | Priority |
 |---|---|---|
 | AUD-01 | Audit vehicle create, edit and sell | Must |
-| AUD-02 | Audit customer create, edit, link and unlink | Must |
+| AUD-02 | Audit customer create, edit, link and unlink. A save that changes nothing writes no record | Must |
 | AUD-03 | Each record holds the actor (username), the action (`CREATE` / `UPDATE` / `SELL` / `LINK` / `UNLINK`), the time (stored in UTC, shown in local time) and the entity type and id | Must |
 | AUD-04 | Record a summary of the changed fields. For customer phone, email and address, record only the field name, never the value | Should |
 | AUD-05 | The audit trail is append-only | Must |
@@ -260,7 +260,7 @@ The spec PDF has no such page. It is added by scope erratum 2 to meet the course
 | ARC-04 | Four apps: `dealer-web`, `dealer-gateway`, `dealer-core`, `ai-service` | Must |
 | ARC-05 | Synchronous REST and one MySQL 8 database, with no message queue | Must |
 | ARC-06 | APIs live under `/api/v1`, and the error body is `{code, message}` | Must |
-| ARC-07 | Terraform deploys the three .NET 10 services as zip packages on Azure App Service and the built React front end on an App Service web app; CI compiles and validates, and `deploy/deploy.sh` publishes (optionally loading demo data with `--seed`). Course reviews 2 and 3 are demonstrated in the cloud. There are no containers (erratum 5) | Must |
+| ARC-07 | Terraform deploys the three .NET 10 services as zip packages on Azure App Service and the built React front end on an App Service web app; CI compiles and validates, and `deploy/deploy.sh` publishes (optionally loading the committed `dealer-platform/seed` demo data with `--seed`, without replacing existing rows). Course reviews 2 and 3 are demonstrated in the cloud. There are no containers (erratum 5) | Must |
 | SEC-01 | Passwords are BCrypt-hashed on the server and never logged or exposed to the front end | Must |
 | SEC-02 | The gateway and core both validate the JWT signature, issuer, audience and expiry. The gateway rejects unknown roles, and core authorizes by role (admin ↔ staff crossover returns 403) | Must |
 | SEC-03 | HTTPS everywhere in the cloud | Must |

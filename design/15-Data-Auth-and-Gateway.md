@@ -294,7 +294,9 @@ function runFixedOmvic(listing, vehicle, dealer) -> { hardBlocks[], softGaps[], 
   // --- prior use (always "if applicable") ---
   // no vehicle column. Cue regex includes police/taxi/limo(usine)/daily rental/lease return etc.
   // Cue without a disclosure phrase → soft (course: not a hard publish block; see PROTOCOL §C.0a)
-  if mentionsPriorUseCue(textNorm) AND !mentionsPriorUseDisclosure(textNorm):
+  // A checklist category (listing.priorUse) also requires the disclosure; DAILY_RENTAL accepts
+  // "rental" or "daily lease" wording.
+  if (listing.priorUse OR mentionsPriorUseCue(textNorm)) AND !mentionsPriorUseDisclosure(textNorm, listing.priorUse):
       soft += PRIOR_USE_UNCLEAR
 
   // --- warranty (always "if offered") ---
@@ -302,20 +304,21 @@ function runFixedOmvic(listing, vehicle, dealer) -> { hardBlocks[], softGaps[], 
       soft += WARRANTY_CLAIM_NEEDS_REVIEW    // not a hard block; AI reviews completeness of terms
 
   // --- FINANCE extras ---
-  // spec §5: also when a CASH ad shows a rate or payment (e.g. "$299 per month")
-  if listing.adKind == FINANCE OR (listing.adKind == CASH AND (hasApr(text) OR showsPayment(text))):
+  // spec §5: also when a CASH ad shows a rate or payment (e.g. "$299 per month", "0% financing")
+  if listing.adKind == FINANCE OR (listing.adKind == CASH AND (showsRate(text) OR showsPayment(text))):
       hasApr = match(text, /\d+(\.\d+)?\s*%\s*(apr|annual percentage rate)|apr\s*[:=]?\s*\d+(\.\d+)?\s*%/i)
       if !hasApr:
           hard += FINANCE_APR_MISSING
-      hasTerm = match(textNorm, /\d+\s*(month|months|mo)\b|term\s*[:=]?\s*\d+/)
+      hasTerm = match(textNorm, /\d+\s*(month|months|mo)\b(?!\s*warrant)|term\s*[:=]?\s*\d+/)
       if !hasTerm:
           soft += FINANCE_TERM_MISSING
       // A payment amount alone satisfies PRICE_MISSING, so finance copy is checked separately
       // for a cash price or the cost of borrowing (PROTOCOL §C).
+      // hasCashPrice ignores amounts followed by a payment cadence or by "down" / "due at signing".
       if !hasCashPrice(text) AND !match(textNorm, /cost of borrowing|total cost of credit|borrowing cost|finance charge/):
           hard += FINANCE_CASH_PRICE_MISSING
-      if listing.medium != RADIO_TV_BILLBOARD:
-          // "interest rate shown next to APR" cannot be reliably regexed → not hard; soft so AI reviews layout
+      if listing.medium != RADIO_TV_BILLBOARD AND hasApr AND showsPayment(text) AND !aprWithin80CharsOfPayment(text):
+          // "APR as prominently as the payment": the APR must be printed next to the payment
           soft += FINANCE_APR_PROXIMITY
       // RADIO_TV_BILLBOARD: proximity display waived; do not add FINANCE_APR_PROXIMITY
 
@@ -330,13 +333,13 @@ function runFixedOmvic(listing, vehicle, dealer) -> { hardBlocks[], softGaps[], 
       // Corrected 2026-10-16: the payment cadence alone. Pairing it with hasPrice made the rule
       // unreachable, so a lease quoting only a cash price never had its payment amount checked.
       hasRent = showsPayment(text)
-      hasDown = match(textNorm, /down payment|due at signing|\$\d+.down/)
+      hasDown = statesUpfrontAmount(text)   // "$2,000 down", "down payment of $2,000", "$0 / zero down"
       if !hasTerm: soft += LEASE_TERM_MISSING
       if !hasRent: soft += LEASE_RENT_MISSING
       if !hasDown: soft += LEASE_DOWN_MISSING
       if match(textNorm, /(\d{1,5})\s*(km|kilometr).*\/\s*(year|yr|annual)/):
           allowance = capturedKm
-          if allowance < 20000 AND !match(textNorm, /excess|overage|additional.*(km|kilometr)/):
+          if allowance < 20000 AND !statesPerKmCost(text):   // "$0.12/km", "12 cents per extra km"
               hard += LEASE_EXCESS_KM_MISSING
       else:
           soft += LEASE_ALLOWANCE_UNSTATED
@@ -506,6 +509,20 @@ Verification rules enforced server-side, never in the browser: RS256 only, issue
 
 `CustomerRetention` (Core background service) runs at startup and daily. It replaces name, email, phone and address with `Deleted customer #{id}`, `deleted-{id}@invalid.example`, `0000000` and `Removed`, and audits a `CUSTOMER`/`UPDATE` by `system` with field names only. `0` turns it off. The 730-day default is a placeholder until the dealership confirms its retention period.
 
+### 8.7 Database backup and restore (specification §8 hosting)
+
+The Azure MySQL Flexible Server in `deploy/terraform/main.tf` keeps automatic backups for 7 days (`backup_retention_days`). Azure takes these itself; nothing in the application runs them.
+
+To restore after data loss or a bad change:
+
+1. Choose a UTC time before the problem, within the last 7 days.
+2. Restore to a **new** server, because a restore never overwrites the running one:
+   `az mysql flexible-server restore --resource-group <resource group> --name <new server name> --source-server <current server name> --restore-time <UTC time, ISO 8601>`
+3. Check the restored `dealer_core` database. Then point Core at it: update the MySQL connection secret in Key Vault and restart the Core App Service.
+4. Delete the old server only after the restored one has been checked.
+
+Limits of this setup: backups stay in the server's region (no geo-redundant copy), and there is no long-term copy older than 7 days. For a copy that outlives the window, take a `mysqldump` of `dealer_core` before a risky change or a demo reset and store it outside the server.
+
 ## 9. Why not Service Bus (versus the proposal)
 
 Early proposals / retired `01`–`06` easily treat DMS, CRM, and ads as async domain events: vehicle sold → queue → void ads, notify CRM. Course **v6 already rejected** that.
@@ -576,7 +593,7 @@ Rules for a shared instance:
 - **One Flyway history for the whole team.** A migration merged to `main` reaches everyone's next startup. A script that drops or rewrites data is not a local experiment any more; land schema changes the same way as code.
 - **Credentials never enter Git.** Host, user, and password live in each member's local `.env` and, for cloud, in Key Vault as `MYSQL-PASSWORD` (core only, per the table below).
 - **Not public.** Firewall the server to the team's addresses plus the App Service egress — in `deploy/terraform` that is `operator_ip_addresses` plus the Azure services rule. The "MySQL is not public" constraint below applies to the development instance too.
-- **Shared dev data is not demo data.** Seed the graded demo from a known state; do not rely on whatever the team left in the shared schema.
+- **Shared dev data is not demo data.** Seed the graded demo from the committed scripts in `dealer-platform/seed/`. On Azure, `./deploy/deploy.sh --apply --seed` loads that seed after the apps are up. `terraform apply` alone does not. The load inserts missing seed rows and does not empty a database that already has data. Copying a local dump with `deploy/seed/import-to-azure.sh` replaces every Azure row and is only for a blank or reset demo environment.
 
 **Why not Firestore or any document store.** Rejected, consistent with §9. Three reasons: (1) the single-commit ruling in §9 — locking sale fields, incrementing `contentVersion`, and writing `audit_event` in one transaction — has no equivalent across document collections, and §9 already rules out an outbox; (2) the browser never reaches the database directly in this architecture (§10), so `dealer-core` would hold the Admin SDK credential, which bypasses security rules and leaves tenancy entirely in application code; (3) it would delete the JPA and Flyway layer that `V1__init.sql` and the `V{YYYYMMDD}_{n}__` convention are built on, for no behavior the course requires. Hosted MySQL remains the database.
 

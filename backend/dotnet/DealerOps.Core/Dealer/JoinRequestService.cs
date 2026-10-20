@@ -47,6 +47,11 @@ public class JoinRequestService
         var tenant = TenantGuard.RequireTenantId();
         var user = LoadRequest(tenant, username);
 
+        // Same rule as the admin bind (AUTH-03): one login, one active dealership. The other
+        // dealership is not named, because the approver is a dealer user, not the admin.
+        if (_db.Memberships.Any(m => m.Username == username && m.Active && m.DealerId != tenant))
+            throw new ApiException(ErrorCode.DupMember, $"'{username}' is already active staff at another dealership.");
+
         var membership = _db.Memberships
             .FirstOrDefault(m => m.DealerId == tenant && m.Username == username)
             ?? new MembershipEntity();

@@ -71,6 +71,8 @@ public class VehicleService
     {
         var tenant = RequireTenant();
         RequireModelYearInRange(body.ModelYear);
+        RequireCents("purchaseCost", body.PurchaseCost);
+        RequireCents("repairCost", body.RepairCost);
         var vin = NormalizeVin(body.Vin);
         var addedOn = body.AddedOn!.Value;
         RequireAddedOnNotInFuture(addedOn);
@@ -155,6 +157,8 @@ public class VehicleService
             throw new ApiException(ErrorCode.VersionConflict, "Version conflict.");
 
         RequireModelYearInRange(body.ModelYear);
+        RequireCents("purchaseCost", body.PurchaseCost);
+        RequireCents("repairCost", body.RepairCost);
 
         // A null value-type field means "not supplied": keep what is stored.
         var next = new PatchedVehicleValues(
@@ -222,6 +226,7 @@ public class VehicleService
         if (body.SoldOn == null || body.SoldPrice == null || body.SoldPrice <= 0)
             throw new ApiException(ErrorCode.SoldPairRequired,
                 "Sold date and a sold price greater than 0 are both required.");
+        RequireCents("soldPrice", body.SoldPrice);
 
         var vehicle = LoadThisDealer(id);
 
@@ -436,6 +441,17 @@ public class VehicleService
             const string message = "Model year must not be later than next year.";
             throw new ApiException(ErrorCode.Validation, message,
                 new Dictionary<string, string> { ["modelYear"] = message });
+        }
+    }
+
+    // Money is stored with two decimals, so a third decimal is refused rather than rounded away.
+    private static void RequireCents(string field, decimal? amount)
+    {
+        if (amount is decimal value && decimal.Round(value, 2) != value)
+        {
+            const string message = "Use at most 2 decimals.";
+            throw new ApiException(ErrorCode.Validation, message,
+                new Dictionary<string, string> { [field] = message });
         }
     }
 

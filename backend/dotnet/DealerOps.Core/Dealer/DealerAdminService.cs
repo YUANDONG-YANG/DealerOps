@@ -37,10 +37,10 @@ public class DealerAdminService
         TenantGuard.RequireAdmin();
         var dealer = new DealerEntity
         {
-            LegalName = body.LegalName,
-            ContactPhone = body.ContactPhone,
-            ContactEmail = body.ContactEmail,
-            ContactAddress = body.ContactAddress,
+            LegalName = body.LegalName.Trim(),
+            ContactPhone = body.ContactPhone.Trim(),
+            ContactEmail = body.ContactEmail.Trim(),
+            ContactAddress = body.ContactAddress.Trim(),
             Active = true
         };
         using var tx = _db.Database.BeginTransaction();

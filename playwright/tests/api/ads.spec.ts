@@ -148,14 +148,150 @@ test.describe('advisory rules (REVIEW)', () => {
     ]));
   });
 
-  test('AD-R11: APR proximity is raised for online finance ads only', async ({ staffApi }) => {
+  test('AD-R11: APR proximity is raised only when the APR is not next to the payment', async ({ staffApi }) => {
     const v = await staffApi.createVehicle();
-    const finance = (medium: 'ONLINE' | 'RADIO_TV_BILLBOARD') => ({
-      ...compliantCash(v), adKind: 'FINANCE' as const, medium,
-      body: anonymous('Used 2020 Toyota Camry, sold as-is. Cash price $18,900. $299 per month at 6.9% APR for 72 months.'),
+    const base = 'Used 2020 Toyota Camry, sold as-is. Cash price $18,900.';
+    const finance = (medium: 'ONLINE' | 'RADIO_TV_BILLBOARD', title: string, body: string) => ({
+      ...compliantCash(v), adKind: 'FINANCE' as const, medium, title, body: anonymous(body),
     });
-    expect(ruleIds((await check(staffApi, v.id, finance('ONLINE'))).check)).toContain('FINANCE_APR_PROXIMITY');
-    expect(ruleIds((await check(staffApi, v.id, finance('RADIO_TV_BILLBOARD'))).check)).not.toContain('FINANCE_APR_PROXIMITY');
+    const adjacent = finance('ONLINE', '2020 Toyota Camry', `${base} $299 per month at 6.9% APR for 72 months.`);
+    expect(ruleIds((await check(staffApi, v.id, adjacent)).check)).not.toContain('FINANCE_APR_PROXIMITY');
+
+    // The payment headlines the title while the APR is buried at the end of the body.
+    const buried = (medium: 'ONLINE' | 'RADIO_TV_BILLBOARD') => finance(medium, '2020 Toyota Camry from $299 per month',
+      `${base} Includes two keys, a fresh oil change, new brakes and a full detail before delivery. ` +
+      'Finance for 72 months. Rate 6.9% APR, OAC.');
+    const online = await check(staffApi, v.id, buried('ONLINE'));
+    expect(ruleIds(online.check, 'REVIEW')).toContain('FINANCE_APR_PROXIMITY');
+    expect(ruleIds((await check(staffApi, v.id, buried('RADIO_TV_BILLBOARD'))).check)).not.toContain('FINANCE_APR_PROXIMITY');
+  });
+
+  test('AD-04: an interest rate without the word APR still makes a cash ad a finance ad', async ({ staffApi }) => {
+    const v = await staffApi.createVehicle();
+    const cash = (extra: string) => ({
+      ...compliantCash(v), body: anonymous(`Used 2020 Toyota Camry, sold as-is. Cash price $18,900. ${extra}`),
+    });
+    const rate = await check(staffApi, v.id, cash('0% financing available, OAC.'));
+    expect(ruleIds(rate.check, 'BLOCK')).toContain('FINANCE_APR_MISSING');
+
+    // A percentage that is not a rate (a discount) does not.
+    const discount = await check(staffApi, v.id, cash('Save 20% on all-season mats.'));
+    expect(ruleIds(discount.check)).not.toContain('FINANCE_APR_MISSING');
+  });
+
+  test('AD-R13: an upfront amount ("$2,000 down") is not the cash price', async ({ staffApi }) => {
+    const v = await staffApi.createVehicle();
+    const { check: result } = await check(staffApi, v.id, {
+      ...compliantCash(v), adKind: 'FINANCE',
+      body: anonymous('Used 2020 Toyota Camry, sold as-is. $299 per month at 6.9% APR for 72 months with $2,000 down.'),
+    });
+    expect(ruleIds(result, 'BLOCK')).toContain('FINANCE_CASH_PRICE_MISSING');
+  });
+
+  test('AD-R12: a "12 month warranty" is not a finance term', async ({ staffApi }) => {
+    const v = await staffApi.createVehicle();
+    const { check: result } = await check(staffApi, v.id, {
+      ...compliantCash(v), adKind: 'FINANCE',
+      body: anonymous('Used 2020 Toyota Camry, sold as-is. Cash price $18,900. $299 per month at 6.9% APR. 12 month warranty included.'),
+    });
+    expect(ruleIds(result, 'REVIEW')).toContain('FINANCE_TERM_MISSING');
+  });
+
+  test('AD-R24 / AD-R25: the lease down payment and excess-km charge need their amounts', async ({ staffApi }) => {
+    const v = await staffApi.createVehicle();
+    const lease = (terms: string) => ({
+      ...compliantCash(v), adKind: 'LEASE' as const,
+      body: anonymous(`Lease a used 2020 Toyota Camry, sold as-is. Cash price $18,900. $399 per month for 36 months at 4.9% APR. ${terms}`),
+    });
+    const vague = await check(staffApi, v.id, lease('Down payment required. 16,000 km per year, excess wear charges apply.'));
+    expect(ruleIds(vague.check, 'REVIEW')).toContain('LEASE_DOWN_MISSING');
+    expect(ruleIds(vague.check, 'BLOCK')).toContain('LEASE_EXCESS_KM_MISSING');
+
+    for (const terms of [
+      '$0 down. 16,000 km per year, excess kilometres at $0.12/km.',
+      'Zero down. 16,000 km per year, then 12 cents per extra km.',
+      'Down payment of $1,500. 16,000 km per year; $0.10 per excess km.',
+    ]) {
+      const stated = await check(staffApi, v.id, lease(terms));
+      expect(ruleIds(stated.check), terms).not.toContain('LEASE_DOWN_MISSING');
+      expect(ruleIds(stated.check), terms).not.toContain('LEASE_EXCESS_KM_MISSING');
+    }
+  });
+
+  test('AD-R03: "emergency" and "daily lease" in the copy are prior-use hints; "emergency braking" is not', async ({ staffApi }) => {
+    const v = await staffApi.createVehicle();
+    const cash = (extra: string) => ({
+      ...compliantCash(v), body: anonymous(`Used 2020 Toyota Camry, sold as-is. Cash price $18,900. ${extra}`),
+    });
+    for (const cue of ['Retired emergency unit.', 'Came from a daily lease program.']) {
+      expect(ruleIds((await check(staffApi, v.id, cash(cue))).check, 'REVIEW'), cue).toContain('PRIOR_USE_UNCLEAR');
+    }
+    const feature = await check(staffApi, v.id, cash('Has automatic emergency braking.'));
+    expect(ruleIds(feature.check)).not.toContain('PRIOR_USE_UNCLEAR');
+    const disclosed = await check(staffApi, v.id, cash('Formerly an emergency vehicle.'));
+    expect(ruleIds(disclosed.check)).not.toContain('PRIOR_USE_UNCLEAR');
+  });
+
+  test('AD-R12 / AD-R21: a term in years counts; an age in years does not', async ({ staffApi }) => {
+    const v = await staffApi.createVehicle();
+    const finance = (term: string) => ({
+      ...compliantCash(v), adKind: 'FINANCE' as const,
+      body: anonymous(`Used 2020 Toyota Camry, sold as-is. Cash price $18,900. $299 per month at 6.9% APR ${term}.`),
+    });
+    expect(ruleIds((await check(staffApi, v.id, finance('over a 5-year term'))).check)).not.toContain('FINANCE_TERM_MISSING');
+    expect(ruleIds((await check(staffApi, v.id, finance('on a car only 5 years old'))).check, 'REVIEW'))
+      .toContain('FINANCE_TERM_MISSING');
+
+    const lease = await check(staffApi, v.id, {
+      ...compliantCash(v), adKind: 'LEASE',
+      body: anonymous('4-year lease of a used 2020 Toyota Camry, sold as-is. Cash price $18,900. $399 per month at 4.9% APR.'),
+    });
+    expect(ruleIds(lease.check)).not.toContain('LEASE_TERM_MISSING');
+  });
+
+  test('AD-04 / AD-R22: "monthly payment of $399" is a payment, not a cash price', async ({ staffApi }) => {
+    const v = await staffApi.createVehicle();
+    const cash = await check(staffApi, v.id, {
+      ...compliantCash(v), body: anonymous('Used 2020 Toyota Camry, sold as-is. Monthly payment of $399.'),
+    });
+    // The payment makes the cash ad a finance ad, and it does not count as the cash price.
+    expect(ruleIds(cash.check, 'BLOCK')).toEqual(expect.arrayContaining(['FINANCE_APR_MISSING', 'FINANCE_CASH_PRICE_MISSING']));
+
+    const lease = await check(staffApi, v.id, {
+      ...compliantCash(v), adKind: 'LEASE',
+      body: anonymous('Lease a used 2020 Toyota Camry, sold as-is. Cash price $18,900. Monthly payment of $399 for 36 months at 4.9% APR.'),
+    });
+    expect(ruleIds(lease.check)).not.toContain('LEASE_RENT_MISSING');
+  });
+
+  test('AD-R24 / AD-R25: "due on delivery" states the upfront amount; a per-kilometre fee over the allowance counts', async ({
+    staffApi,
+  }) => {
+    const v = await staffApi.createVehicle();
+    const { check: result } = await check(staffApi, v.id, {
+      ...compliantCash(v), adKind: 'LEASE',
+      body: anonymous('Lease a used 2020 Toyota Camry, sold as-is. Cash price $18,900. $399 per month for 36 months at 4.9% APR, ' +
+        '$1,000 due on delivery. 16,000 km per year; $0.20 per kilometre over the allowance.'),
+    });
+    expect(ruleIds(result)).not.toContain('LEASE_DOWN_MISSING');
+    expect(ruleIds(result)).not.toContain('LEASE_EXCESS_KM_MISSING');
+  });
+
+  test('AD-R03: a recorded daily rental accepts "daily lease" wording; an undisclosed one names the checklist', async ({
+    staffApi,
+  }) => {
+    const v = await staffApi.createVehicle();
+    const rental = (extra: string) => ({
+      ...compliantCash(v), priorUse: 'DAILY_RENTAL',
+      body: anonymous(`Used 2020 Toyota Camry, sold as-is. Cash price $18,900. ${extra}`),
+    });
+    const disclosed = await check(staffApi, v.id, rental('Previously used as a daily lease vehicle.'));
+    expect(ruleIds(disclosed.check)).not.toContain('PRIOR_USE_UNCLEAR');
+
+    const silent = await check(staffApi, v.id, rental('Clean history.'));
+    const finding = silent.check.ruleFindings.find((f) => f.ruleId === 'PRIOR_USE_UNCLEAR');
+    expect(finding?.severity).toBe('REVIEW');
+    expect(finding?.message).toContain('recorded in the checklist');
   });
 
   test('AT-14 / AD-R14: broadcast exempts proximity only; term is REVIEW and APR still blocks', async ({ staffApi }) => {

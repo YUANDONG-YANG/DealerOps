@@ -57,14 +57,14 @@ function waitForCustomerWrite(page: Page, method: string) {
 }
 
 test.describe('CRM list', () => {
-  test('UI-30 / CRM-03: list shows name, email, phone and vehicles purchased count', async ({ staffPage: page, staffApi }) => {
+  test('UI-30 / CRM-03: list shows name, email, phone, home address and vehicles purchased count', async ({ staffPage: page, staffApi }) => {
     const customer = await staffApi.createCustomer();
     const vehicle = await staffApi.createVehicle({ make: 'Honda', model: 'Civic', modelYear: 2019 });
     await linkVehicle(staffApi, customer, vehicle);
 
     await page.goto('/crm');
     await expect(page.getByRole('columnheader', { name: 'Name' })).toBeVisible();
-    for (const header of ['Email', 'Phone', 'Linked vehicles', 'Vehicles purchased']) {
+    for (const header of ['Email', 'Phone', 'Home address', 'Linked vehicles', 'Vehicles purchased']) {
       await expect(page.getByRole('columnheader', { name: header })).toBeVisible();
     }
 
@@ -75,8 +75,9 @@ test.describe('CRM list', () => {
     await expect(cells.nth(0)).toHaveText(customer.name);
     await expect(cells.nth(1)).toHaveText(customer.email);
     await expect(cells.nth(2)).toHaveText(customer.phone);
-    await expect(cells.nth(3)).toHaveText('2019 Honda Civic');
-    await expect(cells.nth(4)).toHaveText('1');
+    await expect(cells.nth(3)).toHaveText(customer.homeAddress);
+    await expect(cells.nth(4)).toHaveText('2019 Honda Civic');
+    await expect(cells.nth(5)).toHaveText('1');
   });
 
   test('UI-30 / CRM-03: search matches name, email and phone', async ({ staffPage: page, staffApi }) => {
@@ -223,8 +224,8 @@ test.describe('CRM create and edit', () => {
 
     await search(page, c.email);
     const row = rowOf(page, c.email);
-    await expect(row.getByRole('cell').nth(3)).toHaveText('2021 Mazda CX-5');
-    await expect(row.getByRole('cell').nth(4)).toHaveText('1');
+    await expect(row.getByRole('cell').nth(4)).toHaveText('2021 Mazda CX-5');
+    await expect(row.getByRole('cell').nth(5)).toHaveText('1');
 
     await row.getByRole('button', { name: 'Edit' }).click();
     await expect(drawer.getByRole('link', { name: '2021 Mazda CX-5' })).toBeVisible();
@@ -256,8 +257,8 @@ test.describe('CRM create and edit', () => {
 
     await search(page, c.email);
     const row = rowOf(page, c.email);
-    await expect(row.getByRole('cell').nth(3)).toHaveText('—');
-    await expect(row.getByRole('cell').nth(4)).toHaveText('0');
+    await expect(row.getByRole('cell').nth(4)).toHaveText('—');
+    await expect(row.getByRole('cell').nth(5)).toHaveText('0');
 
     const detail = await staffApi.get(`/api/v1/customers/${id}`);
     await expectStatus(detail, 200);

@@ -29,16 +29,16 @@ BLOCK prevents Ready/export; REVIEW is a hint and does not prevent them. Rule co
 | AD-R07 | Price missing | BLOCK PRICE_MISSING |
 | AD-R08 | Condition | BLOCK CONDITION_MISMATCH for Certified claim on a non-certified vehicle; BLOCK CONDITION_UNDISCLOSED if AS_IS / UNFIT / IRREPARABLE is not stated; omitted Certified wording is REVIEW CERTIFIED_NOT_IN_COPY |
 | AD-R10 | Finance APR missing | BLOCK FINANCE_APR_MISSING |
-| AD-R11 | Finance APR placement | REVIEW FINANCE_APR_PROXIMITY on **every** online finance-triggered ad, with or without an APR; no proximity finding for RADIO_TV_BILLBOARD. The source asks for the APR to be "shown as prominently as the payment", which is a layout property that cannot be judged from copy text, so the hint is raised unconditionally and the AI reviews placement. A clean ad therefore still carries this REVIEW; it does not block (AI-PROTOCOL-AND-RULES §C) |
+| AD-R11 | Finance APR placement | The source asks for the APR to be "shown as prominently as the payment". Checked as placement (changed 2026-10-20): REVIEW FINANCE_APR_PROXIMITY when the copy has an APR and a payment amount but no APR within 80 characters of a payment, for example a payment headline in the title with the APR buried in the body. An APR printed next to the payment passes; an ad with no APR gets only FINANCE_APR_MISSING. No proximity finding for RADIO_TV_BILLBOARD (AI-PROTOCOL-AND-RULES §C) |
 | AD-R12 | Finance term missing | REVIEW FINANCE_TERM_MISSING |
-| AD-R13 | Finance cash price / cost of borrowing | BLOCK FINANCE_CASH_PRICE_MISSING when no unqualified amount and no cost-of-borrowing wording is present. R07 does **not** cover this: an amount directly followed by a payment cadence (`per month`, `/mo`, `/month`, `a month`, `bi-weekly`, `weekly`) satisfies R07 but is a payment, not a cash price, so finance copy whose only figure is "$299/month" is blocked. Applies to every medium |
+| AD-R13 | Finance cash price / cost of borrowing | BLOCK FINANCE_CASH_PRICE_MISSING when no unqualified amount and no cost-of-borrowing wording is present. R07 does **not** cover this: an amount directly followed by a payment cadence (`per month`, `/mo`, `/month`, `a month`, `bi-weekly`, `weekly`) satisfies R07 but is a payment, not a cash price, so finance copy whose only figure is "$299/month" is blocked. An amount followed by "down" or "due at signing" is an upfront amount, not a cash price, either. Applies to every medium |
 | AD-R14 | Broadcast exception | Waives only R11 proximity review; price and APR remain required; missing term remains a soft hint |
 | AD-R20 | Lease statement missing | BLOCK LEASE_STATEMENT_MISSING |
 | AD-R21 | Lease term missing | REVIEW LEASE_TERM_MISSING |
 | AD-R22 | Lease payment | REVIEW LEASE_RENT_MISSING when no payment cadence is present (corrected 2026-10-16: the predicate previously also required a missing price, which a PRICE_MISSING block already covered, so the rule could never fire on its own and the lease payment amount went unchecked); general price rule R07 still applies |
 | AD-R23 | Lease APR missing | BLOCK LEASE_APR_MISSING |
-| AD-R24 | Lease upfront payment missing | REVIEW LEASE_DOWN_MISSING |
-| AD-R25 | Annual allowance / excess-km fee | Checklist allowance is compared to copy; mismatch is REVIEW LEASE_ALLOWANCE_MISMATCH and missing copy is REVIEW LEASE_ALLOWANCE_NOT_IN_COPY; when both figures exist the stricter (lower) one decides the fee rule; allowance < 20,000 with no excess-fee wording is BLOCK LEASE_EXCESS_KM_MISSING; exactly 20,000 or more does not require the fee; no checklist or copy allowance is REVIEW LEASE_ALLOWANCE_UNSTATED |
+| AD-R24 | Lease upfront payment missing | REVIEW LEASE_DOWN_MISSING unless the upfront amount is stated ("$2,000 down", "down payment of $2,000", "$0 / zero / no money down"); the bare phrase "down payment" is not enough |
+| AD-R25 | Annual allowance / excess-km fee | Checklist allowance is compared to copy; mismatch is REVIEW LEASE_ALLOWANCE_MISMATCH and missing copy is REVIEW LEASE_ALLOWANCE_NOT_IN_COPY; when both figures exist the stricter (lower) one decides the fee rule; allowance < 20,000 with no per-km excess cost (such as "$0.12/km" or "12 cents per extra km"; the word "excess" alone does not count) is BLOCK LEASE_EXCESS_KM_MISSING; exactly 20,000 or more does not require the fee; no checklist or copy allowance is REVIEW LEASE_ALLOWANCE_UNSTATED |
 
 Finance-triggered means FINANCE, or CASH with a match to the existing APR or PAYMENT pattern in title/body. LEASE uses its own rules. No broader natural-language rate detector is added.
 
@@ -59,7 +59,7 @@ Finance-triggered means FINANCE, or CASH with a match to the existing APR or PAY
 | AD-01 | Create/edit one draft per same-dealer vehicle | PDF §5 / course design | Must |
 | AD-02 | Display the kind/medium checklist and collect applicable salesperson answers | PDF §5 | Must |
 | AD-03 | Apply the course BLOCK/REVIEW rules above and retain findings with reason codes | SCOPE erratum 4 | Must |
-| AD-04 | Trigger by kind, medium and CASH APR/payment patterns; LEASE uses lease rules | Closed A2 / protocol §C | Must |
+| AD-04 | Trigger by kind, medium and CASH rate/payment patterns (a rate counts even without the word APR, such as "0% financing"); LEASE uses lease rules | Closed A2 / protocol §C | Must |
 | AD-05 | Read year/condition from DMS for the corresponding checks | PDF §5 / SCOPE erratum 4 | Must |
 | AD-06 | Read dealer public data for name/contact checks | PDF §5 / course design | Must |
 | AD-07 | Hard finding skips AI and returns BLOCKED | SCOPE | Must |

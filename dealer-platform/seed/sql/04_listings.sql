@@ -238,7 +238,7 @@ SET @l = (SELECT id FROM listing WHERE vehicle_id = @v);
 INSERT INTO compliance_check (dealer_id, listing_id, content_version, rule_findings, ai_status,
     ai_notes, recommendation, created_at)
 SELECT @d, @l, 1,
-    '[{"ruleId": "FINANCE_APR_MISSING", "severity": "BLOCK", "passed": false, "message": "Finance APR is missing from the ad."}, {"ruleId": "FINANCE_APR_PROXIMITY", "severity": "REVIEW", "passed": false, "message": "Finance APR placement should be reviewed."}]',
+    '[{"ruleId": "FINANCE_APR_MISSING", "severity": "BLOCK", "passed": false, "message": "Finance APR is missing from the ad."}]',
     'SKIPPED',
     NULL,
     'BLOCKED', '2026-09-17 16:05:45'
@@ -282,7 +282,7 @@ SET @l = (SELECT id FROM listing WHERE vehicle_id = @v);
 INSERT INTO compliance_check (dealer_id, listing_id, content_version, rule_findings, ai_status,
     ai_notes, recommendation, created_at)
 SELECT @d, @l, 1,
-    '[{"ruleId": "CONDITION_MISMATCH", "severity": "BLOCK", "passed": false, "message": "Ad claims certified but the vehicle is not certified."}, {"ruleId": "FINANCE_APR_PROXIMITY", "severity": "REVIEW", "passed": false, "message": "Finance APR placement should be reviewed."}]',
+    '[{"ruleId": "CONDITION_MISMATCH", "severity": "BLOCK", "passed": false, "message": "Ad claims certified but the vehicle is not certified."}]',
     'SKIPPED',
     NULL,
     'BLOCKED', '2026-09-23 13:25:08'
@@ -356,7 +356,7 @@ SET @l = (SELECT id FROM listing WHERE vehicle_id = @v);
 INSERT INTO compliance_check (dealer_id, listing_id, content_version, rule_findings, ai_status,
     ai_notes, recommendation, created_at)
 SELECT @d, @l, 1,
-    '[{"ruleId": "FINANCE_APR_PROXIMITY", "severity": "REVIEW", "passed": false, "message": "Finance APR placement should be reviewed."}]',
+    '[]',
     'SUCCESS',
     '[{"message": "Cash price, APR, term and cost of borrowing all appear; keep the APR as prominent as the bi-weekly payment wherever the ad is displayed."}]',
     'PASSED', '2026-06-01 14:51:31'
@@ -576,7 +576,7 @@ SET @l = (SELECT id FROM listing WHERE vehicle_id = @v);
 INSERT INTO compliance_check (dealer_id, listing_id, content_version, rule_findings, ai_status,
     ai_notes, recommendation, created_at)
 SELECT @d, @l, 1,
-    '[{"ruleId": "FINANCE_APR_PROXIMITY", "severity": "REVIEW", "passed": false, "message": "Finance APR placement should be reviewed."}]',
+    '[]',
     'SUCCESS',
     '[{"message": "Cash price, APR, term and cost of borrowing all appear; keep the APR as prominent as the bi-weekly payment wherever the ad is displayed."}]',
     'PASSED', '2026-02-22 19:18:42'
@@ -804,7 +804,7 @@ SET @l = (SELECT id FROM listing WHERE vehicle_id = @v);
 INSERT INTO compliance_check (dealer_id, listing_id, content_version, rule_findings, ai_status,
     ai_notes, recommendation, created_at)
 SELECT @d, @l, 1,
-    '[{"ruleId": "FINANCE_APR_MISSING", "severity": "BLOCK", "passed": false, "message": "Finance APR is missing from the ad."}, {"ruleId": "FINANCE_APR_PROXIMITY", "severity": "REVIEW", "passed": false, "message": "Finance APR placement should be reviewed."}]',
+    '[{"ruleId": "FINANCE_APR_MISSING", "severity": "BLOCK", "passed": false, "message": "Finance APR is missing from the ad."}]',
     'SKIPPED',
     NULL,
     'BLOCKED', '2026-03-13 14:36:03'
@@ -826,7 +826,7 @@ SET @l = (SELECT id FROM listing WHERE vehicle_id = @v);
 INSERT INTO compliance_check (dealer_id, listing_id, content_version, rule_findings, ai_status,
     ai_notes, recommendation, created_at)
 SELECT @d, @l, 1,
-    '[{"ruleId": "FINANCE_APR_PROXIMITY", "severity": "REVIEW", "passed": false, "message": "Finance APR placement should be reviewed."}]',
+    '[]',
     'SUCCESS',
     '[{"message": "Cash price, APR, term and cost of borrowing all appear; keep the APR as prominent as the bi-weekly payment wherever the ad is displayed."}, {"message": "Prior daily rental use is disclosed clearly in the body and the title."}]',
     'PASSED', '2026-02-08 17:22:50'
@@ -966,7 +966,7 @@ SET @l = (SELECT id FROM listing WHERE vehicle_id = @v);
 INSERT INTO compliance_check (dealer_id, listing_id, content_version, rule_findings, ai_status,
     ai_notes, recommendation, created_at)
 SELECT @d, @l, 1,
-    '[{"ruleId": "FINANCE_APR_MISSING", "severity": "BLOCK", "passed": false, "message": "Finance APR is missing from the ad."}, {"ruleId": "FINANCE_APR_PROXIMITY", "severity": "REVIEW", "passed": false, "message": "Finance APR placement should be reviewed."}]',
+    '[{"ruleId": "FINANCE_APR_MISSING", "severity": "BLOCK", "passed": false, "message": "Finance APR is missing from the ad."}]',
     'SKIPPED',
     NULL,
     'BLOCKED', '2026-01-03 15:37:03'
@@ -1403,7 +1403,7 @@ SET @l = (SELECT id FROM listing WHERE vehicle_id = @v);
 INSERT INTO compliance_check (dealer_id, listing_id, content_version, rule_findings, ai_status,
     ai_notes, recommendation, created_at)
 SELECT @d, @l, 1,
-    '[{"ruleId": "FINANCE_APR_PROXIMITY", "severity": "REVIEW", "passed": false, "message": "Finance APR placement should be reviewed."}]',
+    '[]',
     'SUCCESS',
     '[{"message": "Cash price, APR, term and cost of borrowing all appear; keep the APR as prominent as the bi-weekly payment wherever the ad is displayed."}]',
     'PASSED', '2026-04-17 17:21:18'
@@ -1425,7 +1425,7 @@ SET @l = (SELECT id FROM listing WHERE vehicle_id = @v);
 INSERT INTO compliance_check (dealer_id, listing_id, content_version, rule_findings, ai_status,
     ai_notes, recommendation, created_at)
 SELECT @d, @l, 1,
-    '[{"ruleId": "FINANCE_APR_PROXIMITY", "severity": "REVIEW", "passed": false, "message": "Finance APR placement should be reviewed."}]',
+    '[]',
     'SUCCESS',
     '[{"message": "Cash price, APR, term and cost of borrowing all appear; keep the APR as prominent as the bi-weekly payment wherever the ad is displayed."}]',
     'PASSED', '2026-03-22 17:49:20'
@@ -1469,7 +1469,7 @@ SET @l = (SELECT id FROM listing WHERE vehicle_id = @v);
 INSERT INTO compliance_check (dealer_id, listing_id, content_version, rule_findings, ai_status,
     ai_notes, recommendation, created_at)
 SELECT @d, @l, 1,
-    '[{"ruleId": "FINANCE_APR_PROXIMITY", "severity": "REVIEW", "passed": false, "message": "Finance APR placement should be reviewed."}]',
+    '[]',
     'SUCCESS',
     '[{"message": "Cash price, APR, term and cost of borrowing all appear; keep the APR as prominent as the bi-weekly payment wherever the ad is displayed."}]',
     'PASSED', '2026-10-03 15:29:32'
@@ -1565,7 +1565,7 @@ SET @l = (SELECT id FROM listing WHERE vehicle_id = @v);
 INSERT INTO compliance_check (dealer_id, listing_id, content_version, rule_findings, ai_status,
     ai_notes, recommendation, created_at)
 SELECT @d, @l, 1,
-    '[{"ruleId": "FINANCE_APR_PROXIMITY", "severity": "REVIEW", "passed": false, "message": "Finance APR placement should be reviewed."}]',
+    '[]',
     'SUCCESS',
     '[{"message": "Cash price, APR, term and cost of borrowing all appear; keep the APR as prominent as the bi-weekly payment wherever the ad is displayed."}]',
     'PASSED', '2026-07-11 19:34:37'
@@ -1587,7 +1587,7 @@ SET @l = (SELECT id FROM listing WHERE vehicle_id = @v);
 INSERT INTO compliance_check (dealer_id, listing_id, content_version, rule_findings, ai_status,
     ai_notes, recommendation, created_at)
 SELECT @d, @l, 1,
-    '[{"ruleId": "FINANCE_APR_PROXIMITY", "severity": "REVIEW", "passed": false, "message": "Finance APR placement should be reviewed."}]',
+    '[]',
     'SUCCESS',
     '[{"message": "Cash price, APR, term and cost of borrowing all appear; keep the APR as prominent as the bi-weekly payment wherever the ad is displayed."}]',
     'PASSED', '2026-08-05 19:39:40'
@@ -1697,7 +1697,7 @@ SET @l = (SELECT id FROM listing WHERE vehicle_id = @v);
 INSERT INTO compliance_check (dealer_id, listing_id, content_version, rule_findings, ai_status,
     ai_notes, recommendation, created_at)
 SELECT @d, @l, 1,
-    '[{"ruleId": "FINANCE_APR_PROXIMITY", "severity": "REVIEW", "passed": false, "message": "Finance APR placement should be reviewed."}]',
+    '[]',
     'SUCCESS',
     '[{"message": "Cash price, APR, term and cost of borrowing all appear; keep the APR as prominent as the bi-weekly payment wherever the ad is displayed."}]',
     'PASSED', '2026-05-02 18:54:22'
@@ -1796,7 +1796,7 @@ SET @l = (SELECT id FROM listing WHERE vehicle_id = @v);
 INSERT INTO compliance_check (dealer_id, listing_id, content_version, rule_findings, ai_status,
     ai_notes, recommendation, created_at)
 SELECT @d, @l, 1,
-    '[{"ruleId": "DEALER_NAME_MISSING", "severity": "BLOCK", "passed": false, "message": "Dealership legal name is missing from the ad."}, {"ruleId": "FINANCE_APR_PROXIMITY", "severity": "REVIEW", "passed": false, "message": "Finance APR placement should be reviewed."}]',
+    '[{"ruleId": "DEALER_NAME_MISSING", "severity": "BLOCK", "passed": false, "message": "Dealership legal name is missing from the ad."}]',
     'SKIPPED',
     NULL,
     'BLOCKED', '2026-05-08 18:08:09'
@@ -1804,7 +1804,7 @@ FROM DUAL WHERE @l IS NOT NULL AND NOT EXISTS (SELECT 1 FROM compliance_check WH
 INSERT INTO compliance_check (dealer_id, listing_id, content_version, rule_findings, ai_status,
     ai_notes, recommendation, created_at)
 SELECT @d, @l, 2,
-    '[{"ruleId": "FINANCE_APR_PROXIMITY", "severity": "REVIEW", "passed": false, "message": "Finance APR placement should be reviewed."}]',
+    '[]',
     'SUCCESS',
     '[{"message": "Cash price, APR, term and cost of borrowing all appear; keep the APR as prominent as the bi-weekly payment wherever the ad is displayed."}]',
     'PASSED', '2026-05-08 21:48:09'
@@ -1848,7 +1848,7 @@ SET @l = (SELECT id FROM listing WHERE vehicle_id = @v);
 INSERT INTO compliance_check (dealer_id, listing_id, content_version, rule_findings, ai_status,
     ai_notes, recommendation, created_at)
 SELECT @d, @l, 1,
-    '[{"ruleId": "FINANCE_APR_PROXIMITY", "severity": "REVIEW", "passed": false, "message": "Finance APR placement should be reviewed."}]',
+    '[]',
     'SUCCESS',
     '[{"message": "Cash price, APR, term and cost of borrowing all appear; keep the APR as prominent as the bi-weekly payment wherever the ad is displayed."}]',
     'PASSED', '2026-03-05 22:04:35'
@@ -2002,7 +2002,7 @@ SET @l = (SELECT id FROM listing WHERE vehicle_id = @v);
 INSERT INTO compliance_check (dealer_id, listing_id, content_version, rule_findings, ai_status,
     ai_notes, recommendation, created_at)
 SELECT @d, @l, 1,
-    '[{"ruleId": "FINANCE_APR_PROXIMITY", "severity": "REVIEW", "passed": false, "message": "Finance APR placement should be reviewed."}]',
+    '[]',
     'SUCCESS',
     '[{"message": "Cash price, APR, term and cost of borrowing all appear; keep the APR as prominent as the bi-weekly payment wherever the ad is displayed."}]',
     'PASSED', '2026-03-30 18:52:38'
@@ -2238,7 +2238,7 @@ SET @l = (SELECT id FROM listing WHERE vehicle_id = @v);
 INSERT INTO compliance_check (dealer_id, listing_id, content_version, rule_findings, ai_status,
     ai_notes, recommendation, created_at)
 SELECT @d, @l, 1,
-    '[{"ruleId": "WARRANTY_CLAIM_NEEDS_REVIEW", "severity": "REVIEW", "passed": false, "message": "Warranty claim needs review."}, {"ruleId": "FINANCE_APR_PROXIMITY", "severity": "REVIEW", "passed": false, "message": "Finance APR placement should be reviewed."}]',
+    '[{"ruleId": "WARRANTY_CLAIM_NEEDS_REVIEW", "severity": "REVIEW", "passed": false, "message": "Warranty claim needs review."}]',
     'SUCCESS',
     '[{"message": "Cash price, APR, term and cost of borrowing all appear; keep the APR as prominent as the bi-weekly payment wherever the ad is displayed."}, {"message": "The included warranty coverage is stated with its limits; confirm any extended plans are described as optional."}]',
     'PASSED', '2025-12-17 15:57:05'
@@ -2326,7 +2326,7 @@ SET @l = (SELECT id FROM listing WHERE vehicle_id = @v);
 INSERT INTO compliance_check (dealer_id, listing_id, content_version, rule_findings, ai_status,
     ai_notes, recommendation, created_at)
 SELECT @d, @l, 1,
-    '[{"ruleId": "FINANCE_APR_PROXIMITY", "severity": "REVIEW", "passed": false, "message": "Finance APR placement should be reviewed."}]',
+    '[]',
     'SUCCESS',
     '[{"message": "Cash price, APR, term and cost of borrowing all appear; keep the APR as prominent as the bi-weekly payment wherever the ad is displayed."}]',
     'PASSED', '2026-09-19 19:31:42'
@@ -2370,7 +2370,7 @@ SET @l = (SELECT id FROM listing WHERE vehicle_id = @v);
 INSERT INTO compliance_check (dealer_id, listing_id, content_version, rule_findings, ai_status,
     ai_notes, recommendation, created_at)
 SELECT @d, @l, 1,
-    '[{"ruleId": "FINANCE_APR_PROXIMITY", "severity": "REVIEW", "passed": false, "message": "Finance APR placement should be reviewed."}]',
+    '[]',
     'SUCCESS',
     '[{"message": "Cash price, APR, term and cost of borrowing all appear; keep the APR as prominent as the bi-weekly payment wherever the ad is displayed."}]',
     'PASSED', '2026-05-01 17:02:24'
@@ -2392,7 +2392,7 @@ SET @l = (SELECT id FROM listing WHERE vehicle_id = @v);
 INSERT INTO compliance_check (dealer_id, listing_id, content_version, rule_findings, ai_status,
     ai_notes, recommendation, created_at)
 SELECT @d, @l, 1,
-    '[{"ruleId": "WARRANTY_CLAIM_NEEDS_REVIEW", "severity": "REVIEW", "passed": false, "message": "Warranty claim needs review."}, {"ruleId": "FINANCE_APR_PROXIMITY", "severity": "REVIEW", "passed": false, "message": "Finance APR placement should be reviewed."}]',
+    '[{"ruleId": "WARRANTY_CLAIM_NEEDS_REVIEW", "severity": "REVIEW", "passed": false, "message": "Warranty claim needs review."}]',
     'SUCCESS',
     '[{"message": "Cash price, APR, term and cost of borrowing all appear; keep the APR as prominent as the bi-weekly payment wherever the ad is displayed."}, {"message": "The included warranty coverage is stated with its limits; confirm any extended plans are described as optional."}]',
     'PASSED', '2026-06-13 16:54:06'
@@ -2458,7 +2458,7 @@ SET @l = (SELECT id FROM listing WHERE vehicle_id = @v);
 INSERT INTO compliance_check (dealer_id, listing_id, content_version, rule_findings, ai_status,
     ai_notes, recommendation, created_at)
 SELECT @d, @l, 1,
-    '[{"ruleId": "FINANCE_APR_PROXIMITY", "severity": "REVIEW", "passed": false, "message": "Finance APR placement should be reviewed."}]',
+    '[]',
     'UNAVAILABLE',
     NULL,
     'UNAVAILABLE', '2025-11-23 18:10:56'
@@ -2546,7 +2546,7 @@ SET @l = (SELECT id FROM listing WHERE vehicle_id = @v);
 INSERT INTO compliance_check (dealer_id, listing_id, content_version, rule_findings, ai_status,
     ai_notes, recommendation, created_at)
 SELECT @d, @l, 1,
-    '[{"ruleId": "WARRANTY_CLAIM_NEEDS_REVIEW", "severity": "REVIEW", "passed": false, "message": "Warranty claim needs review."}, {"ruleId": "FINANCE_APR_PROXIMITY", "severity": "REVIEW", "passed": false, "message": "Finance APR placement should be reviewed."}]',
+    '[{"ruleId": "WARRANTY_CLAIM_NEEDS_REVIEW", "severity": "REVIEW", "passed": false, "message": "Warranty claim needs review."}]',
     'SUCCESS',
     '[{"message": "Cash price, APR, term and cost of borrowing all appear; keep the APR as prominent as the bi-weekly payment wherever the ad is displayed."}, {"message": "The included warranty coverage is stated with its limits; confirm any extended plans are described as optional."}]',
     'PASSED', '2026-08-19 16:16:49'
@@ -2634,7 +2634,7 @@ SET @l = (SELECT id FROM listing WHERE vehicle_id = @v);
 INSERT INTO compliance_check (dealer_id, listing_id, content_version, rule_findings, ai_status,
     ai_notes, recommendation, created_at)
 SELECT @d, @l, 1,
-    '[{"ruleId": "FINANCE_APR_MISSING", "severity": "BLOCK", "passed": false, "message": "Finance APR is missing from the ad."}, {"ruleId": "FINANCE_APR_PROXIMITY", "severity": "REVIEW", "passed": false, "message": "Finance APR placement should be reviewed."}]',
+    '[{"ruleId": "FINANCE_APR_MISSING", "severity": "BLOCK", "passed": false, "message": "Finance APR is missing from the ad."}]',
     'SKIPPED',
     NULL,
     'BLOCKED', '2026-01-14 14:23:58'

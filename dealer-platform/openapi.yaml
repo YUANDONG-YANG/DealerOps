@@ -2748,16 +2748,21 @@ components:
     DealerCreate:
       type: object
       required: [legalName, contactPhone, contactEmail, contactAddress]
-      description: Four contact fields are required and non-empty
+      description: Four contact fields are required and non-blank. Values are trimmed before they are stored; an invalid email or an over-long value returns 400 VALIDATION.
       properties:
         legalName:
           type: string
+          maxLength: 200
         contactPhone:
           type: string
+          maxLength: 40
         contactEmail:
           type: string
+          format: email
+          maxLength: 120
         contactAddress:
           type: string
+          maxLength: 300
 
     DealerPatch:
       type: object
@@ -2769,12 +2774,17 @@ components:
           format: int64
         legalName:
           type: string
+          maxLength: 200
         contactPhone:
           type: string
+          maxLength: 40
         contactEmail:
           type: string
+          format: email
+          maxLength: 120
         contactAddress:
           type: string
+          maxLength: 300
         active:
           type: boolean
         logoDataUrl:

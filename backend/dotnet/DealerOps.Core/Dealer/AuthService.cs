@@ -175,10 +175,10 @@ public class AuthService
     {
         var identity = await _google.VerifyAsync(request.IdToken.Trim(), cancellationToken);
         var email = LoginIdentifiers.Email(identity.Email);
-        // An unknown or inactive dealership in the optional dealerId is ignored, never an error.
-        var requestedDealerId = request.DealerId is long id && _db.Dealers.Any(d => d.Id == id && d.Active)
-            ? request.DealerId
-            : null;
+        // An optional dealerId must name an active dealership (contract §1.6: 404 otherwise).
+        var requestedDealerId = request.DealerId;
+        if (requestedDealerId is long id && !_db.Dealers.Any(d => d.Id == id && d.Active))
+            throw new ApiException(ErrorCode.NotFound, "Dealership not found.");
 
         // Prefer Google's stable subject id so an email change (G Suite rename, address move)
         // keeps the same DealerOps account; fall back to email for accounts created before we
@@ -354,6 +354,11 @@ public class AuthService
         if (byUsername != null) return byUsername;
 
         var phone = LoginIdentifiers.PhoneOrNull(identifier);
-        return phone == null ? null : _db.AppUsers.FirstOrDefault(u => u.Phone == phone && u.Active);
+        if (phone == null) return null;
+        var byPhone = _db.AppUsers.FirstOrDefault(u => u.Phone == phone && u.Active);
+        if (byPhone != null) return byPhone;
+
+        var legacyPhone = LoginIdentifiers.LegacyLocalPhoneOrNull(identifier);
+        return legacyPhone == null ? null : _db.AppUsers.FirstOrDefault(u => u.Phone == legacyPhone && u.Active);
     }
 }

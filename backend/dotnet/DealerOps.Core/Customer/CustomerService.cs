@@ -121,6 +121,10 @@ public class CustomerService
             customer.Name, customer.Email, customer.Phone, customer.HomeAddress,
             name, email, phone, homeAddress);
 
+        // Like a vehicle patch, a save that changes nothing writes no audit entry.
+        if (fieldSummary.Count == 0)
+            return ToDetail(customer, emailWarning);
+
         customer.Name = name;
         customer.Email = email;
         customer.Phone = phone;

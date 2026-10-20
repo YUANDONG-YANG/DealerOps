@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Loads deploy/seed/dealer_core_seed.sql.gz into the Azure MySQL server created by Terraform.
 # Existing rows in Azure are replaced, so the cloud shows the same demo data (and the same
-# sign-ins) as the local development database.
+# sign-ins) as the local development database. Use this only on a blank or reset demo database.
+# ./deploy/deploy.sh --seed does not call this script; it loads the committed seed instead.
 #
 # Usage: deploy/seed/import-to-azure.sh
 # Needs: terraform apply done, and dealer-core started once (it creates the tables).

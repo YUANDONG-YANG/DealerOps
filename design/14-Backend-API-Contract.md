@@ -109,11 +109,11 @@ Response **200**:
 { "accessToken": "<HS256 JWT>", "role": "Dealer.User", "displayName": "Alex Dealer" }
 ```
 
-The token carries `sub` (the username), `name`, and `roles`; send it as `Authorization: Bearer <accessToken>` on every other call. Resolution order: a value containing `@` is an email (case-insensitive); otherwise an active account with that exact username; otherwise, if it is a valid phone number with country code (spaces, dashes, and brackets ignored), the account with that phone. Blank identifier or password → `400 VALIDATION`. Unknown identifier, inactive account, or wrong password → `401 UNAUTHORIZED` with one message (`Invalid sign-in name or password`).
+The token carries `sub` (the username), `name`, and `roles`; send it as `Authorization: Bearer <accessToken>` on every other call. Resolution order: a value containing `@` is an email (case-insensitive); otherwise an active account with that exact username; otherwise, if it is a valid phone number (spaces, dashes, and brackets ignored), the account with that phone. Ten digits without `+` are a local North American number and read as `+1` plus the ten digits; an account stored before that rule as `+` plus the ten digits still matches. Blank identifier or password → `400 VALIDATION`. Unknown identifier, inactive account, or wrong password → `401 UNAUTHORIZED` with one message (`Invalid sign-in name or password`).
 
 ### 1.5 `POST /api/v1/auth/register` (anonymous)
 
-Self sign-up (AUTH-16). Creates an active `Dealer.User` with **no dealership**; the platform admin must bind it (§3.6, §3.8) before any business API works (until then business calls return **403**). Requires `username` (3–64 of letters, digits, `.`, `_`, `-`, with at least one letter), `displayName` (1–120), at least one of a valid `email` (≤ 254) or an international `phone` with country code (both allowed), and `password` (8–72). The user can then sign in with any of username, email, or phone. Audited as `APP_USER` / `CREATE` (actor = the username, no `dealerId`).
+Self sign-up (AUTH-16). Creates an active `Dealer.User` with **no dealership**; the platform admin must bind it (§3.6, §3.8) before any business API works (until then business calls return **403**). Requires `username` (3–64 of letters, digits, `.`, `_`, `-`, with at least one letter), `displayName` (1–120), at least one of a valid `email` (≤ 254) or a `phone` (both allowed). The phone is stored as `+` and its digits; ten digits without `+` are a local North American number and are stored as `+1` plus the ten digits, and `password` (8–72). The user can then sign in with any of username, email, or phone. Audited as `APP_USER` / `CREATE` (actor = the username, no `dealerId`).
 
 ```json
 { "username": "alex.dealer", "displayName": "Alex Dealer", "email": "alex@example.com", "phone": "+14035550100", "password": "temporary-pass-1" }
@@ -449,7 +449,7 @@ Errors: `401`, `403` (not staff).
 
 Required: make/model/modelYear/vin/source/purchaseCost/addedOn/conditionCode.  
 **Ignore** `dealerId`, `status`, `soldOn`, `soldPrice`. Server sets `status=IN_STOCK`.  
-The server trims `make` / `model` (1-50 characters) and upper-cases `vin`. `400 VALIDATION` covers the field rules in requirements/analysis/02-DMS-Vehicles.md (VIN 17 chars without I/O/Q, 1900 ≤ `modelYear` ≤ next year, costs ≥ 0, `addedOn` not in the future, `carfaxUrl` http(s)); PATCH applies the same rules.  
+The server trims `make` / `model` (1-50 characters) and upper-cases `vin`. `400 VALIDATION` covers the field rules in requirements/analysis/02-DMS-Vehicles.md (VIN 17 chars without I/O/Q, 1900 ≤ `modelYear` ≤ next year, costs ≥ 0 with at most two decimals (a third decimal is refused, never rounded; the same applies to `soldPrice` on sell), `addedOn` not in the future, `carfaxUrl` http(s)); PATCH applies the same rules.  
 Errors: `400 VALIDATION`, `400 VIN_DUP`. Response = detail. Audit `VEHICLE`/`CREATE`.
 
 ### 4.3 `GET /api/v1/vehicles/{id}`
@@ -693,7 +693,7 @@ Accounts that asked to join this dealership (§1.6) wait here for any active mem
 | `GET /api/v1/me/join-request` | Signed-in account, including unbound. **204** when none is pending. **200** `{ "dealerId", "legalName" }` for the one pending request |
 | `POST /api/v1/me/join-request` | Body `{ "dealerId" }`. An unbound account requests one active dealership. **200** `{ "dealerId", "legalName" }`. A second, different dealership → **400** `VALIDATION`. Unknown or inactive dealership → **404**. Already a member → **403** |
 | `GET /api/v1/dealer/join-requests` | 200 `[{ "username", "displayName", "email", "createdAt", "source" }]`: active unbound accounts that requested this dealership, newest first |
-| `POST /api/v1/dealer/join-requests/{username}/approve` | 204. Creates or reactivates the membership, binds the account, resolves the notification as `APPROVED`. Audit `MEMBERSHIP`/`CREATE` `{username, source:"join_request"}` |
+| `POST /api/v1/dealer/join-requests/{username}/approve` | 204. Creates or reactivates the membership, binds the account, resolves the notification as `APPROVED`. Audit `MEMBERSHIP`/`CREATE` `{username, source:"join_request"}`. The account already active at another dealership → **409** `DUP_MEMBER`, as for the admin bind (one login, one dealership) |
 | `POST /api/v1/dealer/join-requests/{username}/reject` | 204. Clears the requested dealership (the account stays, unbound), resolves the notification as `REJECTED`. Audit `APP_USER`/`UPDATE` `{username, rejected:true}` |
 | `GET /api/v1/dealer/notifications?includeResolved=false` | 200 array, newest first. Default returns unresolved rows only; `includeResolved=true` returns the history. A `JOIN_REQUEST` payload also carries the applicant's account `source`, read at request time |
 

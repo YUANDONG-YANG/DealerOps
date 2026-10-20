@@ -70,7 +70,7 @@ Handbook page names: Login / Admin / DMS / CRM / Ad compliance / Assistant, plus
 | `/reports/sales-funnel` | `sales-funnel` | `SalesFunnelView` | `roles: ['Dealer.User']` | menu item **Sales report** after Leads. Current lead-stage snapshot and vehicle sales (CRM-15). Not a historical trend or a KPI home page |
 | `/ads` | `ads` | `AdsView` | `roles: ['Dealer.User']` | page title **Ad compliance** |
 | `/team` | `team` | `TeamView` | `roles: ['Dealer.User']` | Join-request history (`GET /dealer/notifications?includeResolved=true`): approve or reject pending requests; resolved rows show the outcome, who settled it, and when. A second `Members` tab lists current members and how each account was created (one table per view, 12 §1) |
-| `/profile` | `profile` | `ProfileView` | any signed-in user, **including unbound** | Account self-service: own display name and phone, plus account deletion. Username, role and dealership binding are read-only. `AuthGuard` exempts this one path from the business-access check, and the no-access shell links to it (**Manage account**), so a freshly registered account can still edit or delete itself |
+| `/profile` | `profile` | `ProfileView` | signed-in user **with business access** (`Platform.Admin`, or `Dealer.User` with a dealership) | Account self-service: own display name and phone, plus account deletion. Username, role and dealership binding are read-only. An account that is not yet approved, or that has been unbound, does not reach this page: `AuthGuard` renders the no-access screen for every protected path, including `/profile` |
 | — | `no-access` | `NoAccessLanding` | — | Signed-in user without business access. A guard renders it **in place of** the requested page; it has no path of its own |
 
 - `/` → if not signed in, show the public landing page (brand, hero, feature cards, VIN decoder, ad-approval steps, `Sign in`, and `Create account`); if signed in, go to `/admin` or `/dms` by role, or `/no-access` without business access. The only API the landing page calls is the anonymous VIN decode (14 §4.6.1); it reads no dealership data. `/login` and `/register` use the local password account API (sign in by email, username, or phone). The DMS **Add vehicle** form has a `Decode` button on the VIN field that prefills make, model, year, and body type from the same endpoint.
@@ -94,7 +94,7 @@ One `beforeEach` in `router/index.ts`, order fixed:
    - `Platform.Admin` visiting `/dms` `/crm` `/leads` `/reports/sales-funnel` `/ads` `/team` → send back to `/admin`; do not render business tables.
    - `Dealer.User` visiting `/admin` → send back to `/dms`.
 4. `GET /me` fails with 401 → clear session, return to `/login`.
-5. Role is not `Platform.Admin` | `Dealer.User` (or `active=false`, if the handbook response includes it) → stay in a shell with no business pages, top bar `Sign out`, body shows the "no access" state. Do not invent a third role.
+5. Role is not `Platform.Admin` | `Dealer.User` (or `active=false`, if the handbook response includes it), or the account is a `Dealer.User` with no dealership → stay on the no-access screen for every protected path, including `/profile`. The shell offers sign-out and one join request. Do not invent a third role.
 
 Menu and guards use the same rules: Admin **renders** Admin only; staff **renders** DMS, CRM, Leads, Sales report, Ad compliance, and Team, plus the floating Assistant. Do not rely on hiding buttons for unauthorized access; the route blocks first.
 

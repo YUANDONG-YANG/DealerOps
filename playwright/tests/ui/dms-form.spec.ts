@@ -89,13 +89,16 @@ test('UI-21 / DMS-01 / DMS-05: Add vehicle drawer marks required fields and offe
     );
   }
 
-  // DMS-05: source and condition are drop-downs limited to the enum values.
+  // DMS-05: source and condition are drop-downs limited to the enum values. A new vehicle starts
+  // with neither chosen, so the only other option is the empty "Select …" prompt.
+  await expect(control(drawer, 'Source')).toHaveValue('');
+  await expect(control(drawer, 'Condition')).toHaveValue('');
   const sourceValues = await control(drawer, 'Source').locator('option').evaluateAll((os) =>
-    os.map((o) => (o as HTMLOptionElement).value),
+    os.map((o) => (o as HTMLOptionElement).value).filter(Boolean),
   );
   expect(sourceValues.sort()).toEqual(['AUCTION', 'OTHER', 'PRIVATE_PURCHASE', 'TRADE_IN']);
   const conditionValues = await control(drawer, 'Condition').locator('option').evaluateAll((os) =>
-    os.map((o) => (o as HTMLOptionElement).value),
+    os.map((o) => (o as HTMLOptionElement).value).filter(Boolean),
   );
   expect(conditionValues.sort()).toEqual(['AS_IS', 'CERTIFIED', 'IRREPARABLE', 'UNFIT']);
 });
@@ -111,13 +114,15 @@ test('UI-21 / DMS-01: an empty submit shows an error per required field and send
 
   await drawer.getByRole('button', { name: 'Save' }).click();
 
-  // Source and condition have defaults, so the six blank required text/select fields error.
+  // Every required field is blank, source and condition included: none is pre-filled.
   await expect(fieldError(drawer, 'Make')).toHaveText('Required');
   await expect(fieldError(drawer, 'Model')).toHaveText('Required');
   await expect(fieldError(drawer, 'Model year')).toHaveText(/Year must be 1900 to \d{4}/);
   await expect(fieldError(drawer, 'VIN')).toHaveText(/17 letters or digits/);
   await expect(fieldError(drawer, 'Purchase cost')).toBeVisible();
   await expect(fieldError(drawer, 'Added on')).toBeVisible();
+  await expect(fieldError(drawer, 'Source')).toHaveText('Required');
+  await expect(fieldError(drawer, 'Condition')).toHaveText('Required');
   await expect(fieldError(drawer, 'Repair cost')).toHaveCount(0);
   await expect(fieldError(drawer, 'Carfax URL')).toHaveCount(0);
   await expect(drawer).toBeVisible();
@@ -211,7 +216,7 @@ test('DMS-01 / DMS-04: staff adds a vehicle through the drawer and finds it in t
   await expect(row).toHaveCount(1);
   await expect(row).toContainText(/2020 Toyota Camry/i);
   await expect(row).toContainText('Auction');
-  await expect(row).toContainText('As is');
+  await expect(row).toContainText('As-is');
   await expect(row).toContainText('2026-09-01');
   await expect(row).toContainText(/In stock/i);
 
@@ -264,7 +269,11 @@ test('DMS-09: staff edits every non-sold field of an in-stock vehicle through th
   await expect(drawer.getByText('In stock', { exact: true })).toBeVisible();
   // Sold fields are not editable in the form; selling is a separate action.
   await expect(drawer.getByRole('button', { name: 'Mark as sold' })).toBeVisible();
-  await expect(field(drawer, 'Sold date')).toHaveCount(0);
+  // An in-stock vehicle shows the sold date and price as empty read-only rows, with no input.
+  await expect(field(drawer, 'Sold date')).toContainText('—');
+  await expect(field(drawer, 'Sold date').locator('input')).toHaveCount(0);
+  await expect(field(drawer, 'Sold price')).toContainText('—');
+  await expect(field(drawer, 'Sold price').locator('input')).toHaveCount(0);
 
   await chooseMakeModel(drawer, 'Toyota', 'Corolla');
   await control(drawer, 'Model year').selectOption('2021');
@@ -310,4 +319,25 @@ test('DMS-09: staff edits every non-sold field of an in-stock vehicle through th
   await expect(drawer).toBeHidden();
   await searchList(page, newVin);
   await expect(page.getByRole('row').filter({ hasText: newVin })).toContainText(/2021 toyota Corolla/i);
+});
+
+test('DMS-02: a stored Carfax URL is shown as a link that opens the report in a new tab', async ({
+  staffPage: page,
+  staffApi,
+}) => {
+  const carfaxUrl = 'https://www.carfax.ca/report/e2e-link';
+  const vehicle = await staffApi.createVehicle({ carfaxUrl });
+
+  await page.goto('/dms');
+  await searchList(page, vehicle.vin);
+  await page.getByRole('row').filter({ hasText: vehicle.vin }).getByRole('button', { name: 'Edit' }).click();
+  const drawer = page.getByRole('dialog', { name: 'Edit vehicle' });
+
+  const link = field(drawer, 'Carfax URL').getByRole('link', { name: 'Open Carfax report' });
+  await expect(link).toHaveAttribute('href', carfaxUrl);
+  await expect(link).toHaveAttribute('target', '_blank');
+
+  // An invalid URL shows no link, only the validation error.
+  await control(drawer, 'Carfax URL').fill('not a url');
+  await expect(link).toHaveCount(0);
 });

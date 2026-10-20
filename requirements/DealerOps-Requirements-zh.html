@@ -270,7 +270,7 @@ html { scroll-behavior: smooth; }
       <ul class="plain">
         <li>账号移除后，其历史审计记录保留，“操作人”不能丢失。</li>
         <li>车行最后一个账号被移除后，车行数据仍保留，可再绑定新账号。</li>
-        <li>重新绑定已解绑的用户视为重新激活：同一车行复用原绑定记录，账号不新建；改绑到其他车行会新增一条绑定记录；重新绑定时会重设临时密码。</li>
+        <li>重新绑定已解绑的用户视为重新激活：同一车行复用原绑定记录，账号不新建；改绑到其他车行会新增一条绑定记录；重新绑定时账号保留原密码（以接口合同 design/14 §3.6 为准），忘记密码由管理员另行重置。</li>
       </ul>
     </section>
 
@@ -424,7 +424,7 @@ html { scroll-behavior: smooth; }
           <tr><td class="id">AD-R07</td><td>缺少价格</td><td><span class="pri sev-block">BLOCK</span> <code>PRICE_MISSING</code></td><td class="c"><span class="st st-done">Implemented</span></td></tr>
           <tr><td class="id">AD-R08</td><td>车况</td><td>非认证车写“Certified”：<span class="pri sev-block">BLOCK</span> <code>CONDITION_MISMATCH</code>；AS_IS / UNFIT / IRREPARABLE 未写明：<span class="pri sev-block">BLOCK</span> <code>CONDITION_UNDISCLOSED</code>；认证车未写认证：<span class="pri sev-review">REVIEW</span> <code>CERTIFIED_NOT_IN_COPY</code></td><td class="c"><span class="st st-done">Implemented</span></td></tr>
           <tr><td class="id">AD-R10</td><td>金融广告缺 APR</td><td><span class="pri sev-block">BLOCK</span> <code>FINANCE_APR_MISSING</code></td><td class="c"><span class="st st-done">Implemented</span></td></tr>
-          <tr><td class="id">AD-R11</td><td>金融广告 APR 位置（线上）</td><td><span class="pri sev-review">REVIEW</span> <code>FINANCE_APR_PROXIMITY</code>（线上触发金融规则时一律提示）；广播电视广告牌不检查</td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+          <tr><td class="id">AD-R11</td><td>金融广告 APR 与月供同样醒目（线上）</td><td><span class="pri sev-review">REVIEW</span> <code>FINANCE_APR_PROXIMITY</code>（文案有 APR 和月供金额，但没有任何 APR 写在月供 80 个字符以内时提示；APR 紧挨月供即通过）；广播电视广告牌不检查</td><td class="c"><span class="st st-done">Implemented</span></td></tr>
           <tr><td class="id">AD-R12</td><td>金融广告缺期限</td><td><span class="pri sev-review">REVIEW</span> <code>FINANCE_TERM_MISSING</code></td><td class="c"><span class="st st-done">Implemented</span></td></tr>
           <tr><td class="id">AD-R13</td><td>现金价 / 借贷成本（金融广告必须写明现金价或借贷成本；R07 不足以覆盖，因为「$299/month」这类付款额本身就能满足 R07）</td><td><span class="pri sev-block">BLOCK</span> <code>FINANCE_CASH_PRICE_MISSING</code>；金额后紧跟付款周期者视为付款额而非现金价；广播电视广告牌同样适用（R14 只豁免 R11）</td><td class="c"><span class="st st-done">Implemented</span><span class="st-note">New rule: finance ads must state a cash price or cost of borrowing</span></td></tr>
           <tr><td class="id">AD-R14</td><td>广播媒介例外</td><td>只豁免 R11 位置提示；价格和 APR 仍必须；缺期限仍为 R12 提示</td><td class="c"><span class="st st-done">Implemented</span></td></tr>
@@ -432,8 +432,8 @@ html { scroll-behavior: smooth; }
           <tr><td class="id">AD-R21</td><td>租赁期限缺失</td><td><span class="pri sev-review">REVIEW</span> <code>LEASE_TERM_MISSING</code></td><td class="c"><span class="st st-done">Implemented</span></td></tr>
           <tr><td class="id">AD-R22</td><td>租赁月供缺失</td><td><span class="pri sev-review">REVIEW</span> <code>LEASE_RENT_MISSING</code>；R07 价格规则仍适用</td><td class="c"><span class="st st-done">Implemented</span></td></tr>
           <tr><td class="id">AD-R23</td><td>租赁 APR 缺失</td><td><span class="pri sev-block">BLOCK</span> <code>LEASE_APR_MISSING</code></td><td class="c"><span class="st st-done">Implemented</span></td></tr>
-          <tr><td class="id">AD-R24</td><td>租赁首付缺失</td><td><span class="pri sev-review">REVIEW</span> <code>LEASE_DOWN_MISSING</code></td><td class="c"><span class="st st-done">Implemented</span></td></tr>
-          <tr><td class="id">AD-R25</td><td>年度里程额度 / 超里程费</td><td>额度 &lt; 20,000 且未写超里程费：<span class="pri sev-block">BLOCK</span> <code>LEASE_EXCESS_KM_MISSING</code>；≥ 20,000 不要求；未写额度：<span class="pri sev-review">REVIEW</span> <code>LEASE_ALLOWANCE_UNSTATED</code></td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+          <tr><td class="id">AD-R24</td><td>租赁首付缺失（必须写出首付金额或明确写 $0 / zero down，只写 “down payment” 不算）</td><td><span class="pri sev-review">REVIEW</span> <code>LEASE_DOWN_MISSING</code></td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+          <tr><td class="id">AD-R25</td><td>年度里程额度 / 超里程费</td><td>额度 &lt; 20,000 且未写每公里超里程费（如 $0.12/km，只写 “excess” 不算）：<span class="pri sev-block">BLOCK</span> <code>LEASE_EXCESS_KM_MISSING</code>；≥ 20,000 不要求；未写额度：<span class="pri sev-review">REVIEW</span> <code>LEASE_ALLOWANCE_UNSTATED</code></td><td class="c"><span class="st st-done">Implemented</span></td></tr>
         </tbody>
       </table></div>
       <p>“触发金融规则”指类型为 <code>FINANCE</code>，或类型为 <code>CASH</code> 但标题/正文匹配到 APR 或付款额（月付 / 双周付 / 周付）模式。<code>LEASE</code> 使用独立的租赁规则。</p>

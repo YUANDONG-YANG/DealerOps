@@ -187,7 +187,7 @@ test.describe('register', () => {
     await expectError(await api.get('/api/v1/admin/dealers'), 403, 'FORBIDDEN');
   });
 
-  test('UI-03: the no-access user sees the notice on business pages and can still open /profile', async ({ page, request }) => {
+  test('UI-03: the no-access user sees the notice on business pages and on /profile until approved', async ({ page, request }) => {
     const acct = newAccount();
     const res = await registerViaApi(request, acct);
     await expectStatus(res, 201);
@@ -197,15 +197,14 @@ test.describe('register', () => {
     await page.goto('/crm');
     await expect(page).toHaveURL(/\/crm$/);
     await expectNoAccessScreen(page, acct.username);
+    // design/13: the no-access screen does not link to the profile.
+    await expect(page.getByRole('link', { name: 'Manage account' })).toHaveCount(0);
 
-    await page.getByRole('link', { name: 'Manage account' }).click();
-    await expect(page).toHaveURL(/\/profile$/);
-    await expect(page.getByRole('heading', { name: 'Profile' })).toBeVisible();
-    await expect(page.getByRole('heading', { name: 'No access' })).toHaveCount(0);
-
-    // Direct load of /profile also works for an unbound account.
+    // A direct load of /profile shows the same no-access screen, not the profile.
     await page.goto('/profile');
-    await expect(page.getByRole('heading', { name: 'Profile' })).toBeVisible();
+    await expect(page).toHaveURL(/\/profile$/);
+    await expectNoAccessScreen(page, acct.username);
+    await expect(page.getByRole('heading', { name: 'Profile' })).toHaveCount(0);
   });
 
   test('UI-02 UI-03: a signed-in unbound user opening / gets the no-access screen, not the marketing page', async ({ page, request }) => {
@@ -289,6 +288,24 @@ test.describe('register', () => {
     await expect(fieldError(page, 'Phone (email, phone, or both)')).toBeVisible();
     await expect(fieldError(page, 'Username')).toHaveCount(0);
     await expect(page).toHaveURL(/\/register$/);
+  });
+
+  test('AUTH-16: a local 10-digit phone is stored as +1 and signs in typed either way', async ({ request }) => {
+    const local = `403${randomDigits(7)}`;
+    const acct = { ...newAccount(), phone: `${local.slice(0, 3)}-${local.slice(3, 6)}-${local.slice(6)}` };
+    const res = await registerViaApi(request, acct);
+    await expectStatus(res, 201);
+    const me = await request.get(`${env.gatewayUrl}/api/v1/me`, {
+      headers: { Authorization: `Bearer ${(await res.json()).accessToken}` },
+    });
+    expect((await me.json()).phone).toBe(`+1${local}`);
+
+    for (const identifier of [acct.phone, `+1${local}`]) {
+      const login = await request.post(`${env.gatewayUrl}/api/v1/auth/login`, {
+        data: { identifier, password: acct.password },
+      });
+      expect(login.status(), identifier).toBe(200);
+    }
   });
 
   test('AUTH-16 §1.5: duplicate username / email / phone return per-field 409 codes', async ({ request }) => {

@@ -109,15 +109,14 @@ Details, layout and the `autofix` loop: [playwright/README.md](playwright/README
 
 ## Cloud deployment (Azure)
 
-Terraform creates the App Service plan, the four web apps, MySQL Flexible Server, Key Vault and monitoring; a script uploads the apps. One command deploys everything and loads the local demo data:
+Terraform creates the App Service plan, the four web apps, MySQL Flexible Server, Key Vault and monitoring; a script uploads the apps. `terraform apply` alone leaves the database empty apart from the platform admin. One command deploys everything and then loads the committed demo seed:
 
 ```bash
 az login
-deploy/seed/export-local-data.sh      # local dealer_core -> deploy/seed/dealer_core_seed.sql.gz (Git-ignored)
-./deploy/deploy.sh --apply --seed     # terraform apply, upload all apps, wait for health, import the data
+./deploy/deploy.sh --apply --seed     # terraform apply, upload all apps, then load dealer-platform/seed
 ```
 
-After an import the cloud accepts the same sign-ins as the local database (`admin` / `admin123`, `lafe` / `admin1234`). `terraform destroy` in `deploy/terraform` removes the whole stack; apply and destroy can be repeated. Full procedure, verification and cost control: [deploy/README.md](deploy/README.md).
+`--seed` adds the 30 demo dealerships and does not delete rows that are already there. The platform admin password stays the one from `terraform output -raw admin_password`. Replacing Azure with a local database dump is separate and does delete existing rows; that procedure is in [deploy/README.md](deploy/README.md). `terraform destroy` in `deploy/terraform` removes the whole stack; apply and destroy can be repeated. Full procedure, verification and cost control: [deploy/README.md](deploy/README.md).
 
 ## AI agent MCP servers
 

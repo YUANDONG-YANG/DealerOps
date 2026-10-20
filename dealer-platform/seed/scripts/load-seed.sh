@@ -6,17 +6,27 @@
 #
 # Connection settings come from the environment (never hardcoded):
 #   MYSQL_HOST (127.0.0.1), MYSQL_PORT (3306), MYSQL_DB (dealer_core), MYSQL_USER (dealer), MYSQL_PWD.
+#   MYSQL_SSL_MODE is optional (unset locally; REQUIRED when the server demands TLS, as Azure does).
 # SEED_PYTHON picks the interpreter for the photo loader; one with Pillow also stores enhanced copies.
 # Run DealerOps.Core once before loading so its startup schema patches are applied.
+# Inserts are guarded by natural keys. This script does not empty the database unless --reset is passed,
+# and --reset removes only the seed dealerships.
 set -Eeuo pipefail
 
 SEED_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 : "${MYSQL_HOST:=127.0.0.1}" "${MYSQL_PORT:=3306}" "${MYSQL_DB:=dealer_core}" "${MYSQL_USER:=dealer}"
 export MYSQL_HOST MYSQL_PORT MYSQL_DB MYSQL_USER
 if [[ -n "${MYSQL_PWD:-}" ]]; then export MYSQL_PWD; fi
+if [[ -n "${MYSQL_SSL_MODE:-}" ]]; then export MYSQL_SSL_MODE; fi
+
+mysql_cli=(mysql --default-character-set=utf8mb4 -h "$MYSQL_HOST" -P "$MYSQL_PORT" -u "$MYSQL_USER")
+if [[ -n "${MYSQL_SSL_MODE:-}" ]]; then
+  mysql_cli+=(--ssl-mode="$MYSQL_SSL_MODE")
+fi
+mysql_cli+=("$MYSQL_DB")
 
 run_sql() {
-  mysql --default-character-set=utf8mb4 -h "$MYSQL_HOST" -P "$MYSQL_PORT" -u "$MYSQL_USER" "$MYSQL_DB" "$@"
+  "${mysql_cli[@]}" "$@"
 }
 
 seed_emails() {

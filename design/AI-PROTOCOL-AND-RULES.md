@@ -253,16 +253,18 @@ static final String CADENCE =
 static final Pattern PAYMENT = Pattern.compile(
     "\\$?\\d[\\d,]*(?:\\.\\d{2})?\\s*" + CADENCE, Pattern.CASE_INSENSITIVE);
 
-/** Anchored at whatever follows an amount: it turns that amount into a periodic payment
- *  rather than a cash price. */
-static final Pattern PAYMENT_CADENCE = Pattern.compile("^\\s*" + CADENCE, Pattern.CASE_INSENSITIVE);
+/** Anchored at whatever follows an amount: it turns that amount into a periodic payment or an
+ *  upfront amount ("$2,000 down") rather than a cash price. */
+static final Pattern PAYMENT_CADENCE = Pattern.compile(
+    "^\\s*(?:" + CADENCE + "|down\\b|due at signing)", Pattern.CASE_INSENSITIVE);
 
 static final Pattern COST_OF_BORROWING = Pattern.compile(
     "cost of borrowing|total cost of credit|borrowing cost|finance charge",
     Pattern.CASE_INSENSITIVE);
 
 /** True when at least one advertised amount is not immediately qualified as a periodic
- *  payment, which is what distinguishes a cash price from "$299 per month". */
+ *  payment or an upfront amount, which is what distinguishes a cash price from
+ *  "$299 per month" or "$2,000 down". */
 static boolean hasCashPrice(String text) {
     Matcher m = PRICE.matcher(text);
     while (m.find()) {
@@ -271,13 +273,25 @@ static boolean hasCashPrice(String text) {
     return false;
 }
 
+/** Any interest rate shown, labelled APR or not ("0% financing", "rates from 2.9%"). It makes a
+ *  CASH ad a financing ad (AD-04); the disclosure check itself still needs APR. */
+static final Pattern RATE = Pattern.compile(
+    "\\d+(?:\\.\\d+)?\\s*%\\s*(?:apr|annual percentage rate|financing|interest|rate)"
+        + "|(?:apr|financing|interest|rates?)\\b[^.\\n%]{0,20}?\\d+(?:\\.\\d+)?\\s*%",
+    Pattern.CASE_INSENSITIVE);
+
+/** "12 month warranty" is a warranty, not a finance term. */
 static final Pattern TERM_MO = Pattern.compile(
-    "\\d+[\\s-]*(?:month|months|mo)\\b|term\\s*[:=]?\\s*\\d+",
+    "\\d+[\\s-]*(?:month|months|mo)\\b(?![\\s-]*warrant)|term\\s*[:=]?\\s*\\d+",
     Pattern.CASE_INSENSITIVE);
 
 static final Pattern LEASE_WORD = Pattern.compile("\\b(?:lease|leasing|lessee)\\b", Pattern.CASE_INSENSITIVE);
+/** The upfront amount itself: "$2,000 down", "down payment of $2,000", or an explicit
+ *  "$0 / zero / no money down". The bare phrase "down payment" is not a disclosure. */
 static final Pattern LEASE_DOWN = Pattern.compile(
-    "down payment|due at signing|\\$\\d[\\d,]*.{0,12}down",
+    "\\$\\s*\\d[\\d,]*(?:\\.\\d{2})?[^.\\n]{0,20}?\\b(?:down|due at signing|at signing)\\b"
+        + "|(?:down payment|due at signing)[^.\\n$]{0,15}\\$\\s*\\d"
+        + "|\\b(?:zero|no money|nothing)\\s+(?:down|due at signing)\\b",
     Pattern.CASE_INSENSITIVE);
 
 /** Overrides 15’s unfinished capturedKm: must accept FX-09 “15000 km per year” and FX-16 “20,000 km per year”.
@@ -290,8 +304,10 @@ static final Pattern LEASE_KM_ALLOWANCE = Pattern.compile(
 static final Pattern LEASE_KM_ALLOWANCE_ANNUAL_FIRST = Pattern.compile(
     "annual(?:ly)?[^.\\n]{0,30}?(?<![\\d,.])(?<km>\\d{1,3}(?:[, ]\\d{3})+|\\d{1,6})\\s*(?:km|kilomet(?:er|re)s?)",
     Pattern.CASE_INSENSITIVE);
+/** A per-km cost ("$0.12/km", "12 cents per extra km"); the word "excess" alone is not one. */
 static final Pattern LEASE_EXCESS = Pattern.compile(
-    "excess|overage|additional.{0,20}(?:km|kilomet)",
+    "(?:\\$\\s*\\d*\\.?\\d+|\\d+(?:\\.\\d+)?\\s*(?:¢|cents?))\\s*(?:/|per|a|each)\\s*"
+        + "(?:excess\\s+|additional\\s+|extra\\s+)?(?:km|kilomet)",
     Pattern.CASE_INSENSITIVE);
 
 static final Pattern CERTIFIED = Pattern.compile("\\b(?:certified|cpo)\\b", Pattern.CASE_INSENSITIVE);
@@ -392,19 +408,19 @@ Run every rule below on `text`; there is **no** empty-draft short-circuit. An em
 | `CONDITION_UNDISCLOSED` | Same | `code==UNFIT` and no `UNFIT`; or `IRREPARABLE` and no `IRREP`; or `AS_IS` and no `AS_IS` | **hard** |
 | `CERTIFIED_NOT_IN_COPY` | Same | `code==CERTIFIED` and no `CERTIFIED` regex | **soft** |
 | `NEW_USED_NOT_STATED` | `text` | Neither `BRAND_NEW` nor `USED_STATUS` hits. The specification lists new/used as always required; erratum 4 keeps the new/old family advisory, so a silent ad is flagged rather than blocked | **soft** |
-| `PRIOR_USE_UNCLEAR` | `text`, salesperson `priorUse` | A recognized prior-use cue or checklist category is present without a matching clear disclosure | **soft** |
+| `PRIOR_USE_UNCLEAR` | `text`, salesperson `priorUse` | A recognized prior-use cue or checklist category is present without a matching clear disclosure. The `DAILY_RENTAL` category accepts "rental" or "daily lease" wording. When the checklist recorded the category the message says so ("recorded in the checklist"); a copy cue alone keeps the "mentioned without a clear disclosure" message | **soft** |
 | `WARRANTY_TERMS_MISSING` | `text`, salesperson `warrantyTerms` | Recorded offered terms are not present in ad copy | **soft** |
 | `WARRANTY_CLAIM_NEEDS_REVIEW` | `text` | `WARRANTY_BOAST` hits | **soft** |
-| `FINANCE_APR_MISSING` | `text`, `adKind==FINANCE`, or `CASH` whose copy matches `APR` or `PAYMENT` (spec §5: "if the ad shows a rate or payment") | `!APR.matcher(text).find()` | **hard** |
+| `FINANCE_APR_MISSING` | `text`, `adKind==FINANCE`, or `CASH` whose copy matches `RATE` or `PAYMENT` (spec §5: "if the ad shows a rate or payment"; `RATE` also covers a rate not labelled APR, such as "0% financing") | `!APR.matcher(text).find()` | **hard** |
 | `FINANCE_TERM_MISSING` | Same | No `TERM_MO` | **soft** |
-| `FINANCE_CASH_PRICE_MISSING` | Same | `!hasCashPrice(text) && !COST_OF_BORROWING`. `hasCashPrice` is true when at least one `PRICE` amount is **not** immediately followed by a payment cadence, so "$299/month" alone is a payment, not a cash price. Applies to every medium: the broadcast exemption waives only `FINANCE_APR_PROXIMITY` | **hard** |
-| `FINANCE_APR_PROXIMITY` | FINANCE or CASH matching APR/PAYMENT, and `medium != RADIO_TV_BILLBOARD` | Cannot reliably regex “shown next to”; **add on every ONLINE finance-triggered ad** (with or without APR; still add soft when hard exists; does not change the hard block) | **soft** |
+| `FINANCE_CASH_PRICE_MISSING` | Same | `!hasCashPrice(text) && !COST_OF_BORROWING`. `hasCashPrice` is true when at least one `PRICE` amount is **not** immediately followed by a payment cadence or by "down" / "due at signing", so "$299/month" or "$2,000 down" alone is not a cash price. Applies to every medium: the broadcast exemption waives only `FINANCE_APR_PROXIMITY` | **hard** |
+| `FINANCE_APR_PROXIMITY` | FINANCE or CASH matching RATE/PAYMENT, and `medium != RADIO_TV_BILLBOARD` | Spec §5 "APR shown as prominently as the payment", checked as placement: the copy has both an `APR` and a `PAYMENT` match, and no `APR` match starts within 80 characters of a `PAYMENT` match (for example the payment headlines the title while the APR is buried in the body). An APR printed next to the payment passes; an ad with no APR is already a `FINANCE_APR_MISSING` block and gets no proximity finding. Changed 2026-10-20: it was previously raised on every online finance ad, so it could never pass | **soft** |
 | `LEASE_APR_MISSING` | `adKind==LEASE` | No `APR` | **hard** |
 | `LEASE_STATEMENT_MISSING` | Same | No `LEASE_WORD` | **hard** |
 | `LEASE_TERM_MISSING` | Same | No `\d+[\s-]*(month\|months\|mo)\b` | **soft** |
 | `LEASE_RENT_MISSING` | Same | No `PAYMENT` (corrected 2026-10-16). Pairing it with `PRICE` made the rule unreachable: an ad with no amount at all is already a `PRICE_MISSING` block, so a lease quoting only a cash price never had its payment amount checked, leaving the specification's lease "Payment amount" disclosure unenforced | **soft** |
-| `LEASE_DOWN_MISSING` | Same | No `LEASE_DOWN` | **soft** |
-| `LEASE_EXCESS_KM_MISSING` | Same, salesperson `annualKmAllowance` | The **stricter** (lower) of the checklist allowance and the copy allowance — whichever are present — is below 20,000 and no `LEASE_EXCESS` is stated. Corrected 2026-10-16: preferring the checklist figure let an ad that prints 16,000 km/year without an excess fee pass whenever the checklist recorded 20,000 or more | **hard** |
+| `LEASE_DOWN_MISSING` | Same | No `LEASE_DOWN`: the upfront amount (or an explicit zero) is not stated | **soft** |
+| `LEASE_EXCESS_KM_MISSING` | Same, salesperson `annualKmAllowance` | The **stricter** (lower) of the checklist allowance and the copy allowance — whichever are present — is below 20,000 and no `LEASE_EXCESS` per-km cost is stated (the word "excess" alone does not count, changed 2026-10-20). Corrected 2026-10-16: preferring the checklist figure let an ad that prints 16,000 km/year without an excess fee pass whenever the checklist recorded 20,000 or more | **hard** |
 | `LEASE_ALLOWANCE_UNSTATED` | Same | Neither checklist nor copy provides an annual allowance | **soft** |
 | `LEASE_ALLOWANCE_NOT_IN_COPY` | Same, salesperson `annualKmAllowance` | Checklist has an allowance but the ad copy does not | **soft** |
 | `LEASE_ALLOWANCE_MISMATCH` | Same, salesperson `annualKmAllowance` | Checklist allowance differs from the ad copy | **soft** |
@@ -451,17 +467,18 @@ Result runFixedOmvic(Listing L, VehiclePublic V, DealerPublic D) {
     if (!BRAND_NEW.matcher(text).find() && !USED_STATUS.matcher(text).find())
         soft.add(NEW_USED_NOT_STATED);
 
-    if (mentionsPriorUseCue(text) && !mentionsPriorUseDisclosure(text))
+    if ((L.priorUse != null || mentionsPriorUseCue(text)) && !mentionsPriorUseDisclosure(text, L.priorUse))
         soft.add(PRIOR_USE_UNCLEAR);
     if (WARRANTY_BOAST.matcher(text).find()) soft.add(WARRANTY_CLAIM_NEEDS_REVIEW);
 
     if (L.adKind == FINANCE || (L.adKind == CASH
-        && (APR.matcher(text).find() || PAYMENT.matcher(text).find()))) {
+        && (RATE.matcher(text).find() || PAYMENT.matcher(text).find()))) {
         if (!APR.matcher(text).find()) hard.add(FINANCE_APR_MISSING);
         if (!TERM_MO.matcher(text).find()) soft.add(FINANCE_TERM_MISSING);
         if (!hasCashPrice(text) && !COST_OF_BORROWING.matcher(text).find())
             hard.add(FINANCE_CASH_PRICE_MISSING);
-        if (L.medium != RADIO_TV_BILLBOARD) soft.add(FINANCE_APR_PROXIMITY);
+        if (L.medium != RADIO_TV_BILLBOARD && APR.matcher(text).find() && PAYMENT.matcher(text).find()
+            && !aprWithin80CharsOfPayment(text)) soft.add(FINANCE_APR_PROXIMITY);
     }
 
     if (L.adKind == LEASE) {
@@ -502,7 +519,7 @@ Dealership public four fields and V-ASIS follow 17 §1. Running fixture copy thr
 | Fixture | hard[] (must include) | soft[] (allowed) | Call AI? | HTTP / DB state |
 |---|---|---|---|---|
 | **FX-01** missing-price CASH | `PRICE_MISSING` | no requirement | **No** | **200** `BLOCKED` / `SKIPPED` |
-| **FX-03** FINANCE no APR | `FINANCE_APR_MISSING` | may have `FINANCE_APR_PROXIMITY` (ONLINE); does not change the hard block | **No** | **200** `BLOCKED` / `SKIPPED` |
+| **FX-03** FINANCE no APR | `FINANCE_APR_MISSING` | no `FINANCE_APR_PROXIMITY`: with no APR there is nothing to place | **No** | **200** `BLOCKED` / `SKIPPED` |
 | **FX-10** clean CASH | **empty** | usually empty (year already in copy) | **Yes** | success → **200** `PASSED` / `SUCCESS` |
 | **FX-11** | this step **does not** run the engine | — | **No** | GET `checkStatus=STALE`; Ready/Export → **409** `CHECK_STALE` |
 | **FX-12** copy = FX-10 | **empty** (same as FX-10) | same as FX-10 | **Yes** (then fail) | **502** `AI_UNAVAILABLE`; row written `UNAVAILABLE`; Ready → **409** `NOT_PASSED` |

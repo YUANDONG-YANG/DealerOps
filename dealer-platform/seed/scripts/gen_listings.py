@@ -34,29 +34,33 @@ PRICE = re.compile(r"(?:cad|c\$|\$)\s*\d[\d,]*(?:\.\d{2})?|\d[\d,]*(?:\.\d{2})?\
 PHONE = re.compile(r"\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}")
 EMAIL = re.compile(r"\S+@\S+\.\S+")
 APR = re.compile(r"\d+(?:\.\d+)?\s*%\s*(?:apr|annual percentage rate)|apr\s*[:=]?\s*\d+(?:\.\d+)?\s*%", I)
-TERM_MO = re.compile(r"\d+[\s-]*(?:month|months|mo)\b|term\s*[:=]?\s*\d+", I)
+RATE = re.compile(r"\d+(?:\.\d+)?\s*%\s*(?:apr|annual percentage rate|financing|interest|rate)|(?:apr|financing|interest|rates?)\b[^.\n%]{0,20}?\d+(?:\.\d+)?\s*%", I)
+TERM_MO = re.compile(r"\d+[\s-]*(?:month|months|mo)\b(?![\s-]*warrant)|term\s*[:=]?\s*\d+|\b\d{1,2}[\s-]*(?:year|yr)s?\b(?![\s-]*(?:old|warrant))", I)
 LEASE_WORD = re.compile(r"\b(?:lease|leasing|lessee)\b", I)
-LEASE_DOWN = re.compile(r"down payment|due at signing|\$\d[\d,]*.{0,12}down", I)
+LEASE_DOWN = re.compile(r"\$\s*\d[\d,]*(?:\.\d{2})?[^.\n]{0,20}?\b(?:down|due at signing|at signing|due on delivery)\b|(?:down payment|due at signing|due on delivery)[^.\n$]{0,15}\$\s*\d|\b(?:zero|no money|nothing)\s+(?:down|due at signing)\b", I)
 LEASE_KM = re.compile(r"(?<![\d,.])(?P<km>\d{1,3}(?:[, ]\d{3})+|\d{1,6})\s*(?:km|kilomet(?:er|re)s?)\s*(?:(?:per|/|a|each)\s*)?(?:year|yr|annum|annual(?:ly)?)", I)
 LEASE_KM_FIRST = re.compile(r"annual(?:ly)?[^.\n]{0,30}?(?<![\d,.])(?P<km>\d{1,3}(?:[, ]\d{3})+|\d{1,6})\s*(?:km|kilomet(?:er|re)s?)", I)
-LEASE_EXCESS = re.compile(r"excess|overage|additional.{0,20}(?:km|kilomet)", I)
-LEASE_TERM_ONLY = re.compile(r"\d+[\s-]*(month|months|mo)\b", I)
+LEASE_EXCESS = re.compile(r"(?:\$\s*\d*\.?\d+|\d+(?:\.\d+)?\s*(?:¢|cents?))\s*(?:/|per|a|each)\s*(?:excess\s+|additional\s+|extra\s+)?(?:km|kilomet)", I)
+LEASE_TERM_ONLY = re.compile(r"\d+[\s-]*(month|months|mo)\b|\b\d{1,2}[\s-]*(?:year|yr)s?\b(?![\s-]*(?:old|warrant))", I)
 CERTIFIED = re.compile(r"\b(?:certified|cpo)\b", I)
 CERTIFIED_DENIAL = re.compile(r"\b(?:not|never|non)[\s-]*certified\b", I)
 AS_IS = re.compile(r"\bas[\s-]?is\b", I)
 UNFIT = re.compile(r"unfit|not roadworthy|not fit", I)
 IRREP = re.compile(r"irreparable|salvage|write[\s-]?off", I)
 BRAND_NEW = re.compile(r"\b(?:brand[\s-]?new|never used|0\s*km|zero kilometres|new car(?!\s+feel))\b", I)
-PRIOR_USE_CUE = re.compile(r"\b(?:police|taxi|cab|limo(?:usine)?|uber|lyft|rideshare|daily rental|rental (?:car|fleet)|car[- ]share|lease return|ex[- ]lease|former lease|repo(?:ssessed)?|ambulance|driver[- ]ed)\b", I)
+PRIOR_USE_CUE = re.compile(r"\b(?:police|taxi|cab|limo(?:usine)?|uber|lyft|rideshare|daily rental|daily lease|emergency(?![\s-]*(?:brak|assist|kit|roadside|stop|light|flasher|call))|rental (?:car|fleet)|car[- ]share|lease return|ex[- ]lease|former lease|repo(?:ssessed)?|ambulance|driver[- ]ed)\b", I)
 CAB_STYLES = ("crew", "king", "double", "quad", "super", "mega", "extended", "access", "regular")
-PRIOR_USE_DISCLOSURE = re.compile(r"(?:previously used as|prior use|former(?:ly)? (?:a )?(?:police|taxi|limo(?:usine)?|rental)|ex[- ](?:police|taxi|limo(?:usine)?|rental)|lease return disclosed|disclosed prior use)", I)
-RENTAL_DISCLOSURE = re.compile(r"(?:previously|formerly|prior|ex)[\s\S]{0,30}rental|rental[\s\S]{0,30}(?:previously used|prior use|former)", I)
+PRIOR_USE_DISCLOSURE = re.compile(r"(?:previously used as|prior use|former(?:ly)? (?:a |an )?(?:police|emergency|taxi|limo(?:usine)?|rental|daily lease)|ex[- ](?:police|emergency|taxi|limo(?:usine)?|rental)|lease return disclosed|disclosed prior use)", I)
+RENTAL_DISCLOSURE = re.compile(r"(?:previously|formerly|prior|ex)[\s\S]{0,30}(?:rental|daily lease)|(?:rental|daily lease)[\s\S]{0,30}(?:previously used|prior use|former)", I)
 WARRANTY = re.compile(r"\bwarrant(?:y|ies)\b", I)
 CADENCE = r"(?:per\s+month|a\s+month|/\s*mo(?:nth)?\b|monthly|bi-?weekly|weekly|per\s+week|/\s*wk\b)"
-PAYMENT = re.compile(r"\$?\d[\d,]*(?:\.\d{2})?\s*" + CADENCE, I)
+PAYMENT_LEAD_TEXT = r"(?:monthly|bi-?weekly|weekly)\s+payments?\s*(?:of|from|:)?\s*"
+PAYMENT = re.compile(r"\$?\d[\d,]*(?:\.\d{2})?\s*" + CADENCE + r"|" + PAYMENT_LEAD_TEXT + r"\$\s*\d[\d,]*(?:\.\d{2})?", I)
+PAYMENT_LEAD = re.compile(r"(?:payments?|monthly|bi-?weekly|weekly)\s*(?:of|from|:)?\s*$", I)
 USED = re.compile(r"\b(?:used|pre[\s-]?owned|second[\s-]?hand|previously owned)\b", I)
 COST_OF_BORROWING = re.compile(r"cost of borrowing|total cost of credit|borrowing cost|finance charge", I)
-PAYMENT_CADENCE = re.compile(r"^\s*" + CADENCE, I)
+PAYMENT_CADENCE = re.compile(r"^\s*(?:" + CADENCE + r"|down\b|due at signing)", I)
+APR_PAYMENT_DISTANCE = 80
 
 
 def _contains(haystack, needle):
@@ -76,7 +80,13 @@ def _prior_use_cue(text):
 
 
 def _has_cash_price(text):
-    return any(not PAYMENT_CADENCE.match(text[m.end():]) for m in PRICE.finditer(text))
+    return any(not PAYMENT_CADENCE.match(text[m.end():]) and not PAYMENT_LEAD.search(text[:m.start()])
+               for m in PRICE.finditer(text))
+
+
+def _apr_next_to_payment(text):
+    aprs = [m.start() for m in APR.finditer(text)]
+    return any(abs(a - p.start()) <= APR_PAYMENT_DISTANCE for p in PAYMENT.finditer(text) for a in aprs)
 
 
 def findings(ad, vehicle, dealer, now_year=TODAY.year):
@@ -119,7 +129,9 @@ def findings(ad, vehicle, dealer, now_year=TODAY.year):
 
     prior = ad["prior_use"]
     disclosed = RENTAL_DISCLOSURE.search(text) if prior == "DAILY_RENTAL" else PRIOR_USE_DISCLOSURE.search(text)
-    if (_prior_use_cue(text) or prior) and not disclosed:
+    if prior and not disclosed:
+        S("PRIOR_USE_UNCLEAR", "The prior use recorded in the checklist is not disclosed in the ad.")
+    elif _prior_use_cue(text) and not disclosed:
         S("PRIOR_USE_UNCLEAR", "Prior use is mentioned without a clear disclosure.")
     if ad["warranty_terms"] and not _contains(text, ad["warranty_terms"]):
         S("WARRANTY_TERMS_MISSING", "Extended warranty terms are recorded but are not stated in the ad.")
@@ -127,15 +139,16 @@ def findings(ad, vehicle, dealer, now_year=TODAY.year):
         S("WARRANTY_CLAIM_NEEDS_REVIEW", "Warranty claim needs review.")
 
     kind = ad["ad_kind"]
-    if kind == "FINANCE" or (kind == "CASH" and (APR.search(text) or PAYMENT.search(text))):
+    if kind == "FINANCE" or (kind == "CASH" and (RATE.search(text) or PAYMENT.search(text))):
         if not APR.search(text):
             H("FINANCE_APR_MISSING", "Finance APR is missing from the ad.")
         if not TERM_MO.search(text):
             S("FINANCE_TERM_MISSING", "Finance term is not stated.")
         if not _has_cash_price(text) and not COST_OF_BORROWING.search(text):
             H("FINANCE_CASH_PRICE_MISSING", "Finance advertising must state the cash price or the cost of borrowing.")
-        if ad["medium"] != "RADIO_TV_BILLBOARD":
-            S("FINANCE_APR_PROXIMITY", "Finance APR placement should be reviewed.")
+        if (ad["medium"] != "RADIO_TV_BILLBOARD" and APR.search(text) and PAYMENT.search(text)
+                and not _apr_next_to_payment(text)):
+            S("FINANCE_APR_PROXIMITY", "The APR is not shown next to the payment amount; it must be as prominent as the payment.")
     if kind == "LEASE":
         if not APR.search(text):
             H("LEASE_APR_MISSING", "Lease APR is missing from the ad.")

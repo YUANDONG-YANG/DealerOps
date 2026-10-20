@@ -387,6 +387,7 @@ export default function CrmPage() {
     { key: 'name', label: 'Name' },
     { key: 'email', label: 'Email' },
     { key: 'phone', label: 'Phone' },
+    { key: 'homeAddress', label: 'Home address' },
     {
       key: 'linkedVehicle',
       label: 'Linked vehicles',

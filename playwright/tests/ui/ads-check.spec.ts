@@ -142,12 +142,11 @@ test.describe('Ad compliance check (UI)', () => {
     await expect(pane.locator('li', { hasText: 'FINANCE_APR_MISSING' })).toHaveText(
       '❌ Block · FINANCE_APR_MISSING: Finance APR is missing from the ad.',
     );
-    await expect(pane.locator('li', { hasText: 'FINANCE_APR_PROXIMITY' })).toHaveText(
-      '⚠️ Review · FINANCE_APR_PROXIMITY: Finance APR placement should be reviewed.',
-    );
+    // With no APR at all there is nothing to place next to the payment: only the APR row fails.
+    await expect(pane.locator('li', { hasText: 'FINANCE_APR_PROXIMITY' })).toHaveCount(0);
     await expect(checklistRow(pane, 'APR')).toHaveText('❌ APR');
     await expect(checklistRow(pane, 'APR shown as prominently as the payment amount'))
-      .toHaveText('⚠️ APR shown as prominently as the payment amount');
+      .toHaveText('✅ APR shown as prominently as the payment amount');
     await expect(checklistRow(pane, 'Finance term')).toHaveText('✅ Finance term');
     await expect(checklistRow(pane, 'Cash price or cost of borrowing')).toHaveText('✅ Cash price or cost of borrowing');
     await expect(checklistRow(pane, 'Price')).toHaveText('✅ Price');

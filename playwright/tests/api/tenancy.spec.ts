@@ -133,3 +133,19 @@ test('ARC-06: unauthenticated API calls get 401 with a {code,message} body', asy
   expect(body).toHaveProperty('code');
   expect(body).toHaveProperty('message');
 });
+
+test('AUTH-02: creating a dealership validates the email and field lengths, and trims values', async ({ adminApi }) => {
+  const valid = {
+    legalName: `E2E Trim ${uniqueSuffix()}`,
+    contactPhone: '403-555-0388',
+    contactEmail: `trim.${uniqueSuffix()}@example.com`,
+    contactAddress: '8 Trim Road, Calgary, AB',
+  };
+  await expectError(await adminApi.post('/api/v1/admin/dealers', { ...valid, contactEmail: 'not-an-email' }), 400, 'VALIDATION');
+  await expectError(await adminApi.post('/api/v1/admin/dealers', { ...valid, legalName: 'x'.repeat(201) }), 400, 'VALIDATION');
+  await expectError(await adminApi.post('/api/v1/admin/dealers', { ...valid, contactAddress: '   ' }), 400, 'VALIDATION');
+
+  const created = await adminApi.post('/api/v1/admin/dealers', { ...valid, legalName: `  ${valid.legalName}  ` });
+  await expectStatus(created, 201);
+  expect((await created.json()).legalName).toBe(valid.legalName);
+});

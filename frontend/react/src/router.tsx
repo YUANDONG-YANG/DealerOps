@@ -92,8 +92,8 @@ function AuthGuard() {
   }
   if (status === 'redirect') return null;
 
-  // Profile is about the signed-in account, so an unbound user can still edit or delete it.
-  if (!hasBusinessAccess(session) && location.pathname !== '/profile') {
+  // A dealership has to approve the account before any signed-in page, including profile.
+  if (!hasBusinessAccess(session)) {
     return <NoAccessPage />;
   }
 
@@ -124,7 +124,7 @@ export default function AppRoutes() {
       <Route path="/register" element={<RegisterPage />} />
 
       <Route element={<AuthGuard />}>
-        {/* Profile is accessible to both roles; it's about the signed-in user, not tenant data. */}
+        {/* Both roles, once the account has business access. */}
         <Route path="/profile" element={<ProfilePage />} />
         <Route element={<AdminGuard />}>
           <Route path="/admin" element={<AdminPage />} />

@@ -202,3 +202,16 @@ test('AD-01: a sold vehicle advertisement is read-only', async ({ staffPage: pag
     await expect(page.getByRole('button', { name })).toBeDisabled();
   }
 });
+
+test('IMG-01: the Ad compliance page opens the selected vehicle\'s Image Studio', async ({ staffPage: page, staffApi }) => {
+  const v = await staffApi.createVehicle();
+  const photosLoaded = page.waitForResponse(
+    (r) => new URL(r.url()).pathname === `/api/v1/vehicles/${v.id}/photos` && r.request().method() === 'GET',
+  );
+  await openAd(page, v.id);
+  expect((await photosLoaded).status()).toBe(200);
+
+  const studio = page.getByRole('region', { name: 'Image Studio' });
+  await expect(studio).toBeVisible();
+  await expect(studio.getByText('Upload photo')).toBeVisible();
+});

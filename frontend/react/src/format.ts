@@ -18,3 +18,11 @@ export function dateTimeLocal(value: unknown): string {
 export function initials(name: string): string {
   return name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join('');
 }
+
+// Enum value to label ("TRADE_IN" -> "Trade in"); the condition AS_IS keeps the
+// specification's hyphen, "As-is".
+export function enumLabel(value: unknown): string {
+  if (value === 'AS_IS') return 'As-is';
+  const s = String(value || '').split('_').join(' ').toLowerCase();
+  return s ? s.charAt(0).toUpperCase() + s.slice(1) : '';
+}

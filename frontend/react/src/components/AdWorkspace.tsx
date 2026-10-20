@@ -2,19 +2,20 @@ import type { ReactNode } from 'react';
 import { useSessionStore } from '../store/session';
 import { checkStatusLabel, isCheckStatus, type Listing, type PriorUse, type RuleFinding } from '../api/listings';
 import StatusTag from './StatusTag';
+import { enumLabel } from '../format';
 
 type ChecklistItem = { label: string; codes: string[] };
 
-// Mirrors the APR / payment patterns in OmvicRuleEngine so the displayed checklist
+// Mirrors the rate / payment patterns in OmvicRuleEngine so the displayed checklist
 // matches the finance rules the server will apply (spec 04 section 6).
-const APR_PATTERN = /\d+(?:\.\d+)?\s*%\s*(?:apr|annual percentage rate)|apr\s*[:=]?\s*\d+(?:\.\d+)?\s*%/i;
-const PAYMENT_PATTERN = /\$?\d[\d,]*(?:\.\d{2})?\s*(?:per\s+month|a\s+month|\/\s*mo(?:nth)?\b|monthly|bi-?weekly|weekly|per\s+week|\/\s*wk\b)/i;
+const RATE_PATTERN = /\d+(?:\.\d+)?\s*%\s*(?:apr|annual percentage rate|financing|interest|rate)|(?:apr|financing|interest|rates?)\b[^.\n%]{0,20}?\d+(?:\.\d+)?\s*%/i;
+const PAYMENT_PATTERN = /\$?\d[\d,]*(?:\.\d{2})?\s*(?:per\s+month|a\s+month|\/\s*mo(?:nth)?\b|monthly|bi-?weekly|weekly|per\s+week|\/\s*wk\b)|(?:monthly|bi-?weekly|weekly)\s+payments?\s*(?:of|from|:)?\s*\$\s*\d/i;
 
 function financeTriggered(listing: Listing): boolean {
   if (listing.adKind === 'FINANCE') return true;
   if (listing.adKind !== 'CASH') return false;
   const text = `${listing.title || ''}\n${listing.body || ''}`;
-  return APR_PATTERN.test(text) || PAYMENT_PATTERN.test(text);
+  return RATE_PATTERN.test(text) || PAYMENT_PATTERN.test(text);
 }
 
 function buildChecklist(listing: Listing): ChecklistItem[] {
@@ -68,11 +69,6 @@ function emptyFindingsText(status: Listing['checkStatus']): string {
   return 'No rule findings yet. Save a draft and run check.';
 }
 
-function conditionLabel(code?: string): string {
-  const s = String(code || '').split('_').join(' ').toLowerCase();
-  return s ? s.charAt(0).toUpperCase() + s.slice(1) : '—';
-}
-
 interface Props {
   listing: Listing;
   onChange: (listing: Listing) => void;
@@ -101,7 +97,7 @@ export default function AdWorkspace({ listing, onChange, vehicle, readOnly, pick
           {hasSelection ? (
             <>
               <p className="muted">
-                Year {String(vehicle?.modelYear ?? '—')} · Condition {conditionLabel(vehicle?.conditionCode as string)} · Dealership {session.dealerLegalName || '—'}
+                Year {String(vehicle?.modelYear ?? '—')} · Condition {enumLabel(vehicle?.conditionCode) || '—'} · Dealership {session.dealerLegalName || '—'}
               </p>
               <p className="muted">
                 Contact {session.dealerContactPhone || '—'} · {session.dealerContactEmail || '—'} · {session.dealerContactAddress || '—'}
@@ -132,7 +128,7 @@ export default function AdWorkspace({ listing, onChange, vehicle, readOnly, pick
                   <option value="">Not applicable / unknown</option>
                   <option value="POLICE_EMERGENCY">Police or emergency vehicle</option>
                   <option value="TAXI_LIMO">Taxi or limousine</option>
-                  <option value="DAILY_RENTAL">Daily rental</option>
+                  <option value="DAILY_RENTAL">Daily lease or rental</option>
                   <option value="OTHER">Other prior use</option>
                 </select>
               </div>

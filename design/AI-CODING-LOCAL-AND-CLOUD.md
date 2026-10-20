@@ -223,7 +223,7 @@ There is **no container registry and no Container Apps environment**: App Servic
 1. `terraform apply` in `deploy/terraform` creates or updates the Azure resources.
 2. `deploy/terraform/deploy-apps.sh` packages the three JARs, uploads them with `az webapp deploy --type jar`, builds the SPA with `VITE_GATEWAY_URL` set to the gateway URL, and uploads `dist/` to the Static Web App.
 
-`deploy/deploy.sh` runs both steps in order and then waits for the gateway health check.
+`deploy/deploy.sh` runs both steps in order and then waits for the gateway health check. `./deploy/deploy.sh --apply --seed` adds one more step: it loads the committed demo seed in `dealer-platform/seed/` into Azure MySQL. That step is opt-in. Bare `terraform apply` does not run it, and the seed does not delete rows already in the database. Replacing Azure with a local dump is `deploy/seed/import-to-azure.sh`, documented in [deploy/README.md](../deploy/README.md).
 
 That script generates **one** UTC timestamp (`yyyy-MM-dd'T'HH:mm:ss'Z'`, second precision) per run. It becomes the `PUBLISHED_AT` app setting on every Java app the run deploys and the `VITE_PUBLISHED_AT` build value for `dealer-web`. Without a stamp, each app falls back to its build time. The web footer (bottom left) lists the release time of all four apps, and the Swagger description shows dealer-core's. The rules are in [20-Observability.md](20-Observability.md) §5. Swagger is served through the gateway at `/swagger-ui/index.html`; the browser never uses core port `8081`.
 

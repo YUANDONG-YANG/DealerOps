@@ -79,6 +79,25 @@ test('DMS edge cases: year bounds, zero cost, future date, Carfax URL', async ({
   }
 });
 
+test('DMS-01 / DMS-10: money with more than two decimals is refused, not rounded', async ({ staffApi }) => {
+  for (const [field, value] of [['purchaseCost', 14200.555], ['repairCost', 99.999]] as const) {
+    const res = await staffApi.post('/api/v1/vehicles', vehicleBody({ [field]: value }));
+    await expectError(res, 400, 'VALIDATION');
+  }
+  const created = await staffApi.createVehicle({ purchaseCost: 14200.55 });
+  expect(created.purchaseCost).toBe(14200.55);
+
+  const edit = await staffApi.patch(`/api/v1/vehicles/${created.id}`, {
+    ...vehicleBody({ vin: created.vin }), version: created.version, purchaseCost: 1.001,
+  });
+  await expectError(edit, 400, 'VALIDATION');
+
+  const sell = await staffApi.post(`/api/v1/vehicles/${created.id}/sell`, {
+    soldOn: today(), soldPrice: 18900.125, version: created.version,
+  });
+  await expectError(sell, 400, 'VALIDATION');
+});
+
 test('DMS-06 / NFR-01: list pages 10 per page by default, newest first', async ({ staffApi }) => {
   for (let i = 0; i < 11; i++) await staffApi.createVehicle();
 

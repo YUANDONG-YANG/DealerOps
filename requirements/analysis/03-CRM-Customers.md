@@ -31,7 +31,7 @@
 |---|---|---|---|
 | CRM-01 | Add a customer; all four fields are required, with per-field errors | PDF §4 | Must |
 | CRM-02 | Edit a customer's four fields | PDF §7 | Must |
-| CRM-03 | Customer list: 10 per page, search by name / email / phone | SCOPE / Derived | Must |
+| CRM-03 | Customer list: 10 per page with the four fields (home address included), search by name / email / phone | SCOPE / Derived | Must |
 | CRM-04 | Customer detail: basic info, linked vehicles (year make model, VIN, status), audit history | PDF §4, §6 | Must |
 | CRM-05 | From customer detail, pick and link an unlinked vehicle of the same dealer (in stock or sold) | PDF §4 | Must |
 | CRM-06 | The link picker lists only linkable vehicles, never other dealers' or already-linked ones | PDF §4 | Must |

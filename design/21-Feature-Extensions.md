@@ -198,16 +198,16 @@ Google authenticates an email address and nothing more. It grants no role and no
 
 | ID | Requirement | Priority |
 |---|---|---|
-| AUTH-16 | `POST /api/v1/auth/register` accepts `username` (3–64 letters, digits, `.`, `_`, `-`, at least one letter), `displayName`, password, and at least one of a valid `email` or international phone number (country code required). A duplicate username, email, or phone → **409** `USERNAME_TAKEN` / `DISPLAY_NAME_TAKEN` / `EMAIL_TAKEN` / `PHONE_TAKEN`. Full names are unique (trimmed, case-insensitive). Every error names its field in `fieldErrors` with an English message. | Must |
+| AUTH-16 | `POST /api/v1/auth/register` accepts `username` (3–64 letters, digits, `.`, `_`, `-`, at least one letter), `displayName`, password, and at least one of a valid `email` or phone number (ten digits without `+` are a local North American number stored as `+1` plus the digits; any other number needs its country code). A duplicate username, email, or phone → **409** `USERNAME_TAKEN` / `DISPLAY_NAME_TAKEN` / `EMAIL_TAKEN` / `PHONE_TAKEN`. Full names are unique (trimmed, case-insensitive). Every error names its field in `fieldErrors` with an English message. | Must |
 | AUTH-17 | `POST /api/v1/auth/login` accepts `identifier` = email, username, or phone, and the password. Order: `@` → email; else username; else phone | Must |
 | AUTH-18 | A new account is active but unbound and can access no dealership data until the admin binds it or a member of the requested dealership approves its join request (`AUTH-25`) | Must |
 | AUTH-19 | ~~No social-provider login buttons, routes, credentials, or integrations are present~~ **Superseded 2026-10-15 by AUTH-23.** Still binding for every provider other than Google | Must |
 | AUTH-20 | Admin can create an account with a username and an email and/or phone and bind it; binding an existing account never replaces its credentials | Must |
 | AUTH-21 | The platform admin is seeded from `ADMIN_USERNAME` / `ADMIN_PASSWORD`; `ADMIN_EMAIL` / `ADMIN_PHONE` are optional extra sign-in names | Must |
 | AUTH-22 | Local registration and first admin-created account are audited (`APP_USER`, `CREATE`, actor = the username) | Should |
-| AUTH-23 | `POST /api/v1/auth/google` accepts a Google ID token, verifies it server-side (RS256 against Google's published keys, issuer, audience = the configured client id, expiry, and `email_verified` true), then signs in the account holding that email or creates a new unbound `Dealer.User` for it. The account gets no password, so it can only return through Google. A `Platform.Admin` account is refused and keeps password-only sign-in. An optional `Google:HostedDomain` restricts sign-in to one Google Workspace domain. The button is hidden when no client id is configured. Audited as `APP_USER` / `CREATE` with `registration = google` | Must |
+| AUTH-23 | `POST /api/v1/auth/google` accepts a Google ID token, verifies it server-side (RS256 against Google's published keys, issuer, audience = the configured client id, expiry, and `email_verified` true), then signs in the account holding that email or creates a new unbound `Dealer.User` for it. The account gets no password, so it can only return through Google. A `Platform.Admin` account is refused and keeps password-only sign-in. An optional `Google:HostedDomain` restricts sign-in to one Google Workspace domain. The button is hidden when no client id is configured. An optional `dealerId` records the join request; an unknown or inactive one → **404** `NOT_FOUND` and nothing is recorded. Audited as `APP_USER` / `CREATE` with `registration = google` | Must |
 | AUTH-24 | `POST /api/v1/auth/firebase` accepts a Firebase ID token (SCOPE erratum 9) and signs in the account linked to that Firebase uid, else the account holding that email, else creates an unbound `Dealer.User` (`registration = firebase`). Unverified emails are accepted, but an existing email account is linked to a new uid only when `email_verified` is true (otherwise 409 `EMAIL_TAKEN`). A `Platform.Admin` is refused | Must |
-| AUTH-25 | An unbound account may request to join one dealership. Any active member of that dealership sees the request on `/team` (`GET /api/v1/dealer/join-requests`) and may approve it (creates the membership, audited `MEMBERSHIP` / `CREATE`) or reject it (SCOPE erratum 10). The request is shown to that dealership only | Must |
+| AUTH-25 | An unbound account may request to join one dealership. Any active member of that dealership sees the request on `/team` (`GET /api/v1/dealer/join-requests`) and may approve it (creates the membership, audited `MEMBERSHIP` / `CREATE`) or reject it (SCOPE erratum 10). An account already active at another dealership cannot be approved (**409** `DUP_MEMBER`, one login, one dealership). The request is shown to that dealership only | Must |
 
 ### Flow and API
 
@@ -227,12 +227,12 @@ The `app_user` table keeps the unique `username` and adds nullable `phone`; uniq
 - `/login`: one "Email, username or phone number" field + password; no social sign-in buttons.
 - `/register`: username, display name, email and/or phone, and password.
 - Admin-created staff accounts need an email and/or phone; the seeded platform admin needs only a username.
-- `/no-access`: a signed-in user with no dealership, including Google, sees that the account is not provisioned yet, the username, and a way to request one dealership. A member of that dealership approves or rejects it on `/team`.
+- `/no-access`: a signed-in user with no dealership, including Google, sees that the account is not provisioned yet, the username, and a way to request one dealership. A member of that dealership approves or rejects it on `/team`. Profile stays closed until that approval; the screen does not link to `/profile`.
 - Admin Pending accounts tab: pending accounts show email and phone and can be bound without changing credentials.
 
 ## 6. Image Studio (P5)
 
-Vehicle photos with automatic enhancement. `ai-manager` and ai-service handle text only, so enhancement is image processing in dealer-core (`java.awt` / `javax.imageio`, no new dependency), not a generative model. The original is always kept.
+Vehicle photos with automatic enhancement. The panel opens from the DMS vehicle drawer and, for the selected vehicle, from the Ad compliance page. `ai-manager` and ai-service handle text only, so enhancement is image processing in dealer-core (`java.awt` / `javax.imageio`, no new dependency), not a generative model. The original is always kept.
 
 ### Requirements
 
@@ -240,7 +240,7 @@ Vehicle photos with automatic enhancement. `ai-manager` and ai-service handle te
 |---|---|---|
 | IMG-01 | Upload JPEG or PNG photos to a vehicle: at most 2 MB each (else **400** `VALIDATION`), at most 10 per vehicle (else **400** `VALIDATION`); other types → **415** `UNSUPPORTED_MEDIA_TYPE` | Must |
 | IMG-02 | Enhance a photo with a preset: `AUTO` (auto levels / contrast stretch), `BRIGHTEN`, `SHARPEN`. The result is a JPEG at most 1600 px on the long edge; a new enhancement replaces the previous enhanced copy; the original never changes | Must |
-| IMG-03 | View the original or the enhanced copy; delete a photo with a second confirmation | Must |
+| IMG-03 | View the original or the enhanced copy; delete a photo with a second confirmation. Image Studio is reachable from the DMS vehicle drawer and from the Ad compliance page | Must |
 | IMG-04 | Upload, enhance, and delete are audited (`VEHICLE_PHOTO`; `CREATE`, `UPDATE`, `DELETE`) | Must |
 | IMG-05 | Photos are tenant data: another dealership's vehicle or photo id → **404**. Photos are never sent to AI | Must |
 

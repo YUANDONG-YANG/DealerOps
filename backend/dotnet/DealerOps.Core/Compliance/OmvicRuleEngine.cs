@@ -15,13 +15,21 @@ public class OmvicRuleEngine
     private static readonly Regex Apr = new(
         @"\d+(?:\.\d+)?\s*%\s*(?:apr|annual percentage rate)|apr\s*[:=]?\s*\d+(?:\.\d+)?\s*%",
         RegexOptions.IgnoreCase | RegexOptions.Compiled);
+    // Any interest rate shown, labelled APR or not ("0% financing", "rates from 2.9%"):
+    // it makes a cash ad a financing ad (AD-04).
+    private static readonly Regex Rate = new(
+        @"\d+(?:\.\d+)?\s*%\s*(?:apr|annual percentage rate|financing|interest|rate)|(?:apr|financing|interest|rates?)\b[^.\n%]{0,20}?\d+(?:\.\d+)?\s*%",
+        RegexOptions.IgnoreCase | RegexOptions.Compiled);
+    // "12 month warranty" is a warranty, not a finance term; "5-year" counts, "5 years old" does not.
     private static readonly Regex TermMo = new(
-        @"\d+[\s-]*(?:month|months|mo)\b|term\s*[:=]?\s*\d+",
+        @"\d+[\s-]*(?:month|months|mo)\b(?![\s-]*warrant)|term\s*[:=]?\s*\d+|\b\d{1,2}[\s-]*(?:year|yr)s?\b(?![\s-]*(?:old|warrant))",
         RegexOptions.IgnoreCase | RegexOptions.Compiled);
     private static readonly Regex LeaseWord = new(@"\b(?:lease|leasing|lessee)\b",
         RegexOptions.IgnoreCase | RegexOptions.Compiled);
+    // The upfront amount itself must be stated: "$2,000 down", "down payment of $2,000", or an
+    // explicit "$0 / zero / no money down". The bare phrase "down payment" is not enough.
     private static readonly Regex LeaseDown = new(
-        @"down payment|due at signing|\$\d[\d,]*.{0,12}down",
+        @"\$\s*\d[\d,]*(?:\.\d{2})?[^.\n]{0,20}?\b(?:down|due at signing|at signing|due on delivery)\b|(?:down payment|due at signing|due on delivery)[^.\n$]{0,15}\$\s*\d|\b(?:zero|no money|nothing)\s+(?:down|due at signing)\b",
         RegexOptions.IgnoreCase | RegexOptions.Compiled);
     private static readonly Regex LeaseKmAllowance = new(
         @"(?<![\d,.])(?<km>\d{1,3}(?:[, ]\d{3})+|\d{1,6})\s*(?:km|kilomet(?:er|re)s?)\s*(?:(?:per|/|a|each)\s*)?(?:year|yr|annum|annual(?:ly)?)",
@@ -29,11 +37,13 @@ public class OmvicRuleEngine
     private static readonly Regex LeaseKmAllowanceAnnualFirst = new(
         @"annual(?:ly)?[^.\n]{0,30}?(?<![\d,.])(?<km>\d{1,3}(?:[, ]\d{3})+|\d{1,6})\s*(?:km|kilomet(?:er|re)s?)",
         RegexOptions.IgnoreCase | RegexOptions.Compiled);
+    // The excess-km charge must be a per-km cost such as "$0.12/km" or "12 cents per extra km";
+    // the word "excess" alone does not disclose it.
     private static readonly Regex LeaseExcess = new(
-        @"excess|overage|additional.{0,20}(?:km|kilomet)",
+        @"(?:\$\s*\d*\.?\d+|\d+(?:\.\d+)?\s*(?:¢|cents?))\s*(?:/|per|a|each)\s*(?:excess\s+|additional\s+|extra\s+)?(?:km|kilomet)",
         RegexOptions.IgnoreCase | RegexOptions.Compiled);
     private static readonly Regex LeaseTermOnly = new(
-        @"\d+[\s-]*(month|months|mo)\b",
+        @"\d+[\s-]*(month|months|mo)\b|\b\d{1,2}[\s-]*(?:year|yr)s?\b(?![\s-]*(?:old|warrant))",
         RegexOptions.IgnoreCase | RegexOptions.Compiled);
     private static readonly Regex CertifiedRx = new(@"\b(?:certified|cpo)\b",
         RegexOptions.IgnoreCase | RegexOptions.Compiled);
@@ -52,20 +62,24 @@ public class OmvicRuleEngine
     private static readonly Regex PriorUseCue = new(
         // Whole words only, so "report" is not "repo" and "tuber" is not "uber"; pickup cab
         // styles such as "Crew Cab" describe the body, not taxi use.
-        @"\b(?:police|taxi|(?<!(?:crew|king|double|quad|super|mega|extended|access|regular) )cab|limo(?:usine)?|uber|lyft|rideshare|daily rental|rental (?:car|fleet)|car[- ]share|lease return|ex[- ]lease|former lease|repo(?:ssessed)?|ambulance|driver[- ]ed)\b",
+        @"\b(?:police|taxi|(?<!(?:crew|king|double|quad|super|mega|extended|access|regular) )cab|limo(?:usine)?|uber|lyft|rideshare|daily rental|daily lease|emergency(?![\s-]*(?:brak|assist|kit|roadside|stop|light|flasher|call))|rental (?:car|fleet)|car[- ]share|lease return|ex[- ]lease|former lease|repo(?:ssessed)?|ambulance|driver[- ]ed)\b",
         RegexOptions.IgnoreCase | RegexOptions.Compiled);
     private static readonly Regex PriorUseDisclosure = new(
-        @"(?:previously used as|prior use|former(?:ly)? (?:a )?(?:police|taxi|limo(?:usine)?|rental)|ex[- ](?:police|taxi|limo(?:usine)?|rental)|lease return disclosed|disclosed prior use)",
+        @"(?:previously used as|prior use|former(?:ly)? (?:a |an )?(?:police|emergency|taxi|limo(?:usine)?|rental|daily lease)|ex[- ](?:police|emergency|taxi|limo(?:usine)?|rental)|lease return disclosed|disclosed prior use)",
         RegexOptions.IgnoreCase | RegexOptions.Compiled);
     private static readonly Regex WarrantyBoast = new(
         @"\bwarrant(?:y|ies)\b",
         RegexOptions.IgnoreCase | RegexOptions.Compiled);
     // Shared payment cadence: "/mo" and "/month" both occur in real copy, so the month
     // suffix is optional; without it "$299/month" reads as a cash price.
+    // A payment named before its amount: "monthly payment of", "bi-weekly payments from".
+    private const string PaymentLeadText =
+        @"(?:monthly|bi-?weekly|weekly)\s+payments?\s*(?:of|from|:)?\s*";
     private const string Cadence =
         @"(?:per\s+month|a\s+month|/\s*mo(?:nth)?\b|monthly|bi-?weekly|weekly|per\s+week|/\s*wk\b)";
+    // "$399 per month", or the cadence first: "monthly payment of $399".
     private static readonly Regex Payment = new(
-        @"\$?\d[\d,]*(?:\.\d{2})?\s*" + Cadence,
+        @"\$?\d[\d,]*(?:\.\d{2})?\s*" + Cadence + @"|" + PaymentLeadText + @"\$\s*\d[\d,]*(?:\.\d{2})?",
         RegexOptions.IgnoreCase | RegexOptions.Compiled);
     private static readonly Regex UsedStatus = new(
         @"\b(?:used|pre[\s-]?owned|second[\s-]?hand|previously owned)\b",
@@ -74,9 +88,14 @@ public class OmvicRuleEngine
         @"cost of borrowing|total cost of credit|borrowing cost|finance charge",
         RegexOptions.IgnoreCase | RegexOptions.Compiled);
     // Anchored at the start of whatever follows an amount: it turns that amount into a
-    // periodic payment rather than a cash price.
+    // periodic payment or an upfront amount rather than a cash price.
     private static readonly Regex PaymentCadence = new(
-        @"^\s*" + Cadence,
+        @"^\s*(?:" + Cadence + @"|down\b|due at signing)",
+        RegexOptions.IgnoreCase | RegexOptions.Compiled);
+    // Anchored at the end of whatever precedes an amount: "down payment of $2,000" and
+    // "monthly payment of $399" are not cash prices either.
+    private static readonly Regex PaymentLead = new(
+        @"(?:payments?|monthly|bi-?weekly|weekly)\s*(?:of|from|:)?\s*$",
         RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
     public OmvicResult Run(ListingEntity listing, VehicleEntity vehicle, DealerEntity dealer)
@@ -146,11 +165,13 @@ public class OmvicRuleEngine
         {
             "POLICE_EMERGENCY" => Regex.IsMatch(text, @"(?:previously|formerly|prior|ex)[\s\S]{0,30}(?:police|emergency)|(?:police|emergency)[\s\S]{0,30}(?:previously used|prior use|former)", RegexOptions.IgnoreCase),
             "TAXI_LIMO" => Regex.IsMatch(text, @"(?:previously|formerly|prior|ex)[\s\S]{0,30}(?:taxi|cab\b|limo)|(?:taxi|cab\b|limo)[\s\S]{0,30}(?:previously used|prior use|former)", RegexOptions.IgnoreCase),
-            "DAILY_RENTAL" => Regex.IsMatch(text, @"(?:previously|formerly|prior|ex)[\s\S]{0,30}rental|rental[\s\S]{0,30}(?:previously used|prior use|former)", RegexOptions.IgnoreCase),
+            "DAILY_RENTAL" => Regex.IsMatch(text, @"(?:previously|formerly|prior|ex)[\s\S]{0,30}(?:rental|daily lease)|(?:rental|daily lease)[\s\S]{0,30}(?:previously used|prior use|former)", RegexOptions.IgnoreCase),
             "OTHER" => PriorUseDisclosure.IsMatch(text),
             _ => PriorUseDisclosure.IsMatch(text)
         };
-        if (((PriorUseCue.IsMatch(text) || !string.IsNullOrWhiteSpace(listing.PriorUse)) && !priorUseDisclosed))
+        if (!string.IsNullOrWhiteSpace(listing.PriorUse) && !priorUseDisclosed)
+            soft.Add(Soft("PRIOR_USE_UNCLEAR", "The prior use recorded in the checklist is not disclosed in the ad."));
+        else if (PriorUseCue.IsMatch(text) && !priorUseDisclosed)
             soft.Add(Soft("PRIOR_USE_UNCLEAR", "Prior use is mentioned without a clear disclosure."));
         if (!string.IsNullOrWhiteSpace(listing.WarrantyTerms) && !ContainsNormalized(text, listing.WarrantyTerms))
             soft.Add(Soft("WARRANTY_TERMS_MISSING", "Extended warranty terms are recorded but are not stated in the ad."));
@@ -158,7 +179,7 @@ public class OmvicRuleEngine
             soft.Add(Soft("WARRANTY_CLAIM_NEEDS_REVIEW", "Warranty claim needs review."));
 
         bool showsRateOrPayment = listing.AdKind == AdKind.Cash &&
-                                  (Apr.IsMatch(text) || Payment.IsMatch(text));
+                                  (Rate.IsMatch(text) || Payment.IsMatch(text));
 
         if (listing.AdKind == AdKind.Finance || showsRateOrPayment)
         {
@@ -171,8 +192,12 @@ public class OmvicRuleEngine
             if (!HasCashPrice(text) && !CostOfBorrowing.IsMatch(text))
                 hard.Add(Hard("FINANCE_CASH_PRICE_MISSING",
                     "Finance advertising must state the cash price or the cost of borrowing."));
-            if (listing.Medium != AdMedium.RadioTvBillboard)
-                soft.Add(Soft("FINANCE_APR_PROXIMITY", "Finance APR placement should be reviewed."));
+            // "As prominently as the payment": the APR must sit next to the payment amount, not
+            // in a footnote or in the other part of the ad (title vs. body).
+            if (listing.Medium != AdMedium.RadioTvBillboard && Apr.IsMatch(text) && Payment.IsMatch(text)
+                && !AprNextToPayment(text))
+                soft.Add(Soft("FINANCE_APR_PROXIMITY",
+                    "The APR is not shown next to the payment amount; it must be as prominent as the payment."));
         }
 
         if (listing.AdKind == AdKind.Lease)
@@ -227,13 +252,24 @@ public class OmvicRuleEngine
         return new OmvicResult(findings, hard.Count > 0);
     }
 
+    // Within this many characters of a payment amount counts as shown next to it.
+    private const int AprPaymentDistance = 80;
+
+    private static bool AprNextToPayment(string text)
+    {
+        var aprs = Apr.Matches(text);
+        return Payment.Matches(text).Any(p => aprs.Any(a => Math.Abs(a.Index - p.Index) <= AprPaymentDistance));
+    }
+
     // True when at least one advertised amount is not immediately qualified as a periodic
-    // payment, which is what distinguishes a cash price from "$299 per month".
+    // payment or an upfront amount, which is what distinguishes a cash price from
+    // "$299 per month" or "$2,000 down".
     private static bool HasCashPrice(string text)
     {
         foreach (Match match in Price.Matches(text))
         {
-            if (!PaymentCadence.IsMatch(text[(match.Index + match.Length)..]))
+            if (!PaymentCadence.IsMatch(text[(match.Index + match.Length)..])
+                && !PaymentLead.IsMatch(text[..match.Index]))
                 return true;
         }
         return false;

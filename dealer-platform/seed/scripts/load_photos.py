@@ -25,6 +25,10 @@ by '-'). A model without images is reported and skipped.
 Connection settings come from the environment and are passed to the `mysql` client:
 MYSQL_HOST (127.0.0.1), MYSQL_PORT (3306), MYSQL_DB (dealer_core), MYSQL_USER (dealer) and
 MYSQL_PWD (read by the client itself; never pass a password on the command line).
+MYSQL_SSL_MODE is optional; set it to REQUIRED for a TLS-only server such as Azure MySQL.
+
+Inserts are sent in transactions small enough for Azure's default 16 MiB max_allowed_packet.
+A vehicle that already has a photo is skipped, so a partial load can be re-run.
 
 Usage: python3 -I dealer-platform/seed/scripts/load_photos.py [--dry-run] [--no-enhance]
 """
@@ -49,6 +53,8 @@ REFERENCE_DATE = dt.date(2026, 10, 16)
 MAX_BYTES = 2 * 1024 * 1024
 MAX_PER_VEHICLE = 10
 MAX_EDGE_PX = 1600
+# Hex literals are twice the file size. Stay under Azure Flexible Server's 16 MiB default packet.
+MAX_SQL_BATCH = 8 * 1024 * 1024
 # Mirrors PhotoEnhancer constants.
 JPEG_QUALITY = 90
 BRIGHTEN_GAMMA = 0.8
@@ -80,13 +86,17 @@ def model_images():
 
 
 def mysql_base():
-    return [
+    command = [
         "mysql", "--default-character-set=utf8mb4", "--batch", "--skip-column-names",
         "-h", os.environ.get("MYSQL_HOST", "127.0.0.1"),
         "-P", os.environ.get("MYSQL_PORT", "3306"),
         "-u", os.environ.get("MYSQL_USER", "dealer"),
-        os.environ.get("MYSQL_DB", "dealer_core"),
     ]
+    ssl_mode = os.environ.get("MYSQL_SSL_MODE", "")
+    if ssl_mode:
+        command.append("--ssl-mode=" + ssl_mode)
+    command.append(os.environ.get("MYSQL_DB", "dealer_core"))
+    return command
 
 
 def query(sql):
@@ -210,8 +220,29 @@ def main():
 
     if args.dry_run or stats["photos"] == 0:
         return
-    script = "\n".join(["SET time_zone = '+00:00';", "START TRANSACTION;", *statements, "COMMIT;"])
-    subprocess.run(mysql_base() + ["--max-allowed-packet=64M"], input=script.encode(), check=True)
+    header = "SET NAMES utf8mb4;\nSET time_zone = '+00:00';\nSTART TRANSACTION;\n"
+    footer = "\nCOMMIT;\n"
+    batch = []
+    batch_bytes = 0
+
+    def flush():
+        nonlocal batch, batch_bytes
+        if not batch:
+            return
+        script = header + "\n".join(batch) + footer
+        subprocess.run(mysql_base() + ["--max-allowed-packet=64M"], input=script.encode(), check=True)
+        batch = []
+        batch_bytes = 0
+
+    for statement in statements:
+        if statement.startswith("SET "):
+            continue
+        size = len(statement) + 1
+        if batch and batch_bytes + size > MAX_SQL_BATCH:
+            flush()
+        batch.append(statement)
+        batch_bytes += size
+    flush()
     print("Vehicle photos loaded.")
 
 

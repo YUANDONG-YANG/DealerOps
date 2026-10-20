@@ -113,9 +113,12 @@ test('UI-23: "Mark as sold" in the edit drawer opens the confirm dialog and sell
   const drawer = page.getByRole('dialog', { name: 'Edit vehicle' });
   await expect(drawer).toBeVisible();
 
-  // Sold date and price are not editable fields of the vehicle form (DMS-02).
-  await expect(field(drawer, 'Sold date')).toHaveCount(0);
-  await expect(field(drawer, 'Sold price')).toHaveCount(0);
+  // Sold date and price are not editable fields of the vehicle form (DMS-02): an in-stock
+  // vehicle shows them as empty read-only rows.
+  await expect(field(drawer, 'Sold date')).toContainText('—');
+  await expect(field(drawer, 'Sold date').locator('input')).toHaveCount(0);
+  await expect(field(drawer, 'Sold price')).toContainText('—');
+  await expect(field(drawer, 'Sold price').locator('input')).toHaveCount(0);
 
   await drawer.getByRole('button', { name: 'Mark as sold' }).click();
   const dialog = sellDialog(page, v);
@@ -226,4 +229,47 @@ test('WO-05: a vehicle with an open work order cannot be sold and the user is to
   await expect(dialog).toBeHidden();
   await expect(row.getByRole('status')).toHaveText('In stock', LOAD);
   await expect(row.getByRole('button', { name: 'Sell', exact: true })).toBeVisible();
+});
+
+test('DMS-10 / CRM-05: the sale can name its buyer, which links the vehicle to that CRM customer', async ({
+  staffPage: page, staffApi,
+}) => {
+  const v = await staffApi.createVehicle();
+  const buyer = await staffApi.createCustomer();
+  const row = await openDmsRow(page, v.vin);
+
+  await row.getByRole('button', { name: 'Sell', exact: true }).click();
+  const dialog = sellDialog(page, v);
+  await fillSale(dialog, SOLD_ON, '19500');
+  const buyerSelect = dialog.getByLabel('Buyer');
+  await expect(buyerSelect).toHaveValue('');
+  await buyerSelect.selectOption(String(buyer.id));
+
+  const linked = page.waitForResponse((r) =>
+    r.request().method() === 'PUT' && r.url().includes(`/api/v1/customers/${buyer.id}/vehicles/${v.id}`));
+  await dialog.getByRole('button', { name: 'Confirm sale' }).click();
+  expect((await linked).ok()).toBe(true);
+  await expect(dialog).toBeHidden();
+
+  const sold = await staffApi.getVehicle(v.id);
+  expect(sold.status).toBe('SOLD');
+  expect(sold.linkedCustomer?.id).toBe(buyer.id);
+});
+
+test('DMS-10: a sale without a buyer still sells and leaves the vehicle unlinked', async ({ staffPage: page, staffApi }) => {
+  const v = await staffApi.createVehicle();
+  const row = await openDmsRow(page, v.vin);
+
+  let linkCalls = 0;
+  page.on('request', (r) => { if (r.method() === 'PUT' && r.url().includes(`/vehicles/${v.id}`)) linkCalls++; });
+  await row.getByRole('button', { name: 'Sell', exact: true }).click();
+  const dialog = sellDialog(page, v);
+  await fillSale(dialog, SOLD_ON, '19500');
+  await dialog.getByRole('button', { name: 'Confirm sale' }).click();
+  await expect(dialog).toBeHidden();
+
+  const sold = await staffApi.getVehicle(v.id);
+  expect(sold.status).toBe('SOLD');
+  expect(sold.linkedCustomer ?? null).toBeNull();
+  expect(linkCalls).toBe(0);
 });

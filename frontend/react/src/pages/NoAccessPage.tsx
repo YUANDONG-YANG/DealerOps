@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
 import { fileJoinRequest, myJoinRequest } from '../api/me'
 import { listPublicDealers, type PublicDealer } from '../api/publicDealers'
 import { describeError } from '../api/errors'
@@ -86,9 +85,6 @@ export default function NoAccessPage() {
         )}
         {error && <div className="alert alert-error" style={{ marginTop: 12 }}>{error}</div>}
         <div>
-          <Link className="btn" to="/profile" style={{ marginTop: 16, marginRight: 8 }}>
-            Manage account
-          </Link>
           <button className="btn btn-primary" onClick={signOut} style={{ marginTop: 16 }}>
             Sign out
           </button>

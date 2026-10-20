@@ -4,6 +4,7 @@ import AppLayout from '../layouts/AppLayout';
 import DataTable from '../components/DataTable';
 import PageState from '../components/PageState';
 import AdWorkspace from '../components/AdWorkspace';
+import PhotoStudioPanel from '../components/PhotoStudioPanel';
 import StatusTag from '../components/StatusTag';
 import { vehiclesApi } from '../api/vehicles';
 import {
@@ -337,6 +338,12 @@ export default function AdsPage() {
                   </div>
                 )}
               </section>
+              {/* The ad's photos: the same Image Studio as the DMS vehicle drawer. */}
+              {selected && (
+                <section className="card" style={{ marginTop: 16 }} aria-label="Image Studio">
+                  <PhotoStudioPanel key={selected.id} vehicleId={selected.id} />
+                </section>
+              )}
             </>
           }
         />

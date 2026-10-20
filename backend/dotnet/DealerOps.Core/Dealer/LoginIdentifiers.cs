@@ -29,8 +29,19 @@ public static class LoginIdentifiers
     public static string? PhoneOrNull(string raw)
     {
         var digits = Regex.Replace(raw.Trim(), @"[\s().\-]", "");
-        if (digits.StartsWith('+'))
+        var international = digits.StartsWith('+');
+        if (international)
             digits = digits[1..];
+        // Ten digits without "+" is a local North American number, so its country code is 1.
+        if (!international && digits.Length == 10)
+            digits = "1" + digits;
         return PhoneDigitsPattern.IsMatch(digits) ? "+" + digits : null;
+    }
+
+    // Accounts saved before local numbers got their "+1" hold "+" and the ten local digits.
+    public static string? LegacyLocalPhoneOrNull(string raw)
+    {
+        var digits = Regex.Replace(raw.Trim(), @"[\s().\-]", "");
+        return digits.Length == 10 && PhoneDigitsPattern.IsMatch(digits) ? "+" + digits : null;
     }
 }

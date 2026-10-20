@@ -133,6 +133,19 @@ test('CRM-11 / AUD-02 / AUD-04 / CRM-12: customer history records changes withou
   }
 });
 
+test('AUD-02: a customer save that changes nothing adds no history entry', async ({ staffApi }) => {
+  const customer = await staffApi.createCustomer();
+  const unchanged = {
+    name: customer.name, email: customer.email, phone: customer.phone, homeAddress: customer.homeAddress,
+    version: customer.version,
+  };
+  await expectStatus(await staffApi.patch(`/api/v1/customers/${customer.id}`, unchanged), 200);
+
+  const res = await staffApi.get('/api/v1/audit', { entityType: 'CUSTOMER', entityId: customer.id });
+  await expectStatus(res, 200);
+  expect((await res.json()).items.map((i: { action: string }) => i.action)).toEqual(['CREATE']);
+});
+
 test('CRM-13: a duplicate email is saved with a warning; a duplicate phone is rejected', async ({ staffApi }) => {
   const customer = await staffApi.createCustomer();
   const duplicateEmail = await staffApi.post('/api/v1/customers', customerBody({ email: customer.email }));
