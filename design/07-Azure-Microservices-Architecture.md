@@ -7,7 +7,7 @@ Four independent repositories, four independent pipelines, four deployable artif
 | PPT domain | Unit | Technology | Owner |
 |---|---|---|---|
 | UI | dealer-web | Vue 3 | A |
-| Auth | dealer-core (admin-issued username/password; [15](15-Data-Auth-and-Gateway.md) §8) | JWT, BCrypt password hash | C configures |
+| Auth | dealer-core (email, username, or phone + password; [15](15-Data-Auth-and-Gateway.md) §8) | JWT, BCrypt password hash | C configures |
 | Data | dealer-core | Java 21 Spring Boot + Flyway + one MySQL | C |
 | AI | ai-service | Java 21 Spring Boot, embeds the GitHub AI library, no database | B |
 | Entry | dealer-gateway | Spring Cloud Gateway | C, A reviews |

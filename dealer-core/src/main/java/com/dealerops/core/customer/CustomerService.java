@@ -17,7 +17,6 @@ import com.dealerops.core.customer.dto.LinkedVehicleBrief;
 import com.dealerops.core.customer.dto.LinkedVehicleItem;
 import com.dealerops.core.customer.dto.PatchCustomerRequest;
 import com.dealerops.core.security.CurrentUser;
-import com.dealerops.core.dealer.AppRole;
 import com.dealerops.core.vehicle.VehicleEntity;
 import com.dealerops.core.vehicle.VehicleRepository;
 import com.dealerops.core.vehicle.VehicleStatus;
@@ -52,16 +51,13 @@ public class CustomerService {
 
   @Transactional(readOnly = true)
   public PageResponse<CustomerListItem> list(String q, Boolean linked, int page, int size) {
-    Long tenant = readTenant();
+    Long tenant = requireTenant();
     String query = q == null ? null : q.trim();
     Page<CustomerEntity> result =
-        tenant == null
-            ? customerRepository.searchAll(
-                query, linked, Paging.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt", "id")))
-            : customerRepository.search(
-                tenant, query, linked, Paging.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt", "id")));
+        customerRepository.search(
+            tenant, query, linked, Paging.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt", "id")));
     List<CustomerListItem> items =
-        result.getContent().stream().map(customer -> toListItem(customer, tenant)).toList();
+        result.getContent().stream().map(customer -> toListItem(customer)).toList();
     return new PageResponse<>(items, result.getNumber(), result.getSize(), result.getTotalElements());
   }
 
@@ -89,11 +85,7 @@ public class CustomerService {
 
   @Transactional(readOnly = true)
   public CustomerDetail get(Long id) {
-    TenantGuard.requireBusinessAccess();
-    CustomerEntity customer = TenantContext.get().role() == AppRole.PLATFORM_ADMIN
-        ? customerRepository.findById(id).orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND, "Not found"))
-        : loadThisDealer(id);
-    return toDetail(customer);
+    return toDetail(loadThisDealer(id));
   }
 
   @Transactional
@@ -186,14 +178,14 @@ public class CustomerService {
         Map.of("customerId", customerId, "vehicleId", vehicleId));
   }
 
-  private CustomerListItem toListItem(CustomerEntity customer, Long tenant) {
+  private CustomerListItem toListItem(CustomerEntity customer) {
     List<CustomerVehicleEntity> links =
         customerVehicleRepository.findByCustomerIdOrderByLinkedAtDesc(customer.getId());
     LinkedVehicleBrief brief = null;
     if (!links.isEmpty()) {
       brief =
           vehicleRepository
-              .findById(links.get(0).getVehicleId())
+              .findByIdAndDealerId(links.get(0).getVehicleId(), customer.getDealerId())
               .map(
                   vehicle ->
                       new LinkedVehicleBrief(
@@ -271,13 +263,6 @@ public class CustomerService {
   private static Long requireTenant() {
     TenantGuard.requireDealerUser();
     return TenantContext.get().tenantDealerId();
-  }
-
-  private static Long readTenant() {
-    TenantGuard.requireBusinessAccess();
-    return TenantContext.get().role() == AppRole.PLATFORM_ADMIN
-        ? null
-        : TenantContext.get().tenantDealerId();
   }
 
   private static String actorUsername() {

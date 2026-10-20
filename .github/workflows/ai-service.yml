@@ -27,14 +27,5 @@ jobs:
           java-version: "21"
           cache: maven
       - run: echo "repo=${{ github.repository }}"
-      - name: Install pinned ai-manager dependency
-        uses: actions/checkout@v7
-        with:
-          repository: YUANDONG-YANG/ai-manager
-          ref: 827196a
-          path: ai-manager
-      - name: Build ai-manager with Java 17
-        working-directory: ai-manager
-        run: mvn -B -DskipTests install
-      - name: Compile with the real AI dependency
+      - name: Compile with the vendored ai-manager sources
         run: mvn -B -DskipTests compile

@@ -13,12 +13,13 @@ import com.dealerops.core.customer.CustomerRepository;
 import com.dealerops.core.listing.ListingRepository;
 import com.dealerops.core.listing.ListingStatus;
 import com.dealerops.core.security.CurrentUser;
-import com.dealerops.core.dealer.AppRole;
 import com.dealerops.core.vehicle.dto.CreateVehicleRequest;
 import com.dealerops.core.vehicle.dto.LinkedCustomerBrief;
 import com.dealerops.core.vehicle.dto.PatchVehicleRequest;
 import com.dealerops.core.vehicle.dto.SellVehicleRequest;
 import com.dealerops.core.vehicle.dto.VehicleResponse;
+import com.dealerops.core.workorder.WorkOrderRepository;
+import com.dealerops.core.workorder.WorkOrderStatus;
 import java.math.BigDecimal;
 import java.time.Year;
 import java.util.LinkedHashMap;
@@ -37,32 +38,32 @@ public class VehicleService {
   private final VehicleRepository vehicleRepository;
   private final ListingRepository listingRepository;
   private final CustomerRepository customerRepository;
+  private final WorkOrderRepository workOrderRepository;
   private final AuditService auditService;
 
   public VehicleService(
       VehicleRepository vehicleRepository,
       ListingRepository listingRepository,
       CustomerRepository customerRepository,
+      WorkOrderRepository workOrderRepository,
       AuditService auditService) {
     this.vehicleRepository = vehicleRepository;
     this.listingRepository = listingRepository;
     this.customerRepository = customerRepository;
+    this.workOrderRepository = workOrderRepository;
     this.auditService = auditService;
   }
 
   @Transactional(readOnly = true)
   public PageResponse<VehicleResponse> list(VehicleFilter filter, int page, int size) {
-    Long tenant = readTenant();
+    Long tenant = requireTenant();
     Pageable pageable = Paging.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
     String q = trimToNull(filter.q());
     String make = trimToNull(filter.make());
     String model = trimToNull(filter.model());
     Page<VehicleEntity> result =
-        tenant == null
-            ? vehicleRepository.searchAll(
-                q, filter.status(), filter.condition(), make, model, filter.modelYear(), pageable)
-            : vehicleRepository.search(
-                tenant, q, filter.status(), filter.condition(), make, model, filter.modelYear(), pageable);
+        vehicleRepository.search(
+            tenant, q, filter.status(), filter.condition(), make, model, filter.modelYear(), pageable);
     return new PageResponse<>(
         result.map(this::toResponse).getContent(), result.getNumber(), result.getSize(), result.getTotalElements());
   }
@@ -103,11 +104,7 @@ public class VehicleService {
 
   @Transactional(readOnly = true)
   public VehicleResponse get(Long id) {
-    TenantGuard.requireBusinessAccess();
-    VehicleEntity vehicle = TenantContext.get().role() == AppRole.PLATFORM_ADMIN
-        ? vehicleRepository.findById(id).orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND, "Not found"))
-        : loadThisDealer(id);
-    return toResponse(vehicle);
+    return toResponse(loadThisDealer(id));
   }
 
   @Transactional
@@ -147,7 +144,7 @@ public class VehicleService {
                 listing.setStatus(ListingStatus.DRAFT);
               });
     }
-    vehicle = vehicleRepository.save(vehicle);
+    vehicle = vehicleRepository.saveAndFlush(vehicle);
     auditService.record(
         EntityType.VEHICLE.name(),
         vehicle.getId(),
@@ -161,7 +158,7 @@ public class VehicleService {
   @Transactional
   public VehicleResponse sell(Long id, SellVehicleRequest body) {
     Long tenant = requireTenant();
-    if (body.soldOn() == null || body.soldPrice() == null) {
+    if (body.soldOn() == null || body.soldPrice() == null || body.soldPrice().signum() <= 0) {
       throw new ApiException(ErrorCode.SOLD_PAIR_REQUIRED, "Sold date and sold price are both required.");
     }
     VehicleEntity vehicle = loadThisDealer(id);
@@ -171,6 +168,9 @@ public class VehicleService {
     if (vehicle.getStatus() == VehicleStatus.SOLD) {
       throw new ApiException(ErrorCode.SOLD_LOCKED, "Sold vehicle is locked.");
     }
+    if (countOpenWorkOrders(vehicle) > 0) {
+      throw new ApiException(ErrorCode.WORK_ORDERS_OPEN, "Finish or cancel open work orders before selling.");
+    }
     if (body.soldOn().isBefore(vehicle.getAddedOn())) {
       throw new ApiException(ErrorCode.VALIDATION, "Sold date must not be before the date added.");
     }
@@ -178,7 +178,7 @@ public class VehicleService {
     vehicle.setStatus(VehicleStatus.SOLD);
     vehicle.setSoldOn(body.soldOn());
     vehicle.setSoldPrice(body.soldPrice());
-    vehicle = vehicleRepository.save(vehicle);
+    vehicle = vehicleRepository.saveAndFlush(vehicle);
     auditService.record(
         EntityType.VEHICLE.name(),
         vehicle.getId(),
@@ -187,6 +187,37 @@ public class VehicleService {
         actorUsername(),
         changed);
     return toResponse(vehicle);
+  }
+
+  /**
+   * Adds a finished work order's cost to the repair cost. The sold lock stays here: a sold
+   * vehicle's repair cost cannot change.
+   */
+  @Transactional
+  public void addRepairCost(Long vehicleId, BigDecimal cost) {
+    Long tenant = requireTenant();
+    VehicleEntity vehicle = loadThisDealer(vehicleId);
+    if (vehicle.getStatus() == VehicleStatus.SOLD) {
+      throw new ApiException(ErrorCode.SOLD_LOCKED, "Sold vehicle is locked.");
+    }
+    if (cost.signum() == 0) {
+      return;
+    }
+    BigDecimal current = vehicle.getRepairCost() == null ? BigDecimal.ZERO : vehicle.getRepairCost();
+    vehicle.setRepairCost(current.add(cost));
+    vehicleRepository.save(vehicle);
+    auditService.record(
+        EntityType.VEHICLE.name(),
+        vehicle.getId(),
+        AuditAction.UPDATE.name(),
+        tenant,
+        actorUsername(),
+        Map.of("repairCost", true));
+  }
+
+  private long countOpenWorkOrders(VehicleEntity vehicle) {
+    return workOrderRepository.countByVehicleIdAndDealerIdAndStatusIn(
+        vehicle.getId(), vehicle.getDealerId(), WorkOrderStatus.OPEN_STATUSES);
   }
 
   private VehicleEntity loadThisDealer(Long id) {
@@ -319,19 +350,13 @@ public class VehicleService {
             .findLinkedToVehicle(vehicle.getDealerId(), vehicle.getId())
             .map(customer -> new LinkedCustomerBrief(customer.getId(), customer.getName()))
             .orElse(null),
+        countOpenWorkOrders(vehicle),
         vehicle.getVersion());
   }
 
   private static Long requireTenant() {
     TenantGuard.requireDealerUser();
     return TenantContext.get().tenantDealerId();
-  }
-
-  private static Long readTenant() {
-    TenantGuard.requireBusinessAccess();
-    return TenantContext.get().role() == AppRole.PLATFORM_ADMIN
-        ? null
-        : TenantContext.get().tenantDealerId();
   }
 
   private static String actorUsername() {

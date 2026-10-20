@@ -18,9 +18,23 @@ There is also `com.gateway` with `/api/ai/request`, `/chat`, `/credentials`, `/r
 
 No `src/test` was found. The README says tests are not maintained. The library itself cannot be treated as already-accepted quality evidence.
 
+## Vendored source (decision, 2026-10-12)
+
+`ai-service` carries the library as **source**, not as a Maven dependency. The classes reachable from `com.manager.AiManager` at upstream commit `827196a` are copied unchanged into `ai-service/src/main/java/com/manager`, with `models.json` in `ai-service/src/main/resources`. Lombok compiles them.
+
+Why: the upstream repository is private, so CI and every teammate needed a token plus a JDK 17 `mvn install` before ai-service could compile, and no immutable package was ever published. Vendoring removes that step and keeps the build reproducible.
+
+Rules:
+
+- Do not copy `com.gateway`, `AIApplication`, or the library's `application*.yml`.
+- Do not edit the vendored classes for DealerOps behavior; adapters live in `ca.sait.dealerops.aiservice`.
+- To take an upstream fix, copy the changed classes from a newer upstream commit and update the commit in `ai-service/README.md` and here.
+
+The earlier plan (publish a non-SNAPSHOT package to GitHub Packages and depend on it) is retired.
+
 ## How this course uses it (keep it simple)
 
-`ai-service` depends on this JAR and calls it in-process. The component does not get its own container.
+`ai-service` calls the vendored library in-process. The component does not get its own container.
 
 The adapter wraps only two jobs:
 

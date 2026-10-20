@@ -7,11 +7,12 @@ The cloud path is **Terraform + Azure App Service**. There are no container imag
 | Piece | Where |
 |---|---|
 | Infrastructure as code | [deploy/terraform/](terraform/) (`main.tf`, `variables.tf`, `outputs.tf`) |
-| App upload script | [deploy/terraform/deploy-apps.sh](terraform/deploy-apps.sh) |
+| One-command deploy (recommended) | [deploy/deploy.sh](deploy.sh): `terraform init` + `apply`, then `deploy-apps.sh`, then a gateway health and `/actuator/release` check |
+| App upload script | [deploy/terraform/deploy-apps.sh](terraform/deploy-apps.sh) — also the way to redeploy a single app |
 | CI check | `.github/workflows/terraform.yml` — `fmt`, `init -backend=false`, `validate`. It never runs `plan` or `apply` |
 | Compile CI | `.github/workflows/dealer-{web,core,gateway}.yml` and `ai-service.yml` |
 
-CI does not deploy. An operator with the Azure subscription runs `terraform apply` and `deploy-apps.sh` by hand. There are no Azure credentials in this repository and no GitHub environment secrets for Azure.
+CI does not deploy. An operator with the Azure subscription runs `deploy/deploy.sh` (or `terraform apply` and `deploy-apps.sh` separately) by hand. There are no Azure credentials in this repository and no GitHub environment secrets for Azure.
 
 ## 1. What a push to `main` does
 
@@ -22,7 +23,7 @@ GitHub Actions starts the workflows whose path filters match the push. A pull re
 | `dealer-web/**` | `.github/workflows/dealer-web.yml` | Job `compile`: Node 20 `npm ci` and `npm run build` |
 | `dealer-core/**` | `.github/workflows/dealer-core.yml` | Job `compile`: JDK 21 compile, unit tests, and the Testcontainers ITs when the runner has a Docker engine |
 | `dealer-gateway/**` | `.github/workflows/dealer-gateway.yml` | Job `compile`: JDK 21 compile and unit tests |
-| `ai-service/**` | `.github/workflows/ai-service.yml` | Job `compile`: stub profile compile and unit tests (no paid model) |
+| `ai-service/**` | `.github/workflows/ai-service.yml` | Job `compile`: JDK 21 compile of ai-service with the vendored `ai-manager` sources (no private checkout, no paid model call) |
 | `deploy/terraform/**` | `.github/workflows/terraform.yml` | Job `validate`: `terraform fmt -check`, `init -backend=false`, `validate`. Log line `Terraform validated. Not applied (no subscription credentials in this repository).` |
 
 Open runs at `https://github.com/YUANDONG-YANG/DealerOps/actions`.
@@ -45,6 +46,8 @@ One resource group, `dealerops-rg` by default. Names follow the pinned `${prefix
 | User-assigned identity | `dealerops-uai` | The identity the three apps use to read Key Vault |
 | Log Analytics + App Insights | `dealerops-logs`, `dealerops-appi` | Logs and telemetry |
 
+Five of those names are global, not just unique inside the resource group: the three `azurewebsites.net` hostnames, the Static Web App, the Key Vault DNS name, and the MySQL server name. `name_suffix` is appended to all of them, so a second subscription can deploy the same stack (§4).
+
 App settings hold no secret values. Each secret is an App Service Key Vault reference (`@Microsoft.KeyVault(SecretUri=...)`) resolved through `dealerops-uai`.
 
 `dealerops-core` and `dealerops-ai` keep the "not a browser entry point" rule from [design/15-Data-Auth-and-Gateway.md](../design/15-Data-Auth-and-Gateway.md) §10. App Service has no internal-only ingress on a Basic plan, so instead both apps set `ip_restriction_default_action = "Deny"` and allow only the `AzureCloud` service tag. `dealerops-gateway` runs inside Azure and gets through; a browser on the public internet is refused by the platform before the request reaches the JVM.
@@ -59,7 +62,7 @@ Install on the operator machine:
 |---|---|
 | Azure CLI (`az`) | current |
 | Terraform | 1.9 or newer (CI pins 1.16.5) |
-| JDK + Maven | Java 21 |
+| JDK + Maven | Java 21; Maven must run on it (`mvn -v`), or `deploy-apps.sh` stops: ai-service does not compile on newer JDKs |
 | Node + npm | Node 20 |
 
 On macOS, Homebrew installs both CLIs. Terraform was pulled from `homebrew-core` in 2023 over the BSL license change, so it comes from HashiCorp's own tap, not `brew install terraform`:
@@ -93,9 +96,11 @@ The Azure for Students subscription keeps its spending limit on, so the subscrip
 | `mysql_admin_password` | 12 characters or more |
 | `internal_token` | The shared `X-Dealer-Internal` value. Must not be the local default `dealer-internal` |
 | `jwt_signing_secret` | 32 bytes or more. `dealer-core` signs with it and `dealer-gateway` validates with it |
-| `admin_username` / `admin_password` | Both or neither. Seeds the one platform admin on the first `dealer-core` start |
+| `admin_username` / `admin_password`, optional `admin_email` / `admin_phone` | Seeds the one platform admin on the first `dealer-core` start; sign in with the username, or the email/phone when set |
 | `aimanager_api_key` | Optional. Empty deploys `ai-service` with no model key |
 | `operator_ip_addresses` | Optional. Public IPv4 addresses that may reach MySQL directly |
+| `cors_allowed_origin` | Optional. The one browser origin `dealer-gateway` accepts. Empty uses this stack's own Static Web App origin; set it when the SPA is built and hosted outside this stack |
+| `name_suffix` | Optional. Appended to every global name. Needed when another subscription already holds one of them |
 
 Generate the secrets instead of inventing them, and write the whole file in one pass. Writing it with a single heredoc, rather than `cp`-ing the example and appending to it, avoids defining the same variable twice (Terraform rejects a `.tfvars` file that assigns one name more than once):
 
@@ -161,11 +166,20 @@ SUB=$(az account show --query id -o tsv)
 az rest --method delete --url "https://management.azure.com/subscriptions/$SUB/resourceGroups/dealerops-rg/providers/Microsoft.DBforMySQL/flexibleServers/dealerops-mysql?api-version=2023-12-30"
 ```
 
-If apply fails with a name conflict, `dealerops-core.azurewebsites.net` or a sibling hostname is already taken globally. Set `name_suffix` in `terraform.tfvars` (for example `-sait`) and apply again.
+If apply fails with a name conflict, one of the global names is already taken: an `azurewebsites.net` hostname such as `dealerops-core`, the vault DNS name `dealerops-kv`, or the MySQL server name `dealerops-mysql`. Set `name_suffix` in `terraform.tfvars` (for example `-sait`) and apply again; it is appended to all of them. A different `prefix` works as well and renames the whole stack.
 
 State is a local `terraform.tfstate` next to the `.tf` files and is git-ignored, so one person holds it. Hand the file over, or re-import, before someone else applies.
 
 ## 5. Upload the apps
+
+The recommended path is one command from the repository root:
+
+```text
+deploy/deploy.sh             # terraform init + apply (asks for approval), all four apps, health + release check
+deploy/deploy.sh core web    # same, but uploads only these apps
+```
+
+The rest of this section describes the upload step it runs, which can also be used on its own.
 
 From the repository root, after `terraform apply`:
 
@@ -176,13 +190,23 @@ deploy/terraform/deploy-apps.sh
 That script reads every name and URL from `terraform output` and then, for one UTC timestamp:
 
 1. stamps `PUBLISHED_AT` on `dealerops-core`, packages `dealer-core`, and uploads the JAR
-2. stamps `PUBLISHED_AT` on `dealerops-ai`, packages `ai-service` (real `ai-manager` dependency, installed locally from the sibling checkout) and uploads the JAR
+2. stamps `PUBLISHED_AT` on `dealerops-ai`, packages `ai-service` (vendored `ai-manager` sources, no extra install) and uploads the JAR
 3. stamps `PUBLISHED_AT` on `dealerops-gateway`, packages `dealer-gateway`, and uploads the JAR
 4. builds `dealer-web` with `VITE_GATEWAY_URL` set to the gateway URL and `VITE_PUBLISHED_AT` set to the same timestamp, then uploads `dist/` to the Static Web App
 
 After the run, the web app's bottom-left footer and `<gateway>/actuator/release` show the new time for every deployed app ([design/20-Observability.md](../design/20-Observability.md) §5).
 
 Pass names to redeploy one app: `deploy/terraform/deploy-apps.sh core web`.
+
+### Backend only, with a frontend built elsewhere
+
+A team that writes its own SPA deploys the three Java apps and skips `dealer-web`:
+
+```text
+deploy/deploy.sh core ai gateway
+```
+
+The browser origin is the one thing that still has to match. `dealer-gateway` accepts exactly one origin, so set `cors_allowed_origin` in `terraform.tfvars` to where that SPA runs (`http://localhost:5173` while developing it, the hosted origin afterwards) and apply again. The SPA then calls `terraform output -raw gateway_public_url` as its API base URL and needs nothing else: `dealerops-core` and `dealerops-ai` are not reachable from a browser. The endpoints are in [dealer-platform/API.md](../dealer-platform/API.md), [design/14-Backend-API-Contract.md](../design/14-Backend-API-Contract.md), and the live Swagger UI from §6.
 
 The equivalent by hand, for `dealer-core`:
 
@@ -214,7 +238,7 @@ terraform -chdir=deploy/terraform output
 | Core direct | `https://dealerops-core.azurewebsites.net/actuator/health` → refused by App Service, not 200 |
 | AI direct | `https://dealerops-ai.azurewebsites.net/actuator/health` → refused by App Service, not 200 |
 
-Sign in with the seeded `admin_username` / `admin_password`, create a dealership, bind a staff login, record one vehicle, and run one ad check. That is the graded path.
+Sign in with the seeded administrator's username (or email/phone) and password, create a dealership, bind a staff login, record one vehicle, and run one ad check. That is the graded path.
 
 Live logs while a service starts:
 

@@ -9,20 +9,26 @@ import {
 } from '../auth/login'
 import { getMe } from '../api/me'
 import { useSessionStore } from '../stores/session'
+import LandingView from '../views/LandingView.vue'
 import LoginView from '../views/LoginView.vue'
+import RegisterView from '../views/RegisterView.vue'
 import AdminView from '../views/AdminView.vue'
 import DmsView from '../views/DmsView.vue'
 import CrmView from '../views/CrmView.vue'
+import LeadsView from '../views/LeadsView.vue'
 import AdsView from '../views/AdsView.vue'
 import NoAccessLanding from '../layouts/NoAccessLanding.vue'
 
 const routes = [
   { path: '/login', name: 'login', component: LoginView, meta: { public: true } },
+  { path: '/register', name: 'register', component: RegisterView, meta: { public: true } },
   { path: '/admin', name: 'admin', component: AdminView, meta: { roles: ['Platform.Admin'] } },
   { path: '/dms', name: 'dms', component: DmsView, meta: { roles: ['Dealer.User'] } },
   { path: '/crm', name: 'crm', component: CrmView, meta: { roles: ['Dealer.User'] } },
+  { path: '/leads', name: 'leads', component: LeadsView, meta: { roles: ['Dealer.User'] } },
   { path: '/ads', name: 'ads', component: AdsView, meta: { roles: ['Dealer.User'] } },
-  { path: '/', name: 'home', component: NoAccessLanding },
+  { path: '/', name: 'home', component: LandingView, meta: { public: true } },
+  { path: '/no-access', name: 'no-access', component: NoAccessLanding },
   { path: '/:pathMatch(.*)*', name: 'fallback', component: NoAccessLanding },
 ]
 
@@ -30,14 +36,14 @@ const router = createRouter({ history: createWebHistory(), routes })
 
 let profileFailed = false
 
-function isLanding(to: RouteLocationNormalized) {
-  return to.name === 'home' || to.name === 'fallback'
+function isNoAccess(to: RouteLocationNormalized) {
+  return to.name === 'no-access' || to.name === 'fallback'
 }
 
 function landingFor(store: ReturnType<typeof useSessionStore>) {
   if (store.role === 'Platform.Admin') return '/admin'
   if (store.hasBusinessAccess) return '/dms'
-  return '/'
+  return '/no-access'
 }
 
 function knownRole(store: ReturnType<typeof useSessionStore>) {
@@ -78,14 +84,17 @@ router.beforeEach(async (to) => {
     }
   }
 
-  if (to.path === '/login' && a) {
-    if (profileFailed) return true
-    if (!store.hasBusinessAccess) return '/'
+  if ((to.path === '/login' || to.path === '/register') && a) {
+    if (profileFailed) return to.path === '/login' ? true : '/login'
+    if (!store.hasBusinessAccess) return '/no-access'
     const fromQuery = typeof to.query.redirect === 'string' ? safeRedirect(to.query.redirect) : ''
     return fromQuery || takePostLoginRedirect() || landingFor(store)
   }
 
-  if (isLanding(to)) {
+  // The public landing page is for visitors; a signed-in user goes to their own landing.
+  if (to.name === 'home' && a) return landingFor(store)
+
+  if (isNoAccess(to)) {
     if (!a) return '/login'
     if (store.hasBusinessAccess) return landingFor(store)
     return true
@@ -94,11 +103,11 @@ router.beforeEach(async (to) => {
   const roles = to.meta.roles as string[] | undefined
   if (roles && !roles.includes(store.role || '')) {
     if (store.hasBusinessAccess) return landingFor(store)
-    return '/'
+    return '/no-access'
   }
 
   if (a && (!knownRole(store) || !store.hasBusinessAccess) && !to.meta.public) {
-    return '/'
+    return '/no-access'
   }
 
   return true

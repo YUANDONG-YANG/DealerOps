@@ -6,6 +6,12 @@ server:
 spring:
   main:
     web-application-type: servlet
+  # Image Studio upload limits (design/21-Feature-Extensions.md §6). The photo service reads
+  # max-file-size, so the per-file limit and its error message stay in one place.
+  servlet:
+    multipart:
+      max-file-size: ${PHOTO_MAX_FILE_SIZE:2MB}
+      max-request-size: ${PHOTO_MAX_REQUEST_SIZE:3MB}
   application:
     name: dealer-core
   datasource:
@@ -48,16 +54,18 @@ dealerops:
   # Relative to the process working directory. Run configurations use the repo root,
   # so all services share one log-sum/ folder. Set LOG_DIR to override per environment.
   log-dir: ${LOG_DIR:log-sum}
-  gateway-base-url: ${GATEWAY_BASE_URL:http://localhost:8080}
-  # Browser origin for OpenAPI "servers". Separate from gateway-base-url.
+  # Browser origin for OpenAPI "servers".
   public-gateway-url: ${GATEWAY_PUBLIC_URL:http://localhost:8080}
   # Core calls ai-service directly; do not point this at the gateway.
   ai-base-url: ${AI_BASE_URL:http://127.0.0.1:8082}
   internal-token: ${INTERNAL_TOKEN:dealer-internal}
-  ai-timeout-ms: 15000
   # Free NHTSA vPIC catalog (no key) for the DMS make/model filter options.
   vpic:
     base-url: ${VPIC_BASE_URL:https://vpic.nhtsa.dot.gov/api/vehicles}
+  # Image Studio: photos per vehicle and the long edge of enhanced copies, in pixels.
+  photos:
+    max-per-vehicle: ${PHOTO_MAX_PER_VEHICLE:10}
+    max-edge-px: ${PHOTO_MAX_EDGE_PX:1600}
   ai:
     connect-timeout-ms: 2000
     response-timeout-ms: 13000

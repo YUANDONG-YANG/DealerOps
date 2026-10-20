@@ -31,7 +31,13 @@ variable "prefix" {
 }
 
 variable "name_suffix" {
-  description = "Appended to every app name when a global azurewebsites.net hostname is already taken. Empty keeps the pinned names."
+  description = "Appended to every globally unique name (the three apps, the Static Web App, Key Vault, MySQL) when one is already taken in another subscription. Empty keeps the pinned names."
+  type        = string
+  default     = ""
+}
+
+variable "cors_allowed_origin" {
+  description = "The one browser origin dealer-gateway accepts. Empty uses this stack's own Static Web App origin; set it to another origin (for example http://localhost:5173) when the frontend is built and hosted outside this stack."
   type        = string
   default     = ""
 }
@@ -112,22 +118,22 @@ variable "jwt_signing_secret" {
 }
 
 variable "aimanager_api_key" {
-  description = "Model key for ai-service only. Empty leaves the key unset, which keeps ai-service on its stub answer path."
+  description = "Model key for ai-service only. Empty leaves the key unset; ai-service still starts, but every model call fails with AI_KEY_MISSING (there is no stub provider)."
   type        = string
   sensitive   = true
   default     = ""
 }
 
 variable "aimanager_gateway_provider" {
-  description = "ai-manager provider name."
+  description = "ai-manager provider name. The default matches ai-service/src/main/resources/application.yaml and must match the vendor of aimanager_api_key."
   type        = string
-  default     = "openai"
+  default     = "groq"
 }
 
 variable "aimanager_gateway_model" {
-  description = "ai-manager model name. Empty uses the library default."
+  description = "ai-manager model name. The default matches ai-service/src/main/resources/application.yaml; empty uses the provider's current model alias."
   type        = string
-  default     = ""
+  default     = "qwen/qwen3.8-27b"
 }
 
 variable "admin_username" {
@@ -146,6 +152,18 @@ variable "admin_password" {
     condition     = var.admin_password == "" || length(var.admin_password) >= 12
     error_message = "admin_password must be empty or at least 12 characters."
   }
+}
+
+variable "admin_email" {
+  description = "Optional email the seeded platform admin can also sign in with (the username always works)."
+  type        = string
+  default     = ""
+}
+
+variable "admin_phone" {
+  description = "Optional phone, with country code, the seeded platform admin can also sign in with (the username always works)."
+  type        = string
+  default     = ""
 }
 
 variable "published_at" {

@@ -25,7 +25,8 @@ onMounted(async () => {
 <template>
   <RouterView />
   <AssistantView v-if="showAssistant" />
-  <footer class="app-footer">
+  <!-- Release times stay off the public landing page. -->
+  <footer v-if="route.name !== 'home'" class="app-footer">
     <div class="app-footer-title">Published (UTC)</div>
     <div>web {{ web }}</div>
     <div>gateway {{ backend.gateway }}</div>

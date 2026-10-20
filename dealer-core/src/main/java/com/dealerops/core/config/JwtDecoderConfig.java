@@ -16,7 +16,7 @@ import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 
 /**
  * Local HS256 decoder for tokens {@code dealer-core} issues itself at {@code /api/v1/auth/login}
- * (design/15-Data-Auth-and-Gateway.md S8, admin-issued username/password).
+ * (design/15-Data-Auth-and-Gateway.md S8, email-or-phone/password sign-in).
  */
 @Configuration
 public class JwtDecoderConfig {
@@ -75,7 +75,8 @@ public class JwtDecoderConfig {
         || lower.contains("systemproperties");
   }
 
-  static String devSecret(Environment environment) {
+  /** Signing/validation secret; {@code JwtIssuer} signs with the same resolved value. */
+  public static String devSecret(Environment environment) {
     String configured =
         firstNonBlank(
             environment.getProperty("DEV_JWT_SECRET"),

@@ -5,7 +5,6 @@ import com.dealerops.core.assistant.dto.AskResponse;
 import com.dealerops.core.assistant.dto.ResourceCard;
 import com.dealerops.core.common.tenant.TenantContext;
 import com.dealerops.core.common.tenant.TenantGuard;
-import com.dealerops.core.dealer.AppRole;
 import com.dealerops.core.integration.AiCallFailed;
 import com.dealerops.core.integration.AiGatewayClient;
 import com.dealerops.core.integration.dto.AssistantInternalRequest;
@@ -36,10 +35,8 @@ public class AssistantService {
   }
 
   public AskResponse ask(AskRequest body) {
-    TenantGuard.requireBusinessAccess();
-    Long tenant = TenantContext.get().role() == AppRole.PLATFORM_ADMIN
-        ? null
-        : TenantContext.get().tenantDealerId();
+    TenantGuard.requireDealerUser();
+    Long tenant = TenantContext.get().tenantDealerId();
     List<ResourceCard> cards = assistantResourceQuery.load(tenant, body.text());
     try {
       String summary =
@@ -49,8 +46,7 @@ public class AssistantService {
                   cards.stream()
                       .map(card -> new ResourceRef(card.kind(), card.id(), card.label(), card.status()))
                       .toList()));
-      // Cards come from the caller's tenant-scoped retrieval, or from the cross-dealer admin
-      // retrieval. When the summary names specific ids, show only those; when it names none,
+      // Cards come from the caller's tenant-scoped retrieval. When the summary names specific ids, show only those; when it names none,
       // show the whole retrieval list (design/14 §10).
       List<ResourceCard> referenced = referencedCards(summary, cards);
       return new AskResponse(summary, true, referenced.isEmpty() ? cards : referenced);

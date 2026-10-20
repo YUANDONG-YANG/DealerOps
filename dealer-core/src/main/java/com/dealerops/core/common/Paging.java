@@ -15,10 +15,6 @@ public final class Paging {
     return Math.max(requested, 0);
   }
 
-  public static PageRequest of(int page, int size) {
-    return PageRequest.of(page(page), size(size));
-  }
-
   public static PageRequest of(int page, int size, Sort sort) {
     return PageRequest.of(page(page), size(size), sort);
   }

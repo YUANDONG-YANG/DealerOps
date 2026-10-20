@@ -24,7 +24,7 @@ Cloud release is two operator commands: `terraform apply` in `deploy/terraform`,
 ## Three people
 
 - A: Vue pages (Admin/DMS/CRM/advertisements), login, web pipeline.
-- B: ai-service, GitHub AI library integration, OMVIC checklist, first Terraform draft, ai pipeline. The pipeline must be able to read that private package.
+- B: ai-service, GitHub AI library integration, OMVIC checklist, first Terraform draft, ai pipeline. The library is vendored as source (see 09), so the ai pipeline needs no private package access.
 - C: core, tenant isolation, Gateway, login/JWT, core pipeline.
 
 ## Sprints (aligned to the course’s three Reviews)

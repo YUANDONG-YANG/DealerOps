@@ -32,7 +32,7 @@ Do not implement work orders, leads, a buyer site, Service Bus, a standalone aut
 |---|---|
 | Four repos | `dealer-web` / `dealer-gateway` / `dealer-core` / `ai-service` (IaC: `dealer-platform`). **Repos exist; business implementation is missing.** |
 | Gateway | Browser only hits `:8080` `/api/v1`. Direct `:8081` / `:8082` must fail. |
-| Auth | Admin-issued username/password (BCrypt). JWT roles only `Platform.Admin` / `Dealer.User`. Gateway and core both verify. |
+| Auth | Email, username, or phone + password (BCrypt); no social login. JWT roles only `Platform.Admin` / `Dealer.User`. The username is also the account key. Gateway and core both verify. |
 | Real AI | `ai-service` embeds GitHub `ai-manager`. Failure must not Pass. CI does not hit paid models. |
 | Multi-tenant + audit | Dealership A cannot see dealership B; Admin has zero business data; every DMS/CRM change records who/what/when. |
 | Ads + TXT | Fixed rules run first; Ready / export TXT only when Passed and not Stale. |

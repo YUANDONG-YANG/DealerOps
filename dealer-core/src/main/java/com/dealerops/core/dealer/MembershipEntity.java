@@ -65,15 +65,7 @@ public class MembershipEntity {
     this.active = active;
   }
 
-  public String getCreatedBy() {
-    return createdBy;
-  }
-
   public void setCreatedBy(String createdBy) {
     this.createdBy = createdBy;
-  }
-
-  public Instant getCreatedAt() {
-    return createdAt;
   }
 }

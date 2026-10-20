@@ -158,10 +158,7 @@ public class ComplianceCheckService {
     }
     return checkRepository
         .findByIdAndDealerId(listing.getLastCheckId(), listing.getDealerId())
-        .filter(
-            check ->
-                listing.getId().equals(check.getListingId())
-                    && listing.getDealerId().equals(check.getDealerId()))
+        .filter(check -> listing.getId().equals(check.getListingId()))
         .orElse(null);
   }
 

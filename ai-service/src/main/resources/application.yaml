@@ -1,6 +1,3 @@
-# Keep this file named application.yml. The aimanager dependency jar ships its own
-# classpath application.yml (name ai-gateway, default profile full, port 8080); this file
-# shadows it, while an application.yaml here would be loaded alongside it and lose.
 server:
   port: ${AI_PORT:8082}
 
@@ -19,7 +16,6 @@ dealerops:
     connect-timeout-ms: 2000
     response-timeout-ms: 13000
     timeout-ms: 15000
-    require-internal-header: true
   internal-header-name: X-Dealer-Internal
   internal-token: ${INTERNAL_TOKEN:dealer-internal}
 

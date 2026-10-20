@@ -153,12 +153,4 @@ public class ListingEntity implements TenantOwned {
   public int getVersion() {
     return version;
   }
-
-  public Instant getCreatedAt() {
-    return createdAt;
-  }
-
-  public Instant getUpdatedAt() {
-    return updatedAt;
-  }
 }

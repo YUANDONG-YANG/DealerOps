@@ -9,8 +9,9 @@ import com.dealerops.core.common.tenant.TenantContext;
 import com.dealerops.core.common.tenant.TenantGuard;
 import com.dealerops.core.customer.CustomerRepository;
 import com.dealerops.core.customer.CustomerVehicleRepository;
-import com.dealerops.core.dealer.AppRole;
-import com.dealerops.core.security.CurrentUser;
+import com.dealerops.core.lead.LeadRepository;
+import com.dealerops.core.photo.VehiclePhotoRepository;
+import com.dealerops.core.workorder.WorkOrderRepository;
 import com.dealerops.core.vehicle.VehicleRepository;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -31,6 +32,9 @@ public class AuditService {
   private final VehicleRepository vehicleRepository;
   private final CustomerRepository customerRepository;
   private final CustomerVehicleRepository customerVehicleRepository;
+  private final LeadRepository leadRepository;
+  private final WorkOrderRepository workOrderRepository;
+  private final VehiclePhotoRepository vehiclePhotoRepository;
   private final ObjectMapper objectMapper;
 
   public AuditService(
@@ -38,11 +42,17 @@ public class AuditService {
       VehicleRepository vehicleRepository,
       CustomerRepository customerRepository,
       CustomerVehicleRepository customerVehicleRepository,
+      LeadRepository leadRepository,
+      WorkOrderRepository workOrderRepository,
+      VehiclePhotoRepository vehiclePhotoRepository,
       ObjectMapper objectMapper) {
     this.auditEventRepository = auditEventRepository;
     this.vehicleRepository = vehicleRepository;
     this.customerRepository = customerRepository;
     this.customerVehicleRepository = customerVehicleRepository;
+    this.leadRepository = leadRepository;
+    this.workOrderRepository = workOrderRepository;
+    this.vehiclePhotoRepository = vehiclePhotoRepository;
     this.objectMapper = objectMapper;
   }
 
@@ -66,14 +76,7 @@ public class AuditService {
 
   @Transactional(readOnly = true)
   public PageResponse<AuditItem> list(String entityType, Long entityId, int page, int size) {
-    CurrentUser user = TenantContext.get();
-    if (user == null) {
-      throw new ApiException(ErrorCode.FORBIDDEN, "Forbidden");
-    }
-    boolean admin = user.role() == AppRole.PLATFORM_ADMIN;
-    if (!admin) {
-      TenantGuard.requireDealerUser();
-    }
+    TenantGuard.requireDealerUser();
     if (entityType == null || entityType.isBlank() || entityId == null) {
       throw new ApiException(ErrorCode.VALIDATION, "Request is invalid.");
     }
@@ -84,20 +87,18 @@ public class AuditService {
     if (!isAllowedStaffType(type)) {
       throw new ApiException(ErrorCode.VALIDATION, "Request is invalid.");
     }
-    Long tenant = admin ? null : user.tenantDealerId();
-    if (!admin) {
-      assertEntityInDealer(type, entityId, tenant);
-    }
+    Long tenant = TenantContext.get().tenantDealerId();
+    assertEntityInDealer(type, entityId, tenant);
     if (EntityType.CUSTOMER.name().equals(type)) {
       return customerHistory(tenant, entityId, page, size);
     }
-    // Staff query types are only VEHICLE / CUSTOMER / CUSTOMER_VEHICLE (14 §9).
+    // Staff query types: VEHICLE / CUSTOMER / CUSTOMER_VEHICLE (14 §9), plus LEAD, WORK_ORDER and VEHICLE_PHOTO
+    // (design/21-Feature-Extensions.md).
     // created_at has one-second precision; id breaks ties so CREATE/UPDATE in the same second
     // keep their order and pages do not overlap (same order as customerHistory).
     Pageable pageable = Paging.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt", "id"));
-    Page<AuditEventEntity> result = admin
-        ? auditEventRepository.findByEntityTypeAndEntityIdOrderByCreatedAtDesc(type, entityId, pageable)
-        : auditEventRepository.findByDealerIdAndEntityTypeAndEntityIdOrderByCreatedAtDesc(
+    Page<AuditEventEntity> result =
+        auditEventRepository.findByDealerIdAndEntityTypeAndEntityIdOrderByCreatedAtDesc(
             tenant, type, entityId, pageable);
     return new PageResponse<>(
         result.map(this::toItem).getContent(), result.getNumber(), result.getSize(), result.getTotalElements());
@@ -106,9 +107,7 @@ public class AuditService {
   // The classroom data set is small. Merge existing link events without a schema migration
   // or duplicate writes, so even an already-deleted link retains its customer history.
   private PageResponse<AuditItem> customerHistory(Long tenant, Long customerId, int page, int size) {
-    List<AuditEventEntity> source = tenant == null
-        ? auditEventRepository.findAll(Sort.by(Sort.Direction.DESC, "createdAt", "id"))
-        : auditEventRepository.findByDealerIdOrderByCreatedAtDescIdDesc(tenant);
+    List<AuditEventEntity> source = auditEventRepository.findByDealerIdOrderByCreatedAtDescIdDesc(tenant);
     List<AuditItem> events = source.stream()
         .filter(event -> {
           if (EntityType.CUSTOMER.name().equals(event.getEntityType())) {
@@ -135,6 +134,12 @@ public class AuditService {
           case "CUSTOMER_VEHICLE" ->
               customerVehicleRepository.findByIdAndDealerId(entityId, tenant).isPresent()
                   || auditEventRepository.existsByDealerIdAndEntityTypeAndEntityId(tenant, type, entityId);
+          case "LEAD" -> leadRepository.findByIdAndDealerId(entityId, tenant).isPresent();
+          case "WORK_ORDER" -> workOrderRepository.findByIdAndDealerId(entityId, tenant).isPresent();
+          // A deleted photo keeps its history, like an unlinked customer-vehicle row.
+          case "VEHICLE_PHOTO" ->
+              vehiclePhotoRepository.existsByIdAndDealerId(entityId, tenant)
+                  || auditEventRepository.existsByDealerIdAndEntityTypeAndEntityId(tenant, type, entityId);
           default -> false;
         };
     if (!found) {
@@ -145,7 +150,10 @@ public class AuditService {
   private static boolean isAllowedStaffType(String type) {
     return EntityType.VEHICLE.name().equals(type)
         || EntityType.CUSTOMER.name().equals(type)
-        || EntityType.CUSTOMER_VEHICLE.name().equals(type);
+        || EntityType.CUSTOMER_VEHICLE.name().equals(type)
+        || EntityType.LEAD.name().equals(type)
+        || EntityType.WORK_ORDER.name().equals(type)
+        || EntityType.VEHICLE_PHOTO.name().equals(type);
   }
 
   private AuditItem toItem(AuditEventEntity event) {

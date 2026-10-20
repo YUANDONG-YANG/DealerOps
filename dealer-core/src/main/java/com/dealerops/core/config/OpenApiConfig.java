@@ -12,7 +12,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 /**
- * Swagger UI reads info.description: dealer-core's release time ({@link ReleaseInfo}), the same
+ * Swagger UI reads info.description: the API (dealer-core) release time ({@link ReleaseInfo}), the same
  * value the web footer lists for core.
  */
 @Configuration
@@ -28,8 +28,8 @@ public class OpenApiConfig {
         ? "http://localhost:8080"
         : gatewayBaseUrl.trim().replaceAll("/+$", "");
     return new OpenAPI()
-        .info(new Info().title("dealer-core").version("v1").description(
-            "dealer-core published " + releaseInfo.publishedAt()
+        .info(new Info().title("DealerOps Gateway API").version("v1").description(
+            "API published " + releaseInfo.publishedAt()
                 + ". Release times of all services: GET /actuator/release on this gateway, also shown"
                 + " at the bottom left of the web app."))
         .servers(List.of(new Server().url(server).description("dealer-gateway")))

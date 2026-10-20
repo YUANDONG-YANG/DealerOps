@@ -13,7 +13,4 @@ public interface AuditEventRepository extends JpaRepository<AuditEventEntity, Lo
 
   Page<AuditEventEntity> findByDealerIdAndEntityTypeAndEntityIdOrderByCreatedAtDesc(
       Long dealerId, String entityType, long entityId, Pageable pageable);
-
-  Page<AuditEventEntity> findByEntityTypeAndEntityIdOrderByCreatedAtDesc(
-      String entityType, long entityId, Pageable pageable);
 }

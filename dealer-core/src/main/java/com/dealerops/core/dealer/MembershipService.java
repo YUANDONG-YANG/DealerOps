@@ -11,13 +11,18 @@ import com.dealerops.core.common.tenant.TenantContext;
 import com.dealerops.core.common.tenant.TenantGuard;
 import com.dealerops.core.dealer.dto.CreateMemberRequest;
 import com.dealerops.core.dealer.dto.MemberResponse;
+import com.dealerops.core.dealer.dto.PendingUserResponse;
 import com.dealerops.core.security.CurrentUser;
 import java.util.Comparator;
 import java.util.List;
+import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -28,6 +33,7 @@ public class MembershipService {
   private final DealerRepository dealerRepository;
   private final MembershipRepository membershipRepository;
   private final AppUserRepository appUserRepository;
+  private final NewAccountRules accountRules;
   private final AuditService auditService;
   private final PasswordEncoder passwordEncoder;
 
@@ -36,10 +42,12 @@ public class MembershipService {
       MembershipRepository membershipRepository,
       AppUserRepository appUserRepository,
       AuditService auditService,
-      PasswordEncoder passwordEncoder) {
+      PasswordEncoder passwordEncoder,
+      NewAccountRules accountRules) {
     this.dealerRepository = dealerRepository;
     this.membershipRepository = membershipRepository;
     this.appUserRepository = appUserRepository;
+    this.accountRules = accountRules;
     this.auditService = auditService;
     this.passwordEncoder = passwordEncoder;
   }
@@ -75,6 +83,13 @@ public class MembershipService {
     if (!membershipRepository.findByUsernameAndActiveTrue(username).isEmpty()) {
       throw new ApiException(ErrorCode.DUP_MEMBER, "Membership already exists");
     }
+    NewAccountRules.Contact contact = null;
+    if (existing.isEmpty()) {
+      requireNewUserFields(body);
+      contact = accountRules.contact(body.email(), body.phone());
+      accountRules.requireAvailable(username, body.displayName().trim(), contact);
+    }
+    NewAccountRules.Contact newContact = contact;
     MembershipEntity membership =
         membershipRepository.findByDealerIdAndUsername(dealerId, username).orElseGet(MembershipEntity::new);
     membership.setDealerId(dealerId);
@@ -82,14 +97,16 @@ public class MembershipService {
     membership.setActive(true);
     membership.setCreatedBy(actorUsername());
     membership = membershipRepository.save(membership);
-    AppUserEntity user = existing.orElseGet(AppUserEntity::new);
-    user.setUsername(username);
-    user.setPasswordHash(passwordEncoder.encode(body.password()));
-    user.setDisplayName(body.displayName().trim());
+    // An existing account keeps its own password and display name; only a new one takes them here.
+    AppUserEntity user = existing.orElseGet(() -> newUser(username, body, newContact));
     user.setRole(AppRole.DEALER_USER);
     user.setDealerId(dealerId);
     user.setActive(true);
-    user = appUserRepository.save(user);
+    try {
+      user = existing.isEmpty() ? appUserRepository.saveAndFlush(user) : appUserRepository.save(user);
+    } catch (DataIntegrityViolationException ex) {
+      throw accountRules.conflict(ex);
+    }
     auditService.record(
         EntityType.MEMBERSHIP.name(),
         membership.getId(),
@@ -125,6 +142,50 @@ public class MembershipService {
         dealerId,
         actorUsername(),
         Map.of("username", username, "unbound", true));
+  }
+
+  /** Dealer.User accounts with no active membership, newest first (self sign-ups and unbound staff). */
+  @Transactional(readOnly = true)
+  public PageResponse<PendingUserResponse> pending(String q, int page, int size) {
+    TenantGuard.requireAdmin();
+    String query = isBlank(q) ? null : q.trim();
+    Page<AppUserEntity> result =
+        appUserRepository.findPending(
+            AppRole.DEALER_USER, query, Paging.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt", "id")));
+    return new PageResponse<>(
+        result.getContent().stream()
+            .map(u -> new PendingUserResponse(u.getUsername(), u.getDisplayName(), u.getEmail(), u.getPhone(), u.getCreatedAt()))
+            .toList(),
+        result.getNumber(),
+        result.getSize(),
+        result.getTotalElements());
+  }
+
+  private static void requireNewUserFields(CreateMemberRequest body) {
+    Map<String, String> missing = new LinkedHashMap<>();
+    if (isBlank(body.displayName())) {
+      missing.put("displayName", "Full name is required for a new user.");
+    }
+    if (isBlank(body.password())) {
+      missing.put("password", "Password is required for a new user.");
+    }
+    if (!missing.isEmpty()) {
+      throw new ApiException(ErrorCode.VALIDATION, missing.values().iterator().next(), missing);
+    }
+  }
+
+  private AppUserEntity newUser(String username, CreateMemberRequest body, NewAccountRules.Contact contact) {
+    AppUserEntity user = new AppUserEntity();
+    user.setUsername(username);
+    user.setPasswordHash(passwordEncoder.encode(body.password()));
+    user.setDisplayName(body.displayName().trim());
+    user.setEmail(contact.email());
+    user.setPhone(contact.phone());
+    return user;
+  }
+
+  private static boolean isBlank(String value) {
+    return value == null || value.isBlank();
   }
 
   private void requireDealer(Long dealerId) {

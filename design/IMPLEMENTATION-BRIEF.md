@@ -60,15 +60,15 @@ A multi-tenant back office for independent dealers: each dealership has its own 
 
 | Item | Must |
 |---|---|
-| Languages | Backend **Java 21** (may align with ai-manager on 17, but the four course repos share one version; prefer 21). Frontend **Vue 3 + Element Plus** (no third-party identity SDK). UI in English. |
+| Languages | Backend **Java 21** for every Java service. Frontend **Vue 3 + Element Plus** (no third-party identity SDK). UI in English. |
 | Repositories | **Four independent application repos**: `dealer-web`, `dealer-gateway`, `dealer-core`, `ai-service`. Plus `dealer-platform` for contract and config notes and `deploy/` for the Terraform stack. Ban a monorepo. |
 | Entry | Browser-to-service HTTP **only through Spring Cloud Gateway**. core / ai-service are not public. Bypassing Gateway must fail. |
-| Identity | **Admin-issued username/password** (spec PDF §2/§8; see [SCOPE-BASELINE.md](SCOPE-BASELINE.md) errata 1). `POST /api/v1/auth/login` checks a BCrypt hash on `app_user.password_hash`; dealer-core issues an HS256 JWT (`sub`=username, `name`, `roles`). Roles only `Platform.Admin`, `Dealer.User`. Admin “issues an account” = bind `{username, displayName, password}` → `dealer_id` (unbind = soft deactivate). No self-registration. **Authoritative design:** [15-Data-Auth-and-Gateway.md](15-Data-Auth-and-Gateway.md) §8. |
+| Identity | **Email, username, or phone + password** ([SCOPE-BASELINE.md](SCOPE-BASELINE.md) errata 1). `POST /api/v1/auth/login` resolves the sign-in name and BCrypt hash on `app_user.password_hash`; dealer-core issues an HS256 JWT (`sub`=username, `name`, `roles`). Roles only `Platform.Admin`, `Dealer.User`. New accounts are created with a username and an email and/or phone, then bound to `dealer_id` by the admin (unbind = soft deactivate). No social-provider login. **Authoritative design:** [15-Data-Auth-and-Gateway.md](15-Data-Auth-and-Gateway.md) §8. |
 | Data | **One MySQL** database `dealer_core`. Flyway owns tables. The AI service has no database. |
 | AI | `ai-service` embeds `YUANDONG-YANG/ai-manager` **in-process**. Synchronous REST. The adapter guarantees a **15s** timeout. |
 | Calls | Synchronous REST. |
 
-Sign-in follows the specification PDF (admin-issued username/password). The specification has no Assistant page; **PPT requires a real-AI core feature**, so build the read-only assistant per v6/10/12.
+Sign-in remains password-based; the sign-in name can be the email, username, or phone. The specification has no Assistant page; **PPT requires a real-AI core feature**, so build the read-only assistant per v6/10/12.
 
 ---
 
@@ -76,7 +76,7 @@ Sign-in follows the specification PDF (admin-issued username/password). The spec
 
 | Page | Role | What they do | Landing |
 |---|---|---|---|
-| Login | Everyone | Username + password, one `Sign in` button; no sidebar, no self-registration | `/login` (sole sign-in page) |
+| Login | Everyone | Email, username, or phone + password, one `Sign in` button; no sidebar | `/login` |
 | Admin | Platform.Admin only | Open dealerships; bind/unbind staff. **Zero** vehicle/customer/ad data | After sign-in → `/admin` |
 | DMS | Dealer.User only | This-dealership vehicle create/update/read; paired sale | After sign-in with `dealerId` → `/dms` |
 | CRM | Dealer.User only | This-dealership customer create/update/read; link this-store in-stock unbound vehicles | — |
@@ -188,12 +188,13 @@ Unified error body: `{"code":"VIN_DUP","message":"..."}`. Cross-dealership id �
 
 | Method | Path | Who | Key checks | Error codes |
 |---|---|---|---|---|
-| POST | `/auth/login` | Anonymous | `{username,password}` → `{accessToken,role,displayName}` | 400 VALIDATION; 401 UNAUTHORIZED |
+| POST | `/auth/login` | Anonymous | `{identifier,password}` where identifier is the email, username, or phone → `{accessToken,role,displayName}` | 400 VALIDATION; 401 UNAUTHORIZED |
+| POST | `/auth/register` | Anonymous | `{username,displayName,email,phone,password}` with at least one email or phone; creates unbound account | 400 VALIDATION; 409 `USERNAME_TAKEN`, `DISPLAY_NAME_TAKEN`, `EMAIL_TAKEN`, or `PHONE_TAKEN` (one code per field, with `fieldErrors`) |
 | GET | `/me` | Signed in | Returns `role`, `dealerId` (empty for Admin) | 401 |
 | GET | `/admin/dealers` | Admin | — | 403 |
 | POST | `/admin/dealers` | Admin | Four contact fields required | 400 VALIDATION |
 | GET | `/admin/dealers/{id}/members` | Admin | — | 404 |
-| POST | `/admin/dealers/{id}/members` | Admin | `{username,displayName,password}`; write `membership`+`app_user` (BCrypt hash) | 400 409 DUP_MEMBER |
+| POST | `/admin/dealers/{id}/members` | Admin | `{username,displayName,password,email,phone}`; at least one email or phone for a new account; write `membership`+`app_user` (BCrypt hash) | 400 409 |
 | DELETE | `/admin/dealers/{id}/members/{username}` | Admin | Unbind; do not delete the `app_user` account | 404 |
 | GET | `/vehicles` | Staff | This dealership; query `q`(VIN/Make/Model) `status` `condition`; page size 10 | 403 |
 | POST | `/vehicles` | Staff | Required fields; VIN unique in this dealership | 400 VIN_DUP |
@@ -248,9 +249,7 @@ Staff POST /listings/{id}/checks
 ### Wiring ai-manager (verified)
 
 - Repo: https://github.com/YUANDONG-YANG/ai-manager (private)  
-- Pinned commit: `c07e1f2afe5dd692c20f3567ad3a42a90d31a87a`  
-- Maven: `com.aimanager:aimanager:1.0.0-SNAPSHOT` → **at implementation time, publish an immutable version from that commit and depend on it**  
-- Package: GitHub Packages `https://maven.pkg.github.com/YUANDONG-YANG/ai-manager`  
+- Vendored as source into `ai-service` (`com.manager`) from commit `827196a`; no Maven dependency ([09](09-AI-Agent-Integration.md) "Vendored source")  
 - API: `com.manager.AiManager`: `request(String)`, `startConversation(id, systemMessage)`, `closeConversation`  
 - Providers: groq / openai / claude / deepseek. **No mock provider.**
 
@@ -267,7 +266,7 @@ Key: `AIMANAGER_API_KEY` on ai-service only (environment / Key Vault). The libra
 ## 7. Frontend UI convention summary
 
 - Stack: Vue 3 + **Element Plus**. English. 6 pages. Do not fork an entire dealer repo.  
-- Login: centered single card, username + password, one `Sign in` button.  
+- Login: centered single card, one email/username/phone field + password, one `Sign in` button.
 - Others: left menu + top bar (dealership name or `Platform Admin`, role, `Sign out`). Admin sees only Admin; staff see only DMS/CRM/Ad/Assistant.  
 - Primary button top-right; sell/unlink require a second confirmation.  
 - **Every page must** have loading / empty / error. Failures are not empty tables. AI failure cannot show Pass.  
@@ -300,7 +299,7 @@ Key: `AIMANAGER_API_KEY` on ai-service only (environment / Key Vault). The libra
 | `dealer-web` | Vue3, built to `dist/` + its own pipeline | **A** | 6 pages, sign-in, web pipeline |
 | `dealer-gateway` | Spring Cloud Gateway, packaged as a JAR + pipeline | **C** (A reviews) | Route/verify JWT and forward only; block `/internal` from the browser |
 | `dealer-core` | Boot + Flyway + one database, packaged as a JAR + pipeline | **C** | Tenant isolation, business API, call AI |
-| `ai-service` | Boot, no database + embedded `ai-manager` JAR + pipeline | **B** | Adapter, OMVIC checklist copy, real model, ai pipeline can pull the private package |
+| `ai-service` | Boot, no database + vendored `ai-manager` sources + pipeline | **B** | Adapter, OMVIC checklist copy, real model, ai pipeline compiles without private access |
 | `dealer-platform` | `env.example`, OpenAPI, API notes | **B** first draft / all certify | Does not run business code |
 | `deploy/` | Terraform for the Azure resources + `deploy-apps.sh` | **B** first draft / all certify | Applied by one operator, never by CI |
 
@@ -334,13 +333,13 @@ Copied from `dealer-platform/env.example`; split by repo while coding; **do not 
 | `MYSQL_USER` / `MYSQL_PASSWORD` | core | Local sample `dealer` / `dealer_dev_only` |
 | `AI_PORT` | ai | `8082` |
 | `AIMANAGER_API_KEY` | **ai-service only** | Real key, in Key Vault |
-| `AIMANAGER_GATEWAY_PROVIDER` | ai | `openai` and other providers the library already supports |
-| `AIMANAGER_GATEWAY_MODEL` | ai | |
+| `AIMANAGER_GATEWAY_PROVIDER` | ai | default `groq`; any provider the library supports, matching the key |
+| `AIMANAGER_GATEWAY_MODEL` | ai | default `qwen/qwen3.8-27b` |
 | `JWT_MODE` | gateway+core | Must be `dev` (the HS256 login-token mode is the only mode) |
 | `DEV_JWT_SECRET` | gateway+core | HS256 signing secret, ≥32 UTF-8 bytes; cloud: Key Vault `JWT-SIGNING-SECRET` |
 | `ADMIN_USERNAME` / `ADMIN_PASSWORD` | core | Seed the first `Platform.Admin` account |
 
-Sign-in wiring: [15-Data-Auth-and-Gateway.md](15-Data-Auth-and-Gateway.md) §8.4 (ops mirror: [README.md](../README.md) § Sign-in). Do not paste subscription passwords, secrets, or model-key bodies in chat.
+Sign-in wiring: [15-Data-Auth-and-Gateway.md](15-Data-Auth-and-Gateway.md) §8.4 (ops mirror: [README.md](../README.md) "Step 6. Sign in"). Do not paste subscription passwords, secrets, or model-key bodies in chat.
 
 ---
 
@@ -351,7 +350,7 @@ Sign-in wiring: [15-Data-Auth-and-Gateway.md](15-Data-Auth-and-Gateway.md) §8.4
 - Service Bus, outbox, DLQ, message queues, second database, vector store  
 - Third-party auto-listing, payments, Image Studio, Cloudinary  
 - Homemade model SDK / conversation engine; deploying ai-manager `com.gateway` or a fifth container  
-- Homemade username/password, treating passwords as “simpler”  
+- Homemade password hashing or identity protocols; use the existing BCrypt/JWT auth boundary
 - C#, standalone contracts repo, reviving `01`–`06` scope  
 - Treating reference repos `references/carventory` and `car-dealer-crm` as running modules (you may study UX; do not copy buyer/work-order/PostgreSQL/password login)  
 - CI hitting real paid models; treating SNAPSHOT as a release number without a pinned commit  
@@ -396,7 +395,7 @@ Each step can be its own PR. Do not jump to a “full frontend” before prior s
 | Team A/B/C names | **Missing** | Assignment cards, Review signatures |
 | Azure subscription | **Missing** | Sprint 2 cloud demo (App Service, Static Web Apps, MySQL, Key Vault) |
 | Model key | **Missing** | Sprint 2 real AI (`AIMANAGER_API_KEY`) |
-| ai-manager fixed version | **Unpublished** | Publish an immutable version from `c07e1f2`, or local `mvn install` |
+| ai-manager fixed version | **Done** | Vendored as source from `827196a` (09) |
 
 Already have: specification PDF, PPT, this brief, `SCOPE-BASELINE`, backend design **DEVELOPMENT-DESIGN**, **13/14/15**, packaging 18/19, acceptance 16, ad fixtures 17, Node 20, Maven 3.6, Git, `gh` signed in as `YUANDONG-YANG`, Flyway V1, API/env drafts.
 

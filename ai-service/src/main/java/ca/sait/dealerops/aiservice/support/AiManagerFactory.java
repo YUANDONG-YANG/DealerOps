@@ -35,10 +35,6 @@ public class AiManagerFactory {
         StringUtils.hasText(model) ? model : "current");
   }
 
-  public String apiKey() {
-    return apiKey;
-  }
-
   public boolean hasApiKey() {
     return StringUtils.hasText(apiKey);
   }

@@ -16,7 +16,6 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 import org.springframework.web.reactive.function.client.WebClient;
-import org.springframework.web.reactive.function.client.WebClientResponseException;
 
 @Component
 public class AiGatewayClient {
@@ -63,8 +62,6 @@ public class AiGatewayClient {
           .bodyToMono(JsonNode.class)
           .timeout(Duration.ofMillis(responseTimeoutMs))
           .block();
-    } catch (WebClientResponseException ex) {
-      throw new AiCallFailed("AI call failed.", ex);
     } catch (RuntimeException ex) {
       throw new AiCallFailed("AI call failed.", ex);
     }

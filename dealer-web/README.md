@@ -26,13 +26,13 @@ npm run dev
 
 Health: `http://127.0.0.1:5173/` → 200. Keep `VITE_GATEWAY_URL=http://localhost:8080` so the gateway's CORS origin `http://localhost:5173` stays unchanged.
 
-## Sign-in (admin-issued username/password)
+## Sign-in and registration
 
-Admin-issued username and password, as the client specification requires. See [design/15-Data-Auth-and-Gateway.md](../design/15-Data-Auth-and-Gateway.md) §8.
+Sign-in takes the account's email, username, or phone plus its password; there is no social-provider sign-in. See [design/15-Data-Auth-and-Gateway.md](../design/15-Data-Auth-and-Gateway.md) §8 and [design/21-Feature-Extensions.md](../design/21-Feature-Extensions.md) §5.
 
-The `/login` page posts `{ username, password }` to `POST /api/v1/auth/login` on the gateway and stores the returned JWT. Only the platform admin can create a staff login, from `/admin` (binds a dealership, username, and temporary password in one step). The platform admin account itself is seeded on `dealer-core` startup from `ADMIN_USERNAME` / `ADMIN_PASSWORD` (see `dealer-platform/env.example`); there is no self-registration.
+The `/login` page posts `{ identifier, password }` to `POST /api/v1/auth/login` on the gateway and stores the returned JWT in `sessionStorage`. `/register` creates an unbound account (username, display name, email and/or phone, password). Only the platform admin grants dealership access, from `/admin` (bind a new staff login, or add a pending account to a dealership). The platform admin account itself is seeded on `dealer-core` startup from `ADMIN_USERNAME` / `ADMIN_PASSWORD` (see `dealer-platform/env.example`).
 
-After sign-in, the SPA calls `GET /api/v1/me`. Admin lands on `/admin`. Staff without an active membership see the no-access landing; staff with a membership land on `/dms`.
+After sign-in, the SPA calls `GET /api/v1/me`. Admin lands on `/admin` and sees no business pages. Accounts without an active membership see the no-access landing; staff with a membership land on `/dms` and can use DMS, CRM, Leads, Ad compliance, and the floating assistant.
 
 ## Cloud build
 

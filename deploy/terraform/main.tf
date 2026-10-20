@@ -15,14 +15,22 @@ locals {
   ai_app_name      = "${var.prefix}-ai${var.name_suffix}"
   gateway_app_name = "${var.prefix}-gateway${var.name_suffix}"
 
+  # Vault DNS names and MySQL server names are global, like the azurewebsites.net hostnames,
+  # so another subscription deploying this stack needs name_suffix here too.
+  key_vault_name    = "${var.prefix}-kv${var.name_suffix}"
+  mysql_server_name = "${var.prefix}-mysql${var.name_suffix}"
+
   # App Service serves every app on 443 in front of the JVM, so all three bind the same
   # container port. The 8081 / 8082 split only matters locally.
   app_port = 8080
 
-  core_internal_url   = "https://${local.core_app_name}.azurewebsites.net"
-  ai_internal_url     = "https://${local.ai_app_name}.azurewebsites.net"
-  gateway_public_url  = "https://${local.gateway_app_name}.azurewebsites.net"
-  web_public_origin   = "https://${azurerm_static_web_app.web.default_host_name}"
+  core_internal_url  = "https://${local.core_app_name}.azurewebsites.net"
+  ai_internal_url    = "https://${local.ai_app_name}.azurewebsites.net"
+  gateway_public_url = "https://${local.gateway_app_name}.azurewebsites.net"
+  web_public_origin  = "https://${azurerm_static_web_app.web.default_host_name}"
+  # The gateway allows exactly one browser origin. Default is this stack's own SPA; a team
+  # that builds its own frontend elsewhere points it at that origin instead.
+  cors_allowed_origin = var.cors_allowed_origin != "" ? var.cors_allowed_origin : local.web_public_origin
   mysql_database_name = "dealer_core"
   seed_platform_admin = var.admin_username != "" && var.admin_password != ""
   configure_model_key = var.aimanager_api_key != ""
@@ -69,7 +77,7 @@ resource "azurerm_user_assigned_identity" "apps" {
 }
 
 resource "azurerm_key_vault" "kv" {
-  name                       = "${var.prefix}-kv"
+  name                       = local.key_vault_name
   resource_group_name        = azurerm_resource_group.rg.name
   location                   = azurerm_resource_group.rg.location
   tenant_id                  = data.azurerm_client_config.current.tenant_id
@@ -126,7 +134,7 @@ resource "azurerm_key_vault_secret" "admin_password" {
 }
 
 resource "azurerm_mysql_flexible_server" "mysql" {
-  name                   = "${var.prefix}-mysql"
+  name                   = local.mysql_server_name
   resource_group_name    = azurerm_resource_group.rg.name
   location               = var.mysql_location
   administrator_login    = var.mysql_admin_username
@@ -223,7 +231,7 @@ resource "azurerm_linux_web_app" "gateway" {
     GATEWAY_PORT        = tostring(local.app_port)
     CORE_URL            = local.core_internal_url
     AI_URL              = local.ai_internal_url
-    CORS_ALLOWED_ORIGIN = local.web_public_origin
+    CORS_ALLOWED_ORIGIN = local.cors_allowed_origin
     JWT_MODE            = "dev"
     INTERNAL_TOKEN      = "@Microsoft.KeyVault(SecretUri=${azurerm_key_vault_secret.internal_token.versionless_id})"
     DEV_JWT_SECRET      = "@Microsoft.KeyVault(SecretUri=${azurerm_key_vault_secret.jwt_signing_secret.versionless_id})"
@@ -282,7 +290,6 @@ resource "azurerm_linux_web_app" "core" {
       CORE_PORT          = tostring(local.app_port)
       MYSQL_URL          = "jdbc:mysql://${azurerm_mysql_flexible_server.mysql.fqdn}:3306/${local.mysql_database_name}?sslMode=REQUIRED&serverTimezone=UTC"
       MYSQL_USER         = var.mysql_admin_username
-      GATEWAY_BASE_URL   = local.gateway_public_url
       GATEWAY_PUBLIC_URL = local.gateway_public_url
       AI_BASE_URL        = local.ai_internal_url
       JWT_MODE           = "dev"
@@ -293,6 +300,8 @@ resource "azurerm_linux_web_app" "core" {
     local.seed_platform_admin ? {
       ADMIN_USERNAME = var.admin_username
       ADMIN_PASSWORD = "@Microsoft.KeyVault(SecretUri=${azurerm_key_vault_secret.admin_password[0].versionless_id})"
+      ADMIN_EMAIL    = var.admin_email
+      ADMIN_PHONE    = var.admin_phone
     } : {}
   )
 

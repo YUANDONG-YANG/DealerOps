@@ -77,11 +77,10 @@ ai-service directly (`AI_BASE_URL`, see [18-Backend-Core-Engineering.md](18-Back
 so `AiGatewayClient` copies the incoming `X-Request-ID` onto each `/internal/v1/**` call; the
 gateway, core, and ai-service lines for one browser request share one `requestId`.
 
-`ai-service` keeps its defaults in `application.yml`, not `application.yaml`. The `aimanager`
-dependency jar ships its own classpath `application.yml` (application name `ai-gateway`,
-default profile `full`). A same-named file in `ai-service` shadows it; with an `application.yaml`
-name, Spring loads the library file too and its `spring.application.name` wins, which writes the
-log as `ai-gateway-<date>.log`. The `ai-service` build also excludes the local, Git-ignored key
+`ai-service` keeps its defaults in `application.yaml`. The vendored ai-manager sources
+(`com.manager`, see `ai-service/README.md`) bring no Spring configuration file, so
+`spring.application.name` is always `ai-service` and the log is `ai-service-<date>.log`. The
+`ai-service` build also excludes the local, Git-ignored key
 notes (`ai-key.md`, `api-key.md`) from the jar.
 
 ## 3. Local tracing (SkyWalking) — scope note
@@ -151,8 +150,8 @@ Every deploy must be visible: each of the four apps reports when it was publishe
 | Startup log of each Java app | `Release: <service> published <time>`, one INFO line at `ApplicationReadyEvent` | `ReleaseInfo` (core, ai-service), `ReleaseEndpoint` (gateway) |
 | `GET /actuator/info` on core and ai-service | `release.publishedAt` plus Spring's `build` block | `ReleaseInfo` `InfoContributor` |
 | `GET /actuator/release` on the gateway | `{"gateway","core","ai"}`. Core and ai-service are read from their `/actuator/info` with a 2 s timeout; an unreachable app shows `unavailable` | `ReleaseEndpoint` |
-| Swagger description (served through the gateway) | `dealer-core published <time>`, plus a pointer to `/actuator/release` | core `OpenApiConfig` |
-| Web app, fixed at the bottom left of every page, including `/login` | `Published (UTC)` with one line each for web, gateway, core and ai | `dealer-web/src/App.vue` |
+| Swagger description (served through the gateway) | title `DealerOps Gateway API`, version `v1`, `API published <time>` (the dealer-core release time), plus a pointer to `/actuator/release` | core `OpenApiConfig` |
+| Web app, fixed at the bottom left of every page, including `/login`, except the public landing page `/` | `Published (UTC)` with one line each for web, gateway, core and ai | `dealer-web/src/App.vue` |
 
 **Access.**
 - `GET /actuator/release` is anonymous on the gateway because the footer is shown before sign-in. It returns only timestamps.

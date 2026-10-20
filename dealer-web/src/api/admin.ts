@@ -34,7 +34,11 @@ export type PatchDealerBody = CreateDealerBody & {
   logoDataUrl: string | null
 }
 
-export type BindMemberBody = { username: string; displayName: string; password: string }
+/** New accounts require a login email or phone; an existing account keeps its credentials. */
+export type BindMemberBody = { username: string; displayName?: string; password?: string; email?: string; phone?: string }
+
+/** A Dealer.User account with no dealership yet (self sign-up or unbound staff). */
+export type PendingUser = { username: string; displayName: string; email: string | null; phone: string | null; createdAt: string }
 
 export type AdminErrorCode = 'DUP_MEMBER' | 'VALIDATION' | 'FORBIDDEN' | 'NOT_FOUND' | string
 
@@ -58,6 +62,8 @@ export const adminApi = {
     }),
   bind: (id: number, body: BindMemberBody) =>
     http.post<Member>(`/api/v1/admin/dealers/${id}/members`, body),
+  pendingUsers: (p: { q?: string; page?: number } = {}) =>
+    http.get<Page<PendingUser>>('/api/v1/admin/pending-users', { params: { ...p, size: 10 } }),
   unbind: (id: number, username: string) =>
     http.delete(`/api/v1/admin/dealers/${id}/members/${encodeURIComponent(username)}`),
 }

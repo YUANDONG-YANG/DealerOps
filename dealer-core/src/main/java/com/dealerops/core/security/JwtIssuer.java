@@ -1,5 +1,6 @@
 package com.dealerops.core.security;
 
+import com.dealerops.core.config.JwtDecoderConfig;
 import com.dealerops.core.dealer.AppUserEntity;
 import com.nimbusds.jose.JOSEException;
 import com.nimbusds.jose.JWSAlgorithm;
@@ -42,19 +43,10 @@ public class JwtIssuer {
               .claim("roles", List.of(user.getRole().getValue()))
               .build();
       SignedJWT jwt = new SignedJWT(new JWSHeader(JWSAlgorithm.HS256), claims);
-      jwt.sign(new MACSigner(JwtSupport.hmacSecret(devSecret())));
+      jwt.sign(new MACSigner(JwtSupport.hmacSecret(JwtDecoderConfig.devSecret(environment))));
       return jwt.serialize();
     } catch (JOSEException ex) {
       throw new IllegalStateException("Failed to sign access token", ex);
     }
-  }
-
-  private String devSecret() {
-    String fromEnvVar = environment.getProperty("DEV_JWT_SECRET");
-    String configured =
-        fromEnvVar != null && !fromEnvVar.isBlank()
-            ? fromEnvVar
-            : environment.getProperty("dealerops.jwt.dev-secret");
-    return configured == null || configured.isBlank() ? JwtSupport.DEFAULT_DEV_SECRET : configured;
   }
 }

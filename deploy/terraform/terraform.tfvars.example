@@ -8,8 +8,13 @@ static_web_app_location = "eastus2"
 mysql_location          = "canadaeast"
 prefix                  = "dealerops"
 
-# Set this when dealerops-core.azurewebsites.net or a sibling hostname is already taken.
+# Set this when dealerops-core.azurewebsites.net, dealerops-kv, or dealerops-mysql is
+# already taken by another subscription. It is appended to every global name.
 name_suffix = ""
+
+# The one browser origin the gateway accepts. Empty uses this stack's own Static Web App.
+# Point it at your own frontend origin when you build the SPA outside this stack.
+cors_allowed_origin = ""
 
 # B1 is 1.75 GB for all three JVMs. B2 is 3.5 GB and is the safer demo default.
 service_plan_sku = "B2"
@@ -31,3 +36,5 @@ aimanager_api_key = ""
 # Seeds the one platform admin on the first dealer-core start. Both or neither.
 admin_username = ""
 admin_password = ""
+admin_email = ""
+admin_phone = ""

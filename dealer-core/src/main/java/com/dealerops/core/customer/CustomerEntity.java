@@ -105,8 +105,4 @@ public class CustomerEntity implements TenantOwned {
   public Instant getCreatedAt() {
     return createdAt;
   }
-
-  public Instant getUpdatedAt() {
-    return updatedAt;
-  }
 }
