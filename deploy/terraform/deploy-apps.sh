@@ -12,9 +12,34 @@ set -euo pipefail
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 repo="$(cd "${here}/../.." && pwd)"
 
-for tool in az terraform dotnet npm zip tar curl seq; do
+for tool in az terraform dotnet npm zip tar curl seq git; do
   command -v "${tool}" >/dev/null 2>&1 || { echo "Missing required tool: ${tool}" >&2; exit 1; }
 done
+
+# Publish only a clean checkout of its latest upstream commit. Otherwise different
+# apps in one deployment could be built from different local edits or stale sources.
+upstream="$(git -C "${repo}" rev-parse --abbrev-ref --symbolic-full-name '@{upstream}' 2>/dev/null)" \
+  || { echo "The current branch has no upstream; refusing to publish." >&2; exit 1; }
+remote="${upstream%%/*}"
+git -C "${repo}" fetch --quiet "${remote}" \
+  || { echo "Could not fetch ${remote}; refusing to publish stale or unverified code." >&2; exit 1; }
+head_commit="$(git -C "${repo}" rev-parse HEAD)"
+upstream_commit="$(git -C "${repo}" rev-parse "${upstream}")"
+if [ "${head_commit}" != "${upstream_commit}" ]; then
+  echo "Checkout is not at the latest upstream commit (${upstream}); refusing to publish." >&2
+  exit 1
+fi
+if ! git -C "${repo}" diff-index --quiet HEAD --; then
+  echo "Tracked files have uncommitted changes; refusing to publish a mixed build." >&2
+  exit 1
+fi
+untracked_sources="$(git -C "${repo}" ls-files --others --exclude-standard -- backend/dotnet frontend/react)"
+if [ -n "${untracked_sources}" ]; then
+  echo "Untracked backend or frontend source files are present; refusing to publish." >&2
+  printf '%s\n' "${untracked_sources}" >&2
+  exit 1
+fi
+echo "==> publishing ${head_commit} (${upstream})"
 
 # Build output goes to a scratch directory, never into the source tree: a publish folder inside a
 # project directory is picked up as content by the next `dotnet publish`, and installing into
