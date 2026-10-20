@@ -31,7 +31,7 @@ export default function ComplianceRulesPanel() {
   return (
     <section>
       <h2>Ad compliance rules</h2>
-      <p className="muted">Disabled rules are skipped. BLOCK stops Ready and export; REVIEW is advisory. Saving any rule invalidates previous checks across dealerships.</p>
+      <p className="muted">Disabled rules are skipped. BLOCK stops Ready and export; REVIEW is advisory. Saving any rule invalidates previous checks across dealerships. A message left as shown keeps the engine’s finding-specific wording.</p>
       {error && <p className="danger-text">{error}</p>}
       {notice && <p className="success-text">{notice}</p>}
       <div className="table-wrap">

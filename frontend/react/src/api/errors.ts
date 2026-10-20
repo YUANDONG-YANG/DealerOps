@@ -28,6 +28,7 @@ const REASONS: Record<string, string> = {
   INTERNAL_ERROR: 'The server ran into an unexpected problem. Try again; if it keeps happening, report the reference below.',
   AI_UNAVAILABLE: 'The AI service is not responding right now. Try again in a minute.',
   CATALOG_UNAVAILABLE: 'The vehicle catalog service is not responding. Try again, or type the make and model yourself.',
+  RATE_LIMITED: 'Too many requests in a short time. Wait a minute and try again.',
 };
 
 const SPECIFIC_SERVER_MESSAGE = new Set([

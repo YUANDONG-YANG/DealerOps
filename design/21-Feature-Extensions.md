@@ -46,7 +46,7 @@ DealerOps.Core proxies NHTSA vPIC for the DMS make/model options and provides `G
 | VIN-03 | DMS create form: `Decode` fills make, model, year, and body type; the user can still edit them; nothing is saved until `Save`. Body type is stored as an **optional** field (`bodyType`, default `OTHER`) and is a list filter; engine, country, and manufacturer are shown, not stored. The specification's eight **required** fields do not change — see SCOPE-BASELINE erratum 8 | Must |
 | VIN-04 | The endpoint is anonymous (landing page demo). It reads no tenant data and writes nothing. Successful decodes are cached in memory | Must |
 
-Open risk: an anonymous endpoint lets anyone use the server as a vPIC proxy. The in-memory cache limits repeat calls; rate limits are included in the expanded NFR-07 scope, but endpoint limits await the policy decision recorded in [SCOPE-BASELINE.md](SCOPE-BASELINE.md).
+Open risk: an anonymous endpoint lets anyone use the server as a vPIC proxy. The in-memory cache limits repeat calls; the gateway also limits anonymous callers per IP (NFR-07, [19](19-Gateway-and-AI-Engineering.md) §1.5.1).
 
 ### Delivery and acceptance
 
@@ -117,7 +117,7 @@ CREATE TABLE sales_lead_note (
 | `GET /api/v1/leads/{id}` | — | detail with customer brief, vehicle brief, notes |
 | `PATCH /api/v1/leads/{id}` | full editable state: `stage, ownerUsername, nextFollowUpOn, vehicleId, lostReason, version` (null clears a field) | 200; stale `version` → **409** `VERSION_CONFLICT`; changing a final lead → **409** `LEAD_CLOSED` (new code) |
 | `POST /api/v1/leads/{id}/notes` | `body` (1–2000) | 201 note; closed leads still accept notes |
-| `GET /api/v1/members` | — | 200 `[{ username, displayName }]` of this dealership's active members, sorted by username; shared by the lead owner select/filter and the work-order assignee select (14 §5.6) |
+| `GET /api/v1/members` | — | 200 `[{ username, displayName, source }]` of this dealership's active members, sorted by username; shared by the lead owner select/filter, the work-order assignee select, and the Team page Members tab (14 §5.6) |
 
 Lead history is readable with `GET /api/v1/audit?entityType=LEAD&entityId=`.
 
@@ -228,7 +228,7 @@ The `app_user` table keeps the unique `username` and adds nullable `phone`; uniq
 - `/register`: username, display name, email and/or phone, and password.
 - Admin-created staff accounts need an email and/or phone; the seeded platform admin needs only a username.
 - `/no-access`: a signed-in user with no dealership, including Google, sees that the account is not provisioned yet, the username, and a way to request one dealership. A member of that dealership approves or rejects it on `/team`.
-- Admin Members tab: pending accounts show email and phone and can be bound without changing credentials.
+- Admin Pending accounts tab: pending accounts show email and phone and can be bound without changing credentials.
 
 ## 6. Image Studio (P5)
 

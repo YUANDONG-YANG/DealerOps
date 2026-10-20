@@ -2,7 +2,7 @@
 
 Version v6.0 · 2026-09-21
 
-Four independently deployable services, four pipelines, and four deployable artifacts (three .NET apps and one React static bundle). Browser and service-to-service HTTP both go through the Gateway. AI uses synchronous REST, not a queue.
+Four independently deployable services in one Git repository, four pipelines, and four deployable artifacts (three .NET 10 apps and one React bundle). The browser reaches the back end only through the Gateway. dealer-core calls ai-service directly on `/internal/v1/**` with the internal header; it does not send that call back through the Gateway. AI uses synchronous REST, not a queue.
 
 | PPT domain | Unit | Technology | Owner |
 |---|---|---|---|
@@ -18,19 +18,19 @@ Three figures, in [diagrams/](diagrams/). They are hand-authored SVG: plain text
 
 **Figure 1 — service boundaries and request paths.** Which process owns what, which hop carries which credential, and the one path that must fail.
 
-![Service boundaries: the browser reaches only dealer-gateway, which is the single API origin; the gateway routes to dealer-core and ai-service, which deny callers outside Azure; dealer-core calls the AI back through the gateway with the internal header; direct browser access to 8081 and 8082 is refused at the platform edge.](diagrams/01-service-boundaries.svg)
+![Service boundaries: the browser reaches only dealer-gateway, which is the single API origin; the gateway routes browser calls to dealer-core; dealer-core calls ai-service directly with the internal header; direct browser access to 8081 and 8082 is refused.](diagrams/01-service-boundaries.svg)
 
-core and ai-service are not public; only the Gateway may reach them. Bypassing the Gateway must fail. Sprint 1 must be able to walk through this figure. Each of the four boxes is a separately deployable unit with its own repository folder and its own CI workflow, which is what "microservices, not a monolith" has to mean concretely here.
+core and ai-service are not public. A browser that bypasses the Gateway must fail. Sprint 1 must be able to walk through this figure. Each of the four boxes is a separately deployable unit with its own folder and its own CI workflow, which is what "microservices, not a monolith" means in this one-repository checkout.
 
 **Figure 2 — Azure deployment and release path.** What each service is deployed *as*, what creates the infrastructure, and where secrets enter.
 
-![Azure release path: a push to main runs compile, tests and terraform validate in GitHub Actions, which holds no Azure credentials; an operator runs terraform apply and deploy-apps.sh, which create the resource group and upload three JARs and the SPA bundle; secrets stay in Key Vault and are read through a user-assigned identity.](diagrams/02-azure-deployment.svg)
+![Azure release path: a push to main runs compile and terraform validate in GitHub Actions, which holds no Azure credentials; an operator runs terraform apply and deploy-apps.sh, which create the resource group and upload three .NET 10 apps and the React bundle to Linux App Service; secrets stay in Key Vault and are read through a user-assigned identity.](diagrams/02-azure-deployment.svg)
 
 The red cross is not decoration: CI deliberately holds no Azure credential, so the only path to production is the operator machine. That is a known deviation — see the coverage table below.
 
 **Figure 3 — AI ad-check workflow.** The deterministic rules run before the model, and every failure mode has a defined state.
 
-![AI ad-check flow: a check posted through the gateway is guarded by dealer-core, then the deterministic OMVIC rule engine runs first; a hard block is persisted without calling the model, otherwise core calls ai-service back through the gateway, the model runs under a 13 second budget, and a failure returns 502 AI_UNAVAILABLE; core persists the result in one transaction and export unlocks only while the latest check is PASSED and not STALE.](diagrams/03-ai-ad-check-flow.svg)
+![AI ad-check flow: a check posted through the gateway is guarded by dealer-core, then the deterministic OMVIC rule engine runs first; a hard block is persisted without calling the model, otherwise core calls ai-service directly with the internal header, the model runs under a 13 second budget, and a failure returns 502 AI_UNAVAILABLE; core persists the result in one transaction and export unlocks only while the latest check is PASSED and not STALE.](diagrams/03-ai-ad-check-flow.svg)
 
 Rules first is a cost and correctness decision, not an optimisation detail: an ad with a hard OMVIC block never reaches the model, so the demo cannot be mistaken for a model that "approves" something the checklist already rejected.
 
@@ -42,7 +42,7 @@ Rules first is a cost and correctness decision, not an optimisation detail: an a
 |---|---|---|
 | 01 · Microservices over monolith — separate deployable services, API-driven, own repo + pipeline, API gateway, **diagram required** | Figure 1; `.github/workflows/dealer-*.yml` and `ai-service.yml` | Met |
 | 02 · Live cloud deployment — Azure preferred | Figure 2; [deploy/README.md](../deploy/README.md) | Met once `terraform apply` has been run against the subscription |
-| 02 · **Containerization** — Docker packaging, Kubernetes or Container Apps | — | **Not met.** Containers were removed; the services deploy as JARs to App Service. [SCOPE-BASELINE.md](SCOPE-BASELINE.md) errata item 5 |
+| 02 · **Containerization** — Docker packaging, Kubernetes or Container Apps | — | **Not met.** Containers were removed. The three .NET 10 services and the React app deploy as Linux App Service packages. [SCOPE-BASELINE.md](SCOPE-BASELINE.md) errata item 5 |
 | 02 · Infrastructure as Code — Bicep, **Terraform**, or ARM | [deploy/terraform](../deploy/terraform); Figure 2 | Met — the PPT names Terraform explicitly |
 | 02 · **CI/CD** — automated end to end, "no manual deployments to production — ever" | `.github/workflows/*` compile, test and validate only; release is operator-run | **Not met.** CI stops at the Azure boundary in Figure 2. Closing this needs a federated-credential deploy job |
 | 03 · Security by design — OAuth2/JWT, TLS everywhere, no hardcoded credentials, RBAC | Figures 1 and 2; [15-Data-Auth-and-Gateway.md](15-Data-Auth-and-Gateway.md) §8–12 | Met |
@@ -55,19 +55,19 @@ The two "not met" rows are decisions, not oversights, and neither is signed off 
 ## Identity
 
 There are only two roles: `Platform.Admin` and `Dealer.User`.  
-Passwords are not stored. An administrator binds `username` to `dealer_id`. Each request uses the JWT role plus local membership and ignores any dealership ID sent by the frontend.
+Passwords are stored only as salted BCrypt hashes. An administrator binds `username` to one dealership. Each request uses the JWT role plus local membership and ignores any dealership ID sent by the frontend.
 
 ## Data (one database)
 
-`dealer`, `membership`, `app_user`, `vehicle`, `customer`, `customer_vehicle`, `listing`, `compliance_check`, `audit_event`.  
-Business tables include `dealer_id`. Vehicles and customers must share this database. Administrator queries must not join vehicles or customers.
+`dealer`, `membership`, `app_user`, `vehicle`, `customer`, `customer_vehicle`, `listing`, `compliance_check`, `compliance_rule_override`, `audit_event`, plus the extension tables `sales_lead`, `sales_lead_note`, `work_order`, `vehicle_photo`, and `notification`.  
+Business tables include `dealer_id`. Vehicles and customers must share this database. Administrator queries must not join vehicles or customers. Soft-deleted vehicles and customers stay in the tables and drop out of active lists.
 
 The AI service has no database: it calls the GitHub assistant library in-process. core sends public vehicles + advertisement text + the dealership’s public profile to ai-service, then writes missing items and explanations into `compliance_check`. Assistant Q&A is likewise filtered by core before it reaches that library.
 
 ## How a check runs
 
 1. A dealership user POSTs `/api/v1/listings/{id}/checks` (via the Gateway).
-2. core validates this dealership and the version, calls ai-service (via the Gateway), and waits at most 15 seconds.
+2. core validates this dealership and the version. When the fixed rules have no hard block, core calls ai-service directly at `AiService:BaseUrl` (`POST /internal/v1/ad-check`, header `X-Dealer-Internal`) and waits at most 15 seconds. A browser call to that path is still 404 at the Gateway.
 3. The fixed checklist runs first; Azure OpenAI is called only if there is no hard block.
 4. Results are stored in core. On failure the status is `UNAVAILABLE` and the page cannot click through as a pass.
 5. After a pass, POST export and download TXT.
@@ -76,7 +76,7 @@ Do not use Service Bus, outbox, DLQ, or a second database. Do not deploy the Git
 
 ## Minimum Azure set
 
-One resource group, created with **Terraform** (`deploy/terraform`): one Linux App Service plan, three Linux Web Apps running the .NET 10 apps (`gateway`, `core`, `ai`), one Static Web App for the React SPA, one MySQL Flexible Server, one Key Vault, one user-assigned identity, Log Analytics, and Application Insights. **No container registry and no container images:** App Service runs the published .NET applications, and the SPA is uploaded as static files.
+One resource group, created with **Terraform** (`deploy/terraform`): one Linux App Service plan, four Linux Web Apps (`web`, `gateway`, `core`, `ai`), one MySQL Flexible Server, one Key Vault, one user-assigned identity, Log Analytics, and Application Insights. **No container registry, no container images, and no Static Web App.** App Service runs the published .NET 10 applications. The React app is the fourth Linux Web App: `pm2 serve` hosts `dist/` with SPA fallback.
 
 HTTPS everywhere; App Service terminates TLS. Secrets live in Key Vault and reach the apps as app-setting references resolved through the user-assigned identity, so no app setting holds a secret value. MySQL is reached over a TLS-required connection and its firewall admits Azure services plus named operator addresses; platform encryption left on is enough, and no VNet or private endpoint is added. `core` and `ai` get App Service hostnames but deny every caller except the `AzureCloud` service tag, which is how the "browser reaches the Gateway only" rule survives without an internal-only ingress. That rule is coarser than a private ingress: it stops a browser, not another Azure tenant, so the internal header and the JWT checks stay the real authorization.
 
@@ -84,7 +84,7 @@ One demo environment is enough. Local development runs the same four application
 
 ## Acceptance
 
-- Deploy only ai-service; web/core/gateway images stay unchanged.
+- Deploy only ai-service; the web, core, and gateway packages stay unchanged.
 - The browser can reach only the Gateway.
 - A dealership A token against dealership B returns 404.
 - An administrator cannot see vehicles.

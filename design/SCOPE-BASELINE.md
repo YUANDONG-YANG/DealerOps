@@ -38,7 +38,7 @@ Garage / service billing · buyer site / public inventory / visitor inquiry · O
 
 This course build does **not** include:
 
-- NFR-07 was brought into the delivery scope on 2026-10-19. Its rate-limit values, throughput SLO targets, and PIPEDA retention periods/data categories are not specified and require a policy decision before implementation.
+- NFR-07 was brought into the delivery scope on 2026-10-19 and is implemented with configurable defaults: gateway rate limits (design/19 §1.5.1), SLO targets (design/20 §6), and deleted-customer anonymization (design/15 §8.6). The default values still need the dealership's confirmation.
 - AD-16 was brought into the delivery scope on 2026-10-19. Since this is a student capstone with no real dealer account or marketplace authorization, the acceptance flow simulates publishing to named marketplaces in the browser and clearly states that no external ad is sent. Real marketplace integration remains conditional on an approved API/feed and credentials.
 - API v2 / compatibility policy (only `/api/v1` exists for this course).
 - A full observability schema (Application Insights may appear in architecture docs; no new log-field specification here).
@@ -82,7 +82,7 @@ Already deferred in the proposal and still out of this version: OCR, third-party
 
 ## Signature / email confirmation
 
-The user expanded delivery scope on 2026-10-19 to include DMS-17, CRM-14, CRM-15, AD-15, AD-16, and NFR-07. DMS-17 and CRM-14 use soft deletion; CRM-15 is a current tenant-scoped stage distribution and won-rate snapshot; AD-15 provides a global admin rule editor. AD-16 uses a browser simulation because the capstone has no dealer account or marketplace authorization. NFR-07 still needs policy values. Historical funnel trends remain outside this change.
+The user expanded delivery scope on 2026-10-19 to include DMS-17, CRM-14, CRM-15, AD-15, AD-16, and NFR-07. DMS-17 and CRM-14 use soft deletion; CRM-15 is a current tenant-scoped stage distribution, won rate over closed leads, and vehicle sales summary; AD-15 provides a global admin rule editor. AD-16 uses a browser simulation because the capstone has no dealer account or marketplace authorization. NFR-07 is implemented with configurable defaults that await the dealership's confirmation. Historical funnel trends remain outside this change.
 
 | Role | Name | Repo focus |
 |---|---|---|

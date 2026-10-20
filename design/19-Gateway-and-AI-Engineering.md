@@ -192,6 +192,18 @@ Same port set as 15 §10 (`env.example`): web `5173`, gateway **`8080`**, core *
 
 The gateway stamps `X-Dealer-Internal` on the outbound proxy and on its own health and OpenAPI fetches. Direct access fails because that credential is absent, not because a firewall was turned off.
 
+### 1.5.1 Rate limits (NFR-07)
+
+The gateway is the only browser entry point, so it applies one per-client limiter to every `/api/**` request (`Middleware/RateLimitSetup.cs`). Health, release, and Swagger paths are not limited. Each client has a one-minute fixed window with no queue:
+
+| Bucket | Key | Default per minute | Setting |
+|---|---|---|---|
+| Anonymous (sign-in, registration, catalog, VIN decode) | client IP | 60 | `dealerops:rateLimits:anonymousPerMinute` |
+| Signed-in API | username from the JWT | 600 | `dealerops:rateLimits:userPerMinute` |
+| AI calls: `POST /api/v1/listings/{id}/checks`, `POST /api/v1/assistant/ask` | username, or IP | 30 | `dealerops:rateLimits:aiPerMinute` |
+
+Over the limit the gateway answers **429** `{ "code": "RATE_LIMITED", "message": … }` with `Retry-After: 60`. The client IP is the last `X-Forwarded-For` entry (the one Azure App Service's front end appends), else the socket address. `dealerops:rateLimits:enabled` defaults to `true` outside `Development`; local and E2E stacks run `Development` and opt in by setting it. The values are starting defaults for the capstone and can be changed per environment without a code change.
+
 ### 1.6 Half-page defense pointer (Auth domain)
 
 Authentication uses an email, username, or phone plus password. The Auth unit is one login endpoint on `dealer-core` plus **JWT + RBAC** validated by gateway and core, **not** a fifth Java repo and not a GitHub-component container ([SCOPE-BASELINE.md](SCOPE-BASELINE.md) errata 1).

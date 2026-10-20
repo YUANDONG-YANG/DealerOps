@@ -139,6 +139,8 @@ builder.Services.AddHttpClient("swagger", client =>
 });
 builder.Services.AddSingleton<DownstreamHealthCheck>();
 
+var rateLimited = builder.AddDealerRateLimits();
+
 var app = builder.Build();
 
 // Middleware pipeline order matters
@@ -155,6 +157,8 @@ app.MapGet("/actuator/release", async (DownstreamHealthCheck healthCheck) =>
 
 app.UseAuthentication();
 app.UseAuthorization();
+// After authentication so a signed-in caller is limited by username rather than by IP (NFR-07).
+if (rateLimited) app.UseRateLimiter();
 
 // One Gateway OpenAPI document. Only Core operations are browser-facing: the AI service's
 // /internal/v1/** routes are core-to-AI only and are not browser Swagger operations.

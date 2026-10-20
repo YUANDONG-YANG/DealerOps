@@ -22,6 +22,7 @@ info:
     - Writes that carry `version` must match the current row, otherwise **409** `VERSION_CONFLICT`.
     - Unlink `DELETE .../vehicles/{vehicleId}` → **204**. Sold vehicles cannot be unlinked → **409** `SOLD_LOCKED`.
     - Ad check Blocked / Needs AI / Passed → **200** (Blocked is not an HTTP error). Rules passed but AI failed → **502** `AI_UNAVAILABLE` (check row already written).
+    - Any `/api/**` call may return **429** `RATE_LIMITED` with `Retry-After: 60` from the Gateway's per-client limits (anonymous per IP, signed-in per user, AI calls separately; design/19 §1.5.1).
 
     If public `/api/v1` details conflict, 14 wins. Do not invent business fields that 14 does not define.
     If **internal** AI request/response details conflict, PROTOCOL §B.2–B.3 wins.

@@ -79,6 +79,7 @@ Do not return SQL, stack traces, or raw model text to the browser.
 | 405 | `METHOD_NOT_ALLOWED` (HTTP method not supported on this path) |
 | 409 | `VERSION_CONFLICT`, `DUP_MEMBER`, `USERNAME_TAKEN`, `DISPLAY_NAME_TAKEN`, `EMAIL_TAKEN`, `PHONE_TAKEN`, `VEHICLE_ALREADY_LINKED`, `SOLD_LOCKED`, `CHECK_STALE`, `NOT_PASSED`, `LEAD_CLOSED`, `WORK_ORDER_CLOSED`, `WORK_ORDERS_OPEN` |
 | 415 | `UNSUPPORTED_MEDIA_TYPE` (body is not `application/json`) |
+| 429 | `RATE_LIMITED` (written by the gateway with `Retry-After: 60`; per-client limits in [19](19-Gateway-and-AI-Engineering.md) §1.5.1) |
 | 500 | `INTERNAL_ERROR` (unexpected error; details logged server-side only) |
 | 502 | `AI_UNAVAILABLE` (rules passed, model timeout/failure; check row already written); `CATALOG_UNAVAILABLE` (vehicle catalog upstream failed, §4.6) |
 
@@ -381,7 +382,7 @@ The Admin Members tab lists these under **Pending accounts** with `Add to dealer
 
 ### 3.9 Compliance rule configuration
 
-Platform.Admin only; dealer users and unbound accounts receive **403**. `GET /api/v1/admin/compliance-rules` returns the built-in catalog with effective `enabled`, `severity`, and message values. `PUT /api/v1/admin/compliance-rules/{ruleId}` accepts `{enabled, severity?, message?}`; severity is `BLOCK` or `REVIEW`, and message is at most 500 characters. A successful update invalidates prior compliance checks across dealerships; ads must be checked again before Ready or export. Rule logic remains in the OMVIC engine.
+Platform.Admin only; dealer users and unbound accounts receive **403**. `GET /api/v1/admin/compliance-rules` returns the built-in catalog with effective `enabled`, `severity`, and message values. `PUT /api/v1/admin/compliance-rules/{ruleId}` accepts `{enabled, severity?, message?}`; severity is `BLOCK` or `REVIEW`, and message is at most 500 characters. The listed default severity is the one the engine raises; the default message summarizes the rule, and the engine may word individual findings more specifically. A submitted severity or message equal to the default is not stored, so the engine's own value and wording keep applying. A successful update invalidates prior compliance checks across dealerships; ads must be checked again before Ready or export. Rule logic remains in the OMVIC engine.
 
 ---
 

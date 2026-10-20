@@ -144,7 +144,8 @@ test.describe('/team', () => {
 
     const res = await first.api.get('/api/v1/members');
     await expectStatus(res, 200);
-    const members = (await res.json()) as { username: string; displayName: string }[];
+    const members = ((await res.json()) as { username: string; displayName: string }[])
+      .map((m) => ({ username: m.username, displayName: m.displayName }));
     expect(members).toEqual(
       [first, second]
         .map((m) => ({ username: m.username, displayName: m.displayName }))
@@ -374,7 +375,7 @@ test.describe('/profile', () => {
     await expect(page.getByLabel('Phone')).toHaveValue(canonical);
 
     const members = (await (await me.api.get('/api/v1/members')).json()) as { username: string; displayName: string }[];
-    expect(members).toContainEqual({ username: me.username, displayName: newName });
+    expect(members).toContainEqual(expect.objectContaining({ username: me.username, displayName: newName }));
 
     // The canonical phone works as a sign-in name.
     await apiLogin(request, canonical, me.password);

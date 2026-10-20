@@ -31,13 +31,15 @@ function statusLabel(n: Notification): { text: string; className: string } {
 }
 
 /**
- * This dealership's current members (with how each account was created) and its join-request history (GET /api/v1/dealer/notifications?includeResolved=true).
- * Pending rows carry Approve / Reject for any active member; resolved rows show who settled
- * them and when. Newest first, 10 per page.
+ * Two tabs, one table each: this dealership's join-request history
+ * (GET /api/v1/dealer/notifications?includeResolved=true) and its current members with how each
+ * account was created. Pending requests carry Approve / Reject for any active member; resolved
+ * rows show who settled them and when. Newest first, 10 per page.
  */
 export default function TeamPage() {
   const [rows, setRows] = useState<JoinRequestRow[]>([]);
   const [members, setMembers] = useState<MemberOption[]>([]);
+  const [tab, setTab] = useState<'requests' | 'members'>('requests');
   const [page, setPage] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -88,14 +90,24 @@ export default function TeamPage() {
       <header className="page-header">
         <div>
           <h1>Team</h1>
-          <p className="muted">Current members and how each joined, then everyone who asked to join this dealership, newest first.</p>
+          <p className="muted">Join requests to this dealership, newest first, and its current members.</p>
         </div>
       </header>
 
+      <div className="tab-bar">
+        <button className={`tab-btn ${tab === 'requests' ? 'active' : ''}`} onClick={() => setTab('requests')}>Join requests</button>
+        <button className={`tab-btn ${tab === 'members' ? 'active' : ''}`} onClick={() => setTab('members')}>Members</button>
+      </div>
+
       {error && <div className="alert alert-error">{error}</div>}
 
-      {!loading && members.length > 0 && (
-        <div className="table-wrap" style={{ marginBottom: 24 }}>
+      {loading ? (
+        <div className="state">Loading…</div>
+      ) : tab === 'members' ? (
+        members.length === 0 ? (
+          <div className="state">No members yet.</div>
+        ) : (
+        <div className="table-wrap">
         <table className="table">
           <thead>
             <tr>
@@ -115,10 +127,7 @@ export default function TeamPage() {
           </tbody>
         </table>
         </div>
-      )}
-
-      {loading ? (
-        <div className="state">Loading…</div>
+        )
       ) : rows.length === 0 ? (
         <div className="state">No join requests yet.</div>
       ) : (

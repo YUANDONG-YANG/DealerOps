@@ -236,7 +236,7 @@ test.describe('admin member management', () => {
     await expectStatus(await before.get('/api/v1/vehicles'), 403);
 
     await page.goto('/admin');
-    await page.getByRole('button', { name: 'Members', exact: true }).click();
+    await page.getByRole('button', { name: 'Pending accounts', exact: true }).click();
     await expect(page.getByText('Pending self-registered accounts')).toBeVisible();
     const pendingRow = page.locator('tbody tr').filter({ has: page.getByRole('cell', { name: self.username, exact: true }) });
     await expect(pendingRow).toBeVisible(SLOW);
@@ -269,6 +269,8 @@ test.describe('admin member management', () => {
     const self = await register(request);
 
     const drawer = await openStaffDrawer(page, dealer);
+    // One table at a time: pending accounts sit behind their own tab in the drawer.
+    await drawer.getByRole('button', { name: 'Pending accounts', exact: true }).click();
     const pendingRow = drawer.locator('tbody tr').filter({ hasText: self.email });
     await expect(pendingRow).toBeVisible();
     // Inside a dealership's drawer there is no dealership picker.
@@ -276,6 +278,7 @@ test.describe('admin member management', () => {
     await pendingRow.getByRole('button', { name: 'Bind without password' }).click();
     await expect(pendingRow.getByRole('button', { name: 'Bind without password' })).toHaveCount(0);
 
+    await drawer.getByRole('button', { name: 'Staff', exact: true }).click();
     const row = memberRow(drawer, self.username);
     await expect(row).toBeVisible();
     await expect(row).toContainText('Active');

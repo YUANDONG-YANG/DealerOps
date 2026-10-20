@@ -165,3 +165,13 @@ Every deploy must be visible: each of the four apps reports when it was publishe
 - Each app ignores later changes to it, so the value written by the deploy step survives the next `terraform apply`.
 - The variable `published_at` (default `cloud`) is only the value before the first deploy.
 
+## 6. Service-level objectives (NFR-07)
+
+Targets for the cloud deployment. They are measured from the gateway request log and `/actuator/health`; no load test has been run yet, so they are objectives, not measured results.
+
+| Objective | Target |
+|---|---|
+| Availability of `/actuator/health` on the gateway (all downstream `UP`) | 99.5% per calendar month |
+| Non-AI API latency at the gateway | p95 under 1 s |
+| Ad compliance check | completes or returns `AI_UNAVAILABLE` within 15 s (AI-02) |
+| Throughput per signed-in user | up to 600 requests/min before `RATE_LIMITED` (design/19 §1.5.1) |

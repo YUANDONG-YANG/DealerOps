@@ -271,8 +271,9 @@ test.describe('CRM link and unlink (UI)', () => {
     await expect(drawer.locator(`a[href="/dms?vehicleId=${vehicle.id}"]`)).toHaveCount(0);
 
     const audit = drawer.locator('.detail-audit');
-    await expect(audit.getByRole('cell', { name: 'LINK', exact: true })).toHaveCount(1);
-    await expect(audit.getByRole('cell', { name: 'UNLINK', exact: true })).toHaveCount(1);
+    // Rows of the related link record carry its label (AuditTrail).
+    await expect(audit.getByRole('cell', { name: 'Vehicle link · LINK', exact: true })).toHaveCount(1);
+    await expect(audit.getByRole('cell', { name: 'Vehicle link · UNLINK', exact: true })).toHaveCount(1);
     await expect(audit.getByRole('cell', { name: 'CREATE', exact: true })).toHaveCount(1);
 
     const historyText = (await audit.innerText()).toLowerCase();

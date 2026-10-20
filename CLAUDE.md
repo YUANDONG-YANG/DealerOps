@@ -30,6 +30,7 @@ This project is currently focused on feature development. Do not author tests as
 - Do not reimplement behavior that already exists. Search first, then extend the owning service, helper, component, or client.
 - Use the simplest pattern that matches a real boundary or removes duplication. Follow patterns already used by the module; do not add an abstraction for one call or one future use.
 - Do not hardcode connection strings, URLs, ports, credentials, tenant IDs, environment IDs, or provider settings. Use existing environment variables, application configuration, or constants.
+- Protect user configuration: do not delete, reset, blank, overwrite, or otherwise change user-owned configuration files or values unless the user explicitly requests that specific configuration change. Do not stage configuration files as a side effect of another task. If a task appears to require changing one, preserve existing values and ask the user before editing.
 - Preserve existing public behavior unless the requested change requires a contract change. When a contract changes, update all affected callers in the same change.
 - Keep error handling, validation, authorization, pagination, and response envelopes consistent with the existing module and API contract.
 - Do not make broad formatting-only changes or unrelated renames.

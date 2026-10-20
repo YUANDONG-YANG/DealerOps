@@ -8,6 +8,8 @@ namespace DealerOps.Core.Compliance;
 
 public class ComplianceRuleService
 {
+    // Severity matches what OmvicRuleEngine raises. The message is a summary for the editor: the
+    // engine words some findings more specifically, and that wording stays unless an admin replaces it.
     private static readonly IReadOnlyDictionary<string, (string Severity, string Message)> Defaults =
         new Dictionary<string, (string, string)>(StringComparer.Ordinal)
         {
@@ -20,18 +22,18 @@ public class ComplianceRuleService
             ["CONDITION_UNDISCLOSED"] = ("BLOCK", "Vehicle condition is not disclosed."),
             ["CONDITION_MISMATCH"] = ("BLOCK", "Vehicle condition in the ad does not match the vehicle record."),
             ["CERTIFIED_NOT_IN_COPY"] = ("REVIEW", "Certification is not supported by the vehicle record."),
-            ["NEW_USED_NOT_STATED"] = ("BLOCK", "New or used status is not stated."),
+            ["NEW_USED_NOT_STATED"] = ("REVIEW", "New or used status is not stated."),
             ["PRIOR_USE_UNCLEAR"] = ("REVIEW", "Prior use may need disclosure."),
             ["WARRANTY_CLAIM_NEEDS_REVIEW"] = ("REVIEW", "Warranty claim needs review."),
-            ["WARRANTY_TERMS_MISSING"] = ("BLOCK", "Extended warranty terms are missing."),
+            ["WARRANTY_TERMS_MISSING"] = ("REVIEW", "Extended warranty terms are missing."),
             ["FINANCE_APR_MISSING"] = ("BLOCK", "Finance APR is missing."),
             ["FINANCE_APR_PROXIMITY"] = ("REVIEW", "Finance APR may not be clearly associated with the offer."),
-            ["FINANCE_TERM_MISSING"] = ("BLOCK", "Finance term is missing."),
+            ["FINANCE_TERM_MISSING"] = ("REVIEW", "Finance term is missing."),
             ["FINANCE_CASH_PRICE_MISSING"] = ("BLOCK", "Cash price is missing from the finance ad."),
             ["LEASE_STATEMENT_MISSING"] = ("BLOCK", "Required lease statement is missing."),
-            ["LEASE_RENT_MISSING"] = ("BLOCK", "Lease rent is missing."),
-            ["LEASE_TERM_MISSING"] = ("BLOCK", "Lease term is missing."),
-            ["LEASE_DOWN_MISSING"] = ("BLOCK", "Lease down payment disclosure is missing."),
+            ["LEASE_RENT_MISSING"] = ("REVIEW", "Lease rent is missing."),
+            ["LEASE_TERM_MISSING"] = ("REVIEW", "Lease term is missing."),
+            ["LEASE_DOWN_MISSING"] = ("REVIEW", "Lease down payment disclosure is missing."),
             ["LEASE_APR_MISSING"] = ("BLOCK", "Lease APR is missing."),
             ["LEASE_ALLOWANCE_UNSTATED"] = ("REVIEW", "Annual kilometre allowance is not stated."),
             ["LEASE_ALLOWANCE_NOT_IN_COPY"] = ("REVIEW", "Annual kilometre allowance is not present in the ad."),
@@ -66,9 +68,12 @@ public class ComplianceRuleService
             row = new RuleOverrideEntity { RuleId = ruleId };
             _db.RuleOverrides.Add(row);
         }
+        // A value equal to the default is not stored, so the engine's own severity and its
+        // finding-specific wording keep applying when an admin only toggles or re-saves a rule.
+        var baseline = Defaults[ruleId];
         row.Enabled = request.Enabled;
-        row.Severity = severity;
-        row.Message = message;
+        row.Severity = severity == baseline.Severity ? null : severity;
+        row.Message = message == baseline.Message ? null : message;
         row.UpdatedAt = DateTime.UtcNow;
         row.UpdatedBy = TenantContext.Get()!.Username;
 

@@ -246,6 +246,7 @@ builder.Services.AddHttpClient<VehicleCatalogService>(client =>
 });
 
 builder.Services.AddHostedService<AdminSeeder>();
+builder.Services.AddHostedService<CustomerRetention>();
 builder.Services.AddHealthChecks();
 
 var app = builder.Build();

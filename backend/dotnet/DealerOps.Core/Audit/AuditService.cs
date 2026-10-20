@@ -157,16 +157,22 @@ public class AuditService : IAuditService
     {
         // Photo rows stay in the vehicle history after the photo itself is deleted (IMG-04);
         // customer link/unlink rows appear here as well as in the customer history (AUD-06).
+        // Work-order rows (WO-06) are matched by order id, since status updates carry no vehicle id.
+        var workOrderIds = _db.WorkOrders
+            .Where(w => w.DealerId == tenant && w.VehicleId == vehicleId)
+            .Select(w => w.Id)
+            .ToList();
         var source = _db.AuditEvents
             .Where(e => e.DealerId == tenant
                 && ((e.EntityType == EntityType.Vehicle && e.EntityId == vehicleId)
+                    || (e.EntityType == EntityType.WorkOrder && workOrderIds.Contains(e.EntityId))
                     || e.EntityType == EntityType.VehiclePhoto
                     || e.EntityType == EntityType.CustomerVehicle))
             .OrderByDescending(e => e.CreatedAt).ThenByDescending(e => e.Id)
             .ToList();
 
         var events = source
-            .Where(e => e.EntityType == EntityType.Vehicle
+            .Where(e => e.EntityType == EntityType.Vehicle || e.EntityType == EntityType.WorkOrder
                 || SummaryIdEquals(DeserializeSummary(e.FieldSummary), "vehicleId", vehicleId))
             .Select(ToItem).ToList();
 

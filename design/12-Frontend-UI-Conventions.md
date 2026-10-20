@@ -13,6 +13,7 @@ Do not fork any full dealer repository. Those projects usually include a buyer s
 - Post-login landing: admin → Admin; staff → DMS. No KPI home page.
 - Signed-out visitors at `/` see a static landing page: brand bar with `Sign in` and `Create account`, hero (car photo plus an illustrative inventory preview), feature cards with illustrative mini screens, a VIN decoder (14 §4.6.1), and ad-approval steps. The page exposes no dealership data or public inventory.
 - Primary action is top-right; Sell/Unbind require a second confirmation.
+- One table per page, tab, or drawer view. A second list goes behind its own tab (`tab-bar`, as on Admin and Team); never stack two tables on one screen.
 - Every page must have loading, empty, and error states. Failures must not look like empty tables; an AI failure must never show Pass.
 
 ## 2. Table columns (enough for the demo)

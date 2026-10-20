@@ -298,9 +298,9 @@ Do not invent a 13th business code. Translate unique-key collisions into the tab
 
 ---
 
-## 7. core calls ai-service via Gateway
+## 7. core calls ai-service directly
 
-core **does not** treat a direct `8082` call as the product path; outbound hits Gateway internal routes (15 §7). The browser can never reach these two paths (Gateway without the internal header → **404**).
+core calls ai-service at `AiService:BaseUrl` (local `http://127.0.0.1:8082`). It does not send that call back through the Gateway. The browser can never reach these two paths (Gateway without the internal header → **404**).
 
 | Caller | Method | Path | When |
 |---|---|---|---|

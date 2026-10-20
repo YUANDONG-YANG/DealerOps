@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1140 860" width="1140" height="860" role="img"
-     aria-label="DealerOps AI ad-check flow: a check posted through the gateway is guarded by dealer-core for dealer scope and content version, then the deterministic OMVIC rule engine runs first; a hard block is persisted without calling the model, otherwise core calls ai-service back through the gateway with the internal header, ai-manager calls the model under a 13 second budget, and a failure returns 502 AI_UNAVAILABLE; core persists the result in one transaction and export is allowed only while the latest check is passed and not stale.">
+     aria-label="DealerOps AI ad-check flow: a check posted through the gateway is guarded by dealer-core for dealer scope and content version, then the deterministic OMVIC rule engine runs first; a hard block is persisted without calling the model, otherwise core calls ai-service directly with the internal header, ai-manager calls the model under a 13 second budget, and a failure returns 502 AI_UNAVAILABLE; core persists the result in one transaction and export is allowed only while the latest check is passed and not stale.">
   <rect x="0" y="0" width="1140" height="860" fill="#ffffff"/>
   <defs>
     <marker id="ink" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
@@ -51,10 +51,10 @@
       <rect x="630" y="646" width="360" height="66" rx="8"/>
     </g>
     <g font-size="12.5" font-weight="700" fill="#1e3a8a" text-anchor="middle">
-      <text x="810" y="404">5b · back out through dealer-gateway</text>
+      <text x="810" y="404">5b · core calls ai-service directly</text>
       <text x="810" y="488">6 · ai-service</text>
       <text x="810" y="586">7 · model endpoint</text>
-      <text x="810" y="670">8 · reply travels the same path back</text>
+      <text x="810" y="670">8 · reply returns to dealer-core</text>
     </g>
     <g font-size="11" fill="#1e40af" text-anchor="middle">
       <text x="810" y="422">POST /internal/v1/ad-check · X-Dealer-Internal</text>

@@ -55,7 +55,7 @@ const TAKEN_HINTS: Record<string, string> = {
 };
 
 export default function AdminPage() {
-  const [tab, setTab] = useState<'dealers' | 'members' | 'rules'>('dealers');
+  const [tab, setTab] = useState<'dealers' | 'members' | 'pending' | 'rules'>('dealers');
   const [rows, setRows] = useState<Dealer[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(0);
@@ -79,6 +79,8 @@ export default function AdminPage() {
   const [logoDataUrl, setLogoDataUrl] = useState<string | null>(null);
 
   const [staffDealer, setStaffDealer] = useState<Dealer | null>(null);
+  // One table at a time in the staff drawer: its members or the accounts waiting to be bound.
+  const [staffTab, setStaffTab] = useState<'staff' | 'pending'>('staff');
   const [memberDrawer, setMemberDrawer] = useState(false);
   const [drawerMembers, setDrawerMembers] = useState<Member[]>([]);
   const [drawerError, setDrawerError] = useState('');
@@ -166,7 +168,7 @@ export default function AdminPage() {
 
   const openMembers = async (row: Dealer) => {
     const seq = ++drawerMembersLoadSeq.current;
-    setStaffDealer(row); setMemberDrawer(true); setBindError('');
+    setStaffDealer(row); setStaffTab('staff'); setMemberDrawer(true); setBindError('');
     setMemberErrors({}); setDrawerError(''); setDrawerMembers([]);
     try {
       const items = await fetchDealerMembers(row.id, '');
@@ -378,6 +380,7 @@ export default function AdminPage() {
         <div className="tab-bar">
           <button className={`tab-btn ${tab === 'dealers' ? 'active' : ''}`} onClick={() => setTab('dealers')}>Dealerships</button>
           <button className={`tab-btn ${tab === 'members' ? 'active' : ''}`} onClick={() => { setTab('members'); loadFlatMembers(); }}>Members</button>
+          <button className={`tab-btn ${tab === 'pending' ? 'active' : ''}`} onClick={() => setTab('pending')}>Pending accounts</button>
           <button className={`tab-btn ${tab === 'rules' ? 'active' : ''}`} onClick={() => setTab('rules')}>Ad rules</button>
         </div>
 
@@ -442,8 +445,10 @@ export default function AdminPage() {
                 ]}
               />
             </PageState>
-            <PendingAccounts key={pendingReload} onBound={() => { void loadFlatMembers(); void loadDealers(); }} />
           </>
+        )}
+        {tab === 'pending' && (
+          <PendingAccounts key={pendingReload} onBound={() => { void loadFlatMembers(); void loadDealers(); }} />
         )}
         {tab === 'rules' && <ComplianceRulesPanel />}
       </div>
@@ -484,7 +489,7 @@ export default function AdminPage() {
         {drawerError && <p className="danger-text">{drawerError}</p>}
         <div className="muted" style={{ marginBottom: 8 }}>
           Create a new staff account — a temporary password is required. An account that registered itself is bound
-          further down without one.
+          from the Pending accounts tab below, without one.
         </div>
         <div className="form-item"><label className="form-label form-required">Username</label>
           <input className="input" value={member.username}
@@ -522,7 +527,11 @@ export default function AdminPage() {
         <button className="btn btn-primary" disabled={binding} onClick={bind}>
           {binding ? 'Binding…' : 'Create and bind'}
         </button>
-        <div style={{ marginTop: 20 }}>
+        <div className="tab-bar" style={{ marginTop: 20 }}>
+          <button className={`tab-btn ${staffTab === 'staff' ? 'active' : ''}`} onClick={() => setStaffTab('staff')}>Staff</button>
+          <button className={`tab-btn ${staffTab === 'pending' ? 'active' : ''}`} onClick={() => setStaffTab('pending')}>Pending accounts</button>
+        </div>
+        {staffTab === 'staff' && <div>
           {resetNotice && <p className="success-text">{resetNotice}</p>}
           <table className="table staff-table">
             {/* The drawer is narrow: name and sign-in method sit under the username so Actions stays visible. */}
@@ -551,8 +560,8 @@ export default function AdminPage() {
               ))}
             </tbody>
           </table>
-        </div>
-        {staffDealer && (
+        </div>}
+        {staffTab === 'pending' && staffDealer && (
           <PendingAccounts key={pendingReload} dealerId={staffDealer.id}
             onBound={() => { void refreshDrawerMembers(); void loadDealers(); }} />
         )}

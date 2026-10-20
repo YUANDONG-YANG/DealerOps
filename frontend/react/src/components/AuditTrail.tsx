@@ -1,6 +1,7 @@
 import { dateTimeLocal } from '../format';
 
 interface AuditRow {
+  entityType?: string;
   action?: string;
   actorUsername?: string;
   createdAt?: string;
@@ -9,6 +10,19 @@ interface AuditRow {
 
 // Contact fields are recorded by name only — never by value (AUD-04 / CRM-12).
 const REDACTED = /email|phone|address/i;
+
+// A vehicle or customer history also holds rows of related records; name those so a work-order
+// or photo CREATE is not read as a change to the vehicle itself.
+const RELATED: Record<string, string> = {
+  WORK_ORDER: 'Work order',
+  VEHICLE_PHOTO: 'Photo',
+  CUSTOMER_VEHICLE: 'Vehicle link',
+};
+
+function actionText(row: AuditRow): string {
+  const related = row.entityType ? RELATED[row.entityType] : undefined;
+  return related ? `${related} · ${row.action ?? ''}` : row.action ?? '';
+}
 
 function summaryText(raw: unknown): string {
   if (!raw || typeof raw !== 'object') return '—';
@@ -39,7 +53,7 @@ export default function AuditTrail({
       <table className="table" style={{ marginTop: 8 }}>
         <thead>
           <tr>
-            <th style={{ width: 110 }}>Action</th>
+            <th style={{ width: 170 }}>Action</th>
             <th>Actor</th>
             <th>When</th>
             <th>Summary</th>
@@ -48,7 +62,7 @@ export default function AuditTrail({
         <tbody>
           {rows.map((row, i) => (
             <tr key={i}>
-              <td>{row.action}</td>
+              <td>{actionText(row)}</td>
               <td>{row.actorUsername}</td>
               <td>{dateTimeLocal(row.createdAt)}</td>
               <td>{summaryText(row.fieldSummary)}</td>

@@ -89,7 +89,8 @@ async function expectHistory(drawer: Locator, api: Api, vehicleId: number, expec
   await expect(rows).toHaveCount(expected.length);
   for (const [i, [action, actor]] of expected.entries()) {
     const cells = rows.nth(i).locator('td');
-    await expect(cells.nth(0)).toHaveText(action);
+    // Rows of related records (work order, photo, vehicle link) are prefixed with their label.
+    await expect(cells.nth(0)).toHaveText(new RegExp(`(^|· )${action}$`));
     await expect(cells.nth(1)).toHaveText(actor);
     await expect(cells.nth(2)).toHaveText(localDateTime(items[i].createdAt));
   }

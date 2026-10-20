@@ -357,7 +357,7 @@ function runFixedOmvic(listing, vehicle, dealer) -> { hardBlocks[], softGaps[], 
   }
 ```
 
-core calls Gateway `POST /internal/v1/ad-check` (≤15s) only after `hard` is empty.  
+core calls ai-service directly at `AiService:BaseUrl` with `POST /internal/v1/ad-check` and `X-Dealer-Internal` (≤15s) only after `hard` is empty. The Gateway still answers a browser call to that path with 404.  
 AI success with no further hard miss → `PASSED` + `SUCCESS`.  
 Timeout/failure → `UNAVAILABLE` + `UNAVAILABLE`; **never treat as Pass**.  
 Page five states still follow the handbook only: Blocked / Needs AI review / Passed / Stale / AI unavailable.
@@ -494,6 +494,18 @@ Verification rules enforced server-side, never in the browser: RS256 only, issue
 
 ---
 
+### 8.6 Personal-information retention (NFR-07, PIPEDA)
+
+| Data category | Retention |
+|---|---|
+| Active customer (name, email, phone, home address) | While the dealership keeps the record |
+| Soft-deleted customer (CRM-14) | Row kept for lead, link and audit history; personal fields anonymized `Retention:DeletedCustomerDays` (default 730) days after deletion |
+| Audit events | Kept; they hold field names only, never contact values (AUD-04) |
+| Staff accounts (`app_user`) | Until the user deletes the account (`DELETE /api/v1/me`) or an admin removes it |
+| Database backups | 7 days (NFR-04) |
+
+`CustomerRetention` (Core background service) runs at startup and daily. It replaces name, email, phone and address with `Deleted customer #{id}`, `deleted-{id}@invalid.example`, `0000000` and `Removed`, and audits a `CUSTOMER`/`UPDATE` by `system` with field names only. `0` turns it off. The 730-day default is a placeholder until the dealership confirms its retention period.
+
 ## 9. Why not Service Bus (versus the proposal)
 
 Early proposals / retired `01`–`06` easily treat DMS, CRM, and ads as async domain events: vehicle sold → queue → void ads, notify CRM. Course **v6 already rejected** that.
@@ -592,7 +604,7 @@ Platform disk encryption may use defaults. MySQL is not open to the internet: th
 - `terraform apply` run against a real subscription, with the state held by one operator
 - Key Vault + access policy, and every secret reaching an app as a Key Vault reference, never as an app-setting value
 - MySQL Flexible Server + database + core-only credentials
-- Three Linux Web Apps plus the Static Web App: core and ai denied to everything but Azure-internal callers, gateway and web public over HTTPS
+- Four Linux Web Apps (`web`, `gateway`, `core`, `ai`): core and ai denied to everything but Azure-internal callers, gateway and web public over HTTPS. The React app is the `web` App Service (`pm2 serve`), not a Static Web App
 - Application Insights (gateway + core first is acceptable)
 - Per-repo pipeline: compile and test. Release is the documented operator commands, not a CI job
 - Demo release needs human approval; do not hand-click portal changes and call it a pipeline
