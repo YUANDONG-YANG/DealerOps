@@ -1,0 +1,15 @@
+* { box-sizing: border-box; }
+body { margin: 0; font-family: Arial, sans-serif; background: #f4f6f8; color: #1f2937; }
+button, input { font: inherit; }
+.app { max-width: 900px; margin: 0 auto; padding: 28px; }
+.title { margin: 0 0 22px; color: #163a5f; }
+.section-title { margin: 0 0 12px; }
+.sections { display: grid; gap: 18px; margin-top: 18px; }
+.card { background: white; border: 1px solid #d5dbe2; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,.06); }
+.card-content { padding: 20px; }
+.card-title { margin: 0 0 10px; }
+.input { width: 100%; padding: 10px 12px; margin: 8px 0; border: 1px solid #aeb8c4; border-radius: 5px; }
+button { padding: 8px 13px; border: 0; border-radius: 5px; background: #1769aa; color: white; cursor: pointer; }
+button:hover { background: #12588f; }
+.list { margin: 10px 0 0; padding-left: 22px; }
+.row { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin: 8px 0; }
