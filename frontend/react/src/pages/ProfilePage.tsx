@@ -29,18 +29,22 @@ export default function ProfilePage() {
   const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
+    // A load that finishes after unmount (or after StrictMode's re-run) must not overwrite what the user typed.
+    let cancelled = false;
     void (async () => {
       try {
         const data = await getMe();
+        if (cancelled) return;
         setMe(data);
         setDisplayName(data.displayName);
         setPhone(data.phone ?? '');
       } catch (err) {
-        setError(describeError(err, 'load your profile'));
+        if (!cancelled) setError(describeError(err, 'load your profile'));
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     })();
+    return () => { cancelled = true; };
   }, []);
 
   async function onSave(e: FormEvent) {

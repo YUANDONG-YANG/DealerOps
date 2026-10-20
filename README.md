@@ -8,7 +8,7 @@ GitHub: [YUANDONG-YANG/DealerOps](https://github.com/YUANDONG-YANG/DealerOps) (p
 
 ```text
 Browser ──> dealer-web (5174) ──> dealer-gateway (8080) ──> dealer-core (8081) ──> MySQL (3306)
-                                                                  └──> ai-service (8082) ──> LLM provider
+                                                                  └──> ai-service (8082) ──> AI provider
 ```
 
 | Folder | What it is |

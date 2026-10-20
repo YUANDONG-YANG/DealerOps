@@ -21,6 +21,7 @@ export default function LoginPage() {
     const notice = params.get('notice')
     if (notice === 'required') setError('Sign in required')
     else if (notice === 'profile') setError('Could not load profile')
+    else if (notice === 'deleted') setError('Your account was deleted.')
   }, [params])
 
   useEffect(() => {

@@ -749,7 +749,7 @@ export default function DmsPage() {
         </form>
 
         {edit?.id && <WorkOrderPanel vehicleId={edit.id} sold={isSold} onChanged={refreshAfterWorkOrder} />}
-        {edit?.id && <PhotoStudioPanel vehicleId={edit.id} />}
+        {edit?.id && <PhotoStudioPanel vehicleId={edit.id} onChanged={() => loadAudit(edit.id, detailSeqRef.current)} />}
         {edit?.id && (
           <AuditTrail
             rows={audit}

@@ -7,7 +7,7 @@ public record PatchDealerRequest(
     [Required] int Version,
     [Required, NotBlank, MaxLength(200)] string LegalName,
     [Required, NotBlank, MaxLength(40)] string ContactPhone,
-    [Required, NotBlank, MaxLength(120), EmailAddress] string ContactEmail,
+    [Required, NotBlank, MaxLength(120), EmailAddress(ErrorMessage = "Enter a valid email address.")] string ContactEmail,
     [Required, NotBlank, MaxLength(300)] string ContactAddress,
     [Required] bool Active,
     [MaxLength(200000, ErrorMessage = "Logo is too large")]

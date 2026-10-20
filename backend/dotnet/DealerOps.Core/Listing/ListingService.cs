@@ -109,18 +109,26 @@ public class ListingService
             .Append(vehicle.Make).Append(' ').AppendLine(vehicle.Model);
         text.Append("VIN: ").AppendLine(vehicle.Vin);
         text.Append("Condition: ")
-            .AppendLine(EnumSnakeCaseConverter<ConditionCode>.ToWire(vehicle.ConditionCode));
+            .AppendLine(EnumLabel(EnumSnakeCaseConverter<ConditionCode>.ToWire(vehicle.ConditionCode)));
         text.Append("Source: ")
-            .AppendLine(EnumSnakeCaseConverter<VehicleSource>.ToWire(vehicle.Source));
+            .AppendLine(EnumLabel(EnumSnakeCaseConverter<VehicleSource>.ToWire(vehicle.Source)));
         text.Append("Title: ").AppendLine(listing.Title);
         text.Append("Body: ").AppendLine(listing.Body);
         if (last != null)
             text.Append("Checked at: ").AppendLine(
-                DateTime.SpecifyKind(last.CreatedAt, DateTimeKind.Utc).ToString("O"));
+                DateTime.SpecifyKind(last.CreatedAt, DateTimeKind.Utc).ToString("yyyy-MM-dd'T'HH:mm:ss'Z'"));
         text.AppendLine()
             .AppendLine("This check is not legal advice and is not an OMVIC approval. Confirm current disclosure requirements with OMVIC before publishing.");
 
         return text.ToString();
+    }
+
+    // The same wording as the web's enumLabel: "AS_IS" -> "As-is", "TRADE_IN" -> "Trade in".
+    private static string EnumLabel(string wire)
+    {
+        if (wire == "AS_IS") return "As-is";
+        var words = wire.Replace('_', ' ').ToLowerInvariant();
+        return words.Length == 0 ? words : char.ToUpperInvariant(words[0]) + words[1..];
     }
 
     private ListingEntity AssertExportable(long listingId, int version)

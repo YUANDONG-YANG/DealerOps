@@ -15,6 +15,8 @@ import { describeError } from '../api/errors';
 
 interface Props {
   vehicleId: number;
+  /** Called after an upload, enhance, or delete succeeds, e.g. to reload the drawer's audit trail. */
+  onChanged?: () => void;
 }
 
 function snapshot(cache: Map<number, string>): Record<number, string> {
@@ -23,7 +25,7 @@ function snapshot(cache: Map<number, string>): Record<number, string> {
   return urls;
 }
 
-export default function PhotoStudioPanel({ vehicleId }: Props) {
+export default function PhotoStudioPanel({ vehicleId, onChanged }: Props) {
   const [photos, setPhotos] = useState<PhotoItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -43,6 +45,8 @@ export default function PhotoStudioPanel({ vehicleId }: Props) {
   const thumbRef = useRef(new Map<number, string>());
 
   const selected = photos.find((p) => p.id === selectedId) ?? null;
+  // The preview follows a photo that is still in the list, so a just-deleted id is never requested.
+  const previewId = selected?.id ?? null;
   const enhancement = selected?.enhancement ?? null;
 
   // Object URLs are owned by this component: replacing or dropping one must revoke it.
@@ -125,7 +129,7 @@ export default function PhotoStudioPanel({ vehicleId }: Props) {
 
   // Large preview: load the selected variant as a blob and render an object URL.
   useEffect(() => {
-    if (selectedId == null) {
+    if (previewId == null) {
       showPreview(null);
       setPreviewError('');
       return;
@@ -134,7 +138,7 @@ export default function PhotoStudioPanel({ vehicleId }: Props) {
     const wanted: PhotoVariant = variant === 'enhanced' && enhancement ? 'enhanced' : 'original';
     setPreviewLoading(true);
     setPreviewError('');
-    photosApi.content(vehicleId, selectedId, wanted)
+    photosApi.content(vehicleId, previewId, wanted)
       .then((r) => {
         const url = URL.createObjectURL(r.data);
         if (!active) {
@@ -152,7 +156,7 @@ export default function PhotoStudioPanel({ vehicleId }: Props) {
         if (active) setPreviewLoading(false);
       });
     return () => { active = false; };
-  }, [vehicleId, selectedId, variant, enhancement, showPreview]);
+  }, [vehicleId, previewId, variant, enhancement, showPreview]);
 
   function resetFileInput() {
     if (fileRef.current) fileRef.current.value = '';
@@ -174,6 +178,7 @@ export default function PhotoStudioPanel({ vehicleId }: Props) {
     try {
       const r = await photosApi.upload(vehicleId, file);
       await load();
+      onChanged?.();
       if (r.data?.id != null) {
         setSelectedId(r.data.id);
         setVariant('original');
@@ -193,6 +198,7 @@ export default function PhotoStudioPanel({ vehicleId }: Props) {
     try {
       await photosApi.enhance(vehicleId, photoId, preset);
       await load();
+      onChanged?.();
       setVariant('enhanced');
     } catch (e) {
       setError(describeError(e, 'enhance photo'));
@@ -208,6 +214,7 @@ export default function PhotoStudioPanel({ vehicleId }: Props) {
     try {
       await photosApi.delete(vehicleId, photoId);
       await load();
+      onChanged?.();
     } catch (e) {
       setError(describeError(e, 'delete photo'));
     } finally {

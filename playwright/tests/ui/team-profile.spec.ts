@@ -213,7 +213,7 @@ test.describe('/team', () => {
     await expect(bobRow.getByRole('button')).toHaveCount(0);
 
     // Header bell reflects the unresolved count.
-    await expect(page.getByRole('button', { name: '1 join requests' })).toBeVisible();
+    await expect(page.getByRole('button', { name: '1 join request', exact: true })).toBeVisible();
 
     await adaRow.getByRole('button', { name: 'Approve' }).click();
     await expect(adaRow.locator('.chip')).toHaveText('Approved');
@@ -276,7 +276,7 @@ test.describe('/team', () => {
 
     await cy.getByRole('button', { name: 'Reject' }).click();
     await expect(popover.locator('.inbox-item')).toHaveCount(1);
-    await expect(page.getByRole('button', { name: '1 join requests' })).toBeVisible();
+    await expect(page.getByRole('button', { name: '1 join request', exact: true })).toBeVisible();
     expect(rejectCalls).toHaveLength(1);
     expect(rejectCalls[0]).toContain('/api/v1/dealer/join-requests/cy.tan/reject');
 

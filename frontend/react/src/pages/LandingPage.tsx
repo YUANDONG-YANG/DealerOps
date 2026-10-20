@@ -258,8 +258,8 @@ export default function LandingPage() {
           ))}
         </div>
         <h2>Ready to get started?</h2>
-        <p>Sign in, or create an account and ask your platform administrator to add it to your dealership.</p>
-        <Link to="/login"><button className="btn btn-lg">Sign in</button></Link>{' '}
+        <p className="muted">Sign in, or create an account and ask your platform administrator to add it to your dealership.</p>
+        <Link to="/login"><button className="btn btn-primary btn-lg">Sign in</button></Link>{' '}
         <Link to="/register"><button className="btn btn-lg">Create account</button></Link>
       </section>
 

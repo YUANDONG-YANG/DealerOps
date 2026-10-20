@@ -78,9 +78,13 @@ public class ComplianceRuleService
         row.UpdatedBy = TenantContext.Get()!.Username;
 
         // A changed rule set invalidates every prior check, so ads must be rechecked before Ready/export.
-        foreach (var listing in _db.Listings.IgnoreQueryFilters().ToList())
-            listing.ContentVersion++;
+        // Only the content version moves: a bulk update leaves each listing's edit version alone, so
+        // an ad page that is already open can still run its check instead of hitting VERSION_CONFLICT.
+        using var tx = _db.Database.BeginTransaction();
         _db.SaveChanges();
+        _db.Listings.IgnoreQueryFilters()
+            .ExecuteUpdate(s => s.SetProperty(l => l.ContentVersion, l => l.ContentVersion + 1));
+        tx.Commit();
         return ToResponse(ruleId, row);
     }
 

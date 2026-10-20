@@ -24,11 +24,11 @@ const DEALER_FIELDS = [
 ] as const;
 const DEALER_LABELS: Record<string, string> = Object.fromEntries(DEALER_FIELDS);
 
+// Field errors name what to fix; the generic "Validation failed." message is shown only without them.
 function serverDetail(error: unknown): string | undefined {
-  const parts: string[] = [];
+  const parts = Object.entries(fieldErrorsOf(error)).map(([field, text]) => `${DEALER_LABELS[field] ?? field}: ${text}`);
   const message = apiError(error).message?.trim();
-  if (message) parts.push(message);
-  for (const [field, text] of Object.entries(fieldErrorsOf(error))) parts.push(`${DEALER_LABELS[field] ?? field}: ${text}`);
+  if (!parts.length && message) parts.push(message);
   return parts.length ? parts.join(' ') : undefined;
 }
 
@@ -249,7 +249,7 @@ export default function AdminPage() {
     } catch (e) {
       const code = adminErrorCode(e);
       if (code === 'VALIDATION' || adminErrorStatus(e) === 400)
-        setFormError(`Check required contact fields: ${serverDetail(e) || errorReason(e)}`);
+        setFormError(serverDetail(e) || errorReason(e));
       else if (code === 'VERSION_CONFLICT' || adminErrorStatus(e) === 409) {
         setFormError('This dealership was changed by someone else after you opened it. Close this form and click Edit again to load the latest details.');
         await loadDealers();
@@ -433,7 +433,7 @@ export default function AdminPage() {
                   { label: 'Contact', render: (r) => memberContact(r) },
                   { label: 'Sign-in', render: (r) => <SignInTag method={r.signInMethod} /> },
                   { label: 'Status', render: (r) => (
-                    <label className="switch-label">
+                    <label className="checkbox-label">
                       <input type="checkbox" key={`${r.dealerId}:${r.username}:${statusRevert}`}
                         checked={r.active}
                         disabled={statusBusy === `${r.dealerId}:${r.username}`}

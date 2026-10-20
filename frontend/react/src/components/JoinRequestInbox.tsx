@@ -87,7 +87,7 @@ export default function JoinRequestInbox() {
         type="button"
         className={`inbox-bell${open ? ' is-open' : ''}`}
         aria-expanded={open}
-        aria-label={count > 0 ? `${count} join requests` : 'No join requests'}
+        aria-label={count > 0 ? `${count} join request${count === 1 ? '' : 's'}` : 'No join requests'}
         onClick={() => setOpen(o => !o)}
       >
         <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor"
