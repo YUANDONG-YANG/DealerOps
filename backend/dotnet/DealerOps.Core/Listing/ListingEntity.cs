@@ -4,6 +4,10 @@ using DealerOps.Core.Common.Tenant;
 
 namespace DealerOps.Core.Listing;
 
+/// <summary>
+/// One ad per vehicle. <see cref="ContentVersion"/> counts content edits so a compliance check can
+/// be matched to the text it evaluated; <see cref="Version"/> is the optimistic-concurrency token.
+/// </summary>
 [Table("listing")]
 public class ListingEntity : ITenantOwned
 {

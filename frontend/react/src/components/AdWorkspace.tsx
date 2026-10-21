@@ -12,6 +12,7 @@ type ChecklistItem = { label: string; codes: string[] };
 const RATE_PATTERN = /\d+(?:\.\d+)?\s*%\s*(?:apr|annual percentage rate|financing|interest|rate)|(?:apr|financing|interest|rates?)\b[^.\n%]{0,20}?\d+(?:\.\d+)?\s*%/i;
 const PAYMENT_PATTERN = /\$?\d[\d,]*(?:\.\d{2})?\s*(?:per\s+month|a\s+month|\/\s*mo(?:nth)?\b|monthly|bi-?weekly|weekly|per\s+week|\/\s*wk\b)|(?:monthly|bi-?weekly|weekly)\s+payments?\s*(?:of|from|:)?\s*\$\s*\d/i;
 
+/** True when the finance disclosure rows apply: a finance ad, or a cash ad quoting a rate or payment. */
 function financeTriggered(listing: Listing): boolean {
   if (listing.adKind === 'FINANCE') return true;
   if (listing.adKind !== 'CASH') return false;
@@ -19,6 +20,7 @@ function financeTriggered(listing: Listing): boolean {
   return RATE_PATTERN.test(text) || PAYMENT_PATTERN.test(text);
 }
 
+/** The disclosure checklist for this ad type and medium, each row tied to the rule codes that fail it. */
 function buildChecklist(listing: Listing): ChecklistItem[] {
   const items: ChecklistItem[] = [
     { label: 'Dealership name and contacts', codes: ['DEALER_NAME_MISSING', 'DEALER_CONTACT_MISSING', 'DEALER_CONTACT_INCOMPLETE'] },
@@ -79,6 +81,7 @@ interface Props {
   actionsSlot?: ReactNode;
 }
 
+/** The ad editor beside its last check result; the page supplies the vehicle picker and action buttons. */
 export default function AdWorkspace({ listing, onChange, vehicle, readOnly, pickerSlot, actionsSlot }: Props) {
   const session = useSessionStore();
   const hasSelection = !!vehicle;

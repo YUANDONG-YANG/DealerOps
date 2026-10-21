@@ -3,9 +3,12 @@ using Microsoft.Extensions.Logging;
 
 namespace DealerOps.Logging;
 
+/// <summary>Release time reported by each service's <c>/actuator/release</c> and startup log.</summary>
 public static class ReleaseInfo
 {
-    // Deployments write PUBLISHED_AT; without it the assembly build time identifies the running build.
+    /// <summary>
+    /// Returns <c>PUBLISHED_AT</c> when deployments set it; otherwise the entry assembly's build time.
+    /// </summary>
     public static string Resolve(string? publishedAt)
     {
         if (!string.IsNullOrWhiteSpace(publishedAt)) return publishedAt.Trim();
@@ -17,6 +20,7 @@ public static class ReleaseInfo
         return built.ToString("yyyy-MM-ddTHH:mm:ssZ");
     }
 
+    /// <summary>Logs the release time once at startup.</summary>
     public static void LogStartup(ILogger logger, string service, string publishedAt) =>
         logger.LogInformation("Release: {Service} published {PublishedAt}", service, publishedAt);
 }

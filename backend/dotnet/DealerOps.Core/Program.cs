@@ -268,79 +268,45 @@ using (var scope = app.Services.CreateScope())
             updated_at DATETIME(6) NOT NULL,
             updated_by VARCHAR(64) NOT NULL
         )");
-    // EnsureCreated does nothing when the table already exists, so new columns added after the
-    // first create need an idempotent patch. MySQL 8 rejects IF NOT EXISTS on ADD COLUMN, so
-    // the exception for a duplicate column (1060) is swallowed.
-    // Columns added after the first EnsureCreated. Each ALTER is wrapped so an already-added
-    // column is a no-op; MySQL 8 does not support ADD COLUMN IF NOT EXISTS cleanly.
-    foreach (var column in new[]
+    // EnsureCreated does nothing when the table already exists, so columns added after the first
+    // create need an idempotent patch. MySQL 8 rejects IF NOT EXISTS on ADD COLUMN, so the
+    // duplicate-column error (1060) is swallowed.
+    foreach (var patch in new[]
     {
-        "ADD COLUMN requested_dealer_id BIGINT NULL",
-        "ADD COLUMN google_sub VARCHAR(64) NULL",
-        "ADD COLUMN firebase_uid VARCHAR(128) NULL",
-        "ADD COLUMN given_name VARCHAR(120) NULL",
-        "ADD COLUMN family_name VARCHAR(120) NULL",
-        "ADD COLUMN avatar_url TEXT NULL",
-        "ADD COLUMN locale VARCHAR(16) NULL",
+        "app_user ADD COLUMN requested_dealer_id BIGINT NULL",
+        "app_user ADD COLUMN google_sub VARCHAR(64) NULL",
+        "app_user ADD COLUMN firebase_uid VARCHAR(128) NULL",
+        "app_user ADD COLUMN given_name VARCHAR(120) NULL",
+        "app_user ADD COLUMN family_name VARCHAR(120) NULL",
+        "app_user ADD COLUMN avatar_url TEXT NULL",
+        "app_user ADD COLUMN locale VARCHAR(16) NULL",
+        // Existing members become staff; the platform admin promotes managers afterwards.
+        "membership ADD COLUMN dealer_role VARCHAR(16) NOT NULL DEFAULT 'staff'",
+        "audit_event ADD COLUMN previous_values JSON NULL",
+        "audit_event ADD COLUMN client_ip VARCHAR(45) NULL",
+        // Existing rows get the catch-all body type so the NOT NULL column needs no backfill;
+        // the add-vehicle form chooses an explicit value for new rows.
+        "vehicle ADD COLUMN body_type VARCHAR(16) NOT NULL DEFAULT 'other'",
+        "vehicle ADD COLUMN mileage_km INT NULL",
+        "vehicle ADD COLUMN exterior_color VARCHAR(40) NULL",
+        "vehicle ADD COLUMN fuel_type VARCHAR(16) NULL",
+        "vehicle ADD COLUMN stock_number VARCHAR(20) NULL",
+        "vehicle ADD COLUMN list_price DECIMAL(12,2) NULL",
+        "vehicle ADD COLUMN deleted_at DATETIME(6) NULL",
+        "customer ADD COLUMN deleted_at DATETIME(6) NULL",
+        "listing ADD COLUMN prior_use VARCHAR(32) NULL",
+        "listing ADD COLUMN warranty_terms TEXT NULL",
+        "listing ADD COLUMN annual_km_allowance INT NULL",
     })
     {
-        try { db.Database.ExecuteSqlRaw($"ALTER TABLE app_user {column}"); }
-        catch (Exception ex) when (
-            ex.ToString().Contains("Duplicate column", StringComparison.OrdinalIgnoreCase)
-            || ex.ToString().Contains("1060", StringComparison.Ordinal))
-        { /* already present */ }
-    }
-    // Existing members become staff; the admin or a manager promotes managers afterwards.
-    try { db.Database.ExecuteSqlRaw("ALTER TABLE membership ADD COLUMN dealer_role VARCHAR(16) NOT NULL DEFAULT 'staff'"); }
-    catch (Exception ex) when (
-        ex.ToString().Contains("Duplicate column", StringComparison.OrdinalIgnoreCase)
-        || ex.ToString().Contains("1060", StringComparison.Ordinal))
-    { /* already present */ }
-    // Existing rows get the catch-all body type so the NOT NULL column can be added without a
-    // separate backfill step; the add-vehicle form chooses an explicit value for new rows.
-    try { db.Database.ExecuteSqlRaw("ALTER TABLE vehicle ADD COLUMN body_type VARCHAR(16) NOT NULL DEFAULT 'other'"); }
-    catch (Exception ex) when (
-        ex.ToString().Contains("Duplicate column", StringComparison.OrdinalIgnoreCase)
-        || ex.ToString().Contains("1060", StringComparison.Ordinal))
-    { /* already present */ }
-    foreach (var column in new[]
-    {
-        "ADD COLUMN mileage_km INT NULL",
-        "ADD COLUMN exterior_color VARCHAR(40) NULL",
-        "ADD COLUMN fuel_type VARCHAR(16) NULL",
-        "ADD COLUMN stock_number VARCHAR(20) NULL",
-        "ADD COLUMN list_price DECIMAL(12,2) NULL",
-    })
-    {
-        try { db.Database.ExecuteSqlRaw($"ALTER TABLE vehicle {column}"); }
-        catch (Exception ex) when (
-            ex.ToString().Contains("Duplicate column", StringComparison.OrdinalIgnoreCase)
-            || ex.ToString().Contains("1060", StringComparison.Ordinal))
-        { /* already present */ }
-    }
-    foreach (var (table, column) in new[] { ("vehicle", "deleted_at"), ("customer", "deleted_at") })
-    {
-        try { db.Database.ExecuteSqlRaw($"ALTER TABLE {table} ADD COLUMN {column} DATETIME(6) NULL"); }
-        catch (Exception ex) when (
-            ex.ToString().Contains("Duplicate column", StringComparison.OrdinalIgnoreCase)
-            || ex.ToString().Contains("1060", StringComparison.Ordinal))
-        { /* already present */ }
-    }
-    foreach (var column in new[]
-    {
-        "ADD COLUMN prior_use VARCHAR(32) NULL",
-        "ADD COLUMN warranty_terms TEXT NULL",
-        "ADD COLUMN annual_km_allowance INT NULL",
-    })
-    {
-        try { db.Database.ExecuteSqlRaw($"ALTER TABLE listing {column}"); }
+        try { db.Database.ExecuteSqlRaw($"ALTER TABLE {patch}"); }
         catch (Exception ex) when (
             ex.ToString().Contains("Duplicate column", StringComparison.OrdinalIgnoreCase)
             || ex.ToString().Contains("1060", StringComparison.Ordinal))
         { /* already present */ }
     }
     // CREATE TABLE IF NOT EXISTS is supported, so the notification table is created in the
-    // same idempotent spirit as the ALTER above. Dealer-scoped: queries filter by dealer_id
+    // same idempotent spirit as the ALTERs above. Dealer-scoped: queries filter by dealer_id
     // and resolved_at IS NULL to show the inbox; approve/reject flip resolved_at.
     db.Database.ExecuteSqlRaw(@"
         CREATE TABLE IF NOT EXISTS notification (

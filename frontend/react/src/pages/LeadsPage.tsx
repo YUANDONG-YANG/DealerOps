@@ -5,14 +5,15 @@ import DataTable from '../components/DataTable';
 import FormDrawer from '../components/FormDrawer';
 import PageState from '../components/PageState';
 import AuditTrail from '../components/AuditTrail';
-import { fieldErrorsOf, messageOf } from '../api/http';
+import { codeOf, fieldErrorsOf, messageOf, statusOf } from '../api/http';
 import { customersApi } from '../api/customers';
-import { errorCode, errorStatus, vehiclesApi } from '../api/vehicles';
+import { vehiclesApi } from '../api/vehicles';
 import { auditApi } from '../api/audit';
 import { LEAD_STAGES, isClosedStage, leadsApi, stageLabel, type LeadStage } from '../api/leads';
 import { memberLabel, membersApi, type MemberOption } from '../api/members';
 import { describeError } from '../api/errors';
 import { dateTimeLocal } from '../format';
+import { useSessionStore } from '../store/session';
 
 function vehicleLabel(v: Record<string, unknown> | null | undefined) {
   if (!v) return '—';
@@ -20,16 +21,18 @@ function vehicleLabel(v: Record<string, unknown> | null | undefined) {
 }
 
 function mapWrite(e: unknown, fallback: string) {
-  const code = errorCode(e);
+  const code = codeOf(e);
   if (code === 'VALIDATION') return messageOf(e, 'Check required fields: some fields are missing or invalid.');
   if (code === 'WRONG_DEALER_OR_SOLD') return 'Vehicle must be in stock at this dealership. Pick a vehicle that is not sold.';
   if (code === 'VERSION_CONFLICT') return 'Refresh and retry: someone else changed this record after you opened it. Reopen it to load the latest version, then make your change again.';
   if (code === 'LEAD_CLOSED') return 'Won and lost leads cannot be changed. Create a new lead to follow up again.';
-  if (errorStatus(e) === 404 || code === 'NOT_FOUND') return 'Lead not found';
+  if (statusOf(e) === 404 || code === 'NOT_FOUND') return 'Lead not found';
   return describeError(e, fallback);
 }
 
 export default function LeadsPage() {
+  // Record history is manager-only (AUD-17); staff never call the audit API.
+  const isManager = useSessionStore().dealerRole === 'MANAGER';
   const [searchParams] = useSearchParams();
   const [rows, setRows] = useState<any[]>([]);
   const [total, setTotal] = useState(0);
@@ -80,7 +83,7 @@ export default function LeadsPage() {
       setRows(r.data.items || []); setTotal(r.data.totalElements || 0);
     } catch (e) {
       if (seq !== listSeq.current) return;
-      if (errorStatus(e) === 403 || errorCode(e) === 'FORBIDDEN') setForbidden(true);
+      if (statusOf(e) === 403 || codeOf(e) === 'FORBIDDEN') setForbidden(true);
       else setError(describeError(e, 'load leads'));
       setRows([]);
     } finally {
@@ -136,6 +139,7 @@ export default function LeadsPage() {
   };
 
   const loadAudit = async (id: number, seq: number) => {
+    if (!isManager) return;
     try {
       const r = await auditApi.list({ entityType: 'LEAD', entityId: id });
       if (seq === detailSeq.current) setAudit(r.data.items || []);
@@ -163,7 +167,7 @@ export default function LeadsPage() {
     } catch (e) {
       if (seq !== detailSeq.current) return;
       setDetailOpen(false);
-      const missing = errorStatus(e) === 404 || errorCode(e) === 'NOT_FOUND';
+      const missing = statusOf(e) === 404 || codeOf(e) === 'NOT_FOUND';
       alert(missing ? 'Lead not found. It may have been deleted; refresh the list.' : describeError(e, 'load lead'));
     }
   };
@@ -190,6 +194,7 @@ export default function LeadsPage() {
     setNoteError(''); setAddingNote(true);
     try {
       const r = await leadsApi.addNote(selected.id, text);
+      // Notes are listed newest first, as the API returns them.
       setSelected((s: any) => ({ ...s, notes: [r.data, ...(s.notes || [])] }));
       setNoteText('');
       await loadAudit(selected.id, detailSeq.current);
@@ -388,7 +393,7 @@ export default function LeadsPage() {
               </div>
             ))}
 
-            <AuditTrail rows={audit} />
+            {isManager && <AuditTrail rows={audit} />}
           </>
         )}
       </FormDrawer>

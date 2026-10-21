@@ -24,8 +24,9 @@ export type CreatePaymentBody = { amount: number; method: string; paidOn: string
 
 export const paymentsApi = {
   ledger: (vehicleId: number) => http.get<PaymentLedger>(`/api/v1/vehicles/${vehicleId}/payments`),
+  /** A manager gets the updated ledger back; staff get only the recorded payment (PAY-05). */
   create: (vehicleId: number, body: CreatePaymentBody) =>
-    http.post<PaymentLedger>(`/api/v1/vehicles/${vehicleId}/payments`, body),
+    http.post<PaymentLedger | PaymentItem>(`/api/v1/vehicles/${vehicleId}/payments`, body),
   delete: (vehicleId: number, paymentId: number) =>
     http.delete<PaymentLedger>(`/api/v1/vehicles/${vehicleId}/payments/${paymentId}`),
 };

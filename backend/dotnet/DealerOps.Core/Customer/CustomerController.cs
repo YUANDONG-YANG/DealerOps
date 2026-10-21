@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace DealerOps.Core.Customer;
 
+/// <summary>Dealership customer CRUD; customers are listed newest first.</summary>
 [ApiController]
 [Route("api/v1/customers")]
 [Authorize]

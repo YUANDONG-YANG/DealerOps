@@ -18,6 +18,7 @@ public class PublicDealerController : ControllerBase
 
     public PublicDealerController(AppDbContext db) { _db = db; }
 
+    /// <summary>Active dealerships as id and legal name, alphabetical (a picker order, not a record list).</summary>
     [HttpGet("dealers")]
     [AllowAnonymous]
     public Task<List<PublicDealerOption>> Dealers() =>
@@ -28,4 +29,5 @@ public class PublicDealerController : ControllerBase
             .ToListAsync();
 }
 
+/// <summary>One entry of the public dealer directory.</summary>
 public record PublicDealerOption(long Id, string LegalName);

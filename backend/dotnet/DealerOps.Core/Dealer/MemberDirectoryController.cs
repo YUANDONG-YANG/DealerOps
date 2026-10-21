@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace DealerOps.Core.Dealer;
 
+/// <summary>Active staff of the caller's dealership, for assignee pickers.</summary>
 [ApiController]
 [Authorize]
 public class MemberDirectoryController : ControllerBase
@@ -15,6 +16,7 @@ public class MemberDirectoryController : ControllerBase
         _memberDirectoryService = memberDirectoryService;
     }
 
+    /// <summary>Lists the active members alphabetically by username.</summary>
     [HttpGet("api/v1/members")]
     public List<MemberOption> List() => _memberDirectoryService.ActiveMembers();
 }

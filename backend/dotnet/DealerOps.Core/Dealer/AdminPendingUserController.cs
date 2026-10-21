@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace DealerOps.Core.Dealer;
 
+/// <summary>Platform admin view of dealer-user logins that belong to no dealership yet.</summary>
 [ApiController]
 [Authorize]
 public class AdminPendingUserController : ControllerBase
@@ -16,6 +17,7 @@ public class AdminPendingUserController : ControllerBase
         _membershipService = membershipService;
     }
 
+    /// <summary>Lists pending logins, newest account first.</summary>
     [HttpGet("api/v1/admin/pending-users")]
     public PageResponse<PendingUserResponse> List(
         [FromQuery] string? q = null,

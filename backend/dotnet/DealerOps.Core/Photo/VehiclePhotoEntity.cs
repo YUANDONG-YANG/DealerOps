@@ -4,6 +4,10 @@ using DealerOps.Core.Common.Tenant;
 
 namespace DealerOps.Core.Photo;
 
+/// <summary>
+/// A vehicle photo row holding the uploaded original and, after enhancement, a JPEG variant with the
+/// preset that produced it. Image bytes stay in this table and are never copied into audit rows.
+/// </summary>
 [Table("vehicle_photo")]
 public class VehiclePhotoEntity : ITenantOwned
 {

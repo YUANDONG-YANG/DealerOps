@@ -1,11 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
 import ConfirmDialog from './ConfirmDialog';
-import { cad, enumLabel } from '../format';
+import { cad, enumLabel, MONEY_PATTERN } from '../format';
 import { fieldErrorsOf } from '../api/http';
 import { describeError } from '../api/errors';
 import { PAYMENT_METHODS, paymentsApi, type PaymentItem, type PaymentLedger } from '../api/payments';
-
-const MONEY_PATTERN = /^\d+(\.\d{1,2})?$/;
+import { useSessionStore } from '../store/session';
 
 interface Props {
   vehicleId: number;
@@ -14,14 +13,17 @@ interface Props {
 
 /**
  * Payments received for a sold vehicle and the balance still due. This records money taken at
- * the dealership; it does not charge a card.
+ * the dealership; it does not charge a card. Only a manager sees the ledger and can remove a
+ * payment; staff see only the record form and a confirmation after each recorded payment.
  */
 export default function PaymentPanel({ vehicleId, onChanged }: Props) {
+  const isManager = useSessionStore().dealerRole === 'MANAGER';
   const [ledger, setLedger] = useState<PaymentLedger | null>(null);
   const [error, setError] = useState('');
   const [form, setForm] = useState({ amount: '', method: '', paidOn: '', note: '' });
   const [formError, setFormError] = useState('');
   const [saving, setSaving] = useState(false);
+  const [recorded, setRecorded] = useState('');
   const [removeTarget, setRemoveTarget] = useState<PaymentItem | null>(null);
 
   const load = useCallback(async () => {
@@ -33,10 +35,11 @@ export default function PaymentPanel({ vehicleId, onChanged }: Props) {
     }
   }, [vehicleId]);
 
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => { if (isManager) void load(); }, [isManager, load]);
 
   async function add() {
     setFormError('');
+    setRecorded('');
     if (!MONEY_PATTERN.test(form.amount.trim()) || Number(form.amount) <= 0) {
       setFormError('Amount must be more than 0 with at most 2 decimals.');
       return;
@@ -49,7 +52,8 @@ export default function PaymentPanel({ vehicleId, onChanged }: Props) {
         amount: Number(form.amount), method: form.method, paidOn: form.paidOn,
         note: form.note.trim() || null,
       });
-      setLedger(r.data);
+      if ('items' in r.data) setLedger(r.data);
+      else setRecorded(`Payment of ${cad(r.data.amount)} recorded.`);
       setForm({ amount: '', method: '', paidOn: '', note: '' });
       onChanged?.();
     } catch (e) {
@@ -84,6 +88,7 @@ export default function PaymentPanel({ vehicleId, onChanged }: Props) {
           <strong className={settled ? '' : 'warning-text'}>Balance due {cad(ledger.balanceDue)}</strong>
         </p>
       )}
+      {recorded && <p role="status">{recorded}</p>}
       {!settled && (
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
           <input className="input" aria-label="Payment amount" placeholder="Amount" inputMode="decimal"
@@ -102,6 +107,7 @@ export default function PaymentPanel({ vehicleId, onChanged }: Props) {
       )}
       {formError && <p className="danger-text">{formError}</p>}
       {ledger && ledger.items.length === 0 && <p className="muted">No payments recorded.</p>}
+      {/* Rendered in API order: newest payment first. */}
       {ledger?.items.map(p => (
         <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 8, padding: '6px 0', borderBottom: '1px solid var(--border)' }}>
           <span>

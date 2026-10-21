@@ -1,6 +1,6 @@
 namespace DealerOps.Core.Payment;
 
-// How the buyer paid. Values stored lower snake_case via EnumSnakeCaseConverter.
+/// <summary>How the buyer paid. Stored lower snake_case via EnumSnakeCaseConverter; SCREAMING_SNAKE on the wire.</summary>
 public enum PaymentMethod
 {
     Cash,

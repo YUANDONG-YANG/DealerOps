@@ -5,6 +5,10 @@ using DealerOps.Core.Integration.Dto;
 
 namespace DealerOps.Core.Assistant;
 
+/// <summary>
+/// Read-only assistant (AI-03): retrieves tenant-scoped resource cards and counts, then asks the AI
+/// service for a summary of them. It never writes data.
+/// </summary>
 public class AssistantService
 {
     private readonly AssistantResourceQuery _resourceQuery;
@@ -16,9 +20,12 @@ public class AssistantService
         _aiGatewayClient = aiGatewayClient;
     }
 
+    /// <summary>
+    /// Answers one question. A count question is answered from the database without the AI call;
+    /// otherwise the AI summary is added, or left out when the AI service fails.
+    /// </summary>
     public AskResponse Ask(AskRequest body)
     {
-        TenantGuard.RequireDealerUser();
         var tenant = TenantGuard.RequireTenantId();
         var cards = _resourceQuery.Load(tenant, body.Text);
         var count = _resourceQuery.Count(tenant, body.Text);

@@ -4,6 +4,7 @@ using DealerOps.Core.Common.Tenant;
 
 namespace DealerOps.Core.Customer;
 
+/// <summary>A dealership customer; soft-deleted through <see cref="DeletedAt"/> (CRM-14).</summary>
 [Table("customer")]
 public class CustomerEntity : ITenantOwned
 {

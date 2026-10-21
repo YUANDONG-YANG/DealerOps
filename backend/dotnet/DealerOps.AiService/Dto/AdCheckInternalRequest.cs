@@ -1,5 +1,6 @@
 namespace DealerOps.AiService.Dto;
 
+/// <summary>Ad-check input from Core: the listing copy and the public facts it is checked against.</summary>
 public record AdCheckInternalRequest(
     ListingIn Listing,
     VehiclePublic VehiclePublic,

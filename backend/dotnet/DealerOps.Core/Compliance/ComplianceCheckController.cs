@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace DealerOps.Core.Compliance;
 
+/// <summary>Runs ad compliance checks on listings.</summary>
 [ApiController]
 [Route("api/v1/listings")]
 [Authorize]
@@ -17,6 +18,7 @@ public class ComplianceCheckController : ControllerBase
         _checkService = checkService;
     }
 
+    /// <summary>Checks the listing at the given version and returns the stored result.</summary>
     [HttpPost("{id}/checks")]
     public CheckResponse Check(long id, [FromBody] VersionBody body)
     {

@@ -1,3 +1,4 @@
+using DealerOps.Core.Audit;
 using DealerOps.Core.Common.Exceptions;
 using DealerOps.Core.Common.Tenant;
 using DealerOps.Core.Data;
@@ -6,6 +7,10 @@ using Microsoft.EntityFrameworkCore;
 
 namespace DealerOps.Core.Compliance;
 
+/// <summary>
+/// Platform-admin editor for ad compliance rule overrides. Every saved edit is platform configuration,
+/// so it is audited as RULE_OVERRIDE and invalidates every prior ad check.
+/// </summary>
 public class ComplianceRuleService
 {
     // Severity matches what OmvicRuleEngine raises. The message is a summary for the editor: the
@@ -42,9 +47,17 @@ public class ComplianceRuleService
         };
 
     private readonly AppDbContext _db;
+    private readonly IAuditService _audit;
+    private readonly ILogger<ComplianceRuleService> _logger;
 
-    public ComplianceRuleService(AppDbContext db) => _db = db;
+    public ComplianceRuleService(AppDbContext db, IAuditService audit, ILogger<ComplianceRuleService> logger)
+    {
+        _db = db;
+        _audit = audit;
+        _logger = logger;
+    }
 
+    /// <summary>Lists every known rule with its effective enabled flag, severity and message.</summary>
     public IReadOnlyList<Dto.RuleOverrideResponse> List()
     {
         RequireAdmin();
@@ -52,6 +65,11 @@ public class ComplianceRuleService
         return Defaults.Select(pair => ToResponse(pair.Key, saved.GetValueOrDefault(pair.Key))).ToList();
     }
 
+    /// <summary>
+    /// Saves an admin's override for one rule and bumps every listing's content version. The audit row
+    /// (CREATE for the first override of a rule, UPDATE afterwards, including a reset to defaults) is
+    /// written in the same transaction and carries the changed effective values, new and previous.
+    /// </summary>
     public Dto.RuleOverrideResponse Update(string ruleId, Dto.UpdateRuleOverrideRequest request)
     {
         RequireAdmin();
@@ -63,6 +81,8 @@ public class ComplianceRuleService
         if (message?.Length > 500) throw new ApiException(ErrorCode.Validation, "Message must be 500 characters or fewer.");
 
         var row = _db.RuleOverrides.FirstOrDefault(x => x.RuleId == ruleId);
+        var action = row == null ? "CREATE" : "UPDATE";
+        var before = ToResponse(ruleId, row);
         if (row == null)
         {
             row = new RuleOverrideEntity { RuleId = ruleId };
@@ -71,11 +91,21 @@ public class ComplianceRuleService
         // A value equal to the default is not stored, so the engine's own severity and its
         // finding-specific wording keep applying when an admin only toggles or re-saves a rule.
         var baseline = Defaults[ruleId];
+        var admin = TenantContext.ActorUsername();
         row.Enabled = request.Enabled;
         row.Severity = severity == baseline.Severity ? null : severity;
         row.Message = message == baseline.Message ? null : message;
         row.UpdatedAt = DateTime.UtcNow;
-        row.UpdatedBy = TenantContext.Get()!.Username;
+        row.UpdatedBy = admin;
+
+        // The key is a string rule id, so the audit entity id is 0 and the rule id goes in the summary.
+        var after = ToResponse(ruleId, row);
+        var changed = new Dictionary<string, object> { ["ruleId"] = ruleId };
+        var previous = new Dictionary<string, object?>();
+        if (after.Enabled != before.Enabled) { changed["enabled"] = after.Enabled; previous["enabled"] = before.Enabled; }
+        if (after.Severity != before.Severity) { changed["severity"] = after.Severity; previous["severity"] = before.Severity; }
+        if (after.Message != before.Message) { changed["message"] = after.Message; previous["message"] = before.Message; }
+        _audit.Record("RULE_OVERRIDE", 0, action, null, admin, changed, previous);
 
         // A changed rule set invalidates every prior check, so ads must be rechecked before Ready/export.
         // Only the content version moves: a bulk update leaves each listing's edit version alone, so
@@ -85,9 +115,11 @@ public class ComplianceRuleService
         _db.Listings.IgnoreQueryFilters()
             .ExecuteUpdate(s => s.SetProperty(l => l.ContentVersion, l => l.ContentVersion + 1));
         tx.Commit();
-        return ToResponse(ruleId, row);
+        _logger.LogInformation("Compliance rule override {Action} ruleId={RuleId} by {Actor}", action, ruleId, admin);
+        return after;
     }
 
+    /// <summary>Returns the stored overrides keyed by rule id, for the compliance engine.</summary>
     public IReadOnlyDictionary<string, RuleOverrideEntity> Overrides() =>
         _db.RuleOverrides.AsNoTracking().ToDictionary(x => x.RuleId, StringComparer.Ordinal);
 

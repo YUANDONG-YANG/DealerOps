@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { adminApi, adminErrorCode, type Dealer, type PendingUser } from '../api/admin';
-import { apiError, collectAllPages } from '../api/http';
+import { adminApi, type Dealer, type PendingUser } from '../api/admin';
+import { apiError, codeOf, collectAllPages } from '../api/http';
 import { dateTimeLocal } from '../format';
 import { describeError } from '../api/errors';
 
@@ -10,6 +10,10 @@ interface Props {
   onBound?: () => void;
 }
 
+/**
+ * Self-registered accounts waiting for a dealership. Binding keeps the password they chose.
+ * Used on the Admin tab (with a dealership picker) and in the staff drawer (fixed dealership).
+ */
 export default function PendingAccounts({ dealerId, onBound }: Props) {
   const [pending, setPending] = useState<PendingUser[]>([]);
   const [dealers, setDealers] = useState<Dealer[]>([]);
@@ -42,7 +46,7 @@ export default function PendingAccounts({ dealerId, onBound }: Props) {
       setPending((list) => list.filter((u) => u.username !== user.username));
       onBound?.();
     } catch (e) {
-      if (adminErrorCode(e) === 'DUP_MEMBER') setError(apiError(e).message || `${user.username} is already bound to a dealership.`);
+      if (codeOf(e) === 'DUP_MEMBER') setError(apiError(e).message || `${user.username} is already bound to a dealership.`);
       else setError(describeError(e, `bind ${user.username}`));
     } finally { setBusy(''); }
   };

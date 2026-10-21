@@ -4,6 +4,7 @@ using DealerOps.Core.Common.Tenant;
 
 namespace DealerOps.Core.WorkOrder;
 
+/// <summary>One reconditioning task on one vehicle of a dealership (table <c>work_order</c>).</summary>
 [Table("work_order")]
 public class WorkOrderEntity : ITenantOwned
 {

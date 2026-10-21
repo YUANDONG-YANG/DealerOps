@@ -1,4 +1,7 @@
+using System.Diagnostics;
 using System.Text.Json;
+using DealerOps.Core.Audit;
+using DealerOps.Core.Common;
 using DealerOps.Core.Common.Exceptions;
 using DealerOps.Core.Common.Tenant;
 using DealerOps.Core.Compliance.Dto;
@@ -11,6 +14,10 @@ using DealerOps.Core.Vehicle;
 
 namespace DealerOps.Core.Compliance;
 
+/// <summary>
+/// Runs the ad compliance check on a listing: OMVIC rules first, then the AI ad check when no
+/// rule blocks. Every run is stored as a compliance_check row and audited as CHECK on LISTING.
+/// </summary>
 public class ComplianceCheckService
 {
     // Stored JSON uses the 14 §8.1 element shape (camelCase); reads stay case-insensitive so rows
@@ -26,22 +33,33 @@ public class ComplianceCheckService
     private readonly CheckStatusMapper _checkStatusMapper;
     private readonly IAiGatewayClient _aiGatewayClient;
     private readonly ComplianceRuleService _ruleSettings;
+    private readonly IAuditService _audit;
+    private readonly ILogger<ComplianceCheckService> _logger;
 
     public ComplianceCheckService(
         AppDbContext db, OmvicRuleEngine ruleEngine,
         CheckStatusMapper checkStatusMapper, IAiGatewayClient aiGatewayClient,
-        ComplianceRuleService ruleSettings)
+        ComplianceRuleService ruleSettings, IAuditService audit,
+        ILogger<ComplianceCheckService> logger)
     {
         _db = db;
         _ruleEngine = ruleEngine;
         _checkStatusMapper = checkStatusMapper;
         _aiGatewayClient = aiGatewayClient;
         _ruleSettings = ruleSettings;
+        _audit = audit;
+        _logger = logger;
     }
 
+    /// <summary>
+    /// Checks the listing's current content. A BLOCK finding skips the AI call; an AI failure is
+    /// stored as UNAVAILABLE and then reported as AI_UNAVAILABLE.
+    /// </summary>
     public CheckResponse Check(long listingId, VersionBody body)
     {
-        var tenant = RequireTenant();
+        var stopwatch = Stopwatch.StartNew();
+        var tenant = TenantGuard.RequireTenantId();
+        var actor = TenantContext.ActorUsername();
         var listing = _db.Listings.FirstOrDefault(l => l.Id == listingId && l.DealerId == tenant)
                       ?? throw new ApiException(ErrorCode.NotFound, "Not found");
 
@@ -66,7 +84,7 @@ public class ComplianceCheckService
         if (hardBlocked)
         {
             var saved = PersistCheck(listing, evaluatedContentVersion, findings,
-                AiStatus.Skipped, null, Recommendation.Blocked);
+                AiStatus.Skipped, null, Recommendation.Blocked, actor, stopwatch);
             return ToDto(listing, saved)!;
         }
 
@@ -83,17 +101,20 @@ public class ComplianceCheckService
                     dealer.ContactEmail, dealer.ContactAddress))).GetAwaiter().GetResult();
 
             var saved = PersistCheck(listing, evaluatedContentVersion, findings,
-                AiStatus.Success, notes, Recommendation.Passed);
+                AiStatus.Success, notes, Recommendation.Passed, actor, stopwatch);
             return ToDto(listing, saved)!;
         }
-        catch (AiCallFailed)
+        catch (AiCallFailed ex)
         {
+            _logger.LogWarning(ex, "Ad check AI unavailable listingId={ListingId} dealerId={DealerId} by {Actor}",
+                listing.Id, tenant, actor);
             PersistCheck(listing, evaluatedContentVersion, findings,
-                AiStatus.Unavailable, null, Recommendation.Unavailable);
+                AiStatus.Unavailable, null, Recommendation.Unavailable, actor, stopwatch);
             throw new ApiException(ErrorCode.AiUnavailable, "Ad check AI is unavailable.");
         }
     }
 
+    /// <summary>Maps a stored check to its API shape, with the status derived for the listing's current content.</summary>
     public CheckResponse? ToDto(ListingEntity listing, ComplianceCheckEntity? check)
     {
         if (check == null) return null;
@@ -107,6 +128,7 @@ public class ComplianceCheckService
             check.CreatedAt);
     }
 
+    /// <summary>Loads the listing's latest check, or null when it has never been checked.</summary>
     public ComplianceCheckEntity? LoadCheck(ListingEntity listing)
     {
         if (listing.LastCheckId == null) return null;
@@ -119,7 +141,8 @@ public class ComplianceCheckService
     private ComplianceCheckEntity PersistCheck(
         ListingEntity listing, int evaluatedContentVersion,
         List<RuleFinding> findings, AiStatus aiStatus,
-        List<AiNote>? notes, Recommendation recommendation)
+        List<AiNote>? notes, Recommendation recommendation,
+        string actor, Stopwatch stopwatch)
     {
         var current = _db.Listings.FirstOrDefault(l => l.Id == listing.Id && l.DealerId == listing.DealerId)
                       ?? throw new ApiException(ErrorCode.NotFound, "Not found");
@@ -135,13 +158,30 @@ public class ComplianceCheckService
             Recommendation = recommendation,
             CreatedAt = DateTime.UtcNow
         };
+        // The check id is needed for LastCheckId and the audit row, so the two saves share one
+        // transaction: the check, the listing pointer and the audit row commit together (AUD-07).
+        using var tx = _db.Database.BeginTransaction();
         _db.ComplianceChecks.Add(check);
         _db.SaveChanges();
 
         current.LastCheckId = check.Id;
         listing.LastCheckId = check.Id;
         listing.ContentVersion = current.ContentVersion;
+        _audit.Record("LISTING", current.Id, "CHECK", current.DealerId, actor,
+            new Dictionary<string, object>
+            {
+                ["vehicleId"] = current.VehicleId,
+                ["checkId"] = check.Id,
+                ["contentVersion"] = evaluatedContentVersion,
+                ["recommendation"] = EnumWireName.Of(recommendation),
+                ["aiStatus"] = EnumWireName.Of(aiStatus)
+            });
         _db.SaveChanges();
+        tx.Commit();
+        _logger.LogInformation(
+            "Compliance check recorded listingId={ListingId} checkId={CheckId} recommendation={Recommendation} aiStatus={AiStatus} dealerId={DealerId} by {Actor} in {ElapsedMs} ms",
+            current.Id, check.Id, EnumWireName.Of(recommendation), EnumWireName.Of(aiStatus),
+            current.DealerId, actor, stopwatch.ElapsedMilliseconds);
         return check;
     }
 
@@ -167,11 +207,5 @@ public class ComplianceCheckService
                 .ToList();
         }
         catch { return null; }
-    }
-
-    private static long RequireTenant()
-    {
-        TenantGuard.RequireDealerUser();
-        return TenantContext.Get()!.TenantDealerId!.Value;
     }
 }

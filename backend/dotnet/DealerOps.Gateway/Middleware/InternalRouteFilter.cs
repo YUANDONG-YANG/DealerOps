@@ -4,6 +4,10 @@ using System.Text.Json;
 
 namespace DealerOps.Gateway.Middleware;
 
+/// <summary>
+/// Keeps the internal credential server-side: a browser request that carries the internal header
+/// on a public path, or an <c>/internal/**</c> request without the right credential, gets 404.
+/// </summary>
 public class InternalRouteFilter
 {
     private const string WellKnownDefaultToken = "dealer-internal";
@@ -46,6 +50,7 @@ public class InternalRouteFilter
         return null;
     }
 
+    /// <summary>Rejects the request with 404 or passes it on.</summary>
     public async Task InvokeAsync(HttpContext context)
     {
         var path = context.Request.Path.Value ?? "";

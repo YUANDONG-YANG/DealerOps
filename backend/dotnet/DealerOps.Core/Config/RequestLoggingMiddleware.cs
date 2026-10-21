@@ -1,11 +1,15 @@
 using System.Diagnostics;
+using DealerOps.Logging;
 
 namespace DealerOps.Core.Config;
 
+/// <summary>
+/// Assigns or forwards a valid X-Request-ID (see <see cref="RequestId"/>) and writes one access
+/// line per request: method, path, status, duration and request id. The query string is never logged, because it can carry
+/// search text such as customer names.
+/// </summary>
 public class RequestLoggingMiddleware
 {
-    public const string RequestIdHeader = "X-Request-ID";
-
     private readonly RequestDelegate _next;
     private readonly ILogger<RequestLoggingMiddleware> _logger;
 
@@ -15,13 +19,15 @@ public class RequestLoggingMiddleware
         _logger = logger;
     }
 
+    /// <summary>Runs the rest of the pipeline and logs the request when it finishes.</summary>
     public async Task InvokeAsync(HttpContext context)
     {
-        var requestId = context.Request.Headers[RequestIdHeader].FirstOrDefault()
-                        ?? Guid.NewGuid().ToString("N")[..12];
+        var requestId = context.Request.Headers[RequestId.Header].FirstOrDefault();
+        if (!RequestId.IsValid(requestId))
+            requestId = Guid.NewGuid().ToString("N")[..12];
 
         context.Items["RequestId"] = requestId;
-        context.Response.Headers[RequestIdHeader] = requestId;
+        context.Response.Headers[RequestId.Header] = requestId;
 
         var sw = Stopwatch.StartNew();
         try

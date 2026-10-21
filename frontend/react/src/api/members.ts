@@ -19,6 +19,7 @@ export function accountSourceLabel(source: string | null | undefined): string {
   return (source && ACCOUNT_SOURCE_LABEL[source]) || '—';
 }
 
+/** Members of the caller's dealership, for assignee pickers and the Team page. */
 export const membersApi = {
   list: () => http.get<MemberOption[]>('/api/v1/members'),
 };
@@ -30,6 +31,7 @@ export const teamApi = {
   saveProfile: (body: DealerProfileBody) => http.patch<Dealer>('/api/v1/dealer/profile', body).then(r => r.data),
 };
 
+/** Picker label: "Display name (username)", or just the username when they match. */
 export function memberLabel(m: MemberOption) {
   return m.displayName && m.displayName !== m.username ? `${m.displayName} (${m.username})` : m.username;
 }

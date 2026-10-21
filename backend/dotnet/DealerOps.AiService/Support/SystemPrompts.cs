@@ -1,5 +1,6 @@
 namespace DealerOps.AiService.Support;
 
+/// <summary>System prompts for the ad check and the assistant, plus the untrusted-copy markers.</summary>
 public static class SystemPrompts
 {
     // SEC-06: the listing title and body are user input. They travel inside these

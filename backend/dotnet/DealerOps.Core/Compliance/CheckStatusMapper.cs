@@ -2,6 +2,7 @@ using DealerOps.Core.Listing;
 
 namespace DealerOps.Core.Compliance;
 
+/// <summary>Derives the listing-facing check status from the latest check and the current content version.</summary>
 public class CheckStatusMapper
 {
     public const string Blocked = "BLOCKED";
@@ -10,6 +11,7 @@ public class CheckStatusMapper
     public const string Stale = "STALE";
     public const string AiUnavailable = "AI_UNAVAILABLE";
 
+    /// <summary>Returns the check status; a check of older content is STALE when it had passed, otherwise NEEDS_AI.</summary>
     public string Derive(ListingEntity listing, ComplianceCheckEntity? lastCheck)
     {
         if (lastCheck == null) return NeedsAi;

@@ -3,6 +3,10 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace DealerOps.Core.Dealer;
 
+/// <summary>
+/// A login's staff membership at one dealership. Unbinding sets <c>Active</c> to false and keeps
+/// the row, so the history of who worked where stays traceable.
+/// </summary>
 [Table("membership")]
 public class MembershipEntity
 {

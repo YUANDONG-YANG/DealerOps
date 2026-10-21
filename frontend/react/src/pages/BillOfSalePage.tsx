@@ -6,7 +6,7 @@ import { customersApi } from '../api/customers';
 import { paymentsApi, type PaymentLedger } from '../api/payments';
 import { describeError } from '../api/errors';
 import { useSessionStore } from '../store/session';
-import { cad, enumLabel } from '../format';
+import { cad, enumLabel, km } from '../format';
 
 function Row({ label, value }: { label: string; value: unknown }) {
   return (
@@ -17,10 +17,12 @@ function Row({ label, value }: { label: string; value: unknown }) {
 /**
  * Printable bill of sale for a sold vehicle, filled from the DMS record, the linked CRM buyer,
  * and the payment ledger. It is a template, not a reviewed contract (see /disclaimer).
+ * Staff cannot read the payment ledger (PAY-05), so their copy shows the sale price only.
  */
 export default function BillOfSalePage() {
   const { vehicleId } = useParams();
   const dealer = useSessionStore();
+  const isManager = dealer.dealerRole === 'MANAGER';
   const [vehicle, setVehicle] = useState<any>(null);
   const [buyer, setBuyer] = useState<any>(null);
   const [ledger, setLedger] = useState<PaymentLedger | null>(null);
@@ -36,7 +38,7 @@ export default function BillOfSalePage() {
         if (v.status !== 'SOLD') throw new Error('Only a sold vehicle has a bill of sale.');
         const [c, p] = await Promise.all([
           v.linkedCustomer ? customersApi.get(v.linkedCustomer.id).then(r => r.data) : Promise.resolve(null),
-          paymentsApi.ledger(id).then(r => r.data),
+          isManager ? paymentsApi.ledger(id).then(r => r.data) : Promise.resolve(null),
         ]);
         if (!active) return;
         setVehicle(v);
@@ -49,7 +51,7 @@ export default function BillOfSalePage() {
       }
     })();
     return () => { active = false; };
-  }, [vehicleId]);
+  }, [vehicleId, isManager]);
 
   return (
     <div className="page bill-of-sale" style={{ maxWidth: 820, margin: '0 auto' }}>
@@ -88,7 +90,7 @@ export default function BillOfSalePage() {
               <Row label="Year, make, model" value={`${vehicle.modelYear} ${vehicle.make} ${vehicle.model}`} />
               <Row label="VIN" value={vehicle.vin} />
               <Row label="Condition" value={enumLabel(vehicle.conditionCode)} />
-              <Row label="Odometer" value={vehicle.mileageKm != null ? `${Number(vehicle.mileageKm).toLocaleString('en-CA')} km` : null} />
+              <Row label="Odometer" value={km(vehicle.mileageKm)} />
               <Row label="Exterior colour" value={vehicle.exteriorColor} />
               <Row label="Body type" value={enumLabel(vehicle.bodyType)} />
             </tbody></table>
@@ -96,11 +98,15 @@ export default function BillOfSalePage() {
             <h2>Price and payments</h2>
             <table className="table"><tbody>
               <Row label="Sale price" value={cad(vehicle.soldPrice)} />
-              {ledger?.items.map(p => (
-                <Row key={p.id} label={`Paid ${p.paidOn} · ${enumLabel(p.method)}`} value={cad(p.amount)} />
-              ))}
-              <Row label="Total paid" value={cad(ledger?.paidTotal)} />
-              <Row label="Balance due" value={cad(ledger?.balanceDue)} />
+              {ledger && (
+                <>
+                  {ledger.items.map(p => (
+                    <Row key={p.id} label={`Paid ${p.paidOn} · ${enumLabel(p.method)}`} value={cad(p.amount)} />
+                  ))}
+                  <Row label="Total paid" value={cad(ledger.paidTotal)} />
+                  <Row label="Balance due" value={cad(ledger.balanceDue)} />
+                </>
+              )}
             </tbody></table>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 32, marginTop: 48 }}>

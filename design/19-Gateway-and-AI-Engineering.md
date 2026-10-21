@@ -176,6 +176,8 @@ log-sum/ai-service-YYYY-MM-DD.log
 
 The gateway log records the route ID, HTTP status, duration, and completion signal. Core and ai-service record the method, path, status, and duration; core also records the authenticated username when available. Authorization tokens and passwords must never be logged; request bodies are logged only in the redacted form defined in [20-Observability.md](20-Observability.md).
 
+The .NET gateway also writes one `Warning` per rejection: a rejected JWT (exception type name and path only, never the token), a token without an API role (401), a platform admin on a business route (403), a rate-limit rejection (client IP, user, path), and a failed downstream health check. The full event list is [20-Observability.md](20-Observability.md) §7.1.
+
 For `/api/v1/assistant/ask`, core permits only a bound `Dealer.User`, and retrieval is tenant-scoped. A `Platform.Admin`, unbound, or invalid-role request is rejected with **403** before the AI call, so it never reaches ai-service. A permitted request produces the same request ID in gateway, core, and ai-service logs.
 
 ### 1.5 How to prove direct core:8081 / ai:8082 access fails
@@ -203,7 +205,7 @@ The gateway is the only browser entry point, so it applies one per-client limite
 | Signed-in API | username from the JWT | 600 | `dealerops:rateLimits:userPerMinute` |
 | AI calls: `POST /api/v1/listings/{id}/checks`, `POST /api/v1/assistant/ask` | username, or IP | 30 | `dealerops:rateLimits:aiPerMinute` |
 
-Over the limit the gateway answers **429** `{ "code": "RATE_LIMITED", "message": … }` with `Retry-After: 60`. The client IP is the last `X-Forwarded-For` entry (the one Azure App Service's front end appends), else the socket address. `dealerops:rateLimits:enabled` defaults to `true` outside `Development`; local and E2E stacks run `Development` and opt in by setting it. The values are starting defaults for the capstone and can be changed per environment without a code change.
+Over the limit the gateway answers **429** `{ "code": "RATE_LIMITED", "message": … }` with `Retry-After: 60`. The client IP is the socket address. Outside `Development` the gateway runs the ASP.NET Core forwarded-headers middleware with `ForwardLimit = 1`, so the socket address becomes the one hop the Azure App Service front end appends; a caller-supplied `X-Forwarded-For` is never read, so the limit cannot be dodged by rotating that header. The same value is forwarded to Core as the audit client IP. The gateway proxies no AI Swagger route: `/internal/v1/**` is the only AI route and is rejected from the browser. `dealerops:rateLimits:enabled` defaults to `true` outside `Development`; local and E2E stacks run `Development` and opt in by setting it. The values are starting defaults for the capstone and can be changed per environment without a code change.
 
 ### 1.6 Half-page defense pointer (Auth domain)
 
@@ -339,6 +341,8 @@ ai-service **does not** invent an `AI_UNAVAILABLE` business table. It only makes
 | Assistant model down | fail | outside still **200** + `summaryAvailable=false` (**different** from check 502) |
 
 Forbidden: ai-service returning a "fake Passed"; treating timeout as 200 empty notes.
+
+The .NET `AiProviderClient` logs one `Information` line per model call (`operation` `ad-check`/`assistant`, `model`, `durationMs`, `outcome` `ok`/`provider_status`/`timeout`/`unreachable`/`error`) and a `Warning` when the provider returns a non-success status or is unreachable. Prompts, listing text, questions, and model replies are never logged ([20-Observability.md](20-Observability.md) §7.2).
 
 ### 2.8 Library version
 

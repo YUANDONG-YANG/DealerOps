@@ -9,6 +9,10 @@ using Microsoft.EntityFrameworkCore;
 
 namespace DealerOps.Core.Assistant;
 
+/// <summary>
+/// Keyword retrieval and counting for the assistant over one dealership's vehicles, customers and
+/// ads. Results never include purchase cost or customer contact data.
+/// </summary>
 public class AssistantResourceQuery
 {
     private const int MaxCards = 5;
@@ -191,7 +195,7 @@ public class AssistantResourceQuery
         vq = ApplyVehicleTerms(vq, terms);
 
         // Purchase cost and repair cost are deliberately left off the card.
-        return vq.Take(MaxCards).ToList()
+        return vq.OrderByDescending(v => v.CreatedAt).ThenByDescending(v => v.Id).Take(MaxCards).ToList()
             .Select(v => new ResourceCard("VEHICLE", v.Id,
                 $"{v.ModelYear} {v.Make} {v.Model}", EnumSnakeCaseConverter<VehicleStatus>.ToWire(v.Status), null, null))
             .ToList();
@@ -208,7 +212,7 @@ public class AssistantResourceQuery
         }
 
         // A customer card carries the name and id only: never phone, email or home address.
-        return cq.Take(MaxCards).ToList()
+        return cq.OrderByDescending(c => c.CreatedAt).ThenByDescending(c => c.Id).Take(MaxCards).ToList()
             .Select(c => new ResourceCard("CUSTOMER", c.Id, c.Name, null, null, null))
             .ToList();
     }
@@ -252,7 +256,7 @@ public class AssistantResourceQuery
             lq = lq.Where(x => x.l.Title.Contains(t) || x.v.Make.Contains(t)
                 || x.v.Model.Contains(t) || x.v.Vin.Contains(t));
         }
-        var rows = lq.ToList();
+        var rows = lq.OrderByDescending(x => x.l.CreatedAt).ThenByDescending(x => x.l.Id).ToList();
         var checkIds = rows.Where(x => x.l.LastCheckId != null).Select(x => x.l.LastCheckId!.Value).Distinct().ToList();
         var checks = checkIds.Count == 0 ? new Dictionary<long, ComplianceCheckEntity>()
             : _db.ComplianceChecks.AsNoTracking().Where(c => checkIds.Contains(c.Id)).ToDictionary(c => c.Id);
@@ -284,6 +288,8 @@ public class AssistantResourceQuery
     }
 }
 
+/// <summary>An exact count answer computed from the database.</summary>
+/// <param name="SummaryText">A ready sentence for a multi-type count; otherwise built from the labels.</param>
 public record CountResult(int Count, string SingularLabel, string PluralLabel, string? SummaryText = null)
 {
     public string Summary => SummaryText

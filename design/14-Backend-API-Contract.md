@@ -89,7 +89,7 @@ Do not return SQL, stack traces, or raw model text to the browser.
 - **Ignore** client `dealerId` in body / query / header. Staff tenant comes only from JWT `sub` (the username) → membership. Admin `dealerId` is always treated as empty.
 - Cross-dealership resource id: **404**, not 403 (anti-probing).
 - Anonymous routes: `POST /api/v1/auth/login|register|google|firebase`, every `GET /api/v1/catalog/**` (§4.6), and the Gateway's own `GET /actuator/release`. Gateway and core both permit exactly these without a JWT.
-- `Platform.Admin` may call only `GET`/`PATCH /me`, `/api/v1/admin/**`, and the anonymous routes. Every business URL (§4.1–§4.5, §4.7–§10, including `/members`, `/dealer/**`, and `/audit`) returns **403** `FORBIDDEN` for Admin; Admin never reads business rows across dealerships. `Dealer.User` calling `/api/v1/admin/**` → **403**.
+- `Platform.Admin` may call only `GET`/`PATCH /me`, `/api/v1/admin/**`, and the anonymous routes. Every business URL (§4.1–§4.5, §4.7–§10, including `/members`, `/dealer/**`, and `/audit`) returns **403** `FORBIDDEN` for Admin; Admin never reads business rows across dealerships; the one exception is the platform audit log (§9.2), whose rows hold field summaries, contact values included (AUD-04). `Dealer.User` calling `/api/v1/admin/**` → **403**.
 - `Dealer.User` signed in with **0** active memberships: every authenticated route except `/me` → **403** `FORBIDDEN`, not 401 and not 404. `GET /me` is still 200 (`dealerId=null`), and `PATCH`/`DELETE /me` (§2.1–2.2) work so a pending account can edit or cancel itself.
 - Writes that carry `version`: `dealer`, `vehicle`, `customer`, `listing` (including checks/ready/export). Request `version` must equal the current row. Conflict **409** `VERSION_CONFLICT`.
 - `customer_vehicle` has no `version` column: link/unlink do not use optimistic locking.
@@ -110,6 +110,8 @@ Response **200**:
 ```
 
 The token carries `sub` (the username), `name`, and `roles`; send it as `Authorization: Bearer <accessToken>` on every other call. Resolution order: a value containing `@` is an email (case-insensitive); otherwise an active account with that exact username; otherwise, if it is a valid phone number (spaces, dashes, and brackets ignored), the account with that phone. Ten digits without `+` are a local North American number and read as `+1` plus the ten digits; an account stored before that rule as `+` plus the ten digits still matches. Blank identifier or password → `400 VALIDATION`. Unknown identifier, inactive account, or wrong password → `401 UNAUTHORIZED` with one message (`Invalid sign-in name or password`).
+
+Every attempt is audited on `APP_USER` (AUD-12): success → `LOGIN`, failure → `LOGIN_FAILED`, each with the sign-in method and, on failure, the reason. When the identifier matches no account the row has actor `anonymous` and `entityId` `0`; the typed identifier is never stored. The Google and Firebase sign-ins (§1.6–1.7) are audited the same way.
 
 ### 1.5 `POST /api/v1/auth/register` (anonymous)
 
@@ -394,7 +396,7 @@ The Admin Members tab lists these under **Pending accounts** with `Add to dealer
 
 ### 3.9 Compliance rule configuration
 
-Platform.Admin only; dealer users and unbound accounts receive **403**. `GET /api/v1/admin/compliance-rules` returns the built-in catalog with effective `enabled`, `severity`, and message values. `PUT /api/v1/admin/compliance-rules/{ruleId}` accepts `{enabled, severity?, message?}`; severity is `BLOCK` or `REVIEW`, and message is at most 500 characters. The listed default severity is the one the engine raises; the default message summarizes the rule, and the engine may word individual findings more specifically. A submitted severity or message equal to the default is not stored, so the engine's own value and wording keep applying. A successful update invalidates prior compliance checks across dealerships; ads must be checked again before Ready or export. Only `contentVersion` is incremented; each listing's `version` is unchanged, so an ad page that is already open can run the new check without `409 VERSION_CONFLICT`. Rule logic remains in the OMVIC engine.
+Platform.Admin only; dealer users and unbound accounts receive **403**. `GET /api/v1/admin/compliance-rules` returns the built-in catalog with effective `enabled`, `severity`, and message values. `PUT /api/v1/admin/compliance-rules/{ruleId}` accepts `{enabled, severity?, message?}`; severity is `BLOCK` or `REVIEW`, and message is at most 500 characters. The listed default severity is the one the engine raises; the default message summarizes the rule, and the engine may word individual findings more specifically. A submitted severity or message equal to the default is not stored, so the engine's own value and wording keep applying. A successful update invalidates prior compliance checks across dealerships; ads must be checked again before Ready or export. Only `contentVersion` is incremented; each listing's `version` is unchanged, so an ad page that is already open can run the new check without `409 VERSION_CONFLICT`. Rule logic remains in the OMVIC engine. Each update is audited `RULE_OVERRIDE` / `UPDATE` by the admin with the changed keys and their previous values (AUD-14).
 
 ---
 
@@ -518,15 +520,19 @@ Dealer.User; admin or unbound → 403. Monitors vehicle sales for the dealership
 
 A ledger of payments the dealership has already received (design/21 PAY-01–04). It records money; it does not charge a card. Admin → 403; another dealership's vehicle or payment → 404.
 
-`PaymentLedger`: `{ "soldPrice": 21000.00, "paidTotal": 6000.00, "balanceDue": 15000.00, "items": [ { "id", "amount", "method", "paidOn", "note", "recordedBy", "createdAt" } ] }`, items newest `paidOn` first. `method` is `CASH`\|`DEBIT`\|`CREDIT_CARD`\|`CHEQUE`\|`BANK_TRANSFER`\|`FINANCING`\|`OTHER`.
+Staff may only record payments (PAY-05): reading the ledger and removing a payment are for a dealership manager (`MANAGER` role, §5.8); staff → **403** `FORBIDDEN` (`Only a dealership manager can do this.`).
+
+`PaymentLedger`: `{ "soldPrice": 21000.00, "paidTotal": 6000.00, "balanceDue": 15000.00, "items": [ PaymentItem ] }`, items newest `paidOn` first (then newest `id`). `PaymentItem`: `{ "id", "amount", "method", "paidOn", "note", "recordedBy", "createdAt" }`. `method` is `CASH`\|`DEBIT`\|`CREDIT_CARD`\|`CHEQUE`\|`BANK_TRANSFER`\|`FINANCING`\|`OTHER`.
 
 | Method and path | Body | Result |
 |---|---|---|
-| `GET /api/v1/vehicles/{vehicleId}/payments` | — | 200 ledger; `soldPrice` and `balanceDue` are null while the vehicle is in stock |
-| `POST /api/v1/vehicles/{vehicleId}/payments` | `amount` (> 0, two decimals), `method`, `paidOn`, `note?` (≤ 200) | 201 ledger. In-stock vehicle → `400 VALIDATION` "Record the sale before adding payments."; more than the balance due → `400 VALIDATION` on `amount`; `paidOn` after today or before `soldOn` → `400 VALIDATION` on `paidOn` |
-| `DELETE /api/v1/vehicles/{vehicleId}/payments/{paymentId}` | — | 200 ledger |
+| `GET /api/v1/vehicles/{vehicleId}/payments` | — | Manager only. 200 ledger; `soldPrice` and `balanceDue` are null while the vehicle is in stock |
+| `POST /api/v1/vehicles/{vehicleId}/payments` | `amount` (> 0, two decimals), `method`, `paidOn`, `note?` (≤ 200) | Every dealer user. 201: a manager gets the updated ledger; staff get only the recorded `PaymentItem` (PAY-05). In-stock vehicle → `400 VALIDATION` "Record the sale before adding payments."; more than the balance due → `400 VALIDATION` on `amount`; `paidOn` after today or before `soldOn` → `400 VALIDATION` on `paidOn` |
+| `DELETE /api/v1/vehicles/{vehicleId}/payments/{paymentId}` | — | Manager only. 200 ledger |
 
-Adding and removing write `VEHICLE`/`UPDATE` audit rows `{paymentAdded, paymentMethod, paidOn}` and `{paymentRemoved, paidOn}`.
+Creating a payment locks the vehicle row (`SELECT … FOR UPDATE`) before the balance check, so concurrent payments on the same vehicle cannot together exceed the balance due.
+
+Adding and removing write `VEHICLE`/`UPDATE` audit rows `{paymentAdded, paymentMethod, paidOn}` and `{paymentRemoved, paidOn}`. The removal row's `previous` keeps the removed payment as `{amount, paymentMethod, paidOn, hasNote}`; the note body is never copied into the audit.
 
 ### 4.5 `POST /api/v1/vehicles/{id}/sell`
 
@@ -735,7 +741,7 @@ Accounts that asked to join this dealership (§1.6) wait here for its managers (
 | `GET /api/v1/dealer/join-requests` | 200 `[{ "username", "displayName", "email", "createdAt", "source" }]`: active unbound accounts that requested this dealership, newest first |
 | `POST /api/v1/dealer/join-requests/{username}/approve` | 204. Creates or reactivates the membership as `STAFF`, binds the account, resolves the notification as `APPROVED`. Audit `MEMBERSHIP`/`CREATE` `{username, source:"join_request"}`. The account already active at another dealership → **409** `DUP_MEMBER`, as for the admin bind (one login, one dealership) |
 | `POST /api/v1/dealer/join-requests/{username}/reject` | 204. Clears the requested dealership (the account stays, unbound), resolves the notification as `REJECTED`. Audit `APP_USER`/`UPDATE` `{username, rejected:true}` |
-| `GET /api/v1/dealer/notifications?includeResolved=false` | 200 array, newest first. Default returns unresolved rows only; `includeResolved=true` returns the history. A `JOIN_REQUEST` payload also carries the applicant's account `source`, read at request time |
+| `GET /api/v1/dealer/notifications?includeResolved=false` | Any member (the one exception to the manager-only rule above). 200 array, newest first; staff get every kind except `JOIN_REQUEST`. Default returns unresolved rows only; `includeResolved=true` returns the history. A `JOIN_REQUEST` payload also carries the applicant's account `source`, read at request time. A `BUYER_INQUIRY` payload is `{ leadId, customerName, vehicle }` (design/21 SHOP-04) |
 
 No pending request from that username to this dealership → **404**. Notification item:
 
@@ -842,7 +848,7 @@ First create may omit `version` or send `0`. Later requests must send the curren
 ```
 
 `adKind`: `CASH`\|`FINANCE`\|`LEASE`. `medium`: `ONLINE`\|`RADIO_TV_BILLBOARD`. `priorUse`: `POLICE_EMERGENCY`\|`TAXI_LIMO`\|`DAILY_RENTAL`\|`OTHER` or `null`.
-Response matches 7.1 (now persisted). `404` / `409 VERSION_CONFLICT` / `400 VALIDATION`.
+Response matches 7.1 (now persisted). `404` / `409 VERSION_CONFLICT` / `400 VALIDATION`. The first save is audited `LISTING` / `CREATE`, later saves `LISTING` / `UPDATE` with the changed keys and their previous values (AUD-14).
 
 ---
 
@@ -920,6 +926,8 @@ Full check object:
 
 **Blocked is not an HTTP error.** Do not use 4xx to mean "missing price / FINANCE missing APR".
 
+Each written check row is also audited `LISTING` / `CHECK` with its result; the check history (`compliance_check`) stays the source of check details (AUD-14).
+
 ### 8.3 `POST /api/v1/listings/{id}/ready`
 
 ```json
@@ -938,20 +946,22 @@ Only when the current check is Passed **and** not Stale. Success 200, listing `s
 ### 8.4 `POST /api/v1/listings/{id}/exports`
 
 Body same as ready: `{ "version": 3 }`. Same 409/404.  
-Success: **200** plain text. Content = dealership public four fields + vehicle public fields (year/make/model/vin/condition/source, **no cost**) + title/body + check time, then a closing disclaimer line: "This check is not legal advice and is not an OMVIC approval. Confirm current disclosure requirements with OMVIC before publishing." (AD-14, specification §8). Do not write customers.
+Success: **200** plain text. Content = dealership public four fields + vehicle public fields (year/make/model/vin/condition/source, **no cost**) + title/body + check time, then a closing disclaimer line: "This check is not legal advice and is not an OMVIC approval. Confirm current disclosure requirements with OMVIC before publishing." (AD-14, specification §8). Do not write customers. Each successful export is audited `LISTING` / `EXPORT` (AUD-14).
 
 ---
 
 ## 9. Audit
 
-### `GET /api/v1/audit`
+All audit reads are newest first (`createdAt` desc, then `id` desc) and use the §1.1 page envelope. Audit rows are append-only; there is no write, edit or delete endpoint.
+
+### 9.1 `GET /api/v1/audit`
 
 Query: `entityType`, `entityId` required; `page`, `size` optional.
 
-`Dealer.User` with a dealership only. Entity not in this dealership → **404**.  
-Admin → **403** `FORBIDDEN` for every `entityType` (there is no Admin audit page), no `fieldSummary` content.
+A dealership manager (`MANAGER` role, §5.8) only; staff → **403** `FORBIDDEN` (`Only a dealership manager can do this.`) (AUD-17). Entity not in this dealership → **404**.  
+Admin → **403** `FORBIDDEN` for every `entityType`, no `fieldSummary` content; the admin reads audit through §9.2.
 
-`entityType`: `VEHICLE`\|`CUSTOMER`\|`CUSTOMER_VEHICLE`\|`LEAD`\|`WORK_ORDER`\|`VEHICLE_PHOTO` (staff query). A deleted photo's id or an unlinked `CUSTOMER_VEHICLE` id stays queryable while its audit rows exist in this dealership. `CUSTOMER` history also includes the `CUSTOMER_VEHICLE` `LINK`/`UNLINK` events whose `fieldSummary.customerId` is that customer, newest first. `VEHICLE` history likewise includes the `CUSTOMER_VEHICLE` `LINK`/`UNLINK` events and the `VEHICLE_PHOTO` events whose `fieldSummary.vehicleId` is that vehicle (AUD-06). Admin writes use `DEALER`/`MEMBERSHIP`; **this query API does not open those two types to staff** (→ **403**). Any other type (for example `LISTING`) or a missing `entityType`/`entityId` → `400 VALIDATION`.
+`entityType`: `VEHICLE`\|`CUSTOMER`\|`CUSTOMER_VEHICLE`\|`LEAD`\|`WORK_ORDER`\|`VEHICLE_PHOTO`\|`LISTING` (manager query; a `LISTING` `entityId` is the listing id). A deleted photo's id or an unlinked `CUSTOMER_VEHICLE` id stays queryable while its audit rows exist in this dealership. `CUSTOMER` history also includes the `CUSTOMER_VEHICLE` `LINK`/`UNLINK` events whose `fieldSummary.customerId` is that customer, newest first. `VEHICLE` history likewise includes the `CUSTOMER_VEHICLE` `LINK`/`UNLINK` events and the `VEHICLE_PHOTO` events whose `fieldSummary.vehicleId` is that vehicle (AUD-06). Admin writes use `DEALER`/`MEMBERSHIP`; **this query API does not open those two types to dealer users** (→ **403**). Any other type (for example `APP_USER`) or a missing `entityType`/`entityId` → `400 VALIDATION`.
 
 ```json
 {
@@ -963,7 +973,10 @@ Admin → **403** `FORBIDDEN` for every `entityType` (there is no Admin audit pa
       "action": "UNLINK",
       "fieldSummary": { "customerId": 4, "vehicleId": 10 },
       "actorUsername": "alex.dealer",
-      "createdAt": "2026-09-21T21:10:00Z"
+      "createdAt": "2026-09-21T21:10:00Z",
+      "previous": null,
+      "dealerId": null,
+      "clientIp": null
     }
   ],
   "page": 0,
@@ -972,7 +985,28 @@ Admin → **403** `FORBIDDEN` for every `entityType` (there is no Admin audit pa
 }
 ```
 
-`action`: `CREATE`\|`UPDATE`\|`SELL`\|`LINK`\|`UNLINK`\|`NOTE`\|`DELETE`. `fieldSummary` has no full customer phone/email/address.
+`action`: `CREATE`\|`UPDATE`\|`SELL`\|`LINK`\|`UNLINK`\|`NOTE`\|`DELETE`\|`LOGIN`\|`LOGIN_FAILED`\|`CHECK`\|`EXPORT`. Stored `entityType` values: `VEHICLE`\|`CUSTOMER`\|`CUSTOMER_VEHICLE`\|`DEALER`\|`MEMBERSHIP`\|`LEAD`\|`WORK_ORDER`\|`VEHICLE_PHOTO`\|`APP_USER`\|`LISTING`\|`RULE_OVERRIDE`. Core rejects an unknown type or action at write time, so no such row exists (AUD-16).
+
+`AuditItem` fields:
+
+| Field | Meaning |
+|---|---|
+| `fieldSummary` | changed field → **new** value; `null` when there is nothing to record |
+| `previous` | changed field → **replaced** value, same keys and formatting as `fieldSummary`, on updates and other state changes where the old value is known; otherwise `null`. Each row is one version step of the record (AUD-13) |
+| `dealerId` | the row's dealership (`null` when the row has none); returned only by §9.2 and §9.3, `null` here |
+| `clientIp` | the caller's IP (AUD-16); returned only by §9.2 and §9.3, `null` here |
+
+Contact fields (`email`, `phone`, `address`, `homeAddress`, `contact*`) are recorded by value like every other field: the new value in `fieldSummary` and the replaced value in `previous` (AUD-04, changed 2026-10-21). Only managers and the admin can read audit rows (AUD-17). Application logs still never carry contact values.
+
+### 9.2 `GET /api/v1/admin/audit`
+
+Platform audit log (AUD-10). `Platform.Admin` only; any other caller → **403** `FORBIDDEN`. Returns every audit row across dealerships, including sign-ins and admin operations.
+
+Query (all optional): `entityType`, `entityId`, `action`, `actor` (exact username, `anonymous` for unknown sign-in identifiers), `dealerId`, `from` (inclusive) and `to` (exclusive) as ISO 8601 instants, so the UI can filter by the viewer's local days, `page`, `size` (default **20**, at most 100). An unknown `entityType` or `action` → `400 VALIDATION`. Each item carries `dealerId` and `clientIp`.
+
+### 9.3 `GET /api/v1/dealer/audit`
+
+Dealership audit log (AUD-11). A dealership manager (`MANAGER` role, §5.8) only; staff → **403** `FORBIDDEN` (`Only a dealership manager can do this.`); Admin → **403**. Returns every row whose `dealerId` is the caller's dealership. Same query as §9.2 except that `dealerId` is ignored. Each item carries `dealerId` and `clientIp`.
 
 ---
 
@@ -1114,7 +1148,7 @@ Public routes for `/shop` (design/21 SHOP-01–05). The Gateway passes `GET` and
 |---|---|---|
 | `GET /api/v1/public/dealers/{dealerId}/inventory` | — | 200 `{ dealerId, legalName, contactPhone, contactEmail, contactAddress, vehicles: [{ vehicleId, modelYear, make, model, bodyType, conditionCode, mileageKm, exteriorColor, fuelType, title, body, hasPhoto }] }`, newest `addedOn` first. No VIN, cost, list price, or customer data |
 | `GET /api/v1/public/dealers/{dealerId}/vehicles/{vehicleId}/photo` | — | 200 image: the first photo, enhanced copy when present; `Cache-Control: public, max-age=300`. No photo → 404 |
-| `POST /api/v1/public/dealers/{dealerId}/inquiries` | `{ vehicleId, contact: { name, email, phone, homeAddress }, message }` | 204. `contact` follows §5.2; `message` 1–1000; errors are `400 VALIDATION` with `contact.name`-style keys. Reuses the active customer with the same phone, else creates one; creates a `NEW` lead on the vehicle due today with the message as its first note. Actor `buyer-site` on the customer, lead, note, and audit rows. Rate-limited per IP (`inquiryPerMinute`, default 5) → `429 RATE_LIMITED` |
+| `POST /api/v1/public/dealers/{dealerId}/inquiries` | `{ vehicleId, contact: { name, email, phone, homeAddress }, message }` | 204. `contact` follows §5.2; `message` 1–1000; errors are `400 VALIDATION` with `contact.name`-style keys. Reuses the active customer with the same phone, else creates one; creates a `NEW` lead on the vehicle due today with the message as its first note, and posts a `BUYER_INQUIRY` notification to the dealership. Actor `buyer-site` on the customer, lead, note, and audit rows. Rate-limited per IP (`inquiryPerMinute`, default 5) → `429 RATE_LIMITED` |
 
 ## 13. Do not build (do not bring the retired draft back)
 

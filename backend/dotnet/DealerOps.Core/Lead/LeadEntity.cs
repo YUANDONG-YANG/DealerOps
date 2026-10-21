@@ -4,6 +4,7 @@ using DealerOps.Core.Common.Tenant;
 
 namespace DealerOps.Core.Lead;
 
+/// <summary>A dealership's sales lead for one customer, optionally tied to an in-stock vehicle.</summary>
 [Table("sales_lead")]
 public class LeadEntity : ITenantOwned
 {

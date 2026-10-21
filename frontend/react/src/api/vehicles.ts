@@ -1,12 +1,4 @@
-import { codeOf, http, statusOf } from './http';
-
-export function errorStatus(error: unknown): number {
-  return statusOf(error) ?? 0;
-}
-
-export function errorCode(error: unknown): string {
-  return codeOf(error) || '';
-}
+import { http } from './http';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function vehicleWriteBody(b: any) {
@@ -48,7 +40,7 @@ export const vehiclesApi = {
   get: (id: number) => http.get(`/api/v1/vehicles/${id}`),
   create: (b: object) => http.post('/api/v1/vehicles', vehicleWriteBody(b)),
   update: (id: number, b: object & { version?: number }) =>
-    http.patch(`/api/v1/vehicles/${id}`, { ...vehicleWriteBody(b), version: (b as any).version }),
+    http.patch(`/api/v1/vehicles/${id}`, { ...vehicleWriteBody(b), version: b.version }),
   sell: (id: number, b: { soldOn: string; soldPrice: unknown; version: number }) =>
     http.post(`/api/v1/vehicles/${id}/sell`, {
       soldOn: b.soldOn,

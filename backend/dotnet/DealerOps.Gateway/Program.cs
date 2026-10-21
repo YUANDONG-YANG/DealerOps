@@ -1,4 +1,3 @@
-using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using DealerOps.Gateway.Health;
@@ -6,6 +5,7 @@ using DealerOps.Gateway.Middleware;
 using DealerOps.Gateway.Security;
 using DealerOps.Logging;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.IdentityModel.Tokens;
 using System.Security.Claims;
 using Yarp.ReverseProxy.Forwarder;
@@ -61,6 +61,16 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 
         options.Events = new JwtBearerEvents
         {
+            // A presented token failed validation. The reason is the exception type only:
+            // the token and its claims are never logged.
+            OnAuthenticationFailed = context =>
+            {
+                context.HttpContext.RequestServices.GetRequiredService<ILoggerFactory>()
+                    .CreateLogger(typeof(JwtSupport))
+                    .LogWarning("Rejected JWT reason={Reason} {Method} {Path}",
+                        context.Exception.GetType().Name, context.Request.Method, context.Request.Path.Value);
+                return Task.CompletedTask;
+            },
             OnChallenge = context =>
             {
                 context.HandleResponse();
@@ -143,7 +153,18 @@ var rateLimited = builder.AddDealerRateLimits();
 
 var app = builder.Build();
 
-// Middleware pipeline order matters
+// Middleware pipeline order matters.
+// Outside Development the gateway sits behind the Azure App Service front end, which appends the
+// browser address as the last X-Forwarded-For hop. Trusting exactly that one hop makes
+// RemoteIpAddress the browser, which YARP then forwards to Core (audit client IP) and the rate
+// limiter keys on. Locally X-Forwarded-For is ignored, so a caller cannot spoof either.
+if (!app.Environment.IsDevelopment())
+{
+    var forwarded = new ForwardedHeadersOptions { ForwardedHeaders = ForwardedHeaders.XForwardedFor, ForwardLimit = 1 };
+    forwarded.KnownIPNetworks.Clear();
+    forwarded.KnownProxies.Clear();
+    app.UseForwardedHeaders(forwarded);
+}
 app.UseMiddleware<RequestLoggingMiddleware>();
 app.UseCors("Gateway");
 app.UseMiddleware<InternalRouteFilter>();
@@ -178,6 +199,7 @@ app.MapGet("/swagger/v1/swagger.json", async (IHttpClientFactory httpClientFacto
 });
 
 // Role gate: authenticated /api/v1/** must have Platform.Admin or Dealer.User
+var roleGateLogger = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("DealerOps.Gateway.RoleGate");
 app.Use(async (context, next) =>
 {
     var path = context.Request.Path.Value ?? "";
@@ -229,8 +251,12 @@ app.Use(async (context, next) =>
     // JwtBearer may map the custom roles claim to ClaimTypes.Role.
     var roles = context.User.FindFirst("roles")?.Value
                 ?? context.User.FindFirst(ClaimTypes.Role)?.Value;
+    var username = context.User.FindFirstValue(ClaimTypes.NameIdentifier)
+                   ?? context.User.FindFirstValue("sub") ?? "unknown";
     if (roles != "Platform.Admin" && roles != "Dealer.User")
     {
+        roleGateLogger.LogWarning("Rejected token without an API role user={User} {Method} {Path}",
+            username, method, path);
         context.Response.StatusCode = 401;
         context.Response.ContentType = "application/json";
         await context.Response.WriteAsync(
@@ -245,6 +271,8 @@ app.Use(async (context, next) =>
         && !path.StartsWith("/api/v1/me", StringComparison.OrdinalIgnoreCase)
         && !path.StartsWith("/api/v1/auth", StringComparison.OrdinalIgnoreCase))
     {
+        roleGateLogger.LogWarning("Forbidden platform admin on business route user={User} {Method} {Path}",
+            username, method, path);
         context.Response.StatusCode = 403;
         context.Response.ContentType = "application/json";
         await context.Response.WriteAsync(
@@ -267,9 +295,7 @@ if (devMode)
 app.Use(async (context, next) =>
 {
     var path = context.Request.Path.Value ?? "";
-    if ((path.StartsWith("/swagger", StringComparison.OrdinalIgnoreCase)
-        || path.StartsWith("/ai-swagger", StringComparison.OrdinalIgnoreCase))
-        && !devMode)
+    if (path.StartsWith("/swagger", StringComparison.OrdinalIgnoreCase) && !devMode)
     {
         context.Response.StatusCode = StatusCodes.Status404NotFound;
         await context.Response.WriteAsJsonAsync(

@@ -68,7 +68,7 @@ Ban `ddl-auto=update`. Ban work-order / lead / password tables.
 | Tenant | Staff = exactly one `membership.active=1` row. `app_user.dealer_id` is only a `/me` cache. |
 | One person, one dealership | Any dealership already has an active membership → **409 `DUP_MEMBER`**. Previously unbound → reactivate. ≥2 active rows → reject business. |
 | VIN / link | VIN unique per dealership. One vehicle, one customer. |
-| Audit | Do not write full customer contact, secrets, or model stack traces. |
+| Audit | Append-only, newest first; records new and replaced values, customer contact included (AUD-04); never secrets or model stack traces. Readable only by managers and the admin (AUD-17). Application logs never carry contact values. |
 
 ---
 

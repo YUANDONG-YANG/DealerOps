@@ -7,11 +7,13 @@ import PageState from '../components/PageState';
 import ConfirmDialog from '../components/ConfirmDialog';
 import AuditTrail from '../components/AuditTrail';
 import { customersApi } from '../api/customers';
-import { vehiclesApi, errorCode, errorStatus } from '../api/vehicles';
+import { vehiclesApi } from '../api/vehicles';
 import { auditApi } from '../api/audit';
 import { leadsApi, stageLabel } from '../api/leads';
-import { collectAllPages, fieldErrorsOf, messageOf } from '../api/http';
+import { codeOf, collectAllPages, fieldErrorsOf, messageOf, statusOf } from '../api/http';
 import { describeError } from '../api/errors';
+import { enumLabel } from '../format';
+import { useSessionStore } from '../store/session';
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+$/;
 const PHONE_PATTERN = /^(?=(?:\D*\d){7,20}\D*$)[0-9+\-() ]+$/;
@@ -32,12 +34,8 @@ function linkedLabel(v: any) {
   return `${v.modelYear} ${v.make} ${v.model}`;
 }
 
-function statusLabel(status: unknown) {
-  return status === 'SOLD' ? 'Sold' : 'In stock';
-}
-
 function vehicleOptionLabel(v: any) {
-  return `${linkedLabel(v)} · ${v.vin} · ${statusLabel(v.status)}`;
+  return `${linkedLabel(v)} · ${v.vin} · ${enumLabel(v.status)}`;
 }
 
 // UI-33: the picker filters the loaded options on VIN or model (make and year also match).
@@ -78,8 +76,8 @@ function validateCustomer(form: CustomerForm): Validation {
 }
 
 function mapCustomerWrite(e: unknown) {
-  const code = errorCode(e);
-  const status = errorStatus(e);
+  const code = codeOf(e);
+  const status = statusOf(e);
   if (code === 'VALIDATION') return messageOf(e, 'Check required fields: some fields are missing or invalid.');
   if (code === 'PHONE_TAKEN') return `${messageOf(e, 'That phone number is already used by another customer.')} Search CRM for this number to open the existing customer.`;
   if (code === 'VERSION_CONFLICT') return 'Refresh and retry: someone else changed this record after you opened it. Reopen it to load the latest version, then make your change again.';
@@ -88,16 +86,16 @@ function mapCustomerWrite(e: unknown) {
 }
 
 function mapLink(e: unknown) {
-  const code = errorCode(e);
-  const status = errorStatus(e);
+  const code = codeOf(e);
+  const status = statusOf(e);
   if (code === 'VEHICLE_ALREADY_LINKED') return 'Vehicle already linked to another customer. Unlink it from that customer first.';
   if (status === 404 || code === 'NOT_FOUND') return 'Vehicle not found in your inventory. Check the VIN or refresh the list.';
   return describeError(e, 'link vehicle');
 }
 
 function mapUnlink(e: unknown) {
-  const code = errorCode(e);
-  const status = errorStatus(e);
+  const code = codeOf(e);
+  const status = statusOf(e);
   if (code === 'SOLD_LOCKED') return 'Sold vehicles cannot be unlinked: the sale record keeps its buyer.';
   if (status === 404 || code === 'NOT_FOUND') return 'Link not found. It may already have been removed; refresh the customer.';
   return describeError(e, 'unlink vehicle');
@@ -112,6 +110,9 @@ const CUSTOMER_FIELDS: { key: keyof CustomerForm; label: string }[] = [
 
 export default function CrmPage() {
   const [searchParams] = useSearchParams();
+  const session = useSessionStore();
+  // Record history is manager only (AUD-17); staff never call the audit API.
+  const isManager = session.dealerRole === 'MANAGER';
   const [rows, setRows] = useState<any[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(0);
@@ -160,7 +161,7 @@ export default function CrmPage() {
       setTotal(r.data.totalElements || 0);
     } catch (e) {
       if (seq !== listSeqRef.current) return;
-      if (errorStatus(e) === 403 || errorCode(e) === 'FORBIDDEN') setForbidden(true);
+      if (statusOf(e) === 403 || codeOf(e) === 'FORBIDDEN') setForbidden(true);
       else setError(describeError(e, 'load customers'));
       setRows([]);
     } finally {
@@ -268,13 +269,13 @@ export default function CrmPage() {
       setDrawer(true);
       loadLinkOptions(seq);
       loadCustomerLeads(id, seq);
-      loadAudit(id, seq);
+      if (isManager) loadAudit(id, seq);
     } catch (e) {
       if (seq !== editSeqRef.current) return;
       setSelected(null);
       setForm(blankForm());
       setDrawer(false);
-      const missing = errorStatus(e) === 404 || errorCode(e) === 'NOT_FOUND';
+      const missing = statusOf(e) === 404 || codeOf(e) === 'NOT_FOUND';
       setError(missing ? 'Customer not found. It may have been deleted; refresh the list.' : describeError(e, 'load customer'));
     }
   }
@@ -319,7 +320,7 @@ export default function CrmPage() {
         }
       }
     } catch (e) {
-      const code = errorCode(e);
+      const code = codeOf(e);
       // VALIDATION and PHONE_TAKEN carry fieldErrors; show them inline on the field.
       if (code === 'VALIDATION' || code === 'PHONE_TAKEN') {
         setServerErrors(fieldErrorsOf(e));
@@ -513,7 +514,7 @@ export default function CrmPage() {
             {(selected.linkedVehicles || []).map((v: any) => (
               <div key={v.id} style={{ marginTop: 12 }}>
                 <Link to={`/dms?vehicleId=${v.id}`}>{linkedLabel(v)}</Link>
-                <span className="muted"> · {v.vin} · {statusLabel(v.status)}</span>
+                <span className="muted"> · {v.vin} · {enumLabel(v.status)}</span>
                 {v.status !== 'SOLD' ? (
                   <button className="btn-link danger" onClick={() => requestUnlink(v.id)}>Unlink</button>
                 ) : (
@@ -543,12 +544,14 @@ export default function CrmPage() {
               </div>
             )}
 
-            <AuditTrail
-              rows={audit}
-              page={auditPage}
-              total={auditTotal}
-              onPage={(p) => selected && void loadAudit(selected.id, editSeqRef.current, p)}
-            />
+            {isManager && (
+              <AuditTrail
+                rows={audit}
+                page={auditPage}
+                total={auditTotal}
+                onPage={(p) => selected && void loadAudit(selected.id, editSeqRef.current, p)}
+              />
+            )}
           </>
         )}
       </FormDrawer>

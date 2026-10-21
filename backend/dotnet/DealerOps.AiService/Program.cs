@@ -72,7 +72,8 @@ builder.Services.AddSingleton<AiProviderClient>(sp =>
 {
     var httpFactory = sp.GetRequiredService<IHttpClientFactory>();
     var config = sp.GetRequiredService<IConfiguration>();
-    return new AiProviderClient(httpFactory.CreateClient("ai-provider"), config);
+    return new AiProviderClient(httpFactory.CreateClient("ai-provider"), config,
+        sp.GetRequiredService<ILogger<AiProviderClient>>());
 });
 builder.Services.AddScoped<AdCheckAdapter>();
 builder.Services.AddScoped<AssistantAdapter>();

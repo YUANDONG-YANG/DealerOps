@@ -8,8 +8,8 @@ using Microsoft.AspNetCore.Mvc;
 namespace DealerOps.Core.Notifications;
 
 /// <summary>
-/// Dealer inbox for the dealership's managers (AUTH-27): every manager sees the same unread list,
-/// and the first one who approves or rejects an item takes it off everyone else's screen. The payload
+/// Dealer inbox: managers see join requests (AUTH-27) and every member sees buyer-site inquiries.
+/// The first member who handles an item takes it off everyone else's screen. The payload
 /// is forwarded as a JSON tree so the frontend can switch on <c>kind</c> without the backend
 /// knowing which UI it renders.
 /// </summary>
@@ -27,8 +27,11 @@ public class NotificationController : ControllerBase
         _db = db;
     }
 
-    // includeResolved=false (default) is the inbox feed; includeResolved=true is the message
-    // history page. Both are scoped to the caller's tenant by the service layer.
+    /// <summary>
+    /// Lists the dealership's notifications, newest first. includeResolved=false (default) is the
+    /// inbox feed; includeResolved=true is the message history page. Both are scoped to the
+    /// caller's tenant by the service layer.
+    /// </summary>
     [HttpGet]
     public List<NotificationResponse> List([FromQuery] bool includeResolved = false)
     {

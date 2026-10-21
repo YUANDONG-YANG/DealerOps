@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { messageOf } from '../api/http';
 import { memberLabel, membersApi, type MemberOption } from '../api/members';
 import ConfirmDialog from './ConfirmDialog';
 import { cad, dateTimeLocal } from '../format';

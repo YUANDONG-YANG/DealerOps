@@ -18,9 +18,11 @@ public class JoinRequestController : ControllerBase
 
     public JoinRequestController(JoinRequestService service) { _service = service; }
 
+    /// <summary>Pending join requests for the caller's dealership, newest first.</summary>
     [HttpGet]
     public List<JoinRequestResponse> List() => _service.List();
 
+    /// <summary>Approves a pending request; the applicant joins as staff.</summary>
     [HttpPost("{username}/approve")]
     public IActionResult Approve(string username)
     {
@@ -28,6 +30,7 @@ public class JoinRequestController : ControllerBase
         return NoContent();
     }
 
+    /// <summary>Rejects a pending request and clears the applicant's requested dealership.</summary>
     [HttpPost("{username}/reject")]
     public IActionResult Reject(string username)
     {

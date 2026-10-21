@@ -13,6 +13,10 @@ namespace DealerOps.Gateway.Middleware;
 /// </summary>
 public static class RateLimitSetup
 {
+    /// <summary>
+    /// Registers the partitioned limiter from <c>dealerops:rateLimits</c>.
+    /// </summary>
+    /// <returns><c>true</c> when limits are enabled and <c>UseRateLimiter</c> must be called.</returns>
     public static bool AddDealerRateLimits(this WebApplicationBuilder builder)
     {
         var section = builder.Configuration.GetSection("dealerops:rateLimits");
@@ -30,8 +34,13 @@ public static class RateLimitSetup
             options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
             options.OnRejected = async (context, cancellationToken) =>
             {
-                context.HttpContext.Response.Headers.RetryAfter = "60";
-                await context.HttpContext.Response.WriteAsJsonAsync(
+                var http = context.HttpContext;
+                http.RequestServices.GetRequiredService<ILoggerFactory>()
+                    .CreateLogger(typeof(RateLimitSetup))
+                    .LogWarning("Rate limit exceeded clientIp={ClientIp} user={User} {Method} {Path}",
+                        ClientIp(http), Username(http) ?? "anonymous", http.Request.Method, http.Request.Path.Value);
+                http.Response.Headers.RetryAfter = "60";
+                await http.Response.WriteAsJsonAsync(
                     new { code = "RATE_LIMITED", message = "Too many requests. Wait a minute and try again." },
                     cancellationToken);
             };
@@ -41,9 +50,7 @@ public static class RateLimitSetup
                 if (!path.StartsWith("/api/", StringComparison.OrdinalIgnoreCase))
                     return RateLimitPartition.GetNoLimiter("unlimited");
 
-                var username = context.User.Identity?.IsAuthenticated == true
-                    ? context.User.FindFirstValue(ClaimTypes.NameIdentifier) ?? context.User.FindFirstValue("sub")
-                    : null;
+                var username = Username(context);
                 var client = username != null ? $"user:{username}" : $"ip:{ClientIp(context)}";
                 var (bucket, limit) = IsInquiry(context.Request.Method, path) ? ("inquiry", inquiryPerMinute)
                     : IsAiCall(context.Request.Method, path) ? ("ai", aiPerMinute)
@@ -73,13 +80,13 @@ public static class RateLimitSetup
         && path.StartsWith("/api/v1/public/", StringComparison.OrdinalIgnoreCase)
         && path.EndsWith("/inquiries", StringComparison.OrdinalIgnoreCase);
 
-    // Azure App Service appends the caller's address to X-Forwarded-For, so the last entry is the
-    // one its front end saw; earlier entries can be set by the caller and are not trusted.
-    private static string ClientIp(HttpContext context)
-    {
-        var forwarded = context.Request.Headers["X-Forwarded-For"].ToString();
-        if (!string.IsNullOrWhiteSpace(forwarded))
-            return forwarded.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)[^1];
-        return context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
-    }
+    private static string? Username(HttpContext context) =>
+        context.User.Identity?.IsAuthenticated == true
+            ? context.User.FindFirstValue(ClaimTypes.NameIdentifier) ?? context.User.FindFirstValue("sub")
+            : null;
+
+    // The socket peer. Behind Azure the forwarded-headers middleware (Program.cs) has already set it
+    // from the single hop the App Service front end appended; caller-supplied X-Forwarded-For is never read.
+    private static string ClientIp(HttpContext context) =>
+        context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
 }

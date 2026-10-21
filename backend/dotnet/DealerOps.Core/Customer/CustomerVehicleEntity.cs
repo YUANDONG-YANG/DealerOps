@@ -4,6 +4,7 @@ using DealerOps.Core.Common.Tenant;
 
 namespace DealerOps.Core.Customer;
 
+/// <summary>A customer-to-vehicle link; a vehicle has at most one link (unique vehicle id).</summary>
 [Table("customer_vehicle")]
 public class CustomerVehicleEntity : ITenantOwned
 {

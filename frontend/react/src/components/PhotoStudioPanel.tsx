@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { messageOf } from '../api/http';
 import {
   PHOTO_ALLOWED_TYPES,
   PHOTO_MAX_SIZE,

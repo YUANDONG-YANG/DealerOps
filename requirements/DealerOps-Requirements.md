@@ -43,7 +43,7 @@ Dealer Ops is a multi-tenant platform for independent used-car dealers in Ontari
 | Platform admin | `Platform.Admin` | One. It is seeded from `ADMIN_USERNAME` / `ADMIN_PASSWORD` on first start, and no API creates admins | No dealership |
 | Dealer user | `Dealer.User` | N per dealership | Exactly one dealership |
 
-The sources do not distinguish manager from sales. By the user's 2026-10-21 decision a dealership member is a manager or staff (AUTH-26, AUTH-27): both have the same business-data permissions, but only managers see the Team page and join-request inbox, approve join requests, remove staff, and edit the dealership profile, and only the platform admin promotes or demotes. The two JWT roles stay mutually exclusive.
+The sources do not distinguish manager from sales. By the user's 2026-10-21 decision a dealership member is a manager or staff (AUTH-26, AUTH-27): both have the same business-data permissions, but only managers see the Team page and join-request inbox, approve join requests, remove staff, and edit the dealership profile, and only managers see audit history (AUD-17) and read or correct a sold vehicle's payment ledger (staff may only record a payment, PAY-05), and only the platform admin promotes or demotes. The two JWT roles stay mutually exclusive.
 
 | Operation | Admin | Dealer user (own dealer) | Dealer user (other dealer) |
 |---|---|---|---|
@@ -158,7 +158,7 @@ There are two statuses, `IN_STOCK` and `SOLD`, and the server derives them. A ve
 | CRM-09 | Another dealership's customer or vehicle id returns 404. Unlinking a link that does not exist also returns 404 | Must |
 | CRM-10 | Vehicle detail and customer detail link to each other | Should |
 | CRM-11 | Create, edit, link and unlink each write an audit record | Must |
-| CRM-12 | A customer's phone, email and address never reach AI prompts, audit summaries or assistant answers | Must |
+| CRM-12 | A customer's phone, email and address never reach AI prompts, application logs or assistant answers. The audit trail records them by value (AUD-04, 2026-10-21) | Must |
 | CRM-13 | A duplicate email in the same dealership shows a warning but is saved | Could |
 | CRM-14 | Soft delete customers from active CRM lists while retaining sales and audit history | Must. Implemented through `DELETE /api/v1/customers/{id}` and the CRM detail flow. |
 | CRM-15 | Sales funnel reports | Must. Implemented on `/reports/sales-funnel`: current stage distribution, open pipeline and won rate over closed leads, plus vehicle sales (units, revenue, gross profit, days to sell, last 12 sales months). Lead-stage history trends are not included. |
@@ -244,13 +244,21 @@ The spec PDF has no such page. It is added by scope erratum 2 to meet the course
 |---|---|---|
 | AUD-01 | Audit vehicle create, edit and sell | Must |
 | AUD-02 | Audit customer create, edit, link and unlink. A save that changes nothing writes no record | Must |
-| AUD-03 | Each record holds the actor (username), the action (`CREATE` / `UPDATE` / `SELL` / `LINK` / `UNLINK`), the time (stored in UTC, shown in local time) and the entity type and id | Must |
-| AUD-04 | Record a summary of the changed fields. For customer phone, email and address, record only the field name, never the value | Should |
+| AUD-03 | Each record holds the actor (username), the action (`CREATE` / `UPDATE` / `SELL` / `LINK` / `UNLINK` / `NOTE` / `DELETE` / `LOGIN` / `LOGIN_FAILED` / `CHECK` / `EXPORT`), the time (stored in UTC, shown in local time) and the entity type and id | Must |
+| AUD-04 | Record a summary of the changed fields with their values, contact fields included. Customer phone, email and address are recorded by value, new and replaced, so every version is traceable (changed 2026-10-21 from name-only; audit is visible to managers and the admin only, AUD-17) | Must |
 | AUD-05 | The audit trail is append-only | Must |
-| AUD-06 | Vehicle and customer detail views show their history, newest first | Must |
+| AUD-06 | Vehicle and customer detail views show their history, newest first. Since 2026-10-21 (AUD-17) the history is shown to managers only | Must |
 | AUD-07 | Audit and business writes happen in the same transaction | Must |
 | AUD-08 | Admin dealership and account (membership) operations are audited (already implemented) | Could |
-| AUD-09 | Ad check results are kept as check history (AD-10), not as audit records | Should |
+| AUD-09 | Superseded 2026-10-21 by AUD-14: ad check runs and exports are now also audited on `LISTING`; the check history (AD-10) stays | — |
+| AUD-10 | The platform admin has a platform audit log (`GET /api/v1/admin/audit`) of every audit row, newest first, filterable by entity type, entity id, action, actor, dealership and date range; each row shows its dealership and source IP | Must |
+| AUD-11 | A dealership manager has a dealership audit log (`GET /api/v1/dealer/audit`) of every row of that dealership, newest first, with the same filters except dealership | Must |
+| AUD-12 | Every sign-in attempt is audited on `APP_USER`: `LOGIN` on success and `LOGIN_FAILED` on failure, with the method and the failure reason. An unknown identifier is recorded as actor `anonymous` with entity id `0`; the typed identifier is never stored | Must |
+| AUD-13 | An update also stores the replaced values in `previous`, so each row is one version step of the record. Contact values are stored like any other field (AUD-04) | Must |
+| AUD-14 | Ad listing changes, check runs and exports are audited (`LISTING`), and admin compliance-rule overrides are audited (`RULE_OVERRIDE`) | Must |
+| AUD-15 | Every record list is newest first, except lists whose order is a product rule: the photo gallery, alphabetical pickers and the public dealer directory | Must |
+| AUD-16 | Each audit row stores the client IP (from the gateway's `X-Forwarded-For`). An unknown entity type or action is rejected, never written | Must |
+| AUD-17 | Staff see no audit data: a record's history (`GET /api/v1/audit`), the dealership log and the platform log are manager-only and admin-only. Staff calling them → **403** `FORBIDDEN`, and the staff UI hides the history section instead of calling them (user ruling 2026-10-21) | Must |
 | ARC-01 | DMS, CRM and ads are three front ends over one back end and one database | Must |
 | ARC-02 | The ad check reads DMS and dealer data directly | Must |
 | ARC-03 | The browser reaches the back end only through the gateway. Direct access to core or ai-service fails | Must |
@@ -281,7 +289,7 @@ The spec PDF has no such page. It is added by scope erratum 2 to meet the course
 | Landing | `/` | Public | Product landing with `Sign in`, `Create account`, and anonymous VIN decode; signed-in users go to their role landing |
 | Login / registration | `/login`, `/register` | Public | Email, username, or phone + password; unbound accounts wait for admin binding |
 | Admin | `/admin` | Admin | Dealership list: name, contact, staff count (UI-10). Create a dealership (UI-11). List and bind staff (username, display name, email and/or phone, temporary password), with confirmation before unbinding (UI-12). **Pending accounts** binds self sign-ups without a password. No vehicle, customer or ad entry points (UI-13) |
-| DMS | `/dms` | Dealer user | List columns: year make model, VIN, stock number, body, source, condition, cost (CAD), list price, date added, open work orders, status, with search, filters and paging (UI-20). Add and edit with `*` on required fields, client-side validation and per-field server errors (UI-21). Detail with all fields, the customer, the ad check status and the history (UI-22). Sell as a separate action that takes the date and the price together (UI-23). Locked fields are read-only after sale (UI-24). Optional listing details (DMS-18); a sold vehicle adds **Payments** and a printable **Bill of sale** (PAY-01–04, SALE-01). VIN `Decode` prefills make/model/year; the drawer adds **Work orders** (open count in the list; selling is blocked while any are open) and **Image Studio** photos with Auto fix / Brighten / Sharpen ([design/21](../design/21-Feature-Extensions.md)) |
+| DMS | `/dms` | Dealer user | List columns: year make model, VIN, stock number, body, source, condition, cost (CAD), list price, date added, open work orders, status, with search, filters and paging (UI-20). Add and edit with `*` on required fields, client-side validation and per-field server errors (UI-21). Detail with all fields, the customer, the ad check status and, for managers, the history (UI-22, AUD-17). Sell as a separate action that takes the date and the price together (UI-23). Locked fields are read-only after sale (UI-24). Optional listing details (DMS-18); a sold vehicle adds **Payments** and a printable **Bill of sale** (PAY-01–05, SALE-01; staff only record a payment, a manager sees and corrects the ledger). VIN `Decode` prefills make/model/year; the drawer adds **Work orders** (open count in the list; selling is blocked while any are open) and **Image Studio** photos with Auto fix / Brighten / Sharpen ([design/21](../design/21-Feature-Extensions.md)) |
 | CRM / leads | `/crm`, `/leads` | Dealer user | CRM retains customer management and adds customer-linked leads; `/leads` supports follow-up pipeline, assignments, due dates, and append-only notes |
 | Ads | `/ads` | Dealer user | Pick a vehicle, edit title / body / kind / medium, and view the checklist and answer its prior-use, warranty and lease-kilometre fields (UI-40). DMS and dealer values shown (UI-41). A Check button with a loading state of up to 15 s (UI-42). A ✅ / ❌ / ⚠️ result per rule (UI-43). Status badges: Needs AI review / Blocked / AI unavailable / Passed / Stale (UI-44). Ready and Export TXT are enabled only when the ad is passed and not stale (UI-45). A clear not-legal-advice / not-OMVIC-approval notice in results and TXT export, with a link to `/disclaimer` (UI-46) |
 | Assistant | floating panel on staff pages (no route) | Dealer user | An input box and answers with vehicle / customer cards (UI-50). A clear read-only notice (UI-51) |
@@ -300,7 +308,7 @@ The spec PDF has no such page. It is added by scope erratum 2 to meet the course
   - Price, new/used and prior use are judged from the ad copy only.
   - Exactly 20,000 km/year needs no excess-km disclosure.
   - One ad per vehicle.
-  - Only changes are audited, not views.
+  - Only changes, sign-ins, ad checks and exports are audited, not views (AUD-12, AUD-14).
   - One admin.
   - Rules live in code.
 - **Questions waiting for the client or instructor:**

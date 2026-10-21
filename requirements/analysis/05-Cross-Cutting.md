@@ -9,7 +9,7 @@ Source: every modification to a DMS or CRM record is stamped with the acting use
 | AUD-01 | Vehicle create / edit / sell writes audit | PDF §6 | Must |
 | AUD-02 | Customer create / edit / link vehicle / unlink writes audit | PDF §6 | Must |
 | AUD-03 | Each entry holds: acting user, action, timestamp (stored UTC, shown local), object type and id. The action set is CREATE / UPDATE / SELL / LINK / UNLINK, plus NOTE (lead notes) and DELETE (account self-deletion, vehicle-photo removal) from the errata 6–7 extensions | PDF §6 | Must |
-| AUD-04 | Record which fields changed: the field name and its new value, and for customer phone / email / address the field name only, never a value. A full before/after snapshot is **not** implemented and is not required — PDF §6 asks only for actor, action and timestamp | Derived / SCOPE | Should |
+| AUD-04 | Record which fields changed: the field name, its new value and its replaced value, customer phone / email / address included (user ruling 2026-10-21, finance-grade traceability) | Derived / SCOPE | Must |
 | AUD-05 | Audit is append-only; entries cannot be edited or deleted | Derived | Must |
 | AUD-06 | Vehicle and customer detail pages show change history, newest first | PDF §6 | Must |
 | AUD-07 | Audit is written in the same transaction as the business write; if the write succeeds, the audit exists | Derived | Must |

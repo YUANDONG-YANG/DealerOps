@@ -27,6 +27,13 @@ export type JoinRequestPayload = {
   source: string | null;
 };
 
+/** Narrowed payload for kind=BUYER_INQUIRY: a website question filed as a NEW lead. */
+export type BuyerInquiryPayload = {
+  leadId: string;
+  customerName: string;
+  vehicle: string;
+};
+
 // Fires whenever the inbox or the Team page changes a join request so that whichever other
 // view is open refreshes without the user having to reload or switch tabs.
 export const JOIN_REQUESTS_CHANGED = 'dealerops:join-requests-changed';

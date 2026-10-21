@@ -1,6 +1,8 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import AppLayout from '../layouts/AppLayout';
 import ConfirmDialog from '../components/ConfirmDialog';
+import AuditLogPanel from '../components/AuditLogPanel';
+import { auditApi } from '../api/audit';
 import { joinRequestsApi } from '../api/joinRequests';
 import { accountSourceLabel, membersApi, teamApi, type DealerProfileBody, type MemberOption } from '../api/members';
 import { getMe } from '../api/me';
@@ -41,17 +43,17 @@ const PROFILE_FIELDS: { key: 'legalName' | 'contactPhone' | 'contactEmail' | 'co
 ];
 
 /**
- * The manager's page (AUTH-27), three tabs: this dealership's join-request history
+ * The manager's page (AUTH-27), four tabs: this dealership's join-request history
  * (GET /api/v1/dealer/notifications?includeResolved=true) with Approve / Reject on pending rows,
  * its members with their dealership role and a Remove action on staff, and the dealership
- * profile that ads, the bill of sale and the buyer site show. Only the platform admin promotes
- * or demotes managers.
+ * profile that ads, the bill of sale and the buyer site show, and the dealership's audit log
+ * (GET /api/v1/dealer/audit, AUD-11). Only the platform admin promotes or demotes managers.
  */
 export default function TeamPage() {
   const setProfile = useSessionStore((s) => s.setProfile);
   const [rows, setRows] = useState<JoinRequestRow[]>([]);
   const [members, setMembers] = useState<MemberOption[]>([]);
-  const [tab, setTab] = useState<'requests' | 'members' | 'profile'>('requests');
+  const [tab, setTab] = useState<'requests' | 'members' | 'profile' | 'activity'>('requests');
   const [removeTarget, setRemoveTarget] = useState<MemberOption | null>(null);
   const [dealer, setDealer] = useState<DealerProfileBody | null>(null);
   const [profileErrors, setProfileErrors] = useState<Record<string, string>>({});
@@ -89,6 +91,7 @@ export default function TeamPage() {
       if (verb === 'approve') await joinRequestsApi.approve(username);
       else await joinRequestsApi.reject(username);
     } catch (err) {
+      // Already resolved elsewhere (the header inbox or another manager): just refresh the list.
       const gone = statusOf(err) === 404 || codeOf(err) === 'NOT_FOUND';
       if (!gone) setError(describeError(err, `${verb} the request`));
     } finally {
@@ -139,7 +142,7 @@ export default function TeamPage() {
       <header className="page-header">
         <div>
           <h1>Team</h1>
-          <p className="muted">Join requests to this dealership, its members and its profile. New members join as staff; the platform admin appoints managers.</p>
+          <p className="muted">Join requests to this dealership, its members, its profile and its activity. New members join as staff; the platform admin appoints managers.</p>
         </div>
       </header>
 
@@ -147,11 +150,15 @@ export default function TeamPage() {
         <button className={`tab-btn ${tab === 'requests' ? 'active' : ''}`} onClick={() => setTab('requests')}>Join requests</button>
         <button className={`tab-btn ${tab === 'members' ? 'active' : ''}`} onClick={() => setTab('members')}>Members</button>
         <button className={`tab-btn ${tab === 'profile' ? 'active' : ''}`} onClick={() => setTab('profile')}>Dealership profile</button>
+        <button className={`tab-btn ${tab === 'activity' ? 'active' : ''}`} onClick={() => setTab('activity')}>Activity</button>
       </div>
 
       {error && <div className="alert alert-error">{error}</div>}
 
-      {loading ? (
+      {/* The audit log loads and pages on its own, so it does not wait for the team data. */}
+      {tab === 'activity' ? (
+        <AuditLogPanel load={auditApi.dealershipLog} />
+      ) : loading ? (
         <div className="state">Loading…</div>
       ) : tab === 'profile' ? (
         dealer && (

@@ -1,8 +1,14 @@
+using DealerOps.Core.Audit;
 using DealerOps.Core.Common.Exceptions;
 using DealerOps.Core.Data;
 
 namespace DealerOps.Core.Dealer;
 
+/// <summary>
+/// Creates the platform admin account from ADMIN_USERNAME and ADMIN_PASSWORD at startup, or fills a
+/// missing email or phone on the existing one. A new account gets an APP_USER CREATE audit row by
+/// actor <c>system</c>.
+/// </summary>
 public class AdminSeeder : IHostedService
 {
     private readonly IServiceProvider _provider;
@@ -16,6 +22,7 @@ public class AdminSeeder : IHostedService
         _logger = logger;
     }
 
+    /// <summary>Seeds or completes the platform admin account; skipped when no admin is configured.</summary>
     public Task StartAsync(CancellationToken cancellationToken)
     {
         var username = _config["ADMIN_USERNAME"];
@@ -49,19 +56,25 @@ public class AdminSeeder : IHostedService
         using var scope = _provider.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
+        var audit = scope.ServiceProvider.GetRequiredService<IAuditService>();
         var existing = db.AppUsers.FirstOrDefault(u => u.Username == username);
         if (existing != null)
         {
-            var changed = false;
+            // Backfilled contact fields are audited with their values; they were empty before.
+            var changes = new Dictionary<string, object>();
             if (string.IsNullOrWhiteSpace(existing.Email) && email != null)
-            { existing.Email = email; changed = true; }
+            { existing.Email = email; changes["email"] = email; }
             if (string.IsNullOrWhiteSpace(existing.Phone) && phone != null)
-            { existing.Phone = phone; changed = true; }
-            if (changed) db.SaveChanges();
+            { existing.Phone = phone; changes["phone"] = phone; }
+            if (changes.Count > 0)
+            {
+                audit.Record("APP_USER", existing.Id, "UPDATE", null, "system", changes);
+                db.SaveChanges();
+            }
             return Task.CompletedTask;
         }
 
-        db.AppUsers.Add(new AppUserEntity
+        var admin = new AppUserEntity
         {
             Username = username,
             PasswordHash = BCrypt.Net.BCrypt.HashPassword(password),
@@ -71,11 +84,19 @@ public class AdminSeeder : IHostedService
             Role = AppRole.PlatformAdmin,
             DealerId = null,
             Active = true
-        });
+        };
+        using var tx = db.Database.BeginTransaction();
+        db.AppUsers.Add(admin);
         db.SaveChanges();
-        _logger.LogInformation("Seeded platform admin account '{Username}'", username);
+        // No registration key: the seeded admin has no sign-up channel (see AccountSource).
+        audit.Record("APP_USER", admin.Id, "CREATE", null, "system",
+            new Dictionary<string, object> { ["username"] = username });
+        db.SaveChanges();
+        tx.Commit();
+        _logger.LogInformation("Seeded platform admin account userId={UserId} username={Username}", admin.Id, username);
         return Task.CompletedTask;
     }
 
+    /// <summary>Nothing to stop.</summary>
     public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;
 }

@@ -4,6 +4,7 @@ using DealerOps.Core.Common.Tenant;
 
 namespace DealerOps.Core.Lead;
 
+/// <summary>An append-only note on a lead; its body is never copied into the audit trail.</summary>
 [Table("sales_lead_note")]
 public class LeadNoteEntity : ITenantOwned
 {

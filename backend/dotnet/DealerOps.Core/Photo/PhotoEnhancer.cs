@@ -3,7 +3,10 @@ using SkiaSharp;
 
 namespace DealerOps.Core.Photo;
 
-// Requires SkiaSharp NuGet package for cross-platform image processing
+/// <summary>
+/// Detects photo formats and renders enhanced JPEG variants with SkiaSharp. Unreadable or oversized
+/// images raise <see cref="ApiException"/>; the caller logs and audits the outcome.
+/// </summary>
 public class PhotoEnhancer
 {
     private const long MaxDecodePixels = 40_000_000L;
@@ -17,6 +20,7 @@ public class PhotoEnhancer
         _maxEdgePx = config.GetValue("Photos:MaxEdgePx", 1600);
     }
 
+    /// <summary>Returns image/jpeg or image/png for supported uploads; otherwise throws 415.</summary>
     public string DetectContentType(byte[] data)
     {
         using var codec = SKCodec.Create(new MemoryStream(data));
@@ -31,6 +35,10 @@ public class PhotoEnhancer
         };
     }
 
+    /// <summary>
+    /// Decodes the original, scales it to the configured long edge, applies <paramref name="preset"/>
+    /// and returns the JPEG-encoded result.
+    /// </summary>
     public byte[] Enhance(byte[] original, PhotoPreset preset)
     {
         using var bitmap = Decode(original);

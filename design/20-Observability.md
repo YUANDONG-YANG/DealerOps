@@ -175,3 +175,71 @@ Targets for the cloud deployment. They are measured from the gateway request log
 | Non-AI API latency at the gateway | p95 under 1 s |
 | Ad compliance check | completes or returns `AI_UNAVAILABLE` within 15 s (AI-02) |
 | Throughput per signed-in user | up to 600 requests/min before `RATE_LIMITED` (design/19 §1.5.1) |
+
+## 7. Application logging convention (current .NET runtime, 2026-10-21)
+
+This section applies to the active .NET 10 services and replaces §2's per-class guidance for them. Logs are for operators; the business record of who changed what is the audit trail (requirements AUD-01–16, design/15 §8.8), not the log.
+
+- **Injection.** A class that logs takes `ILogger<T>` in its constructor and keeps it in `private readonly ILogger<T> _logger`. No extra registration is needed.
+- **Structured templates.** Use message templates with named placeholders, never string interpolation, for example `"Payment recorded paymentId={PaymentId} vehicleId={VehicleId} dealerId={DealerId} by {Actor}"`. Log at key business points: a completed change, a rejected attempt, an external call that fails.
+- **Levels.** `Information` for a successful business change; `Warning` for a rejected or suspicious attempt (failed sign-in, forbidden action, cross-dealership access, rate limit); `Error` only together with the caught exception. Do not log the same failure twice.
+- **No personal data, secrets, prompts, or ad text.** Log ids and usernames only. Never log passwords, tokens or claims, API keys, email addresses, phone numbers, home addresses, note or message bodies, a typed sign-in identifier that matched no account, model prompts or responses, assistant questions, or listing title/body text. An update line names the changed field keys, never their values.
+- **Comments.** Classes and public methods carry a `///` summary of their responsibility; inline comments explain why, not what.
+
+### 7.1 Gateway events (`DealerOps.Gateway`)
+
+Besides the per-request line (`requestId`, method, path, `user`, status, `durationMs`), the gateway writes one `Warning` per rejection:
+
+| Event | Fields | Source |
+|---|---|---|
+| `Rejected JWT` | `reason` (exception type name only), method, path | `Program.cs` `OnAuthenticationFailed` |
+| `Rejected token without an API role` (401) | `user`, method, path | `Program.cs` role gate |
+| `Forbidden platform admin on business route` (403) | `user`, method, path | `Program.cs` role gate (AUTH-08) |
+| `Rate limit exceeded` (429) | `clientIp`, `user` (or `anonymous`), method, path | `Middleware/RateLimitSetup.cs` (design/19 §1.5.1) |
+| `Downstream health check failed` | `service`, and `status` or `reason` | `Health/DownstreamHealthCheck.cs` |
+| `Rejecting … (missing or invalid / non-internal path carries X-Dealer-Internal)` | method, path, header name | `Middleware/InternalRouteFilter.cs` |
+
+### 7.2 AI service events (`DealerOps.AiService`)
+
+`AiProviderClient.ChatAsync` is the single model-call point, so it logs every call:
+
+- `Information` `AI call operation={Operation} model={Model} durationMs={DurationMs} outcome={Outcome}`, once per call in `finally`. `operation` is `ad-check` or `assistant`; `outcome` is `ok`, `provider_status`, `timeout`, `unreachable`, or `error`.
+- `Warning` `AI provider failed` (`operation`, `model`, provider HTTP `status`) or `AI provider unreachable` (`operation`, `model`, `reason` = `HttpRequestError`).
+- `AiExceptionFilter` logs `AI request failed code={Code} status={Status} {Path}` as a `Warning`; `InternalGuardFilter` logs a rejected `/internal/**` request.
+
+The system prompt, the listing JSON, the assistant question, and the model reply are never logged.
+
+### 7.3 Core events (`DealerOps.Core`)
+
+Every `Information` line ends with `by {Actor}` (the signed-in username) unless marked *system* or *self*. `dealerId` is present on every tenant-scoped event.
+
+| Module | Information events | Extra fields |
+|---|---|---|
+| Auth (`AuthService`, `AdminSeeder`) | Account registered; Sign-in succeeded; Seeded platform admin account | `userId`, `username`, `method` (`password`/`google`/`firebase`) — *self/system* |
+| Me (`MeController`) | Profile updated; Account self-deleted | `userId`, `username`, `fields` — *self* |
+| Dealer admin | Dealer created; Dealer updated | `fields` |
+| Membership | Member bound; Member role changed; Member password reset; Member unbound | `username`, `newLogin`, `PreviousRole`→`Role` |
+| Join requests | Join request filed (*self*); approved; rejected | `username`, `membershipId` |
+| Vehicle | created; updated; sold; repair cost updated; deleted | `vehicleId`, `stockNumber`, `fields` |
+| Vehicle photo | uploaded; enhanced; deleted | `photoId`, `vehicleId`, `bytes`, `preset`, `previousPreset` |
+| Payment | Payment recorded; Payment removed | `paymentId`, `vehicleId`, `amount`, `method`, `paidOn` |
+| Customer | created; updated; deleted; vehicle linked; vehicle unlinked; Anonymized N customers (*system*, retention job) | `customerId`, `fields`, `linkId`, `vehicleId`, `customerIds`, `cutoff` |
+| Lead | created; updated; note added | `leadId`, `customerId`, `OldStage`→`NewStage`, `fields`, `noteId` |
+| Buyer site | Buyer inquiry filed (anonymous) | `leadId`, `vehicleId`, `customerId`, `newCustomer` |
+| Work order | created; updated; completed | `workOrderId`, `vehicleId`, `fields`, `status`, `cost` |
+| Listing | created; updated; marked ready; exported | `listingId`, `vehicleId`, `contentVersion` |
+| Compliance | Compliance check recorded; Compliance rule override | `listingId`, `checkId`, `recommendation`, `aiStatus`, `ElapsedMs`; `ruleId`, `Action` |
+| Notifications | Notification created (*system*); Notification resolved | `notificationId`, `kind`, `action` |
+
+`Warning` events:
+
+| Event | Fields | Source |
+|---|---|---|
+| Sign-in failed | `username` (`anonymous` when no account matched), `method`, `reason` | `AuthService` (with a `LOGIN_FAILED` audit row) |
+| Manager removal rejected | `dealerId`, `username`, actor | `MembershipService` |
+| Self-deletion refused for platform admin | `username` | `MeController` |
+| Change to closed work order rejected | `workOrderId`, `status`, `dealerId`, actor | `WorkOrderService` |
+| Vehicle photo enhancement rejected | `photoId`, `vehicleId`, `preset`, `code` | `VehiclePhotoService` |
+| Ad check AI unavailable | `listingId`, `dealerId`, actor, with the exception | `ComplianceCheckService` (check stored as `UNAVAILABLE`) |
+| AI call failed / reported failure / returned no summary | `path`, `status`, `error`, `elapsedMs` | `Integration/AiGatewayClient` |
+| vPIC call failed / returned no Results | `operation`, `status`, `error`, `elapsedMs` | `Catalog/VehicleCatalogService` (`CATALOG_UNAVAILABLE`) |

@@ -1,5 +1,6 @@
 namespace DealerOps.Core.Security;
 
+/// <summary>The signed-in user's profile and bound dealership, returned by GET and PATCH /me.</summary>
 public record MeResponse(
     string Username,
     string? DisplayName,

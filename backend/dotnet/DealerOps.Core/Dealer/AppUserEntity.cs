@@ -3,6 +3,9 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace DealerOps.Core.Dealer;
 
+/// <summary>
+/// A login: platform admin or dealer user, signing in with a DealerOps password, Google or Firebase.
+/// </summary>
 [Table("app_user")]
 public class AppUserEntity
 {

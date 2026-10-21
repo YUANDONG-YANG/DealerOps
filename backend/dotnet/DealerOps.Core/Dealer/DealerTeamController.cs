@@ -22,12 +22,15 @@ public class DealerTeamController : ControllerBase
         _memberships = memberships;
     }
 
+    /// <summary>The caller's dealership profile.</summary>
     [HttpGet("profile")]
     public DealerResponse Profile() => _dealers.GetOwn();
 
+    /// <summary>Edits the caller's dealership profile; active status stays with the admin.</summary>
     [HttpPatch("profile")]
     public DealerResponse PatchProfile([FromBody] PatchDealerProfileRequest body) => _dealers.PatchOwn(body);
 
+    /// <summary>Removes a staff member from the caller's dealership.</summary>
     [HttpDelete("members/{username}")]
     public IActionResult RemoveMember(string username)
     {

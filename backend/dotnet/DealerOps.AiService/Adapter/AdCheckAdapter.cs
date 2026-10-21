@@ -4,6 +4,10 @@ using DealerOps.AiService.Support;
 
 namespace DealerOps.AiService.Adapter;
 
+/// <summary>
+/// AI second-pass review of a listing (AD-08): fences the untrusted ad copy, calls the model and
+/// turns its reply into at most eight advisory notes.
+/// </summary>
 public class AdCheckAdapter
 {
     // SEC-06 bounds: the listing copy is user input, so it is fenced and capped on
@@ -23,15 +27,14 @@ public class AdCheckAdapter
         _timedCall = timedCall;
     }
 
+    /// <summary>Reviews the listing copy against its public facts.</summary>
+    /// <exception cref="ModelFailureException">The model call failed or returned no usable note.</exception>
     public async Task<AdCheckOkResponse> RunAsync(AdCheckInternalRequest req)
     {
-        if (!_client.HasApiKey)
-            throw ModelFailureException.KeyMissingError();
-
         var userContent = BuildUserMessage(req);
 
         var content = await _timedCall.RequestAsync(async ct =>
-            await _client.ChatAsync(SystemPrompts.AdCheck, userContent, ct));
+            await _client.ChatAsync("ad-check", SystemPrompts.AdCheck, userContent, ct));
 
         var notes = NotesFrom(content);
         if (notes.Count == 0)

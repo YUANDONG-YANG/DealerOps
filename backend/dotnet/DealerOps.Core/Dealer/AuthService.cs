@@ -8,6 +8,12 @@ using Microsoft.EntityFrameworkCore;
 
 namespace DealerOps.Core.Dealer;
 
+/// <summary>
+/// Signs users in with a password, a Google ID token or a Firebase ID token, registers
+/// password accounts, and issues the application JWT. Every sign-in attempt, successful or
+/// not, leaves an APP_USER audit row (LOGIN or LOGIN_FAILED) and a log line; the typed
+/// identifier, password and tokens are never stored or logged.
+/// </summary>
 public class AuthService
 {
     // A Google account carries no username, so one is derived from the email address. Each cap
@@ -17,6 +23,11 @@ public class AuthService
     private const int DisplayNameBaseMaxLength = 110;
     private const int MaxSuffixAttempts = 50;
 
+    // Actor and entity id of a failed sign-in whose identifier matched no account. The typed
+    // identifier may be an email or phone number, so it is never stored (AUD-04).
+    private const string AnonymousActor = "anonymous";
+    private const long UnknownAccountId = 0;
+
     private readonly AppDbContext _db;
     private readonly JwtService _jwt;
     private readonly IAuditService _audit;
@@ -24,10 +35,12 @@ public class AuthService
     private readonly GoogleIdTokenVerifier _google;
     private readonly FirebaseIdTokenVerifier _firebase;
     private readonly NotificationService _notifications;
+    private readonly ILogger<AuthService> _logger;
     private readonly string _unknownUserHash;
 
     public AuthService(AppDbContext db, JwtService jwt, IAuditService audit, NewAccountRules accountRules,
-        GoogleIdTokenVerifier google, FirebaseIdTokenVerifier firebase, NotificationService notifications)
+        GoogleIdTokenVerifier google, FirebaseIdTokenVerifier firebase, NotificationService notifications,
+        ILogger<AuthService> logger)
     {
         _db = db;
         _jwt = jwt;
@@ -36,6 +49,7 @@ public class AuthService
         _google = google;
         _firebase = firebase;
         _notifications = notifications;
+        _logger = logger;
         _unknownUserHash = BCrypt.Net.BCrypt.HashPassword(Guid.NewGuid().ToString());
     }
 
@@ -47,13 +61,22 @@ public class AuthService
     public async Task<LoginResponse> FirebaseSignIn(
         FirebaseSignInRequest request, CancellationToken cancellationToken)
     {
-        var identity = await _firebase.VerifyAsync(request.IdToken.Trim(), cancellationToken);
+        FirebaseIdentity identity;
+        try
+        {
+            identity = await _firebase.VerifyAsync(request.IdToken.Trim(), cancellationToken);
+        }
+        catch (ApiException ex) when (IsRejection(ex))
+        {
+            throw LoginFailed(null, "firebase", "invalid_token", ex);
+        }
         var email = LoginIdentifiers.Email(identity.Email);
         var user = _db.AppUsers.FirstOrDefault(u => u.FirebaseUid == identity.Uid && u.Active)
                    ?? _db.AppUsers.FirstOrDefault(u => u.Email != null && u.Email.ToLower() == email && u.Active);
 
         if (user?.Role == AppRole.PlatformAdmin)
-            throw new ApiException(ErrorCode.Forbidden, "Firebase sign-in is not available for platform administrators.");
+            throw LoginFailed(user, "firebase", "provider_not_allowed",
+                new ApiException(ErrorCode.Forbidden, "Firebase sign-in is not available for platform administrators."));
 
         if (user == null)
         {
@@ -103,29 +126,50 @@ public class AuthService
             // has verified the address; otherwise anyone could register that email in Firebase
             // and take over the account.
             if (!identity.EmailVerified)
-                throw new ApiException(ErrorCode.EmailTaken,
-                    "This email already belongs to an account. Sign in with that account's password.",
-                    new Dictionary<string, string> { ["email"] = "This email is already registered." });
+                throw LoginFailed(user, "firebase", "email_unverified",
+                    new ApiException(ErrorCode.EmailTaken,
+                        "This email already belongs to an account. Sign in with that account's password.",
+                        new Dictionary<string, string> { ["email"] = "This email is already registered." }));
             user.FirebaseUid = identity.Uid;
+            _audit.Record("APP_USER", user.Id, "UPDATE", ActiveDealerId(user.Username), user.Username,
+                new Dictionary<string, object> { ["firebaseLinked"] = true },
+                new Dictionary<string, object?> { ["firebaseLinked"] = false });
             _db.SaveChanges();
         }
 
+        RecordLogin(user, "firebase");
         return new LoginResponse(_jwt.Issue(user), user.Role.Value, user.DisplayName);
     }
 
+    /// <summary>
+    /// Signs in with a username, email or phone number and a password. Every failure returns the
+    /// same 401 message, and the hash check always runs, so a caller cannot tell an unknown
+    /// account from a wrong password; only the audit row records the real reason.
+    /// </summary>
     public LoginResponse Login(LoginRequest request)
     {
-        var identifier = request.Identifier.Trim();
-        var user = FindForSignIn(identifier);
+        var user = FindForSignIn(request.Identifier.Trim());
         var hasPassword = user != null && !string.IsNullOrEmpty(user.PasswordHash);
-        var passwordHash = hasPassword ? user!.PasswordHash : _unknownUserHash;
+        var passwordMatches = BCrypt.Net.BCrypt.Verify(request.Password,
+            hasPassword ? user!.PasswordHash : _unknownUserHash);
 
-        if (!BCrypt.Net.BCrypt.Verify(request.Password, passwordHash) || !hasPassword)
-            throw new ApiException(ErrorCode.Unauthorized, "Invalid sign-in name or password");
+        var reason = user == null ? "unknown_account"
+            : !hasPassword ? "no_password"
+            : !passwordMatches ? "bad_password"
+            : !user.Active ? "inactive"
+            : null;
+        if (reason != null)
+            throw LoginFailed(user, "password", reason,
+                new ApiException(ErrorCode.Unauthorized, "Invalid sign-in name or password"));
 
+        RecordLogin(user!, "password");
         return new LoginResponse(_jwt.Issue(user!), user!.Role.Value, user.DisplayName);
     }
 
+    /// <summary>
+    /// Creates an unbound password account and signs it in. The new account has no dealership
+    /// until an admin binds it or a manager approves its join request (AUTH-13, AUTH-25).
+    /// </summary>
     public LoginResponse Register(RegisterRequest request)
     {
         var contact = _accountRules.CanonicalContact(request.Email, request.Phone);
@@ -160,6 +204,8 @@ public class AuthService
             new Dictionary<string, object> { ["registration"] = "password" });
         _db.SaveChanges();
         tx.Commit();
+        _logger.LogInformation("Account registered userId={UserId} username={Username} method={Method}",
+            user.Id, user.Username, "password");
 
         return new LoginResponse(_jwt.Issue(user), user.Role.Value, user.DisplayName);
     }
@@ -173,7 +219,15 @@ public class AuthService
     /// </summary>
     public async Task<GoogleSignInResponse> GoogleSignIn(GoogleSignInRequest request, CancellationToken cancellationToken)
     {
-        var identity = await _google.VerifyAsync(request.IdToken.Trim(), cancellationToken);
+        GoogleIdentity identity;
+        try
+        {
+            identity = await _google.VerifyAsync(request.IdToken.Trim(), cancellationToken);
+        }
+        catch (ApiException ex) when (IsRejection(ex))
+        {
+            throw LoginFailed(null, "google", "invalid_token", ex);
+        }
         var email = LoginIdentifiers.Email(identity.Email);
         // An optional dealerId must name an active dealership (contract §1.6: 404 otherwise).
         var requestedDealerId = request.DealerId;
@@ -189,7 +243,8 @@ public class AuthService
         // The platform admin is seeded from the environment and keeps password-only sign-in, so
         // control of its mailbox is not enough to reach the admin console (AUTH-15).
         if (user?.Role == AppRole.PlatformAdmin)
-            throw new ApiException(ErrorCode.Forbidden, "Sign in with your password as the platform administrator.");
+            throw LoginFailed(user, "google", "provider_not_allowed",
+                new ApiException(ErrorCode.Forbidden, "Sign in with your password as the platform administrator."));
 
         // Keep stored Google claims in sync with the latest token on every sign-in, so a user
         // who updated their photo or name in Google sees it reflected here next request.
@@ -205,6 +260,7 @@ public class AuthService
             SetRequestedDealer(user, requestedDealerId.Value);
         // An account that already has a pending request keeps it; signing in never fails on it.
 
+        RecordLogin(user, "google");
         return new GoogleSignInResponse("ok",
             new LoginResponse(_jwt.Issue(user), user.Role!.Value, user.DisplayName));
     }
@@ -251,14 +307,18 @@ public class AuthService
         if (requestedDealerId.HasValue)
             PostJoinNotification(requestedDealerId.Value, user);
         tx.Commit();
+        _logger.LogInformation("Account registered userId={UserId} username={Username} method={Method}",
+            user.Id, user.Username, "google");
         return user;
     }
 
     private void SetRequestedDealer(AppUserEntity user, long requestedDealerId)
     {
         user.RequestedDealerId = requestedDealerId;
-        _audit.Record("APP_USER", user.Id, "UPDATE", null, user.Username,
-            new Dictionary<string, object> { ["requestedDealerId"] = requestedDealerId });
+        // Filed against the requested dealership so its manager's log shows the request.
+        _audit.Record("APP_USER", user.Id, "UPDATE", requestedDealerId, user.Username,
+            new Dictionary<string, object> { ["requestedDealerId"] = requestedDealerId },
+            new Dictionary<string, object?> { ["requestedDealerId"] = null });
         _db.SaveChanges();
         PostJoinNotification(requestedDealerId, user);
     }
@@ -269,17 +329,78 @@ public class AuthService
     // on every sign-in.
     private void SyncGoogleIdentity(AppUserEntity user, GoogleIdentity identity)
     {
-        var changed = false;
-        if (user.GoogleSub != identity.Subject) { user.GoogleSub = identity.Subject; changed = true; }
+        // Audited like any profile change; the avatar is recorded as a flag, never its URL.
+        var changes = new Dictionary<string, object>();
+        var previous = new Dictionary<string, object?>();
+        if (user.GoogleSub != identity.Subject)
+        {
+            changes["googleLinked"] = true; previous["googleLinked"] = user.GoogleSub != null;
+            user.GoogleSub = identity.Subject;
+        }
         var given = Truncate(identity.GivenName, 120);
-        if (user.GivenName != given) { user.GivenName = given; changed = true; }
+        if (user.GivenName != given)
+        {
+            changes["givenName"] = given ?? ""; previous["givenName"] = user.GivenName;
+            user.GivenName = given;
+        }
         var family = Truncate(identity.FamilyName, 120);
-        if (user.FamilyName != family) { user.FamilyName = family; changed = true; }
-        if (user.AvatarUrl != identity.Picture) { user.AvatarUrl = identity.Picture; changed = true; }
+        if (user.FamilyName != family)
+        {
+            changes["familyName"] = family ?? ""; previous["familyName"] = user.FamilyName;
+            user.FamilyName = family;
+        }
+        if (user.AvatarUrl != identity.Picture)
+        {
+            changes["avatar"] = identity.Picture != null; previous["avatar"] = user.AvatarUrl != null;
+            user.AvatarUrl = identity.Picture;
+        }
         var locale = Truncate(identity.Locale, 16);
-        if (user.Locale != locale) { user.Locale = locale; changed = true; }
-        if (changed) _db.SaveChanges();
+        if (user.Locale != locale)
+        {
+            changes["locale"] = locale ?? ""; previous["locale"] = user.Locale;
+            user.Locale = locale;
+        }
+        if (changes.Count == 0) return;
+        _audit.Record("APP_USER", user.Id, "UPDATE", ActiveDealerId(user.Username), user.Username, changes, previous);
+        _db.SaveChanges();
     }
+
+    // Commits a LOGIN row on the account. dealerId is the active membership's dealership, so a
+    // manager's dealership log shows when staff sign in; it is null for the admin and unbound users.
+    private void RecordLogin(AppUserEntity user, string method)
+    {
+        var dealerId = ActiveDealerId(user.Username);
+        _audit.Record("APP_USER", user.Id, "LOGIN", dealerId, user.Username,
+            new Dictionary<string, object> { ["method"] = method });
+        _db.SaveChanges();
+        _logger.LogInformation("Sign-in succeeded userId={UserId} username={Username} method={Method} dealerId={DealerId}",
+            user.Id, user.Username, method, dealerId);
+    }
+
+    // Commits a LOGIN_FAILED row before the request fails and returns the error to throw. A
+    // failure without a resolved account is stored as entity 0 by "anonymous"; the identifier
+    // the caller typed is never stored or logged.
+    private ApiException LoginFailed(AppUserEntity? user, string method, string reason, ApiException error)
+    {
+        var dealerId = user == null ? null : ActiveDealerId(user.Username);
+        _audit.Record("APP_USER", user?.Id ?? UnknownAccountId, "LOGIN_FAILED", dealerId,
+            user?.Username ?? AnonymousActor,
+            new Dictionary<string, object> { ["method"] = method, ["reason"] = reason });
+        _db.SaveChanges();
+        _logger.LogWarning("Sign-in failed username={Username} method={Method} reason={Reason}",
+            user?.Username ?? AnonymousActor, method, reason);
+        return error;
+    }
+
+    private long? ActiveDealerId(string username) =>
+        _db.Memberships
+            .Where(m => m.Username == username && m.Active)
+            .Select(m => (long?)m.DealerId)
+            .FirstOrDefault();
+
+    // A token the identity provider rejected; a provider outage (InternalError) is not a sign-in attempt.
+    private static bool IsRejection(ApiException ex) =>
+        ex.Code is ErrorCode.Unauthorized or ErrorCode.Forbidden;
 
     private static string? Truncate(string? value, int max) =>
         string.IsNullOrEmpty(value) ? null : (value.Length <= max ? value : value[..max]);
@@ -342,23 +463,26 @@ public class AuthService
         return suffixed(baseName, Random.Shared.Next(100_000, 999_999));
     }
 
+    // Resolves the account a password sign-in names, active or not, so a disabled account's
+    // failed attempt is audited on that account. Login rejects inactive accounts itself.
+    // Deleted accounts no longer match by email or phone: DeleteMe suffixes both.
     private AppUserEntity? FindForSignIn(string identifier)
     {
         if (identifier.Contains('@'))
         {
             return _db.AppUsers.FirstOrDefault(
-                u => u.Email != null && u.Email.ToLower() == identifier.ToLowerInvariant() && u.Active);
+                u => u.Email != null && u.Email.ToLower() == identifier.ToLowerInvariant());
         }
 
-        var byUsername = _db.AppUsers.FirstOrDefault(u => u.Username == identifier && u.Active);
+        var byUsername = _db.AppUsers.FirstOrDefault(u => u.Username == identifier);
         if (byUsername != null) return byUsername;
 
         var phone = LoginIdentifiers.PhoneOrNull(identifier);
         if (phone == null) return null;
-        var byPhone = _db.AppUsers.FirstOrDefault(u => u.Phone == phone && u.Active);
+        var byPhone = _db.AppUsers.FirstOrDefault(u => u.Phone == phone);
         if (byPhone != null) return byPhone;
 
         var legacyPhone = LoginIdentifiers.LegacyLocalPhoneOrNull(identifier);
-        return legacyPhone == null ? null : _db.AppUsers.FirstOrDefault(u => u.Phone == legacyPhone && u.Active);
+        return legacyPhone == null ? null : _db.AppUsers.FirstOrDefault(u => u.Phone == legacyPhone);
     }
 }

@@ -1,6 +1,7 @@
 using System.Text.Json;
 using DealerOps.Core.Common.Tenant;
 using DealerOps.Core.Data;
+using DealerOps.Core.Dealer;
 
 namespace DealerOps.Core.Notifications;
 
@@ -13,13 +14,24 @@ namespace DealerOps.Core.Notifications;
 /// </summary>
 public class NotificationService
 {
+    /// <summary>A buyer-site inquiry filed as a NEW lead; every member sees it until someone takes the lead.</summary>
+    public const string BuyerInquiry = "BUYER_INQUIRY";
+
     private static readonly JsonSerializerOptions JsonOpts =
         new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
 
     private readonly AppDbContext _db;
+    private readonly ILogger<NotificationService> _logger;
 
-    public NotificationService(AppDbContext db) { _db = db; }
+    public NotificationService(AppDbContext db, ILogger<NotificationService> logger)
+    {
+        _db = db;
+        _logger = logger;
+    }
 
+    /// <summary>
+    /// Posts an unread message of <paramref name="kind"/> to every member of the dealership.
+    /// </summary>
     public NotificationEntity Create(long dealerId, string kind, object payload)
     {
         var entity = new NotificationEntity
@@ -31,6 +43,8 @@ public class NotificationService
         };
         _db.Notifications.Add(entity);
         _db.SaveChanges();
+        _logger.LogInformation("Notification created notificationId={NotificationId} kind={Kind} dealerId={DealerId}",
+            entity.Id, kind, dealerId);
         return entity;
     }
 
@@ -48,7 +62,7 @@ public class NotificationService
         // window per dealership is tiny, so a filter in-process is fine.
         var candidates = _db.Notifications
             .Where(n => n.DealerId == dealerId && n.Kind == kind && n.ResolvedAt == null)
-            .OrderByDescending(n => n.Id)
+            .OrderByDescending(n => n.CreatedAt).ThenByDescending(n => n.Id)
             .ToList();
 
         foreach (var row in candidates)
@@ -62,16 +76,26 @@ public class NotificationService
                 row.ResolvedBy = actor;
                 row.ResolvedAction = action;
                 _db.SaveChanges();
+                // Resolving is an inbox state change, not a business record: logged, not audited.
+                _logger.LogInformation(
+                    "Notification resolved notificationId={NotificationId} kind={Kind} dealerId={DealerId} action={Action} by {Actor}",
+                    row.Id, kind, dealerId, action, actor);
                 return;
             }
         }
     }
 
+    /// <summary>
+    /// The caller's dealership inbox, newest first; resolved rows are included only for the
+    /// message-history view. Join requests are for managers only (AUTH-27); staff see the rest.
+    /// </summary>
     public List<NotificationEntity> List(bool includeResolved)
     {
-        var tenant = TenantGuard.RequireManager().TenantDealerId!.Value;
+        var user = TenantGuard.RequireDealerUser();
+        var tenant = user.TenantDealerId!.Value;
         var query = _db.Notifications.Where(n => n.DealerId == tenant);
+        if (user.DealerRole != DealerRole.Manager) query = query.Where(n => n.Kind != "JOIN_REQUEST");
         if (!includeResolved) query = query.Where(n => n.ResolvedAt == null);
-        return query.OrderByDescending(n => n.Id).ToList();
+        return query.OrderByDescending(n => n.CreatedAt).ThenByDescending(n => n.Id).ToList();
     }
 }

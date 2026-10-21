@@ -10,14 +10,15 @@ import WorkOrderPanel from '../components/WorkOrderPanel';
 import PhotoStudioPanel from '../components/PhotoStudioPanel';
 import PaymentPanel from '../components/PaymentPanel';
 import StatusTag from '../components/StatusTag';
-import { vehiclesApi, errorCode, errorStatus } from '../api/vehicles';
+import { vehiclesApi } from '../api/vehicles';
 import { customersApi } from '../api/customers';
-import { cad, enumLabel } from '../format';
+import { cad, dateTimeLocal, enumLabel, MONEY_PATTERN } from '../format';
 import { catalogApi, vinDecodeError } from '../api/catalog';
 import { listingsApi, checkStatusLabel } from '../api/listings';
 import { auditApi } from '../api/audit';
-import { collectAllPages, fieldErrorsOf, messageOf } from '../api/http';
+import { codeOf, collectAllPages, fieldErrorsOf, messageOf, statusOf } from '../api/http';
 import { describeError } from '../api/errors';
+import { useSessionStore } from '../store/session';
 
 const SOURCES = ['TRADE_IN', 'AUCTION', 'PRIVATE_PURCHASE', 'OTHER'] as const;
 const CONDITIONS = ['CERTIFIED', 'AS_IS', 'UNFIT', 'IRREPARABLE'] as const;
@@ -29,13 +30,12 @@ function profit(v: { soldPrice?: unknown; purchaseCost?: unknown; repairCost?: u
   return Number(v.soldPrice) - Number(v.purchaseCost) - Number(v.repairCost || 0);
 }
 
+// Today's date in the viewer's local zone, as YYYY-MM-DD.
 function todayIso() {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  return dateTimeLocal(new Date().toISOString()).slice(0, 10);
 }
 
 const VIN_PATTERN = /^[A-HJ-NPR-Z0-9]{17}$/;
-const MONEY_PATTERN = /^\d+(\.\d{1,2})?$/;
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const URL_PATTERN = /^https?:\/\/\S+$/i;
 const MILEAGE_PATTERN = /^\d{1,7}$/;
@@ -131,8 +131,8 @@ function vehicleToForm(data: any): VehicleForm {
 }
 
 function mapWrite(e: unknown) {
-  const code = errorCode(e);
-  const status = errorStatus(e);
+  const code = codeOf(e);
+  const status = statusOf(e);
   if (code === 'VIN_DUP') return 'VIN already in this dealership. Search the inventory for this VIN and edit that vehicle instead.';
   if (code === 'VALIDATION') return messageOf(e, 'Check required fields: some fields are missing or invalid.');
   if (code === 'SOLD_LOCKED') return 'This vehicle is sold. Make, model, year, VIN, source, purchase cost, date added, repair cost, the Carfax link, and the listing details are locked, and it cannot be sold again.';
@@ -146,6 +146,8 @@ function mapWrite(e: unknown) {
 const yearOptions = Array.from({ length: new Date().getFullYear() + 2 - 1900 }, (_, i) => new Date().getFullYear() + 1 - i);
 
 export default function DmsPage() {
+  // Record history is manager only (AUD-17); staff never call the audit API.
+  const isManager = useSessionStore().dealerRole === 'MANAGER';
   const [searchParams] = useSearchParams();
   const [rows, setRows] = useState<any[]>([]);
   const [total, setTotal] = useState(0);
@@ -199,7 +201,7 @@ export default function DmsPage() {
       setTotal(r.data.totalElements || 0);
     } catch (e) {
       if (seq !== listSeqRef.current) return;
-      if (errorStatus(e) === 403 || errorCode(e) === 'FORBIDDEN') setForbidden(true);
+      if (statusOf(e) === 403 || codeOf(e) === 'FORBIDDEN') setForbidden(true);
       else setError(describeError(e, 'load vehicles'));
       setRows([]);
     } finally {
@@ -314,7 +316,7 @@ export default function DmsPage() {
       setEdit(null);
       setForm(blankForm());
       setDrawer(false);
-      const missing = errorStatus(e) === 404 || errorCode(e) === 'NOT_FOUND';
+      const missing = statusOf(e) === 404 || codeOf(e) === 'NOT_FOUND';
       setError(missing ? 'Vehicle not found. It may have been deleted; refresh the list.' : describeError(e, 'load vehicle'));
     }
   }
@@ -331,6 +333,7 @@ export default function DmsPage() {
   }
 
   async function loadAudit(id: number, seq: number, page = 0) {
+    if (!isManager) return;
     try {
       const r = await auditApi.list({ entityType: 'VEHICLE', entityId: id, page, size: 10 });
       if (seq !== detailSeqRef.current) return;
@@ -373,9 +376,9 @@ export default function DmsPage() {
       await load();
     } catch (e) {
       if (seq !== detailSeqRef.current) return;
-      if (errorCode(e) === 'VALIDATION') setServerErrors(fieldErrorsOf(e));
+      if (codeOf(e) === 'VALIDATION') setServerErrors(fieldErrorsOf(e));
       // VIN_DUP carries no fieldErrors, but it is about one field and belongs under it (UI-21).
-      if (errorCode(e) === 'VIN_DUP') setServerErrors({ vin: mapWrite(e) });
+      if (codeOf(e) === 'VIN_DUP') setServerErrors({ vin: mapWrite(e) });
       setFormError(mapWrite(e));
     } finally {
       setSaving(false);
@@ -429,7 +432,7 @@ export default function DmsPage() {
       beginSell();
     } catch (e) {
       if (seq !== detailSeqRef.current) return;
-      const missing = errorStatus(e) === 404 || errorCode(e) === 'NOT_FOUND';
+      const missing = statusOf(e) === 404 || codeOf(e) === 'NOT_FOUND';
       setError(missing ? 'Vehicle not found. It may have been deleted; refresh the list.' : describeError(e, 'open sale'));
     }
   }
@@ -801,7 +804,7 @@ export default function DmsPage() {
         {isSold && <PaymentPanel vehicleId={edit.id} onChanged={() => loadAudit(edit.id, detailSeqRef.current)} />}
         {edit?.id && <WorkOrderPanel vehicleId={edit.id} sold={isSold} onChanged={refreshAfterWorkOrder} />}
         {edit?.id && <PhotoStudioPanel vehicleId={edit.id} onChanged={() => loadAudit(edit.id, detailSeqRef.current)} />}
-        {edit?.id && (
+        {edit?.id && isManager && (
           <AuditTrail
             rows={audit}
             page={auditPage}

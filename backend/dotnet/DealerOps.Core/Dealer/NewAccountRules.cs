@@ -4,6 +4,10 @@ using Microsoft.EntityFrameworkCore;
 
 namespace DealerOps.Core.Dealer;
 
+/// <summary>
+/// Validation shared by every account-creating flow (registration, Google, Firebase and admin
+/// creation): canonical contact details and uniqueness of username, display name, email and phone.
+/// </summary>
 public class NewAccountRules
 {
     public record Contact(string? Email, string? Phone);
@@ -12,6 +16,10 @@ public class NewAccountRules
 
     public NewAccountRules(AppDbContext db) => _db = db;
 
+    /// <summary>
+    /// Requires an email or a phone number and returns both in canonical form; reports every
+    /// invalid field in one validation error.
+    /// </summary>
     public Contact CanonicalContact(string? rawEmail, string? rawPhone)
     {
         var noEmail = string.IsNullOrWhiteSpace(rawEmail);
@@ -42,6 +50,7 @@ public class NewAccountRules
         return new Contact(email, phone);
     }
 
+    /// <summary>Throws a conflict naming every field already registered to another account.</summary>
     public void RequireAvailable(string username, string displayName, Contact contact)
     {
         var taken = new Dictionary<string, string>();
@@ -63,6 +72,10 @@ public class NewAccountRules
             throw new ApiException(first.Value, taken.Values.First(), taken);
     }
 
+    /// <summary>
+    /// Maps a unique-index violation raised by SaveChanges to the matching field conflict, for a
+    /// race that RequireAvailable could not see.
+    /// </summary>
     public ApiException Conflict(DbUpdateException ex)
     {
         var cause = ex.InnerException?.Message ?? ex.Message;

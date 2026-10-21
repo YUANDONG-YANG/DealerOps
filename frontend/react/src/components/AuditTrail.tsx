@@ -1,15 +1,14 @@
 import { dateTimeLocal } from '../format';
 
-interface AuditRow {
+export type AuditRow = {
   entityType?: string;
   action?: string;
   actorUsername?: string;
   createdAt?: string;
   fieldSummary?: Record<string, unknown>;
-}
-
-// Contact fields are recorded by name only — never by value (AUD-04 / CRM-12).
-const REDACTED = /email|phone|address/i;
+  // Values the change replaced, keyed like fieldSummary; contact fields never appear here.
+  previous?: Record<string, unknown> | null;
+};
 
 // A vehicle or customer history also holds rows of related records; name those so a work-order
 // or photo CREATE is not read as a change to the vehicle itself.
@@ -19,22 +18,36 @@ const RELATED: Record<string, string> = {
   CUSTOMER_VEHICLE: 'Vehicle link',
 };
 
-function actionText(row: AuditRow): string {
+/** The row's action label, prefixed with the related record kind (for example `Work order · CREATE`). */
+export function actionText(row: AuditRow): string {
   const related = row.entityType ? RELATED[row.entityType] : undefined;
   return related ? `${related} · ${row.action ?? ''}` : row.action ?? '';
 }
 
-function summaryText(raw: unknown): string {
-  if (!raw || typeof raw !== 'object') return '—';
-  const entries = Object.entries(raw as Record<string, unknown>);
-  if (!entries.length) return '—';
-  return entries
-    .map(([key, value]) =>
-      REDACTED.test(key) || value === true ? key : `${key}: ${JSON.stringify(value)}`,
-    )
-    .join(', ');
+/**
+ * One item per changed field: `key: before → after` when the old value is known, and
+ * `key: was before` for fields that only have an old value (for example a removed payment).
+ */
+export function summaryText(raw: unknown, previous?: Record<string, unknown> | null): string {
+  const summary = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {};
+  const items = Object.entries(summary).map(([key, value]) => {
+    const hasOld = previous != null && key in previous;
+    if (value === true) {
+      // A real boolean change (active, enabled) shows old → new. Otherwise `true` only flags that a
+      // field changed (task, dates, cost), so show the replaced value when it is known.
+      if (!hasOld) return key;
+      if (typeof previous[key] !== 'boolean') return `${key}: was ${JSON.stringify(previous[key])}`;
+    }
+    const after = JSON.stringify(value);
+    return hasOld ? `${key}: ${JSON.stringify(previous[key])} → ${after}` : `${key}: ${after}`;
+  });
+  Object.entries(previous ?? {})
+    .filter(([key]) => !(key in summary))
+    .forEach(([key, value]) => items.push(`${key}: was ${JSON.stringify(value)}`));
+  return items.length ? items.join(', ') : '—';
 }
 
+/** A record's audit history, newest first as the API returns it, with optional paging. */
 export default function AuditTrail({
   rows, page = 0, total, onPage,
 }: {
@@ -65,7 +78,7 @@ export default function AuditTrail({
               <td>{actionText(row)}</td>
               <td>{row.actorUsername}</td>
               <td>{dateTimeLocal(row.createdAt)}</td>
-              <td>{summaryText(row.fieldSummary)}</td>
+              <td>{summaryText(row.fieldSummary, row.previous)}</td>
             </tr>
           ))}
         </tbody>

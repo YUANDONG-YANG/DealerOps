@@ -8,6 +8,7 @@ interface Props {
   tone?: StatusTone;
 }
 
+/** The colour tone of a known status value; unknown values are neutral. */
 function defaultTone(status: string): StatusTone {
   const value = status.toUpperCase();
   if (['PASSED', 'IN_STOCK', 'DONE', 'ACTIVE'].includes(value)) return 'success';
@@ -18,6 +19,7 @@ function defaultTone(status: string): StatusTone {
   return 'neutral';
 }
 
+/** A coloured status pill; the label defaults to the status with underscores as spaces. */
 export default function StatusTag({ status, children, tone }: Props) {
   const label = children ?? status.replace(/_/g, ' ');
   return (

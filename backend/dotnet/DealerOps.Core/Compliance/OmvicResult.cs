@@ -2,4 +2,5 @@ using DealerOps.Core.Compliance.Dto;
 
 namespace DealerOps.Core.Compliance;
 
-public record OmvicResult(List<RuleFinding> Findings, bool HardBlocked);
+/// <summary>The OMVIC rule findings for one listing, BLOCK findings first.</summary>
+public record OmvicResult(List<RuleFinding> Findings);

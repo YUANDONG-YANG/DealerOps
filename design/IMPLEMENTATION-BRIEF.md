@@ -209,7 +209,9 @@ Unified error body: `{"code":"VIN_DUP","message":"..."}`. Cross-dealership id �
 | POST | `/listings/{id}/checks` | Staff | This dealership + version; rules then AI; wait at most 15s | 404 409 502 AI_UNAVAILABLE |
 | POST | `/listings/{id}/ready` | Staff | Only current check Passed and not Stale | 409 CHECK_STALE / NOT_PASSED |
 | POST | `/listings/{id}/exports` | Staff | Same; `text/plain` TXT | 409 CHECK_STALE / NOT_PASSED |
-| GET | `/audit?entityType=&entityId=` | Staff | This dealership only; Admin does not get business entities | 404 |
+| GET | `/audit?entityType=&entityId=` | Manager | This dealership only, newest first; staff → 403 (AUD-17); Admin does not get business entities | 404 403 |
+| GET | `/dealer/audit` | Manager | Dealership audit log, newest first, filters (AUD-11) | 403 |
+| GET | `/admin/audit` | Admin | Platform audit log incl. sign-ins (AUD-10, AUD-12) | 403 |
 | POST | `/assistant/ask` | Staff | `{text}`; do not write business tables | 403 |
 
 **Internal only (Gateway → ai-service; browser 404):**

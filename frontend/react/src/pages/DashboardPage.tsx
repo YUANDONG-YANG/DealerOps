@@ -7,11 +7,11 @@ import { describeError } from '../api/errors';
 import { reportsApi, type SalesFunnelReport, type SalesReport, type WorkshopSettlementReport } from '../api/reports';
 import { leadsApi } from '../api/leads';
 import { useSessionStore } from '../store/session';
-import { cad } from '../format';
+import { cad, dateTimeLocal } from '../format';
 
+// The current month in the viewer's local zone, as YYYY-MM (the report's month key).
 function thisMonth() {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  return dateTimeLocal(new Date().toISOString()).slice(0, 7);
 }
 
 /** The dealership's KPIs on one page: inventory, sales, leads, and the workshop. */

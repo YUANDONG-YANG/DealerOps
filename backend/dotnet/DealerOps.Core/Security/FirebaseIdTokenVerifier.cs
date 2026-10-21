@@ -6,6 +6,7 @@ using AppErrorCode = DealerOps.Core.Common.Exceptions.ErrorCode;
 
 namespace DealerOps.Core.Security;
 
+/// <summary>The part of a verified Firebase ID token this application acts on.</summary>
 public record FirebaseIdentity(
     string Uid,
     string Email,
@@ -13,15 +14,22 @@ public record FirebaseIdentity(
     string? DisplayName,
     string? PhoneNumber);
 
+/// <summary>
+/// Verifies Firebase Authentication ID tokens server-side with the Firebase Admin SDK. Firebase
+/// proves who signed in; role, dealership and authorization stay with DealerOps.
+/// </summary>
 public sealed class FirebaseIdTokenVerifier
 {
     private const string ProjectId = "dealer-ops-c0851";
+    private readonly ILogger<FirebaseIdTokenVerifier> _logger;
     private FirebaseAuth? _auth;
 
-    public FirebaseIdTokenVerifier()
-    {
-    }
+    public FirebaseIdTokenVerifier(ILogger<FirebaseIdTokenVerifier> logger) => _logger = logger;
 
+    /// <summary>
+    /// Validates the token and returns its identity. Throws 401 for a rejected token or one
+    /// without an email address, and 500 when the server's Firebase credentials are missing.
+    /// </summary>
     public async Task<FirebaseIdentity> VerifyAsync(string idToken, CancellationToken cancellationToken)
     {
         FirebaseToken decoded;
@@ -69,6 +77,7 @@ public sealed class FirebaseIdTokenVerifier
             }
             catch (Exception ex) when (ex is InvalidOperationException || ex is ArgumentException)
             {
+                _logger.LogError(ex, "Firebase Admin SDK could not be initialised projectId={ProjectId}", ProjectId);
                 throw new ApiException(AppErrorCode.InternalError,
                     "Firebase server credentials are not configured.");
             }

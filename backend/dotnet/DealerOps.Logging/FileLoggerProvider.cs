@@ -3,6 +3,10 @@ using Microsoft.Extensions.Logging;
 
 namespace DealerOps.Logging;
 
+/// <summary>
+/// Writes each service's log to <c>{directory}/{service}-{yyyy-MM-dd}.log</c> and deletes files older
+/// than the retention period (seven days by default) at startup.
+/// </summary>
 public sealed class FileLoggerProvider : ILoggerProvider
 {
     private readonly string _directory;
@@ -19,6 +23,7 @@ public sealed class FileLoggerProvider : ILoggerProvider
         RemoveExpiredLogs();
     }
 
+    /// <inheritdoc />
     public ILogger CreateLogger(string categoryName) => new FileLogger(this, categoryName);
     public void Dispose() { }
 

@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace DealerOps.Core.Customer;
 
+/// <summary>Links and unlinks a dealership vehicle to a customer (audited as LINK and UNLINK).</summary>
 [ApiController]
 [Route("api/v1/customers/{id}/vehicles")]
 [Authorize]

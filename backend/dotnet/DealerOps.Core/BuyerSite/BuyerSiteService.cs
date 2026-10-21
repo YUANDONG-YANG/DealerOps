@@ -7,6 +7,7 @@ using DealerOps.Core.Customer;
 using DealerOps.Core.Data;
 using DealerOps.Core.Lead;
 using DealerOps.Core.Listing;
+using DealerOps.Core.Notifications;
 using DealerOps.Core.Photo;
 using DealerOps.Core.Vehicle;
 using Microsoft.EntityFrameworkCore;
@@ -20,18 +21,24 @@ namespace DealerOps.Core.BuyerSite;
 /// </summary>
 public class BuyerSiteService
 {
-    // Recorded as the author of rows the buyer site writes, so staff can tell them apart.
+    /// <summary>Recorded as the author of rows the buyer site writes, so staff can tell them apart.</summary>
     public const string Actor = "buyer-site";
 
     private readonly AppDbContext _db;
     private readonly IAuditService _audit;
+    private readonly NotificationService _notifications;
+    private readonly ILogger<BuyerSiteService> _logger;
 
-    public BuyerSiteService(AppDbContext db, IAuditService audit)
+    public BuyerSiteService(AppDbContext db, IAuditService audit, NotificationService notifications,
+        ILogger<BuyerSiteService> logger)
     {
         _db = db;
         _audit = audit;
+        _notifications = notifications;
+        _logger = logger;
     }
 
+    /// <summary>The active dealership's contact card and its publicly listed vehicles, newest first.</summary>
     public PublicInventory Inventory(long dealerId)
     {
         var dealer = LoadDealer(dealerId);
@@ -66,13 +73,14 @@ public class BuyerSiteService
     /// <summary>
     /// Files the inquiry as a NEW lead on the vehicle, due for follow-up today. The buyer is
     /// matched to an existing customer by phone (unique per dealership, CRM-09); otherwise a
-    /// customer is created. The message and the contact details as typed go in the first note.
+    /// customer is created. The message and the contact details as typed go in the first note,
+    /// and every member of the dealership gets a <c>BUYER_INQUIRY</c> inbox message.
     /// </summary>
     public void Inquire(long dealerId, InquiryRequest body)
     {
         LoadDealer(dealerId);
         var vehicleId = body.VehicleId!.Value;
-        RequirePublicVehicle(dealerId, vehicleId);
+        var vehicle = RequirePublicVehicle(dealerId, vehicleId);
 
         var contact = body.Contact;
         var name = contact.Name.Trim();
@@ -83,6 +91,7 @@ public class BuyerSiteService
         using var tx = _db.Database.BeginTransaction();
         var customer = _db.Customers.IgnoreQueryFilters()
             .FirstOrDefault(c => c.DealerId == dealerId && c.DeletedAt == null && c.Phone == phone);
+        var newCustomer = customer == null;
         if (customer == null)
         {
             customer = new CustomerEntity
@@ -126,7 +135,17 @@ public class BuyerSiteService
         _audit.Record("LEAD", lead.Id, "NOTE", dealerId, Actor,
             new Dictionary<string, object> { ["noteId"] = note.Id });
         _db.SaveChanges();
+        // leadId is a string because the inbox resolves messages by a string payload field.
+        _notifications.Create(dealerId, NotificationService.BuyerInquiry, new
+        {
+            leadId = lead.Id.ToString(),
+            customerName = name,
+            vehicle = $"{vehicle.ModelYear} {vehicle.Make} {vehicle.Model}"
+        });
         tx.Commit();
+        // Ids only: the buyer's contact details stay out of the log.
+        _logger.LogInformation("Buyer inquiry filed leadId={LeadId} dealerId={DealerId} vehicleId={VehicleId} customerId={CustomerId} newCustomer={NewCustomer}",
+            lead.Id, dealerId, vehicleId, customer.Id, newCustomer);
     }
 
     private sealed class PublicRow
@@ -135,6 +154,7 @@ public class BuyerSiteService
         public ListingEntity Listing { get; init; } = null!;
     }
 
+    /// <summary>The dealership's publicly listed vehicles with their ads (the AD-13 export rule).</summary>
     private IQueryable<PublicRow> PublicVehicles(long dealerId) =>
         from l in _db.Listings.IgnoreQueryFilters()
         join c in _db.ComplianceChecks.IgnoreQueryFilters() on l.LastCheckId equals c.Id
@@ -148,11 +168,9 @@ public class BuyerSiteService
               && v.DeletedAt == null
         select new PublicRow { Vehicle = v, Listing = l };
 
-    private void RequirePublicVehicle(long dealerId, long vehicleId)
-    {
-        if (!PublicVehicles(dealerId).Any(x => x.Vehicle.Id == vehicleId))
-            throw new ApiException(ErrorCode.NotFound, "This vehicle is no longer listed.");
-    }
+    private VehicleEntity RequirePublicVehicle(long dealerId, long vehicleId) =>
+        PublicVehicles(dealerId).Where(x => x.Vehicle.Id == vehicleId).Select(x => x.Vehicle).FirstOrDefault()
+        ?? throw new ApiException(ErrorCode.NotFound, "This vehicle is no longer listed.");
 
     private Dealer.DealerEntity LoadDealer(long dealerId) =>
         _db.Dealers.AsNoTracking().FirstOrDefault(d => d.Id == dealerId && d.Active)

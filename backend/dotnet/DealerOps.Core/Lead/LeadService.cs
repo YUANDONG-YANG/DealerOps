@@ -6,28 +6,40 @@ using DealerOps.Core.Customer;
 using DealerOps.Core.Customer.Dto;
 using DealerOps.Core.Data;
 using DealerOps.Core.Lead.Dto;
+using DealerOps.Core.Notifications;
 using DealerOps.Core.Vehicle;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace DealerOps.Core.Lead;
 
+/// <summary>
+/// Sales leads of the caller's dealership: list, funnel report, create, update and notes.
+/// Every change writes a LEAD audit row in the same transaction as the change (LEAD-08, AUD-07).
+/// </summary>
 public class LeadService
 {
     private readonly AppDbContext _db;
     private readonly CustomerService _customerService;
     private readonly IAuditService _audit;
+    private readonly NotificationService _notifications;
+    private readonly ILogger<LeadService> _logger;
 
-    public LeadService(AppDbContext db, CustomerService customerService, IAuditService audit)
+    public LeadService(AppDbContext db, CustomerService customerService, IAuditService audit,
+        NotificationService notifications, ILogger<LeadService> logger)
     {
         _db = db;
         _customerService = customerService;
         _audit = audit;
+        _notifications = notifications;
+        _logger = logger;
     }
 
+    /// <summary>Filtered page of the dealership's leads, newest first.</summary>
     public PageResponse<LeadListItem> List(
         string? q, LeadStage? stage, string? owner, long? customerId, bool? overdue, int page, int size)
     {
-        var tenant = RequireTenant();
+        var tenant = TenantGuard.RequireTenantId();
         var p = Paging.ClampPage(page);
         var s = Paging.ClampSize(size);
 
@@ -77,9 +89,10 @@ public class LeadService
         return new PageResponse<LeadListItem>(items, p, s, total);
     }
 
+    /// <summary>Lead counts per stage (in pipeline order), win rate and the last 12 months of stage entries, newest month first.</summary>
     public SalesFunnelReport Funnel()
     {
-        var tenant = RequireTenant();
+        var tenant = TenantGuard.RequireTenantId();
         var counts = _db.Leads.Where(l => l.DealerId == tenant)
             .GroupBy(l => l.Stage)
             .Select(group => new { Stage = group.Key, Count = group.LongCount() })
@@ -134,9 +147,10 @@ public class LeadService
             .ToList();
     }
 
+    /// <summary>Creates a NEW lead for an existing or a new customer, with an optional first note.</summary>
     public LeadDetail Create(CreateLeadRequest body)
     {
-        var tenant = RequireTenant();
+        var tenant = TenantGuard.RequireTenantId();
         if ((body.CustomerId == null) == (body.NewCustomer == null))
             throw new ApiException(ErrorCode.Validation, "Choose an existing customer or enter a new one.");
 
@@ -185,19 +199,26 @@ public class LeadService
             WriteNote(lead, note);
 
         tx.Commit();
+        _logger.LogInformation("Lead created leadId={LeadId} customerId={CustomerId} dealerId={DealerId} by {Actor}",
+            lead.Id, customerId, tenant, TenantContext.ActorUsername());
 
         return ToDetail(lead);
     }
 
+    /// <summary>One lead with its notes, newest note first.</summary>
     public LeadDetail Get(long id)
     {
-        var tenant = RequireTenant();
+        var tenant = TenantGuard.RequireTenantId();
         return ToDetail(Load(id, tenant));
     }
 
+    /// <summary>
+    /// Updates an open lead's stage, owner, follow-up date, vehicle and lost reason under optimistic locking.
+    /// The audit row holds the changed fields' new values and, in previous, the values they replaced.
+    /// </summary>
     public LeadDetail Patch(long id, PatchLeadRequest body)
     {
-        var tenant = RequireTenant();
+        var tenant = TenantGuard.RequireTenantId();
         var lead = Load(id, tenant);
         if (body.Version != lead.Version)
             throw new ApiException(ErrorCode.VersionConflict, "Version conflict.");
@@ -213,22 +234,36 @@ public class LeadService
             lostReason = null;
 
         var changed = new Dictionary<string, object>();
+        var previous = new Dictionary<string, object?>();
+        var oldStage = lead.Stage;
         if (lead.Stage != body.Stage)
+        {
             changed["stage"] = EnumWireName.Of(body.Stage);
+            previous["stage"] = EnumWireName.Of(lead.Stage);
+        }
         if (lead.OwnerUsername != owner)
         {
             RequireMember(tenant, owner);
             changed["ownerUsername"] = owner ?? "";
+            previous["ownerUsername"] = lead.OwnerUsername ?? "";
         }
         if (lead.NextFollowUpOn != body.NextFollowUpOn)
+        {
             changed["nextFollowUpOn"] = true;
+            previous["nextFollowUpOn"] = lead.NextFollowUpOn?.ToString("yyyy-MM-dd");
+        }
         if (lead.VehicleId != body.VehicleId)
         {
             RequireInStockVehicle(tenant, body.VehicleId);
             changed["vehicleId"] = body.VehicleId == null ? "" : body.VehicleId;
+            previous["vehicleId"] = lead.VehicleId == null ? "" : lead.VehicleId;
         }
+        // The reason text is free text and is never copied into the audit; only whether one was set.
         if (lead.LostReason != lostReason)
+        {
             changed["lostReason"] = true;
+            previous["lostReason"] = lead.LostReason == null ? null : true;
+        }
 
         lead.Stage = body.Stage;
         lead.OwnerUsername = owner;
@@ -238,19 +273,32 @@ public class LeadService
         lead.UpdatedAt = DateTime.UtcNow;
 
         if (changed.Count > 0)
-            Audit(lead.Id, "UPDATE", tenant, changed);
+            Audit(lead.Id, "UPDATE", tenant, changed, previous);
         _db.SaveChanges();
+
+        // Someone took the website inquiry: it leaves everyone's inbox once it has an owner or moved on from NEW.
+        if (changed.Count > 0 && (lead.OwnerUsername != null || lead.Stage != LeadStage.New))
+            _notifications.ResolveByCorrelation(tenant, NotificationService.BuyerInquiry, "leadId", lead.Id.ToString(),
+                "TAKEN", TenantContext.ActorUsername());
+
+        if (changed.Count > 0)
+            _logger.LogInformation(
+                "Lead updated leadId={LeadId} stage={OldStage}->{NewStage} fields={Fields} dealerId={DealerId} by {Actor}",
+                lead.Id, EnumWireName.Of(oldStage), EnumWireName.Of(lead.Stage), string.Join(",", changed.Keys), tenant, TenantContext.ActorUsername());
 
         return ToDetail(lead);
     }
 
+    /// <summary>Adds a note to a lead; the audit row keeps the note id only, never the text.</summary>
     public LeadNoteItem AddNote(long id, AddLeadNoteRequest body)
     {
-        var tenant = RequireTenant();
+        var tenant = TenantGuard.RequireTenantId();
         var lead = Load(id, tenant);
         using var tx = _db.Database.BeginTransaction();
         var note = WriteNote(lead, RequireNote(body.Body, "body"));
         tx.Commit();
+        _logger.LogInformation("Lead note added noteId={NoteId} leadId={LeadId} dealerId={DealerId} by {Actor}",
+            note.Id, lead.Id, tenant, TenantContext.ActorUsername());
         return ToNote(note);
     }
 
@@ -261,7 +309,7 @@ public class LeadService
         {
             DealerId = lead.DealerId,
             LeadId = lead.Id,
-            AuthorUsername = ActorUsername(),
+            AuthorUsername = TenantContext.ActorUsername(),
             Body = text
         };
         _db.LeadNotes.Add(note);
@@ -336,9 +384,10 @@ public class LeadService
             ?? throw new ApiException(ErrorCode.NotFound, "Not found");
     }
 
-    private void Audit(long leadId, string action, long tenant, Dictionary<string, object> fields)
+    private void Audit(long leadId, string action, long tenant, Dictionary<string, object> fields,
+        Dictionary<string, object?>? previous = null)
     {
-        _audit.Record("LEAD", leadId, action, tenant, ActorUsername(), fields);
+        _audit.Record("LEAD", leadId, action, tenant, TenantContext.ActorUsername(), fields, previous);
     }
 
     private static string? TrimToNull(string? value)
@@ -366,11 +415,4 @@ public class LeadService
         return text;
     }
 
-    private static long RequireTenant()
-    {
-        TenantGuard.RequireDealerUser();
-        return TenantContext.Get()!.TenantDealerId!.Value;
-    }
-
-    private static string ActorUsername() => TenantContext.Get()?.Username ?? "";
 }

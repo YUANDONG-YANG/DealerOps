@@ -13,6 +13,7 @@ namespace DealerOps.Core.Dealer;
 /// </summary>
 public static class AccountSource
 {
+    /// <summary>Sign-up channel per username; missing users are left out of the result.</summary>
     public static Dictionary<string, string?> For(AppDbContext db, IEnumerable<string> usernames)
     {
         var names = usernames.Distinct().ToList();

@@ -36,7 +36,7 @@ Class signs in with an email, username, or phone plus password (15 §8); self si
 | `/crm`, `/leads` | `Dealer.User` | — |
 | `/ads` | `Dealer.User` (page title **Ad compliance**) | — |
 
-Do not show `/tickets` `/dashboard` `/audit` or buyer pages. Audit lives only at the bottom of the DMS/CRM detail drawer.
+Do not show `/tickets` `/dashboard` `/audit` or buyer pages. A record's history lives at the bottom of its DMS/CRM detail drawer; the platform audit log is a tab on `/admin` and the dealership audit log is on the manager's `/team` page (AUD-10, AUD-11). Record history is shown to managers only; staff see none (AUD-17). There is no separate `/audit` route.
 
 | Account (prepare for class) | Role (`app_user.role`, JWT `roles`) | Bound dealership | Used to demo |
 |---|---|---|---|
@@ -127,7 +127,7 @@ All APIs go through Gateway `/api/v1/**`. Staff tenant comes only from JWT `sub`
 
 | ID | Name | Expect |
 |---|---|---|
-| **BE-13** | Admin hitting business URLs | `/vehicles` `/customers` `/listings/**` `/audit` `/assistant/ask` → **403** `FORBIDDEN` (15 §2.4), body has no business fields |
+| **BE-13** | Admin hitting business URLs | `/vehicles` `/customers` `/listings/**` `/audit` `/assistant/ask` → **403** `FORBIDDEN` (15 §2.4), body has no business fields; the admin reads audit only through `/admin/audit` (14 §9.2) |
 | **BE-14** | Bypass Gateway | browser or no internal header hitting core `8081`, ai `8082`, `/internal/v1/**` → fail (no CORS / **404**, 15). Gateway + user JWT `/api/v1/**` is the product entry |
 | **BE-15** | Sell as a pair | missing either `soldOn`/`soldPrice` → **400** `SOLD_PAIR_REQUIRED`; price `≤0` → 400. Ignore PATCH of sale fields |
 | **BE-16** | Ignore client `dealerId` | Staff A creates a vehicle while spoofing dealership B `dealerId` in body/query/header | still written to **dealership A**; cannot switch dealerships via parameters |
@@ -191,7 +191,7 @@ Manual checks through the gateway (local or cloud). Ids and codes follow [14](14
 | **EXT-09** Photo enhance | Select the JPEG, **Auto fix**, toggle Original / Enhanced, then **Sharpen** | Enhanced differs and is at most 1600 px on the long edge; original unchanged; Sharpen replaces the enhanced copy; audit `VEHICLE_PHOTO` `UPDATE` |
 | **EXT-10** Photo isolation and delete | Staff B `GET /api/v1/vehicles/{A's id}/photos/{photoId}/content`; Staff A deletes a photo | B → 404; after delete the thumbnail disappears and its content → 404; admin on any photo URL → 403 |
 
-EXT-11–EXT-16 (listing details, payments and bill of sale, reports and dashboard, buyer site, buyer-site limits, manager and staff) are listed in [21](21-Feature-Extensions.md) §9 Acceptance. They are also automated in `playwright/tests/api/` (`vehicle-details-payments`, `reports`, `buyer-site`) and `playwright/tests/ui/` (`dms-details-payments`, `dashboard-reports`, `shop-disclaimer`); the buyer-site cases that need a passed check skip when the AI service is down.
+EXT-11–EXT-19 (listing details, payments and bill of sale, reports and dashboard, buyer site, buyer-site limits, manager and staff, audit logs, sign-in audit, staff restrictions) are listed in [21](21-Feature-Extensions.md) §9 Acceptance. They are also automated in `playwright/tests/api/` (`vehicle-details-payments`, `reports`, `buyer-site`) and `playwright/tests/ui/` (`dms-details-payments`, `dashboard-reports`, `shop-disclaimer`); the buyer-site cases that need a passed check skip when the AI service is down.
 
 ---
 
@@ -212,6 +212,6 @@ EXT-11–EXT-16 (listing details, payments and bill of sale, reports and dashboa
 | Backend extras BE-13–BE-16 | 4 | S1 leans BE-14; S3 leans BE-13/16 |
 | Frontend FE-01–FE-10 | 10 | S3 guards, five pages and the assistant widget; S2 at least `/login`+`/dms`+`/ads` four states |
 
-| Extension cases EXT-01–EXT-16 | 16 | Manual, after design/21 lands (EXT-11–16 in design/21 §9; also automated in Playwright) |
+| Extension cases EXT-01–EXT-19 | 19 | Manual, after design/21 lands (EXT-11–19 in design/21 §9; EXT-11–16 also automated in Playwright) |
 
-**26 use cases total** (16 backend + 10 frontend), plus 6 classroom scripts and 16 extension cases. The focused manual checks in requirements/analysis/06 (AT-24–28) reuse these flows and are not new implementation features.
+**26 use cases total** (16 backend + 10 frontend), plus 6 classroom scripts and 19 extension cases. The focused manual checks in requirements/analysis/06 (AT-24–28) reuse these flows and are not new implementation features.

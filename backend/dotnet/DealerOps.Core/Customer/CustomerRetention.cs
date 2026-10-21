@@ -9,7 +9,8 @@ namespace DealerOps.Core.Customer;
 /// links and audit history stay intact, but its personal information is anonymized once it has
 /// been deleted for <c>Retention:DeletedCustomerDays</c> (default 730; 0 turns it off). Runs at
 /// startup and then daily. Each anonymization is audited as a customer <c>UPDATE</c> by
-/// <c>system</c>, recording field names only (AUD-04).
+/// <c>system</c> with the fields flagged, not the placeholder values. Earlier audit rows keep the
+/// values they recorded (AUD-04, AUD-05).
 /// </summary>
 public class CustomerRetention : BackgroundService
 {
@@ -41,6 +42,10 @@ public class CustomerRetention : BackgroundService
         }
     }
 
+    /// <summary>
+    /// Anonymizes every customer past the retention cutoff, adding one audit row per customer before
+    /// the single SaveChanges so the change and its audit commit together (AUD-07).
+    /// </summary>
     private void AnonymizeExpired()
     {
         using var scope = _provider.CreateScope();
@@ -66,6 +71,7 @@ public class CustomerRetention : BackgroundService
         }
         db.SaveChanges();
         if (expired.Count > 0)
-            _logger.LogInformation("Anonymized {Count} customers deleted before {Cutoff:o}", expired.Count, cutoff);
+            _logger.LogInformation("Anonymized {Count} customers deleted before {Cutoff:o} customerIds={CustomerIds} by system",
+                expired.Count, cutoff, string.Join(",", expired.Select(c => c.Id)));
     }
 }

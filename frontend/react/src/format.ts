@@ -27,3 +27,11 @@ export function enumLabel(value: unknown): string {
   const s = String(value || '').split('_').join(' ').toLowerCase();
   return s ? s.charAt(0).toUpperCase() + s.slice(1) : '';
 }
+
+// Money typed into a form: 0 or more, at most 2 decimals.
+export const MONEY_PATTERN = /^\d+(\.\d{1,2})?$/;
+
+// Odometer reading for display ("30,500 km"); null when unknown.
+export function km(value: number | null | undefined): string | null {
+  return value != null ? `${Number(value).toLocaleString('en-CA')} km` : null;
+}

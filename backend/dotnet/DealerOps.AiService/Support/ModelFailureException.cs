@@ -1,5 +1,9 @@
 namespace DealerOps.AiService.Support;
 
+/// <summary>
+/// A handled AI failure with its HTTP status and stable error code (AI_TIMEOUT, AI_KEY_MISSING,
+/// AI_PROVIDER_FAILED, AI_BUSY).
+/// </summary>
 public class ModelFailureException : Exception
 {
     public const string Timeout = "AI_TIMEOUT";

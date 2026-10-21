@@ -3,6 +3,9 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace DealerOps.Core.Compliance;
 
+/// <summary>
+/// An admin override of one compliance rule. Null severity or message means the built-in default applies.
+/// </summary>
 [Table("compliance_rule_override")]
 public class RuleOverrideEntity
 {

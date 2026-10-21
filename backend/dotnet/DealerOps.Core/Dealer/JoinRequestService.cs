@@ -20,14 +20,20 @@ public class JoinRequestService
     private readonly AppDbContext _db;
     private readonly IAuditService _audit;
     private readonly NotificationService _notifications;
+    private readonly ILogger<JoinRequestService> _logger;
 
-    public JoinRequestService(AppDbContext db, IAuditService audit, NotificationService notifications)
+    public JoinRequestService(AppDbContext db, IAuditService audit, NotificationService notifications,
+        ILogger<JoinRequestService> logger)
     {
         _db = db;
         _audit = audit;
         _notifications = notifications;
+        _logger = logger;
     }
 
+    /// <summary>
+    /// Pending join requests for the caller's dealership (manager only), newest first.
+    /// </summary>
     public List<JoinRequestResponse> List()
     {
         var tenant = TenantGuard.RequireManager().TenantDealerId!.Value;
@@ -42,6 +48,11 @@ public class JoinRequestService
             .ToList();
     }
 
+    /// <summary>
+    /// Approves a pending request (manager only): the applicant becomes active staff of the
+    /// caller's dealership. Audits the membership and the account binding with its old values,
+    /// and resolves the matching inbox notification, all in one transaction.
+    /// </summary>
     public void Approve(string username)
     {
         var tenant = TenantGuard.RequireManager().TenantDealerId!.Value;
@@ -60,7 +71,7 @@ public class JoinRequestService
         membership.Username = username;
         membership.Active = true;
         membership.DealerRole = DealerRole.Staff;
-        membership.CreatedBy = ActorUsername();
+        membership.CreatedBy = TenantContext.ActorUsername();
 
         // One transaction from the membership through its audit entry (AUD-07): the flush only
         // assigns the id, nothing is committed until every row below is written too.
@@ -73,25 +84,38 @@ public class JoinRequestService
         user.RequestedDealerId = null;
         _db.SaveChanges();
 
-        _audit.Record("MEMBERSHIP", membership.Id, "CREATE", tenant, ActorUsername(),
+        _audit.Record("MEMBERSHIP", membership.Id, "CREATE", tenant, TenantContext.ActorUsername(),
             new Dictionary<string, object> { ["username"] = username, ["source"] = "join_request" });
+        _audit.Record("APP_USER", user.Id, "UPDATE", tenant, TenantContext.ActorUsername(),
+            new Dictionary<string, object> { ["dealerId"] = tenant },
+            new Dictionary<string, object?> { ["dealerId"] = null, ["requestedDealerId"] = tenant });
         _db.SaveChanges();
         _notifications.ResolveByCorrelation(tenant, "JOIN_REQUEST", "username", username,
-            "APPROVED", ActorUsername());
+            "APPROVED", TenantContext.ActorUsername());
         tx?.Commit();
+        _logger.LogInformation(
+            "Join request approved username={Username} dealerId={DealerId} membershipId={MembershipId} by {Actor}",
+            username, tenant, membership.Id, TenantContext.ActorUsername());
     }
 
+    /// <summary>
+    /// Rejects a pending request (manager only) by clearing the applicant's requested
+    /// dealership; the audit row keeps the dealership it replaced.
+    /// </summary>
     public void Reject(string username)
     {
         var tenant = TenantGuard.RequireManager().TenantDealerId!.Value;
         var user = LoadRequest(tenant, username);
 
         user.RequestedDealerId = null;
-        _audit.Record("APP_USER", user.Id, "UPDATE", tenant, ActorUsername(),
-            new Dictionary<string, object> { ["username"] = username, ["rejected"] = true });
+        _audit.Record("APP_USER", user.Id, "UPDATE", tenant, TenantContext.ActorUsername(),
+            new Dictionary<string, object> { ["username"] = username, ["rejected"] = true },
+            new Dictionary<string, object?> { ["requestedDealerId"] = tenant });
         _db.SaveChanges();
         _notifications.ResolveByCorrelation(tenant, "JOIN_REQUEST", "username", username,
-            "REJECTED", ActorUsername());
+            "REJECTED", TenantContext.ActorUsername());
+        _logger.LogInformation("Join request rejected username={Username} dealerId={DealerId} by {Actor}",
+            username, tenant, TenantContext.ActorUsername());
     }
 
     /// <summary>
@@ -124,11 +148,14 @@ public class JoinRequestService
         return new MyJoinRequestResponse(dealerId, name);
     }
 
+    // File() only reaches here while no request is pending, so the old value is always empty.
+    // The row carries the requested dealership so it shows in that dealership's audit log.
     private void SetRequested(AppUserEntity user, long dealerId)
     {
         user.RequestedDealerId = dealerId;
-        _audit.Record("APP_USER", user.Id, "UPDATE", null, user.Username,
-            new Dictionary<string, object> { ["requestedDealerId"] = dealerId });
+        _audit.Record("APP_USER", user.Id, "UPDATE", dealerId, user.Username,
+            new Dictionary<string, object> { ["requestedDealerId"] = dealerId },
+            new Dictionary<string, object?> { ["requestedDealerId"] = null });
         _db.SaveChanges();
         _notifications.Create(dealerId, "JOIN_REQUEST", new
         {
@@ -136,11 +163,13 @@ public class JoinRequestService
             displayName = user.DisplayName,
             email = user.Email
         });
+        _logger.LogInformation("Join request filed username={Username} dealerId={DealerId}",
+            user.Username, dealerId);
     }
 
     private AppUserEntity LoadCaller()
     {
-        var username = ActorUsername();
+        var username = TenantContext.ActorUsername();
         if (string.IsNullOrWhiteSpace(username))
             throw new ApiException(ErrorCode.Unauthorized, "Unauthorized");
         var user = _db.AppUsers.FirstOrDefault(u => u.Username == username && u.Active)
@@ -156,5 +185,4 @@ public class JoinRequestService
             && u.Role == AppRole.DealerUser)
         ?? throw new ApiException(ErrorCode.NotFound, "Join request not found.");
 
-    private static string ActorUsername() => TenantContext.Get()?.Username ?? "";
 }

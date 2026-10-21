@@ -63,7 +63,7 @@ Handbook page names: Login / Admin / DMS / CRM / Ad compliance / Assistant, plus
 | `/` | `home` | `LandingView` | `public: true` | Public landing page for signed-out visitors |
 | `/login` | `login` | `LoginView` | `public: true` | — |
 | `/register` | `register` | `RegisterView` | `public: true` | Self sign-up; signed-in users are redirected as on `/login` |
-| `/shop`, `/shop/:dealerId` | `shop` | `ShopPage` | `public: true` | Buyer site (design/21 SHOP-01–05): dealership directory, then one dealership's listed vehicles with **Ask about this vehicle** (inquiry drawer). Calls only `/api/v1/public/**` through `api/buyerSite.ts`, without a token |
+| `/shop`, `/shop/:dealerId` | `shop` | `ShopPage` | `public: true` | Buyer site (design/21 SHOP-01–05): dealership directory, then one dealership's listed vehicles with **Ask about this vehicle** (inquiry drawer). Ad text highlights prices; phone numbers are `sms:` links and e-mail addresses are `mailto:` links prefilled with the ad's vehicle. Calls only `/api/v1/public/**` through `api/buyerSite.ts`, without a token |
 | `/disclaimer` | `disclaimer` | `DisclaimerPage` | `public: true` | Full disclaimer (AD-14); linked from the ad result panel, the landing page, the buyer site and the bill of sale |
 | `/admin` | `admin` | `AdminView` | `roles: ['Platform.Admin']` | Admin default page |
 | `/dashboard` | `dashboard` | `DashboardPage` | `roles: ['Dealer.User']` | first menu item **Dashboard** (DASH-01): inventory, sales, lead and workshop KPIs from the report endpoints, plus **Open buyer site**. Not the post-login page, which stays `/dms` |
@@ -73,7 +73,7 @@ Handbook page names: Login / Admin / DMS / CRM / Ad compliance / Assistant, plus
 | `/leads` | `leads` | `LeadsView` | `roles: ['Dealer.User']` | menu item **Leads** after CRM |
 | `/reports/sales-funnel` | `sales-funnel` | `SalesFunnelView` | `roles: ['Dealer.User']` | menu item **Sales report** after Leads. Vehicle sales, the current lead-stage snapshot (CRM-15), monthly **Stage history** (CRM-16), and **Workshop settlement** by month and assignee (WO-08) |
 | `/ads` | `ads` | `AdsView` | `roles: ['Dealer.User']` | page title **Ad compliance** |
-| `/team` | `team` | `TeamView` | `roles: ['Dealer.User']`, `dealerRole: 'MANAGER'` | Managers only (design/21 AUTH-27); staff are redirected to `/dms`. Join-request history (`GET /dealer/notifications?includeResolved=true`): approve or reject pending requests; resolved rows show the outcome, who settled it, and when. A `Members` tab lists current members with their dealership role and how each account was created, with **Remove** on staff rows; a `Dealership profile` tab edits the legal name and contact details (14 §5.8). One table per view, 12 §1 |
+| `/team` | `team` | `TeamView` | `roles: ['Dealer.User']`, `dealerRole: 'MANAGER'` | Managers only (design/21 AUTH-27); staff are redirected to `/dms`. Join-request history (`GET /dealer/notifications?includeResolved=true`): approve or reject pending requests; resolved rows show the outcome, who settled it, and when. A `Members` tab lists current members with their dealership role and how each account was created, with **Remove** on staff rows; a `Dealership profile` tab edits the legal name and contact details (14 §5.8); an `Activity` tab shows the dealership audit log (`GET /dealer/audit`, newest first, filters record type, record id, action, actor, date range) in `AuditLogPanel`. One table per view, 12 §1 |
 | `/profile` | `profile` | `ProfileView` | signed-in user **with business access** (`Platform.Admin`, or `Dealer.User` with a dealership) | Account self-service: own display name and phone, plus account deletion. Username, role and dealership binding are read-only. An account that is not yet approved, or that has been unbound, does not reach this page: `AuthGuard` renders the no-access screen for every protected path, including `/profile` |
 | — | `no-access` | `NoAccessLanding` | — | Signed-in user without business access. A guard renders it **in place of** the requested page; it has no path of its own |
 
@@ -82,7 +82,7 @@ Handbook page names: Login / Admin / DMS / CRM / Ad compliance / Assistant, plus
 - The assistant is a floating panel on staff pages, not a route.
 - **Do not** register: `/audit`, `/tickets`, `/dashboard`, or buyer public pages.
 - `/login` accepts the account's email, username, or phone, plus its password. `/register` accepts a username, a display name, an email and/or phone, and a password. Both carry a **Google** sign-in button (AUTH-23, added 2026-10-15), which is hidden when no client id is configured; no other social provider is present.
-- Audit: **hidden at the bottom of the DMS / CRM detail drawer**, calling handbook `GET /audit?entityType=&entityId=`. No standalone Audit page and no menu item.
+- Audit: **hidden at the bottom of the DMS / CRM / lead detail drawer and the ad workspace**, calling handbook `GET /audit?entityType=&entityId=`, **managers only**. No standalone Audit page and no menu item; the dealership log is the Team `Activity` tab and the platform log is the Admin `Audit log` tab.
 
 Query strings (optional deep links): `/dms?vehicleId=`, `/crm?customerId=`, `/ads?vehicleId=` (used by assistant cards), `/leads?leadId=` (CRM customer drawer). Do not put `dealerId` in the route as the tenant authority.
 
@@ -100,7 +100,9 @@ One `beforeEach` in `router/index.ts`, order fixed:
 4. `GET /me` fails with 401 → clear session, return to `/login`.
 5. Role is not `Platform.Admin` | `Dealer.User` (or `active=false`, if the handbook response includes it), or the account is a `Dealer.User` with no dealership → stay on the no-access screen for every protected path, including `/profile`. The shell offers sign-out and one join request. Do not invent a third role.
 
-Menu and guards use the same rules: Admin **renders** Admin only; staff **renders** Dashboard, DMS, CRM, Leads, Sales report, and Ad compliance, plus the floating Assistant; a manager also gets Team and the header join-request inbox. The header chip shows `Manager` or `Staff`. On Admin, members show their dealership role with **Make manager** / **Make staff**. Do not rely on hiding buttons for unauthorized access; the route blocks first.
+Menu and guards use the same rules: Admin **renders** Admin only; staff **renders** Dashboard, DMS, CRM, Leads, Sales report, and Ad compliance, plus the floating Assistant and the header inbox, which lists buyer-site inquiries with **Open lead** (design/21 SHOP-04); a manager also gets Team and sees join requests in the same inbox. The header chip shows `Manager` or `Staff`. On Admin, members show their dealership role with **Make manager** / **Make staff**. Do not rely on hiding buttons for unauthorized access; the route blocks first.
+
+**Staff never see audit or the payment ledger** (15 §2.5, AUD-17, PAY-05). Check `useSessionStore().dealerRole === 'MANAGER'` and, for staff, do not render `AuditTrail` panels, the payment ledger (balance line and payment rows), **Remove** payment, or the bill of sale's payment rows, and do not call `GET /audit`, `GET /dealer/audit`, `GET /vehicles/{id}/payments`, or `DELETE …/payments/{paymentId}` at all, so staff sessions produce no 403 noise. Staff keep the add-payment row and see a confirmation of the payment they just recorded.
 
 ---
 
@@ -144,13 +146,14 @@ The CRM link picker uses each vehicle’s `linkedCustomer` (`{id, name}` or `nul
 
 ### 5.3 Admin `/admin` (Platform.Admin only)
 
-**Information-architecture ruling: one route, three in-page Tabs** (Dealerships, Members, Ad rules). Do not split a second Admin page.
+**Information-architecture ruling: one route, five in-page Tabs** (Dealerships, Members, Pending accounts, Ad rules, Audit log). Do not split a second Admin page.
 
 - Tab **Dealerships**: columns Name, Contact, Staff count, Actions. Filter: dealership name. Primary button `New dealership`.
 - Tab **Members**: columns Username, Dealership, Status, Actions. Filter: username. Compose data from existing APIs: `GET /admin/dealers`, then `GET /admin/dealers/{id}/members` per dealer, flatten on the frontend (**do not invent** `GET /admin/members`).
 - Row `Staff`: drawer showing that dealership's members only; binding happens in the drawer. Below the bind form, tabs `Staff` and `Pending accounts` show one table at a time. Each member row (drawer and Members tab) has a **Status switch** (`Active` / `Inactive`): switching off asks for confirmation and calls the Unbind DELETE; switching on re-activates the same membership with `POST /admin/dealers/{id}/members` and only `{username}` (the existing account keeps its password). `409 DUP_MEMBER` on re-activation → `Already active at another dealership. Deactivate it there first.`
 - **Pending accounts** tab (its own tab next to Members) ([21](21-Feature-Extensions.md) §5): `GET /admin/pending-users` lists self sign-ups with no dealership; `Add to dealership` picks a dealership and calls `POST /admin/dealers/{id}/members` with only `username` (no password; the account keeps its own email/phone and password).
 - Tab **Ad rules** (AD-15): `GET /admin/compliance-rules` lists the built-in catalog. Each row can be enabled or disabled, set to `BLOCK` or `REVIEW`, and given a finding message. `PUT /admin/compliance-rules/{ruleId}` saves that row and makes existing ad checks stale. Dealer users cannot open this tab.
+- Tab **Audit log**: `GET /admin/audit` in `AuditLogPanel` with a Dealership column; filters record type, record id, action, actor, dealership, date range; newest first.
 
 | Control | Handbook path | Success refresh | Failure code → English |
 |---|---|---|---|
@@ -179,11 +182,11 @@ Filter row, broad to narrow: `Make` → `Model` → `Year` cascading selects, th
 | List column **Open work orders** | `openWorkOrders` on each vehicle | vehicle table | count or — |
 | Drawer **Work orders** (above Audit) | `GET/POST /vehicles/{id}/work-orders`, `PATCH /work-orders/{id}`; assignee options from `GET /members` | work-order table, then vehicle version, repair cost, audit, and list | `409 WORK_ORDER_CLOSED`; `409 SOLD_LOCKED`; `400` Check required fields. `Start`, `Done` (dialog: completion note + cost, added to the repair cost), `Cancel` (ConfirmDialog); actions hidden on sold vehicles |
 | Drawer listing details: Stock number, Mileage (km), Exterior colour, List price, Fuel type | `POST`/`PATCH /vehicles` (DMS-18) | list columns **Stock #** and **List price**; search also matches the stock number | per-field errors; duplicate stock number under its field; read-only when sold |
-| Drawer **Payments** (sold vehicles, above Work orders) | `GET/POST /vehicles/{id}/payments`, `DELETE …/payments/{paymentId}` (PAY-01–04) | balance line, payment rows, then the drawer audit | field errors (`amount`, `paidOn`) in one line; the add row is hidden when the balance is 0; `Remove` with ConfirmDialog |
-| Drawer **Bill of sale** link (sold vehicles) | `/dms/{id}/bill-of-sale` reads `GET /vehicles/{id}`, `GET /customers/{linkedCustomer.id}`, `GET /vehicles/{id}/payments` | printable page | "Only a sold vehicle has a bill of sale."; a missing buyer shows a warning line |
+| Drawer **Payments** (sold vehicles, above Work orders) | `GET/POST /vehicles/{id}/payments`, `DELETE …/payments/{paymentId}` (PAY-01–05) | manager: balance line, payment rows, then the drawer audit; staff: `POST` only, then a confirmation of the recorded payment | field errors (`amount`, `paidOn`) in one line; managers: the add row is hidden when the balance is 0, `Remove` with ConfirmDialog. Staff see only the add row |
+| Drawer **Bill of sale** link (sold vehicles) | `/dms/{id}/bill-of-sale` reads `GET /vehicles/{id}`, `GET /customers/{linkedCustomer.id}`, and for managers `GET /vehicles/{id}/payments` | printable page; payment rows only for managers | "Only a sold vehicle has a bill of sale."; a missing buyer shows a warning line |
 | Drawer **Image Studio** (between Work orders and Audit) | `GET/POST /vehicles/{id}/photos`, `GET …/{photoId}/content?variant=`, `POST …/{photoId}/enhance`, `DELETE …/{photoId}` | thumbnails + preview, then the drawer audit | `415` Photo must be a JPEG or PNG image; `400` Photo must be 2 MB or smaller / at most 10 photos. Images load as Blobs through the HTTP client (an `<img>` tag cannot send the bearer token); object URLs are revoked on reload, delete, re-enhance, and unmount. Presets `Auto fix` / `Brighten` / `Sharpen`; Original / Enhanced toggle; `Delete` with ConfirmDialog |
 | `Add vehicle` VIN `Decode` | `GET /catalog/vin/{vin}` | prefill make, model, year; body class, engine, country, manufacturer shown as reference, not saved | 400 / 404 / 502 copy from `vinDecodeError` |
-| Detail footer Audit | `GET /audit?entityType=VEHICLE&entityId=` | refresh audit list only | `404` do not show business fields |
+| Detail footer Audit (managers) | `GET /audit?entityType=VEHICLE&entityId=` | refresh audit list only | `404` do not show business fields |
 | Detail linked customer / ad status | `linkedCustomer` from `GET /vehicles/{id}` (link to `/crm?customerId=`); `GET /vehicles/{id}/listing` `checkStatus` | detail drawer | ad status shows `Could not load ad check status.` |
 | `Delete vehicle` (after confirm; hidden when sold) | `DELETE /vehicles/{id}` | vehicle leaves the active list; sales, closed work orders, listing, and audit stay | `409 SOLD_LOCKED` Sold vehicle cannot be deleted; `409 VEHICLE_ALREADY_LINKED` Unlink the customer first; `409 WORK_ORDERS_OPEN` Finish or cancel open work orders first |
 
@@ -201,7 +204,7 @@ Filters: `q` (Name/Email/Phone), `linked`. Pagination same as DMS: `page`/`size`
 | `Link vehicle` (searchable Select, this dealership, unlinked only (in stock or sold)) | `PUT /customers/{id}/vehicles/{vehicleId}` | customer table Linked vehicle + drawer | `409 VEHICLE_ALREADY_LINKED` Vehicle already linked; `404` Vehicle not found. A same-store sold vehicle is a valid link. |
 | `Unlink` (after confirm) | `DELETE /customers/{id}/vehicles/{vehicleId}` → **204** no body | customer table Linked vehicle + drawer | `404` Link not found; `409 SOLD_LOCKED` Sold vehicles cannot be unlinked |
 | Link-vehicle dropdown data | Link options call `GET /vehicles` with `page` and `size` only (no `status` filter), requesting size 10, adopting the size the server returns (capped at 10), and paging until the accumulated count reaches `total`. Drop every vehicle whose `linkedCustomer` is set (this customer or another) | dropdown | only unlinked vehicles are listed. In-stock and sold vehicles both appear. Fields follow the handbook/14 |
-| Detail Audit | `GET /audit?entityType=CUSTOMER&entityId=` | audit list | `404` |
+| Detail Audit (managers) | `GET /audit?entityType=CUSTOMER&entityId=` | audit list | `404` |
 | Detail **Leads** list | `GET /leads?customerId=` | leads list; each row links to `/leads?leadId=` | Could not load leads |
 | `Delete customer` (after confirm) | `DELETE /customers/{id}` | customer leaves the active list; sales, links, and audit stay | `404` Customer not found |
 | Audit after unlink (optional) | `GET /audit?entityType=CUSTOMER_VEHICLE&entityId=` | audit list | `404` |
@@ -217,7 +220,7 @@ Lead follow-up ([21](21-Feature-Extensions.md) §3, 14 §5.5). Filters: customer
 | `Add lead` drawer | `POST /leads` with `customerId` (remote customer search) **or** `newCustomer` four fields; optional in-stock vehicle, owner (`GET /members`), follow-up date, first note | lead table | `400 WRONG_DEALER_OR_SOLD` Vehicle must be in stock; `400` Check required fields |
 | Lead drawer save | `PATCH /leads/{id}` full state with `version` (LOST needs a reason) | drawer + table | `409 LEAD_CLOSED` (drawer is read-only once WON/LOST); `409 VERSION_CONFLICT` |
 | Add note | `POST /leads/{id}/notes` | notes timeline (newest first) | `400` |
-| Drawer Audit | `GET /audit?entityType=LEAD&entityId=` | audit list | `404` |
+| Drawer Audit (managers) | `GET /audit?entityType=LEAD&entityId=` | audit list | `404` |
 ### 5.6 Ad compliance `/ads` (Dealer.User only)
 
 Left: pick a vehicle + ad form; right: check results. The checklist changes immediately with `adKind` / `medium` (copy rules are in handbook sections 3/6; the frontend only switches displayed items and does not invent fields). Overall status may only be: Blocked / Needs AI review / Passed / Stale / AI unavailable.
@@ -230,6 +233,7 @@ Left: pick a vehicle + ad form; right: check results. The checklist changes imme
 | `Run check` | `POST /listings/{id}/checks` | right results; wait up to about 15s, button loading | `404`; `409` version conflict; `502 AI_UNAVAILABLE` right state **AI unavailable**, **never show Pass** |
 | `Mark ready` | `POST /listings/{id}/ready` | right state | `409 CHECK_STALE` Check is stale. Run check again; `409 NOT_PASSED` Check has not passed |
 | `Export TXT` | `POST /listings/{id}/exports` → `text/plain` download | do not change the table | same 409s; clickable only when **Passed and not Stale** |
+| Listing history (managers) | `GET /audit?entityType=LISTING&entityId=` after a saved listing loads | audit list below the results | `404` |
 
 No live external publishing. The AD-16 capstone extension provides a browser-only marketplace simulation with explicit disclosure that it does not contact external platforms. Admin never enters this page.
 
@@ -261,7 +265,7 @@ Do not change vehicles/customers/checks on this page. Cards must not show phone 
 
 | Idea | Ruling |
 |---|---|
-| Standalone Audit page or tickets | Do not build. Audit lives in the DMS, CRM, and lead drawers. Leads are the `/leads` route |
+| Standalone Audit page or tickets | Do not build. Record history lives in the DMS, CRM, and lead drawers and the ad workspace (managers only); the logs are the Team `Activity` and Admin `Audit log` tabs. Leads are the `/leads` route |
 | Admin viewing vehicles | Do not build. Hitting a business URL is 403/404 from the backend; the frontend guard already blocks |
 | Browser calling `/internal/v1/ad-check` or `/internal/v1/assistant` | Forbidden |
 
@@ -286,9 +290,9 @@ Sell small dialog (may live inside `DmsView`): Sold date + Sold price, required 
 
 ## 7. Admin information architecture (ruling)
 
-**Ruling: single page `/admin` + three Tabs (Dealerships | Members | Ad rules); member edits use a drawer.**
+**Ruling: single page `/admin` + five Tabs (Dealerships | Members | Pending accounts | Ad rules | Audit log); member edits use a drawer.**
 
-Reason: 12 gives two column sets and two filters ("dealership name / staff email"), and AD-15 adds a third tab for the global rule editor. There is still no third Admin sub-route. The Staff drawer reuses the same member APIs. Do not add an `/admin/members` route.
+Reason: 12 gives two column sets and two filters ("dealership name / staff email"), AD-15 adds a tab for the global rule editor, and the finance-grade audit (AUD-10–17) adds the platform audit log tab. There is still no third Admin sub-route. The Staff drawer reuses the same member APIs. Do not add an `/admin/members` route.
 
 ---
 
@@ -336,7 +340,7 @@ Failures must not look like empty tables. Ad AI failure uses the right pane **AI
 | Top-bar Admin | Platform Admin |
 | Menu | Admin · DMS · CRM · Leads · Sales report · Ad compliance · Team |
 | Admin primary button | New dealership |
-| Admin tabs | Dealerships · Members · Ad rules |
+| Admin tabs | Dealerships · Members · Pending accounts · Ad rules · Audit log |
 | Admin members | Bind staff · Unbind |
 | DMS | Add vehicle · Edit · Sell · Delete vehicle |
 | Sell dialog | Sold date · Sold price · Confirm sale |

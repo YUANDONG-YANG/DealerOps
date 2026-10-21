@@ -4,7 +4,7 @@ import AppLayout from '../layouts/AppLayout';
 import { useSessionStore } from '../store/session';
 import { getMe, patchMe, deleteMe, type Profile } from '../api/me';
 import { clearAccount, signOut } from '../auth/login';
-import { fieldErrorsOf, messageOf } from '../api/http';
+import { fieldErrorsOf } from '../api/http';
 import { enumLabel, initials } from '../format';
 import { describeError } from '../api/errors';
 
@@ -56,7 +56,7 @@ export default function ProfilePage() {
         phone: phone.trim() || null,
       });
       setMe(updated);
-      setProfile(updated as unknown as Record<string, unknown>);
+      setProfile(updated);
       setSavedMessage('Profile saved.');
     } catch (err) {
       setFieldErrors(fieldErrorsOf(err));

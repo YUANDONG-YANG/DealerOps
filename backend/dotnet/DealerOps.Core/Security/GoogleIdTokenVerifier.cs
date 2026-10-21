@@ -43,12 +43,14 @@ public class GoogleIdTokenVerifier
 
     private readonly string? _hostedDomain;
     private readonly ConfigurationManager<OpenIdConnectConfiguration> _metadata;
+    private readonly ILogger<GoogleIdTokenVerifier> _logger;
 
     // MapInboundClaims would rename "sub" to a ClaimTypes URI; keep Google's own claim names.
     private readonly JwtSecurityTokenHandler _handler = new() { MapInboundClaims = false };
 
-    public GoogleIdTokenVerifier(IConfiguration config)
+    public GoogleIdTokenVerifier(IConfiguration config, ILogger<GoogleIdTokenVerifier> logger)
     {
+        _logger = logger;
         var domain = (config["Google:HostedDomain"] ?? "").Trim();
         _hostedDomain = domain.Length == 0 ? null : domain;
 
@@ -58,6 +60,11 @@ public class GoogleIdTokenVerifier
             MetadataAddress, new OpenIdConnectConfigurationRetriever(), new HttpDocumentRetriever());
     }
 
+    /// <summary>
+    /// Validates the token's signature, issuer, audience and lifetime and returns its identity.
+    /// Throws 401 for a rejected or unverified-email token, 403 for a token outside the configured
+    /// hosted domain, and 500 when Google's signing keys cannot be fetched.
+    /// </summary>
     public async Task<GoogleIdentity> VerifyAsync(string idToken, CancellationToken cancellationToken)
     {
         OpenIdConnectConfiguration config;
@@ -65,8 +72,9 @@ public class GoogleIdTokenVerifier
         {
             config = await _metadata.GetConfigurationAsync(cancellationToken);
         }
-        catch (Exception) when (!cancellationToken.IsCancellationRequested)
+        catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
         {
+            _logger.LogError(ex, "Could not fetch Google signing keys from {MetadataAddress}", MetadataAddress);
             throw new ApiException(ErrorCode.InternalError, "Could not reach Google to verify the sign-in.");
         }
 

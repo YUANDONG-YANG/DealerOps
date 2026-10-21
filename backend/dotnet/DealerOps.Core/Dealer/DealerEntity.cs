@@ -3,6 +3,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace DealerOps.Core.Dealer;
 
+/// <summary>A dealership tenant: legal name, contact details, optional logo and active flag.</summary>
 [Table("dealer")]
 public class DealerEntity
 {

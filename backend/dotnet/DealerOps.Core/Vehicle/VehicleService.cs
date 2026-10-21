@@ -10,20 +10,27 @@ using Microsoft.EntityFrameworkCore;
 
 namespace DealerOps.Core.Vehicle;
 
+/// <summary>
+/// Dealership inventory: vehicle records scoped to the current dealer. Every create, update, sale,
+/// repair-cost change and delete writes a VEHICLE audit row in the same unit of work (AUD-07).
+/// </summary>
 public class VehicleService
 {
     private readonly AppDbContext _db;
     private readonly IAuditService _audit;
+    private readonly ILogger<VehicleService> _logger;
 
-    public VehicleService(AppDbContext db, IAuditService audit)
+    public VehicleService(AppDbContext db, IAuditService audit, ILogger<VehicleService> logger)
     {
         _db = db;
         _audit = audit;
+        _logger = logger;
     }
 
+    /// <summary>Lists this dealer's vehicles matching the filter, newest first.</summary>
     public PageResponse<VehicleResponse> List(VehicleFilter filter, int page, int size)
     {
-        var tenant = RequireTenant();
+        var tenant = TenantGuard.RequireTenantId();
         var p = Paging.ClampPage(page);
         var s = Paging.ClampSize(size);
         var q = TrimToNull(filter.Q);
@@ -68,9 +75,10 @@ public class VehicleService
         return new PageResponse<VehicleResponse>(items, p, s, total);
     }
 
+    /// <summary>Adds a vehicle to this dealer's inventory as IN_STOCK; the VIN must be unique in the dealership.</summary>
     public VehicleResponse Create(CreateVehicleRequest body)
     {
-        var tenant = RequireTenant();
+        var tenant = TenantGuard.RequireTenantId();
         RequireModelYearInRange(body.ModelYear);
         RequireCents("purchaseCost", body.PurchaseCost);
         RequireCents("repairCost", body.RepairCost);
@@ -113,16 +121,19 @@ public class VehicleService
         _db.Vehicles.Add(vehicle);
         SaveOrVinDuplicate();
         _audit.Record("VEHICLE", vehicle.Id, "CREATE",
-            tenant, ActorUsername(), CreatedVehicleFields(vehicle));
+            tenant, TenantContext.ActorUsername(), CreatedVehicleFields(vehicle));
         _db.SaveChanges();
         tx.Commit();
+        _logger.LogInformation("Vehicle created vehicleId={VehicleId} stockNumber={StockNumber} dealerId={DealerId} by {Actor}",
+            vehicle.Id, vehicle.StockNumber, tenant, TenantContext.ActorUsername());
 
         return ToResponse(vehicle);
     }
 
+    /// <summary>Sales totals, profit and stock value for this dealer, with the last 12 months that had sales.</summary>
     public SalesReport SalesReport()
     {
-        var tenant = RequireTenant();
+        var tenant = TenantGuard.RequireTenantId();
         var vehicles = _db.Vehicles.AsNoTracking()
             .Where(v => v.DealerId == tenant)
             .Select(v => new { v.Status, v.PurchaseCost, v.RepairCost, v.AddedOn, v.SoldOn, v.SoldPrice })
@@ -152,14 +163,19 @@ public class VehicleService
             months);
     }
 
+    /// <summary>Returns one vehicle of this dealer, or NOT_FOUND.</summary>
     public VehicleResponse Get(long id)
     {
         return ToResponse(LoadThisDealer(id));
     }
 
+    /// <summary>
+    /// Updates a vehicle under optimistic locking. A sold vehicle only accepts condition changes,
+    /// and a condition change sends the vehicle's listing back to DRAFT for a new compliance check.
+    /// </summary>
     public VehicleResponse Patch(long id, PatchVehicleRequest body)
     {
-        var tenant = RequireTenant();
+        var tenant = TenantGuard.RequireTenantId();
         var vehicle = LoadThisDealer(id);
 
         if (body.Version != vehicle.Version)
@@ -193,7 +209,7 @@ public class VehicleService
         if (body.AddedOn != null)
             RequireAddedOnNotInFuture(body.AddedOn.Value);
 
-        var changed = ChangedVehicleFields(vehicle, next);
+        var (changed, previous) = ChangedVehicleFields(vehicle, next);
 
         if (vehicle.Status == VehicleStatus.Sold && PurchaseFieldsChanged(changed))
             throw new ApiException(ErrorCode.SoldLocked, "Sold vehicle is locked.");
@@ -231,21 +247,37 @@ public class VehicleService
             var listing = _db.Listings.FirstOrDefault(l => l.VehicleId == vehicle.Id && l.DealerId == t);
             if (listing != null)
             {
+                var listingChanges = new Dictionary<string, object>
+                {
+                    ["vehicleId"] = vehicle.Id, ["contentVersion"] = listing.ContentVersion + 1
+                };
+                var listingPrevious = new Dictionary<string, object?> { ["contentVersion"] = listing.ContentVersion };
+                // Status is recorded only when it really changes, as ListingService does.
+                if (listing.Status != ListingStatus.Draft)
+                {
+                    listingChanges["status"] = EnumWireName.Of(ListingStatus.Draft);
+                    listingPrevious["status"] = EnumWireName.Of(listing.Status);
+                }
                 listing.ContentVersion++;
                 listing.Status = ListingStatus.Draft;
+                _audit.Record("LISTING", listing.Id, "UPDATE", tenant, TenantContext.ActorUsername(),
+                    listingChanges, listingPrevious);
             }
         }
 
         _audit.Record("VEHICLE", vehicle.Id, "UPDATE",
-            tenant, ActorUsername(), changed);
+            tenant, TenantContext.ActorUsername(), changed, previous);
         SaveOrVinDuplicate();
+        _logger.LogInformation("Vehicle updated vehicleId={VehicleId} fields={Fields} dealerId={DealerId} by {Actor}",
+            vehicle.Id, string.Join(",", changed.Keys), tenant, TenantContext.ActorUsername());
 
         return ToResponse(vehicle);
     }
 
+    /// <summary>Marks an in-stock vehicle SOLD with its sold date and price; open work orders must be settled first.</summary>
     public VehicleResponse Sell(long id, SellVehicleRequest body)
     {
-        var tenant = RequireTenant();
+        var tenant = TenantGuard.RequireTenantId();
 
         if (body.SoldOn == null || body.SoldPrice == null || body.SoldPrice <= 0)
             throw new ApiException(ErrorCode.SoldPairRequired,
@@ -277,7 +309,7 @@ public class VehicleService
                 new Dictionary<string, string> { ["soldOn"] = message });
         }
 
-        var changed = ChangedSellFields(vehicle, body);
+        var (changed, previous) = ChangedSellFields(vehicle, body);
 
         vehicle.Status = VehicleStatus.Sold;
         vehicle.SoldOn = body.SoldOn;
@@ -285,15 +317,18 @@ public class VehicleService
         vehicle.UpdatedAt = DateTime.UtcNow;
 
         _audit.Record("VEHICLE", vehicle.Id, "SELL",
-            tenant, ActorUsername(), changed);
+            tenant, TenantContext.ActorUsername(), changed, previous);
         _db.SaveChanges();
+        _logger.LogInformation("Vehicle sold vehicleId={VehicleId} stockNumber={StockNumber} dealerId={DealerId} by {Actor}",
+            vehicle.Id, vehicle.StockNumber, tenant, TenantContext.ActorUsername());
 
         return ToResponse(vehicle);
     }
 
+    /// <summary>Adds a completed work order's cost to the vehicle's repair cost (WO-04).</summary>
     public void AddRepairCost(long vehicleId, decimal cost)
     {
-        var tenant = RequireTenant();
+        var tenant = TenantGuard.RequireTenantId();
         var vehicle = LoadThisDealer(vehicleId);
 
         if (vehicle.Status == VehicleStatus.Sold)
@@ -303,17 +338,23 @@ public class VehicleService
         // cost to 0; when nothing changes, no audit row is written.
         var repairCost = (vehicle.RepairCost ?? 0) + cost;
         if (vehicle.RepairCost == repairCost) return;
+        var previous = new Dictionary<string, object?> { ["repairCost"] = (object?)vehicle.RepairCost ?? "" };
         vehicle.RepairCost = repairCost;
 
         _audit.Record("VEHICLE", vehicle.Id, "UPDATE",
-            tenant, ActorUsername(),
-            new Dictionary<string, object> { ["repairCost"] = vehicle.RepairCost! });
+            tenant, TenantContext.ActorUsername(),
+            new Dictionary<string, object> { ["repairCost"] = repairCost }, previous);
         _db.SaveChanges();
+        _logger.LogInformation("Vehicle repair cost updated vehicleId={VehicleId} dealerId={DealerId} by {Actor}",
+            vehicle.Id, tenant, TenantContext.ActorUsername());
     }
 
+    /// <summary>
+    /// Soft-deletes an unsold, unlinked vehicle with no open work orders; its VIN stays reserved.
+    /// </summary>
     public void Delete(long id)
     {
-        var tenant = RequireTenant();
+        var tenant = TenantGuard.RequireTenantId();
         var vehicle = LoadThisDealer(id);
         // A sale or customer link is the purchase record (CRM "car(s) purchased"), and open work
         // orders are live work; deleting the vehicle would hide them, so each must be settled first.
@@ -324,9 +365,12 @@ public class VehicleService
         if (CountOpenWorkOrders(vehicle) > 0)
             throw new ApiException(ErrorCode.WorkOrdersOpen, "Finish or cancel open work orders before deleting.");
         vehicle.DeletedAt = DateTime.UtcNow;
-        _audit.Record("VEHICLE", vehicle.Id, "DELETE", tenant, ActorUsername(),
-            new Dictionary<string, object> { ["deleted"] = true });
+        _audit.Record("VEHICLE", vehicle.Id, "DELETE", tenant, TenantContext.ActorUsername(),
+            new Dictionary<string, object> { ["deleted"] = true },
+            new Dictionary<string, object?> { ["deleted"] = false });
         _db.SaveChanges();
+        _logger.LogInformation("Vehicle deleted vehicleId={VehicleId} stockNumber={StockNumber} dealerId={DealerId} by {Actor}",
+            vehicle.Id, vehicle.StockNumber, tenant, TenantContext.ActorUsername());
     }
 
     private long CountOpenWorkOrders(VehicleEntity vehicle)
@@ -341,7 +385,7 @@ public class VehicleService
 
     private VehicleEntity LoadThisDealer(long id)
     {
-        long tenant = RequireTenant();
+        long tenant = TenantGuard.RequireTenantId();
         return _db.Vehicles.FirstOrDefault(v => v.Id == id && v.DealerId == tenant)
                ?? throw new ApiException(ErrorCode.NotFound, "Not found");
     }
@@ -420,37 +464,64 @@ public class VehicleService
         return fields;
     }
 
-    private static Dictionary<string, object> ChangedVehicleFields(
+    // Builds the audit pair for a patch: the new value (fieldSummary) and the old value (previous)
+    // of each changed field, in the same format; a cleared value is recorded as "".
+    private static (Dictionary<string, object> Changed, Dictionary<string, object?> Previous) ChangedVehicleFields(
         VehicleEntity vehicle, PatchedVehicleValues next)
     {
         var changed = new Dictionary<string, object>();
-        if (vehicle.Make != next.Make) changed["make"] = next.Make;
-        if (vehicle.Model != next.Model) changed["model"] = next.Model;
-        if (vehicle.ModelYear != next.ModelYear) changed["modelYear"] = next.ModelYear;
-        if (vehicle.Vin != next.Vin) changed["vin"] = next.Vin;
-        if (vehicle.Source != next.Source) changed["source"] = next.Source.ToString();
-        if (vehicle.PurchaseCost != next.PurchaseCost) changed["purchaseCost"] = next.PurchaseCost;
-        if (vehicle.AddedOn != next.AddedOn) changed["addedOn"] = next.AddedOn.ToString("yyyy-MM-dd");
-        if (vehicle.ConditionCode != next.ConditionCode) changed["conditionCode"] = next.ConditionCode.ToString();
-        if (vehicle.BodyType != next.BodyType) changed["bodyType"] = next.BodyType.ToString();
-        if (MoneyChanged(vehicle.RepairCost, next.RepairCost)) changed["repairCost"] = (object?)next.RepairCost ?? "";
-        if (vehicle.CarfaxUrl != next.CarfaxUrl) changed["carfaxUrl"] = (object?)next.CarfaxUrl ?? "";
-        if (vehicle.MileageKm != next.MileageKm) changed["mileageKm"] = (object?)next.MileageKm ?? "";
-        if (vehicle.ExteriorColor != next.ExteriorColor) changed["exteriorColor"] = (object?)next.ExteriorColor ?? "";
-        if (vehicle.FuelType != next.FuelType)
-            changed["fuelType"] = next.FuelType == null ? "" : EnumWireName.Of(next.FuelType.Value);
-        if (vehicle.StockNumber != next.StockNumber) changed["stockNumber"] = (object?)next.StockNumber ?? "";
-        if (MoneyChanged(vehicle.ListPrice, next.ListPrice)) changed["listPrice"] = (object?)next.ListPrice ?? "";
-        return changed;
+        var previous = new Dictionary<string, object?>();
+        void Add(string field, object? before, object? after)
+        {
+            changed[field] = after ?? "";
+            previous[field] = before ?? "";
+        }
+
+        if (vehicle.Make != next.Make) Add("make", vehicle.Make, next.Make);
+        if (vehicle.Model != next.Model) Add("model", vehicle.Model, next.Model);
+        if (vehicle.ModelYear != next.ModelYear) Add("modelYear", vehicle.ModelYear, next.ModelYear);
+        if (vehicle.Vin != next.Vin) Add("vin", vehicle.Vin, next.Vin);
+        if (vehicle.Source != next.Source) Add("source", vehicle.Source.ToString(), next.Source.ToString());
+        if (vehicle.PurchaseCost != next.PurchaseCost) Add("purchaseCost", vehicle.PurchaseCost, next.PurchaseCost);
+        if (vehicle.AddedOn != next.AddedOn)
+            Add("addedOn", vehicle.AddedOn.ToString("yyyy-MM-dd"), next.AddedOn.ToString("yyyy-MM-dd"));
+        if (vehicle.ConditionCode != next.ConditionCode)
+            Add("conditionCode", vehicle.ConditionCode.ToString(), next.ConditionCode.ToString());
+        if (vehicle.BodyType != next.BodyType) Add("bodyType", vehicle.BodyType.ToString(), next.BodyType.ToString());
+        if (MoneyChanged(vehicle.RepairCost, next.RepairCost)) Add("repairCost", vehicle.RepairCost, next.RepairCost);
+        if (vehicle.CarfaxUrl != next.CarfaxUrl) Add("carfaxUrl", vehicle.CarfaxUrl, next.CarfaxUrl);
+        if (vehicle.MileageKm != next.MileageKm) Add("mileageKm", vehicle.MileageKm, next.MileageKm);
+        if (vehicle.ExteriorColor != next.ExteriorColor) Add("exteriorColor", vehicle.ExteriorColor, next.ExteriorColor);
+        if (vehicle.FuelType != next.FuelType) Add("fuelType", FuelWireName(vehicle.FuelType), FuelWireName(next.FuelType));
+        if (vehicle.StockNumber != next.StockNumber) Add("stockNumber", vehicle.StockNumber, next.StockNumber);
+        if (MoneyChanged(vehicle.ListPrice, next.ListPrice)) Add("listPrice", vehicle.ListPrice, next.ListPrice);
+        return (changed, previous);
     }
 
-    private static Dictionary<string, object> ChangedSellFields(VehicleEntity vehicle, SellVehicleRequest body)
+    private static string? FuelWireName(FuelType? fuelType) =>
+        fuelType == null ? null : EnumWireName.Of(fuelType.Value);
+
+    private static (Dictionary<string, object> Changed, Dictionary<string, object?> Previous) ChangedSellFields(
+        VehicleEntity vehicle, SellVehicleRequest body)
     {
         var changed = new Dictionary<string, object>();
-        if (vehicle.Status != VehicleStatus.Sold) changed["status"] = "SOLD";
-        if (vehicle.SoldOn != body.SoldOn) changed["soldOn"] = (object?)body.SoldOn?.ToString("yyyy-MM-dd") ?? "";
-        if (MoneyChanged(vehicle.SoldPrice, body.SoldPrice)) changed["soldPrice"] = (object?)body.SoldPrice ?? "";
-        return changed;
+        var previous = new Dictionary<string, object?>();
+        if (vehicle.Status != VehicleStatus.Sold)
+        {
+            changed["status"] = "SOLD";
+            previous["status"] = EnumWireName.Of(vehicle.Status);
+        }
+        if (vehicle.SoldOn != body.SoldOn)
+        {
+            changed["soldOn"] = (object?)body.SoldOn?.ToString("yyyy-MM-dd") ?? "";
+            previous["soldOn"] = (object?)vehicle.SoldOn?.ToString("yyyy-MM-dd") ?? "";
+        }
+        if (MoneyChanged(vehicle.SoldPrice, body.SoldPrice))
+        {
+            changed["soldPrice"] = (object?)body.SoldPrice ?? "";
+            previous["soldPrice"] = (object?)vehicle.SoldPrice ?? "";
+        }
+        return (changed, previous);
     }
 
     private static bool PurchaseFieldsChanged(Dictionary<string, object> changed) =>
@@ -529,11 +600,4 @@ public class VehicleService
 
     private static string NormalizeVin(string vin) => vin.ToUpperInvariant();
 
-    private static long RequireTenant()
-    {
-        TenantGuard.RequireDealerUser();
-        return TenantContext.Get()!.TenantDealerId!.Value;
-    }
-
-    private static string ActorUsername() => TenantContext.Get()?.Username ?? "";
 }

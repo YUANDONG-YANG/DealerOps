@@ -22,7 +22,7 @@ technical exclusion with its reason and a demonstrable alternative when possible
 | DMS | Specification vehicle fields; VIN unique per dealership; sale fields as a pair; sold locks purchase fields |
 | CRM | Name / Email / Phone / Home address; link an unbound vehicle at this dealership (in stock or sold; sold links cannot be removed); one vehicle, one customer |
 | Ad check + TXT export | OMVIC fixed checklist + GitHub AI component; Ready + TXT only when Passed and not Stale |
-| Audit | Every DMS/CRM change: who, what, when |
+| Audit | Finance-grade: every sign-in attempt and every platform change (DMS, CRM, leads, work orders, photos, payments, ads, admin) records who, what, when, from which IP and the replaced values; admin platform log and manager dealership log, newest first; staff see no audit data (AUD-01–17) |
 | Assistant | In-dealership read-only Q&A; same AI component; no database writes |
 | Four repos | `dealer-web` / `dealer-gateway` / `dealer-core` / `ai-service` (plus `dealer-platform` for the shared contract and config; IaC is `deploy/terraform`) |
 | Auth | Password, Google, and Firebase sign-in; username is also the key for memberships and the JWT subject; JWT roles only `Platform.Admin` / `Dealer.User`; bind `app_user`→dealership. See [15-Data-Auth-and-Gateway.md](15-Data-Auth-and-Gateway.md) §8 |
@@ -83,6 +83,10 @@ Where original customer sources mention capabilities that need unavailable exter
 On 2026-10-21, the user clarified that all reasonably implementable customer-source features are goals for the academic graduation demonstration. Earlier deferrals are superseded. Current adopted derived workflows include: DMS-17 and CRM-14 soft deletion, CRM-15 sales-funnel reporting, AD-15 global rule editor, AD-16 simulated marketplace publishing, and NFR-07 rate limits/SLO/retention. Do not label these features deferred or Won’t. Report any remaining limitation at the feature level.
 
 The same day the earlier out-of-scope list was implemented where feasible ([21-Feature-Extensions.md](21-Feature-Extensions.md) §9): optional listing details (DMS-18), a payment ledger (PAY-01–04), a printable bill of sale (SALE-01), the `/dashboard` KPI page (DASH-01), lead stage history (CRM-16), workshop settlement (WO-08), a public `/disclaimer` page (AD-14), and the buyer site (SHOP-01–05). Not built, with reasons in design/21 §9: live marketplace publishing (needs partner API access and dealer credentials; AD-16 stays simulated), card payment processing (needs a merchant account), OCR (no vision model and no named document), and a message queue or second database (no requirement needs them).
+
+Also on 2026-10-21 the user ruled that, as a finance project, every platform operation must be audited: sign-ins (including failures), creates, updates and deletes, with traceable history versions, and every record query newest first. This adds AUD-10–16 (requirements/DealerOps-Requirements.md §7), the admin and dealership audit logs (design/14 §9.2–9.3), the `previous_values` and `client_ip` audit columns (design/15 §8.8), and acceptance cases EXT-17–18 (design/21 §9). The same day the user ruled that customer and account phone, email and address are recorded in the audit by value, new and replaced (AUD-04); audit reads are limited to managers and the admin (AUD-17), and application logs still never carry contact values.
+
+A further ruling the same day: staff cannot view audit data or the payment ledger and may only record payments. Record history, the dealership log and the platform log are manager-only or admin-only (AUD-17); the ledger read and payment removal are manager-only (PAY-05, design/21 §9, AUTH-27). Acceptance case EXT-19 (design/21 §9) covers it.
 
 | Role | Name | Repo focus |
 |---|---|---|

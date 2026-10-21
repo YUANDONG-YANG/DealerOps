@@ -69,11 +69,11 @@ tags:
   - name: Members
     description: Dealer.User directory of this dealership's active members
   - name: Payments
-    description: Dealer.User payment ledger on sold vehicles (design/21 §9, PAY-01–04)
+    description: Dealer.User payment ledger on sold vehicles (design/21 §9, PAY-01–05)
   - name: BuyerSite
     description: Anonymous buyer site (design/21 §9, SHOP-01–05)
   - name: Audit
-    description: This-dealership audit query
+    description: Record history, dealership audit log and platform audit log
   - name: Assistant
     description: Staff assistant (does not write business tables)
   - name: Internal
@@ -471,8 +471,10 @@ paths:
       operationId: listNotifications
       summary: Dealer-wide inbox
       description: |
-        Dealership managers only; staff → 403. Every manager sees the same rows, newest first. Not paginated.
-        Default is unresolved rows only; `includeResolved=true` returns the full history.
+        Any dealership member. Managers see every row; staff see every kind except `JOIN_REQUEST`.
+        A `BUYER_INQUIRY` row (payload `leadId`, `customerName`, `vehicle`) is posted when a buyer-site
+        inquiry files a lead and is resolved as `TAKEN` once that lead gets an owner or leaves `NEW`.
+        Newest first. Not paginated. Default is unresolved rows only; `includeResolved=true` returns the full history.
       parameters:
         - name: includeResolved
           in: query
@@ -1376,6 +1378,7 @@ paths:
       tags: [Payments]
       operationId: getPaymentLedger
       summary: Payments received for a vehicle and the balance due
+      description: Dealership manager only; staff → **403** `FORBIDDEN` (PAY-05).
       responses:
         "200":
           description: Ledger
@@ -1394,6 +1397,8 @@ paths:
         Records money already received; no card is charged. In-stock vehicle → **400** `VALIDATION`;
         more than the balance due → **400** on `amount`; `paidOn` after today or before the sold date → **400** on `paidOn`.
         Audited as `VEHICLE`/`UPDATE` `{paymentAdded, paymentMethod, paidOn}`.
+        Open to every dealer user (PAY-05): a manager gets the updated `PaymentLedger`; staff get only the recorded
+        `PaymentItem`, because staff may not view the ledger.
       requestBody:
         required: true
         content:
@@ -1402,11 +1407,13 @@ paths:
               $ref: "#/components/schemas/PaymentCreate"
       responses:
         "201":
-          description: Updated ledger
+          description: Manager → updated ledger; staff → the recorded payment only
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/PaymentLedger"
+                oneOf:
+                  - $ref: "#/components/schemas/PaymentLedger"
+                  - $ref: "#/components/schemas/PaymentItem"
         "400": { $ref: "#/components/responses/Validation" }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { $ref: "#/components/responses/Forbidden" }
@@ -1423,7 +1430,10 @@ paths:
       tags: [Payments]
       operationId: deletePayment
       summary: Remove a mistaken payment
-      description: Audited as `VEHICLE`/`UPDATE` `{paymentRemoved, paidOn}`.
+      description: |
+        Dealership manager only; staff → **403** `FORBIDDEN` (PAY-05).
+        Audited as `VEHICLE`/`UPDATE` `{paymentRemoved, paidOn}` with `previous`
+        `{amount, paymentMethod, paidOn, hasNote}` of the removed payment (the note body is never audited).
       responses:
         "200":
           description: Updated ledger
@@ -2246,12 +2256,13 @@ paths:
       operationId: listAudit
       summary: Audit
       description: |
-        `entityType` and `entityId` are required. Staff see this dealership only; entity not in this dealership → 404.
-        Admin → **403** `FORBIDDEN` for every entity type.
-        Staff may query `VEHICLE`|`CUSTOMER`|`CUSTOMER_VEHICLE`|`LEAD`|`WORK_ORDER`|`VEHICLE_PHOTO`; `DEALER`/`MEMBERSHIP` → **403**; any other type → **400** `VALIDATION`.
+        Dealership manager only (AUD-17); staff and the admin → **403** `FORBIDDEN` for every entity type.
+        `entityType` and `entityId` are required. This dealership only; entity not in this dealership → 404.
+        Managers may query `VEHICLE`|`CUSTOMER`|`CUSTOMER_VEHICLE`|`LEAD`|`WORK_ORDER`|`VEHICLE_PHOTO`|`LISTING`; `DEALER`/`MEMBERSHIP` → **403**; any other type → **400** `VALIDATION`.
         `CUSTOMER` history also includes the `CUSTOMER_VEHICLE` link/unlink events of that customer.
         `VEHICLE` history also includes the `CUSTOMER_VEHICLE` link/unlink and `VEHICLE_PHOTO` events of that vehicle.
         `fieldSummary` has no full customer phone/email/home address.
+        Newest first. `dealerId` and `clientIp` are not returned here.
       parameters:
         - name: entityType
           in: query
@@ -2281,6 +2292,76 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
+
+  /api/v1/admin/audit:
+    get:
+      tags: [Audit]
+      operationId: listPlatformAudit
+      summary: Platform audit log
+      description: |
+        Platform.Admin only (AUD-10); anyone else → **403** `FORBIDDEN`. Every audit row of the platform, newest first,
+        including sign-in attempts (`APP_USER` `LOGIN`/`LOGIN_FAILED`). All filters are optional and combine with AND.
+        Unknown `entityType` or `action` → **400** `VALIDATION`. Rows carry `dealerId` and `clientIp`.
+      parameters:
+        - $ref: "#/components/parameters/AuditLogEntityType"
+        - $ref: "#/components/parameters/AuditLogEntityId"
+        - $ref: "#/components/parameters/AuditLogAction"
+        - $ref: "#/components/parameters/AuditLogActor"
+        - name: dealerId
+          in: query
+          schema:
+            type: integer
+            format: int64
+          description: Rows of this dealership only
+        - $ref: "#/components/parameters/AuditLogFrom"
+        - $ref: "#/components/parameters/AuditLogTo"
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/AuditLogSize"
+      responses:
+        "200":
+          description: Paged audit log
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PageAuditEvent"
+        "400":
+          $ref: "#/components/responses/Validation"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /api/v1/dealer/audit:
+    get:
+      tags: [Audit]
+      operationId: listDealershipAudit
+      summary: Dealership audit log
+      description: |
+        Dealership manager only (AUD-11); staff and the admin → **403** `FORBIDDEN`. Every audit row of the caller's
+        dealership, newest first. Same filters as `GET /api/v1/admin/audit` except `dealerId`, which is ignored.
+        Unknown `entityType` or `action` → **400** `VALIDATION`. Rows carry `dealerId` and `clientIp`.
+      parameters:
+        - $ref: "#/components/parameters/AuditLogEntityType"
+        - $ref: "#/components/parameters/AuditLogEntityId"
+        - $ref: "#/components/parameters/AuditLogAction"
+        - $ref: "#/components/parameters/AuditLogActor"
+        - $ref: "#/components/parameters/AuditLogFrom"
+        - $ref: "#/components/parameters/AuditLogTo"
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/AuditLogSize"
+      responses:
+        "200":
+          description: Paged audit log
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PageAuditEvent"
+        "400":
+          $ref: "#/components/responses/Validation"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
 
   /api/v1/assistant/ask:
     post:
@@ -2423,6 +2504,51 @@ components:
         maximum: 10
         default: 10
       description: Default 10, server cap 10
+    AuditLogSize:
+      name: size
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+      description: Default 20, server cap 100
+    AuditLogEntityType:
+      name: entityType
+      in: query
+      schema:
+        $ref: "#/components/schemas/AuditEntityType"
+    AuditLogEntityId:
+      name: entityId
+      in: query
+      schema:
+        type: integer
+        format: int64
+    AuditLogAction:
+      name: action
+      in: query
+      schema:
+        $ref: "#/components/schemas/AuditAction"
+    AuditLogActor:
+      name: actor
+      in: query
+      schema:
+        type: string
+      description: Exact actor username
+    AuditLogFrom:
+      name: from
+      in: query
+      schema:
+        type: string
+        format: date-time
+      description: Start instant, inclusive (ISO 8601). The UI sends the start of the viewer's local day.
+    AuditLogTo:
+      name: to
+      in: query
+      schema:
+        type: string
+        format: date-time
+      description: End instant, exclusive (ISO 8601). The UI sends the start of the day after the viewer's last local day.
     QLegalName:
       name: q
       in: query
@@ -2776,11 +2902,12 @@ components:
 
     AuditEntityType:
       type: string
-      enum: [VEHICLE, CUSTOMER, CUSTOMER_VEHICLE, LISTING, DEALER, MEMBERSHIP, LEAD, WORK_ORDER, VEHICLE_PHOTO, APP_USER]
+      enum: [VEHICLE, CUSTOMER, CUSTOMER_VEHICLE, LISTING, DEALER, MEMBERSHIP, LEAD, WORK_ORDER, VEHICLE_PHOTO, APP_USER, RULE_OVERRIDE]
 
     AuditAction:
       type: string
-      enum: [CREATE, UPDATE, SELL, LINK, UNLINK, NOTE, DELETE]
+      enum: [CREATE, UPDATE, SELL, LINK, UNLINK, NOTE, DELETE, LOGIN, LOGIN_FAILED, CHECK, EXPORT]
+      description: "`LOGIN`/`LOGIN_FAILED` are sign-in attempts on `APP_USER`; `CHECK` (compliance check) and `EXPORT` (TXT export) are on `LISTING`."
 
     AssistantCardKind:
       type: string
@@ -3409,16 +3536,19 @@ components:
           type: array
           description: Newest paidOn first
           items:
-            type: object
-            required: [id, amount, method, paidOn, recordedBy, createdAt]
-            properties:
-              id: { type: integer, format: int64 }
-              amount: { type: number }
-              method: { $ref: "#/components/schemas/PaymentMethod" }
-              paidOn: { type: string, format: date }
-              note: { type: string, nullable: true }
-              recordedBy: { type: string }
-              createdAt: { type: string, format: date-time }
+            $ref: "#/components/schemas/PaymentItem"
+
+    PaymentItem:
+      type: object
+      required: [id, amount, method, paidOn, recordedBy, createdAt]
+      properties:
+        id: { type: integer, format: int64 }
+        amount: { type: number }
+        method: { $ref: "#/components/schemas/PaymentMethod" }
+        paidOn: { type: string, format: date }
+        note: { type: string, nullable: true }
+        recordedBy: { type: string }
+        createdAt: { type: string, format: date-time }
 
     WorkshopSettlementReport:
       type: object
@@ -3884,6 +4014,20 @@ components:
         createdAt:
           type: string
           format: date-time
+        previous:
+          type: object
+          nullable: true
+          additionalProperties: true
+          description: Replaced values of the changed fields, same keys as `fieldSummary`, contact fields included (AUD-04).
+        dealerId:
+          type: integer
+          format: int64
+          nullable: true
+          description: Only on the admin and dealership audit logs
+        clientIp:
+          type: string
+          nullable: true
+          description: Caller address; only on the admin and dealership audit logs
 
     PageAuditEvent:
       allOf:

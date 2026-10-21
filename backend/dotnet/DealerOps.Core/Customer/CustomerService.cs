@@ -9,20 +9,28 @@ using Microsoft.EntityFrameworkCore;
 
 namespace DealerOps.Core.Customer;
 
+/// <summary>
+/// Dealership customer records (CRM) and their vehicle links. Every create, update, delete, link
+/// and unlink writes an audit row in the same SaveChanges as the change (AUD-07), contact values
+/// included (AUD-04). Logs carry ids only, never personal data.
+/// </summary>
 public class CustomerService
 {
     private readonly AppDbContext _db;
     private readonly IAuditService _audit;
+    private readonly ILogger<CustomerService> _logger;
 
-    public CustomerService(AppDbContext db, IAuditService audit)
+    public CustomerService(AppDbContext db, IAuditService audit, ILogger<CustomerService> logger)
     {
         _db = db;
         _audit = audit;
+        _logger = logger;
     }
 
+    /// <summary>Lists this dealership's customers newest first, filtered by search term and link state.</summary>
     public PageResponse<CustomerListItem> List(string? q, bool? linked, int page, int size)
     {
-        var tenant = RequireTenant();
+        var tenant = TenantGuard.RequireTenantId();
         var p = Paging.ClampPage(page);
         var s = Paging.ClampSize(size);
 
@@ -70,9 +78,10 @@ public class CustomerService
         return new PageResponse<CustomerListItem>(items, p, s, total);
     }
 
+    /// <summary>Creates a customer; a duplicate phone is rejected, a duplicate email only warns (CRM-13).</summary>
     public CustomerDetail Create(CreateCustomerRequest body)
     {
-        var tenant = RequireTenant();
+        var tenant = TenantGuard.RequireTenantId();
         var name = body.Name.Trim();
         var email = NormalizeEmail(body.Email);
         var phone = body.Phone.Trim();
@@ -92,21 +101,28 @@ public class CustomerService
         using var tx = _db.Database.CurrentTransaction is null ? _db.Database.BeginTransaction() : null;
         _db.Customers.Add(customer);
         _db.SaveChanges();
-        _audit.Record("CUSTOMER", customer.Id, "CREATE", tenant, ActorUsername(),
+        _audit.Record("CUSTOMER", customer.Id, "CREATE", tenant, TenantContext.ActorUsername(),
             ContactFieldChanges(null, null, null, null, name, email, phone, homeAddress));
         _db.SaveChanges();
         tx?.Commit();
+        _logger.LogInformation("Customer created customerId={CustomerId} dealerId={DealerId} by {Actor}",
+            customer.Id, tenant, TenantContext.ActorUsername());
         return ToDetail(customer, emailWarning);
     }
 
+    /// <summary>Returns one customer of this dealership with its linked vehicles, newest link first.</summary>
     public CustomerDetail Get(long id)
     {
         return ToDetail(LoadThisDealer(id));
     }
 
+    /// <summary>
+    /// Updates a customer under optimistic locking. The audit row holds the new and the replaced
+    /// value of every changed field, contact fields included (AUD-04).
+    /// </summary>
     public CustomerDetail Patch(long id, PatchCustomerRequest body)
     {
-        var tenant = RequireTenant();
+        var tenant = TenantGuard.RequireTenantId();
         var customer = LoadThisDealer(id);
         if (body.Version != customer.Version)
             throw new ApiException(ErrorCode.VersionConflict, "Version conflict.");
@@ -125,20 +141,32 @@ public class CustomerService
         if (fieldSummary.Count == 0)
             return ToDetail(customer, emailWarning);
 
+        // Every changed field keeps its replaced value, contact fields included, so each version
+        // of the customer can be traced (AUD-04, AUD-13).
+        var before = new Dictionary<string, object?>
+        {
+            ["name"] = customer.Name, ["email"] = customer.Email,
+            ["phone"] = customer.Phone, ["homeAddress"] = customer.HomeAddress
+        };
+        var previous = fieldSummary.Keys.ToDictionary(k => k, k => before[k]);
         customer.Name = name;
         customer.Email = email;
         customer.Phone = phone;
         customer.HomeAddress = homeAddress;
         customer.UpdatedAt = DateTime.UtcNow;
 
-        _audit.Record("CUSTOMER", customer.Id, "UPDATE", tenant, ActorUsername(), fieldSummary);
+        _audit.Record("CUSTOMER", customer.Id, "UPDATE", tenant, TenantContext.ActorUsername(), fieldSummary, previous);
         _db.SaveChanges();
+        _logger.LogInformation(
+            "Customer updated customerId={CustomerId} dealerId={DealerId} fields={Fields} by {Actor}",
+            customer.Id, tenant, string.Join(",", fieldSummary.Keys), TenantContext.ActorUsername());
         return ToDetail(customer, emailWarning);
     }
 
+    /// <summary>Links a vehicle of this dealership to a customer; a vehicle has at most one owner link (CRM-07).</summary>
     public LinkResponse Link(long customerId, long vehicleId)
     {
-        var tenant = RequireTenant();
+        var tenant = TenantGuard.RequireTenantId();
         var customer = _db.Customers.FirstOrDefault(c => c.Id == customerId && c.DealerId == tenant)
             ?? throw new ApiException(ErrorCode.NotFound, "Not found");
         var vehicle = _db.Vehicles.FirstOrDefault(v => v.Id == vehicleId && v.DealerId == tenant)
@@ -164,26 +192,34 @@ public class CustomerService
             // Error 1062 is enough: customer_vehicle's only unique key is the vehicle id.
             throw new ApiException(ErrorCode.VehicleAlreadyLinked, "Vehicle is already linked.");
         }
-        _audit.Record("CUSTOMER_VEHICLE", row.Id, "LINK", tenant, ActorUsername(),
+        _audit.Record("CUSTOMER_VEHICLE", row.Id, "LINK", tenant, TenantContext.ActorUsername(),
             new Dictionary<string, object> { ["customerId"] = customer.Id, ["vehicleId"] = vehicle.Id });
         _db.SaveChanges();
         tx?.Commit();
+        _logger.LogInformation(
+            "Customer vehicle linked linkId={LinkId} customerId={CustomerId} vehicleId={VehicleId} dealerId={DealerId} by {Actor}",
+            row.Id, customer.Id, vehicle.Id, tenant, TenantContext.ActorUsername());
         return new LinkResponse(row.Id, row.CustomerId, row.VehicleId, row.LinkedAt);
     }
 
+    /// <summary>Soft-deletes a customer (CRM-14); the row stays for leads, links and audit history.</summary>
     public void Delete(long id)
     {
-        var tenant = RequireTenant();
+        var tenant = TenantGuard.RequireTenantId();
         var customer = LoadThisDealer(id);
         customer.DeletedAt = DateTime.UtcNow;
-        _audit.Record("CUSTOMER", customer.Id, "DELETE", tenant, ActorUsername(),
-            new Dictionary<string, object> { ["deleted"] = true });
+        _audit.Record("CUSTOMER", customer.Id, "DELETE", tenant, TenantContext.ActorUsername(),
+            new Dictionary<string, object> { ["deleted"] = true },
+            new Dictionary<string, object?> { ["deleted"] = false });
         _db.SaveChanges();
+        _logger.LogInformation("Customer deleted customerId={CustomerId} dealerId={DealerId} by {Actor}",
+            customer.Id, tenant, TenantContext.ActorUsername());
     }
 
+    /// <summary>Removes a customer-vehicle link; a sold vehicle's link is locked.</summary>
     public void Unlink(long customerId, long vehicleId)
     {
-        var tenant = RequireTenant();
+        var tenant = TenantGuard.RequireTenantId();
         if (!_db.Customers.Any(c => c.Id == customerId && c.DealerId == tenant))
             throw new ApiException(ErrorCode.NotFound, "Not found");
         var vehicle = _db.Vehicles.FirstOrDefault(v => v.Id == vehicleId && v.DealerId == tenant)
@@ -197,16 +233,19 @@ public class CustomerService
         var entityId = row.Id;
         _db.CustomerVehicles.Remove(row);
 
-        _audit.Record("CUSTOMER_VEHICLE", entityId, "UNLINK", tenant, ActorUsername(),
+        _audit.Record("CUSTOMER_VEHICLE", entityId, "UNLINK", tenant, TenantContext.ActorUsername(),
             new Dictionary<string, object> { ["customerId"] = customerId, ["vehicleId"] = vehicleId });
         _db.SaveChanges();
+        _logger.LogInformation(
+            "Customer vehicle unlinked linkId={LinkId} customerId={CustomerId} vehicleId={VehicleId} dealerId={DealerId} by {Actor}",
+            entityId, customerId, vehicleId, tenant, TenantContext.ActorUsername());
     }
 
     private CustomerListItem ToListItem(CustomerEntity customer)
     {
         var links = _db.CustomerVehicles
             .Where(cv => cv.CustomerId == customer.Id)
-            .OrderByDescending(cv => cv.LinkedAt)
+            .OrderByDescending(cv => cv.LinkedAt).ThenByDescending(cv => cv.Id)
             .ToList();
 
         LinkedVehicleBrief? brief = null;
@@ -228,7 +267,7 @@ public class CustomerService
         var tenant = customer.DealerId;
         var items = _db.CustomerVehicles
             .Where(cv => cv.CustomerId == customer.Id)
-            .OrderByDescending(cv => cv.LinkedAt)
+            .OrderByDescending(cv => cv.LinkedAt).ThenByDescending(cv => cv.Id)
             .ToList()
             .Select(link => _db.Vehicles.FirstOrDefault(v => v.Id == link.VehicleId && v.DealerId == tenant))
             .Where(v => v != null)
@@ -263,32 +302,30 @@ public class CustomerService
             : null;
     }
 
+    /// <summary>
+    /// Audit summary of changed customer fields with their new values, contact fields included
+    /// (AUD-04). Null previous values mean a create, so every field is listed.
+    /// </summary>
     internal static Dictionary<string, object> ContactFieldChanges(
         string? previousName, string? previousEmail, string? previousPhone, string? previousHomeAddress,
         string name, string email, string phone, string homeAddress)
     {
         var changed = new Dictionary<string, object>();
         if (previousName != name) changed["name"] = name;
-        if (previousEmail != email) changed["email"] = true;
-        if (previousPhone != phone) changed["phone"] = true;
-        if (previousHomeAddress != homeAddress) changed["homeAddress"] = true;
+        if (previousEmail != email) changed["email"] = email;
+        if (previousPhone != phone) changed["phone"] = phone;
+        if (previousHomeAddress != homeAddress) changed["homeAddress"] = homeAddress;
         return changed;
     }
 
+    /// <summary>Emails are stored trimmed and lower-case (CRM-03).</summary>
     internal static string NormalizeEmail(string email) => email.Trim().ToLowerInvariant();
 
     private CustomerEntity LoadThisDealer(long id)
     {
-        var tenant = RequireTenant();
+        var tenant = TenantGuard.RequireTenantId();
         return _db.Customers.FirstOrDefault(c => c.Id == id && c.DealerId == tenant)
             ?? throw new ApiException(ErrorCode.NotFound, "Not found");
     }
 
-    private static long RequireTenant()
-    {
-        TenantGuard.RequireDealerUser();
-        return TenantContext.Get()!.TenantDealerId!.Value;
-    }
-
-    private static string ActorUsername() => TenantContext.Get()?.Username ?? "";
 }

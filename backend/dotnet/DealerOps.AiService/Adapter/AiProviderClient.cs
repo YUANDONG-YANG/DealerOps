@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
@@ -6,6 +7,11 @@ using DealerOps.AiService.Support;
 
 namespace DealerOps.AiService.Adapter;
 
+/// <summary>
+/// Sends one chat-completion request to the configured OpenAI-compatible provider.
+/// Logs one INFO line per call (operation, model, duration, outcome) and a WARN when the provider
+/// fails. Prompts, ad text, answers and the API key are never logged.
+/// </summary>
 public class AiProviderClient
 {
     private static readonly Dictionary<string, string> ProviderBaseUrls = new(StringComparer.OrdinalIgnoreCase)
@@ -25,12 +31,14 @@ public class AiProviderClient
     private readonly int _maxTokens;
     private readonly string _apiKey;
     private readonly string _baseUrl;
+    private readonly ILogger<AiProviderClient> _logger;
 
-    public bool HasApiKey => !string.IsNullOrWhiteSpace(_apiKey);
+    private bool HasApiKey => !string.IsNullOrWhiteSpace(_apiKey);
 
-    public AiProviderClient(HttpClient http, IConfiguration config)
+    public AiProviderClient(HttpClient http, IConfiguration config, ILogger<AiProviderClient> logger)
     {
         _http = http;
+        _logger = logger;
         _apiKey = FirstNonEmpty(config["AIMANAGER_API_KEY"], config["AiManager:ApiKey"]);
         var provider = FirstNonEmpty(config["AIMANAGER_GATEWAY_PROVIDER"], config["AiManager:Provider"], "groq");
         _model = FirstNonEmpty(config["AIMANAGER_GATEWAY_MODEL"], config["AiManager:Model"], "qwen/qwen3.8-27b");
@@ -39,15 +47,19 @@ public class AiProviderClient
 
         _baseUrl = ProviderBaseUrls.GetValueOrDefault(provider, ProviderBaseUrls["groq"]);
 
-        var logger = LoggerFactory.Create(b => b.AddConsole()).CreateLogger<AiProviderClient>();
-        logger.LogInformation("AIMANAGER_API_KEY configured: {HasKey} (provider={Provider}, model={Model})",
+        _logger.LogInformation("AIMANAGER_API_KEY configured: {HasKey} (provider={Provider}, model={Model})",
             HasApiKey, provider, _model);
     }
 
     private static string FirstNonEmpty(params string?[] values)
         => values.FirstOrDefault(value => !string.IsNullOrWhiteSpace(value))?.Trim() ?? "";
 
-    public async Task<string?> ChatAsync(string systemPrompt, string userContent, CancellationToken ct)
+    /// <summary>
+    /// Sends the system prompt and user content and returns the first choice's text.
+    /// </summary>
+    /// <param name="operation">Short name of the calling feature, used only in logs.</param>
+    /// <exception cref="ModelFailureException">The key is missing or the provider answered with an error status.</exception>
+    public async Task<string?> ChatAsync(string operation, string systemPrompt, string userContent, CancellationToken ct)
     {
         if (!HasApiKey) throw ModelFailureException.KeyMissingError();
 
@@ -66,15 +78,44 @@ public class AiProviderClient
         request.Content = new StringContent(json, Encoding.UTF8, "application/json");
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _apiKey);
 
-        using var response = await _http.SendAsync(request, ct);
+        var stopwatch = Stopwatch.StartNew();
+        var outcome = "error";
+        try
+        {
+            using var response = await _http.SendAsync(request, ct);
 
-        if (!response.IsSuccessStatusCode)
-            throw ModelFailureException.ProviderFailedError();
+            if (!response.IsSuccessStatusCode)
+            {
+                outcome = "provider_status";
+                _logger.LogWarning("AI provider failed operation={Operation} model={Model} status={StatusCode}",
+                    operation, _model, (int)response.StatusCode);
+                throw ModelFailureException.ProviderFailedError();
+            }
 
-        var body = await response.Content.ReadAsStringAsync(ct);
-        var parsed = JsonSerializer.Deserialize<ChatResponse>(body, SerializerOptions);
+            var body = await response.Content.ReadAsStringAsync(ct);
+            var parsed = JsonSerializer.Deserialize<ChatResponse>(body, SerializerOptions);
 
-        return parsed?.Choices?.FirstOrDefault()?.Message?.Content;
+            outcome = "ok";
+            return parsed?.Choices?.FirstOrDefault()?.Message?.Content;
+        }
+        catch (OperationCanceledException)
+        {
+            outcome = "timeout";
+            throw;
+        }
+        catch (HttpRequestException ex)
+        {
+            outcome = "unreachable";
+            _logger.LogWarning("AI provider unreachable operation={Operation} model={Model} reason={Reason}",
+                operation, _model, ex.HttpRequestError);
+            throw;
+        }
+        finally
+        {
+            _logger.LogInformation(
+                "AI call operation={Operation} model={Model} durationMs={DurationMs} outcome={Outcome}",
+                operation, _model, stopwatch.ElapsedMilliseconds, outcome);
+        }
     }
 
     private static readonly JsonSerializerOptions SerializerOptions = new()

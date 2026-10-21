@@ -1,10 +1,14 @@
 using System.Diagnostics;
+using DealerOps.Logging;
 
 namespace DealerOps.AiService.Middleware;
 
+/// <summary>
+/// Echoes the Gateway's <c>X-Request-ID</c> when it is valid (otherwise generates one) and writes
+/// one access line per request.
+/// </summary>
 public class RequestLoggingMiddleware
 {
-    private const string RequestIdHeader = "X-Request-ID";
     private readonly RequestDelegate _next;
     private readonly ILogger<RequestLoggingMiddleware> _logger;
 
@@ -14,13 +18,14 @@ public class RequestLoggingMiddleware
         _logger = logger;
     }
 
+    /// <summary>Runs the rest of the pipeline and logs the access line.</summary>
     public async Task InvokeAsync(HttpContext context)
     {
-        var requestId = context.Request.Headers[RequestIdHeader].FirstOrDefault();
-        if (string.IsNullOrWhiteSpace(requestId))
+        var requestId = context.Request.Headers[RequestId.Header].FirstOrDefault();
+        if (!RequestId.IsValid(requestId))
             requestId = Guid.NewGuid().ToString();
 
-        context.Response.Headers[RequestIdHeader] = requestId;
+        context.Response.Headers[RequestId.Header] = requestId;
 
         var sw = Stopwatch.StartNew();
         try

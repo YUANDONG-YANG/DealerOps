@@ -3,8 +3,10 @@ using DealerOps.Core.Dealer;
 
 namespace DealerOps.Core.Common.Tenant;
 
+/// <summary>Role and tenant checks for services; each failed check throws FORBIDDEN (or NOT_FOUND for another tenant's record).</summary>
 public static class TenantGuard
 {
+    /// <summary>The caller, who must be a dealer user bound to a dealership.</summary>
     public static CurrentUser RequireDealerUser()
     {
         var user = TenantContext.Get();
@@ -24,12 +26,14 @@ public static class TenantGuard
         return user;
     }
 
+    /// <summary>The bound dealership id of a dealer user.</summary>
     public static long RequireTenantId()
     {
         var user = RequireDealerUser();
         return user.TenantDealerId!.Value;
     }
 
+    /// <summary>The caller, who must be the platform admin.</summary>
     public static CurrentUser RequireAdmin()
     {
         var user = TenantContext.Get();
@@ -38,6 +42,7 @@ public static class TenantGuard
         return user;
     }
 
+    /// <summary>Reports a record of another dealership as NOT_FOUND, so its existence is not disclosed.</summary>
     public static void AssertSameDealer(ITenantOwned entity, long dealerId)
     {
         if (entity.DealerId != dealerId)

@@ -5,6 +5,11 @@ using Microsoft.IdentityModel.Tokens;
 
 namespace DealerOps.Core.Security;
 
+/// <summary>
+/// Issues the application's HS256 access token (one hour) after a successful sign-in. The token
+/// carries the username, display name and platform role only; the dealership is resolved per
+/// request from the membership table.
+/// </summary>
 public class JwtService
 {
     private const long ExpirySeconds = 3600;
@@ -16,6 +21,7 @@ public class JwtService
         _key = JwtSupport.HmacSecret(secret);
     }
 
+    /// <summary>Signs a new access token for the given account.</summary>
     public string Issue(AppUserEntity user)
     {
         var now = DateTime.UtcNow;

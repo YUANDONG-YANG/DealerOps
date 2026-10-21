@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { complianceRulesApi, type ComplianceRule } from '../api/complianceRules';
 import { describeError } from '../api/errors';
 
+/** Admin editor for the ad compliance rules; each row is saved on its own. */
 export default function ComplianceRulesPanel() {
   const [rules, setRules] = useState<ComplianceRule[]>([]);
   const [error, setError] = useState('');

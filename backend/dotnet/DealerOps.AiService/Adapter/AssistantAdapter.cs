@@ -4,6 +4,9 @@ using DealerOps.AiService.Support;
 
 namespace DealerOps.AiService.Adapter;
 
+/// <summary>
+/// Read-only dealership assistant: answers a question from the resource cards Core supplies.
+/// </summary>
 public class AssistantAdapter
 {
     // The question is user input, so its length is capped before it reaches the model.
@@ -18,16 +21,15 @@ public class AssistantAdapter
         _timedCall = timedCall;
     }
 
+    /// <summary>Answers the question in one or two sentences.</summary>
+    /// <exception cref="ModelFailureException">The model call failed or returned an empty answer.</exception>
     public async Task<AssistantOkResponse> RunAsync(AssistantInternalRequest req)
     {
-        if (!_client.HasApiKey)
-            throw ModelFailureException.KeyMissingError();
-
         var userJson = JsonSerializer.Serialize(
             req with { Question = Capped(req.Question) }, JsonOptions);
 
         var content = await _timedCall.RequestAsync(async ct =>
-            await _client.ChatAsync(SystemPrompts.Assistant, userJson, ct));
+            await _client.ChatAsync("assistant", SystemPrompts.Assistant, userJson, ct));
 
         if (string.IsNullOrWhiteSpace(content))
             throw ModelFailureException.ProviderFailedError();

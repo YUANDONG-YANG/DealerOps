@@ -4,6 +4,7 @@ using DealerOps.Core.Common.Tenant;
 
 namespace DealerOps.Core.Compliance;
 
+/// <summary>One compliance check run on a listing; kept as history, the listing points at the latest.</summary>
 [Table("compliance_check")]
 public class ComplianceCheckEntity : ITenantOwned
 {

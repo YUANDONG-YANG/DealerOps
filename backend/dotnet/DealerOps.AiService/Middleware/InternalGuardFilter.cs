@@ -4,6 +4,10 @@ using System.Text.Json;
 
 namespace DealerOps.AiService.Middleware;
 
+/// <summary>
+/// Requires the Gateway's internal credential on every path, so a direct call to the AI service
+/// gets 404.
+/// </summary>
 public class InternalGuardFilter : IMiddleware
 {
     private const string WellKnownDefaultToken = "dealer-internal";
@@ -37,6 +41,7 @@ public class InternalGuardFilter : IMiddleware
         }
     }
 
+    /// <summary>Rejects the request with 404 or passes it on.</summary>
     public async Task InvokeAsync(HttpContext context, RequestDelegate next)
     {
         // Every path, including health and OpenAPI. A direct 8082 call has no gateway credential.

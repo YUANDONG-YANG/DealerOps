@@ -126,8 +126,8 @@ The organisation has three levels: the platform admin (`Platform.Admin`), a deal
 | Who | Can |
 |---|---|
 | `Platform.Admin` | Create dealerships, create and bind accounts, unbind members, reset passwords, and promote staff to manager or demote a manager (14 §3.7b). The only one who changes a role |
-| Manager | Everything staff can, plus: the Team page, the join-request inbox, approving or rejecting join requests, removing staff, and editing the dealership profile (14 §5.7, §5.8) |
-| Staff | All business data of the dealership (DMS, CRM, leads, ads, reports, payments, work orders); no Team page, no inbox |
+| Manager | Everything staff can, plus: the Team page, the join-request inbox, approving or rejecting join requests, removing staff, and editing the dealership profile (14 §5.7, §5.8); each record's audit history (`GET /audit`, AUD-17) and the dealership audit log (`GET /dealer/audit`, Team › Activity); the payment ledger of a sold vehicle (`GET /vehicles/{id}/payments`) and removing a payment (`DELETE …/payments/{paymentId}`) |
+| Staff | All business data of the dealership (DMS, CRM, leads, ads, reports, work orders); may record a payment (`POST /vehicles/{id}/payments`, 201 with only the recorded payment item, PAY-05) but cannot read the ledger or remove a payment; no audit history or audit log, no Team page, no inbox. Every manager-only endpoint returns **403** `FORBIDDEN` to staff |
 
 Every bind, reactivation, and approved join request starts as `staff`. Existing members became `staff` when the column was added, so the admin appoints each dealership's first manager. A manager cannot remove another manager or themselves; only the admin does.
 
@@ -515,7 +515,7 @@ Verification rules enforced server-side, never in the browser: RS256 only, issue
 |---|---|
 | Active customer (name, email, phone, home address) | While the dealership keeps the record |
 | Soft-deleted customer (CRM-14) | Row kept for lead, link and audit history; personal fields anonymized `Retention:DeletedCustomerDays` (default 730) days after deletion |
-| Audit events | Kept; they hold field names only, never contact values (AUD-04) |
+| Audit events | Kept for the life of the database, append-only (AUD-05); they hold contact values, new and replaced, so every version is traceable (AUD-04). Customer anonymization never rewrites audit rows, so an anonymized customer's earlier contact values stay in the audit trail, readable only by managers and the admin |
 | Staff accounts (`app_user`) | Until the user deletes the account (`DELETE /api/v1/me`) or an admin removes it |
 | Database backups | 7 days (NFR-04) |
 
@@ -534,6 +534,22 @@ To restore after data loss or a bad change:
 4. Delete the old server only after the restored one has been checked.
 
 Limits of this setup: backups stay in the server's region (no geo-redundant copy), and there is no long-term copy older than 7 days. For a copy that outlives the window, take a `mysqldump` of `dealer_core` before a risky change or a demo reset and store it outside the server.
+
+### 8.8 Audit trail storage (AUD-10 to AUD-16, decided 2026-10-21)
+
+DealerOps handles vehicle sales and payments, so the audit trail is held to a finance standard: every sign-in attempt and every create, update, delete and other state change writes one `audit_event` row in the same transaction as the business change (AUD-07). Core's startup schema patch adds two columns to `audit_event`:
+
+| Column | Type | Content |
+|---|---|---|
+| `previous_values` | `JSON NULL` | changed field → replaced value, same keys and formatting as `field_summary` (which holds the new values). Set on updates and other state changes where the old value is known, so each row is one version step of the record (AUD-13). Contact fields are included (AUD-04) |
+| `client_ip` | `VARCHAR(45) NULL` | the caller's IP (IPv6 fits). the gateway decides it once (its socket peer; outside `Development` the forwarded-headers middleware trusts only the single hop the Azure App Service front end appends), YARP's default `Set` transform forwards exactly that value, and Core reads it from `X-Forwarded-For`, falling back to the socket peer. A caller-supplied `X-Forwarded-For` never reaches Core; it is `NULL` for rows written outside a request, such as `CustomerRetention` (AUD-16) |
+
+Rules:
+
+- **Append-only.** No API or service updates or deletes an `audit_event` row; rows are kept under §8.6 and are covered by the 7-day backups of §8.7.
+- **Closed vocabularies.** `entity_type` and `action` accept only the values listed in [14](14-Backend-API-Contract.md) §9; Core throws on any other value, so a wrong row is never written (AUD-16).
+- **Sign-ins.** `LOGIN` / `LOGIN_FAILED` rows use `entity_type = APP_USER`. An identifier that matches no account is stored as actor `anonymous` with `entity_id = 0`; the typed identifier is never stored (AUD-12).
+- **Reads.** Record history, the dealership log and the platform log all sort by `created_at` desc, then `id` desc (AUD-15). The existing `idx_audit_dealer (dealer_id)` suggestion (§5) serves the dealership log.
 
 ## 9. Why not Service Bus (versus the proposal)
 

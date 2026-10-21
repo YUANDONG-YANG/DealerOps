@@ -11,6 +11,10 @@ using Microsoft.EntityFrameworkCore;
 
 namespace DealerOps.Core.Security;
 
+/// <summary>
+/// The signed-in user's own account: profile read and update, self-service deletion and the
+/// user's own dealership join request. Every change is audited on the APP_USER record.
+/// </summary>
 [ApiController]
 [Route("api/v1")]
 [Authorize]
@@ -20,16 +24,19 @@ public class MeController : ControllerBase
     private readonly IAuditService _audit;
     private readonly NotificationService _notifications;
     private readonly JoinRequestService _joinRequests;
+    private readonly ILogger<MeController> _logger;
 
     public MeController(AppDbContext db, IAuditService audit, NotificationService notifications,
-        JoinRequestService joinRequests)
+        JoinRequestService joinRequests, ILogger<MeController> logger)
     {
         _db = db;
         _audit = audit;
         _notifications = notifications;
         _joinRequests = joinRequests;
+        _logger = logger;
     }
 
+    /// <summary>Returns the caller's pending join request, or 204 when none is pending.</summary>
     [HttpGet("me/join-request")]
     public ActionResult<MyJoinRequestResponse> MyJoinRequest()
     {
@@ -37,10 +44,12 @@ public class MeController : ControllerBase
         return pending == null ? NoContent() : pending;
     }
 
+    /// <summary>Files a join request to a dealership for the caller's unbound account.</summary>
     [HttpPost("me/join-request")]
     public MyJoinRequestResponse FileJoinRequest([FromBody] FileJoinRequest body) =>
         _joinRequests.File(body.DealerId);
 
+    /// <summary>Returns the caller's identity, contact details and bound dealership.</summary>
     [HttpGet("me")]
     public MeResponse Me()
     {
@@ -82,8 +91,9 @@ public class MeController : ControllerBase
     [HttpPatch("me")]
     public MeResponse PatchMe([FromBody] PatchMeRequest body)
     {
-        var username = TenantContext.Get()?.Username
-                       ?? throw new ApiException(ErrorCode.Unauthorized, "Unauthorized");
+        var current = TenantContext.Get()
+                      ?? throw new ApiException(ErrorCode.Unauthorized, "Unauthorized");
+        var username = current.Username;
         var user = _db.AppUsers.FirstOrDefault(u => u.Username == username && u.Active)
                    ?? throw new ApiException(ErrorCode.NotFound, "Account not found.");
 
@@ -99,12 +109,28 @@ public class MeController : ControllerBase
             throw new ApiException(ErrorCode.PhoneTaken, "That phone number is already registered.",
                 new Dictionary<string, string> { ["phone"] = "That phone number is already registered." });
 
+        // The summary holds the changed fields with their new values and previous the old ones,
+        // the phone included (AUD-04).
+        var summary = new Dictionary<string, object> { ["self"] = true };
+        var previous = new Dictionary<string, object?>();
+        if (user.DisplayName != displayName)
+        {
+            summary["displayName"] = displayName;
+            previous["displayName"] = user.DisplayName;
+        }
+        if (user.Phone != phone)
+        {
+            summary["phone"] = (object?)phone ?? "";
+            previous["phone"] = user.Phone;
+        }
+
         user.DisplayName = displayName;
         user.Phone = phone;
 
-        _audit.Record("APP_USER", user.Id, "UPDATE", null, username,
-            new Dictionary<string, object> { ["self"] = true });
+        _audit.Record("APP_USER", user.Id, "UPDATE", current.TenantDealerId, username, summary, previous);
         _db.SaveChanges();
+        _logger.LogInformation("Profile updated userId={UserId} username={Username} fields={Fields}",
+            user.Id, username, string.Join(",", summary.Keys.Where(k => k != "self")));
 
         return Me();
     }
@@ -118,18 +144,27 @@ public class MeController : ControllerBase
     [HttpDelete("me")]
     public IActionResult DeleteMe()
     {
-        var username = TenantContext.Get()?.Username
-                       ?? throw new ApiException(ErrorCode.Unauthorized, "Unauthorized");
+        var current = TenantContext.Get()
+                      ?? throw new ApiException(ErrorCode.Unauthorized, "Unauthorized");
+        var username = current.Username;
         var user = _db.AppUsers.FirstOrDefault(u => u.Username == username && u.Active)
                    ?? throw new ApiException(ErrorCode.NotFound, "Account not found.");
 
         if (user.Role == AppRole.PlatformAdmin)
+        {
+            _logger.LogWarning("Self-deletion refused for platform admin username={Username}", username);
             throw new ApiException(ErrorCode.Forbidden, "Platform admin accounts cannot delete themselves.");
+        }
 
         using var tx = _db.Database.BeginTransaction();
 
         foreach (var m in _db.Memberships.Where(m => m.Username == username && m.Active).ToList())
+        {
             m.Active = false;
+            _audit.Record("MEMBERSHIP", m.Id, "UPDATE", m.DealerId, username,
+                new Dictionary<string, object> { ["username"] = username, ["unbound"] = true, ["self"] = true },
+                new Dictionary<string, object?> { ["unbound"] = false });
+        }
 
         // This user's own pending join request has nothing left to resolve, so mark it
         // cancelled rather than leaving it in that dealer's inbox. Other applicants' requests
@@ -150,10 +185,14 @@ public class MeController : ControllerBase
         if (user.Phone != null) user.Phone = user.Phone + marker;
         if (user.GoogleSub != null) user.GoogleSub = user.GoogleSub + marker;
 
-        _audit.Record("APP_USER", user.Id, "DELETE", null, username,
-            new Dictionary<string, object> { ["self"] = true });
+        // Recorded under the dealership the user left, so its manager's log shows the departure.
+        _audit.Record("APP_USER", user.Id, "DELETE", current.TenantDealerId, username,
+            new Dictionary<string, object> { ["self"] = true, ["active"] = false },
+            new Dictionary<string, object?> { ["active"] = true });
         _db.SaveChanges();
         tx.Commit();
+        _logger.LogInformation("Account self-deleted userId={UserId} username={Username} dealerId={DealerId}",
+            user.Id, username, current.TenantDealerId);
 
         return NoContent();
     }

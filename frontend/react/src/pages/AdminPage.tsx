@@ -6,8 +6,10 @@ import ConfirmDialog from '../components/ConfirmDialog';
 import PageState from '../components/PageState';
 import PendingAccounts from '../components/PendingAccounts';
 import ComplianceRulesPanel from '../components/ComplianceRulesPanel';
-import { adminApi, adminErrorCode, adminErrorStatus, type Dealer, type Member } from '../api/admin';
-import { apiError, collectAllPages, fieldErrorsOf } from '../api/http';
+import AuditLogPanel from '../components/AuditLogPanel';
+import { adminApi, type Dealer, type Member } from '../api/admin';
+import { auditApi } from '../api/audit';
+import { apiError, codeOf, collectAllPages, fieldErrorsOf, statusOf } from '../api/http';
 import { describeError, errorReason } from '../api/errors';
 import { enumLabel } from '../format';
 
@@ -16,7 +18,7 @@ type FlatMember = Member & { dealerId: number; legalName: string };
 const memberContact = (m: Member) => [m.email, m.phone].filter(Boolean).join(' / ') || '—';
 
 function isForbidden(e: unknown) {
-  return adminErrorCode(e) === 'FORBIDDEN' || adminErrorStatus(e) === 403;
+  return codeOf(e) === 'FORBIDDEN' || statusOf(e) === 403;
 }
 
 const DEALER_FIELDS = [
@@ -55,8 +57,9 @@ const TAKEN_HINTS: Record<string, string> = {
   phone: 'Use a different number, or leave this blank and enter an email instead.',
 };
 
+/** Platform admin console: dealerships, their staff, pending accounts, ad rules and the platform audit log. */
 export default function AdminPage() {
-  const [tab, setTab] = useState<'dealers' | 'members' | 'pending' | 'rules'>('dealers');
+  const [tab, setTab] = useState<'dealers' | 'members' | 'pending' | 'rules' | 'audit'>('dealers');
   const [rows, setRows] = useState<Dealer[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(0);
@@ -133,6 +136,7 @@ export default function AdminPage() {
 
   const fetchAllDealers = () => collectAllPages<Dealer>((p) => adminApi.dealers({ page: p, size: 10 }));
 
+  // Members are keyed by username, not id, so collectAllPages does not apply here.
   const fetchDealerMembers = async (dealerId: number, filterQ: string) => {
     const items: Member[] = [];
     let p = 0, n = 0;
@@ -143,6 +147,7 @@ export default function AdminPage() {
     return items;
   };
 
+  // The Members tab lists every dealership's staff in one table, paged on the client.
   const loadFlatMembers = async () => {
     const seq = ++membersLoadSeq.current;
     setMembersLoading(true); setMembersError(''); setMembersForbidden(false);
@@ -248,10 +253,10 @@ export default function AdminPage() {
       if (!editingDealer) setPage(0);
       await loadDealers();
     } catch (e) {
-      const code = adminErrorCode(e);
-      if (code === 'VALIDATION' || adminErrorStatus(e) === 400)
+      const code = codeOf(e);
+      if (code === 'VALIDATION' || statusOf(e) === 400)
         setFormError(serverDetail(e) || errorReason(e));
-      else if (code === 'VERSION_CONFLICT' || adminErrorStatus(e) === 409) {
+      else if (code === 'VERSION_CONFLICT' || statusOf(e) === 409) {
         setFormError('This dealership was changed by someone else after you opened it. Close this form and click Edit again to load the latest details.');
         await loadDealers();
       } else if (isForbidden(e)) setFormError('You do not have access to Admin.');
@@ -287,14 +292,14 @@ export default function AdminPage() {
       setMember({ username: '', displayName: '', password: '', email: '', phone: '' });
       await refreshMemberships(staffDealer.id);
     } catch (e) {
-      const code = adminErrorCode(e);
+      const code = codeOf(e);
       const fields = fieldErrorsOf(e);
       setMemberErrors(fields);
       if (code === 'DUP_MEMBER') {
         // The server names the dealership that already owns this login (AUTH-03).
         setBindError(apiError(e).message || 'Staff already bound');
       } else if (Object.keys(fields).length) {
-        if (adminErrorStatus(e) === 409) {
+        if (statusOf(e) === 409) {
           setMemberHints(Object.fromEntries(Object.keys(fields).filter((f) => TAKEN_HINTS[f]).map((f) => [f, TAKEN_HINTS[f]])));
         }
         // The drawer is usually scrolled to the button, so name the fields here as well.
@@ -313,7 +318,7 @@ export default function AdminPage() {
       await refreshMemberships(dealerId);
     } catch (e) {
       setStatusRevert((n) => n + 1);
-      if (adminErrorCode(e) === 'DUP_MEMBER') alert(apiError(e).message || 'This login is already active at another dealership. Unbind it there first.');
+      if (codeOf(e) === 'DUP_MEMBER') alert(apiError(e).message || 'This login is already active at another dealership. Unbind it there first.');
       else if (isForbidden(e)) alert('You do not have access to Admin.');
       else alert(describeError(e, `reactivate ${username}`));
     } finally { setStatusBusy(''); }
@@ -327,7 +332,7 @@ export default function AdminPage() {
       setConfirm(false); setPendingUnbind(null);
       await refreshMemberships(dealerId);
     } catch (e) {
-      if (adminErrorCode(e) === 'NOT_FOUND') setUnbindError(`Member not found: ${username} is no longer on this dealership's staff. Refresh the list.`);
+      if (codeOf(e) === 'NOT_FOUND') setUnbindError(`Member not found: ${username} is no longer on this dealership's staff. Refresh the list.`);
       else if (isForbidden(e)) setUnbindError('You do not have access to Admin.');
       else setUnbindError(describeError(e, `unbind ${username}`));
     }
@@ -352,7 +357,7 @@ export default function AdminPage() {
       setResetTarget(null); setResetPassword(''); setResetConfirm('');
       setResetNotice(`Password for ${username} was reset. Give the new password to them directly; it is not emailed.`);
     } catch (e) {
-      if (adminErrorCode(e) === 'NOT_FOUND') setResetError(`${username} is no longer active staff at this dealership. Refresh the list.`);
+      if (codeOf(e) === 'NOT_FOUND') setResetError(`${username} is no longer active staff at this dealership. Refresh the list.`);
       else setResetError(describeError(e, `reset the password for ${username}`));
     } finally { setResetting(false); }
   };
@@ -405,6 +410,7 @@ export default function AdminPage() {
           <button className={`tab-btn ${tab === 'members' ? 'active' : ''}`} onClick={() => { setTab('members'); loadFlatMembers(); }}>Members</button>
           <button className={`tab-btn ${tab === 'pending' ? 'active' : ''}`} onClick={() => setTab('pending')}>Pending accounts</button>
           <button className={`tab-btn ${tab === 'rules' ? 'active' : ''}`} onClick={() => setTab('rules')}>Ad rules</button>
+          <button className={`tab-btn ${tab === 'audit' ? 'active' : ''}`} onClick={() => setTab('audit')}>Audit log</button>
         </div>
 
         {tab === 'dealers' && (
@@ -466,7 +472,7 @@ export default function AdminPage() {
                     </label>
                   )},
                   { label: 'Password', render: (r) => passwordAction(r.dealerId, r) },
-                  { label: 'Role change', render: (r) => roleAction(r.dealerId, r) },
+                  { label: 'Change role', render: (r) => roleAction(r.dealerId, r) },
                 ]}
               />
             </PageState>
@@ -476,6 +482,7 @@ export default function AdminPage() {
           <PendingAccounts key={pendingReload} onBound={() => { void loadFlatMembers(); void loadDealers(); }} />
         )}
         {tab === 'rules' && <ComplianceRulesPanel />}
+        {tab === 'audit' && <AuditLogPanel load={auditApi.platformLog} showDealer />}
       </div>
 
       <FormDrawer title={editingDealer ? 'Edit dealership' : 'New dealership'} open={drawer} onClose={() => setDrawer(false)}>
@@ -561,7 +568,7 @@ export default function AdminPage() {
           {/* One line per member in the wide modal; the wrapper scrolls sideways on small screens. */}
           <div className="table-wrap">
           <table className="table staff-table">
-            <thead><tr><th>Username</th><th>Name</th><th>Contact</th><th>Role</th><th>Sign-in</th><th>Status</th><th>Actions</th></tr></thead>
+            <thead><tr><th>Username</th><th>Name</th><th>Contact</th><th>Role</th><th>Sign-in</th><th>Status</th><th>Password</th><th>Change role</th><th>Membership</th></tr></thead>
             <tbody>
               {drawerMembers.map((m) => (
                 <tr key={m.username}>
@@ -571,13 +578,12 @@ export default function AdminPage() {
                   <td><span className={`tag ${m.dealerRole === 'MANAGER' ? 'tag-success' : ''}`}>{enumLabel(m.dealerRole)}</span></td>
                   <td><SignInTag method={m.signInMethod} /></td>
                   <td><span className={`tag ${m.active ? 'tag-success' : ''}`}>{m.active ? 'Active' : 'Inactive'}</span></td>
-                  <td>
+                  {/* Each action has its own cell so the same action lines up on every row. */}
+                  <td className="staff-action">{staffDealer && passwordAction(staffDealer.id, m)}</td>
+                  <td className="staff-action">{staffDealer && roleAction(staffDealer.id, m)}</td>
+                  <td className="staff-action">
                     {staffDealer && m.active && (
-                      <div className="row-actions">
-                        {passwordAction(staffDealer.id, m)}
-                        {roleAction(staffDealer.id, m)}
-                        <button className="btn-link danger" onClick={() => setStatus(staffDealer.id, m.username, false)}>Unbind</button>
-                      </div>
+                      <button className="btn-link danger" onClick={() => setStatus(staffDealer.id, m.username, false)}>Unbind</button>
                     )}
                   </td>
                 </tr>

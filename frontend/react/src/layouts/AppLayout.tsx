@@ -71,7 +71,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
             )}
           </span>
           <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 12 }}>
-            {isManager && session.hasBusinessAccess && <JoinRequestInbox />}
+            {session.hasBusinessAccess && <JoinRequestInbox isManager={isManager} />}
           </div>
           {/* Clicking the name/avatar goes to /profile, where the user can view their sign-in
               method, edit their details, and sign out or delete the account. */}

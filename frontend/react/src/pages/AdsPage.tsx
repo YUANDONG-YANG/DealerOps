@@ -7,6 +7,8 @@ import PageState from '../components/PageState';
 import AdWorkspace from '../components/AdWorkspace';
 import PhotoStudioPanel from '../components/PhotoStudioPanel';
 import StatusTag from '../components/StatusTag';
+import AuditTrail, { type AuditRow } from '../components/AuditTrail';
+import { auditApi } from '../api/audit';
 import { vehiclesApi } from '../api/vehicles';
 import {
   apiError, applyCheckToListing, checkStatusLabel, emptyListing,
@@ -15,6 +17,7 @@ import {
 } from '../api/listings';
 import { describeError } from '../api/errors';
 
+/** Table label of an ad type; `—` when the vehicle has no saved ad. */
 function kindLabel(kind?: string) {
   if (kind === 'CASH') return 'Cash';
   if (kind === 'FINANCE') return 'Finance';
@@ -22,16 +25,19 @@ function kindLabel(kind?: string) {
   return '—';
 }
 
+/** Table label of an ad medium; `—` when the vehicle has no saved ad. */
 function mediumLabel(medium?: string) {
   if (medium === 'ONLINE') return 'Online';
   if (medium === 'RADIO_TV_BILLBOARD') return 'Radio / TV / Billboard';
   return '—';
 }
 
+/** The editable ad fields as one string, compared with the saved copy to detect unsaved edits. */
 function contentKey(row: Listing) {
   return JSON.stringify([row.title ?? '', row.body ?? '', row.adKind, row.medium, row.priorUse, row.warrantyTerms, row.annualKmAllowance]);
 }
 
+/** Ad compliance page: pick a vehicle, edit its ad, run the check, mark it ready and export it. */
 export default function AdsPage() {
   const [searchParams] = useSearchParams();
   const [vehicles, setVehicles] = useState<any[]>([]);
@@ -52,12 +58,17 @@ export default function AdsPage() {
   const [readyBusy, setReadyBusy] = useState(false);
   const [exportBusy, setExportBusy] = useState(false);
   const dealerId = useSessionStore((st) => st.dealerId);
+  // Record history is manager only (AUD-17); staff never call the audit API.
+  const isManager = useSessionStore((st) => st.dealerRole === 'MANAGER');
   const [publishPlatform, setPublishPlatform] = useState('Kijiji');
   const [demoPublish, setDemoPublish] = useState<{ platform: string; reference: string; publishedAt: string } | null>(null);
   const [savedContent, setSavedContent] = useState(contentKey(emptyListing()));
   const vehicleListSeq = useRef(0);
   const listingLoadSeq = useRef(0);
   const loadedListingVehicleIdRef = useRef<number | null>(null);
+  const [audit, setAudit] = useState<AuditRow[]>([]);
+  const [auditPage, setAuditPage] = useState(0);
+  const [auditTotal, setAuditTotal] = useState(0);
 
   const unsaved = contentKey(listing) !== savedContent;
   const sold = selected?.status === 'SOLD';
@@ -112,6 +123,22 @@ export default function AdsPage() {
 
   useEffect(() => { void loadVehicles(); }, [loadVehicles]);
 
+  // The saved ad's LISTING history (managers only); a reply for an ad that is no longer open is ignored.
+  async function loadAudit(listingId: number, seq: number, page = 0) {
+    if (!isManager) return;
+    try {
+      const r = await auditApi.list({ entityType: 'LISTING', entityId: listingId, page, size: 10 });
+      if (seq !== listingLoadSeq.current) return;
+      setAudit(r.data.items || []);
+      setAuditPage(r.data.page ?? page);
+      setAuditTotal(r.data.totalElements ?? 0);
+    } catch {
+      if (seq !== listingLoadSeq.current) return;
+      setAudit([]);
+      setAuditTotal(0);
+    }
+  }
+
   const select = async (vehicle: any) => {
     const seq = ++listingLoadSeq.current;
     setSelected(vehicle); setListingError(''); setListingForbidden(false); setActionError('');
@@ -120,6 +147,7 @@ export default function AdsPage() {
     setListingLoading(true); loadedListingVehicleIdRef.current = null;
     const empty = emptyListing(vehicle.id);
     setListing(empty); setSavedContent(contentKey(empty));
+    setAudit([]); setAuditPage(0); setAuditTotal(0);
     try {
       const r = await listingsApi.get(vehicle.id);
       if (seq !== listingLoadSeq.current) return;
@@ -127,6 +155,7 @@ export default function AdsPage() {
       setListing(merged); setSavedContent(contentKey(merged));
       loadedListingVehicleIdRef.current = vehicle.id;
       rememberSummary(merged);
+      if (merged.id) void loadAudit(merged.id, seq);
     } catch (e) {
       if (seq !== listingLoadSeq.current) return;
       const { status, code } = apiError(e);
@@ -183,6 +212,7 @@ export default function AdsPage() {
       setListing(merged); setSavedContent(contentKey(merged));
       loadedListingVehicleIdRef.current = vehicleId;
       rememberSummary(merged);
+      if (merged.id) void loadAudit(merged.id, listingLoadSeq.current);
     } catch (e) {
       if (selected?.id !== vehicleId) return;
       setActionError(saveMessage(e));
@@ -192,6 +222,7 @@ export default function AdsPage() {
   const runCheck = async () => {
     if (!listing.id || sold || !selected?.id) return;
     const vehicleId = selected.id;
+    const listingId = listing.id;
     if (listing.vehicleId !== vehicleId) return;
     setChecking(true); setActionError('');
     try {
@@ -228,7 +259,11 @@ export default function AdsPage() {
       else if (status === 404 || code === 'NOT_FOUND') setActionError('Vehicle not found. It may have been deleted; refresh the list.');
       else if (status === 403 || code === 'FORBIDDEN') setActionError('You do not have access to Ad compliance.');
       else setActionError(describeError(e, 'run the compliance check'));
-    } finally { setChecking(false); }
+    } finally {
+      setChecking(false);
+      // A stored check is audited whether it passed or not.
+      void loadAudit(listingId, listingLoadSeq.current);
+    }
   };
 
   const markReady = async () => {
@@ -241,6 +276,7 @@ export default function AdsPage() {
       if (selected?.id !== vehicleId || listing.vehicleId !== vehicleId) return;
       const upd = { ...listing, ...r.data, id: listing.id, vehicleId };
       setListing(upd); rememberSummary(upd);
+      void loadAudit(listing.id, listingLoadSeq.current);
     } catch (e) {
       if (selected?.id !== vehicleId) return;
       setActionError(await readyExportMessageAsync(e));
@@ -257,6 +293,7 @@ export default function AdsPage() {
       const a = document.createElement('a');
       a.href = url; a.download = 'dealer-ad.txt'; a.click();
       URL.revokeObjectURL(url);
+      void loadAudit(listing.id, listingLoadSeq.current);
     } catch (e) {
       setActionError(await readyExportMessageAsync(e));
     } finally { setExportBusy(false); }
@@ -351,6 +388,14 @@ export default function AdsPage() {
                 <section className="card" style={{ marginTop: 16 }} aria-label="Image Studio">
                   <PhotoStudioPanel key={selected.id} vehicleId={selected.id} />
                 </section>
+              )}
+              {isManager && listing.id && (
+                <AuditTrail
+                  rows={audit}
+                  page={auditPage}
+                  total={auditTotal}
+                  onPage={(p) => { if (listing.id) void loadAudit(listing.id, listingLoadSeq.current, p); }}
+                />
               )}
             </>
           }

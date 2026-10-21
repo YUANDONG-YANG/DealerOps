@@ -1,4 +1,4 @@
-import { type FormEvent, useEffect, useState } from 'react';
+import { type FormEvent, type ReactNode, useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import BrandMark from '../components/BrandMark';
 import FormDrawer from '../components/FormDrawer';
@@ -7,7 +7,7 @@ import { listPublicDealers, type PublicDealer } from '../api/publicDealers';
 import { buyerSiteApi, type PublicInventory, type PublicVehicle } from '../api/buyerSite';
 import { fieldErrorsOf } from '../api/http';
 import { describeError } from '../api/errors';
-import { enumLabel } from '../format';
+import { enumLabel, km } from '../format';
 
 const EMPTY_INQUIRY = { name: '', email: '', phone: '', homeAddress: '', message: '' };
 const INQUIRY_FIELDS = [
@@ -21,10 +21,49 @@ function vehicleFacts(v: PublicVehicle): string {
   return [
     enumLabel(v.conditionCode),
     enumLabel(v.bodyType),
-    v.mileageKm != null ? `${v.mileageKm.toLocaleString('en-CA')} km` : null,
+    km(v.mileageKm),
     v.exteriorColor,
     v.fuelType ? enumLabel(v.fuelType) : null,
   ].filter(Boolean).join(' · ');
+}
+
+// Money, e-mail addresses and phone numbers inside ad text, matched left to right; the e-mail
+// alternative comes first so a numeric mailbox such as 13771566780@163.com is not read as a phone.
+const AD_TOKEN = /(\$\d[\d,]*(?:\.\d{2})?)|([\w.+-]+@[\w-]+(?:\.[\w-]+)+)|(\+?\d[\d\s().-]{8,}\d)/g;
+
+/** Mail subject and body prefilled with the ad the buyer is looking at. */
+function mailtoFor(email: string, v?: PublicVehicle): string {
+  const subject = v ? `Question about the ${v.modelYear} ${v.make} ${v.model}` : 'Question about your vehicles';
+  const body = v
+    ? `Hello,\n\nI am interested in this vehicle:\n${v.title}\n${v.modelYear} ${v.make} ${v.model} · ${vehicleFacts(v)}\n${window.location.href}\n\n`
+    : `Hello,\n\n${window.location.href}\n\n`;
+  return `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+}
+
+/** Opens the device's messaging app with the number and a first line about the ad. */
+function smsFor(phone: string, v?: PublicVehicle): string {
+  const number = phone.replace(/[^\d+]/g, '');
+  const text = v ? `Hi, I am interested in the ${v.modelYear} ${v.make} ${v.model}: ${v.title}` : 'Hi, I have a question about your vehicles.';
+  return `sms:${number}?&body=${encodeURIComponent(text)}`;
+}
+
+/** Ad text with prices highlighted, phone numbers as SMS links and e-mail addresses as mail links. */
+function AdText({ text, vehicle }: { text: string; vehicle?: PublicVehicle }) {
+  const parts: ReactNode[] = [];
+  let last = 0;
+  for (const m of text.matchAll(AD_TOKEN)) {
+    const [token, price, email, phone] = m;
+    const at = m.index ?? 0;
+    // Too few digits for a phone number (a mileage or a year range): leave it as plain text.
+    if (phone && phone.replace(/\D/g, '').length < 10) continue;
+    parts.push(text.slice(last, at));
+    if (price) parts.push(<strong key={at} className="ad-price">{price}</strong>);
+    else if (email) parts.push(<a key={at} href={mailtoFor(email, vehicle)}>{email}</a>);
+    else parts.push(<a key={at} href={smsFor(phone, vehicle)} title="Send a text message">{token}</a>);
+    last = at + token.length;
+  }
+  parts.push(text.slice(last));
+  return <>{parts}</>;
 }
 
 function ShopHeader() {
@@ -135,20 +174,23 @@ function DealerInventory({ dealerId }: { dealerId: number }) {
         {inventory && (
           <>
             <h1>{inventory.legalName}</h1>
-            <p className="muted">{inventory.contactAddress} · {inventory.contactPhone} · {inventory.contactEmail}</p>
+            <p className="muted">
+              {inventory.contactAddress} · <a href={smsFor(inventory.contactPhone)} title="Send a text message">{inventory.contactPhone}</a>
+              {' · '}<a href={mailtoFor(inventory.contactEmail)}>{inventory.contactEmail}</a>
+            </p>
             {sentFor && <p className="success-text" role="status">Thanks. {inventory.legalName} received your question about the {sentFor} and will contact you.</p>}
             {inventory.vehicles.length === 0 ? (
               <div className="state">No vehicles are listed right now.</div>
             ) : (
               <div className="landing-grid">
                 {inventory.vehicles.map(v => (
-                  <article key={v.vehicleId} className="card landing-card" aria-label={`${v.modelYear} ${v.make} ${v.model}`}>
+                  <article key={v.vehicleId} className="card landing-card shop-card" aria-label={`${v.modelYear} ${v.make} ${v.model}`}>
                     {v.photoUrl && <img src={v.photoUrl} alt={`${v.modelYear} ${v.make} ${v.model}`} loading="lazy"
                       style={{ width: '100%', aspectRatio: '4 / 3', objectFit: 'cover', borderRadius: 6 }} />}
-                    <h3>{v.title}</h3>
+                    <h3><AdText text={v.title} vehicle={v} /></h3>
                     <div className="muted">{v.modelYear} {v.make} {v.model}</div>
                     <div className="muted" style={{ fontSize: 13 }}>{vehicleFacts(v)}</div>
-                    <p style={{ whiteSpace: 'pre-line' }}>{v.body}</p>
+                    <p style={{ whiteSpace: 'pre-line' }}><AdText text={v.body} vehicle={v} /></p>
                     <button className="btn btn-primary" onClick={() => openInquiry(v)}>Ask about this vehicle</button>
                   </article>
                 ))}

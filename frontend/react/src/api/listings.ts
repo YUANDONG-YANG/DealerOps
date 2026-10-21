@@ -15,6 +15,7 @@ export interface RuleFinding {
   message: string;
 }
 
+/** One stored compliance check of an ad. */
 export interface CheckResult {
   id: number;
   listingId: number;
@@ -27,6 +28,7 @@ export interface CheckResult {
   createdAt?: string;
 }
 
+/** A vehicle's advertisement; `id` is null until the first draft is saved. */
 export interface Listing {
   id: number | null;
   vehicleId: number;
@@ -53,14 +55,17 @@ const CHECK_STATUS_LABEL: Record<CheckStatus, string> = {
   AI_UNAVAILABLE: 'AI unavailable',
 };
 
+/** True when the value is one of the known check statuses. */
 export function isCheckStatus(value: unknown): value is CheckStatus {
   return value === 'BLOCKED' || value === 'NEEDS_AI' || value === 'PASSED' || value === 'STALE' || value === 'AI_UNAVAILABLE';
 }
 
+/** Display label of a check status; empty for unknown values. */
 export function checkStatusLabel(value: unknown): string {
   return isCheckStatus(value) ? CHECK_STATUS_LABEL[value] : '';
 }
 
+/** An unsaved cash, online draft for the vehicle. */
 export function emptyListing(vehicleId = 0): Listing {
   return {
     id: null, vehicleId, title: '', body: '', adKind: 'CASH', medium: 'ONLINE',
@@ -69,10 +74,12 @@ export function emptyListing(vehicleId = 0): Listing {
   };
 }
 
+/** The listing with a fresh check result applied, used when the listing itself cannot be reloaded. */
 export function applyCheckToListing(listing: Listing, check: CheckResult): Listing {
   return { ...listing, checkStatus: check.checkStatus, lastCheckId: check.id, lastCheck: check };
 }
 
+/** User message for a rejected Mark ready or Export call. */
 function mapReadyExport({ status, code }: { status?: number; code?: string; message?: string }): string {
   if (code === 'CHECK_STALE') return 'Check is stale: the ad was edited after its last compliance check. Click Run check again.';
   if (code === 'NOT_PASSED') return 'Check has not passed: fix the blocking findings listed under the check result, save, and run the check again.';
@@ -82,10 +89,12 @@ function mapReadyExport({ status, code }: { status?: number; code?: string; mess
   return 'Check has not passed: run the compliance check and fix any blocking findings first.';
 }
 
+/** Reads the error body (a blob for exports) and maps it to a Mark ready / Export message. */
 export async function readyExportMessageAsync(error: unknown): Promise<string> {
   return mapReadyExport(await parseApiError(error));
 }
 
+/** User message for a rejected Save draft call. */
 export function saveMessage(error: unknown): string {
   const { status, code } = apiError(error);
   if (code === 'VERSION_CONFLICT') return 'Refresh and retry: someone else changed this record after you opened it. Reopen it to load the latest version, then make your change again.';
@@ -95,6 +104,7 @@ export function saveMessage(error: unknown): string {
   return describeError(error, 'save the ad');
 }
 
+/** Ad listing endpoints, called through the gateway. */
 export const listingsApi = {
   get: (vehicleId: number) => http.get<Listing>(`/api/v1/vehicles/${vehicleId}/listing`),
   save: (vehicleId: number, body: { version: number; title: string; body: string; adKind: AdKind; medium: Medium; priorUse: string | null; warrantyTerms: string | null; annualKmAllowance: number | null }) =>

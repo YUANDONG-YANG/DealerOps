@@ -1,4 +1,4 @@
-import { codeOf, http, statusOf } from './http';
+import { http } from './http';
 import type { DealerRole } from './me';
 
 export type Dealer = {
@@ -26,9 +26,7 @@ export type BindMemberBody = {
 
 export type PendingUser = { username: string; displayName: string; email: string | null; phone: string | null; createdAt: string };
 
-export function adminErrorCode(error: unknown) { return codeOf(error); }
-export function adminErrorStatus(error: unknown) { return statusOf(error); }
-
+/** Platform-admin endpoints; every list is paged through the gateway. */
 export const adminApi = {
   dealers: (p: { q?: string; page?: number; size?: number } = {}) =>
     http.get<Page<Dealer>>('/api/v1/admin/dealers', { params: { ...p, size: p.size ?? 10 } }),

@@ -6,6 +6,7 @@ using DealerOps.Core.Vehicle;
 
 namespace DealerOps.Core.Compliance;
 
+/// <summary>Deterministic OMVIC advertising rules run on a listing before the AI ad check.</summary>
 public class OmvicRuleEngine
 {
     private static readonly Regex Price = new(
@@ -98,6 +99,7 @@ public class OmvicRuleEngine
         @"(?:payments?|monthly|bi-?weekly|weekly)\s*(?:of|from|:)?\s*$",
         RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
+    /// <summary>Evaluates the listing text against the vehicle and dealer facts; BLOCK findings come first.</summary>
     public OmvicResult Run(ListingEntity listing, VehicleEntity vehicle, DealerEntity dealer)
     {
         var hard = new List<RuleFinding>();
@@ -249,7 +251,7 @@ public class OmvicRuleEngine
 
         var findings = new List<RuleFinding>(hard);
         findings.AddRange(soft);
-        return new OmvicResult(findings, hard.Count > 0);
+        return new OmvicResult(findings);
     }
 
     // Within this many characters of a payment amount counts as shown next to it.

@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace DealerOps.AiService.Controller;
 
+/// <summary>Internal assistant endpoint called by Core through the Gateway.</summary>
 [ApiController]
 [Route("internal/v1")]
 public class AssistantController : ControllerBase
@@ -15,6 +16,7 @@ public class AssistantController : ControllerBase
         _adapter = adapter;
     }
 
+    /// <summary>Returns a short read-only answer from the supplied resource cards.</summary>
     [HttpPost("assistant")]
     public async Task<AssistantOkResponse> Assistant([FromBody] AssistantInternalRequest body)
     {

@@ -4,6 +4,7 @@ using Swashbuckle.AspNetCore.SwaggerGen;
 
 namespace DealerOps.Core.OpenApi;
 
+/// <summary>Adds the seeded development admin as the example body of the login operation in Swagger.</summary>
 public sealed class LoginOperationFilter : IOperationFilter
 {
     public void Apply(OpenApiOperation operation, OperationFilterContext context)
