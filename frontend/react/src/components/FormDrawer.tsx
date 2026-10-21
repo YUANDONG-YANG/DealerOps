@@ -6,9 +6,11 @@ interface Props {
   open: boolean;
   onClose: () => void;
   children?: ReactNode;
+  /** Shows it as a wide centred modal instead of a side drawer, for content that needs the width. */
+  modal?: boolean;
 }
 
-export default function FormDrawer({ title, open, onClose, children }: Props) {
+export default function FormDrawer({ title, open, onClose, children, modal }: Props) {
   useEffect(() => {
     if (!open) return;
     const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
@@ -20,7 +22,7 @@ export default function FormDrawer({ title, open, onClose, children }: Props) {
   return (
     <>
       <div className="drawer-overlay" onClick={onClose} />
-      <div className="drawer" role="dialog" aria-label={title}>
+      <div className={`drawer${modal ? ' drawer-modal' : ''}`} role="dialog" aria-label={title}>
         <div className="drawer-header">
           <span>{title}</span>
           <button className="drawer-close" onClick={onClose} aria-label="Close">&times;</button>

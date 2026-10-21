@@ -43,7 +43,7 @@ Dealer Ops is a multi-tenant platform for independent used-car dealers in Ontari
 | Platform admin | `Platform.Admin` | One. It is seeded from `ADMIN_USERNAME` / `ADMIN_PASSWORD` on first start, and no API creates admins | No dealership |
 | Dealer user | `Dealer.User` | N per dealership | Exactly one dealership |
 
-All dealer users have the same permissions; the sources do not distinguish manager from sales. The two roles are mutually exclusive.
+The sources do not distinguish manager from sales. By the user's 2026-10-21 decision a dealership member is a manager or staff (AUTH-26, AUTH-27): both have the same business-data permissions, but only managers see the Team page and join-request inbox, approve join requests, remove staff, and edit the dealership profile, and only the platform admin promotes or demotes. The two JWT roles stay mutually exclusive.
 
 | Operation | Admin | Dealer user (own dealer) | Dealer user (other dealer) |
 |---|---|---|---|

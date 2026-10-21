@@ -5,7 +5,7 @@ import { useSessionStore } from '../store/session';
 import { getMe, patchMe, deleteMe, type Profile } from '../api/me';
 import { clearAccount, signOut } from '../auth/login';
 import { fieldErrorsOf, messageOf } from '../api/http';
-import { initials } from '../format';
+import { enumLabel, initials } from '../format';
 import { describeError } from '../api/errors';
 
 /**
@@ -122,6 +122,7 @@ export default function ProfilePage() {
           <dl className="definition-list">
             <dt>Role</dt><dd>{me.role}</dd>
             <dt>Dealership</dt><dd>{me.dealerLegalName ?? '—'}</dd>
+            {me.dealerRole && <><dt>Dealership role</dt><dd>{enumLabel(me.dealerRole)}</dd></>}
             <dt>Email</dt><dd>{me.email ?? '—'}</dd>
             <dt>Phone</dt><dd>{me.phone ?? '—'}</dd>
             <dt>Sign-in method</dt><dd>{methodText}</dd>

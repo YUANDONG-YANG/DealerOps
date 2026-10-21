@@ -73,7 +73,7 @@ Handbook page names: Login / Admin / DMS / CRM / Ad compliance / Assistant, plus
 | `/leads` | `leads` | `LeadsView` | `roles: ['Dealer.User']` | menu item **Leads** after CRM |
 | `/reports/sales-funnel` | `sales-funnel` | `SalesFunnelView` | `roles: ['Dealer.User']` | menu item **Sales report** after Leads. Vehicle sales, the current lead-stage snapshot (CRM-15), monthly **Stage history** (CRM-16), and **Workshop settlement** by month and assignee (WO-08) |
 | `/ads` | `ads` | `AdsView` | `roles: ['Dealer.User']` | page title **Ad compliance** |
-| `/team` | `team` | `TeamView` | `roles: ['Dealer.User']` | Join-request history (`GET /dealer/notifications?includeResolved=true`): approve or reject pending requests; resolved rows show the outcome, who settled it, and when. A second `Members` tab lists current members and how each account was created (one table per view, 12 §1) |
+| `/team` | `team` | `TeamView` | `roles: ['Dealer.User']`, `dealerRole: 'MANAGER'` | Managers only (design/21 AUTH-27); staff are redirected to `/dms`. Join-request history (`GET /dealer/notifications?includeResolved=true`): approve or reject pending requests; resolved rows show the outcome, who settled it, and when. A `Members` tab lists current members with their dealership role and how each account was created, with **Remove** on staff rows; a `Dealership profile` tab edits the legal name and contact details (14 §5.8). One table per view, 12 §1 |
 | `/profile` | `profile` | `ProfileView` | signed-in user **with business access** (`Platform.Admin`, or `Dealer.User` with a dealership) | Account self-service: own display name and phone, plus account deletion. Username, role and dealership binding are read-only. An account that is not yet approved, or that has been unbound, does not reach this page: `AuthGuard` renders the no-access screen for every protected path, including `/profile` |
 | — | `no-access` | `NoAccessLanding` | — | Signed-in user without business access. A guard renders it **in place of** the requested page; it has no path of its own |
 
@@ -100,7 +100,7 @@ One `beforeEach` in `router/index.ts`, order fixed:
 4. `GET /me` fails with 401 → clear session, return to `/login`.
 5. Role is not `Platform.Admin` | `Dealer.User` (or `active=false`, if the handbook response includes it), or the account is a `Dealer.User` with no dealership → stay on the no-access screen for every protected path, including `/profile`. The shell offers sign-out and one join request. Do not invent a third role.
 
-Menu and guards use the same rules: Admin **renders** Admin only; staff **renders** DMS, CRM, Leads, Sales report, Ad compliance, and Team, plus the floating Assistant. Do not rely on hiding buttons for unauthorized access; the route blocks first.
+Menu and guards use the same rules: Admin **renders** Admin only; staff **renders** Dashboard, DMS, CRM, Leads, Sales report, and Ad compliance, plus the floating Assistant; a manager also gets Team and the header join-request inbox. The header chip shows `Manager` or `Staff`. On Admin, members show their dealership role with **Make manager** / **Make staff**. Do not rely on hiding buttons for unauthorized access; the route blocks first.
 
 ---
 

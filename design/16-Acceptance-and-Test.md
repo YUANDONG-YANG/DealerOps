@@ -191,7 +191,7 @@ Manual checks through the gateway (local or cloud). Ids and codes follow [14](14
 | **EXT-09** Photo enhance | Select the JPEG, **Auto fix**, toggle Original / Enhanced, then **Sharpen** | Enhanced differs and is at most 1600 px on the long edge; original unchanged; Sharpen replaces the enhanced copy; audit `VEHICLE_PHOTO` `UPDATE` |
 | **EXT-10** Photo isolation and delete | Staff B `GET /api/v1/vehicles/{A's id}/photos/{photoId}/content`; Staff A deletes a photo | B → 404; after delete the thumbnail disappears and its content → 404; admin on any photo URL → 403 |
 
-EXT-11–EXT-15 (listing details, payments and bill of sale, reports and dashboard, buyer site, buyer-site limits) are listed in [21](21-Feature-Extensions.md) §9 Acceptance. They are also automated in `playwright/tests/api/` (`vehicle-details-payments`, `reports`, `buyer-site`) and `playwright/tests/ui/` (`dms-details-payments`, `dashboard-reports`, `shop-disclaimer`); the buyer-site cases that need a passed check skip when the AI service is down.
+EXT-11–EXT-16 (listing details, payments and bill of sale, reports and dashboard, buyer site, buyer-site limits, manager and staff) are listed in [21](21-Feature-Extensions.md) §9 Acceptance. They are also automated in `playwright/tests/api/` (`vehicle-details-payments`, `reports`, `buyer-site`) and `playwright/tests/ui/` (`dms-details-payments`, `dashboard-reports`, `shop-disclaimer`); the buyer-site cases that need a passed check skip when the AI service is down.
 
 ---
 
@@ -212,6 +212,6 @@ EXT-11–EXT-15 (listing details, payments and bill of sale, reports and dashboa
 | Backend extras BE-13–BE-16 | 4 | S1 leans BE-14; S3 leans BE-13/16 |
 | Frontend FE-01–FE-10 | 10 | S3 guards, five pages and the assistant widget; S2 at least `/login`+`/dms`+`/ads` four states |
 
-| Extension cases EXT-01–EXT-15 | 15 | Manual, after design/21 lands (EXT-11–15 in design/21 §9; also automated in Playwright) |
+| Extension cases EXT-01–EXT-16 | 16 | Manual, after design/21 lands (EXT-11–16 in design/21 §9; also automated in Playwright) |
 
-**26 use cases total** (16 backend + 10 frontend), plus 6 classroom scripts and 15 extension cases. The focused manual checks in requirements/analysis/06 (AT-24–28) reuse these flows and are not new implementation features.
+**26 use cases total** (16 backend + 10 frontend), plus 6 classroom scripts and 16 extension cases. The focused manual checks in requirements/analysis/06 (AT-24–28) reuse these flows and are not new implementation features.

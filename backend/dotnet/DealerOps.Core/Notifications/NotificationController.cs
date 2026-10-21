@@ -8,8 +8,8 @@ using Microsoft.AspNetCore.Mvc;
 namespace DealerOps.Core.Notifications;
 
 /// <summary>
-/// Dealer inbox: every active member of the dealership sees the same unread list, and the
-/// first user who approves or rejects an item takes it off everyone else's screen. The payload
+/// Dealer inbox for the dealership's managers (AUTH-27): every manager sees the same unread list,
+/// and the first one who approves or rejects an item takes it off everyone else's screen. The payload
 /// is forwarded as a JSON tree so the frontend can switch on <c>kind</c> without the backend
 /// knowing which UI it renders.
 /// </summary>

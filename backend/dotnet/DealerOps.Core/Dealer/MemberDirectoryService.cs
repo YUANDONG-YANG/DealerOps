@@ -27,7 +27,7 @@ public class MemberDirectoryService
                     .Where(u => u.Username == m.Username)
                     .Select(u => u.DisplayName)
                     .FirstOrDefault() ?? m.Username;
-                return new MemberOption(m.Username, displayName, sources.GetValueOrDefault(m.Username));
+                return new MemberOption(m.Username, displayName, sources.GetValueOrDefault(m.Username), m.DealerRole);
             })
             .ToList();
     }

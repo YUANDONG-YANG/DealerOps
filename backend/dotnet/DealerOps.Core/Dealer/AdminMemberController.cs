@@ -37,6 +37,13 @@ public class AdminMemberController : ControllerBase
         return NoContent();
     }
 
+    [HttpPut("{username}/role")]
+    public IActionResult SetRole(long id, string username, [FromBody] SetDealerRoleRequest body)
+    {
+        _membershipService.SetRole(id, username, body.DealerRole!.Value);
+        return NoContent();
+    }
+
     [HttpDelete("{username}")]
     public IActionResult Remove(long id, string username)
     {

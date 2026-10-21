@@ -9,8 +9,8 @@ namespace DealerOps.Core.Dealer;
 
 /// <summary>
 /// Google join-request workflow (self-service onboarding). A Google user who has never been
-/// bound to a dealership picks one on the sign-in screen; the request lands here and any
-/// active member of that dealership can approve or reject it. Approval creates the membership
+/// bound to a dealership picks one on the sign-in screen; the request lands here and a manager
+/// of that dealership approves or rejects it (AUTH-27); the new member joins as staff. Approval creates the membership
 /// and clears <see cref="AppUserEntity.RequestedDealerId"/>; rejection just clears the field.
 /// Scoped to the caller's tenant throughout, so one dealership's queue is never visible to
 /// another.
@@ -30,7 +30,7 @@ public class JoinRequestService
 
     public List<JoinRequestResponse> List()
     {
-        var tenant = TenantGuard.RequireTenantId();
+        var tenant = TenantGuard.RequireManager().TenantDealerId!.Value;
         var users = _db.AppUsers
             .Where(u => u.RequestedDealerId == tenant && u.DealerId == null && u.Active && u.Role == AppRole.DealerUser)
             .OrderByDescending(u => u.CreatedAt).ThenByDescending(u => u.Id)
@@ -44,7 +44,7 @@ public class JoinRequestService
 
     public void Approve(string username)
     {
-        var tenant = TenantGuard.RequireTenantId();
+        var tenant = TenantGuard.RequireManager().TenantDealerId!.Value;
         var user = LoadRequest(tenant, username);
 
         // Same rule as the admin bind (AUTH-03): one login, one active dealership. The other
@@ -59,6 +59,7 @@ public class JoinRequestService
         membership.DealerId = tenant;
         membership.Username = username;
         membership.Active = true;
+        membership.DealerRole = DealerRole.Staff;
         membership.CreatedBy = ActorUsername();
 
         // One transaction from the membership through its audit entry (AUD-07): the flush only
@@ -82,7 +83,7 @@ public class JoinRequestService
 
     public void Reject(string username)
     {
-        var tenant = TenantGuard.RequireTenantId();
+        var tenant = TenantGuard.RequireManager().TenantDealerId!.Value;
         var user = LoadRequest(tenant, username);
 
         user.RequestedDealerId = null;

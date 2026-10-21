@@ -69,7 +69,7 @@ public class NotificationService
 
     public List<NotificationEntity> List(bool includeResolved)
     {
-        var tenant = TenantGuard.RequireTenantId();
+        var tenant = TenantGuard.RequireManager().TenantDealerId!.Value;
         var query = _db.Notifications.Where(n => n.DealerId == tenant);
         if (!includeResolved) query = query.Where(n => n.ResolvedAt == null);
         return query.OrderByDescending(n => n.Id).ToList();

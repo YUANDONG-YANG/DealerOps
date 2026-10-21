@@ -288,6 +288,20 @@ textarea.input, .textarea { height: auto; padding: 10px 12px; resize: vertical; 
   flex-direction: column;
   animation: slide-in-right .25s ease-out;
 }
+/* Centred modal variant. Two classes so the narrow-screen `.drawer` widths below do not override it. */
+.drawer.drawer-modal {
+  top: 50%;
+  left: 50%;
+  right: auto;
+  bottom: auto;
+  transform: translate(-50%, -50%);
+  width: min(1480px, calc(100vw - 32px));
+  max-height: calc(100vh - 32px);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+  animation: fade-in .2s ease-out;
+}
 .drawer-header {
   display: flex;
   justify-content: space-between;
@@ -682,16 +696,16 @@ div.state {
 }
 .danger-text { color: var(--danger); }
 .success-text { color: var(--success); }
-/* Admin staff drawer: a narrow table, so each account stacks its details and actions. */
-.staff-table td { vertical-align: middle; }
-.staff-table th:nth-child(2), .staff-table td:nth-child(2) { width: 1%; white-space: nowrap; }
-.staff-table th:nth-child(3), .staff-table td:nth-child(3) { width: 1%; }
-.staff-account { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; min-width: 0; }
-.staff-account .staff-username { font-weight: 600; color: var(--fg); word-break: break-all; }
-.staff-account .tag { margin-top: 2px; }
-.row-actions { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
+/* Admin staff modal: one line per member, every cell on a single line. */
+.staff-table th, .staff-table td { white-space: nowrap; vertical-align: middle; padding: 12px; }
+.staff-table .staff-username { font-weight: 600; color: var(--fg); }
+/* The modal is wide for its table; the form above keeps a normal field width. */
+.drawer-modal .form-item { max-width: 560px; }
+.row-actions { display: flex; align-items: center; gap: 18px; }
 .row-actions .btn-link { white-space: nowrap; }
-.row-actions .muted { font-size: 12px; max-width: 120px; line-height: 1.35; }
+/* The flex gap spaces the actions, so the side-by-side margin from `.table td` does not apply. */
+.table td .row-actions .btn-link + .btn-link { margin-left: 0; }
+.row-actions .muted { font-size: 12px; }
 .warning-text { color: var(--warning); }
 .sold-row { opacity: .55; }
 .detail-audit { margin-top: 24px; }

@@ -1,7 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import AppLayout from '../layouts/AppLayout';
+import ConfirmDialog from '../components/ConfirmDialog';
 import { joinRequestsApi } from '../api/joinRequests';
-import { accountSourceLabel, membersApi, type MemberOption } from '../api/members';
+import { accountSourceLabel, membersApi, teamApi, type DealerProfileBody, type MemberOption } from '../api/members';
+import { getMe } from '../api/me';
+import { useSessionStore } from '../store/session';
 import {
   JOIN_REQUESTS_CHANGED,
   emitJoinRequestsChanged,
@@ -9,8 +12,8 @@ import {
   type JoinRequestPayload,
   type Notification,
 } from '../api/notifications';
-import { codeOf, statusOf } from '../api/http';
-import { dateTimeLocal } from '../format';
+import { codeOf, fieldErrorsOf, statusOf } from '../api/http';
+import { dateTimeLocal, enumLabel } from '../format';
 import { describeError } from '../api/errors';
 
 const PAGE_SIZE = 10;
@@ -30,16 +33,30 @@ function statusLabel(n: Notification): { text: string; className: string } {
   return { text: 'Resolved', className: 'chip' };
 }
 
+const PROFILE_FIELDS: { key: 'legalName' | 'contactPhone' | 'contactEmail' | 'contactAddress'; label: string }[] = [
+  { key: 'legalName', label: 'Legal name' },
+  { key: 'contactPhone', label: 'Contact phone' },
+  { key: 'contactEmail', label: 'Contact email' },
+  { key: 'contactAddress', label: 'Contact address' },
+];
+
 /**
- * Two tabs, one table each: this dealership's join-request history
- * (GET /api/v1/dealer/notifications?includeResolved=true) and its current members with how each
- * account was created. Pending requests carry Approve / Reject for any active member; resolved
- * rows show who settled them and when. Newest first, 10 per page.
+ * The manager's page (AUTH-27), three tabs: this dealership's join-request history
+ * (GET /api/v1/dealer/notifications?includeResolved=true) with Approve / Reject on pending rows,
+ * its members with their dealership role and a Remove action on staff, and the dealership
+ * profile that ads, the bill of sale and the buyer site show. Only the platform admin promotes
+ * or demotes managers.
  */
 export default function TeamPage() {
+  const setProfile = useSessionStore((s) => s.setProfile);
   const [rows, setRows] = useState<JoinRequestRow[]>([]);
   const [members, setMembers] = useState<MemberOption[]>([]);
-  const [tab, setTab] = useState<'requests' | 'members'>('requests');
+  const [tab, setTab] = useState<'requests' | 'members' | 'profile'>('requests');
+  const [removeTarget, setRemoveTarget] = useState<MemberOption | null>(null);
+  const [dealer, setDealer] = useState<DealerProfileBody | null>(null);
+  const [profileErrors, setProfileErrors] = useState<Record<string, string>>({});
+  const [profileNotice, setProfileNotice] = useState('');
+  const [saving, setSaving] = useState(false);
   const [page, setPage] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -48,9 +65,10 @@ export default function TeamPage() {
   async function load() {
     setLoading(true); setError('');
     try {
-      const [list, memberList] = await Promise.all([notificationsApi.list(true), membersApi.list()]);
+      const [list, memberList, profile] = await Promise.all([notificationsApi.list(true), membersApi.list(), teamApi.profile()]);
       setRows(list.filter(isJoinRequest));
       setMembers(memberList.data);
+      setDealer(profile);
     } catch (err) {
       setError(describeError(err, 'load join requests'));
     } finally {
@@ -80,6 +98,37 @@ export default function TeamPage() {
     emitJoinRequestsChanged();
   }
 
+  async function removeMember() {
+    if (!removeTarget) return;
+    setError('');
+    try {
+      await teamApi.remove(removeTarget.username);
+    } catch (err) {
+      setError(describeError(err, `remove ${removeTarget.username}`));
+    }
+    setRemoveTarget(null);
+    await load();
+  }
+
+  async function saveProfile(e: FormEvent) {
+    e.preventDefault();
+    if (!dealer || saving) return;
+    setSaving(true); setProfileErrors({}); setProfileNotice(''); setError('');
+    try {
+      const saved = await teamApi.saveProfile(dealer);
+      setDealer(saved);
+      // The header and ads read the dealership from the session profile.
+      setProfile(await getMe());
+      setProfileNotice('Dealership profile saved.');
+    } catch (err) {
+      const fields = fieldErrorsOf(err);
+      setProfileErrors(fields);
+      if (!Object.keys(fields).length) setError(describeError(err, 'save the dealership profile'));
+    } finally {
+      setSaving(false);
+    }
+  }
+
   const pageCount = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
   const safePage = Math.min(page, pageCount - 1);
   const visible = rows.slice(safePage * PAGE_SIZE, safePage * PAGE_SIZE + PAGE_SIZE);
@@ -90,19 +139,38 @@ export default function TeamPage() {
       <header className="page-header">
         <div>
           <h1>Team</h1>
-          <p className="muted">Join requests to this dealership, newest first, and its current members.</p>
+          <p className="muted">Join requests to this dealership, its members and its profile. New members join as staff; the platform admin appoints managers.</p>
         </div>
       </header>
 
       <div className="tab-bar">
         <button className={`tab-btn ${tab === 'requests' ? 'active' : ''}`} onClick={() => setTab('requests')}>Join requests</button>
         <button className={`tab-btn ${tab === 'members' ? 'active' : ''}`} onClick={() => setTab('members')}>Members</button>
+        <button className={`tab-btn ${tab === 'profile' ? 'active' : ''}`} onClick={() => setTab('profile')}>Dealership profile</button>
       </div>
 
       {error && <div className="alert alert-error">{error}</div>}
 
       {loading ? (
         <div className="state">Loading…</div>
+      ) : tab === 'profile' ? (
+        dealer && (
+          <form className="card" style={{ maxWidth: 560 }} onSubmit={saveProfile}>
+            {PROFILE_FIELDS.map(f => (
+              <div className="form-item" key={f.key}>
+                <label className="form-label form-required" htmlFor={`dealer-${f.key}`}>{f.label}</label>
+                <input id={`dealer-${f.key}`} className="input" value={dealer[f.key]}
+                  onChange={e => setDealer(d => d && { ...d, [f.key]: e.target.value })} />
+                {profileErrors[f.key] && <div className="form-error">{profileErrors[f.key]}</div>}
+              </div>
+            ))}
+            <p className="muted" style={{ fontSize: 12 }}>
+              Ad compliance checks, the bill of sale and the buyer site show these details.
+            </p>
+            {profileNotice && <p className="success-text" role="status">{profileNotice}</p>}
+            <button type="submit" className="btn btn-primary" disabled={saving}>{saving ? 'Saving…' : 'Save profile'}</button>
+          </form>
+        )
       ) : tab === 'members' ? (
         members.length === 0 ? (
           <div className="state">No members yet.</div>
@@ -113,7 +181,9 @@ export default function TeamPage() {
             <tr>
               <th>Member</th>
               <th>Username</th>
+              <th>Role</th>
               <th>Source</th>
+              <th>Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -121,7 +191,13 @@ export default function TeamPage() {
               <tr key={m.username}>
                 <td style={{ whiteSpace: 'nowrap' }}>{m.displayName}</td>
                 <td>{m.username}</td>
+                <td><span className={`tag ${m.dealerRole === 'MANAGER' ? 'tag-success' : ''}`}>{enumLabel(m.dealerRole)}</span></td>
                 <td><span className="tag">{accountSourceLabel(m.source)}</span></td>
+                <td>
+                  {m.dealerRole === 'STAFF'
+                    ? <button type="button" className="btn-link danger" onClick={() => setRemoveTarget(m)}>Remove</button>
+                    : '—'}
+                </td>
               </tr>
             ))}
           </tbody>
@@ -204,6 +280,9 @@ export default function TeamPage() {
         )}
         </>
       )}
+    <ConfirmDialog open={removeTarget != null} title="Remove staff member" confirmLabel="Remove"
+      message={`Remove ${removeTarget?.username ?? ''} from this dealership? They lose access to its data right away. The account is kept, and it can ask to join again.`}
+      onCancel={() => setRemoveTarget(null)} onConfirm={removeMember} />
     </section>
     </AppLayout>
   );

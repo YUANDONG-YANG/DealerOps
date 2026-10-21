@@ -1,10 +1,13 @@
 import { create } from 'zustand';
+import type { DealerRole } from '../api/me';
 
 export type Role = 'Platform.Admin' | 'Dealer.User' | null;
 
 interface SessionState {
   role: Role;
   dealerId: number | null;
+  /** MANAGER sees Team and the join-request inbox (AUTH-27). */
+  dealerRole: DealerRole | null;
   dealerLegalName: string | null;
   dealerContactPhone: string | null;
   dealerContactEmail: string | null;
@@ -29,6 +32,7 @@ export function hasBusinessAccess(s: Pick<SessionState, 'role' | 'dealerId'>): b
 export const useSessionStore = create<SessionState>((set) => ({
   role: null,
   dealerId: null,
+  dealerRole: null,
   dealerLegalName: null,
   dealerContactPhone: null,
   dealerContactEmail: null,
@@ -44,6 +48,7 @@ export const useSessionStore = create<SessionState>((set) => ({
     set({
       role,
       dealerId,
+      dealerRole: (p.dealerRole as DealerRole) ?? null,
       dealerLegalName: (p.dealerLegalName as string) ?? null,
       dealerContactPhone: (p.dealerContactPhone as string) ?? null,
       dealerContactEmail: (p.dealerContactEmail as string) ?? null,
@@ -59,6 +64,7 @@ export const useSessionStore = create<SessionState>((set) => ({
     set({
       role: null,
       dealerId: null,
+      dealerRole: null,
       dealerLegalName: null,
       dealerContactPhone: null,
       dealerContactEmail: null,

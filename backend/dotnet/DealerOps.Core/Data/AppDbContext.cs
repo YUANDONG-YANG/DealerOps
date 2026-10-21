@@ -182,6 +182,7 @@ public class AppDbContext : DbContext
         mb.Entity<MembershipEntity>(e =>
         {
             e.HasIndex(m => new { m.DealerId, m.Username }).IsUnique().HasDatabaseName("uk_membership");
+            e.Property(m => m.DealerRole).HasConversion(new EnumSnakeCaseConverter<DealerRole>()).HasMaxLength(16);
         });
     }
 

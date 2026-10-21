@@ -4,7 +4,8 @@ import { Api, apiLogin, expectError, expectStatus, randomDigits, uniqueSuffix } 
 import { env } from '../../support/env';
 
 // Profile edits and account deletion must never touch the seeded accounts, so every test in
-// this file signs in as a throwaway staff account bound to a throwaway dealership.
+// this file signs in as a throwaway account bound to a throwaway dealership. `throwawayStaff`
+// makes that account the dealership's manager, who owns Team and the inbox (design/21 AUTH-27).
 
 // Must match TOKEN_KEY in frontend/react/src/auth/login.ts.
 const TOKEN_KEY = 'dealerops.accessToken';
@@ -70,7 +71,11 @@ async function bindStaff(
 }
 
 async function throwawayStaff(request: APIRequestContext, adminApi: Api) {
-  return bindStaff(request, adminApi, await createDealer(adminApi));
+  const dealer = await createDealer(adminApi);
+  const me = await bindStaff(request, adminApi, dealer);
+  await expectStatus(await adminApi.put(
+    `/api/v1/admin/dealers/${dealer.dealerId}/members/${me.username}/role`, { dealerRole: 'MANAGER' }), 204);
+  return me;
 }
 
 /**

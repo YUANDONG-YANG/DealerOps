@@ -111,6 +111,14 @@ function AdminGuard() {
   return <Outlet />;
 }
 
+// /team is for the dealership's managers; staff are sent to their home page (AUTH-27).
+function ManagerGuard() {
+  const dealerRole = useSessionStore((s) => s.dealerRole);
+  const role = useSessionStore((s) => s.role);
+  if (dealerRole !== 'MANAGER') return <Navigate to={roleHome(role)} replace />;
+  return <Outlet />;
+}
+
 function DealerGuard() {
   const role = useSessionStore((s) => s.role);
   const dealerId = useSessionStore((s) => s.dealerId);
@@ -144,7 +152,9 @@ export default function AppRoutes() {
           <Route path="/leads" element={<LeadsPage />} />
           <Route path="/reports/sales-funnel" element={<SalesFunnelPage />} />
           <Route path="/ads" element={<AdsPage />} />
-          <Route path="/team" element={<TeamPage />} />
+          <Route element={<ManagerGuard />}>
+            <Route path="/team" element={<TeamPage />} />
+          </Route>
         </Route>
       </Route>
 

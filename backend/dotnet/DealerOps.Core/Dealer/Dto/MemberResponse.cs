@@ -6,5 +6,6 @@ namespace DealerOps.Core.Dealer.Dto;
 /// </param>
 /// <param name="Email">The account's own sign-in email, or <c>null</c> (UI-12).</param>
 /// <param name="Phone">The account's own sign-in phone, or <c>null</c> (UI-12).</param>
+/// <param name="DealerRole">MANAGER or STAFF inside this dealership.</param>
 public record MemberResponse(string Username, string? DisplayName, string Role, bool Active, string SignInMethod,
-    string? Email, string? Phone);
+    string? Email, string? Phone, DealerRole DealerRole);

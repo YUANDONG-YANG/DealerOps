@@ -41,7 +41,9 @@ tags:
   - name: Catalog
     description: Anonymous NHTSA vPIC lookups and the public dealer directory
   - name: JoinRequests
-    description: Dealer.User approval of Google join requests and the dealer inbox
+    description: Dealership managers' approval of join requests and the dealer inbox
+  - name: DealerTeam
+    description: Dealership managers' own profile and staff
   - name: Release
     description: Gateway release timestamps (anonymous)
   - name: AdminDealers
@@ -407,7 +409,7 @@ paths:
       tags: [JoinRequests]
       operationId: listJoinRequests
       summary: Pending join requests for the caller's dealership
-      description: Dealer.User with a dealership. Active unbound accounts that requested this dealership, newest first. Not paginated.
+      description: Dealership manager (design/21 AUTH-27); staff → 403. Active unbound accounts that requested this dealership, newest first. Not paginated.
       responses:
         "200":
           description: Join requests
@@ -428,7 +430,7 @@ paths:
       operationId: approveJoinRequest
       summary: Approve a join request
       description: |
-        Creates or reactivates the membership in the caller's dealership, binds the account, and resolves the
+        Dealership manager only; staff → 403. Creates or reactivates the membership as `STAFF` in the caller's dealership, binds the account, and resolves the
         `JOIN_REQUEST` notification as `APPROVED`. Audited as `MEMBERSHIP`/`CREATE` with `source=join_request`.
         No pending request from that username to this dealership → **404**.
       parameters:
@@ -449,7 +451,7 @@ paths:
       operationId: rejectJoinRequest
       summary: Reject a join request
       description: |
-        Clears the requested dealership (the account stays, unbound) and resolves the notification as `REJECTED`.
+        Dealership manager only; staff → 403. Clears the requested dealership (the account stays, unbound) and resolves the notification as `REJECTED`.
         Audited as `APP_USER`/`UPDATE`. No pending request → **404**.
       parameters:
         - $ref: "#/components/parameters/Username"
@@ -469,7 +471,7 @@ paths:
       operationId: listNotifications
       summary: Dealer-wide inbox
       description: |
-        Dealer.User with a dealership. Every active member sees the same rows, newest first. Not paginated.
+        Dealership managers only; staff → 403. Every manager sees the same rows, newest first. Not paginated.
         Default is unresolved rows only; `includeResolved=true` returns the full history.
       parameters:
         - name: includeResolved
@@ -736,6 +738,117 @@ paths:
           description: Password changed, no body
         "400":
           $ref: "#/components/responses/Validation"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/v1/admin/dealers/{id}/members/{username}/role:
+    put:
+      tags: [AdminMemberships]
+      operationId: setMemberDealerRole
+      summary: Promote to manager or demote to staff
+      description: |
+        Platform admin only; no dealer user can change a role (design/21 AUTH-26). Setting the current role is a no-op.
+        No active binding of that username at this dealership → 404. Audit `MEMBERSHIP`/`UPDATE` `{username, dealerRole}`.
+      parameters:
+        - $ref: "#/components/parameters/DealerId"
+        - $ref: "#/components/parameters/Username"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [dealerRole]
+              properties:
+                dealerRole:
+                  $ref: "#/components/schemas/DealerRole"
+      responses:
+        "204":
+          description: Role set, no body
+        "400":
+          $ref: "#/components/responses/Validation"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/v1/dealer/profile:
+    get:
+      tags: [DealerTeam]
+      operationId: getOwnDealership
+      summary: The manager's own dealership
+      description: Dealership manager only (design/21 AUTH-27); staff → 403.
+      responses:
+        "200":
+          description: Dealership
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Dealer"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+    patch:
+      tags: [DealerTeam]
+      operationId: patchOwnDealership
+      summary: Edit the own dealership's profile
+      description: |
+        Dealership manager only; staff → 403. Same rules as the admin edit without `active`, which stays with the admin.
+        Stale `version` → 409 `VERSION_CONFLICT`. Audit `DEALER`/`UPDATE` with the changed keys.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [version, legalName, contactPhone, contactEmail, contactAddress]
+              properties:
+                version: { type: integer, format: int64 }
+                legalName: { type: string, maxLength: 200 }
+                contactPhone: { type: string, maxLength: 40 }
+                contactEmail: { type: string, format: email, maxLength: 120 }
+                contactAddress: { type: string, maxLength: 300 }
+                logoDataUrl:
+                  type: string
+                  nullable: true
+                  maxLength: 200000
+                  pattern: "^data:image/(png|jpeg|webp);base64,[A-Za-z0-9+/]+={0,2}$"
+      responses:
+        "200":
+          description: Saved dealership
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Dealer"
+        "400":
+          $ref: "#/components/responses/Validation"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/VersionConflict"
+
+  /api/v1/dealer/members/{username}:
+    delete:
+      tags: [DealerTeam]
+      operationId: removeOwnStaff
+      summary: Remove a staff member from the own dealership
+      description: |
+        Dealership manager only. Soft unbind, as the admin unbind. A manager, the caller included → 403 (only the admin removes managers).
+        No active member of that name → 404. Success **204** with no body.
+      parameters:
+        - $ref: "#/components/parameters/Username"
+      responses:
+        "204":
+          description: Removed, no body
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -2114,12 +2227,14 @@ paths:
                 type: array
                 items:
                   type: object
-                  required: [username, displayName, source]
+                  required: [username, displayName, source, dealerRole]
                   properties:
                     username: { type: string }
                     displayName: { type: string, description: Falls back to the username }
                     source:
                       $ref: "#/components/schemas/AccountSource"
+                    dealerRole:
+                      $ref: "#/components/schemas/DealerRole"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -2607,6 +2722,11 @@ components:
       type: string
       enum: [Platform.Admin, Dealer.User]
 
+    DealerRole:
+      type: string
+      enum: [MANAGER, STAFF]
+      description: Role inside the dealership, stored on the membership (design/15 §2.5). Only the platform admin changes it.
+
     VehicleStatus:
       type: string
       enum: [IN_STOCK, SOLD]
@@ -2749,6 +2869,11 @@ components:
         locale:
           type: string
           nullable: true
+        dealerRole:
+          allOf:
+            - $ref: "#/components/schemas/DealerRole"
+          nullable: true
+          description: MANAGER or STAFF in the bound dealership; null for the admin and unbound accounts
 
     MePatch:
       type: object
@@ -2966,7 +3091,7 @@ components:
 
     Member:
       type: object
-      required: [username, displayName, role, active, signInMethod, email, phone]
+      required: [username, displayName, role, active, signInMethod, email, phone, dealerRole]
       properties:
         username:
           type: string
@@ -2990,6 +3115,8 @@ components:
           type: string
           nullable: true
           description: The account's own sign-in phone (UI-12).
+        dealerRole:
+          $ref: "#/components/schemas/DealerRole"
 
     MemberBind:
       type: object

@@ -28,13 +28,18 @@ setup('seed e2e dealerships and staff', async ({ request }) => {
       dealerId = ((await created.json()) as { id: number }).id;
     }
 
-    for (const account of staff) {
+    for (const { manager, ...account } of staff) {
       const bind = await request.post(`${env.gatewayUrl}/api/v1/admin/dealers/${dealerId}/members`, {
         headers,
         data: account,
       });
       // 409 DUP_MEMBER means the staff account is already an active member.
       expect([201, 409], await bind.text()).toContain(bind.status());
+      const role = await request.put(
+        `${env.gatewayUrl}/api/v1/admin/dealers/${dealerId}/members/${encodeURIComponent(account.username)}/role`,
+        { headers, data: { dealerRole: manager ? 'MANAGER' : 'STAFF' } },
+      );
+      expect(role.status(), await role.text()).toBe(204);
 
       const login = await apiLogin(request, account.username, account.password);
       expect(login.role).toBe('Dealer.User');

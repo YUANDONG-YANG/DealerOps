@@ -11,7 +11,11 @@ export type Profile = {
   /** Extra identity bits lifted from the Google ID token; all null for password accounts. */
   givenName: string | null; familyName: string | null;
   avatarUrl: string | null; locale: string | null;
+  /** Role inside the bound dealership; null for the admin and unbound accounts. */
+  dealerRole: DealerRole | null;
 };
+
+export type DealerRole = 'MANAGER' | 'STAFF';
 
 export type PatchProfileBody = { displayName: string; phone?: string | null };
 

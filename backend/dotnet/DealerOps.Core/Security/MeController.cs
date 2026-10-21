@@ -56,7 +56,7 @@ public class MeController : ControllerBase
                 user.Username, displayName, AppRole.PlatformAdmin.Value,
                 null, null, null, null, null, null,
                 appUser?.Email, appUser?.Phone, signInMethod,
-                appUser?.GivenName, appUser?.FamilyName, appUser?.AvatarUrl, appUser?.Locale);
+                appUser?.GivenName, appUser?.FamilyName, appUser?.AvatarUrl, appUser?.Locale, null);
         }
 
         var roleValue = user.Role == AppRole.DealerUser ? AppRole.DealerUser.Value : null;
@@ -71,7 +71,7 @@ public class MeController : ControllerBase
             dealer?.ContactEmail, dealer?.ContactAddress,
             dealer?.LogoDataUrl,
             appUser?.Email, appUser?.Phone, signInMethod,
-            appUser?.GivenName, appUser?.FamilyName, appUser?.AvatarUrl, appUser?.Locale);
+            appUser?.GivenName, appUser?.FamilyName, appUser?.AvatarUrl, appUser?.Locale, user.DealerRole);
     }
 
     /// <summary>

@@ -38,7 +38,7 @@ public class MembershipService
             {
                 var user = _db.AppUsers.FirstOrDefault(u => u.Username == m.Username);
                 return new MemberResponse(m.Username, user?.DisplayName ?? "", AppRole.DealerUser.Value, m.Active,
-                    SignInMethod(user), user?.Email, user?.Phone);
+                    SignInMethod(user), user?.Email, user?.Phone, m.DealerRole);
             })
             .Where(item => Matches(item, q))
             .ToList();
@@ -90,6 +90,8 @@ public class MembershipService
         membership.DealerId = dealerId;
         membership.Username = username;
         membership.Active = true;
+        // Every bind starts as staff; the admin promotes managers separately (AUTH-26).
+        membership.DealerRole = DealerRole.Staff;
         membership.CreatedBy = ActorUsername();
 
         // One transaction from the membership row through its audit entry (AUD-07): the flush
@@ -142,12 +144,25 @@ public class MembershipService
                 new Dictionary<string, object> { ["username"] = username, ["registration"] = "admin" });
 
         _audit.Record("MEMBERSHIP", membership.Id, "CREATE", dealerId, ActorUsername(),
-            new Dictionary<string, object> { ["username"] = username });
+            new Dictionary<string, object> { ["username"] = username, ["dealerRole"] = EnumWireName.Of(membership.DealerRole) });
         _db.SaveChanges();
         tx?.Commit();
 
         return new MemberResponse(membership.Username, user.DisplayName, AppRole.DealerUser.Value, membership.Active,
-            SignInMethod(user), user.Email, user.Phone);
+            SignInMethod(user), user.Email, user.Phone, membership.DealerRole);
+    }
+
+    /// <summary>Only the platform admin promotes staff to manager or demotes a manager (AUTH-26).</summary>
+    public void SetRole(long dealerId, string username, DealerRole role)
+    {
+        TenantGuard.RequireAdmin();
+        RequireDealer(dealerId);
+        var membership = ActiveMembership(dealerId, username);
+        if (membership.DealerRole == role) return;
+        membership.DealerRole = role;
+        _audit.Record("MEMBERSHIP", membership.Id, "UPDATE", dealerId, ActorUsername(),
+            new Dictionary<string, object> { ["username"] = username, ["dealerRole"] = EnumWireName.Of(role) });
+        _db.SaveChanges();
     }
 
     /// <summary>
@@ -195,10 +210,24 @@ public class MembershipService
     {
         TenantGuard.RequireAdmin();
         RequireDealer(dealerId);
+        Unbind(dealerId, username);
+    }
 
-        var membership = _db.Memberships
-            .FirstOrDefault(m => m.DealerId == dealerId && m.Username == username && m.Active)
-            ?? throw new ApiException(ErrorCode.NotFound, "Not found");
+    /// <summary>
+    /// A manager removes a staff member from their own dealership (AUTH-27); same soft unbind as
+    /// the admin. Managers, the caller included, are removed only by the admin.
+    /// </summary>
+    public void RemoveFromOwnDealership(string username)
+    {
+        var tenant = TenantGuard.RequireManager().TenantDealerId!.Value;
+        if (ActiveMembership(tenant, username).DealerRole != DealerRole.Staff)
+            throw new ApiException(ErrorCode.Forbidden, "Only the platform admin can remove a manager.");
+        Unbind(tenant, username);
+    }
+
+    private void Unbind(long dealerId, string username)
+    {
+        var membership = ActiveMembership(dealerId, username);
 
         membership.Active = false;
 
@@ -251,6 +280,10 @@ public class MembershipService
         if (missing.Count > 0)
             throw new ApiException(ErrorCode.Validation, missing.Values.First(), missing);
     }
+
+    private MembershipEntity ActiveMembership(long dealerId, string username) =>
+        _db.Memberships.FirstOrDefault(m => m.DealerId == dealerId && m.Username == username && m.Active)
+        ?? throw new ApiException(ErrorCode.NotFound, "Not found");
 
     private void RequireDealer(long dealerId)
     {

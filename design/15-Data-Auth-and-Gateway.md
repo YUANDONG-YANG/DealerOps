@@ -119,6 +119,18 @@ Admin operations may write `audit_event`: `entityType=MEMBERSHIP`, `dealerId` ma
 
 `app_user.role`: written back from the JWT at sign-in or bind; **authorization compares the current JWT**. An expired role in the database cannot elevate privileges.
 
+### 2.5 Dealership role on the membership (manager / staff)
+
+The organisation has three levels: the platform admin (`Platform.Admin`), a dealership's managers, and its staff. The last two are both `Dealer.User` in the JWT; the difference lives on the active membership row as `membership.dealer_role` (`manager` / `staff`, `VARCHAR(16) NOT NULL DEFAULT 'staff'`, wire `MANAGER` / `STAFF`). It is read per request with the tenant, so a promotion or demotion applies on the next request without a new token.
+
+| Who | Can |
+|---|---|
+| `Platform.Admin` | Create dealerships, create and bind accounts, unbind members, reset passwords, and promote staff to manager or demote a manager (14 §3.7b). The only one who changes a role |
+| Manager | Everything staff can, plus: the Team page, the join-request inbox, approving or rejecting join requests, removing staff, and editing the dealership profile (14 §5.7, §5.8) |
+| Staff | All business data of the dealership (DMS, CRM, leads, ads, reports, payments, work orders); no Team page, no inbox |
+
+Every bind, reactivation, and approved join request starts as `staff`. Existing members became `staff` when the column was added, so the admin appoints each dealership's first manager. A manager cannot remove another manager or themselves; only the admin does.
+
 **V2 is not recommended.** If a later change must enforce one person / one dealership in the database, use a generated-column unique index on active rows only; Sprint 1 is not blocked — the application layer is enough.
 
 ---
@@ -428,7 +440,7 @@ Swagger UI and its OpenAPI JSON may be anonymous in the local `JWT_MODE=dev` cla
 |---|---|
 | Login routes | `/login` accepts the account's email, username, or phone and the password. `/register` accepts a username, a display name, an email and/or phone (at least one), and a password. Contract: [14](14-Backend-API-Contract.md) §1.4–1.5; design: [21](21-Feature-Extensions.md) §5. |
 | Identity | `dealer-core` verifies local passwords and issues the application's existing HS256 JWT. |
-| Roles (`roles[]` in the JWT) | Exactly `Platform.Admin` and `Dealer.User`, same as before. |
+| Roles (`roles[]` in the JWT) | Exactly `Platform.Admin` and `Dealer.User`, same as before. Manager versus staff is the membership's `dealer_role`, not a JWT role (§2.5). |
 | Issuing access | The platform admin alone grants dealership access. Self-registered accounts begin as unbound `Dealer.User` identities; `/admin` lists pending accounts and binds an existing account without replacing its credential. Admin-created accounts also need an email and/or phone (at least one); their username works for sign-in as well. |
 | Revoking access | **Unbind** = soft deactivate: `membership.active=0`, `app_user.dealer_id=NULL`; keep the `app_user` row and its password hash (see §2.3), consistent with "do not delete the account." |
 | Post-sign-in landings | **`Platform.Admin` → `/admin`**; **`Dealer.User` with `dealerId` set → `/dms`**; **signed-in but unbound → `/no-access`** ("waiting for a dealership" with the username). |

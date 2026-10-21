@@ -9,6 +9,7 @@ import ComplianceRulesPanel from '../components/ComplianceRulesPanel';
 import { adminApi, adminErrorCode, adminErrorStatus, type Dealer, type Member } from '../api/admin';
 import { apiError, collectAllPages, fieldErrorsOf } from '../api/http';
 import { describeError, errorReason } from '../api/errors';
+import { enumLabel } from '../format';
 
 type FlatMember = Member & { dealerId: number; legalName: string };
 
@@ -370,6 +371,28 @@ export default function AdminPage() {
     );
   };
 
+  // Only the platform admin promotes staff to manager or demotes a manager (AUTH-26).
+  const roleAction = (dealerId: number, m: Member) => {
+    if (!m.active) return null;
+    const next = m.dealerRole === 'MANAGER' ? 'STAFF' : 'MANAGER';
+    return (
+      <button className="btn-link" disabled={statusBusy === `${dealerId}:${m.username}`}
+        onClick={() => void changeRole(dealerId, m.username, next)}>
+        {next === 'MANAGER' ? 'Make manager' : 'Make staff'}
+      </button>
+    );
+  };
+
+  const changeRole = async (dealerId: number, username: string, dealerRole: Member['dealerRole']) => {
+    setStatusBusy(`${dealerId}:${username}`);
+    try {
+      await adminApi.setRole(dealerId, username, dealerRole);
+      await refreshMemberships(dealerId);
+    } catch (e) {
+      alert(describeError(e, `change the role of ${username}`));
+    } finally { setStatusBusy(''); }
+  };
+
   return (
     <AppLayout>
       <div className="page">
@@ -430,6 +453,7 @@ export default function AdminPage() {
                 columns={[
                   { label: 'Username', render: (r) => r.username },
                   { key: 'legalName', label: 'Dealership' },
+                  { label: 'Role', render: (r) => <span className={`tag ${r.dealerRole === 'MANAGER' ? 'tag-success' : ''}`}>{enumLabel(r.dealerRole)}</span> },
                   { label: 'Contact', render: (r) => memberContact(r) },
                   { label: 'Sign-in', render: (r) => <SignInTag method={r.signInMethod} /> },
                   { label: 'Status', render: (r) => (
@@ -442,6 +466,7 @@ export default function AdminPage() {
                     </label>
                   )},
                   { label: 'Password', render: (r) => passwordAction(r.dealerId, r) },
+                  { label: 'Role change', render: (r) => roleAction(r.dealerId, r) },
                 ]}
               />
             </PageState>
@@ -484,7 +509,7 @@ export default function AdminPage() {
         </button>
       </FormDrawer>
 
-      <FormDrawer title={staffDealer ? `Staff · ${staffDealer.legalName}` : 'Staff'}
+      <FormDrawer modal title={staffDealer ? `Staff · ${staffDealer.legalName}` : 'Staff'}
         open={memberDrawer} onClose={() => setMemberDrawer(false)}>
         {drawerError && <p className="danger-text">{drawerError}</p>}
         <div className="muted" style={{ marginBottom: 8 }}>
@@ -533,25 +558,24 @@ export default function AdminPage() {
         </div>
         {staffTab === 'staff' && <div>
           {resetNotice && <p className="success-text">{resetNotice}</p>}
+          {/* One line per member in the wide modal; the wrapper scrolls sideways on small screens. */}
+          <div className="table-wrap">
           <table className="table staff-table">
-            {/* The drawer is narrow: name and sign-in method sit under the username so Actions stays visible. */}
-            <thead><tr><th>Account</th><th>Status</th><th>Actions</th></tr></thead>
+            <thead><tr><th>Username</th><th>Name</th><th>Contact</th><th>Role</th><th>Sign-in</th><th>Status</th><th>Actions</th></tr></thead>
             <tbody>
               {drawerMembers.map((m) => (
                 <tr key={m.username}>
-                  <td>
-                    <div className="staff-account">
-                      <span className="staff-username">{m.username}</span>
-                      {m.displayName !== m.username && <span className="muted">{m.displayName}</span>}
-                      <span className="muted">{memberContact(m)}</span>
-                      <SignInTag method={m.signInMethod} />
-                    </div>
-                  </td>
+                  <td className="staff-username">{m.username}</td>
+                  <td>{m.displayName}</td>
+                  <td className="muted">{memberContact(m)}</td>
+                  <td><span className={`tag ${m.dealerRole === 'MANAGER' ? 'tag-success' : ''}`}>{enumLabel(m.dealerRole)}</span></td>
+                  <td><SignInTag method={m.signInMethod} /></td>
                   <td><span className={`tag ${m.active ? 'tag-success' : ''}`}>{m.active ? 'Active' : 'Inactive'}</span></td>
                   <td>
                     {staffDealer && m.active && (
                       <div className="row-actions">
                         {passwordAction(staffDealer.id, m)}
+                        {roleAction(staffDealer.id, m)}
                         <button className="btn-link danger" onClick={() => setStatus(staffDealer.id, m.username, false)}>Unbind</button>
                       </div>
                     )}
@@ -560,6 +584,7 @@ export default function AdminPage() {
               ))}
             </tbody>
           </table>
+          </div>
         </div>}
         {staffTab === 'pending' && staffDealer && (
           <PendingAccounts key={pendingReload} dealerId={staffDealer.id}

@@ -215,9 +215,12 @@ Only `idToken` (≤ 4096) is required; `username` (≤ 64), `displayName` (≤ 1
   "givenName": null,
   "familyName": null,
   "avatarUrl": null,
-  "locale": null
+  "locale": null,
+  "dealerRole": "MANAGER"
 }
 ```
+
+`dealerRole` is `MANAGER` or `STAFF` inside the bound dealership (design/21 AUTH-26) and `null` for the admin and unbound accounts.
 
 Admin: `dealerId`, `dealerLegalName`, the three `dealerContact*` fields, and `dealerLogoDataUrl` are `null`. They are display-only derived fields (the ad page shows the contact fields, UI-41; the app header shows the legal name and logo), not a second set of dealership data. `dealerLogoDataUrl` is `null` when the dealership has no logo.
 
@@ -333,7 +336,8 @@ Dealership missing → 404. Paginated envelope (`page`/`size`/`q` matches `displ
       "active": true,
       "signInMethod": "password",
       "email": "alex@example.com",
-      "phone": null
+      "phone": null,
+      "dealerRole": "STAFF"
     }
   ],
   "page": 0,
@@ -355,7 +359,7 @@ Dealership missing → 404. Paginated envelope (`page`/`size`/`q` matches `displ
 Write `membership` + `app_user` (column authority is in 15). Response matches a member item.  
 **Existing account** (for example a self sign-up from §3.8): identify the account by its username for binding; `displayName`, `password`, and contact fields may be omitted, and they are never changed — the person keeps signing in with their own email, username, or phone and password. **New account:** the admin supplies a username, display name, temporary password, and an email and/or phone (at least one); the person can sign in with any of them. Missing or invalid details → `400 VALIDATION`.
 `400 VALIDATION`; dealership 404; already an **active** member of that dealership, still active at another dealership, or the username belongs to a `Platform.Admin` account → **409** `DUP_MEMBER` (an admin account is never overwritten or demoted).  
-Binding an already-unbound person again is treated as **reactivation**, not 409 (whether the same row is updated is left to 15). Do not delete the `app_user` account.
+Binding an already-unbound person again is treated as **reactivation**, not 409 (whether the same row is updated is left to 15). Do not delete the `app_user` account. Every bind and reactivation starts the member as `STAFF`; Audit `MEMBERSHIP`/`CREATE` carries `dealerRole`.
 
 ### 3.7 `DELETE /api/v1/admin/dealers/{id}/members/{username}` → 204
 
@@ -368,6 +372,14 @@ Unbind; do not delete the `app_user` account. No such binding → 404.
 ```
 
 Platform.Admin sets a new password for an active member who forgot theirs, and tells the person out of band. `password` is 8-72 characters, else `400 VALIDATION`. No active binding of that username at this dealership → 404. A `google` or `firebase` account (see 3.5) → `400 VALIDATION` with a `password` field error: that provider owns the password, so the person resets it there. Audit `APP_USER`/`UPDATE` `{username, passwordReset:true}`; the password is never logged or returned. Existing session tokens stay valid until they expire.
+
+### 3.7b `PUT /api/v1/admin/dealers/{id}/members/{username}/role` → 204
+
+```json
+{ "dealerRole": "MANAGER" }
+```
+
+Platform.Admin promotes a staff member to `MANAGER` or demotes a manager to `STAFF` (design/21 AUTH-26); no dealer user can change a role. Missing or unknown `dealerRole` → `400 VALIDATION`. No active binding of that username at this dealership → 404. Setting the current role again is a no-op. Audit `MEMBERSHIP`/`UPDATE` `{username, dealerRole}`. The change applies on the member's next request; no new token is needed.
 
 ### 3.8 `GET /api/v1/admin/pending-users`
 
@@ -707,21 +719,21 @@ Audit `LEAD`: `CREATE` (`customerId`, `stage`, `vehicleId?`, `ownerUsername?`, `
 The caller's dealership's active members, sorted by username, for the lead owner and work-order assignee pickers and the Team page. Admin or unbound → 403. `displayName` falls back to the username. `source` is how the account was created (below).
 
 ```json
-[ { "username": "a1", "displayName": "Alice Staff", "source": "admin" }, { "username": "a2", "displayName": "a2", "source": null } ]
+[ { "username": "a1", "displayName": "Alice Staff", "source": "admin", "dealerRole": "MANAGER" }, { "username": "a2", "displayName": "a2", "source": null, "dealerRole": "STAFF" } ]
 ```
 
 Account `source` values: `google` (Google sign-in), `firebase` (email sign-up), `password` (registration form), `admin` (added by a platform admin). It is read from the account's `APP_USER`/`CREATE` audit `registration` key; an account without that row falls back to `google` or `firebase` from its linked identity, otherwise `null` (unknown, such as seed data).
 
-### 5.7 Join requests and dealer inbox (Dealer.User)
+### 5.7 Join requests and dealer inbox (dealership managers)
 
-Accounts that asked to join this dealership (§1.6) wait here for any active member. Admin or unbound → 403. Neither list is paginated.
+Accounts that asked to join this dealership (§1.6) wait here for its managers (design/21 AUTH-27). The `/api/v1/dealer/**` routes below need an active membership with `dealerRole` `MANAGER`; staff, admin, or unbound → 403. The two `/me/join-request` routes are the applicant's own and need no dealership. Neither list is paginated.
 
 | Method and path | Result |
 |---|---|
 | `GET /api/v1/me/join-request` | Signed-in account, including unbound. **204** when none is pending. **200** `{ "dealerId", "legalName" }` for the one pending request |
 | `POST /api/v1/me/join-request` | Body `{ "dealerId" }`. An unbound account requests one active dealership. **200** `{ "dealerId", "legalName" }`. A second, different dealership → **400** `VALIDATION`. Unknown or inactive dealership → **404**. Already a member → **403** |
 | `GET /api/v1/dealer/join-requests` | 200 `[{ "username", "displayName", "email", "createdAt", "source" }]`: active unbound accounts that requested this dealership, newest first |
-| `POST /api/v1/dealer/join-requests/{username}/approve` | 204. Creates or reactivates the membership, binds the account, resolves the notification as `APPROVED`. Audit `MEMBERSHIP`/`CREATE` `{username, source:"join_request"}`. The account already active at another dealership → **409** `DUP_MEMBER`, as for the admin bind (one login, one dealership) |
+| `POST /api/v1/dealer/join-requests/{username}/approve` | 204. Creates or reactivates the membership as `STAFF`, binds the account, resolves the notification as `APPROVED`. Audit `MEMBERSHIP`/`CREATE` `{username, source:"join_request"}`. The account already active at another dealership → **409** `DUP_MEMBER`, as for the admin bind (one login, one dealership) |
 | `POST /api/v1/dealer/join-requests/{username}/reject` | 204. Clears the requested dealership (the account stays, unbound), resolves the notification as `REJECTED`. Audit `APP_USER`/`UPDATE` `{username, rejected:true}` |
 | `GET /api/v1/dealer/notifications?includeResolved=false` | 200 array, newest first. Default returns unresolved rows only; `includeResolved=true` returns the history. A `JOIN_REQUEST` payload also carries the applicant's account `source`, read at request time |
 
@@ -733,7 +745,17 @@ No pending request from that username to this dealership → **404**. Notificati
   "resolvedAt": null, "resolvedBy": null, "resolvedAction": null }
 ```
 
-`resolvedAction` is `APPROVED`, `REJECTED`, or `CANCELLED` (the requester deleted the account, §2.2). The first member to act resolves the row for everyone in the dealership.
+`resolvedAction` is `APPROVED`, `REJECTED`, or `CANCELLED` (the requester deleted the account, §2.2). The first manager to act resolves the row for every manager in the dealership.
+
+### 5.8 Own dealership: profile and staff (dealership managers)
+
+Manager only (design/21 AUTH-27); staff, admin, or unbound → 403. The dealership is the caller's own, never taken from the route.
+
+| Method and path | Body | Result |
+|---|---|---|
+| `GET /api/v1/dealer/profile` | — | 200, the §3.3 dealership shape |
+| `PATCH /api/v1/dealer/profile` | `version`, `legalName`, `contactPhone`, `contactEmail`, `contactAddress`, `logoDataUrl` (same rules as §3.4; `active` stays with the admin) | 200 dealership. Stale `version` → `409 VERSION_CONFLICT`. Audit `DEALER`/`UPDATE` with the changed keys |
+| `DELETE /api/v1/dealer/members/{username}` | — | 204. Unbinds a `STAFF` member exactly as §3.7. A `MANAGER`, the caller included → **403** `FORBIDDEN` (only the admin removes managers); no active member of that name → 404 |
 
 ---
 

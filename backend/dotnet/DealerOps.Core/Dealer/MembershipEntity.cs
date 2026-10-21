@@ -22,6 +22,9 @@ public class MembershipEntity
     [Column("active")]
     public bool Active { get; set; } = true;
 
+    [Column("dealer_role")]
+    public DealerRole DealerRole { get; set; } = DealerRole.Staff;
+
     [Column("created_by")]
     [MaxLength(64)]
     [Required]

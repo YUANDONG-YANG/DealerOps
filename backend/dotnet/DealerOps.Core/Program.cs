@@ -290,6 +290,12 @@ using (var scope = app.Services.CreateScope())
             || ex.ToString().Contains("1060", StringComparison.Ordinal))
         { /* already present */ }
     }
+    // Existing members become staff; the admin or a manager promotes managers afterwards.
+    try { db.Database.ExecuteSqlRaw("ALTER TABLE membership ADD COLUMN dealer_role VARCHAR(16) NOT NULL DEFAULT 'staff'"); }
+    catch (Exception ex) when (
+        ex.ToString().Contains("Duplicate column", StringComparison.OrdinalIgnoreCase)
+        || ex.ToString().Contains("1060", StringComparison.Ordinal))
+    { /* already present */ }
     // Existing rows get the catch-all body type so the NOT NULL column can be added without a
     // separate backfill step; the add-vehicle form chooses an explicit value for new rows.
     try { db.Database.ExecuteSqlRaw("ALTER TABLE vehicle ADD COLUMN body_type VARCHAR(16) NOT NULL DEFAULT 'other'"); }

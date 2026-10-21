@@ -1,4 +1,5 @@
 import { codeOf, http, statusOf } from './http';
+import type { DealerRole } from './me';
 
 export type Dealer = {
   id: number; legalName: string; contactPhone: string; contactEmail: string;
@@ -10,7 +11,7 @@ export type SignInMethod = 'password' | 'google' | 'firebase';
 
 export type Member = {
   username: string; displayName: string; role: string; active: boolean; signInMethod: SignInMethod;
-  email: string | null; phone: string | null;
+  email: string | null; phone: string | null; dealerRole: DealerRole;
 };
 
 export type Page<T> = { items: T[]; page: number; size: number; totalElements: number };
@@ -40,6 +41,8 @@ export const adminApi = {
     http.get<Page<PendingUser>>('/api/v1/admin/pending-users', { params: { ...p, size: 10 } }),
   resetPassword: (id: number, username: string, password: string) =>
     http.put(`/api/v1/admin/dealers/${id}/members/${encodeURIComponent(username)}/password`, { password }),
+  setRole: (id: number, username: string, dealerRole: DealerRole) =>
+    http.put(`/api/v1/admin/dealers/${id}/members/${encodeURIComponent(username)}/role`, { dealerRole }),
   unbind: (id: number, username: string) =>
     http.delete(`/api/v1/admin/dealers/${id}/members/${encodeURIComponent(username)}`),
 };

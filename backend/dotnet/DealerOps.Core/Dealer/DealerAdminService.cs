@@ -69,26 +69,52 @@ public class DealerAdminService
     {
         TenantGuard.RequireAdmin();
         var dealer = Load(id);
-        if (body.Version != dealer.Version)
-            throw new ApiException(ErrorCode.VersionConflict, "Version conflict.");
-
-        var changed = new Dictionary<string, object>();
-        if (dealer.LegalName != body.LegalName) changed["legalName"] = body.LegalName;
-        if (dealer.ContactPhone != body.ContactPhone) changed["contactPhone"] = body.ContactPhone;
-        if (dealer.ContactEmail != body.ContactEmail) changed["contactEmail"] = body.ContactEmail;
-        if (dealer.ContactAddress != body.ContactAddress) changed["contactAddress"] = body.ContactAddress;
+        var changed = ApplyProfile(dealer, body.Version, body.LegalName, body.ContactPhone, body.ContactEmail,
+            body.ContactAddress, body.LogoDataUrl);
         if (dealer.Active != body.Active) changed["active"] = body.Active;
-
-        dealer.LegalName = body.LegalName;
-        dealer.ContactPhone = body.ContactPhone;
-        dealer.ContactEmail = body.ContactEmail;
-        dealer.ContactAddress = body.ContactAddress;
         dealer.Active = body.Active;
-        dealer.LogoDataUrl = body.LogoDataUrl;
 
         _audit.Record("DEALER", dealer.Id, "UPDATE", dealer.Id, ActorUsername(), changed);
         _db.SaveChanges();
         return ToResponse(dealer);
+    }
+
+    /// <summary>The caller's own dealership, for its managers' profile form (AUTH-27).</summary>
+    public DealerResponse GetOwn() => ToResponse(Load(TenantGuard.RequireManager().TenantDealerId!.Value));
+
+    /// <summary>
+    /// A manager edits their own dealership's profile (AUTH-27). Active status stays with the admin.
+    /// The profile feeds the ad compliance check, the bill of sale and the buyer site.
+    /// </summary>
+    public DealerResponse PatchOwn(PatchDealerProfileRequest body)
+    {
+        var dealer = Load(TenantGuard.RequireManager().TenantDealerId!.Value);
+        var changed = ApplyProfile(dealer, body.Version, body.LegalName, body.ContactPhone, body.ContactEmail,
+            body.ContactAddress, body.LogoDataUrl);
+
+        _audit.Record("DEALER", dealer.Id, "UPDATE", dealer.Id, ActorUsername(), changed);
+        _db.SaveChanges();
+        return ToResponse(dealer);
+    }
+
+    private static Dictionary<string, object> ApplyProfile(DealerEntity dealer, int version, string legalName,
+        string contactPhone, string contactEmail, string contactAddress, string? logoDataUrl)
+    {
+        if (version != dealer.Version)
+            throw new ApiException(ErrorCode.VersionConflict, "Version conflict.");
+
+        var changed = new Dictionary<string, object>();
+        if (dealer.LegalName != legalName) changed["legalName"] = legalName;
+        if (dealer.ContactPhone != contactPhone) changed["contactPhone"] = contactPhone;
+        if (dealer.ContactEmail != contactEmail) changed["contactEmail"] = contactEmail;
+        if (dealer.ContactAddress != contactAddress) changed["contactAddress"] = contactAddress;
+
+        dealer.LegalName = legalName;
+        dealer.ContactPhone = contactPhone;
+        dealer.ContactEmail = contactEmail;
+        dealer.ContactAddress = contactAddress;
+        dealer.LogoDataUrl = logoDataUrl;
+        return changed;
     }
 
     private DealerEntity Load(long id) =>

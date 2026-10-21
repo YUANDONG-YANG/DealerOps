@@ -15,6 +15,15 @@ public static class TenantGuard
         return user;
     }
 
+    /// <summary>Team and dealership-profile management: a bound dealer user whose membership is MANAGER.</summary>
+    public static CurrentUser RequireManager()
+    {
+        var user = RequireDealerUser();
+        if (user.DealerRole != DealerRole.Manager)
+            throw new ApiException(ErrorCode.Forbidden, "Only a dealership manager can do this.");
+        return user;
+    }
+
     public static long RequireTenantId()
     {
         var user = RequireDealerUser();

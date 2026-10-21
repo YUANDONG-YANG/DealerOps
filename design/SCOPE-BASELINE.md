@@ -48,7 +48,7 @@ The following appeared in early proposals or superseded drafts now under [archiv
 | Historical proposal item | Current delivery baseline |
 |---|---|
 | Visitor buyer site, public ad pages, inquiry form | Public landing page, plus the buyer site added 2026-10-21: `/shop` lists ready ads that pass the current check, and an inquiry files a `NEW` lead (design/21 SHOP-01–05) |
-| Staff / Manager roles | Admin / Dealer.User only |
+| Staff / Manager roles | JWT roles stay Admin / Dealer.User; since 2026-10-21 a dealership membership is `MANAGER` or `STAFF` (design/15 §2.5, design/21 AUTH-26–27): managers run the team, join requests, and the dealership profile, and only the admin changes a role |
 | Recon work orders, sale-ready gates, archive | Vehicle work orders are in the delivery baseline; additional inventory states are not specified by the customer sources |
 | Lead funnel, follow-up, deal transactions, sales page | Lead follow-up and current sales-funnel reporting are in the delivery baseline; transaction workflows beyond DMS sale and CRM linking require explicit source detail |
 | Dashboard / KPI | Tenant-scoped `/dashboard` KPIs (DASH-01) and the sales report with stage history (CRM-16) and workshop settlement (WO-08); `/dms` remains the post-login page |

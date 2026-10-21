@@ -8,7 +8,8 @@ function isLocalUrl(url: string) {
   return /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(url);
 }
 
-export type Account = { username: string; displayName: string; email: string; password: string };
+/** `manager`: the seed promotes the account to its dealership's MANAGER role (design/21 AUTH-26). */
+export type Account = { username: string; displayName: string; email: string; password: string; manager?: boolean };
 
 export type SeedDealer = {
   legalName: string;
@@ -32,15 +33,17 @@ const dealerUser: Account = {
   displayName: 'Lafe',
   email: 'lafe@example.com',
   password: process.env.E2E_DEALER_PASSWORD ?? 'admin1234',
+  manager: true,
 };
 
 // Dealer A has two staff (shared-data checks, AUTH-06); dealer B exists for isolation checks.
+// The first staff account and the dealer user are managers; e2e.staff2 stays staff.
 const dealerA: SeedDealer = {
   legalName: process.env.E2E_DEALER_NAME ?? 'E2E Motors',
   contactPhone: '403-555-0199',
   contactEmail: 'e2e.dealer@example.com',
   contactAddress: '1 Test Street, Calgary, AB',
-  staff: [staff(process.env.E2E_STAFF_USER ?? 'e2e.staff', 'E2E Staff'), staff('e2e.staff2', 'E2E Staff Two'), dealerUser],
+  staff: [{ ...staff(process.env.E2E_STAFF_USER ?? 'e2e.staff', 'E2E Staff'), manager: true }, staff('e2e.staff2', 'E2E Staff Two'), dealerUser],
 };
 
 const dealerB: SeedDealer = {
