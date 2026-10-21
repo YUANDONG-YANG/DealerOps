@@ -155,8 +155,8 @@ export default function ProfilePage() {
           </button>
         </form>
 
-        <div className="card" style={{ padding: 20, borderColor: 'var(--block, #ef4444)' }}>
-          <h3 style={{ marginTop: 0, color: 'var(--block, #ef4444)' }}>Delete account</h3>
+        <div className="card" style={{ padding: 20, borderColor: 'var(--danger)' }}>
+          <h3 style={{ marginTop: 0, color: 'var(--danger)' }}>Delete account</h3>
           <p className="muted" style={{ marginTop: 0 }}>
             Removes your membership and sign-in. Your email and phone are released so you can
             come back later through Google or a new username / password account.
@@ -164,7 +164,7 @@ export default function ProfilePage() {
           {me.role === 'Platform.Admin' ? (
             <p className="muted">Platform admin accounts cannot delete themselves.</p>
           ) : !confirmDelete ? (
-            <button type="button" className="btn" style={{ color: 'var(--block, #ef4444)' }}
+            <button type="button" className="btn btn-danger"
               onClick={() => setConfirmDelete(true)}>
               Delete my account
             </button>
@@ -172,7 +172,7 @@ export default function ProfilePage() {
             <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
               <strong>Really delete? This signs you out immediately.</strong>
               <button type="button" className="btn btn-primary"
-                style={{ background: 'var(--block, #ef4444)' }}
+                style={{ background: 'var(--danger)' }}
                 disabled={deleting}
                 onClick={() => void onDelete()}>
                 {deleting ? 'Deleting…' : 'Yes, delete'}

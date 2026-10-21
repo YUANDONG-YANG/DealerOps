@@ -20,7 +20,6 @@
   --radius: 6px;
   --radius-lg: 10px;
   --danger: #c4314b;
-  --price: #e8590c;
   --warning: #b8650e;
   --success: #1f8a5b;
   --tracking: .08em;
@@ -70,6 +69,7 @@ body {
   transition: transform .15s, box-shadow .15s, filter .15s, background .15s, color .15s;
   white-space: nowrap;
   line-height: 1.5;
+  text-decoration: none;
 }
 .btn:hover:not(:disabled) { background: linear-gradient(180deg, #ffffff 0%, #ececf0 100%); border-color: #c2c2c8; }
 .btn:active:not(:disabled) { transform: translateY(1px); }
@@ -90,18 +90,21 @@ body {
 .btn-danger { color: var(--danger); border-color: transparent; background: transparent; box-shadow: none; }
 .btn-danger:hover:not(:disabled) { background: rgba(225,29,72,.06); }
 
+/* The one link style: plain links and link-styled buttons share it. */
+a, .btn-link {
+  color: var(--fg);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-color: #c2c2c8;
+}
+a:hover, .btn-link:hover:not(:disabled) { text-decoration-color: currentColor; }
 .btn-link {
   border: none;
   background: transparent;
   padding: 0;
-  color: var(--fg);
   font-weight: 500;
-  text-decoration: underline;
-  text-underline-offset: 3px;
-  text-decoration-color: #c2c2c8;
   cursor: pointer;
 }
-.btn-link:hover:not(:disabled) { text-decoration-color: currentColor; }
 .btn-link.danger { color: var(--danger); }
 .btn-full { width: 100%; }
 
@@ -866,7 +869,6 @@ div.state {
   text-align: center;
   color: var(--muted-fg);
 }
-.auth-switch a { color: var(--fg); text-underline-offset: 3px; }
 .auth-alt { margin-top: 18px; }
 .auth-or {
   display: flex;
@@ -1000,7 +1002,7 @@ div.state {
   padding: 16px 0;
   background: linear-gradient(to bottom, var(--bg) 70%, transparent);
 }
-.landing-brand { display: flex; align-items: center; gap: 10px; font-size: 18px; font-weight: 700; letter-spacing: -.01em; }
+.landing-brand { display: flex; align-items: center; gap: 10px; font-size: 18px; font-weight: 700; letter-spacing: -.01em; text-decoration: none; }
 .landing-links { display: flex; gap: 24px; margin-left: auto; }
 .landing-links a { color: var(--muted-fg); text-decoration: none; font-weight: 500; }
 .landing-links a:hover { color: var(--fg); }
@@ -1120,7 +1122,7 @@ div.state {
 .shop-card { display: flex; flex-direction: column; }
 .shop-card > .btn { margin-top: auto; align-self: flex-start; }
 .shop-card > p { margin-bottom: 16px; }
-.shop-card .ad-price { color: var(--price); font-weight: 700; }
+.shop-card .ad-price { padding: 0 4px; border-radius: 4px; background: var(--grad-soft); color: var(--fg); font-weight: 700; }
 
 .landing-steps {
   list-style: none;

@@ -11,7 +11,7 @@ import { cad } from '../format';
 function stageTone(stage: string): string {
   if (stage === 'WON') return 'var(--success)';
   if (stage === 'LOST') return 'var(--danger)';
-  return '#1f4e79';
+  return 'var(--accent)';
 }
 
 /**
