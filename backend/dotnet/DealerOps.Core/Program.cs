@@ -2,6 +2,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using DealerOps.Core.Assistant;
 using DealerOps.Core.Audit;
+using DealerOps.Core.BuyerSite;
 using DealerOps.Core.Catalog;
 using DealerOps.Core.Common;
 using DealerOps.Core.Common.Exceptions;
@@ -15,6 +16,7 @@ using DealerOps.Core.Integration;
 using DealerOps.Core.Lead;
 using DealerOps.Core.Listing;
 using DealerOps.Core.OpenApi;
+using DealerOps.Core.Payment;
 using DealerOps.Core.Photo;
 using DealerOps.Core.Security;
 using DealerOps.Core.Vehicle;
@@ -198,6 +200,8 @@ builder.Services.AddScoped<VehicleService>();
 builder.Services.AddScoped<CustomerService>();
 builder.Services.AddScoped<LeadService>();
 builder.Services.AddScoped<WorkOrderService>();
+builder.Services.AddScoped<VehiclePaymentService>();
+builder.Services.AddScoped<BuyerSiteService>();
 builder.Services.AddScoped<ListingService>();
 // AuditController reads the audit trail through AuditService.List, which is not on
 // IAuditService, so the concrete type is registered and the interface resolves to the
@@ -293,6 +297,21 @@ using (var scope = app.Services.CreateScope())
         ex.ToString().Contains("Duplicate column", StringComparison.OrdinalIgnoreCase)
         || ex.ToString().Contains("1060", StringComparison.Ordinal))
     { /* already present */ }
+    foreach (var column in new[]
+    {
+        "ADD COLUMN mileage_km INT NULL",
+        "ADD COLUMN exterior_color VARCHAR(40) NULL",
+        "ADD COLUMN fuel_type VARCHAR(16) NULL",
+        "ADD COLUMN stock_number VARCHAR(20) NULL",
+        "ADD COLUMN list_price DECIMAL(12,2) NULL",
+    })
+    {
+        try { db.Database.ExecuteSqlRaw($"ALTER TABLE vehicle {column}"); }
+        catch (Exception ex) when (
+            ex.ToString().Contains("Duplicate column", StringComparison.OrdinalIgnoreCase)
+            || ex.ToString().Contains("1060", StringComparison.Ordinal))
+        { /* already present */ }
+    }
     foreach (var (table, column) in new[] { ("vehicle", "deleted_at"), ("customer", "deleted_at") })
     {
         try { db.Database.ExecuteSqlRaw($"ALTER TABLE {table} ADD COLUMN {column} DATETIME(6) NULL"); }
@@ -394,6 +413,21 @@ using (var scope = app.Services.CreateScope())
             KEY idx_vehicle_photo_vehicle (dealer_id, vehicle_id),
             CONSTRAINT fk_vehicle_photo_dealer FOREIGN KEY (dealer_id) REFERENCES dealer (id),
             CONSTRAINT fk_vehicle_photo_vehicle FOREIGN KEY (vehicle_id) REFERENCES vehicle (id)
+        )");
+    EnsureTable(db, @"
+        CREATE TABLE IF NOT EXISTS vehicle_payment (
+            id BIGINT PRIMARY KEY AUTO_INCREMENT,
+            dealer_id BIGINT NOT NULL,
+            vehicle_id BIGINT NOT NULL,
+            amount DECIMAL(12,2) NOT NULL,
+            method VARCHAR(16) NOT NULL,
+            paid_on DATE NOT NULL,
+            note VARCHAR(200) NULL,
+            recorded_by VARCHAR(64) NOT NULL,
+            created_at DATETIME(6) NOT NULL,
+            KEY idx_vehicle_payment_vehicle (dealer_id, vehicle_id),
+            CONSTRAINT fk_vehicle_payment_dealer FOREIGN KEY (dealer_id) REFERENCES dealer (id),
+            CONSTRAINT fk_vehicle_payment_vehicle FOREIGN KEY (vehicle_id) REFERENCES vehicle (id)
         )");
     foreach (var ddl in new[]
     {

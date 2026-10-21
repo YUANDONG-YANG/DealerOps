@@ -8,6 +8,7 @@ namespace DealerOps.Gateway.Middleware;
 /// point, so one limiter covers Core and the AI-backed endpoints. Each client gets a one-minute
 /// fixed window: a signed-in user is keyed by username, an anonymous caller by client IP. AI calls
 /// (ad checks and the assistant) have their own smaller budget because each one reaches the LLM.
+/// Buyer-site inquiries have the smallest budget, because each one creates a lead.
 /// Over the limit → 429 <c>RATE_LIMITED</c> with <c>Retry-After</c>.
 /// </summary>
 public static class RateLimitSetup
@@ -22,6 +23,7 @@ public static class RateLimitSetup
         var anonymousPerMinute = section.GetValue("anonymousPerMinute", 60);
         var userPerMinute = section.GetValue("userPerMinute", 600);
         var aiPerMinute = section.GetValue("aiPerMinute", 30);
+        var inquiryPerMinute = section.GetValue("inquiryPerMinute", 5);
 
         builder.Services.AddRateLimiter(options =>
         {
@@ -43,7 +45,8 @@ public static class RateLimitSetup
                     ? context.User.FindFirstValue(ClaimTypes.NameIdentifier) ?? context.User.FindFirstValue("sub")
                     : null;
                 var client = username != null ? $"user:{username}" : $"ip:{ClientIp(context)}";
-                var (bucket, limit) = IsAiCall(context.Request.Method, path) ? ("ai", aiPerMinute)
+                var (bucket, limit) = IsInquiry(context.Request.Method, path) ? ("inquiry", inquiryPerMinute)
+                    : IsAiCall(context.Request.Method, path) ? ("ai", aiPerMinute)
                     : username != null ? ("api", userPerMinute)
                     : ("anonymous", anonymousPerMinute);
 
@@ -64,6 +67,11 @@ public static class RateLimitSetup
         && (path.Equals("/api/v1/assistant/ask", StringComparison.OrdinalIgnoreCase)
             || (path.StartsWith("/api/v1/listings/", StringComparison.OrdinalIgnoreCase)
                 && path.EndsWith("/checks", StringComparison.OrdinalIgnoreCase)));
+
+    private static bool IsInquiry(string method, string path) =>
+        HttpMethods.IsPost(method)
+        && path.StartsWith("/api/v1/public/", StringComparison.OrdinalIgnoreCase)
+        && path.EndsWith("/inquiries", StringComparison.OrdinalIgnoreCase);
 
     // Azure App Service appends the caller's address to X-Forwarded-For, so the last entry is the
     // one its front end saw; earlier entries can be set by the caller and are not trusted.

@@ -6,6 +6,7 @@ using DealerOps.Core.Dealer;
 using DealerOps.Core.Lead;
 using DealerOps.Core.Listing;
 using DealerOps.Core.Notifications;
+using DealerOps.Core.Payment;
 using DealerOps.Core.Photo;
 using DealerOps.Core.Vehicle;
 using DealerOps.Core.WorkOrder;
@@ -33,6 +34,7 @@ public class AppDbContext : DbContext
     public DbSet<AuditEventEntity> AuditEvents => Set<AuditEventEntity>();
     public DbSet<VehiclePhotoEntity> VehiclePhotos => Set<VehiclePhotoEntity>();
     public DbSet<WorkOrderEntity> WorkOrders => Set<WorkOrderEntity>();
+    public DbSet<VehiclePaymentEntity> VehiclePayments => Set<VehiclePaymentEntity>();
     public DbSet<NotificationEntity> Notifications => Set<NotificationEntity>();
     public DbSet<RuleOverrideEntity> RuleOverrides => Set<RuleOverrideEntity>();
 
@@ -48,6 +50,7 @@ public class AppDbContext : DbContext
         ConfigureCompliance(mb);
         ConfigureLead(mb);
         ConfigureWorkOrder(mb);
+        ConfigurePayment(mb);
         ConfigurePhoto(mb);
         ConfigureDealer(mb);
         ConfigureAudit(mb);
@@ -63,6 +66,7 @@ public class AppDbContext : DbContext
             e.Property(v => v.Source).HasConversion(new EnumSnakeCaseConverter<VehicleSource>()).HasMaxLength(32);
             e.Property(v => v.ConditionCode).HasConversion(new EnumSnakeCaseConverter<ConditionCode>()).HasMaxLength(24);
             e.Property(v => v.BodyType).HasConversion(new EnumSnakeCaseConverter<VehicleBodyType>()).HasMaxLength(16);
+            e.Property(v => v.FuelType).HasConversion(new EnumSnakeCaseConverter<FuelType>()).HasMaxLength(16);
             e.Property(v => v.Status).HasConversion(new EnumSnakeCaseConverter<VehicleStatus>()).HasMaxLength(16);
         });
     }
@@ -115,6 +119,20 @@ public class AppDbContext : DbContext
             e.HasIndex(n => n.LeadId).HasDatabaseName("idx_lead_note_lead");
             e.HasOne<LeadEntity>().WithMany().HasForeignKey(n => n.LeadId)
                 .HasConstraintName("fk_lead_note_lead").OnDelete(DeleteBehavior.Restrict);
+        });
+    }
+
+    private static void ConfigurePayment(ModelBuilder mb)
+    {
+        mb.Entity<VehiclePaymentEntity>(e =>
+        {
+            e.Property(p => p.DealerId).IsRequired();
+            e.Property(p => p.Method).HasConversion(new EnumSnakeCaseConverter<PaymentMethod>()).HasMaxLength(16);
+            e.HasIndex(p => new { p.DealerId, p.VehicleId }).HasDatabaseName("idx_vehicle_payment_vehicle");
+            e.HasOne<DealerEntity>().WithMany().HasForeignKey(p => p.DealerId)
+                .HasConstraintName("fk_vehicle_payment_dealer").OnDelete(DeleteBehavior.Restrict);
+            e.HasOne<VehicleEntity>().WithMany().HasForeignKey(p => p.VehicleId)
+                .HasConstraintName("fk_vehicle_payment_vehicle").OnDelete(DeleteBehavior.Restrict);
         });
     }
 
@@ -189,6 +207,7 @@ public class AppDbContext : DbContext
         mb.Entity<LeadNoteEntity>().HasQueryFilter(e => _tenantDealerId != null && e.DealerId == _tenantDealerId);
         mb.Entity<WorkOrderEntity>().HasQueryFilter(e => _tenantDealerId != null && e.DealerId == _tenantDealerId);
         mb.Entity<VehiclePhotoEntity>().HasQueryFilter(e => _tenantDealerId != null && e.DealerId == _tenantDealerId);
+        mb.Entity<VehiclePaymentEntity>().HasQueryFilter(e => _tenantDealerId != null && e.DealerId == _tenantDealerId);
     }
 
     public override int SaveChanges(bool acceptAllChangesOnSuccess)

@@ -23,6 +23,10 @@ import AdsPage from './pages/AdsPage';
 import TeamPage from './pages/TeamPage';
 import ProfilePage from './pages/ProfilePage';
 import NoAccessPage from './pages/NoAccessPage';
+import DashboardPage from './pages/DashboardPage';
+import BillOfSalePage from './pages/BillOfSalePage';
+import ShopPage from './pages/ShopPage';
+import DisclaimerPage from './pages/DisclaimerPage';
 
 /** The profile is loaded once per signed-in session, not on every navigation. */
 let profileRequest: { token: string; profile: Promise<Profile> } | null = null;
@@ -122,6 +126,9 @@ export default function AppRoutes() {
       <Route path="/" element={<LandingPage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
+      <Route path="/disclaimer" element={<DisclaimerPage />} />
+      <Route path="/shop" element={<ShopPage />} />
+      <Route path="/shop/:dealerId" element={<ShopPage />} />
 
       <Route element={<AuthGuard />}>
         {/* Both roles, once the account has business access. */}
@@ -130,7 +137,9 @@ export default function AppRoutes() {
           <Route path="/admin" element={<AdminPage />} />
         </Route>
         <Route element={<DealerGuard />}>
+          <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/dms" element={<DmsPage />} />
+          <Route path="/dms/:vehicleId/bill-of-sale" element={<BillOfSalePage />} />
           <Route path="/crm" element={<CrmPage />} />
           <Route path="/leads" element={<LeadsPage />} />
           <Route path="/reports/sales-funnel" element={<SalesFunnelPage />} />

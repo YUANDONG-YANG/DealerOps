@@ -10,6 +10,7 @@ const icons: Record<string, string> = {
   crm: 'M16 19v-1a4 4 0 00-4-4H7a4 4 0 00-4 4v1M9.5 10a3 3 0 100-6 3 3 0 000 6zM21 19v-1a4 4 0 00-3-3.9M16 4.1a3 3 0 010 5.8',
   ads: 'M4 5h16v11H8l-4 4V5zM9 10.5l2 2 4-4',
   leads: 'M3 5h18l-7 8v6l-4-2v-4L3 5z',
+  dashboard: 'M4 13h6V4H4v9zM14 20h6V11h-6v9zM4 20h6v-3H4v3zM14 4v3h6V4h-6z',
   team: 'M17 20h5v-2a4 4 0 00-3-3.9M9 20H3v-2a4 4 0 014-4h4a4 4 0 014 4v2M9 11a4 4 0 100-8 4 4 0 000 8zM16 3.1a4 4 0 010 7.8',
 };
 
@@ -22,6 +23,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   const items = !session.hasBusinessAccess ? [] : isAdmin
     ? [{ label: 'Admin', to: '/admin', icon: icons.admin }]
     : [
+        { label: 'Dashboard', to: '/dashboard', icon: icons.dashboard },
         { label: 'DMS', to: '/dms', icon: icons.dms },
         { label: 'CRM', to: '/crm', icon: icons.crm },
         { label: 'Leads', to: '/leads', icon: icons.leads },

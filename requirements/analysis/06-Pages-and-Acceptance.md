@@ -62,7 +62,7 @@ Delivered as a floating panel on signed-in business pages, not as its own route 
 | UI-43 | Results listed per rule with ✅ / ❌ / ⚠️ and reason |
 | UI-44 | Status badge: Needs AI / Blocked / AI unavailable / Passed / Stale |
 | UI-45 | Ready and Export TXT buttons are enabled only when Passed and not Stale |
-| UI-46 | The ad-check result panel states that the check is not legal advice and is not OMVIC approval (AD-14); the exported TXT ends with the same disclaimer |
+| UI-46 | The ad-check result panel states that the check is not legal advice and is not OMVIC approval (AD-14) and links the `/disclaimer` page; the exported TXT ends with the same disclaimer |
 
 ### Assistant
 

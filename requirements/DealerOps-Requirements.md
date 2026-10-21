@@ -1,10 +1,10 @@
 # DealerOps Requirements Specification
 
-This document is the English counterpart of [requirements/DealerOps-Requirements-zh.html](DealerOps-Requirements-zh.html) (v1.0, 2026-10-07). Requirement IDs are identical in both documents. Sources: [requirements/DealerOps-Specification.pdf](DealerOps-Specification.pdf) (2026-09-21, authoritative for fields and business rules), `requirements/Dos Car dealership.docx` (product vision only), and [design/SCOPE-BASELINE.md](../design/SCOPE-BASELINE.md) (course scope and errata; decides conflicts). Per-topic analysis lives in [requirements/analysis/](analysis/). Sign-off status: KAN-5 client/instructor confirmation is still open.
+This is the current English requirements specification. [DealerOps-Requirements-zh.html](DealerOps-Requirements-zh.html) is an earlier Chinese translation (v1.0, 2026-10-07) and may not include later scope updates. Sources: [requirements/DealerOps-Specification.pdf](DealerOps-Specification.pdf) (2026-09-21, authoritative for fields and business rules), `requirements/Dos Car dealership.docx` (product vision and requested DMS/CRM/AI/Image Studio capabilities), and [design/SCOPE-BASELINE.md](../design/SCOPE-BASELINE.md) (course scope and errata; decides conflicts). Per-topic analysis lives in [requirements/analysis/](analysis/). This document follows the academic demonstration delivery baseline in design/SCOPE-BASELINE.md; customer-source features that are reasonably implementable are in scope.
 
-**Conflict priority:** course PPT hard items > specification PDF fields > v6 design > UI conventions. There are two exceptions. Authentication remains password-based, and on 2026-10-08 the user chose email, username, or phone as the sign-in name (erratum 1). Since 2026-10-07, the PPT containerization item has been dropped in favor of Terraform + App Service (erratum 5).
+**Conflict handling:** The course requirements govern academic delivery constraints; customer PDF and DOCX requests govern product functionality. Where wording conflicts, preserve all requested behavior where feasible and document a technical implementation choice. Current delivery policy is in `design/SCOPE-BASELINE.md`.
 
-**Priority labels:** Must = explicitly required by a source. Should = needed by the implementation, not stated in the sources. Could = only if time allows. Won't = not in this release.
+**Priority labels:** Customer-source functionality that can reasonably be implemented for this academic graduation demonstration is Must. Should / Could mark supporting or optional derived behavior. Won't is reserved for a documented technical or project constraint, with a reason and a demonstrable alternative where feasible; lack of commercial context alone is not grounds for exclusion.
 
 ## 1. Overview and scope
 
@@ -20,17 +20,14 @@ Dealer Ops is a multi-tenant platform for independent used-car dealers in Ontari
 - Password sign-in (email, username, or phone) with two roles.
 - Browser traffic only through the gateway.
 
-**Feature extensions** ([design/21-Feature-Extensions.md](../design/21-Feature-Extensions.md)): VIN decode, lead follow-up, reconditioning work orders, email/phone self-registration and sign-in, Image Studio.
+**Feature extensions** ([design/21-Feature-Extensions.md](../design/21-Feature-Extensions.md)): VIN decode, lead follow-up, reconditioning work orders, email/phone self-registration and sign-in, Image Studio, and (§9, 2026-10-21) optional listing details, a payment ledger, a printable bill of sale, the KPI dashboard, lead stage history, workshop settlement, the disclaimer page and the buyer site.
 
-**Out of scope:**
-- Sales funnel reports, vehicle archive states and garage/service billing.
-- Buyer site, public inventory and inquiry forms.
-- KPI dashboard and CSV import.
-- Third-party ad publishing, payments and contracts.
+**Out of scope** (reasons in design/21 §9):
+- Vehicle archive states, garage/service invoicing to outside customers, and CSV import.
+- Live third-party ad publishing (AD-16 is a labelled simulation; the buyer site publishes ready ads).
+- Card payment processing (payments are recorded, not charged) and reviewed legal contracts (the bill of sale is a template).
 - OCR.
-- Extra vehicle fields such as mileage, color, fuel, stock number and list price.
 - Message queues, a second database and vector stores.
-- Rate limits, throughput SLOs and PIPEDA retention.
 
 **Classroom demo storyline:**
 1. Two dealers, each with one staff member, cannot see each other's data.
@@ -168,7 +165,7 @@ There are two statuses, `IN_STOCK` and `SOLD`, and the server derives them. A ve
 
 ## 5. Ad compliance (OMVIC)
 
-"Publish" means marking the ad Ready and exporting it as TXT. There is no external platform and no buyer page. The check reads the title, the body, the DMS vehicle, the public dealer profile and the salesperson's checklist answers (prior-use category, extended-warranty terms when offered, annual lease kilometre allowance; PDF §5). No vehicle fields are added.
+For the PDF workflow, publish means marking the ad Ready and exporting it as TXT. The customer DOCX also requests marketplace publication; AD-16 implements target selection and publish/unpublish status as a clearly labeled browser simulation when live marketplace authorization is unavailable. It must not claim an external listing was created. The check reads the title, the body, the DMS vehicle, the public dealer profile and the salesperson's checklist answers (prior-use category, extended-warranty terms when offered, annual lease kilometre allowance; PDF §5). It does not read the optional listing details (DMS-18). A ready ad with a passed current check is also listed on the buyer site (SHOP-01).
 
 The ad belongs to one vehicle of the dealership, and each vehicle has one ad. An empty draft can be saved but cannot pass. The kind is `CASH` / `FINANCE` / `LEASE`, and the medium is `ONLINE` / `RADIO_TV_BILLBOARD`.
 
@@ -224,7 +221,7 @@ An ad is **finance-triggered** when its kind is `FINANCE`, or its kind is `CASH`
 | AD-11 | Editing the ad or changing the condition invalidates an earlier pass | Must |
 | AD-12 | Ready and export require a pass on the current version | Must |
 | AD-13 | The TXT file holds the dealer's name and contact, the vehicle's year / make / model / VIN / condition / source, the title, the body and the check time. It holds no customer data and no cost | Must |
-| AD-14 | A dedicated disclaimer screen. It is deferred: the result panel shows a one-line disclaimer, and the limit is explained orally at the defense | Won't |
+| AD-14 | State in the result panel and TXT export that the check is not legal advice or OMVIC approval, and link a dedicated public `/disclaimer` page | Must |
 | AD-15 | Configurable rules or a rule editor; the rules stay in `OmvicRuleEngine` | Must. Platform admins can enable/disable rules, change severity and message; changes stale prior checks. |
 | AD-16 | Marketplace publishing workflow | Must. For the student capstone, demonstrate target selection and publish/unpublish status using an explicitly labeled browser simulation; do not claim an external listing was created. A live connector requires an approved marketplace API/feed and dealer authorization. |
 | AD-17 | Image Studio (superseded by IMG-01–05 in design/21-Feature-Extensions.md) | Must |
@@ -284,10 +281,14 @@ The spec PDF has no such page. It is added by scope erratum 2 to meet the course
 | Landing | `/` | Public | Product landing with `Sign in`, `Create account`, and anonymous VIN decode; signed-in users go to their role landing |
 | Login / registration | `/login`, `/register` | Public | Email, username, or phone + password; unbound accounts wait for admin binding |
 | Admin | `/admin` | Admin | Dealership list: name, contact, staff count (UI-10). Create a dealership (UI-11). List and bind staff (username, display name, email and/or phone, temporary password), with confirmation before unbinding (UI-12). **Pending accounts** binds self sign-ups without a password. No vehicle, customer or ad entry points (UI-13) |
-| DMS | `/dms` | Dealer user | List columns: year make model, VIN, source, condition, cost (CAD), date added, status, with search, filters and paging (UI-20). Add and edit with `*` on required fields, client-side validation and per-field server errors (UI-21). Detail with all fields, the customer, the ad check status and the history (UI-22). Sell as a separate action that takes the date and the price together (UI-23). Locked fields are read-only after sale (UI-24). VIN `Decode` prefills make/model/year; the drawer adds **Work orders** (open count in the list; selling is blocked while any are open) and **Image Studio** photos with Auto fix / Brighten / Sharpen ([design/21](../design/21-Feature-Extensions.md)) |
+| DMS | `/dms` | Dealer user | List columns: year make model, VIN, stock number, body, source, condition, cost (CAD), list price, date added, open work orders, status, with search, filters and paging (UI-20). Add and edit with `*` on required fields, client-side validation and per-field server errors (UI-21). Detail with all fields, the customer, the ad check status and the history (UI-22). Sell as a separate action that takes the date and the price together (UI-23). Locked fields are read-only after sale (UI-24). Optional listing details (DMS-18); a sold vehicle adds **Payments** and a printable **Bill of sale** (PAY-01–04, SALE-01). VIN `Decode` prefills make/model/year; the drawer adds **Work orders** (open count in the list; selling is blocked while any are open) and **Image Studio** photos with Auto fix / Brighten / Sharpen ([design/21](../design/21-Feature-Extensions.md)) |
 | CRM / leads | `/crm`, `/leads` | Dealer user | CRM retains customer management and adds customer-linked leads; `/leads` supports follow-up pipeline, assignments, due dates, and append-only notes |
-| Ads | `/ads` | Dealer user | Pick a vehicle, edit title / body / kind / medium, and view the checklist and answer its prior-use, warranty and lease-kilometre fields (UI-40). DMS and dealer values shown (UI-41). A Check button with a loading state of up to 15 s (UI-42). A ✅ / ❌ / ⚠️ result per rule (UI-43). Status badges: Needs AI review / Blocked / AI unavailable / Passed / Stale (UI-44). Ready and Export TXT are enabled only when the ad is passed and not stale (UI-45). A one-line disclaimer, with the dedicated screen deferred (UI-46) |
+| Ads | `/ads` | Dealer user | Pick a vehicle, edit title / body / kind / medium, and view the checklist and answer its prior-use, warranty and lease-kilometre fields (UI-40). DMS and dealer values shown (UI-41). A Check button with a loading state of up to 15 s (UI-42). A ✅ / ❌ / ⚠️ result per rule (UI-43). Status badges: Needs AI review / Blocked / AI unavailable / Passed / Stale (UI-44). Ready and Export TXT are enabled only when the ad is passed and not stale (UI-45). A clear not-legal-advice / not-OMVIC-approval notice in results and TXT export, with a link to `/disclaimer` (UI-46) |
 | Assistant | floating panel on staff pages (no route) | Dealer user | An input box and answers with vehicle / customer cards (UI-50). A clear read-only notice (UI-51) |
+| Dashboard | `/dashboard` | Dealer user | Inventory, sales, lead and workshop KPIs (DASH-01) |
+| Sales report | `/reports/sales-funnel` | Dealer user | Vehicle sales, lead funnel, monthly stage history (CRM-16) and workshop settlement (WO-08) |
+| Buyer site | `/shop`, `/shop/:dealerId` | Public | Listed vehicles and an inquiry form that files a lead (SHOP-01–05) |
+| Disclaimer | `/disclaimer` | Public | Limits of the ad check, AI review, simulated publishing, bill of sale, payments and buyer-site listings (AD-14) |
 
 ## 9. Open items
 
@@ -308,4 +309,4 @@ The spec PDF has no such page. It is added by scope erratum 2 to meet the course
   - Does a vehicle advertised both online and on a billboard need two ads?
   - Is an undo-sale demo needed?
   - Are the four dealer profile fields (legal name, phone, email, address) enough, and is an OMVIC registration number needed?
-  - Written sign-off is still needed on password-based authentication with email, username, or phone sign-in names (KAN-5), and, per erratum 5 in the change log, on dropping containers.
+  - Historical note: earlier scope drafts requested written sign-off for auth and hosting decisions. Current implementation follows the academic demonstration baseline in design/SCOPE-BASELINE.md.

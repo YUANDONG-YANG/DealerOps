@@ -198,7 +198,8 @@ The gateway is the only browser entry point, so it applies one per-client limite
 
 | Bucket | Key | Default per minute | Setting |
 |---|---|---|---|
-| Anonymous (sign-in, registration, catalog, VIN decode) | client IP | 60 | `dealerops:rateLimits:anonymousPerMinute` |
+| Anonymous (sign-in, registration, catalog, VIN decode, buyer-site reads) | client IP | 60 | `dealerops:rateLimits:anonymousPerMinute` |
+| Buyer-site inquiries: `POST /api/v1/public/**/inquiries` | client IP | 5 | `dealerops:rateLimits:inquiryPerMinute` |
 | Signed-in API | username from the JWT | 600 | `dealerops:rateLimits:userPerMinute` |
 | AI calls: `POST /api/v1/listings/{id}/checks`, `POST /api/v1/assistant/ask` | username, or IP | 30 | `dealerops:rateLimits:aiPerMinute` |
 

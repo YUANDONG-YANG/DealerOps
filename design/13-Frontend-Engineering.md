@@ -56,18 +56,22 @@ Do not add "ticket/lead/dashboard/AuditView" splits. Keep `stores` for session o
 
 ## 2. Route table
 
-Handbook page names: Login / Admin / DMS / CRM / Ad compliance / Assistant, plus the [21](21-Feature-Extensions.md) extensions (Leads, Sales report, Register, Profile and Team). Use only the paths below.
+Handbook page names: Login / Admin / DMS / CRM / Ad compliance / Assistant, plus the [21](21-Feature-Extensions.md) extensions (Leads, Sales report, Register, Profile and Team, and the §9 Dashboard, bill of sale, buyer site and disclaimer). Use only the paths below.
 
 | path | name | component | `meta` | post-login landing |
 |---|---|---|---|---|
 | `/` | `home` | `LandingView` | `public: true` | Public landing page for signed-out visitors |
 | `/login` | `login` | `LoginView` | `public: true` | — |
 | `/register` | `register` | `RegisterView` | `public: true` | Self sign-up; signed-in users are redirected as on `/login` |
+| `/shop`, `/shop/:dealerId` | `shop` | `ShopPage` | `public: true` | Buyer site (design/21 SHOP-01–05): dealership directory, then one dealership's listed vehicles with **Ask about this vehicle** (inquiry drawer). Calls only `/api/v1/public/**` through `api/buyerSite.ts`, without a token |
+| `/disclaimer` | `disclaimer` | `DisclaimerPage` | `public: true` | Full disclaimer (AD-14); linked from the ad result panel, the landing page, the buyer site and the bill of sale |
 | `/admin` | `admin` | `AdminView` | `roles: ['Platform.Admin']` | Admin default page |
+| `/dashboard` | `dashboard` | `DashboardPage` | `roles: ['Dealer.User']` | first menu item **Dashboard** (DASH-01): inventory, sales, lead and workshop KPIs from the report endpoints, plus **Open buyer site**. Not the post-login page, which stays `/dms` |
 | `/dms` | `dms` | `DmsView` | `roles: ['Dealer.User']` | staff default page |
+| `/dms/:vehicleId/bill-of-sale` | `bill-of-sale` | `BillOfSalePage` | `roles: ['Dealer.User']` | Printable bill of sale of a sold vehicle (SALE-01), opened from the drawer; `Print` uses `window.print()` and the print stylesheet hides the app chrome |
 | `/crm` | `crm` | `CrmView` | `roles: ['Dealer.User']` | — |
 | `/leads` | `leads` | `LeadsView` | `roles: ['Dealer.User']` | menu item **Leads** after CRM |
-| `/reports/sales-funnel` | `sales-funnel` | `SalesFunnelView` | `roles: ['Dealer.User']` | menu item **Sales report** after Leads. Current lead-stage snapshot and vehicle sales (CRM-15). Not a historical trend or a KPI home page |
+| `/reports/sales-funnel` | `sales-funnel` | `SalesFunnelView` | `roles: ['Dealer.User']` | menu item **Sales report** after Leads. Vehicle sales, the current lead-stage snapshot (CRM-15), monthly **Stage history** (CRM-16), and **Workshop settlement** by month and assignee (WO-08) |
 | `/ads` | `ads` | `AdsView` | `roles: ['Dealer.User']` | page title **Ad compliance** |
 | `/team` | `team` | `TeamView` | `roles: ['Dealer.User']` | Join-request history (`GET /dealer/notifications?includeResolved=true`): approve or reject pending requests; resolved rows show the outcome, who settled it, and when. A second `Members` tab lists current members and how each account was created (one table per view, 12 §1) |
 | `/profile` | `profile` | `ProfileView` | signed-in user **with business access** (`Platform.Admin`, or `Dealer.User` with a dealership) | Account self-service: own display name and phone, plus account deletion. Username, role and dealership binding are read-only. An account that is not yet approved, or that has been unbound, does not reach this page: `AuthGuard` renders the no-access screen for every protected path, including `/profile` |
@@ -174,6 +178,9 @@ Filter row, broad to narrow: `Make` → `Model` → `Year` cascading selects, th
 | Row `Sell` small-dialog submit | `POST /vehicles/{id}/sell` `{soldOn,soldPrice,version}` | vehicle table (row dimmed) | `400 SOLD_PAIR_REQUIRED` Sold date and price are required together; `409 WORK_ORDERS_OPEN` Finish or cancel open work orders before selling; `404` |
 | List column **Open work orders** | `openWorkOrders` on each vehicle | vehicle table | count or — |
 | Drawer **Work orders** (above Audit) | `GET/POST /vehicles/{id}/work-orders`, `PATCH /work-orders/{id}`; assignee options from `GET /members` | work-order table, then vehicle version, repair cost, audit, and list | `409 WORK_ORDER_CLOSED`; `409 SOLD_LOCKED`; `400` Check required fields. `Start`, `Done` (dialog: completion note + cost, added to the repair cost), `Cancel` (ConfirmDialog); actions hidden on sold vehicles |
+| Drawer listing details: Stock number, Mileage (km), Exterior colour, List price, Fuel type | `POST`/`PATCH /vehicles` (DMS-18) | list columns **Stock #** and **List price**; search also matches the stock number | per-field errors; duplicate stock number under its field; read-only when sold |
+| Drawer **Payments** (sold vehicles, above Work orders) | `GET/POST /vehicles/{id}/payments`, `DELETE …/payments/{paymentId}` (PAY-01–04) | balance line, payment rows, then the drawer audit | field errors (`amount`, `paidOn`) in one line; the add row is hidden when the balance is 0; `Remove` with ConfirmDialog |
+| Drawer **Bill of sale** link (sold vehicles) | `/dms/{id}/bill-of-sale` reads `GET /vehicles/{id}`, `GET /customers/{linkedCustomer.id}`, `GET /vehicles/{id}/payments` | printable page | "Only a sold vehicle has a bill of sale."; a missing buyer shows a warning line |
 | Drawer **Image Studio** (between Work orders and Audit) | `GET/POST /vehicles/{id}/photos`, `GET …/{photoId}/content?variant=`, `POST …/{photoId}/enhance`, `DELETE …/{photoId}` | thumbnails + preview, then the drawer audit | `415` Photo must be a JPEG or PNG image; `400` Photo must be 2 MB or smaller / at most 10 photos. Images load as Blobs through the HTTP client (an `<img>` tag cannot send the bearer token); object URLs are revoked on reload, delete, re-enhance, and unmount. Presets `Auto fix` / `Brighten` / `Sharpen`; Original / Enhanced toggle; `Delete` with ConfirmDialog |
 | `Add vehicle` VIN `Decode` | `GET /catalog/vin/{vin}` | prefill make, model, year; body class, engine, country, manufacturer shown as reference, not saved | 400 / 404 / 502 copy from `vinDecodeError` |
 | Detail footer Audit | `GET /audit?entityType=VEHICLE&entityId=` | refresh audit list only | `404` do not show business fields |

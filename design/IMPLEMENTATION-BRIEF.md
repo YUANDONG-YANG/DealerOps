@@ -84,7 +84,7 @@ Sign-in remains password-based; the sign-in name can be the email, username, or 
 | Assistant | Dealer.User only | This-dealership read-only Q&A, at most 5 resource cards | — |
 | No access | Signed in, unbound / no business role | Shell with Sign out only; no business tables | `/` (not a third App Role) |
 
-Multiple staff at one dealership see the same data. Dealership A cannot see dealership B. After opening a store, admin still cannot see business data. No KPI home page. Unauthorized routes are blocked directly. Classroom bind + isolation demos: [16-Acceptance-and-Test.md](16-Acceptance-and-Test.md) **CL-1** / **CL-2**. Sign-in design: [15](15-Data-Auth-and-Gateway.md) §8.
+Multiple staff at one dealership see the same data. Dealership A cannot see dealership B. After opening a store, admin still cannot see business data. Staff land on DMS; KPIs are on `/dashboard`. Unauthorized routes are blocked directly. Classroom bind + isolation demos: [16-Acceptance-and-Test.md](16-Acceptance-and-Test.md) **CL-1** / **CL-2**. Sign-in design: [15](15-Data-Auth-and-Gateway.md) §8.
 
 ---
 

@@ -3,7 +3,7 @@
 ## 1. Source points (PDF §4, DOC)
 
 - One record per customer, with purchases linked back to DMS vehicle records.
-- The DOC mentions "lead and customer lifecycle management". Core CRM here is the four fields plus vehicle links. **Lead follow-up returned to scope on 2026-10-08** (SCOPE-BASELINE erratum 7) and is owned by design/21 as `LEAD-01–09`; sales-funnel reporting remains out of scope.
+- The DOC requests "lead and customer lifecycle management". Lead follow-up (`LEAD-01–09`) and current sales-funnel reporting are delivery goals.
 
 ## 2. Field details
 
@@ -42,8 +42,8 @@
 | CRM-11 | Create, edit, link, and unlink all write audit entries | PDF §6 | Must |
 | CRM-12 | Customer phone / email / address are **never** sent to AI prompts, audit summaries, or assistant answers | SCOPE (privacy) | Must |
 | CRM-13 | Duplicate email/phone handling is unspecified by the customer PDF. A customer email shared inside a dealership is saved with an `emailWarning` (household email); a duplicate phone is still rejected with `PHONE_TAKEN` | Derived | Could |
-| CRM-14 | Deleting customers is not offered in this release | Derived | Won't |
-| CRM-15 | Sales-funnel reports and deal transactions | DOC | Won't (excluded by SCOPE) |
+| CRM-14 | Soft-delete customers from active lists while retaining linked sales, leads, and audit history; apply the configured privacy retention/anonymization policy | Derived / adopted delivery goal | Must |
+| CRM-15 | Tenant-scoped sales-funnel reporting: current stage distribution, open pipeline, won rate over closed leads, and vehicle sales summary | DOC / adopted delivery goal | Must |
 | CRM-16 | Leads and follow-up tasks | DOC2 / SCOPE erratum 7 | **Returned to scope 2026-10-08**; owned by design/21 as `LEAD-01–09`. Do not cite CRM-15 as excluding leads |
 
 ## 5. Typical flow

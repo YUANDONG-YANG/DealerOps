@@ -1,6 +1,6 @@
 # Feature extensions after the v6 baseline
 
-Version v1.3 · 2026-10-08 · Status: **implementation code complete; manual acceptance pending**
+Version v1.4 · 2026-10-21 · Status: **implementation code complete; manual acceptance pending** (§9 added 2026-10-21)
 
 ## Development phase: no test authoring
 
@@ -298,3 +298,56 @@ The full, current steps are [16-Acceptance-and-Test.md](16-Acceptance-and-Test.m
 | EXT-08 Photo upload | Staff A uploads a 1 MB JPEG and a PNG to an in-stock vehicle, then a 3 MB file, then a text file renamed `.jpg`, then an 11th photo | First two appear; 3 MB → "Photo must be 2 MB or smaller."; fake JPEG → 415; 11th → 400 |
 | EXT-09 Photo enhance | Select the JPEG, `Auto fix`, toggle Original / Enhanced, then `Sharpen` | Enhanced differs; original unchanged; `Sharpen` replaces the enhanced copy |
 | EXT-10 Photo isolation | Staff B requests Staff A's photo content through the gateway; Staff A deletes a photo | B → 404; after delete the thumbnail disappears and its content → 404 |
+
+## 9. Delivery extensions (2026-10-21)
+
+The user asked for every feasible item from the earlier out-of-scope list: buyer site, real marketplace publishing, payments, contracts, OCR, extra vehicle fields, queues, a second database, a KPI home page, lead stage history, workshop settlement, and a dedicated disclaimer page. Each was decided as follows.
+
+| Item | Decision | Requirement IDs |
+|---|---|---|
+| Mileage, exterior colour, fuel type, stock number, list price | **Go** — optional vehicle fields; the specification's eight required fields do not change | DMS-18 |
+| Payments | **Go, as a ledger** — record payments already taken at the dealership against a sold vehicle; no card processing | PAY-01–04 |
+| Contracts | **Go, as a template** — printable bill of sale from the DMS, CRM, and payment records | SALE-01 |
+| KPI home page | **Go** — `/dashboard`; `/dms` stays the post-login page | DASH-01 |
+| Lead stage history | **Go** — monthly stage entries from the lead audit trail on the sales report | CRM-16 |
+| Workshop settlement | **Go** — work-order cost report by month and assignee | WO-08 |
+| Dedicated disclaimer page | **Go** — public `/disclaimer` | AD-14 |
+| Buyer site | **Go** — public inventory of ready, passed ads and an inquiry form that files a lead | SHOP-01–05 |
+| Real marketplace publishing | **No.** Kijiji and AutoTrader.ca need a partner agreement, a dealer account, and API or feed credentials, which this project does not have. AD-16 keeps the labelled browser simulation; the buyer site is the real publication channel | — |
+| Real payment processing | **No.** Charging cards needs a merchant account and a PCI-scoped processor. PAY-01–04 record payments only | — |
+| OCR | **No.** The configured AI model reads text only, and no requirement says which document to read (registration, bill of sale, odometer photo). VIN entry already has the vPIC decode | — |
+| Message queue, second database | **No.** No requirement needs asynchronous work or a separate store; both would add infrastructure and failure modes to a single-database design (SCOPE-BASELINE: sync REST + one MySQL database) | — |
+
+### Requirements
+
+| ID | Requirement | Priority |
+|---|---|---|
+| DMS-18 | A vehicle has optional `mileageKm` (0–2,000,000), `exteriorColor` (≤ 40), `fuelType` (`GASOLINE`, `DIESEL`, `HYBRID`, `PLUGIN_HYBRID`, `ELECTRIC`, `OTHER`), `stockNumber` (≤ 20, unique among the dealership's active vehicles, else **400** `VALIDATION` on `stockNumber`), and `listPrice` (≥ 0, two decimals). Patch replaces them (null clears). They are audited like other vehicle fields, locked on a sold vehicle (**409** `SOLD_LOCKED`), and the list search `q` also matches the stock number. The DMS list shows Stock # and List price | Must |
+| PAY-01 | `POST /api/v1/vehicles/{id}/payments` records `amount` (> 0, two decimals), `method` (`CASH`, `DEBIT`, `CREDIT_CARD`, `CHEQUE`, `BANK_TRANSFER`, `FINANCING`, `OTHER`), `paidOn`, and an optional `note` (≤ 200) on a sold vehicle. An in-stock vehicle → **400** `VALIDATION` | Must |
+| PAY-02 | The paid total cannot exceed the sold price, and `paidOn` must be between the sold date and today; each violation → **400** `VALIDATION` with the field | Must |
+| PAY-03 | `GET` returns `soldPrice`, `paidTotal`, `balanceDue`, and the payments newest first; `DELETE …/payments/{paymentId}` removes a mistaken payment | Must |
+| PAY-04 | Adding and removing a payment write a `VEHICLE` / `UPDATE` audit row (`paymentAdded` or `paymentRemoved`, `paidOn`), so the vehicle history shows them | Must |
+| SALE-01 | A sold vehicle's drawer links to `/dms/{id}/bill-of-sale`: dealer, linked buyer, vehicle (VIN, condition, odometer, colour), sale price, payments, balance due, signature lines, and a notice that it is a template, not a reviewed contract. Printing hides the app chrome | Must |
+| DASH-01 | `/dashboard` (Dealer.User) shows in-stock count and invested cost, outstanding work orders, settled workshop cost, sales this month, total sales, gross profit, average days to sell, open pipeline, overdue follow-ups, and win rate, from the existing report endpoints | Must |
+| CRM-16 | The funnel report adds `months`: for each of the twelve most recent months with a lead create or stage change, how many leads entered each stage. Source: `LEAD` audit rows carrying `stage` | Must |
+| WO-08 | `GET /api/v1/work-orders/report/settlement` returns open, in-progress, and done counts, the settled cost of done work orders, cost by completion month, and per assignee (outstanding, done, settled cost). Cancelled work orders are not counted | Must |
+| AD-14 | Public `/disclaimer` explains the limits of the ad check, the AI review, simulated publishing, the bill of sale template, the payment ledger, buyer-site listings, and VIN data. The ad result panel, the buyer site, the landing page, and the bill of sale link to it | Must |
+| SHOP-01 | Public `/shop` lists active dealerships; `/shop/{dealerId}` shows the dealership's contact details and every vehicle that is in stock, not deleted, and whose ad is `READY` with a passed check for the current content version | Must |
+| SHOP-02 | `GET /api/v1/public/dealers/{dealerId}/inventory` is anonymous. A vehicle exposes year, make, model, body type, condition, mileage, colour, fuel type, the ad title and body, and whether it has a photo. No VIN, cost, list price, or customer data | Must |
+| SHOP-03 | `GET …/vehicles/{vehicleId}/photo` returns the vehicle's first photo (enhanced copy when present), only while the vehicle is listed; otherwise **404** | Must |
+| SHOP-04 | `POST …/inquiries` takes `vehicleId`, `contact` (the four CRM customer fields and their rules), and `message` (1–1000). It reuses the customer with the same phone or creates one, then creates a `NEW` lead on the vehicle due today with the message as the first note. Rows are written by actor `buyer-site`; contact values are not copied into the audit (AUD-04). An unlisted vehicle → **404** | Must |
+| SHOP-05 | The Gateway lets `GET`/`POST /api/v1/public/**` through without a token; inquiries have their own per-IP limit (`dealerops:rateLimits:inquiryPerMinute`, default 5) | Must |
+
+### Data
+
+`vehicle` gains `mileage_km INT NULL`, `exterior_color VARCHAR(40) NULL`, `fuel_type VARCHAR(16) NULL`, `stock_number VARCHAR(20) NULL`, `list_price DECIMAL(12,2) NULL`. New table `vehicle_payment (id, dealer_id, vehicle_id, amount DECIMAL(12,2), method VARCHAR(16), paid_on DATE, note VARCHAR(200) NULL, recorded_by VARCHAR(64), created_at)` with `idx_vehicle_payment_vehicle (dealer_id, vehicle_id)` and foreign keys to `dealer` and `vehicle`. Core adds both at start-up with the idempotent schema patches in `Program.cs`.
+
+### Acceptance
+
+| Case | Steps | Expected |
+|---|---|---|
+| EXT-11 Listing details | Add a vehicle with stock number, mileage, colour, fuel type, and list price; add a second with the same stock number; search by the stock number | Values saved and audited; duplicate → "Stock number is already used by another vehicle."; search finds one |
+| EXT-12 Payments | Sell the vehicle for 21,000; pay 25,000; pay 6,000 and 15,000; remove one; open the bill of sale and print | 25,000 → "Amount is more than the balance due."; balance 15,000 → 0 → 15,000; audit rows; bill of sale shows the payments and prints without the app chrome |
+| EXT-13 Reports | Finish a work order with cost 120.50; open the sales report and the dashboard | Workshop settlement shows 120.50 by month and assignee; stage history shows this month's lead entries; dashboard KPIs match the reports |
+| EXT-14 Buyer site | Pass and mark ready an ad; open `/shop/{dealerId}` signed out; send an empty inquiry, then a complete one | The vehicle is listed without VIN or cost; empty form → field errors; complete form → a `NEW` lead with the message as its note |
+| EXT-15 Buyer-site limits | Sell the listed vehicle or edit its ad; request its photo; send an inquiry for it | It leaves the inventory; photo and inquiry → 404 |

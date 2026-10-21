@@ -1589,3 +1589,9 @@ div.state {
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
+
+/* Bill of sale: print the document only. */
+@media print {
+  .no-print, .app-footer, .assistant-widget { display: none !important; }
+  body { background: #fff; color: #000; }
+}

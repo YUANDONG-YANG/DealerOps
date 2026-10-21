@@ -66,6 +66,10 @@ tags:
     description: Dealer.User Image Studio vehicle photos (design/21 §6)
   - name: Members
     description: Dealer.User directory of this dealership's active members
+  - name: Payments
+    description: Dealer.User payment ledger on sold vehicles (design/21 §9, PAY-01–04)
+  - name: BuyerSite
+    description: Anonymous buyer site (design/21 §9, SHOP-01–05)
   - name: Audit
     description: This-dealership audit query
   - name: Assistant
@@ -1232,6 +1236,162 @@ paths:
           $ref: "#/components/responses/NotFound"
         "409":
           description: WORK_ORDER_CLOSED, SOLD_LOCKED, or VERSION_CONFLICT
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/v1/work-orders/report/settlement:
+    get:
+      tags: [WorkOrders]
+      operationId: getWorkshopSettlement
+      summary: Tenant-scoped workshop settlement (work-order costs by month and assignee)
+      responses:
+        "200":
+          description: Settlement summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkshopSettlementReport"
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /api/v1/vehicles/{vehicleId}/payments:
+    parameters:
+      - $ref: "#/components/parameters/VehicleIdPath"
+    get:
+      tags: [Payments]
+      operationId: getPaymentLedger
+      summary: Payments received for a vehicle and the balance due
+      responses:
+        "200":
+          description: Ledger
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaymentLedger"
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    post:
+      tags: [Payments]
+      operationId: createPayment
+      summary: Record a payment on a sold vehicle
+      description: |
+        Records money already received; no card is charged. In-stock vehicle → **400** `VALIDATION`;
+        more than the balance due → **400** on `amount`; `paidOn` after today or before the sold date → **400** on `paidOn`.
+        Audited as `VEHICLE`/`UPDATE` `{paymentAdded, paymentMethod, paidOn}`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PaymentCreate"
+      responses:
+        "201":
+          description: Updated ledger
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaymentLedger"
+        "400": { $ref: "#/components/responses/Validation" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /api/v1/vehicles/{vehicleId}/payments/{paymentId}:
+    parameters:
+      - $ref: "#/components/parameters/VehicleIdPath"
+      - name: paymentId
+        in: path
+        required: true
+        schema: { type: integer, format: int64 }
+    delete:
+      tags: [Payments]
+      operationId: deletePayment
+      summary: Remove a mistaken payment
+      description: Audited as `VEHICLE`/`UPDATE` `{paymentRemoved, paidOn}`.
+      responses:
+        "200":
+          description: Updated ledger
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaymentLedger"
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /api/v1/public/dealers/{dealerId}/inventory:
+    parameters:
+      - name: dealerId
+        in: path
+        required: true
+        schema: { type: integer, format: int64 }
+    get:
+      tags: [BuyerSite]
+      operationId: getPublicInventory
+      summary: A dealership's listed vehicles
+      description: Anonymous. Unknown or inactive dealership → **404**.
+      security: []
+      responses:
+        "200":
+          description: Dealership contact and listed vehicles
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PublicInventory"
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /api/v1/public/dealers/{dealerId}/vehicles/{vehicleId}/photo:
+    parameters:
+      - name: dealerId
+        in: path
+        required: true
+        schema: { type: integer, format: int64 }
+      - $ref: "#/components/parameters/VehicleIdPath"
+    get:
+      tags: [BuyerSite]
+      operationId: getPublicVehiclePhoto
+      summary: First photo of a listed vehicle
+      description: Anonymous. The enhanced copy when present. Unlisted vehicle or no photo → **404**.
+      security: []
+      responses:
+        "200":
+          description: Image
+          content:
+            image/jpeg: { schema: { type: string, format: binary } }
+            image/png: { schema: { type: string, format: binary } }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /api/v1/public/dealers/{dealerId}/inquiries:
+    parameters:
+      - name: dealerId
+        in: path
+        required: true
+        schema: { type: integer, format: int64 }
+    post:
+      tags: [BuyerSite]
+      operationId: createInquiry
+      summary: Ask a dealership about a listed vehicle
+      description: |
+        Anonymous. Reuses the active customer with the same phone or creates one, then files a NEW lead on the vehicle,
+        due today, with the message as its first note (actor `buyer-site`). Field errors use `contact.name`-style keys.
+        Unlisted vehicle → **404**. Rate-limited per IP → **429** `RATE_LIMITED`.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Inquiry"
+      responses:
+        "204":
+          description: Received
+        "400": { $ref: "#/components/responses/Validation" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "429":
+          description: RATE_LIMITED
           content:
             application/json:
               schema:
@@ -2913,6 +3073,21 @@ components:
         carfaxUrl:
           type: string
           nullable: true
+        mileageKm:
+          type: integer
+          nullable: true
+        exteriorColor:
+          type: string
+          nullable: true
+        fuelType:
+          allOf: [{ $ref: "#/components/schemas/FuelType" }]
+          nullable: true
+        stockNumber:
+          type: string
+          nullable: true
+        listPrice:
+          type: number
+          nullable: true
         soldOn:
           type: string
           format: date
@@ -2985,6 +3160,28 @@ components:
           pattern: "^[Hh][Tt][Tt][Pp][Ss]?://\\S+$"
           description: http(s) URL
           nullable: true
+        mileageKm:
+          type: integer
+          minimum: 0
+          maximum: 2000000
+          nullable: true
+        exteriorColor:
+          type: string
+          maxLength: 40
+          nullable: true
+        fuelType:
+          allOf: [{ $ref: "#/components/schemas/FuelType" }]
+          nullable: true
+        stockNumber:
+          type: string
+          maxLength: 20
+          nullable: true
+          description: Unique among the dealership's active vehicles (else 400 VALIDATION on stockNumber)
+        listPrice:
+          type: number
+          minimum: 0
+          nullable: true
+          description: At most 2 decimals
 
     VehiclePatch:
       type: object
@@ -3034,6 +3231,136 @@ components:
           pattern: "^[Hh][Tt][Tt][Pp][Ss]?://\\S+$"
           description: http(s) URL
           nullable: true
+        mileageKm:
+          type: integer
+          minimum: 0
+          maximum: 2000000
+          nullable: true
+        exteriorColor:
+          type: string
+          maxLength: 40
+          nullable: true
+        fuelType:
+          allOf: [{ $ref: "#/components/schemas/FuelType" }]
+          nullable: true
+        stockNumber:
+          type: string
+          maxLength: 20
+          nullable: true
+          description: Unique among the dealership's active vehicles (else 400 VALIDATION on stockNumber)
+        listPrice:
+          type: number
+          minimum: 0
+          nullable: true
+          description: At most 2 decimals
+
+    FuelType:
+      type: string
+      enum: [GASOLINE, DIESEL, HYBRID, PLUGIN_HYBRID, ELECTRIC, OTHER]
+
+    PaymentMethod:
+      type: string
+      enum: [CASH, DEBIT, CREDIT_CARD, CHEQUE, BANK_TRANSFER, FINANCING, OTHER]
+
+    PaymentCreate:
+      type: object
+      required: [amount, method, paidOn]
+      properties:
+        amount: { type: number, minimum: 0.01, description: "At most 2 decimals; not more than the balance due" }
+        method: { $ref: "#/components/schemas/PaymentMethod" }
+        paidOn: { type: string, format: date, description: "Between the sold date and today" }
+        note: { type: string, maxLength: 200, nullable: true }
+
+    PaymentLedger:
+      type: object
+      required: [soldPrice, paidTotal, balanceDue, items]
+      properties:
+        soldPrice: { type: number, nullable: true }
+        paidTotal: { type: number }
+        balanceDue: { type: number, nullable: true, description: "soldPrice − paidTotal; null while in stock" }
+        items:
+          type: array
+          description: Newest paidOn first
+          items:
+            type: object
+            required: [id, amount, method, paidOn, recordedBy, createdAt]
+            properties:
+              id: { type: integer, format: int64 }
+              amount: { type: number }
+              method: { $ref: "#/components/schemas/PaymentMethod" }
+              paidOn: { type: string, format: date }
+              note: { type: string, nullable: true }
+              recordedBy: { type: string }
+              createdAt: { type: string, format: date-time }
+
+    WorkshopSettlementReport:
+      type: object
+      required: [openCount, inProgressCount, doneCount, settledCost, months, assignees]
+      properties:
+        openCount: { type: integer }
+        inProgressCount: { type: integer }
+        doneCount: { type: integer }
+        settledCost: { type: number, description: Sum of done work-order costs }
+        months:
+          type: array
+          description: Twelve most recent completion months, newest first
+          items:
+            type: object
+            required: [month, doneCount, settledCost]
+            properties:
+              month: { type: string, example: "2026-10" }
+              doneCount: { type: integer }
+              settledCost: { type: number }
+        assignees:
+          type: array
+          description: Highest settled cost first; cancelled work orders are not counted
+          items:
+            type: object
+            required: [assigneeUsername, outstandingCount, doneCount, settledCost]
+            properties:
+              assigneeUsername: { type: string, nullable: true, description: null for unassigned work orders }
+              outstandingCount: { type: integer, description: OPEN plus IN_PROGRESS }
+              doneCount: { type: integer }
+              settledCost: { type: number }
+
+    PublicInventory:
+      type: object
+      required: [dealerId, legalName, contactPhone, contactEmail, contactAddress, vehicles]
+      properties:
+        dealerId: { type: integer, format: int64 }
+        legalName: { type: string }
+        contactPhone: { type: string }
+        contactEmail: { type: string }
+        contactAddress: { type: string }
+        vehicles:
+          type: array
+          description: In-stock vehicles whose ad is READY with a passed current check, newest addedOn first. No VIN, cost, list price, or customer data
+          items:
+            type: object
+            required: [vehicleId, modelYear, make, model, bodyType, conditionCode, title, body, hasPhoto]
+            properties:
+              vehicleId: { type: integer, format: int64 }
+              modelYear: { type: integer }
+              make: { type: string }
+              model: { type: string }
+              bodyType: { $ref: "#/components/schemas/VehicleBodyType" }
+              conditionCode: { $ref: "#/components/schemas/ConditionCode" }
+              mileageKm: { type: integer, nullable: true }
+              exteriorColor: { type: string, nullable: true }
+              fuelType:
+                allOf: [{ $ref: "#/components/schemas/FuelType" }]
+                nullable: true
+              title: { type: string }
+              body: { type: string }
+              hasPhoto: { type: boolean }
+
+    Inquiry:
+      type: object
+      required: [vehicleId, contact, message]
+      properties:
+        vehicleId: { type: integer, format: int64 }
+        contact: { $ref: "#/components/schemas/CustomerWrite" }
+        message: { type: string, minLength: 1, maxLength: 1000 }
 
     VehicleSell:
       type: object
@@ -3536,7 +3863,7 @@ components:
 
     SalesFunnelReport:
       type: object
-      required: [totalLeads, openLeads, stages, wonRatePercent]
+      required: [totalLeads, openLeads, stages, wonRatePercent, months]
       properties:
         totalLeads: { type: integer, format: int64 }
         openLeads: { type: integer, format: int64, description: "NEW, CONTACTED or QUALIFIED" }
@@ -3544,6 +3871,18 @@ components:
           type: array
           items: { $ref: "#/components/schemas/FunnelStageCount" }
         wonRatePercent: { type: number, format: decimal, description: "WON ÷ (WON + LOST); 0 when no lead is closed" }
+        months:
+          type: array
+          description: Stage history (CRM-16) from LEAD audit rows; twelve most recent UTC months with a lead create or stage change, newest first
+          items:
+            type: object
+            required: [month, stages]
+            properties:
+              month: { type: string, example: "2026-10" }
+              stages:
+                type: array
+                description: Leads that entered each stage that month
+                items: { $ref: "#/components/schemas/FunnelStageCount" }
 
     SalesReport:
       type: object

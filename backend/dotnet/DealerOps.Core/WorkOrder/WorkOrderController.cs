@@ -28,6 +28,9 @@ public class WorkOrderController : ControllerBase
         return StatusCode(201, _service.Create(vehicleId, body));
     }
 
+    [HttpGet("api/v1/work-orders/report/settlement")]
+    public WorkshopSettlementReport Settlement() => _service.Settlement();
+
     [HttpPatch("api/v1/work-orders/{id}")]
     public WorkOrderResponse Patch(long id, [FromBody] PatchWorkOrderRequest body)
     {

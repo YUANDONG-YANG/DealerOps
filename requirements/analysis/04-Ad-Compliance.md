@@ -69,9 +69,9 @@ Finance-triggered means FINANCE, or CASH with a match to the existing APR or PAY
 | AD-11 | Listing edits or vehicle condition changes invalidate a previous pass | Course triage A5 | Must |
 | AD-12 | Ready/export require a current pass | SCOPE | Must |
 | AD-13 | TXT includes dealer/vehicle public fields, title/body/check time and the AD-14 disclaimer line; no customer data or cost | SCOPE | Must |
-| AD-14 | State that compliance output is reference material, not legal advice or OMVIC approval | PDF §8 | Implemented as a notice in the ad-check result UI and as the closing disclaimer line of the TXT export (design/14 §8.4); no separate page |
-| AD-15 | Configurable rules / rule editor | PDF §8 / Q-15 | Won't this release; patterns remain in code |
-| AD-16 | External auto-publishing | DOC | Won't |
+| AD-14 | State that compliance output is reference material, not legal advice or OMVIC approval | PDF §8 | Implemented as a notice in the ad-check result UI, the closing disclaimer line of the TXT export (design/14 §8.4), and the public `/disclaimer` page linked from the result panel (design/21 §9) |
+| AD-15 | Platform-admin rule editor to enable/disable rules and configure severity/message | PDF §8 / adopted delivery goal | Must |
+| AD-16 | Marketplace publishing workflow; use a clearly labeled browser simulation when live marketplace authorization is unavailable | DOC / adopted delivery goal | Must |
 | AD-17 | Image Studio | DOC2 / SCOPE erratum 7 | **Returned to scope 2026-10-08**; owned by design/21 as `IMG-01–05`. Do not cite this row as an exclusion |
 
 ## 6. Decision matrix

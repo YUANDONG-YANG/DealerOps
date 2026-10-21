@@ -21,6 +21,11 @@ function vehicleWriteBody(b: any) {
     conditionCode: b.conditionCode,
     repairCost: b.repairCost === '' || b.repairCost == null ? null : Number(b.repairCost),
     carfaxUrl: b.carfaxUrl === '' ? null : b.carfaxUrl,
+    mileageKm: b.mileageKm === '' || b.mileageKm == null ? null : Number(b.mileageKm),
+    exteriorColor: b.exteriorColor === '' ? null : b.exteriorColor,
+    fuelType: b.fuelType === '' ? null : b.fuelType,
+    stockNumber: b.stockNumber === '' ? null : b.stockNumber,
+    listPrice: b.listPrice === '' || b.listPrice == null ? null : Number(b.listPrice),
   };
   // Omitted body type lets the API default a new vehicle to OTHER (VIN-03).
   if (b.bodyType) body.bodyType = b.bodyType;

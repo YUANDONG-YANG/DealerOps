@@ -8,6 +8,7 @@ import ConfirmDialog from '../components/ConfirmDialog';
 import AuditTrail from '../components/AuditTrail';
 import WorkOrderPanel from '../components/WorkOrderPanel';
 import PhotoStudioPanel from '../components/PhotoStudioPanel';
+import PaymentPanel from '../components/PaymentPanel';
 import StatusTag from '../components/StatusTag';
 import { vehiclesApi, errorCode, errorStatus } from '../api/vehicles';
 import { customersApi } from '../api/customers';
@@ -21,6 +22,7 @@ import { describeError } from '../api/errors';
 const SOURCES = ['TRADE_IN', 'AUCTION', 'PRIVATE_PURCHASE', 'OTHER'] as const;
 const CONDITIONS = ['CERTIFIED', 'AS_IS', 'UNFIT', 'IRREPARABLE'] as const;
 const BODY_TYPES = ['SEDAN', 'SUV', 'TRUCK', 'MOTORCYCLE', 'COUPE', 'HATCHBACK', 'VAN', 'OTHER'] as const;
+const FUEL_TYPES = ['GASOLINE', 'DIESEL', 'HYBRID', 'PLUGIN_HYBRID', 'ELECTRIC', 'OTHER'] as const;
 
 function profit(v: { soldPrice?: unknown; purchaseCost?: unknown; repairCost?: unknown }) {
   if (v.soldPrice == null || v.soldPrice === '' || v.purchaseCost == null || v.purchaseCost === '') return null;
@@ -36,6 +38,7 @@ const VIN_PATTERN = /^[A-HJ-NPR-Z0-9]{17}$/;
 const MONEY_PATTERN = /^\d+(\.\d{1,2})?$/;
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const URL_PATTERN = /^https?:\/\/\S+$/i;
+const MILEAGE_PATTERN = /^\d{1,7}$/;
 
 type Validation = Record<string, string>;
 
@@ -45,6 +48,12 @@ function validateForm(form: VehicleForm, isSold: boolean): Validation {
     if (!form.conditionCode) e.conditionCode = 'Required';
     return e;
   }
+  if (form.mileageKm && (!MILEAGE_PATTERN.test(form.mileageKm) || Number(form.mileageKm) > 2_000_000)) {
+    e.mileageKm = 'Mileage must be a whole number from 0 to 2,000,000 km';
+  }
+  if (form.exteriorColor.length > 40) e.exteriorColor = 'At most 40 characters';
+  if (form.stockNumber.length > 20) e.stockNumber = 'At most 20 characters';
+  if (form.listPrice && !MONEY_PATTERN.test(form.listPrice)) e.listPrice = 'Must be an amount of 0 or more with at most 2 decimals';
   if (!form.make?.trim() || form.make.length > 50) e.make = form.make ? 'At most 50 characters' : 'Required';
   if (!form.model?.trim() || form.model.length > 50) e.model = form.model ? 'At most 50 characters' : 'Required';
   const year = Number(form.modelYear);
@@ -70,6 +79,7 @@ interface VehicleForm {
   make: string; model: string; modelYear: string; vin: string;
   source: string; purchaseCost: string; addedOn: string;
   conditionCode: string; bodyType: string; repairCost: string; carfaxUrl: string;
+  stockNumber: string; mileageKm: string; exteriorColor: string; fuelType: string; listPrice: string;
 }
 
 interface Filters {
@@ -95,13 +105,17 @@ function draftsPending(drafts: TextFilters, filters: Filters) {
 const ALL_TOUCHED: Record<string, boolean> = {
   make: true, model: true, modelYear: true, vin: true, source: true,
   purchaseCost: true, addedOn: true, conditionCode: true, bodyType: true, repairCost: true, carfaxUrl: true,
+  stockNumber: true, mileageKm: true, exteriorColor: true, fuelType: true, listPrice: true,
 };
 
 // Typed filters fire a request only after the user pauses typing (UI-20).
 const FILTER_DEBOUNCE_MS = 350;
 
 function blankForm(): VehicleForm {
-  return { make: '', model: '', modelYear: '', vin: '', source: '', purchaseCost: '', addedOn: '', conditionCode: '', bodyType: '', repairCost: '', carfaxUrl: '' };
+  return {
+    make: '', model: '', modelYear: '', vin: '', source: '', purchaseCost: '', addedOn: '', conditionCode: '', bodyType: '', repairCost: '', carfaxUrl: '',
+    stockNumber: '', mileageKm: '', exteriorColor: '', fuelType: '', listPrice: '',
+  };
 }
 
 function vehicleToForm(data: any): VehicleForm {
@@ -110,6 +124,9 @@ function vehicleToForm(data: any): VehicleForm {
     vin: data.vin ?? '', source: data.source ?? '', purchaseCost: data.purchaseCost != null ? String(data.purchaseCost) : '',
     addedOn: data.addedOn ?? '', conditionCode: data.conditionCode ?? '', bodyType: data.bodyType ?? 'OTHER',
     repairCost: data.repairCost != null ? String(data.repairCost) : '', carfaxUrl: data.carfaxUrl ?? '',
+    stockNumber: data.stockNumber ?? '', mileageKm: data.mileageKm != null ? String(data.mileageKm) : '',
+    exteriorColor: data.exteriorColor ?? '', fuelType: data.fuelType ?? '',
+    listPrice: data.listPrice != null ? String(data.listPrice) : '',
   };
 }
 
@@ -118,7 +135,7 @@ function mapWrite(e: unknown) {
   const status = errorStatus(e);
   if (code === 'VIN_DUP') return 'VIN already in this dealership. Search the inventory for this VIN and edit that vehicle instead.';
   if (code === 'VALIDATION') return messageOf(e, 'Check required fields: some fields are missing or invalid.');
-  if (code === 'SOLD_LOCKED') return 'This vehicle is sold. Make, model, year, VIN, source, purchase cost, date added, repair cost, and the Carfax link are locked, and it cannot be sold again.';
+  if (code === 'SOLD_LOCKED') return 'This vehicle is sold. Make, model, year, VIN, source, purchase cost, date added, repair cost, the Carfax link, and the listing details are locked, and it cannot be sold again.';
   if (code === 'VERSION_CONFLICT') return 'Refresh and retry: someone else changed this record after you opened it. Reopen it to load the latest version, then make your change again.';
   if (code === 'SOLD_PAIR_REQUIRED') return 'Sold date and price are required together. Enter both, with a price above $0.';
   if (code === 'WORK_ORDERS_OPEN') return 'Finish or cancel open work orders before selling. Open the vehicle\'s Work orders section to close them.';
@@ -505,10 +522,12 @@ export default function DmsPage() {
   const columns = [
     { key: 'ymm', label: 'Year Make Model', render: (row: any) => `${row.modelYear} ${row.make} ${row.model}` },
     { key: 'vin', label: 'VIN' },
+    { key: 'stockNumber', label: 'Stock #', render: (row: any) => row.stockNumber || '—' },
     { key: 'bodyType', label: 'Body', render: (row: any) => enumLabel(row.bodyType) },
     { key: 'source', label: 'Source', render: (row: any) => enumLabel(row.source) },
     { key: 'conditionCode', label: 'Condition', render: (row: any) => enumLabel(row.conditionCode) },
     { key: 'purchaseCost', label: 'Cost', render: (row: any) => cad(row.purchaseCost) },
+    { key: 'listPrice', label: 'List price', render: (row: any) => cad(row.listPrice) },
     { key: 'addedOn', label: 'Date added' },
     { key: 'openWorkOrders', label: 'Open WOs', render: (row: any) => row.openWorkOrders || '—' },
     { key: 'status', label: 'Status', render: (row: any) => <StatusTag status={row.status}>{enumLabel(row.status)}</StatusTag> },
@@ -530,6 +549,14 @@ export default function DmsPage() {
     { key: 'addedOn' as const, label: 'Added on', required: true },
     { key: 'repairCost' as const, label: 'Repair cost', required: false },
     { key: 'carfaxUrl' as const, label: 'Carfax URL', required: false },
+  ];
+
+  // Optional listing details; the buyer site shows mileage, colour and fuel type.
+  const detailFields = [
+    { key: 'stockNumber' as const, label: 'Stock number' },
+    { key: 'mileageKm' as const, label: 'Mileage (km)' },
+    { key: 'exteriorColor' as const, label: 'Exterior colour' },
+    { key: 'listPrice' as const, label: 'List price' },
   ];
 
   return (
@@ -694,6 +721,25 @@ export default function DmsPage() {
             {(validationErrors.bodyType || serverErrors.bodyType) && <div className="form-error">{validationErrors.bodyType || serverErrors.bodyType}</div>}
           </div>
 
+          {detailFields.map(field => (
+            <div className="form-item" key={field.key}>
+              <label className="form-label">{field.label}</label>
+              <input className="input" value={form[field.key]} onChange={e => updateForm(field.key, e.target.value)}
+                onBlur={() => blurForm(field.key)} disabled={isSold} inputMode={field.key === 'mileageKm' ? 'numeric' : undefined} />
+              {(validationErrors[field.key] || serverErrors[field.key]) && (
+                <div className="form-error">{validationErrors[field.key] || serverErrors[field.key]}</div>
+              )}
+            </div>
+          ))}
+
+          <div className="form-item">
+            <label className="form-label">Fuel type</label>
+            <select className="select" value={form.fuelType} onChange={e => updateForm('fuelType', e.target.value, true)} disabled={isSold}>
+              <option value="">Not set</option>
+              {FUEL_TYPES.map(v => <option key={v} value={v}>{enumLabel(v)}</option>)}
+            </select>
+          </div>
+
           {edit?.id && !isSold && (
             <>
               {/* Optional fields set by the sell action; an in-stock vehicle shows them empty. */}
@@ -709,6 +755,10 @@ export default function DmsPage() {
               <div className="form-item">
                 <label className="form-label">Profit (sold price − purchase cost − repair cost)</label>
                 <span className={((profit(edit) ?? 0) < 0) ? 'danger-text' : ''}>{cad(profit(edit))}</span>
+              </div>
+              <div className="form-item">
+                <label className="form-label">Bill of sale</label>
+                <Link to={`/dms/${edit.id}/bill-of-sale`}>Open printable bill of sale</Link>
               </div>
             </>
           )}
@@ -748,6 +798,7 @@ export default function DmsPage() {
           </div>
         </form>
 
+        {isSold && <PaymentPanel vehicleId={edit.id} onChanged={() => loadAudit(edit.id, detailSeqRef.current)} />}
         {edit?.id && <WorkOrderPanel vehicleId={edit.id} sold={isSold} onChanged={refreshAfterWorkOrder} />}
         {edit?.id && <PhotoStudioPanel vehicleId={edit.id} onChanged={() => loadAudit(edit.id, detailSeqRef.current)} />}
         {edit?.id && (

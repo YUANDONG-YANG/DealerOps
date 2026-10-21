@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
+import { useSessionStore } from '../store/session';
 import AppLayout from '../layouts/AppLayout';
 import DataTable from '../components/DataTable';
 import PageState from '../components/PageState';
@@ -50,6 +51,7 @@ export default function AdsPage() {
   const [checking, setChecking] = useState(false);
   const [readyBusy, setReadyBusy] = useState(false);
   const [exportBusy, setExportBusy] = useState(false);
+  const dealerId = useSessionStore((st) => st.dealerId);
   const [publishPlatform, setPublishPlatform] = useState('Kijiji');
   const [demoPublish, setDemoPublish] = useState<{ platform: string; reference: string; publishedAt: string } | null>(null);
   const [savedContent, setSavedContent] = useState(contentKey(emptyListing()));
@@ -319,6 +321,12 @@ export default function AdsPage() {
               <section className="card" style={{ marginTop: 16 }} aria-label="Demo publishing">
                 <div className="card-header">Marketplace publishing demo</div>
                 <p className="muted">This student project has no marketplace account or publishing authorization. Actions here are simulated in this browser; no ad is sent to Kijiji or another external platform.</p>
+                {dealerId != null && (
+                  <p className="muted">
+                    Ready ads with a current passed check are listed on your dealership&apos;s{' '}
+                    <Link to={`/shop/${dealerId}`} target="_blank">buyer site</Link>.
+                  </p>
+                )}
                 {demoPublish ? (
                   <div>
                     <p><strong>Simulated status:</strong> Published to {demoPublish.platform} (demo)</p>

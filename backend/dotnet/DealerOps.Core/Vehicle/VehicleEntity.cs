@@ -55,6 +55,23 @@ public class VehicleEntity : ITenantOwned
     [MaxLength(500)]
     public string? CarfaxUrl { get; set; }
 
+    [Column("mileage_km")]
+    public int? MileageKm { get; set; }
+
+    [Column("exterior_color")]
+    [MaxLength(40)]
+    public string? ExteriorColor { get; set; }
+
+    [Column("fuel_type")]
+    public FuelType? FuelType { get; set; }
+
+    [Column("stock_number")]
+    [MaxLength(20)]
+    public string? StockNumber { get; set; }
+
+    [Column("list_price", TypeName = "decimal(12,2)")]
+    public decimal? ListPrice { get; set; }
+
     [Column("sold_on")]
     public DateOnly? SoldOn { get; set; }
 

@@ -53,8 +53,8 @@ Open a trace with `npx playwright show-trace <path>/trace.zip`.
 | Path | Contents |
 | --- | --- |
 | `tests/global.setup.ts` | Seeds dealerships and staff (runs first) |
-| `tests/api/` | Gateway API acceptance tests: tenancy, vehicles, customers, ads, assistant, leads, work orders, catalog/photos, contract |
-| `tests/ui/` | Browser tests per page: DMS, CRM, ads, admin, assistant, leads, team/profile, register/landing, cross-cutting |
+| `tests/api/` | Gateway API acceptance tests: tenancy, vehicles, vehicle details and payments, customers, ads, assistant, leads, work orders, reports, buyer site, catalog/photos, contract |
+| `tests/ui/` | Browser tests per page: DMS (including payments and bill of sale), CRM, ads, admin, assistant, leads, dashboard and sales report, buyer site and disclaimer, team/profile, register/landing, cross-cutting |
 | `tests/*.spec.ts` | Login, route guards and navigation smoke tests |
 
 Test titles start with the requirement IDs they cover (for example `AT-12 / AD-R07`), taken from

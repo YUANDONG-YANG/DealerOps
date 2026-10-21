@@ -472,7 +472,7 @@ function mapRole(claims):
 | `ADMIN_USERNAME` / `ADMIN_PASSWORD`, optional `ADMIN_EMAIL` / `ADMIN_PHONE` | dealer-core only. Local: run configuration. Cloud: app settings; password references Key Vault `ADMIN-PASSWORD` | Seeds the platform admin account on first startup; the admin signs in with the username, or the email/phone when set |
 | optional `Google__HostedDomain` | dealer-core. Local: run configuration. Cloud: plain app settings | Restricts Google sign-in to one Workspace domain (§8.5). Empty accepts any verified Google account |
 
-Gateway anonymous permits for sign-in: `POST /api/v1/auth/login`, `POST /api/v1/auth/register`, `POST /api/v1/auth/google`, plus the public `GET /api/v1/catalog/vin/*`. Every other `/api/v1/**` path needs the bearer JWT. The Gateway is the only external API origin; the catch-all `/api/v1/{**}` route already covers the Google endpoint, so no new route is needed.
+Gateway anonymous permits for sign-in: `POST /api/v1/auth/login`, `POST /api/v1/auth/register`, `POST /api/v1/auth/google`, plus the public `GET /api/v1/catalog/*` and the buyer site's `GET`/`POST /api/v1/public/**` (design/14 §12a; Core checks each public route itself). Every other `/api/v1/**` path needs the bearer JWT. The Gateway is the only external API origin; the catch-all `/api/v1/{**}` route already covers the Google endpoint, so no new route is needed.
 
 Azure Terraform continues to deploy the web app, gateway, core, and MySQL. Google sign-in needs no client secret and no callback setting, so it adds nothing to Key Vault.
 

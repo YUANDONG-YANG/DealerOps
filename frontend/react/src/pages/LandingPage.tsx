@@ -124,6 +124,7 @@ export default function LandingPage() {
           <a href="#features">Features</a>
           <a href="#vin">VIN decoder</a>
           <a href="#compliance">Compliance</a>
+          <Link to="/shop">Shop vehicles</Link>
         </nav>
         <div className="landing-auth-links">
           <Link to="/register">Create account</Link>
@@ -263,6 +264,7 @@ export default function LandingPage() {
         <Link to="/register"><button className="btn btn-lg">Create account</button></Link>
       </section>
 
+      <p className="landing-credit muted"><Link to="/disclaimer">Disclaimer</Link> · <Link to="/shop">Shop vehicles</Link></p>
       <p className="landing-credit muted">Vehicle photos by Stephen Andrews, Harrison Fitts, and Caleb White on Unsplash.
         Conveyor photos from Wikimedia Commons by HJUdall (CC0), and Elise240SX, ShangTW, MercurySable99 and Alexander Migl (CC BY-SA 4.0).</p>
     </div>

@@ -23,7 +23,7 @@ One record per vehicle, tracked from acquisition through sale.
 
 System fields (not in the source, needed to build): `id`, `dealerId`, `status` (`IN_STOCK` / `SOLD`), `version` (optimistic lock), `createdAt`, `updatedAt`.
 
-**No extra required fields**: mileage, colour, fuel, stock number and list price are not built (SCOPE: specification PDF fields, no additions or removals to the required set).
+**No extra required fields**: mileage, exterior colour, fuel type, stock number and list price exist only as **optional** listing details (design/21 DMS-18, added 2026-10-21); the specification's required set is unchanged.
 
 Two stored additions come from SCOPE-BASELINE errata 7–8, not from this document:
 
@@ -62,7 +62,7 @@ Two stored additions come from SCOPE-BASELINE errata 7–8, not from this docume
 | DMS-14 | Create, edit, and sell all write audit entries | PDF §6 | Must |
 | DMS-15 | Changing vehicle condition turns the vehicle's passed ad check Stale; other vehicle/profile fields are outside the demo invalidation scope (deferred A5) | SCOPE | Must |
 | DMS-16 | Derived values such as profit (sold price − purchase cost − repair cost) may be shown on detail, not stored | Derived | Could |
-| DMS-17 | Deleting vehicles is not offered in this release (keeps audit and sale records) | Derived | Won't |
+| DMS-17 | Soft-delete vehicles from active inventory while retaining sales, work-order, listing, and audit history | Derived / adopted delivery goal | Must |
 
 ## 5. Edge cases
 

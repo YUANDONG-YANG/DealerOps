@@ -410,6 +410,11 @@ List query: `q` (substring of VIN / make / model), `make` and `model` (exact mat
       "bodyType": "SEDAN",
       "repairCost": 800.00,
       "carfaxUrl": null,
+      "mileageKm": 45210,
+      "exteriorColor": "Blue",
+      "fuelType": "GASOLINE",
+      "stockNumber": "A-1024",
+      "listPrice": 18995.00,
       "soldOn": null,
       "soldPrice": null,
       "status": "IN_STOCK",
@@ -428,6 +433,8 @@ List query: `q` (substring of VIN / make / model), `make` and `model` (exact mat
 
 Every vehicle response (list, detail, create, patch, sell) also carries `openWorkOrders`: the number of `OPEN` + `IN_PROGRESS` work orders (§4.7, WO-07), placed before `version`. `bodyType` is `SEDAN`\|`SUV`\|`TRUCK`\|`MOTORCYCLE`\|`COUPE`\|`HATCHBACK`\|`VAN`\|`OTHER`; it is optional on create (default `OTHER`) and on PATCH (omitted keeps the stored value).
 
+The listing details (design/21 DMS-18) are optional and nullable: `mileageKm` (integer 0–2,000,000), `exteriorColor` (≤ 40), `fuelType` (`GASOLINE`\|`DIESEL`\|`HYBRID`\|`PLUGIN_HYBRID`\|`ELECTRIC`\|`OTHER`), `stockNumber` (≤ 20, unique among the dealership's active vehicles, else `400 VALIDATION` on `stockNumber`), and `listPrice` (≥ 0, at most two decimals). The list search `q` also matches `stockNumber`.
+
 Errors: `401`, `403` (not staff).
 
 ### 4.2 `POST /api/v1/vehicles` → 201
@@ -443,7 +450,12 @@ Errors: `401`, `403` (not staff).
   "addedOn": "2026-09-01",
   "conditionCode": "AS_IS",
   "repairCost": 800.00,
-  "carfaxUrl": null
+  "carfaxUrl": null,
+  "mileageKm": 45210,
+  "exteriorColor": "Blue",
+  "fuelType": "GASOLINE",
+  "stockNumber": "A-1024",
+  "listPrice": 18995.00
 }
 ```
 
@@ -474,8 +486,8 @@ Response matches a list item. Cross-dealership / no such vehicle → **404**.
 }
 ```
 
-Whitelist is the fields above only; all are required except `repairCost` and `carfaxUrl` (full replacement, same rules as 4.2). Do not use PATCH to change `status` / `soldOn` / `soldPrice` (use `/sell`). Ignore `dealerId`.  
-Changing purchase fields on a sold vehicle (make/model/year/vin/source/purchaseCost/addedOn/repairCost/carfax) → **409** `SOLD_LOCKED`.  
+Whitelist is the fields above only, plus `bodyType` and the listing details of §4.1; all are required except `bodyType`, `repairCost`, `carfaxUrl`, and the listing details (full replacement, same rules as 4.2: an omitted or null listing detail clears it). Do not use PATCH to change `status` / `soldOn` / `soldPrice` (use `/sell`). Ignore `dealerId`.  
+Changing purchase fields on a sold vehicle (make/model/year/vin/source/purchaseCost/addedOn/repairCost/carfax, body type, or a listing detail) → **409** `SOLD_LOCKED`.  
 Changing VIN while unsold is still unique per dealership → `400 VIN_DUP`.  
 Changing `conditionCode` (handbook: a condition change voids the old check) → increment the corresponding listing `contentVersion++` (if a listing exists). Changing purchase cost alone does not void the ad.  
 Audit `VEHICLE`/`UPDATE`. Other errors: `404`, `409 VERSION_CONFLICT`.
@@ -488,7 +500,21 @@ The purchase record and live work must be settled first: a sold vehicle → **40
 
 ### 4.3b `GET /api/v1/vehicles/report/sales`
 
-Dealer.User; admin or unbound → 403. Monitors vehicle sales for the dealership (client brief: "monitor sales"). Returns `soldCount`, `revenue` (sum of sold prices), `grossProfit` (sold price − purchase cost − repair cost), `averageDaysToSell` (`soldOn − addedOn`, null with no sales), `inStockCount`, `inventoryCost` (purchase + repair cost of in-stock vehicles), and `months`: the twelve most recent months with a sale, newest first, each `{ month: "yyyy-MM", soldCount, revenue, grossProfit }`. Shown with the lead funnel on `/reports/sales-funnel`.
+Dealer.User; admin or unbound → 403. Monitors vehicle sales for the dealership (client brief: "monitor sales"). Returns `soldCount`, `revenue` (sum of sold prices), `grossProfit` (sold price − purchase cost − repair cost), `averageDaysToSell` (`soldOn − addedOn`, null with no sales), `inStockCount`, `inventoryCost` (purchase + repair cost of in-stock vehicles), and `months`: the twelve most recent months with a sale, newest first, each `{ month: "yyyy-MM", soldCount, revenue, grossProfit }`. Shown with the lead funnel on `/reports/sales-funnel` and on `/dashboard`.
+
+### 4.3c Payments on a sold vehicle (Dealer.User)
+
+A ledger of payments the dealership has already received (design/21 PAY-01–04). It records money; it does not charge a card. Admin → 403; another dealership's vehicle or payment → 404.
+
+`PaymentLedger`: `{ "soldPrice": 21000.00, "paidTotal": 6000.00, "balanceDue": 15000.00, "items": [ { "id", "amount", "method", "paidOn", "note", "recordedBy", "createdAt" } ] }`, items newest `paidOn` first. `method` is `CASH`\|`DEBIT`\|`CREDIT_CARD`\|`CHEQUE`\|`BANK_TRANSFER`\|`FINANCING`\|`OTHER`.
+
+| Method and path | Body | Result |
+|---|---|---|
+| `GET /api/v1/vehicles/{vehicleId}/payments` | — | 200 ledger; `soldPrice` and `balanceDue` are null while the vehicle is in stock |
+| `POST /api/v1/vehicles/{vehicleId}/payments` | `amount` (> 0, two decimals), `method`, `paidOn`, `note?` (≤ 200) | 201 ledger. In-stock vehicle → `400 VALIDATION` "Record the sale before adding payments."; more than the balance due → `400 VALIDATION` on `amount`; `paidOn` after today or before `soldOn` → `400 VALIDATION` on `paidOn` |
+| `DELETE /api/v1/vehicles/{vehicleId}/payments/{paymentId}` | — | 200 ledger |
+
+Adding and removing write `VEHICLE`/`UPDATE` audit rows `{paymentAdded, paymentMethod, paidOn}` and `{paymentRemoved, paidOn}`.
 
 ### 4.5 `POST /api/v1/vehicles/{id}/sell`
 
@@ -549,6 +575,8 @@ Reconditioning tasks on one vehicle ([21](21-Feature-Extensions.md) §4). Admin 
 
 Transitions: `OPEN → IN_PROGRESS | DONE | CANCELLED`; `IN_PROGRESS → DONE | CANCELLED`; keeping the same status edits task, assignee, or due date. Errors: stale `version` → `409 VERSION_CONFLICT`; already `DONE`/`CANCELLED` → `409 WORK_ORDER_CLOSED`; other transitions → `400 VALIDATION`; `DONE` without a completion note (≤ 500) or a cost ≥ 0 → `400 VALIDATION`; sold vehicle → `409 SOLD_LOCKED`.
 `DONE` sets `completedOn` to today and adds `cost` to the vehicle's `repairCost` in the same transaction (vehicle `version` increments, audit `VEHICLE`/`UPDATE` `{repairCost}`). Audit `WORK_ORDER`/`CREATE` and `WORK_ORDER`/`UPDATE` with the changed keys.
+
+`GET /api/v1/work-orders/report/settlement` (design/21 WO-08) returns `openCount`, `inProgressCount`, `doneCount`, `settledCost` (sum of done costs), `months` (twelve most recent completion months, newest first: `{ month: "yyyy-MM", doneCount, settledCost }`), and `assignees` (`{ assigneeUsername | null, outstandingCount, doneCount, settledCost }`, highest settled cost first). Cancelled work orders are not counted.
 
 ### 4.8 Image Studio photos (Dealer.User)
 
@@ -667,7 +695,7 @@ Lead follow-up ([21](21-Feature-Extensions.md) §3). Admin or unbound → 403; a
 | `GET /api/v1/leads/{id}` | — | detail with notes newest first |
 | `PATCH /api/v1/leads/{id}` | full editable state: `stage`, `ownerUsername`, `nextFollowUpOn`, `vehicleId`, `lostReason`, `version` (null clears a field) | 200 detail |
 | `POST /api/v1/leads/{id}/notes` | `{ "body": "1–2000 chars" }` | 201 `{ id, authorUsername, body, createdAt }`; closed leads still accept notes |
-| `GET /api/v1/leads/report/funnel` | — | Current tenant-scoped counts and share for all five stages, total and open (`NEW`/`CONTACTED`/`QUALIFIED`) lead counts, and won rate over closed leads (`WON / (WON + LOST)`, 0 when none are closed); no date range |
+| `GET /api/v1/leads/report/funnel` | — | Current tenant-scoped counts and share for all five stages, total and open (`NEW`/`CONTACTED`/`QUALIFIED`) lead counts, and won rate over closed leads (`WON / (WON + LOST)`, 0 when none are closed). `months` (design/21 CRM-16): the twelve most recent UTC months with a lead create or stage change, newest first, each `{ month: "yyyy-MM", stages: [{ stage, count, percentOfTotal }] }` counting the leads that entered each stage that month, from `LEAD` audit rows |
 
 List row: `{ id, customerId, customerName, vehicle: { id, vin, modelYear, make, model, status } | null, stage, ownerUsername, nextFollowUpOn, overdue, version }`. Detail adds `lostReason`, `notes`, `createdAt`.
 Stages `NEW`, `CONTACTED`, `QUALIFIED`, `WON`, `LOST`; any stage may be chosen while the lead is open; `WON` and `LOST` are final. `WON` does not sell the vehicle or link it — those stay §4.5 and §6.
@@ -1056,6 +1084,16 @@ core calls these on ai-service directly; the browser does not.
 
 ---
 
+## 12a. Buyer site (anonymous)
+
+Public routes for `/shop` (design/21 SHOP-01–05). The Gateway passes `GET` and `POST /api/v1/public/**` without a token; Core reads no tenant from the caller and names the dealership in the path. A vehicle is listed while it is `IN_STOCK`, not deleted, and its listing is `READY` with a `PASSED` check for the current `contentVersion`. Unknown or inactive dealership, or an unlisted vehicle → **404**.
+
+| Method and path | Body | Result |
+|---|---|---|
+| `GET /api/v1/public/dealers/{dealerId}/inventory` | — | 200 `{ dealerId, legalName, contactPhone, contactEmail, contactAddress, vehicles: [{ vehicleId, modelYear, make, model, bodyType, conditionCode, mileageKm, exteriorColor, fuelType, title, body, hasPhoto }] }`, newest `addedOn` first. No VIN, cost, list price, or customer data |
+| `GET /api/v1/public/dealers/{dealerId}/vehicles/{vehicleId}/photo` | — | 200 image: the first photo, enhanced copy when present; `Cache-Control: public, max-age=300`. No photo → 404 |
+| `POST /api/v1/public/dealers/{dealerId}/inquiries` | `{ vehicleId, contact: { name, email, phone, homeAddress }, message }` | 204. `contact` follows §5.2; `message` 1–1000; errors are `400 VALIDATION` with `contact.name`-style keys. Reuses the active customer with the same phone, else creates one; creates a `NEW` lead on the vehicle due today with the message as its first note. Actor `buyer-site` on the customer, lead, note, and audit rows. Rate-limited per IP (`inquiryPerMinute`, default 5) → `429 RATE_LIMITED` |
+
 ## 13. Do not build (do not bring the retired draft back)
 
-Social providers beyond Google and Firebase (§1.6–1.7), tickets, sales orders, KPI dashboard, buyer `/public/**`, Service Bus, arbitrary `dealerId` dealership switching, Admin reading/writing vehicles/customers/ads.
+Social providers beyond Google and Firebase (§1.6–1.7), tickets, sales orders, Service Bus, arbitrary `dealerId` dealership switching, Admin reading/writing vehicles/customers/ads. The buyer routes are limited to §12a and the KPI dashboard to `/dashboard` over the existing report endpoints.

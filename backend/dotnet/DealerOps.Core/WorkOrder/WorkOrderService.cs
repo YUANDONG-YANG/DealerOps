@@ -5,6 +5,7 @@ using DealerOps.Core.Common.Tenant;
 using DealerOps.Core.Data;
 using DealerOps.Core.Vehicle;
 using DealerOps.Core.WorkOrder.Dto;
+using Microsoft.EntityFrameworkCore;
 
 namespace DealerOps.Core.WorkOrder;
 
@@ -31,6 +32,41 @@ public class WorkOrderService
             .AsEnumerable()
             .OrderBy(w => w.Status.IsClosed())
             .Select(ToResponse).ToList();
+    }
+
+    public WorkshopSettlementReport Settlement()
+    {
+        var tenant = RequireTenant();
+        var orders = _db.WorkOrders.AsNoTracking()
+            .Where(w => w.DealerId == tenant)
+            .Select(w => new { w.Status, w.AssigneeUsername, w.Cost, w.CompletedOn })
+            .ToList();
+        var done = orders.Where(w => w.Status == WorkOrderStatus.Done).ToList();
+
+        var months = done
+            .Where(w => w.CompletedOn != null)
+            .GroupBy(w => $"{w.CompletedOn!.Value.Year:D4}-{w.CompletedOn.Value.Month:D2}")
+            .OrderByDescending(g => g.Key)
+            .Take(12)
+            .Select(g => new MonthlyWorkshop(g.Key, g.Count(), g.Sum(w => w.Cost ?? 0)))
+            .ToList();
+        var assignees = orders
+            .Where(w => w.Status != WorkOrderStatus.Cancelled)
+            .GroupBy(w => w.AssigneeUsername)
+            .Select(g => new AssigneeWorkshop(g.Key,
+                g.Count(w => !w.Status.IsClosed()),
+                g.Count(w => w.Status == WorkOrderStatus.Done),
+                g.Where(w => w.Status == WorkOrderStatus.Done).Sum(w => w.Cost ?? 0)))
+            .OrderByDescending(a => a.SettledCost).ThenBy(a => a.AssigneeUsername)
+            .ToList();
+
+        return new WorkshopSettlementReport(
+            orders.Count(w => w.Status == WorkOrderStatus.Open),
+            orders.Count(w => w.Status == WorkOrderStatus.InProgress),
+            done.Count,
+            done.Sum(w => w.Cost ?? 0),
+            months,
+            assignees);
     }
 
     public WorkOrderResponse Create(long vehicleId, CreateWorkOrderRequest body)

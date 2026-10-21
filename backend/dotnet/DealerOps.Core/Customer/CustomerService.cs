@@ -263,7 +263,7 @@ public class CustomerService
             : null;
     }
 
-    private static Dictionary<string, object> ContactFieldChanges(
+    internal static Dictionary<string, object> ContactFieldChanges(
         string? previousName, string? previousEmail, string? previousPhone, string? previousHomeAddress,
         string name, string email, string phone, string homeAddress)
     {
@@ -275,7 +275,7 @@ public class CustomerService
         return changed;
     }
 
-    private static string NormalizeEmail(string email) => email.Trim().ToLowerInvariant();
+    internal static string NormalizeEmail(string email) => email.Trim().ToLowerInvariant();
 
     private CustomerEntity LoadThisDealer(long id)
     {

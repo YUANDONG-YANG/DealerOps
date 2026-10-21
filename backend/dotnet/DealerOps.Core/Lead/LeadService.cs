@@ -95,7 +95,43 @@ public class LeadService
         var closed = won + counts.GetValueOrDefault(LeadStage.Lost);
         var open = counts.Where(c => !c.Key.IsClosed()).Sum(c => c.Value);
         return new SalesFunnelReport(total, open, stages,
-            closed == 0 ? 0 : Math.Round((decimal)won * 100 / closed, 1));
+            closed == 0 ? 0 : Math.Round((decimal)won * 100 / closed, 1),
+            StageHistory(tenant));
+    }
+
+    // Every lead create and stage change writes an audit row with the new "stage", so the trail
+    // gives the month each lead entered each stage without a separate history table.
+    private List<MonthlyLeadStages> StageHistory(long tenant)
+    {
+        var rows = _db.AuditEvents.AsNoTracking()
+            .Where(a => a.DealerId == tenant && a.EntityType == EntityType.Lead && a.FieldSummary != null
+                        && (a.Action == AuditAction.Create || a.Action == AuditAction.Update))
+            .Select(a => new { a.CreatedAt, a.FieldSummary })
+            .ToList();
+        var byWire = Enum.GetValues<LeadStage>().ToDictionary(s => EnumWireName.Of(s));
+        var entries = new List<(string Month, LeadStage Stage)>();
+        foreach (var row in rows)
+        {
+            using var doc = System.Text.Json.JsonDocument.Parse(row.FieldSummary!);
+            if (doc.RootElement.TryGetProperty("stage", out var value)
+                && value.GetString() is { } wire && byWire.TryGetValue(wire, out var stage))
+                entries.Add(($"{row.CreatedAt.Year:D4}-{row.CreatedAt.Month:D2}", stage));
+        }
+        return entries
+            .GroupBy(e => e.Month)
+            .OrderByDescending(g => g.Key)
+            .Take(12)
+            .Select(g =>
+            {
+                var monthTotal = g.Count();
+                return new MonthlyLeadStages(g.Key, Enum.GetValues<LeadStage>().Select(stage =>
+                {
+                    long count = g.Count(e => e.Stage == stage);
+                    return new FunnelStageCount(EnumWireName.Of(stage), count,
+                        Math.Round((decimal)count * 100 / monthTotal, 1));
+                }).ToList());
+            })
+            .ToList();
     }
 
     public LeadDetail Create(CreateLeadRequest body)

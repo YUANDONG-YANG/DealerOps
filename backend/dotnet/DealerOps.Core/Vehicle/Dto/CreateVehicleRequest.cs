@@ -24,4 +24,10 @@ public record CreateVehicleRequest(
     [Range(0, double.MaxValue)] decimal? RepairCost,
     [MaxLength(500)]
     [RegularExpression(@"(?i)^https?://\S+$", ErrorMessage = "must be an http(s) URL")]
-    string? CarfaxUrl);
+    string? CarfaxUrl,
+    // Optional listing details; the specification's required fields do not change.
+    [Range(0, 2_000_000, ErrorMessage = "Mileage must be 0 to 2,000,000 km.")] int? MileageKm = null,
+    [MaxLength(40, ErrorMessage = "At most 40 characters.")] string? ExteriorColor = null,
+    FuelType? FuelType = null,
+    [MaxLength(20, ErrorMessage = "At most 20 characters.")] string? StockNumber = null,
+    [Range(0, double.MaxValue)] decimal? ListPrice = null);

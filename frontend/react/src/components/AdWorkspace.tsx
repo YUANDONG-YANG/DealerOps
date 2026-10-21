@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { Link } from 'react-router-dom';
 import { useSessionStore } from '../store/session';
 import { checkStatusLabel, isCheckStatus, type Listing, type PriorUse, type RuleFinding } from '../api/listings';
 import StatusTag from './StatusTag';
@@ -150,7 +151,8 @@ export default function AdWorkspace({ listing, onChange, vehicle, readOnly, pick
       </div>
       <div className="card result-pane">
         <div className="card-header">Check result</div>
-        <p className="muted" style={{ fontSize: 13 }}>This check is not legal advice and is not an OMVIC approval.</p>
+        <p className="muted" style={{ fontSize: 13, marginBottom: 0 }}>This check is not legal advice and is not an OMVIC approval.</p>
+        <Link to="/disclaimer" target="_blank" style={{ fontSize: 13, display: 'inline-block', marginBottom: 12 }}>Read the full disclaimer</Link>
         {!hasSelection ? (
           <div className="state">Select a vehicle to start.</div>
         ) : (

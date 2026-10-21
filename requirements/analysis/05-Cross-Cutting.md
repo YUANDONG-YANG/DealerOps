@@ -60,4 +60,4 @@ Source: every modification to a DMS or CRM record is stamped with the acting use
 | NFR-04 | Database backup strategy | PDF §8 | Should — Azure MySQL managed backups retain 7 days (`deploy/terraform/main.tf`); restore exercise and production RPO/RTO approval remain outstanding |
 | NFR-05 | Public website domain for deployment | PDF §8 | Should — Terraform provisions the Azure-managed `dealer-ops-dev.azurewebsites.net` site hostname and exports `web_public_url`; an optional custom hostname binding exists (`web_custom_domain`) but none is configured |
 | NFR-06 | Desktop browser first; usable at phone width | Derived | Could |
-| NFR-07 | Rate limits, throughput SLOs, PIPEDA retention | SCOPE | Won't |
+| NFR-07 | Configurable gateway rate limits, documented throughput SLO targets, and customer privacy retention/anonymization | Adopted delivery goal | Must; defaults require project-level demonstration and review |

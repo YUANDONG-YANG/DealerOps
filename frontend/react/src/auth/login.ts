@@ -15,7 +15,7 @@ function readToken(): string | null {
 
 // /profile is cross-role, so it is added to both allowlists; safeRedirect uses role to pick.
 const ADMIN_PATHS = ['/admin', '/profile'];
-const DEALER_PATHS = ['/dms', '/crm', '/leads', '/ads', '/team', '/profile'];
+const DEALER_PATHS = ['/dashboard', '/dms', '/crm', '/leads', '/ads', '/team', '/profile'];
 
 /** Landing route for a signed-in user, by role (UI-02). */
 export function roleHome(role: string | null | undefined): string {

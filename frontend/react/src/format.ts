@@ -20,9 +20,10 @@ export function initials(name: string): string {
 }
 
 // Enum value to label ("TRADE_IN" -> "Trade in"); the condition AS_IS keeps the
-// specification's hyphen, "As-is".
+// specification's hyphen, "As-is", and the fuel type PLUGIN_HYBRID reads "Plug-in hybrid".
 export function enumLabel(value: unknown): string {
   if (value === 'AS_IS') return 'As-is';
+  if (value === 'PLUGIN_HYBRID') return 'Plug-in hybrid';
   const s = String(value || '').split('_').join(' ').toLowerCase();
   return s ? s.charAt(0).toUpperCase() + s.slice(1) : '';
 }

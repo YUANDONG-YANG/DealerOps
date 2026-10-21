@@ -207,6 +207,13 @@ app.Use(async (context, next) =>
         await next();
         return;
     }
+    // Buyer site: listed vehicles, their photo, and the inquiry form (Core checks each route).
+    if ((method == "GET" || method == "POST")
+        && path.StartsWith("/api/v1/public/", StringComparison.OrdinalIgnoreCase))
+    {
+        await next();
+        return;
+    }
 
     // Must be authenticated
     if (context.User.Identity?.IsAuthenticated != true)

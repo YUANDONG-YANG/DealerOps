@@ -18,7 +18,8 @@
 </head>
 <body>
 <main>
-  <h1>DealerOps Customer Requirements Audit</h1>
+  <h1>DealerOps Customer Requirements Audit (Historical)</h1>
+  <p class="callout"><strong>Superseded:</strong> This audit reflects the 2026-10-16 review and predates the 2026-10-21 delivery-scope decision. Use <code>14-Delivery-Scope-Reconciliation-2026-10-21.md</code> and the current scope baseline for active requirements. Do not treat prior deferrals as current scope.</p>
   <p class="meta">Audit date: 2026-10-16 · Sources: customer DOCX files, <em>DealerOps-Specification.pdf</em>, and <em>DealerOps-Development-Progress-en.html</em>.</p>
   <p class="callout"><strong>Audit status:</strong> Implementation is in progress. This report tracks customer-source coverage, not formal client sign-off. Items marked implemented have been found in active .NET/React source; builds are not a substitute for end-to-end acceptance.</p>
 
@@ -50,7 +51,7 @@
     <tr><td>Hosting and recovery</td><td>Terraform provisions the public website at its Azure-managed hostname and configures HTTPS; managed backups retain seven days. A live restore exercise remains an operator acceptance item. A separate custom domain is optional, not required for the existing deployed hostname.</td><td class="status">Website domain and backup retention configured; restore exercise not performed.</td></tr>
     <tr><td>Final verification</td><td><code>dotnet build backend/dotnet/DealerOps.Core --no-restore</code>; <code>npm run build</code> in <code>frontend/react</code>. No automated tests were run.</td><td class="status">Both builds pass; existing compiler and bundle-size warnings remain.</td></tr>
   </tbody></table>
-  <p class="muted">No automated tests or live user workflows are claimed by this report. The report itself is English-only.</p>
+  <p class="muted">This historical report makes no claim that automated tests or live user workflows were completed. The report itself is English-only.</p>
 </main>
 </body>
 </html>

@@ -36,7 +36,8 @@ public class VehicleService
             query = query.Where(v =>
                 EF.Functions.Like(v.Vin, $"%{q}%") ||
                 EF.Functions.Like(v.Make, $"%{q}%") ||
-                EF.Functions.Like(v.Model, $"%{q}%"));
+                EF.Functions.Like(v.Model, $"%{q}%") ||
+                (v.StockNumber != null && EF.Functions.Like(v.StockNumber, $"%{q}%")));
 
         if (filter.Status.HasValue)
             query = query.Where(v => v.Status == filter.Status.Value);
@@ -73,7 +74,10 @@ public class VehicleService
         RequireModelYearInRange(body.ModelYear);
         RequireCents("purchaseCost", body.PurchaseCost);
         RequireCents("repairCost", body.RepairCost);
+        RequireCents("listPrice", body.ListPrice);
         var vin = NormalizeVin(body.Vin);
+        var stockNumber = TrimToNull(body.StockNumber);
+        RequireUniqueStockNumber(tenant, stockNumber, null);
         var addedOn = body.AddedOn!.Value;
         RequireAddedOnNotInFuture(addedOn);
 
@@ -95,6 +99,11 @@ public class VehicleService
             BodyType = body.BodyType ?? VehicleBodyType.Other,
             RepairCost = body.RepairCost,
             CarfaxUrl = body.CarfaxUrl,
+            MileageKm = body.MileageKm,
+            ExteriorColor = TrimToNull(body.ExteriorColor),
+            FuelType = body.FuelType,
+            StockNumber = stockNumber,
+            ListPrice = body.ListPrice,
             Status = VehicleStatus.InStock,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow
@@ -159,8 +168,10 @@ public class VehicleService
         RequireModelYearInRange(body.ModelYear);
         RequireCents("purchaseCost", body.PurchaseCost);
         RequireCents("repairCost", body.RepairCost);
+        RequireCents("listPrice", body.ListPrice);
 
-        // A null value-type field means "not supplied": keep what is stored.
+        // A null value-type field means "not supplied": keep what is stored. The optional
+        // fields (repair cost, Carfax link, listing details) are replaced, so null clears them.
         var next = new PatchedVehicleValues(
             body.Make.Trim(),
             body.Model.Trim(),
@@ -172,7 +183,12 @@ public class VehicleService
             body.ConditionCode ?? vehicle.ConditionCode,
             body.BodyType ?? vehicle.BodyType,
             body.RepairCost,
-            body.CarfaxUrl);
+            body.CarfaxUrl,
+            body.MileageKm,
+            TrimToNull(body.ExteriorColor),
+            body.FuelType,
+            TrimToNull(body.StockNumber),
+            body.ListPrice);
 
         if (body.AddedOn != null)
             RequireAddedOnNotInFuture(body.AddedOn.Value);
@@ -181,6 +197,9 @@ public class VehicleService
 
         if (vehicle.Status == VehicleStatus.Sold && PurchaseFieldsChanged(changed))
             throw new ApiException(ErrorCode.SoldLocked, "Sold vehicle is locked.");
+
+        if (changed.ContainsKey("stockNumber"))
+            RequireUniqueStockNumber(tenant, next.StockNumber, vehicle.Id);
 
         if (changed.ContainsKey("vin") && _db.Vehicles.IgnoreQueryFilters().Any(v => v.DealerId == tenant && v.Vin == next.Vin))
             throw new ApiException(ErrorCode.VinDup, "VIN already exists in this dealership, possibly on a deleted vehicle.");
@@ -199,6 +218,11 @@ public class VehicleService
         vehicle.BodyType = next.BodyType;
         vehicle.RepairCost = next.RepairCost;
         vehicle.CarfaxUrl = next.CarfaxUrl;
+        vehicle.MileageKm = next.MileageKm;
+        vehicle.ExteriorColor = next.ExteriorColor;
+        vehicle.FuelType = next.FuelType;
+        vehicle.StockNumber = next.StockNumber;
+        vehicle.ListPrice = next.ListPrice;
         vehicle.UpdatedAt = DateTime.UtcNow;
 
         if (changed.ContainsKey("conditionCode"))
@@ -343,6 +367,11 @@ public class VehicleService
             vehicle.BodyType,
             vehicle.RepairCost,
             vehicle.CarfaxUrl,
+            vehicle.MileageKm,
+            vehicle.ExteriorColor,
+            vehicle.FuelType,
+            vehicle.StockNumber,
+            vehicle.ListPrice,
             vehicle.SoldOn,
             vehicle.SoldPrice,
             vehicle.Status,
@@ -362,7 +391,12 @@ public class VehicleService
         ConditionCode ConditionCode,
         VehicleBodyType BodyType,
         decimal? RepairCost,
-        string? CarfaxUrl);
+        string? CarfaxUrl,
+        int? MileageKm,
+        string? ExteriorColor,
+        FuelType? FuelType,
+        string? StockNumber,
+        decimal? ListPrice);
 
     private static Dictionary<string, object> CreatedVehicleFields(VehicleEntity vehicle)
     {
@@ -378,6 +412,11 @@ public class VehicleService
         };
         if (vehicle.RepairCost != null) fields["repairCost"] = vehicle.RepairCost;
         if (vehicle.CarfaxUrl != null) fields["carfaxUrl"] = vehicle.CarfaxUrl;
+        if (vehicle.MileageKm != null) fields["mileageKm"] = vehicle.MileageKm;
+        if (vehicle.ExteriorColor != null) fields["exteriorColor"] = vehicle.ExteriorColor;
+        if (vehicle.FuelType != null) fields["fuelType"] = EnumWireName.Of(vehicle.FuelType.Value);
+        if (vehicle.StockNumber != null) fields["stockNumber"] = vehicle.StockNumber;
+        if (vehicle.ListPrice != null) fields["listPrice"] = vehicle.ListPrice;
         return fields;
     }
 
@@ -396,6 +435,12 @@ public class VehicleService
         if (vehicle.BodyType != next.BodyType) changed["bodyType"] = next.BodyType.ToString();
         if (MoneyChanged(vehicle.RepairCost, next.RepairCost)) changed["repairCost"] = (object?)next.RepairCost ?? "";
         if (vehicle.CarfaxUrl != next.CarfaxUrl) changed["carfaxUrl"] = (object?)next.CarfaxUrl ?? "";
+        if (vehicle.MileageKm != next.MileageKm) changed["mileageKm"] = (object?)next.MileageKm ?? "";
+        if (vehicle.ExteriorColor != next.ExteriorColor) changed["exteriorColor"] = (object?)next.ExteriorColor ?? "";
+        if (vehicle.FuelType != next.FuelType)
+            changed["fuelType"] = next.FuelType == null ? "" : EnumWireName.Of(next.FuelType.Value);
+        if (vehicle.StockNumber != next.StockNumber) changed["stockNumber"] = (object?)next.StockNumber ?? "";
+        if (MoneyChanged(vehicle.ListPrice, next.ListPrice)) changed["listPrice"] = (object?)next.ListPrice ?? "";
         return changed;
     }
 
@@ -413,7 +458,10 @@ public class VehicleService
         changed.ContainsKey("modelYear") || changed.ContainsKey("vin") ||
         changed.ContainsKey("source") || changed.ContainsKey("purchaseCost") ||
         changed.ContainsKey("addedOn") || changed.ContainsKey("bodyType") ||
-        changed.ContainsKey("repairCost") || changed.ContainsKey("carfaxUrl");
+        changed.ContainsKey("repairCost") || changed.ContainsKey("carfaxUrl") ||
+        changed.ContainsKey("mileageKm") || changed.ContainsKey("exteriorColor") ||
+        changed.ContainsKey("fuelType") || changed.ContainsKey("stockNumber") ||
+        changed.ContainsKey("listPrice");
 
     private static bool MoneyChanged(decimal? current, decimal? next) =>
         current == null || next == null ? current != next : current.Value != next.Value;
@@ -452,6 +500,18 @@ public class VehicleService
             const string message = "Use at most 2 decimals.";
             throw new ApiException(ErrorCode.Validation, message,
                 new Dictionary<string, string> { [field] = message });
+        }
+    }
+
+    // Stock numbers are the dealership's own lot labels, so two active vehicles cannot share one.
+    private void RequireUniqueStockNumber(long tenant, string? stockNumber, long? exceptVehicleId)
+    {
+        if (stockNumber == null) return;
+        if (_db.Vehicles.Any(v => v.DealerId == tenant && v.StockNumber == stockNumber && v.Id != exceptVehicleId))
+        {
+            const string message = "Stock number is already used by another vehicle.";
+            throw new ApiException(ErrorCode.Validation, message,
+                new Dictionary<string, string> { ["stockNumber"] = message });
         }
     }
 

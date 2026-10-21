@@ -185,6 +185,29 @@ export class Api {
   }
 }
 
+/**
+ * Saves a compliant cash ad for a 2020 AS_IS vehicle, runs the real check and, when it passes,
+ * marks the ad ready so the vehicle appears on the buyer site. Returns the check's HTTP status;
+ * a 502 means the AI provider was unavailable and nothing was marked ready.
+ */
+export async function publishAd(api: Api, v: Vehicle) {
+  const dealer = env.dealerA;
+  const listing = await api.saveListing(v.id, {
+    title: `Used ${v.modelYear} ${v.make} ${v.model}`,
+    body: `Used ${v.modelYear} ${v.make} ${v.model}, sold as-is. Price $16,995 plus HST and licensing. `
+      + 'Not used as a taxi, police vehicle, or daily rental. No extended warranty offered. '
+      + `${dealer.legalName}, ${dealer.contactPhone}, ${dealer.contactEmail}, ${dealer.contactAddress}.`,
+    adKind: 'CASH',
+    medium: 'ONLINE',
+  });
+  const { httpStatus, check } = await api.runCheck(listing);
+  if (httpStatus !== 200) return httpStatus;
+  expect(check.checkStatus, JSON.stringify(check)).toBe('PASSED');
+  const fresh = await api.getListing(v.id);
+  await expectStatus(await api.post(`/api/v1/listings/${fresh.id}/ready`, { version: fresh.version }), 200);
+  return httpStatus;
+}
+
 export async function expectStatus(res: APIResponse, status: number) {
   expect(res.status(), `${res.url()} → ${await res.text()}`).toBe(status);
 }

@@ -2,15 +2,14 @@
 
 This folder breaks the source documents under `requirements/` into requirement items that can be built and accepted.
 
-> **Scope currency (2026-10-16).** This folder contains the PDF decomposition, later scope
-> reconciliation, and several explicitly historical working notes. A `Won't` verdict in an
-> older analysis item is **not** a current scope decision on its own. The current scope baseline
-> is `design/SCOPE-BASELINE.md`; formal client/instructor sign-off is still open. The returned features — VIN decode,
-> public landing page, lead follow-up, reconditioning work orders, self sign-up with Google
-> sign-in, Image Studio, and the optional vehicle `bodyType` field — are owned by
-> [21-Feature-Extensions.md](../../design/21-Feature-Extensions.md) (`VIN-01–04`, `LEAD-01–09`,
-> `WO-01–07`, `AUTH-16–23`, `IMG-01–05`); they are deliberately not restated here, so that one
-> document stays their single source of truth.
+> **Scope currency (2026-10-21).** The customer’s original PDF and both DOCX files define requested
+> product functionality. For this academic graduation demonstration, implement every requested
+> feature that can reasonably be delivered in the active .NET/React stack. A production account or
+> third-party authorization limit calls for a clearly labeled simulation where feasible, not an
+> automatic Won’t decision. Current delivery rules are in `design/SCOPE-BASELINE.md`; see the
+> current reconciliation at [14-Delivery-Scope-Reconciliation-2026-10-21.md](14-Delivery-Scope-Reconciliation-2026-10-21.md).
+> Older analysis and review documents may preserve historical decisions and must not be treated as
+> the current backlog without checking the baseline.
 
 2026-09-28: course-demo reconciliation is recorded in [DealerOps-Requirements-Resolution-2026-09-28.md](../../review/DealerOps-Requirements-Resolution-2026-09-28.md). Current ad decisions are in 04 and acceptance in 06. Reviews 08–11 retain historical findings; the customer sources remain the implementation authority. The source audit is [13-Customer-Requirements-Audit-2026-10-16.html](13-Customer-Requirements-Audit-2026-10-16.html). The assistant also supports deterministic counts, as recorded in 05 and 06.
 
@@ -23,9 +22,9 @@ Source verification as of 2026-09-28: [12-Requirements-Code-Verification-2026-09
 | SRC-PDF | `../DealerOps-Specification.pdf` (2026-09-21) | Roles, DMS / CRM / ad-compliance fields, cross-cutting rules, page list, known limitations | **Authority for fields and business rules** |
 | SRC-DOC | `../Dos Car dealership.docx` | Product vision (DealerOS): DMS core + CRM + AI compliance assistant + optional Image Studio | Vision / selling points; does not define fields |
 | SRC-DOC2 | `../Dos Car dealership2.docx` | The same vision plus the client notes: questions put to the client, C# as the preferred language, the NHTSA vPIC VIN-decode flow and its returned fields, landing-page contents, a React UI, and a Firebase auth stack | **Authority for the errata 6–9 extensions.** Firebase **Auth** was adopted on 2026-10-16 (erratum 9); the Firebase **database** was not — MySQL stays the only application database |
-| SRC-SCOPE | `../../design/SCOPE-BASELINE.md` | Team-maintained scope baseline, errata, Out of Scope; formal client/instructor signature is pending | Current implementation scope and conflict resolution |
+| SRC-SCOPE | `../../design/SCOPE-BASELINE.md` | Academic demonstration delivery baseline and technical boundaries | Current implementation scope and conflict resolution |
 
-Related reports outside this folder: `../DealerOps-Requirements.md` (English superset report; it defines `NFR-08`), `../DealerOps-Requirements-zh.html` and `../DealerOps-Development-Progress-en.html`.
+Related reports outside this folder: `../DealerOps-Requirements.md` (English superset report; it defines `NFR-08`), `../DealerOps-Requirements-zh.html` (historical translation; it may not reflect later scope updates) and `../DealerOps-Development-Progress-en.html`.
 
 Conflict order follows SCOPE-BASELINE: **PPT hard requirements > specification PDF fields > v6 design > UI 12**. Items the DOCX files raise beyond the PDF are resolved by SCOPE-BASELINE errata 6–9, not by this folder.
 
@@ -71,5 +70,5 @@ Conflict order follows SCOPE-BASELINE: **PPT hard requirements > specification P
 
 Each requirement is tagged with:
 
-- **Source**: `PDF §x` / `DOC` / `SCOPE` (not in the source text; adopted in the team-maintained scope baseline, whose client/instructor signature is pending) / `Derived` (a decision needed to build it; listed in 07 for confirmation)
-- **Priority**: `Must` (required by the current approved-for-implementation baseline, whether from source or an adopted scope decision) / `Should` (needed to build but not committed as a release requirement) / `Could` (optional) / `Won't` (not this release). The baseline is not represented as client/instructor signed while its signature table is blank.
+- **Source**: `PDF §x` / `DOC` / `SCOPE` (a delivery decision in the team-maintained academic demo baseline) / `Derived` (a decision needed to build it; listed in 07 for confirmation)
+- **Priority**: Customer-source functionality that is reasonably implementable for the academic demonstration is `Must`. `Should` / `Could` identify supporting or optional derived behavior. `Won’t` is reserved for a documented technical or project constraint, with a reason and an alternative where feasible; it must not be used just because a feature is more typical of a commercial product.
