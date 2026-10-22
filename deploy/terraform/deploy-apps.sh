@@ -4,6 +4,7 @@
 #
 #   ./deploy-apps.sh            # all four
 #   ./deploy-apps.sh core web   # only these
+#   ./deploy-apps.sh --check    # only the clean-checkout check below; deploy.sh runs it first
 #
 # Needs: az (logged in), terraform, .NET 10 SDK, Node 20 + npm/pnpm.
 # Procedure and verification: ../README.md
@@ -38,6 +39,10 @@ if [ -n "${untracked_sources}" ]; then
   echo "Untracked backend or frontend source files are present; refusing to publish." >&2
   printf '%s\n' "${untracked_sources}" >&2
   exit 1
+fi
+if [ "${1:-}" = "--check" ]; then
+  echo "==> checkout is clean and at ${upstream} (${head_commit})"
+  exit 0
 fi
 echo "==> publishing ${head_commit} (${upstream})"
 

@@ -55,7 +55,9 @@ done
 
 command -v terraform >/dev/null 2>&1 || { echo "Missing required tool: terraform" >&2; exit 1; }
 
-# Export first, so a stopped or broken local database fails before anything in Azure changes.
+# Check the checkout and export first, so an unpushed edit or a stopped local database fails
+# in seconds, before Terraform or anything in Azure changes.
+"${app_script}" --check
 if [ "${seed_data}" = true ]; then
   echo "==> exporting the local database"
   "${export_script}"
