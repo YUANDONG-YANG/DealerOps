@@ -44,7 +44,7 @@ export function summaryText(raw: unknown, previous?: Record<string, unknown> | n
   Object.entries(previous ?? {})
     .filter(([key]) => !(key in summary))
     .forEach(([key, value]) => items.push(`${key}: was ${JSON.stringify(value)}`));
-  return items.length ? items.join(', ') : '—';
+  return items.length ? items.join(', ') : 'No field changes';
 }
 
 /** A record's audit history, newest first as the API returns it, with optional paging. */

@@ -211,7 +211,7 @@ export default function LandingPage() {
                 {vinFacts(decoded).map(([label, value]) => (
                   <div key={label}>
                     <dt>{label}</dt>
-                    <dd>{value ?? '—'}</dd>
+                    <dd>{value ?? 'Not reported'}</dd>
                   </div>
                 ))}
               </dl>

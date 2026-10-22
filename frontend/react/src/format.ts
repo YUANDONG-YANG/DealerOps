@@ -1,12 +1,12 @@
 const CAD = new Intl.NumberFormat('en-CA', { style: 'currency', currency: 'CAD' });
 
 export function cad(value: unknown): string {
-  return value == null || value === '' ? '—' : CAD.format(Number(value));
+  return value == null || value === '' ? 'Not set' : CAD.format(Number(value));
 }
 
 // Audit timestamps arrive as UTC and are shown in the viewer's local zone (AUD-03).
 export function dateTimeLocal(value: unknown): string {
-  if (!value) return '—';
+  if (!value) return 'Not set';
   const parsed = new Date(String(value));
   if (Number.isNaN(parsed.getTime())) return String(value);
   const pad = (n: number) => String(n).padStart(2, '0');
@@ -24,6 +24,7 @@ export function initials(name: string): string {
 export function enumLabel(value: unknown): string {
   if (value === 'AS_IS') return 'As-is';
   if (value === 'PLUGIN_HYBRID') return 'Plug-in hybrid';
+  if (value === 'SUV') return 'SUV';
   const s = String(value || '').split('_').join(' ').toLowerCase();
   return s ? s.charAt(0).toUpperCase() + s.slice(1) : '';
 }

@@ -56,7 +56,7 @@ export default function DashboardPage() {
                 <KpiCard label="Sold this month" value={String(month?.soldCount ?? 0)} hint={cad(month?.revenue ?? 0)} />
                 <KpiCard label="Vehicles sold" value={String(sales.soldCount)} hint={`${cad(sales.revenue)} revenue`} />
                 <KpiCard label="Gross profit" value={cad(sales.grossProfit)} hint="Sold price − purchase − repair" />
-                <KpiCard label="Avg. days to sell" value={sales.averageDaysToSell == null ? '—' : String(sales.averageDaysToSell)} />
+                <KpiCard label="Avg. days to sell" value={sales.averageDaysToSell == null ? 'No sales yet' : String(sales.averageDaysToSell)} />
               </div>
 
               <h2>Leads</h2>

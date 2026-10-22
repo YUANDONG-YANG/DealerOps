@@ -48,7 +48,7 @@ export default function SalesFunnelPage() {
                 <KpiCard label="Vehicles sold" value={String(sales.soldCount)} />
                 <KpiCard label="Revenue" value={cad(sales.revenue)} />
                 <KpiCard label="Gross profit" value={cad(sales.grossProfit)} hint="Sold price − purchase − repair" />
-                <KpiCard label="Avg. days to sell" value={sales.averageDaysToSell == null ? '—' : String(sales.averageDaysToSell)} />
+                <KpiCard label="Avg. days to sell" value={sales.averageDaysToSell == null ? 'No sales yet' : String(sales.averageDaysToSell)} />
                 <KpiCard label="In stock" value={String(sales.inStockCount)} hint={`${cad(sales.inventoryCost)} invested`} />
               </div>
               {sales.months.length === 0 ? (

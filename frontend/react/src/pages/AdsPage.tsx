@@ -17,19 +17,19 @@ import {
 } from '../api/listings';
 import { describeError } from '../api/errors';
 
-/** Table label of an ad type; `—` when the vehicle has no saved ad. */
+/** Table label of an ad type; `Unavailable` when the listing could not be loaded. */
 function kindLabel(kind?: string) {
   if (kind === 'CASH') return 'Cash';
   if (kind === 'FINANCE') return 'Finance';
   if (kind === 'LEASE') return 'Lease';
-  return '—';
+  return 'Unavailable';
 }
 
-/** Table label of an ad medium; `—` when the vehicle has no saved ad. */
+/** Table label of an ad medium; `Unavailable` when the listing could not be loaded. */
 function mediumLabel(medium?: string) {
   if (medium === 'ONLINE') return 'Online';
   if (medium === 'RADIO_TV_BILLBOARD') return 'Radio / TV / Billboard';
-  return '—';
+  return 'Unavailable';
 }
 
 /** The editable ad fields as one string, compared with the saved copy to detect unsaved edits. */
@@ -98,7 +98,8 @@ export default function AdsPage() {
       const items = r.data.items || [];
       setVehicles(items); setTotal(r.data.totalElements || 0);
       // The table shows each vehicle's ad type, medium and check status, so fetch the page's
-      // listings up front. A vehicle without a saved ad (virtual draft, id null) stays "—".
+      // listings up front. A vehicle without a saved ad gets the server's virtual draft (Cash,
+      // Online, Needs AI review), the same values its form and the DMS detail show.
       const results = await Promise.allSettled(items.map((v: any) => listingsApi.get(v.id)));
       if (seq !== vehicleListSeq.current) return;
       setSummaries((s) => {
@@ -106,7 +107,7 @@ export default function AdsPage() {
         results.forEach((res, i) => {
           if (res.status !== 'fulfilled') return;
           const l = res.value.data;
-          next[items[i].id] = l.id ? { adKind: l.adKind, medium: l.medium, checkStatus: l.checkStatus } : {};
+          next[items[i].id] = { adKind: l.adKind, medium: l.medium, checkStatus: l.checkStatus };
         });
         return next;
       });
@@ -334,7 +335,7 @@ export default function AdsPage() {
                     { label: 'Medium', render: (r: any) => mediumLabel(summaries[r.id]?.medium) },
                     { label: 'Check status', render: (r: any) => {
                       const s = summaries[r.id]?.checkStatus;
-                      return s ? <StatusTag status={s}>{checkStatusLabel(s)}</StatusTag> : '—';
+                      return s ? <StatusTag status={s}>{checkStatusLabel(s)}</StatusTag> : <span className="muted">Unavailable</span>;
                     } },
                   ]}
                   actions={(r: any) => <button className="btn-link" onClick={() => select(r)}>Open</button>}

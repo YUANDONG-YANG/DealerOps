@@ -121,10 +121,10 @@ export default function ProfilePage() {
           </div>
           <dl className="definition-list">
             <dt>Role</dt><dd>{me.role}</dd>
-            <dt>Dealership</dt><dd>{me.dealerLegalName ?? '—'}</dd>
+            <dt>Dealership</dt><dd>{me.dealerLegalName ?? 'No dealership'}</dd>
             {me.dealerRole && <><dt>Dealership role</dt><dd>{enumLabel(me.dealerRole)}</dd></>}
-            <dt>Email</dt><dd>{me.email ?? '—'}</dd>
-            <dt>Phone</dt><dd>{me.phone ?? '—'}</dd>
+            <dt>Email</dt><dd>{me.email ?? 'Not provided'}</dd>
+            <dt>Phone</dt><dd>{me.phone ?? 'Not provided'}</dd>
             <dt>Sign-in method</dt><dd>{methodText}</dd>
             {me.givenName && <><dt>Given name</dt><dd>{me.givenName}</dd></>}
             {me.familyName && <><dt>Family name</dt><dd>{me.familyName}</dd></>}

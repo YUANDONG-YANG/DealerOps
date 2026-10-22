@@ -10,7 +10,7 @@ import { cad, enumLabel, km } from '../format';
 
 function Row({ label, value }: { label: string; value: unknown }) {
   return (
-    <tr><th style={{ width: '38%', textAlign: 'left' }}>{label}</th><td>{value == null || value === '' ? '—' : String(value)}</td></tr>
+    <tr><th style={{ width: '38%', textAlign: 'left' }}>{label}</th><td>{value == null || value === '' ? 'Not recorded' : String(value)}</td></tr>
   );
 }
 

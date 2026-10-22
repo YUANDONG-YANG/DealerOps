@@ -68,7 +68,7 @@ export default function PendingAccounts({ dealerId, onBound }: Props) {
               <tr key={u.username}>
                 <td>
                   <div>{u.displayName} <span className="muted">({u.username})</span></div>
-                  <div className="muted">{[u.email, u.phone].filter(Boolean).join(' · ') || '—'}</div>
+                  <div className="muted">{[u.email, u.phone].filter(Boolean).join(' · ') || 'No contact provided'}</div>
                   <div className="muted">Registered {dateTimeLocal(u.createdAt)}</div>
                 </td>
                 <td>
@@ -98,8 +98,8 @@ export default function PendingAccounts({ dealerId, onBound }: Props) {
               <tr key={u.username}>
                 <td>{u.username}</td>
                 <td>{u.displayName}</td>
-                <td>{u.email || '—'}</td>
-                <td>{u.phone || '—'}</td>
+                <td>{u.email || 'Not provided'}</td>
+                <td>{u.phone || 'Not provided'}</td>
                 <td>{dateTimeLocal(u.createdAt)}</td>
                 {dealerId == null && (
                   <td>

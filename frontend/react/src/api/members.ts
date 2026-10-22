@@ -16,7 +16,7 @@ const ACCOUNT_SOURCE_LABEL: Record<string, string> = {
 
 /** How an account was created; the backend sends null when the channel is unknown (seed data). */
 export function accountSourceLabel(source: string | null | undefined): string {
-  return (source && ACCOUNT_SOURCE_LABEL[source]) || '—';
+  return (source && ACCOUNT_SOURCE_LABEL[source]) || 'Not recorded';
 }
 
 /** Members of the caller's dealership, for assignee pickers and the Team page. */
