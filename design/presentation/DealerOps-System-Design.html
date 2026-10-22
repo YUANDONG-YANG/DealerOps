@@ -168,7 +168,7 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);font-si
     <div><dt>Team</dt><dd>G2 (four members)</dd></div>
     <div><dt>Active stack</dt><dd>.NET 10 · React 19 · MySQL 8</dd></div>
     <div><dt>Hosting</dt><dd>Microsoft Azure (Terraform)</dd></div>
-    <div><dt>Document date</dt><dd>2026-10-21</dd></div>
+    <div><dt>Document date</dt><dd>2026-10-22</dd></div>
     <div><dt>Status</dt><dd>Feature code complete; manual acceptance in progress</dd></div>
   </dl>
 </header>
@@ -421,7 +421,7 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);font-si
         <li><b>Secrets</b> live in Azure Key Vault and reach apps through a managed identity; no app setting holds a secret value.</li>
         <li><b>HTTPS</b> everywhere; App Service terminates TLS; MySQL requires TLS.</li>
         <li><b>Rate limits</b> per client at the Gateway, with a separate limit of 5 buyer-site inquiries per minute per IP (<code>429 RATE_LIMITED</code>).</li>
-        <li><b>Privacy</b>: customer phone, email and address are never sent to AI, never written to application logs, and never shown by the assistant. The audit trail does record them, so it is readable only by managers and the admin. Soft-deleted customers are anonymized after a configurable period (default 730 days).</li>
+        <li><b>Privacy</b>: customer phone, email and address are never sent to AI, never written to application logs, and never shown by the assistant. The audit trail does record them, so it is readable only by managers and the admin. Deleted customers keep their records unchanged; nothing is anonymized or purged (<a href="#data">section 11</a>).</li>
       </ul>
     </div>
   </div>
@@ -447,13 +447,13 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);font-si
     <li>VIN is upper-cased, validated (17 characters, no I/O/Q) and unique within a dealership. <b>Decode</b> fills make, model, year and body type from NHTSA; nothing saves until the user presses Save.</li>
     <li>A sale is recorded only through the Sell action with date and price together. After the sale, purchase fields are locked (<code>SOLD_LOCKED</code>), and a vehicle cannot be sold twice.</li>
     <li>The vehicle drawer holds work orders, Image Studio, payments, the bill of sale link, the linked customer and, for managers, the audit history.</li>
-    <li>Soft delete removes a vehicle from active lists but keeps sales, work-order and audit history.</li>
+    <li>Soft delete removes a vehicle from active lists but keeps sales, work-order and audit history. Deleted photos and removed payments are soft-deleted the same way.</li>
   </ul>
 
   <h3>Customers · CRM</h3>
   <ul>
     <li>Required: name, email, phone, home address. A shared email inside a dealership shows a warning but saves.</li>
-    <li>Link a vehicle of the same dealership that has no customer yet (in stock or sold). One vehicle belongs to one customer. In-stock links can be removed; sold links cannot.</li>
+    <li>Link a vehicle of the same dealership that has no customer yet (in stock or sold). One vehicle belongs to one customer. In-stock links can be removed (the link row is kept as history); sold links cannot.</li>
     <li>The customer drawer shows linked vehicles, the customer's leads and, for managers, the audit history.</li>
   </ul>
 
@@ -487,7 +487,8 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);font-si
   <ul>
     <li><b>Ad compliance</b>: one ad draft per vehicle (title, body, type <code>CASH</code>/<code>FINANCE</code>/<code>LEASE</code>, medium <code>ONLINE</code>/<code>RADIO_TV_BILLBOARD</code>), checked as described in <a href="#compliance">section 9</a>.</li>
     <li><b>Assistant</b>: a floating panel on staff pages answers questions such as "Which Toyota vehicles are in stock?" from up to five of the dealership's own records, with links back into the app. It is read-only and never sees contact details.</li>
-    <li><b>Buyer site</b>: <code>/shop</code> lists active dealerships; each dealership page shows in-stock vehicles whose ad is Ready with a current Passed check. No VIN, cost or customer data is exposed.</li>
+    <li><b>Ads page</b>: one table of the dealership's vehicles with ad type, medium, check status and a <b>Buyer site</b> column (Listed, Mark ready, Taken down after a sale, Not listed). One filter per column lets sales staff find ads to fix or list, and a line above the table shows how many vehicles the buyer site lists now.</li>
+    <li><b>Buyer site</b>: <code>/shop</code> shows each active dealership as a card with its logo and its in-stock and sold counts. A dealership page lives at its name, such as <code>/shop/mazda</code> (an old numeric link redirects), shows how many vehicles are listed, and lists in-stock vehicles whose ad is Ready with a current Passed check. No VIN, cost or customer data is exposed.</li>
   </ul>
 
   <h3>Administration and audit</h3>
@@ -633,7 +634,7 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);font-si
     <tbody>
       <tr><td>Sign-in and accounts</td><td><code>APP_USER</code></td><td>Successful sign-in (<code>LOGIN</code>), failed sign-in with method and reason (<code>LOGIN_FAILED</code>), registration by password, Google or Firebase</td></tr>
       <tr><td>Inventory</td><td><code>VEHICLE</code></td><td>Create, edit, sell, soft delete; repair cost added by a completed work order; payment added or removed</td></tr>
-      <tr><td>Customers</td><td><code>CUSTOMER</code>, <code>CUSTOMER_VEHICLE</code></td><td>Create, edit, soft delete, link and unlink a vehicle; anonymization by the retention job (actor <code>system</code>)</td></tr>
+      <tr><td>Customers</td><td><code>CUSTOMER</code>, <code>CUSTOMER_VEHICLE</code></td><td>Create, edit, soft delete, link and unlink a vehicle</td></tr>
       <tr><td>Sales leads</td><td><code>LEAD</code></td><td>Create, stage / owner / follow-up changes, notes; buyer-site inquiries (actor <code>buyer-site</code>)</td></tr>
       <tr><td>Work orders and photos</td><td><code>WORK_ORDER</code>, <code>VEHICLE_PHOTO</code></td><td>Create and status changes; photo upload, enhance and delete</td></tr>
       <tr><td>Advertising</td><td><code>LISTING</code></td><td>Ad edits, each compliance check run with its result (<code>CHECK</code>), each TXT export (<code>EXPORT</code>)</td></tr>
@@ -682,12 +683,13 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);font-si
 <section id="data">
   <h2><span class="num">11</span>Data model</h2>
   <p>One MySQL database, <code>dealer_core</code>. Every business table carries <code>dealer_id</code> and is filtered by the request's tenant. Writes use an optimistic-lock <code>version</code>; a stale write returns <code>409 VERSION_CONFLICT</code>.</p>
+  <div class="callout"><p><b>Nothing is deleted.</b> DealerOps keeps financial and sales records, so a delete only sets <code>deleted_at</code> on <code>vehicle</code>, <code>customer</code>, <code>customer_vehicle</code>, <code>vehicle_photo</code> and <code>vehicle_payment</code>. The row stays for history and audit, and active lists, the ledger and the buyer site skip it. There is no retention job that anonymizes or purges data.</p></div>
   <div class="tbl"><table>
     <thead><tr><th>Area</th><th>Tables</th><th>Key rules</th></tr></thead>
     <tbody>
       <tr><td>Identity and tenancy</td><td><code>dealer</code>, <code>app_user</code>, <code>membership</code>, <code>notification</code></td><td>Username is the account key and JWT subject. Exactly one active membership per user; it carries <code>MANAGER</code> / <code>STAFF</code>. Notifications hold join requests.</td></tr>
-      <tr><td>Inventory</td><td><code>vehicle</code>, <code>vehicle_photo</code>, <code>work_order</code>, <code>vehicle_payment</code></td><td>VIN unique per dealership; sold pair; sold lock; photos as original + enhanced blobs</td></tr>
-      <tr><td>Customers and sales</td><td><code>customer</code>, <code>customer_vehicle</code>, <code>sales_lead</code>, <code>sales_lead_note</code></td><td>One vehicle, one customer; notes append-only</td></tr>
+      <tr><td>Inventory</td><td><code>vehicle</code>, <code>vehicle_photo</code>, <code>work_order</code>, <code>vehicle_payment</code></td><td>VIN unique per dealership; sold pair; sold lock; photos as original + enhanced blobs; dealership logo stored on <code>dealer</code></td></tr>
+      <tr><td>Customers and sales</td><td><code>customer</code>, <code>customer_vehicle</code>, <code>sales_lead</code>, <code>sales_lead_note</code></td><td>One active customer per vehicle (unlinked rows are kept); notes append-only</td></tr>
       <tr><td>Advertising</td><td><code>listing</code>, <code>compliance_check</code>, <code>compliance_rule_override</code></td><td>Listing <code>contentVersion</code> increments on change; each check stores rule findings, AI notes, AI status and recommendation</td></tr>
       <tr><td>Audit</td><td><code>audit_event</code></td><td>Append-only; actor, entity, action, new and previous values, client IP, time</td></tr>
     </tbody>
@@ -732,13 +734,13 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);font-si
     <tbody>
       <tr><td>Auth and self</td><td><code>POST /auth/login|register|google|firebase</code>, <code>GET|PATCH|DELETE /me</code></td><td>Anonymous / signed in</td></tr>
       <tr><td>Admin</td><td><code>/admin/dealers</code>, <code>/admin/dealers/{id}/members</code>, <code>…/role</code>, <code>…/password</code>, <code>/admin/pending-users</code>, <code>/admin/compliance-rules</code>, <code>/admin/audit</code></td><td>Platform.Admin</td></tr>
-      <tr><td>DMS</td><td><code>/vehicles</code>, <code>/vehicles/{id}/sell</code>, <code>/vehicles/report/sales</code>, <code>/vehicles/{id}/work-orders</code>, <code>/vehicles/{id}/photos</code>, <code>/vehicles/{id}/payments</code>, <code>/catalog/*</code></td><td>Dealer.User</td></tr>
+      <tr><td>DMS</td><td><code>/vehicles</code> (filters include <code>adKind</code>, <code>medium</code>, <code>checkStatus</code>, <code>buyerSite</code>), <code>/vehicles/{id}/sell</code>, <code>/vehicles/report/sales</code>, <code>/vehicles/{id}/work-orders</code>, <code>/vehicles/{id}/photos</code>, <code>/vehicles/{id}/payments</code>, <code>/catalog/*</code></td><td>Dealer.User</td></tr>
       <tr><td>CRM and leads</td><td><code>/customers</code>, <code>PUT|DELETE /customers/{id}/vehicles/{vehicleId}</code>, <code>/leads</code>, <code>/leads/{id}/notes</code>, <code>/leads/report/funnel</code>, <code>/members</code></td><td>Dealer.User</td></tr>
       <tr><td>Ads</td><td><code>GET|PATCH /vehicles/{id}/listing</code>, <code>POST /listings/{id}/checks|ready|exports</code></td><td>Dealer.User</td></tr>
       <tr><td>Team</td><td><code>/dealer/join-requests</code>, <code>/dealer/members/{username}</code>, <code>/dealer/profile</code>, <code>/dealer/audit</code></td><td>Manager</td></tr>
       <tr><td>Assistant</td><td><code>POST /assistant/ask</code></td><td>Dealer.User</td></tr>
       <tr><td>Audit</td><td><code>GET /audit?entityType=&amp;entityId=</code>, <code>GET /dealer/audit</code> (manager); <code>GET /admin/audit</code> (admin)</td><td>Manager / Admin</td></tr>
-      <tr><td>Public</td><td><code>GET /catalog/vin/{vin}</code>, <code>/public/dealers/{id}/inventory</code>, <code>…/photo</code>, <code>POST …/inquiries</code></td><td>Anonymous, rate-limited</td></tr>
+      <tr><td>Public</td><td><code>GET /catalog/vin/{vin}</code>, <code>/catalog/dealers</code> (directory with slug, logo flag, in-stock and sold counts), <code>/public/dealers/{slug}/inventory</code>, <code>…/{id}/logo</code>, <code>…/photo</code>, <code>POST …/inquiries</code></td><td>Anonymous, rate-limited</td></tr>
       <tr><td>Internal</td><td><code>POST /internal/v1/ad-check</code>, <code>POST /internal/v1/assistant</code></td><td>Core only (browser gets 404)</td></tr>
     </tbody>
   </table></div>
@@ -752,7 +754,7 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);font-si
     <tbody>
       <tr><td><code>/</code></td><td>Landing page with VIN decoder; signed-in users are sent to their home page</td><td>Everyone</td></tr>
       <tr><td><code>/login</code>, <code>/register</code></td><td>Sign in and self sign-up (Google button when configured)</td><td>Visitors</td></tr>
-      <tr><td><code>/shop</code>, <code>/shop/:dealerId</code>, <code>/disclaimer</code></td><td>Buyer site and disclaimer</td><td>Everyone</td></tr>
+      <tr><td><code>/shop</code>, <code>/shop/:dealer</code>, <code>/disclaimer</code></td><td>Buyer site (dealership pages by name) and disclaimer</td><td>Everyone</td></tr>
       <tr><td><code>/admin</code></td><td>Dealerships, members, pending accounts, rules, audit</td><td>Admin</td></tr>
       <tr><td><code>/dashboard</code></td><td>KPI overview</td><td>Staff, Manager</td></tr>
       <tr><td><code>/dms</code>, <code>/dms/:vehicleId/bill-of-sale</code></td><td>Inventory (post-login home) and printable bill of sale</td><td>Staff, Manager</td></tr>
@@ -764,7 +766,7 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);font-si
   </table></div>
   <ul>
     <li><b>Guards</b>: signed-out users go to <code>/login</code>; the wrong role is redirected to its own home; an unbound user sees the no-access screen on every protected path.</li>
-    <li><b>Patterns</b>: list + side drawer for detail and edit; every page handles loading, empty, error and success states; errors show in the page, never as an empty table.</li>
+    <li><b>Patterns</b>: list + side drawer for detail and edit; every page handles loading, empty, error and success states; errors show in the page, never as an empty table. An empty value is written out in words (<i>Not sold</i>, <i>Not set</i>, <i>Unassigned</i>, <i>None</i>), never shown as a dash.</li>
     <li><b>API layer</b>: all calls go through one client pointed at the configured Gateway URL, which attaches the bearer token. Pages never build service URLs.</li>
     <li>The footer shows the release time of web, gateway, core and ai, read from the Gateway's release endpoint.</li>
   </ul>
@@ -818,6 +820,7 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);font-si
     <li>Real ad text goes through a real AI model once and missing items are identified.</li>
     <li>After a price change, the old check cannot be used to export.</li>
   </ol>
+  <p>A Playwright suite (<code>playwright/</code>) runs the API and UI cases end to end on a private stack with its own database: 353 cases passed on 2026-10-22. It includes publishing an ad end to end: write it on <code>/ads</code>, check it with the real AI, mark it ready, find it Listed and on <code>/shop/{dealer}</code>, then see a sale take it down.</p>
 </section>
 
 <!-- 15 -->
@@ -834,7 +837,8 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);font-si
   </div>
   <ul>
     <li><b>Network rule</b>: core and ai accept only Azure-internal callers; the internal header and JWT checks remain the real authorization.</li>
-    <li><b>Release</b>: an operator runs <code>terraform apply</code>, then the deploy script that publishes the three .NET apps and builds the SPA against the Gateway URL. Demo data loads from committed seed scripts.</li>
+    <li><b>Release</b>: one command, <code>./deploy/deploy.sh --apply --seed</code>, run from a clean checkout of the pushed branch. It checks the checkout first, exports the local database, applies Terraform, publishes the three .NET apps and the SPA built against the Gateway URL (each upload retried up to three times), and waits for the health checks.</li>
+    <li><b>Demo data</b>: the local database is the demo data. <code>--seed</code> replaces the Azure rows with it, dealership logos and vehicle photos included: it stops if the data has a column the deployed Core lacks, backs the Azure rows up to <code>deploy/seed/azure-backup-*.sql.gz</code>, imports in one transaction, restarts Core, and succeeds only when the Gateway lists every dealership. A backup file restores the previous data.</li>
     <li><b>Health</b>: the Gateway exposes <code>/actuator/health</code> (aggregating downstream services) and <code>/actuator/release</code> (release time of all four apps).</li>
     <li><b>Restore</b>: point-in-time restore to a new MySQL server within the 7-day window, then repoint Core through Key Vault.</li>
     <li><b>Local development</b>: the four apps run as plain processes against local MySQL 8, started in order MySQL → Core → AI → Gateway → web (ports 8081, 8082, 8080, 5174).</li>
@@ -859,7 +863,7 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);font-si
       <tr><td>Manual acceptance</td><td><span class="chip amber">In progress</span></td><td>Feature code is complete; acceptance cases are being walked through.</td></tr>
     </tbody>
   </table></div>
-  <div class="callout warn"><p>Retention periods, rate-limit values and SLO targets ship with configurable defaults. They await the dealership's confirmation before production use.</p></div>
+  <div class="callout warn"><p>Rate-limit values and SLO targets ship with configurable defaults. They await the dealership's confirmation before production use.</p></div>
 </section>
 
 <!-- 17 -->
@@ -884,7 +888,7 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);font-si
   </table></div>
 </section>
 
-<footer>DealerOps · Team G2 · System design briefing, 2026-10-21. Summarizes the documents in <code>design/</code>; where they differ, the source documents win.</footer>
+<footer>DealerOps · Team G2 · System design briefing, 2026-10-22. Summarizes the documents in <code>design/</code>; where they differ, the source documents win.</footer>
 </main>
 </div>
 </body>
