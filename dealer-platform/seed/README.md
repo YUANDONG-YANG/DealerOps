@@ -61,7 +61,7 @@ MYSQL_PWD=<local dev password> dealer-platform/seed/scripts/load-seed.sh        
 SEED_PYTHON=<python with Pillow> MYSQL_PWD=... dealer-platform/seed/scripts/load-seed.sh   # also store enhanced photos
 ```
 
-A cloud demo uses the same script. `./deploy/deploy.sh --apply --seed` applies Terraform, uploads the apps, then runs this loader against Azure MySQL with TLS and without `--reset`. `terraform apply` by itself does not load the seed. See [deploy/README.md](../../deploy/README.md).
+Load this seed into the local database; `./deploy/deploy.sh --apply --seed` then copies the local database, seed rows and local edits alike, to Azure. `deploy/seed/load-demo-sql.sh` still loads this seed straight into Azure MySQL without `--reset` when no local database is at hand. `terraform apply` by itself loads no data. See [deploy/README.md](../../deploy/README.md).
 
 Staff accounts sign in with their username, e-mail, or `+1` phone number from
 `contract/dealers.json`. Photos in `images/` (outside `images/kijiji/`) come from Wikimedia Commons under free licences;

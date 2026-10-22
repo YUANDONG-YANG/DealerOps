@@ -1,19 +1,24 @@
 #!/usr/bin/env bash
 # Loads deploy/seed/dealer_core_seed.sql.gz into the Azure MySQL server created by Terraform.
 # Existing rows in Azure are replaced, so the cloud shows the same demo data (and the same
-# sign-ins) as the local development database. Use this only on a blank or reset demo database.
-# ./deploy/deploy.sh --seed does not call this script; it loads the committed seed instead.
+# sign-ins, dealership logos and vehicle photos) as the local development database.
+# ./deploy/deploy.sh --seed runs export-local-data.sh and then this script.
+#
+# Before it changes anything, it saves the Azure rows to deploy/seed/azure-backup-*.sql.gz and
+# stops if the file has a column the deployed dealer-core has not created. The rows are then
+# replaced in one transaction, so a failed import leaves Azure as it was.
 #
 # Usage: deploy/seed/import-to-azure.sh
+#        SEED_FILE=deploy/seed/azure-backup-<time>.sql.gz deploy/seed/import-to-azure.sh  # roll back
 # Needs: terraform apply done, and dealer-core started once (it creates the tables).
 set -euo pipefail
 
 seed_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 tf_dir="${seed_dir}/../terraform"
-seed="${seed_dir}/dealer_core_seed.sql.gz"
+seed="${SEED_FILE:-${seed_dir}/dealer_core_seed.sql.gz}"
 rule="seed-import-$(date +%s)"
 
-for tool in az terraform mysql curl; do
+for tool in az terraform mysql mysqldump curl; do
   command -v "$tool" >/dev/null 2>&1 || { echo "Missing required tool: $tool" >&2; exit 1; }
 done
 [ -f "${seed}" ] || { echo "Missing ${seed}; run deploy/seed/export-local-data.sh first" >&2; exit 1; }
@@ -53,8 +58,43 @@ if [ "${tables}" -lt 14 ]; then
   exit 1
 fi
 
+echo "==> checking the file's columns against the Azure schema"
+azure_columns="$("${mysql_cmd[@]}" -N -e "SELECT CONCAT(table_name, '.', column_name)
+  FROM information_schema.columns WHERE table_schema='dealer_core'" | sort -u)"
+missing="$(gunzip -c "${seed}" | grep -o '^INSERT INTO `[a-z_]*` ([^)]*)' | sort -u \
+  | sed -E 's/^INSERT INTO `([a-z_]*)` \((.*)\)$/\1 \2/' \
+  | while read -r table columns; do tr ',' '\n' <<<"${columns}" | tr -d '` ' | sed "s/^/${table}./"; done \
+  | sort -u | comm -23 - <(printf '%s\n' "${azure_columns}"))"
+if [ -n "${missing}" ]; then
+  echo "Azure has no such columns; deploy the dealer-core that adds them, then sync again:" >&2
+  printf '  %s\n' ${missing} >&2
+  exit 1
+fi
+
+backup="${seed_dir}/azure-backup-$(date +%Y%m%d-%H%M%S).sql.gz"
+echo "==> backing up Azure rows to ${backup}"
+azure_tables=()
+while IFS= read -r t; do azure_tables+=("$t"); done < <("${mysql_cmd[@]}" -N -e "SELECT table_name
+  FROM information_schema.tables WHERE table_schema='dealer_core' AND table_type='BASE TABLE' ORDER BY table_name")
+{
+  echo "SET FOREIGN_KEY_CHECKS=0;"
+  for t in "${azure_tables[@]}"; do echo "TRUNCATE TABLE \`${t}\`;"; done
+  mysqldump -h "${host}" -u "${user}" --ssl-mode=REQUIRED dealer_core "${azure_tables[@]}" \
+    --no-create-info --complete-insert --hex-blob --skip-triggers --skip-tz-utc \
+    --single-transaction --skip-lock-tables --no-tablespaces --set-gtid-purged=OFF \
+    --net-buffer-length=1000000 2> >(grep -v 'when trying to dump masking policies' >&2)
+  echo "SET FOREIGN_KEY_CHECKS=1;"
+} | gzip -9 > "${backup}"
+gunzip -c "${backup}" | grep -q '^-- Dump completed' || { echo "Azure backup is incomplete; nothing was imported" >&2; exit 1; }
+
+# TRUNCATE, LOCK TABLES and ALTER TABLE commit implicitly, so they become DELETE or are dropped;
+# the whole replacement is then one transaction that rolls back if any statement fails.
 echo "==> importing ${seed} into ${host}"
-gunzip -c "${seed}" | "${mysql_cmd[@]}"
+gunzip -c "${seed}" \
+  | sed -E -e 's/^TRUNCATE TABLE (`[a-z_]+`);$/DELETE FROM \1;/' \
+           -e '/^(UN)?LOCK TABLES/d' -e '/^\/\*!40000 ALTER TABLE .* (DIS|EN)ABLE KEYS \*\/;$/d' \
+  | { echo "SET autocommit=0;"; cat; echo "COMMIT;"; } \
+  | "${mysql_cmd[@]}"
 
 echo "==> row counts in Azure"
 for t in dealer app_user membership vehicle customer customer_vehicle listing vehicle_photo sales_lead work_order audit_event; do
@@ -64,3 +104,4 @@ done
 echo "==> restarting ${core_app} so no cached state predates the import"
 az webapp restart -g "${rg}" -n "${core_app}" -o none
 echo "==> done. Sign in with the same accounts as the local database."
+echo "    Roll back: SEED_FILE=${backup} deploy/seed/import-to-azure.sh"

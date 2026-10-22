@@ -113,10 +113,10 @@ Terraform creates the App Service plan, the four web apps, MySQL Flexible Server
 
 ```bash
 az login
-./deploy/deploy.sh --apply --seed     # terraform apply, upload all apps, then load dealer-platform/seed
+./deploy/deploy.sh --apply --seed     # terraform apply, upload all apps, then copy the local database to Azure
 ```
 
-`--seed` adds the 30 demo dealerships and does not delete rows that are already there. The platform admin password stays the one from `terraform output -raw admin_password`. Replacing Azure with a local database dump is separate and does delete existing rows; that procedure is in [deploy/README.md](deploy/README.md). `terraform destroy` in `deploy/terraform` removes the whole stack; apply and destroy can be repeated. Full procedure, verification and cost control: [deploy/README.md](deploy/README.md).
+`--seed` exports the local development database and replaces every Azure row with it, so the cloud demo shows the same dealerships, logos, vehicle photos, ads and sign-ins as the local stack (the platform admin password is then the local one). It backs up the Azure rows first and stops if the local data has a column the deployed code lacks; see [deploy/README.md](deploy/README.md). `terraform destroy` in `deploy/terraform` removes the whole stack; apply and destroy can be repeated. Full procedure, verification and cost control: [deploy/README.md](deploy/README.md).
 
 ## AI agent MCP servers
 
