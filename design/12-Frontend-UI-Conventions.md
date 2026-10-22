@@ -11,7 +11,7 @@ Do not fork any full dealer repository. Those projects usually include a buyer s
 - Other pages: left menu + top bar (dealership name or `Platform Admin`, role, `Sign out`).
 - Admin sees Admin only; staff sees DMS / CRM / Ad compliance / Assistant only. Block unauthorized routes immediately.
 - Post-login landing: admin → Admin; staff → DMS. The KPI page is `/dashboard`, the first menu item, not the landing page (design/21 DASH-01).
-- Signed-out visitors at `/` see a static landing page: brand bar with `Sign in` and `Create account`, hero (car photo plus an illustrative inventory preview), feature cards with illustrative mini screens, a VIN decoder (14 §4.6.1), and ad-approval steps. The page exposes no dealership data or public inventory.
+- Signed-out visitors at `/` see a static landing page: brand bar with `Sign in` and `Create account`, hero (car photo plus an illustrative inventory preview whose three fictional cars open a sample ad-check result: passed, blocked and stale, using the real checklist labels), feature cards with illustrative mini screens, a VIN decoder (14 §4.6.1), and ad-approval steps. The page exposes no dealership data or public inventory.
 - Primary action is top-right; Sell/Unbind require a second confirmation.
 - One table per page, tab, or drawer view. A second list goes behind its own tab (`tab-bar`, as on Admin and Team); never stack two tables on one screen.
 - Every page must have loading, empty, and error states. Failures must not look like empty tables; an AI failure must never show Pass.

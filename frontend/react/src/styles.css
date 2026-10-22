@@ -1103,7 +1103,25 @@ div.state {
   z-index: -1;
   background: linear-gradient(90deg, rgba(11,16,34,.82) 0%, rgba(11,16,34,.35) 55%, rgba(11,16,34,.05) 100%);
 }
+button.landing-preview-row { width: 100%; border: 0; font: inherit; text-align: left; cursor: pointer; }
+.landing-preview-row:focus-visible { outline: 2px solid var(--fg); outline-offset: 2px; }
+.landing-preview-row[aria-expanded="true"] { box-shadow: 0 0 0 2px var(--fg), 0 14px 30px -18px rgba(15,23,42,.6); }
 .landing-preview-row:hover { transform: translateY(-3px); box-shadow: 0 16px 40px -20px rgba(0,0,0,.25); }
+/* Sample check result under a landing preview card (illustrative data only). */
+.landing-sample {
+  margin-top: 8px; padding: 14px 16px; font-size: 13px;
+  background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--border-strong);
+  border-radius: var(--radius); animation: landing-sample-in .2s ease-out;
+}
+.landing-sample-ok { border-left-color: var(--success); }
+.landing-sample-bad { border-left-color: var(--danger); }
+.landing-sample-warn { border-left-color: var(--warning); }
+.landing-sample-ad { margin: 0 0 10px; color: var(--muted-fg); font-style: italic; }
+.landing-sample ul { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 6px; }
+.landing-sample li { display: flex; gap: 8px; align-items: baseline; }
+.landing-sample-verdict { margin: 12px 0 8px; font-weight: 600; }
+@keyframes landing-sample-in { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .landing-sample { animation: none; } }
 .landing-preview-row:hover img { transform: scale(1.06); }
 .landing-preview-text strong { display: block; font-size: 16px; }
 .landing-preview-text span { font-size: 13px; color: rgba(255,255,255,.8); }
@@ -1285,7 +1303,7 @@ div.state {
   isolation: isolate;
   overflow: hidden;
   margin-top: 32px;
-  padding: 64px 32px 232px;
+  padding: 64px 32px 256px;
   border-radius: var(--radius-lg);
   background: var(--surface);
   border: 1px solid var(--border);
@@ -1303,8 +1321,9 @@ div.state {
   left: 0;
   right: 0;
   bottom: 24px;
-  height: 172px;
+  height: 196px;
   pointer-events: none;
+  container-type: inline-size;
   -webkit-mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent);
   mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent);
 }
@@ -1324,27 +1343,44 @@ div.state {
   left: 50%;
   width: 2px;
   transform: translateX(-50%);
-  background: linear-gradient(180deg, transparent, var(--border-strong) 30%, var(--border-strong) 70%, transparent);
+  background: linear-gradient(180deg, transparent, var(--fg) 25%, var(--fg) 80%, transparent);
+  box-shadow: 0 0 14px 2px rgba(29,29,31,.18);
   animation: cta-gate-pulse 3s ease-in-out infinite;
+}
+/* A faint scanner band either side of the gate line. */
+.cta-gate::before {
+  content: "";
+  position: absolute;
+  top: 28px;
+  bottom: 0;
+  left: 50%;
+  width: 56px;
+  transform: translateX(-50%);
+  background: linear-gradient(90deg, transparent, rgba(29,29,31,.05), transparent);
 }
 .cta-gate span {
   position: absolute;
-  top: -14px;
+  top: 6px;
   left: 50%;
   transform: translateX(-50%);
   white-space: nowrap;
-  font-size: 9px;
-  font-weight: 600;
-  letter-spacing: .18em;
+  padding: 3px 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  background: var(--surface);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .16em;
   text-transform: uppercase;
-  color: var(--muted-fg);
+  color: var(--fg);
 }
 .cta-ad {
   --d: 0s;
   --w: 176px;
   position: absolute;
   bottom: 10px;
-  left: calc(-1 * var(--w) - 10px);
+  left: 0;
+  transform: translateX(calc(-1 * var(--w) - 10px));
   width: var(--w);
   height: 148px;
   padding: 100px 12px 0;
@@ -1380,14 +1416,32 @@ div.state {
   animation: 18s steps(1, end) var(--d) infinite;
 }
 .cta-ad-draft { color: var(--muted-fg); border: 1px solid var(--border-strong); animation-name: cta-show-before; }
+/* Past the gate, an ad that did not pass swaps its price for the reason. */
+.cta-ad-reason {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  top: 117px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 11px;
+  font-weight: 600;
+  opacity: 0;
+  animation: cta-show-after 18s steps(1, end) var(--d) infinite;
+}
+.cta-ad-bad .cta-ad-reason { color: var(--danger); }
+.cta-ad-warn .cta-ad-reason { color: var(--warning); }
+.cta-ad-bad .cta-ad-price, .cta-ad-warn .cta-ad-price { animation: cta-show-before 18s steps(1, end) var(--d) infinite; }
 .cta-ad-stamp { opacity: 0; transform: rotate(-8deg); animation-name: cta-show-after; }
 /* Failed checks also outline the whole card once they pass the gate. */
 .cta-ad-bad { --flag: rgba(251,113,133,.55); }
 .cta-ad-warn { --flag: rgba(251,191,36,.5); }
 .cta-ad-bad, .cta-ad-warn { animation: cta-ad-move 18s linear var(--d) infinite, cta-ad-flag 18s linear var(--d) infinite; }
+/* transform, not left, so the move needs no layout; 100cqw is the band's width. */
 @keyframes cta-ad-move {
-  from { left: calc(-1 * var(--w) - 10px); }
-  to { left: calc(100% + 10px); }
+  from { transform: translateX(calc(-1 * var(--w) - 10px)); }
+  to { transform: translateX(calc(100cqw + 10px)); }
 }
 @keyframes cta-show-before { 0% { opacity: 1; } 50% { opacity: 0; } }
 @keyframes cta-show-after { 0% { opacity: 0; } 50% { opacity: 1; } }
@@ -1596,6 +1650,13 @@ div.state {
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
+  /* Without motion the conveyor would sit off-screen, so show stamped ads in a still row. */
+  .landing-cta > .cta-flow { display: flex; justify-content: center; align-items: flex-end; gap: 16px; padding-bottom: 10px; }
+  .cta-ad { position: relative; bottom: auto; flex: none; transform: none; }
+  .cta-ad:nth-of-type(n+6) { display: none; }  /* the gate is the first div */
+  .cta-gate, .cta-ad-draft, .cta-ad-bad .cta-ad-price, .cta-ad-warn .cta-ad-price { display: none; }
+  .cta-ad-stamp, .cta-ad-reason { opacity: 1; }
+  .cta-ad-bad, .cta-ad-warn { border-color: var(--flag); }
 }
 
 /* Bill of sale: print the document only. */

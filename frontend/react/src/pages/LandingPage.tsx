@@ -32,19 +32,60 @@ const STEPS: { title: string; text: string; art: LandingArtKind }[] = [
   { title: 'Export', text: 'Only a current passed check can be marked ready and exported.', art: 'export' },
 ]
 
-const PREVIEW_ROWS = [
-  { vehicle: '2021 Toyota RAV4 XLE', status: 'In stock', check: 'Passed', tone: 'ok', photo: rav4 },
-  { vehicle: '2019 Honda Civic LX', status: 'In stock', check: 'Blocked', tone: 'bad', photo: civic },
-  { vehicle: '2022 Ford F-150 XLT', status: 'Sold', check: 'Stale', tone: 'warn', photo: f150 },
+type SampleRow = { label: string; result: 'pass' | 'fail' | 'warn'; note?: string }
+
+// Illustrative ad checks for fictional vehicles: no dealership data is read (design/12). The row
+// labels match the real ad-check checklist, so a visitor sees what a signed-in check shows.
+const PREVIEW_ROWS: {
+  vehicle: string; status: string; check: string; tone: string; photo: string
+  ad: string; rows: SampleRow[]; verdict: string
+}[] = [
+  {
+    vehicle: '2021 Toyota RAV4 XLE', status: 'In stock', check: 'Passed', tone: 'ok', photo: rav4,
+    ad: 'Used 2021 Toyota RAV4 XLE, 48,200 km, accident-free. $31,900 plus HST and licensing. Example Motors, 403-555-0142.',
+    rows: [
+      { label: 'Dealership name and contacts', result: 'pass' },
+      { label: 'New/used and year', result: 'pass' },
+      { label: 'Price', result: 'pass' },
+      { label: 'Condition', result: 'pass' },
+      { label: 'AI review of the wording', result: 'pass' },
+    ],
+    verdict: 'Passed. The ad can be marked ready and exported.',
+  },
+  {
+    vehicle: '2019 Honda Civic LX', status: 'In stock', check: 'Blocked', tone: 'bad', photo: civic,
+    ad: 'Used 2019 Honda Civic LX. Drive it home for only $89 bi-weekly! Example Motors, 403-555-0142.',
+    rows: [
+      { label: 'Dealership name and contacts', result: 'pass' },
+      { label: 'New/used and year', result: 'pass' },
+      { label: 'APR', result: 'fail', note: 'A payment is quoted without the interest rate.' },
+      { label: 'Finance term', result: 'fail', note: 'The number of payments is not stated.' },
+      { label: 'Cash price or cost of borrowing', result: 'fail', note: 'Neither total is shown.' },
+    ],
+    verdict: 'Blocked. Add the three finance disclosures, then check again.',
+  },
+  {
+    vehicle: '2022 Ford F-150 XLT', status: 'Sold', check: 'Stale', tone: 'warn', photo: f150,
+    ad: 'Used 2022 Ford F-150 XLT, 36,000 km. Now $44,500 plus HST and licensing. Example Motors, 403-555-0142.',
+    rows: [
+      { label: 'Dealership name and contacts', result: 'pass' },
+      { label: 'New/used and year', result: 'pass' },
+      { label: 'Price', result: 'warn', note: 'The price was edited after the last check.' },
+    ],
+    verdict: 'Stale. An edit after the check voids the pass until the ad is checked again.',
+  },
 ]
 
+const SAMPLE_ICON: Record<SampleRow['result'], string> = { pass: '✅', fail: '❌', warn: '⚠️' }
+
 const SAMPLE_VIN = '1HGCM82633A004352'
-// Decorative CTA conveyor: ads roll through the compliance gate and come out stamped.
-const CTA_ADS = [
+// Decorative CTA conveyor: ads roll through the compliance gate and come out stamped. Stamps use
+// the real check-status labels; an ad that does not pass shows why in place of its price.
+const CTA_ADS: { car: string; price: string; tone: string; stamp: string; reason?: string; photo: string }[] = [
   { car: '2017 RAV4', price: '$21,900', tone: 'ok', stamp: 'Passed', photo: conveyorRav4 },
-  { car: '2023 Civic', price: '$27,450', tone: 'bad', stamp: 'Blocked', photo: conveyorCivic },
+  { car: '2023 Civic', price: '$27,450', tone: 'bad', stamp: 'Blocked', reason: 'APR not stated', photo: conveyorCivic },
   { car: '2016 F-150', price: '$28,200', tone: 'ok', stamp: 'Passed', photo: conveyorF150 },
-  { car: '2022 CX-5', price: '$31,800', tone: 'warn', stamp: 'Review', photo: conveyorCx5 },
+  { car: '2022 CX-5', price: '$31,800', tone: 'warn', stamp: 'Needs AI review', reason: 'Claim sent to AI', photo: conveyorCx5 },
   { car: '2017 Camry', price: '$17,100', tone: 'ok', stamp: 'Passed', photo: conveyorCamry },
   { car: '2022 Tucson', price: '$29,500', tone: 'ok', stamp: 'Passed', photo: conveyorTucson },
 ]
@@ -69,6 +110,8 @@ export default function LandingPage() {
   const role = useSessionStore(s => s.role)
   const setProfile = useSessionStore(s => s.setProfile)
   const [vin, setVin] = useState('')
+  // The preview card whose sample check is open; clicking it again closes it.
+  const [openSample, setOpenSample] = useState<number | null>(null)
 
   // The session store is filled by the route guard, so a fresh load of `/` with a stored token
   // has no role yet; load the profile here so the redirect below still applies (UI-02).
@@ -149,17 +192,35 @@ export default function LandingPage() {
         <div className="landing-preview" aria-label="Dashboard preview">
           <div className="landing-preview-head">
             <span>Inventory</span>
-            <span className="muted">Preview</span>
+            <span className="muted">Sample ad checks · tap a car</span>
           </div>
-          {PREVIEW_ROWS.map(row => (
-            <Link key={row.vehicle} to="/login" className="landing-preview-row">
-              <img src={row.photo} alt={`${row.vehicle}, front three-quarter view`} loading="lazy" />
-              <div className="landing-preview-text">
-                <strong>{row.vehicle}</strong>
-                <span>{row.status}</span>
-              </div>
-              <span className={`landing-chip landing-chip-${row.tone}`}>{row.check}</span>
-            </Link>
+          {PREVIEW_ROWS.map((row, i) => (
+            <div key={row.vehicle}>
+              <button type="button" className="landing-preview-row" aria-expanded={openSample === i}
+                aria-controls={`sample-check-${i}`} onClick={() => setOpenSample(openSample === i ? null : i)}>
+                <img src={row.photo} alt={`${row.vehicle}, front three-quarter view`} loading="lazy" />
+                <div className="landing-preview-text">
+                  <strong>{row.vehicle}</strong>
+                  <span>{row.status}</span>
+                </div>
+                <span className={`landing-chip landing-chip-${row.tone}`}>{row.check}</span>
+              </button>
+              {openSample === i && (
+                <div id={`sample-check-${i}`} className={`landing-sample landing-sample-${row.tone}`}>
+                  <p className="landing-sample-ad">“{row.ad}”</p>
+                  <ul>
+                    {row.rows.map(r => (
+                      <li key={r.label}>
+                        <span aria-hidden="true">{SAMPLE_ICON[r.result]}</span>
+                        <span>{r.label}{r.note && <span className="muted"> · {r.note}</span>}</span>
+                      </li>
+                    ))}
+                  </ul>
+                  <p className="landing-sample-verdict">{row.verdict}</p>
+                  <Link to="/login">Sign in to check your own ads →</Link>
+                </div>
+              )}
+            </div>
           ))}
         </div>
       </section>
@@ -253,6 +314,7 @@ export default function LandingPage() {
               <img src={ad.photo} alt="" className="cta-ad-photo" />
               <strong>{ad.car}</strong>
               <span className="cta-ad-price">{ad.price}</span>
+              {ad.reason && <span className="cta-ad-reason">{ad.reason}</span>}
               <span className="cta-ad-draft">Ad draft</span>
               <span className={`cta-ad-stamp landing-chip landing-chip-${ad.tone}`}>{ad.stamp}</span>
             </div>
