@@ -1,0 +1,891 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DealerOps System Design</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Source+Serif+4:wght@600;700&amp;family=JetBrains+Mono:wght@400;600&amp;display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f5f6f8;--surface:#ffffff;--fg:#1b2230;--muted:#5b6475;--line:#dde1e8;
+  --accent:#1f4e9c;--accent-soft:#e7eefa;
+  --block:#b42318;--block-soft:#fdecea;--review:#a15c07;--review-soft:#fdf3e2;
+  --pass:#1d7a46;--pass-soft:#e5f4ec;--neutral:#6b7280;--neutral-soft:#eef0f3;
+  --purple:#6941c6;--purple-soft:#f1ecfb;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#11151c;--surface:#181e28;--fg:#e4e8ef;--muted:#9aa4b5;--line:#2b3442;
+    --accent:#8db4f5;--accent-soft:#1d2b44;
+    --block:#f19790;--block-soft:#3a1d1b;--review:#f0b866;--review-soft:#3a2c14;
+    --pass:#7fd3a0;--pass-soft:#16301f;--neutral:#a3aab6;--neutral-soft:#242b36;
+    --purple:#bba4f5;--purple-soft:#2a2240;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#11151c;--surface:#181e28;--fg:#e4e8ef;--muted:#9aa4b5;--line:#2b3442;
+  --accent:#8db4f5;--accent-soft:#1d2b44;
+  --block:#f19790;--block-soft:#3a1d1b;--review:#f0b866;--review-soft:#3a2c14;
+  --pass:#7fd3a0;--pass-soft:#16301f;--neutral:#a3aab6;--neutral-soft:#242b36;
+  --purple:#bba4f5;--purple-soft:#2a2240;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:Inter,system-ui,sans-serif;font-size:15px;line-height:1.7}
+.page{display:grid;grid-template-columns:240px minmax(0,1fr);gap:48px;max-width:1220px;margin:auto;padding:40px 24px 80px}
+nav{position:sticky;top:24px;align-self:start;font-size:13px;max-height:calc(100vh - 48px);overflow:auto}
+nav strong{color:var(--muted);font-size:12px;letter-spacing:.12em}
+nav ol{list-style:none;padding:0;margin:8px 0}
+nav a{display:block;padding:4px 10px;color:var(--muted);text-decoration:none;border-left:2px solid transparent}
+nav a:hover{color:var(--accent);border-color:var(--accent)}
+main{min-width:0}
+header{border-bottom:1px solid var(--line);padding-bottom:28px}
+.eyebrow{color:var(--accent);font-size:12px;letter-spacing:.14em;text-transform:uppercase;font-weight:600}
+h1,h2{font-family:"Source Serif 4",Georgia,serif}
+h1{font-size:38px;line-height:1.2;margin:8px 0 10px}
+.subtitle{color:var(--muted);margin:0 0 22px;max-width:78ch}
+dl.meta{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px 24px;margin:0}
+dl.meta dt{font-size:12px;color:var(--muted);letter-spacing:.05em}
+dl.meta dd{margin:0;font-weight:500}
+section{padding-top:44px}
+h2{font-size:26px;margin:0 0 14px;display:flex;gap:12px;align-items:baseline}
+h2 .num{font:600 15px "JetBrains Mono",monospace;color:var(--accent)}
+h3{font-size:17px;margin:28px 0 10px}
+h4{font-size:15px;margin:18px 0 6px}
+p{max-width:80ch;margin:0 0 12px}
+ul,ol.list{max-width:80ch;margin:0 0 14px;padding-left:1.3em}
+li{margin:3px 0}
+a{color:var(--accent)}
+code,.mono{font:.86em "JetBrains Mono",monospace;background:var(--accent-soft);color:var(--accent);padding:1px 5px;border-radius:4px;overflow-wrap:anywhere}
+.tbl{overflow-x:auto;margin:8px 0 18px;border:1px solid var(--line);border-radius:8px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;font-size:13.5px;line-height:1.55}
+th,td{text-align:left;vertical-align:top;padding:8px 10px;border-bottom:1px solid var(--line)}
+th{font-size:12px;color:var(--muted);background:var(--bg);white-space:nowrap}
+tr:last-child td{border-bottom:0}
+td.c,th.c{text-align:center}
+.yes{color:var(--pass);font-weight:700}.no{color:var(--block);font-weight:700}.part{color:var(--review);font-weight:700}
+.chip{display:inline-block;font-size:11.5px;font-weight:600;padding:1px 8px;border-radius:999px;white-space:nowrap;border:1px solid transparent}
+.chip.blue{background:var(--accent-soft);color:var(--accent)}
+.chip.red{background:var(--block-soft);color:var(--block)}
+.chip.amber{background:var(--review-soft);color:var(--review)}
+.chip.green{background:var(--pass-soft);color:var(--pass)}
+.chip.gray{background:var(--neutral-soft);color:var(--neutral)}
+.chip.purple{background:var(--purple-soft);color:var(--purple)}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px;margin:12px 0 18px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px 16px}
+.card h4{margin:0 0 4px;font-size:15px}
+.card p{font-size:13.5px;color:var(--muted);margin:0}
+.card .k{font:600 24px "Source Serif 4",serif;color:var(--accent);display:block;line-height:1.2}
+.callout{background:var(--accent-soft);border-left:3px solid var(--accent);border-radius:6px;padding:12px 16px;margin:12px 0 18px;max-width:84ch}
+.callout.warn{background:var(--review-soft);border-color:var(--review)}
+.callout p:last-child{margin:0}
+figure{margin:12px 0 22px;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px}
+figure svg{width:100%;height:auto;display:block}
+figcaption{font-size:13px;color:var(--muted);margin-top:10px}
+/* diagram tokens */
+.d-box{fill:var(--surface);stroke:var(--line);stroke-width:1.5}
+.d-box.acc{fill:var(--accent-soft);stroke:var(--accent)}
+.d-box.green{fill:var(--pass-soft);stroke:var(--pass)}
+.d-box.purple{fill:var(--purple-soft);stroke:var(--purple)}
+.d-box.gray{fill:var(--neutral-soft);stroke:var(--neutral)}
+.d-title{fill:var(--fg);font:600 14px Inter,sans-serif}
+.d-sub{fill:var(--muted);font:12px Inter,sans-serif}
+.d-mono{fill:var(--accent);font:600 11.5px "JetBrains Mono",monospace}
+.d-line{stroke:var(--muted);stroke-width:1.6;fill:none}
+.d-line.acc{stroke:var(--accent)}
+.d-line.bad{stroke:var(--block);stroke-dasharray:6 5}
+.d-lbl{fill:var(--muted);font:11.5px Inter,sans-serif}
+.d-bad{fill:var(--block);font:600 11.5px Inter,sans-serif}
+.d-arrow{fill:var(--muted)}
+.d-arrow.acc{fill:var(--accent)}
+.d-arrow.bad{fill:var(--block)}
+.d-zone{fill:none;stroke:var(--line);stroke-width:1.2;stroke-dasharray:4 4}
+/* flows */
+.flow{display:flex;flex-wrap:wrap;align-items:stretch;gap:6px;margin:10px 0 18px}
+.step{flex:1 1 150px;background:var(--surface);border:1px solid var(--line);border-radius:9px;padding:10px 12px;position:relative;min-width:140px}
+.step b{display:block;font-size:13.5px}
+.step span{font-size:12.5px;color:var(--muted);display:block;line-height:1.45}
+.step .who{font:600 10.5px "JetBrains Mono",monospace;color:var(--accent);letter-spacing:.04em;text-transform:uppercase}
+.arrow{align-self:center;color:var(--muted);font-size:18px;flex:0 0 auto}
+.states{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:8px 0 16px;font-size:13px}
+.states .arrow{font-size:14px}
+.lanes{display:grid;gap:10px;margin:10px 0 18px}
+.lane{display:grid;grid-template-columns:150px minmax(0,1fr);gap:12px;align-items:start;background:var(--surface);border:1px solid var(--line);border-radius:9px;padding:10px 12px}
+.lane .ln{font-weight:600;font-size:13px}
+.lane .ln small{display:block;color:var(--muted);font-weight:400}
+.lane ol{margin:0;padding-left:1.2em;font-size:13.5px}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px}
+.rg{border:1.5px dashed var(--accent);border-radius:12px;padding:16px;margin:12px 0 18px;background:var(--surface)}
+.rg > .lbl{font:600 12px "JetBrains Mono",monospace;color:var(--accent);margin-bottom:10px}
+.rg .cards{margin:0}
+footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);font-size:13px;color:var(--muted)}
+@media (max-width:900px){
+  .page{grid-template-columns:1fr;gap:16px;padding:24px 16px 60px}
+  nav{position:static;max-height:none;border:1px solid var(--line);border-radius:8px;padding:10px;background:var(--surface)}
+  h1{font-size:30px}
+  .lane{grid-template-columns:1fr}
+}
+@media print{
+  nav{display:none}.page{grid-template-columns:1fr}
+  section{break-inside:avoid-page}
+}
+</style>
+</head>
+<body>
+<div class="page">
+<nav aria-label="Contents">
+  <strong>CONTENTS</strong>
+  <ol>
+    <li><a href="#summary">1 · Executive summary</a></li>
+    <li><a href="#users">2 · Users and roles</a></li>
+    <li><a href="#org">3 · Project organization</a></li>
+    <li><a href="#arch">4 · System architecture</a></li>
+    <li><a href="#stack">5 · Technology stack</a></li>
+    <li><a href="#security">6 · Security and tenancy</a></li>
+    <li><a href="#modules">7 · Business modules</a></li>
+    <li><a href="#flows">8 · Business process flows</a></li>
+    <li><a href="#compliance">9 · Ad compliance and AI</a></li>
+    <li><a href="#audit">10 · Audit and traceability</a></li>
+    <li><a href="#data">11 · Data model</a></li>
+    <li><a href="#api">12 · API design</a></li>
+    <li><a href="#frontend">13 · Frontend design</a></li>
+    <li><a href="#dev">14 · Development process</a></li>
+    <li><a href="#deploy">15 · Deployment and operations</a></li>
+    <li><a href="#scope">16 · Scope and limitations</a></li>
+    <li><a href="#docs">17 · Document map</a></li>
+  </ol>
+</nav>
+
+<main>
+<header>
+  <div class="eyebrow">Client briefing · Detailed design</div>
+  <h1>DealerOps System Design</h1>
+  <p class="subtitle">A multi-tenant dealership operations platform for Ontario used-car dealers: inventory (DMS), customers (CRM), sales leads, reconditioning, payments, a public buyer site, and OMVIC advertising compliance checked by fixed rules plus a real AI review. This page explains how the system is organized, how it is built, and how each business process runs.</p>
+  <dl class="meta">
+    <div><dt>Product</dt><dd>DealerOps</dd></div>
+    <div><dt>Team</dt><dd>G2 (four members)</dd></div>
+    <div><dt>Active stack</dt><dd>.NET 10 · React 19 · MySQL 8</dd></div>
+    <div><dt>Hosting</dt><dd>Microsoft Azure (Terraform)</dd></div>
+    <div><dt>Document date</dt><dd>2026-10-21</dd></div>
+    <div><dt>Status</dt><dd>Feature code complete; manual acceptance in progress</dd></div>
+  </dl>
+</header>
+
+<!-- 1 -->
+<section id="summary">
+  <h2><span class="num">01</span>Executive summary</h2>
+  <p>DealerOps gives a dealership one place to record its vehicles and customers, follow up sales opportunities, prepare vehicles for sale, and publish advertisements that meet Ontario's OMVIC advertising rules. Several dealerships share one platform, but each one sees only its own data. A platform administrator opens dealerships and manages access without ever seeing their business records.</p>
+  <div class="cards">
+    <div class="card"><span class="k">3 + 1</span><h4>Core modules</h4><p>DMS, CRM and Ad Compliance write to one shared dealership data set, plus an in-store AI assistant.</p></div>
+    <div class="card"><span class="k">4</span><h4>Deployable services</h4><p>React web app, API Gateway, Core business service, and a stateless AI service.</p></div>
+    <div class="card"><span class="k">2 layers</span><h4>OMVIC checking</h4><p>Deterministic BLOCK / REVIEW rules run before the AI, so a hard failure never reaches the model.</p></div>
+    <div class="card"><span class="k">100%</span><h4>Audited writes</h4><p>Every sign-in attempt and every create, update and delete records who, what, when, from which IP, and the replaced values.</p></div>
+  </div>
+  <h3>What the client gets</h3>
+  <ul>
+    <li><b>Inventory (DMS)</b> with VIN decode from NHTSA, sale recording, sold-vehicle locks, photos with automatic enhancement, and reconditioning work orders.</li>
+    <li><b>Customers and sales (CRM + Leads)</b> with vehicle linking, lead stages and follow-up dates, a sales funnel report, a payment ledger and a printable bill of sale.</li>
+    <li><b>Ad compliance</b> that checks each advertisement against the OMVIC checklist, asks a real AI model for review notes, and allows Ready / TXT export only while the latest check is passed and still current.</li>
+    <li><b>Buyer site</b> that lists only ready, compliance-passed vehicles to the public and turns each inquiry into a sales lead.</li>
+    <li><b>Team management</b> with dealership managers and staff, join requests, and a dealership audit log.</li>
+  </ul>
+</section>
+
+<!-- 2 -->
+<section id="users">
+  <h2><span class="num">02</span>Users and roles</h2>
+  <p>Authentication issues one of only two token roles: <code>Platform.Admin</code> and <code>Dealer.User</code>. Inside a dealership, the membership row carries a second level, <code>MANAGER</code> or <code>STAFF</code>. Tenancy is always derived on the server from the signed-in user's active membership; the browser can never choose a dealership.</p>
+  <div class="cards">
+    <div class="card"><h4><span class="chip purple">Platform Admin</span></h4><p>Opens and edits dealerships, creates and binds accounts, unbinds members, resets passwords, promotes or demotes managers, edits the global OMVIC rule settings, and reads the platform audit log. Receives <b>403</b> on every business endpoint.</p></div>
+    <div class="card"><h4><span class="chip blue">Dealership Manager</span></h4><p>Everything staff can do, plus: the Team page and join-request inbox, removing staff, editing the dealership profile, reading and correcting the payment ledger, and reading all audit data of the dealership (record history and the dealership audit log).</p></div>
+    <div class="card"><h4><span class="chip green">Dealership Staff</span></h4><p>Full read/write access to the dealership's daily business data: dashboard, DMS, CRM, leads, reports, ads, work orders, photos and the assistant. Can record a payment but cannot see or change the payment ledger, and sees no audit data.</p></div>
+    <div class="card"><h4><span class="chip gray">Unbound account</span></h4><p>Signed in but not yet approved. Sees a no-access screen and may request to join one dealership.</p></div>
+    <div class="card"><h4><span class="chip amber">Public visitor</span></h4><p>No account. Uses the landing page, VIN decoder, buyer site and disclaimer, and can send an inquiry about a listed vehicle.</p></div>
+  </div>
+  <h3>Permission scope: Admin, Manager, Staff</h3>
+  <p>The three working roles have deliberately separate scopes. The admin runs the platform but never sees a dealership's business data. A manager and staff share the same business data; the manager additionally governs the team and holds the money and audit oversight.</p>
+  <div class="tbl"><table>
+    <thead><tr><th>Area</th><th>Capability</th><th class="c">Admin</th><th class="c">Manager</th><th class="c">Staff</th></tr></thead>
+    <tbody>
+      <tr><td rowspan="5"><b>Platform</b></td><td>Create and edit dealerships</td><td class="c yes">✓</td><td class="c no">403</td><td class="c no">403</td></tr>
+      <tr><td>Create accounts, bind or unbind any account, reset passwords</td><td class="c yes">✓</td><td class="c no">403</td><td class="c no">403</td></tr>
+      <tr><td>Promote staff to manager, demote a manager</td><td class="c yes">✓</td><td class="c no">403</td><td class="c no">403</td></tr>
+      <tr><td>Global OMVIC rule editor</td><td class="c yes">✓</td><td class="c no">403</td><td class="c no">403</td></tr>
+      <tr><td>Platform audit log (all dealerships, sign-ins, admin actions)</td><td class="c yes">✓</td><td class="c no">403</td><td class="c no">403</td></tr>
+      <tr><td rowspan="5"><b>Team</b></td><td>Team page and join-request inbox; approve or reject join requests</td><td class="c no">—</td><td class="c yes">✓</td><td class="c no">403</td></tr>
+      <tr><td>Remove a staff member (not another manager, not self)</td><td class="c no">—</td><td class="c yes">✓</td><td class="c no">403</td></tr>
+      <tr><td>Edit the dealership profile (legal name, phone, email, address)</td><td class="c no">—</td><td class="c yes">✓</td><td class="c no">403</td></tr>
+      <tr><td>Dealership audit log (all rows of the dealership)</td><td class="c no">403</td><td class="c yes">✓</td><td class="c no">403</td></tr>
+      <tr><td>Record history in vehicle, customer, lead and ad detail</td><td class="c no">403</td><td class="c yes">✓</td><td class="c no">403 (hidden)</td></tr>
+      <tr><td rowspan="6"><b>Business</b></td><td>Dashboard, DMS, CRM, Leads, Sales report</td><td class="c no">403</td><td class="c yes">✓</td><td class="c yes">✓</td></tr>
+      <tr><td>Sell a vehicle, link customers, work orders, Image Studio</td><td class="c no">403</td><td class="c yes">✓</td><td class="c yes">✓</td></tr>
+      <tr><td>Ad drafts, compliance checks, Ready, TXT export</td><td class="c no">403</td><td class="c yes">✓</td><td class="c yes">✓</td></tr>
+      <tr><td>In-store AI assistant</td><td class="c no">403</td><td class="c yes">✓</td><td class="c yes">✓</td></tr>
+      <tr><td>Record a payment on a sold vehicle</td><td class="c no">403</td><td class="c yes">✓</td><td class="c yes">✓</td></tr>
+      <tr><td>View the payment ledger and balance; remove a mistaken payment</td><td class="c no">403</td><td class="c yes">✓</td><td class="c no">403</td></tr>
+      <tr><td rowspan="2"><b>Self</b></td><td>Own profile (display name, phone), delete own account</td><td class="c yes">✓</td><td class="c yes">✓</td><td class="c yes">✓</td></tr>
+      <tr><td>Data scope</td><td class="c">No business data</td><td class="c">Own dealership</td><td class="c">Own dealership</td></tr>
+    </tbody>
+  </table></div>
+  <p>Signed-out visitors may use only the landing page, VIN decoder, buyer site, inquiry form and disclaimer. A signed-in account without a dealership sees the no-access screen and may request to join one dealership.</p>
+  <p>Role changes apply on the next request, because the dealership role is read from the membership on every call rather than from the token. The UI hides what a role cannot use, but the server enforces every rule on its own: a forbidden call returns <b>403</b>, and another dealership's record id returns <b>404</b>, so a response never reveals whether that record exists.</p>
+</section>
+
+<!-- 3 -->
+<section id="org">
+  <h2><span class="num">03</span>Project organization</h2>
+  <h3>Team G2</h3>
+  <div class="tbl"><table>
+    <thead><tr><th>Member</th><th>Role</th><th>Ownership</th></tr></thead>
+    <tbody>
+      <tr><td><b>Yuandong Yang (Robin)</b></td><td>Full-stack lead</td><td>All repositories: defect fixes, pull-request review, Terraform, release</td></tr>
+      <tr><td>Bedgel Fadhil Ndam Woukouo</td><td>Role A · Frontend</td><td><code>dealer-web</code>: React pages, sign-in, floating assistant, web pipeline</td></tr>
+      <tr><td>Jackson Warga</td><td>Role B · AI and platform</td><td><code>ai-service</code>, AI library integration, OMVIC checklist, <code>dealer-platform</code>, first Terraform draft</td></tr>
+      <tr><td>Logan Jones</td><td>Role C · Backend</td><td><code>dealer-gateway</code> and <code>dealer-core</code>: tenant isolation, sign-in and JWT, business services</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>Governance and delivery rhythm</h3>
+  <div class="grid2">
+    <div>
+      <h4>Requirement sources (in priority order)</h4>
+      <ol class="list">
+        <li>Course non-negotiable requirements (technology and process)</li>
+        <li>Client specification PDF (fields, business rules, pages, security, hosting, backup)</li>
+        <li>Client DOCX notes (VIN decode, landing page, sign-in options, Image Studio, workflows)</li>
+        <li>Design documents in <code>design/</code> and the API contract</li>
+      </ol>
+      <p>The signed scope is recorded in <code>design/SCOPE-BASELINE.md</code>. Scope changes need written client or instructor approval.</p>
+    </div>
+    <div>
+      <h4>Scrum, lightweight</h4>
+      <ul>
+        <li>One board: To do / Doing / Done; cards carry requirement IDs (for example <code>DMS-10</code>, <code>AD-07</code>).</li>
+        <li>Each class session opens with a 10-minute sync and closes with a written progress paragraph per person.</li>
+        <li>Three sprint reviews; every member demonstrates their own running work.</li>
+        <li>Client meetings every two weeks; minutes record decisions and owners only.</li>
+      </ul>
+    </div>
+  </div>
+  <h3>Sprint plan</h3>
+  <div class="flow">
+    <div class="step"><span class="who">Sprint 1</span><b>Foundations</b><span>Four services build independently; architecture diagram; the two JWT roles defined.</span></div>
+    <div class="arrow">→</div>
+    <div class="step"><span class="who">Sprint 2</span><b>On Azure</b><span>Sign in → Gateway → record a vehicle → a real AI scans an ad. No plaintext secrets.</span></div>
+    <div class="arrow">→</div>
+    <div class="step"><span class="who">Sprint 3</span><b>Complete scope</b><span>Two-dealership isolation, CRM linking, checks for all three ad types, export, audit, feature freeze.</span></div>
+    <div class="arrow">→</div>
+    <div class="step"><span class="who">Extensions</span><b>Client notes</b><span>Leads, work orders, Image Studio, self sign-up, buyer site, payments, dashboard, finance-grade audit.</span></div>
+  </div>
+</section>
+
+<!-- 4 -->
+<section id="arch">
+  <h2><span class="num">04</span>System architecture</h2>
+  <p>DealerOps is four independently deployable services. The browser talks to exactly one of them, the Gateway. Core owns every business rule and the only database. The AI service holds no data and is reachable only from Core with a shared internal credential. All calls are synchronous REST; there is no message queue and no second database.</p>
+  <figure>
+    <svg viewBox="0 0 920 440" role="img" aria-label="Service architecture: browser to gateway to core to MySQL; core to AI service to model provider; direct browser access to core and AI is refused.">
+      <defs>
+        <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="d-arrow" d="M0,0 L10,5 L0,10 z"/></marker>
+        <marker id="ahA" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="d-arrow acc" d="M0,0 L10,5 L0,10 z"/></marker>
+        <marker id="ahB" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="d-arrow bad" d="M0,0 L10,5 L0,10 z"/></marker>
+      </defs>
+      <rect class="d-zone" x="470" y="130" width="440" height="296" rx="12"/>
+      <text class="d-sub" x="482" y="150">Internal services (not browser-reachable)</text>
+
+      <rect class="d-box gray" x="20" y="20" width="170" height="64" rx="10"/>
+      <text class="d-title" x="34" y="46">Google / Firebase</text>
+      <text class="d-sub" x="34" y="66">ID tokens (optional sign-in)</text>
+
+      <rect class="d-box" x="20" y="170" width="170" height="104" rx="10"/>
+      <text class="d-title" x="34" y="196">Browser</text>
+      <text class="d-sub" x="34" y="216">React SPA (dealer-web)</text>
+      <text class="d-sub" x="34" y="234">Staff, admin, visitors</text>
+      <text class="d-mono" x="34" y="258">:5174 local</text>
+
+      <rect class="d-box acc" x="260" y="160" width="180" height="124" rx="10"/>
+      <text class="d-title" x="274" y="186">dealer-gateway</text>
+      <text class="d-sub" x="274" y="206">YARP reverse proxy</text>
+      <text class="d-sub" x="274" y="224">JWT · CORS · rate limits</text>
+      <text class="d-sub" x="274" y="242">Health + release info</text>
+      <text class="d-mono" x="274" y="268">:8080 /api/v1</text>
+
+      <rect class="d-box acc" x="510" y="160" width="190" height="124" rx="10"/>
+      <text class="d-title" x="524" y="186">dealer-core</text>
+      <text class="d-sub" x="524" y="206">Auth, tenancy, business</text>
+      <text class="d-sub" x="524" y="224">OMVIC rules, audit</text>
+      <text class="d-sub" x="524" y="242">EF Core persistence</text>
+      <text class="d-mono" x="524" y="268">:8081</text>
+
+      <rect class="d-box green" x="760" y="40" width="140" height="74" rx="10"/>
+      <text class="d-title" x="774" y="68">MySQL 8</text>
+      <text class="d-sub" x="774" y="88">dealer_core (one DB)</text>
+
+      <rect class="d-box gray" x="760" y="190" width="140" height="64" rx="10"/>
+      <text class="d-title" x="774" y="216">NHTSA vPIC</text>
+      <text class="d-sub" x="774" y="236">VIN decode, makes</text>
+
+      <rect class="d-box purple" x="510" y="330" width="190" height="80" rx="10"/>
+      <text class="d-title" x="524" y="356">ai-service</text>
+      <text class="d-sub" x="524" y="376">Stateless, no database</text>
+      <text class="d-mono" x="524" y="398">:8082 /internal/v1</text>
+
+      <rect class="d-box gray" x="760" y="338" width="140" height="64" rx="10"/>
+      <text class="d-title" x="774" y="364">LLM provider</text>
+      <text class="d-sub" x="774" y="384">Configurable model</text>
+
+      <line class="d-line" x1="105" y1="170" x2="105" y2="88" marker-end="url(#ah)"/>
+      <line class="d-line acc" x1="190" y1="222" x2="256" y2="222" marker-end="url(#ahA)"/>
+      <text class="d-lbl" x="196" y="212">HTTPS</text>
+      <text class="d-lbl" x="196" y="240">+ JWT</text>
+      <line class="d-line acc" x1="440" y1="222" x2="506" y2="222" marker-end="url(#ahA)"/>
+      <text class="d-lbl" x="446" y="212">proxy</text>
+      <line class="d-line" x1="700" y1="180" x2="758" y2="100" marker-end="url(#ah)"/>
+      <line class="d-line" x1="700" y1="222" x2="756" y2="222" marker-end="url(#ah)"/>
+      <line class="d-line acc" x1="605" y1="284" x2="605" y2="326" marker-end="url(#ahA)"/>
+      <text class="d-lbl" x="612" y="310">X-Dealer-Internal</text>
+      <line class="d-line" x1="700" y1="370" x2="756" y2="370" marker-end="url(#ah)"/>
+
+      <path class="d-line bad" d="M105,274 L105,420 L470,420" marker-end="url(#ahB)"/>
+      <text class="d-bad" x="118" y="410">Direct calls to :8081 / :8082 are refused (404)</text>
+    </svg>
+    <figcaption>Figure 1 · Service boundaries. Solid blue arrows are the only allowed request path; the red dashed path must fail. Hand-authored source figures also live in <code>design/diagrams/</code>.</figcaption>
+  </figure>
+
+  <h3>Service responsibilities</h3>
+  <div class="tbl"><table>
+    <thead><tr><th>Service</th><th>Owns</th><th>Must not</th></tr></thead>
+    <tbody>
+      <tr><td><b>dealer-web</b><br><span class="chip gray">React SPA</span></td><td>All screens, route guards, form validation, the floating assistant panel, printing the bill of sale</td><td>Call Core or AI directly; hold any secret or internal token</td></tr>
+      <tr><td><b>dealer-gateway</b><br><span class="chip blue">Entry point</span></td><td>Routing, JWT validation, CORS, per-client rate limits, downstream health and release checks, blocking <code>/internal/**</code> from browsers</td><td>Contain business logic or touch the database</td></tr>
+      <tr><td><b>dealer-core</b><br><span class="chip blue">Business</span></td><td>Sign-in and JWT issuance, tenancy, authorization, every business rule, OMVIC fixed rules, persistence, audit, assistant retrieval</td><td>Accept browser traffic directly; send customer contact data to AI</td></tr>
+      <tr><td><b>ai-service</b><br><span class="chip purple">AI</span></td><td>Model-provider integration for ad review and assistant answers, timeouts and failure codes</td><td>Access the database; know about users or tenants</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>Key architecture decisions</h3>
+  <div class="tbl"><table>
+    <thead><tr><th>Decision</th><th>Reason</th></tr></thead>
+    <tbody>
+      <tr><td>One MySQL database for DMS, CRM and ads</td><td>The specification requires the three modules to work on the same dealership. One transaction can lock sale fields, invalidate ad checks and write the audit row together.</td></tr>
+      <tr><td>Synchronous REST, no message bus</td><td>No requirement needs asynchronous work; a queue would add an outbox, retries and failure modes without a business benefit.</td></tr>
+      <tr><td>Rules before AI</td><td>A deterministic hard block is cheaper, explainable, and guarantees the AI can never "approve" an ad the checklist already rejected.</td></tr>
+      <tr><td>Stateless AI service</td><td>The model provider can be swapped by configuration, and AI never sees the database or another tenant.</td></tr>
+      <tr><td>Gateway as the only public origin</td><td>One place for CORS, token checks and rate limits; internal services stay private.</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<!-- 5 -->
+<section id="stack">
+  <h2><span class="num">05</span>Technology stack</h2>
+  <div class="tbl"><table>
+    <thead><tr><th>Layer</th><th>Technology</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr><td>Frontend</td><td>React 19, TypeScript, Vite, React Router, Zustand</td><td>Single-page app; one HTTP client pointed at the Gateway URL from configuration</td></tr>
+      <tr><td>Gateway</td><td>.NET 10 / ASP.NET Core with YARP</td><td>Reverse proxy, JWT bearer validation, rate limiting, health aggregation</td></tr>
+      <tr><td>Core service</td><td>.NET 10 / ASP.NET Core, EF Core</td><td>Controllers, services and entities grouped by business area (Vehicle, Customer, Lead, WorkOrder, Photo, Payment, Listing, Compliance, Audit, Dealer, BuyerSite, Assistant)</td></tr>
+      <tr><td>AI service</td><td>.NET 10 / ASP.NET Core</td><td>Provider client supporting Groq, OpenAI, DeepSeek and Anthropic endpoints; provider, model and key come from configuration</td></tr>
+      <tr><td>Database</td><td>MySQL 8 (Azure Database for MySQL Flexible Server in the cloud)</td><td>TLS required in the cloud; 7-day automatic backups</td></tr>
+      <tr><td>Identity</td><td>Local password (BCrypt), Google ID token, Firebase Auth</td><td>DealerOps always issues its own JWT; identity providers never grant roles or dealerships</td></tr>
+      <tr><td>Infrastructure</td><td>Terraform, Azure Linux App Service, Key Vault, Application Insights</td><td>No containers; services deploy as .NET 10 app packages</td></tr>
+      <tr><td>CI</td><td>GitHub Actions, one workflow per service plus Terraform</td><td>Build and validate on every pull request and on <code>main</code></td></tr>
+      <tr><td>External data</td><td>NHTSA vPIC</td><td>VIN decode and make/model catalog, cached in memory</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<!-- 6 -->
+<section id="security">
+  <h2><span class="num">06</span>Security and multi-tenancy</h2>
+  <div class="grid2">
+    <div>
+      <h3>How each request is authorized</h3>
+      <ol class="list">
+        <li>The Gateway checks the JWT signature and role; a missing or bad token gets <b>401</b>.</li>
+        <li>Core reloads the user by username; an inactive account gets <b>401</b>.</li>
+        <li>Core loads the user's single active membership. Its dealership becomes the request's tenant.</li>
+        <li>Any <code>dealerId</code> sent by the browser is ignored.</li>
+        <li>Every query is filtered by that tenant. A record outside it returns <b>404</b>.</li>
+        <li>An admin on a business URL, or a user without a dealership, gets <b>403</b>.</li>
+      </ol>
+    </div>
+    <div>
+      <h3>Security controls</h3>
+      <ul>
+        <li><b>Passwords</b> are stored only as salted BCrypt hashes. Tokens expire after one hour.</li>
+        <li><b>One login, one dealership</b>: a second active binding returns <code>409 DUP_MEMBER</code>.</li>
+        <li><b>Internal header</b> <code>X-Dealer-Internal</code> protects Core and AI; it is never forwarded from a browser and never given to frontend code.</li>
+        <li><b>Secrets</b> live in Azure Key Vault and reach apps through a managed identity; no app setting holds a secret value.</li>
+        <li><b>HTTPS</b> everywhere; App Service terminates TLS; MySQL requires TLS.</li>
+        <li><b>Rate limits</b> per client at the Gateway, with a separate limit of 5 buyer-site inquiries per minute per IP (<code>429 RATE_LIMITED</code>).</li>
+        <li><b>Privacy</b>: customer phone, email and address are never sent to AI, never written to application logs, and never shown by the assistant. The audit trail does record them, so it is readable only by managers and the admin. Soft-deleted customers are anonymized after a configurable period (default 730 days).</li>
+      </ul>
+    </div>
+  </div>
+  <h3>Sign-in options</h3>
+  <div class="tbl"><table>
+    <thead><tr><th>Path</th><th>How it works</th><th>Result for a new person</th></tr></thead>
+    <tbody>
+      <tr><td>Local password</td><td>Register with a username, display name, password and an email and/or phone. Sign in with any of the three plus the password.</td><td rowspan="3">An unbound <code>Dealer.User</code>. The admin binds the account, or a dealership manager approves its join request.</td></tr>
+      <tr><td>Google</td><td>Google ID token verified on the server (signature, issuer, audience, expiry, verified email).</td></tr>
+      <tr><td>Firebase Auth</td><td>Firebase ID token exchanged for a DealerOps JWT; Firebase owns the password, DealerOps owns roles.</td></tr>
+    </tbody>
+  </table></div>
+  <p>The platform administrator is seeded from environment configuration and may sign in only with a password.</p>
+</section>
+
+<!-- 7 -->
+<section id="modules">
+  <h2><span class="num">07</span>Business modules</h2>
+
+  <h3>Inventory · DMS</h3>
+  <p>Required fields per the specification: make, model, year, VIN, car source (<code>TRADE_IN</code>, <code>AUCTION</code>, <code>PRIVATE_PURCHASE</code>, <code>OTHER</code>), purchase cost, date added, condition (<code>CERTIFIED</code>, <code>AS_IS</code>, <code>UNFIT</code>, <code>IRREPARABLE</code>). Optional: repair cost, Carfax URL, body type, stock number, mileage, exterior colour, fuel type, list price.</p>
+  <ul>
+    <li>VIN is upper-cased, validated (17 characters, no I/O/Q) and unique within a dealership. <b>Decode</b> fills make, model, year and body type from NHTSA; nothing saves until the user presses Save.</li>
+    <li>A sale is recorded only through the Sell action with date and price together. After the sale, purchase fields are locked (<code>SOLD_LOCKED</code>), and a vehicle cannot be sold twice.</li>
+    <li>The vehicle drawer holds work orders, Image Studio, payments, the bill of sale link, the linked customer and, for managers, the audit history.</li>
+    <li>Soft delete removes a vehicle from active lists but keeps sales, work-order and audit history.</li>
+  </ul>
+
+  <h3>Customers · CRM</h3>
+  <ul>
+    <li>Required: name, email, phone, home address. A shared email inside a dealership shows a warning but saves.</li>
+    <li>Link a vehicle of the same dealership that has no customer yet (in stock or sold). One vehicle belongs to one customer. In-stock links can be removed; sold links cannot.</li>
+    <li>The customer drawer shows linked vehicles, the customer's leads and, for managers, the audit history.</li>
+  </ul>
+
+  <h3>Sales leads and reports</h3>
+  <ul>
+    <li>A lead is one sales opportunity: a customer, an optional in-stock vehicle, an owner, a stage, a next follow-up date and append-only notes.</li>
+    <li>Overdue leads (open with a follow-up date before today) can be filtered.</li>
+    <li>The Sales report shows vehicle sales (units, revenue, gross profit, days to sell), the current lead funnel with won rate, monthly stage history, and workshop settlement by month and assignee.</li>
+    <li>The Dashboard summarizes inventory, sales, pipeline and workshop KPIs from the same report endpoints.</li>
+  </ul>
+
+  <h3>Reconditioning work orders</h3>
+  <ul>
+    <li>Tasks on an in-stock vehicle with an optional assignee and due date. Completing a task requires a note and a cost, and the cost is added to the vehicle's repair cost in the same transaction.</li>
+    <li>A vehicle with open work orders cannot be sold (<code>WORK_ORDERS_OPEN</code>).</li>
+  </ul>
+
+  <h3>Image Studio</h3>
+  <ul>
+    <li>Upload JPEG or PNG photos (up to 2 MB each, 10 per vehicle). File type is checked from the bytes, not the file name.</li>
+    <li>Presets <b>Auto fix</b>, <b>Brighten</b> and <b>Sharpen</b> create an enhanced copy; the original is always kept. Photos are stored in MySQL and are never sent to AI.</li>
+  </ul>
+
+  <h3>Payments and bill of sale</h3>
+  <ul>
+    <li>Record payments already taken at the dealership against a sold vehicle (cash, debit, credit card, cheque, bank transfer, financing, other). The total cannot exceed the sold price. Staff can only record a payment; a manager sees the ledger and balance due and can remove a mistaken entry.</li>
+    <li>A printable bill of sale combines dealer, buyer, vehicle, sale price, payments and balance. It is a template, not a reviewed legal contract. No card processing takes place.</li>
+  </ul>
+
+  <h3>Ad compliance, assistant and buyer site</h3>
+  <ul>
+    <li><b>Ad compliance</b>: one ad draft per vehicle (title, body, type <code>CASH</code>/<code>FINANCE</code>/<code>LEASE</code>, medium <code>ONLINE</code>/<code>RADIO_TV_BILLBOARD</code>), checked as described in <a href="#compliance">section 9</a>.</li>
+    <li><b>Assistant</b>: a floating panel on staff pages answers questions such as "Which Toyota vehicles are in stock?" from up to five of the dealership's own records, with links back into the app. It is read-only and never sees contact details.</li>
+    <li><b>Buyer site</b>: <code>/shop</code> lists active dealerships; each dealership page shows in-stock vehicles whose ad is Ready with a current Passed check. No VIN, cost or customer data is exposed.</li>
+  </ul>
+
+  <h3>Administration and audit</h3>
+  <ul>
+    <li>The admin console manages dealerships, members, pending accounts, member roles and global OMVIC rule settings, plus a platform-wide audit log.</li>
+    <li>Every sign-in attempt and every change is audited; see <a href="#audit">section 10</a>.</li>
+  </ul>
+</section>
+
+<!-- 8 -->
+<section id="flows">
+  <h2><span class="num">08</span>Business process flows</h2>
+
+  <h3>8.1 Dealership onboarding and access</h3>
+  <div class="lanes">
+    <div class="lane"><div class="ln">Platform Admin<small>/admin</small></div><ol><li>Creates the dealership with legal name, phone, email and address (these feed the ad rules).</li><li>Creates an account and binds it, or binds a pending self-registered account without touching its password.</li><li>Promotes one member to <b>Manager</b>.</li></ol></div>
+    <div class="lane"><div class="ln">New employee<small>/register, /login</small></div><ol><li>Registers locally or signs in with Google / Firebase.</li><li>Lands on the no-access screen and requests to join one dealership.</li></ol></div>
+    <div class="lane"><div class="ln">Manager<small>/team</small></div><ol><li>Sees the request in the header inbox and on the Team page.</li><li>Approves (membership created as Staff, audited) or rejects.</li><li>Later may remove staff or edit the dealership profile.</li></ol></div>
+    <div class="lane"><div class="ln">Staff<small>/dms</small></div><ol><li>Next sign-in lands on DMS with full access to the dealership's data and nothing else.</li></ol></div>
+  </div>
+
+  <h3>8.2 Vehicle lifecycle, from acquisition to payment</h3>
+  <div class="flow">
+    <div class="step"><span class="who">DMS</span><b>Acquire</b><span>Decode VIN, enter the 8 required fields; status <code>IN_STOCK</code>.</span></div>
+    <div class="arrow">→</div>
+    <div class="step"><span class="who">Work orders</span><b>Recondition</b><span>Tasks started and completed; cost rolls into repair cost.</span></div>
+    <div class="arrow">→</div>
+    <div class="step"><span class="who">Image Studio</span><b>Photograph</b><span>Upload and enhance photos.</span></div>
+    <div class="arrow">→</div>
+    <div class="step"><span class="who">Ads</span><b>Advertise</b><span>Write the ad; rules + AI check; mark Ready; export TXT.</span></div>
+    <div class="arrow">→</div>
+    <div class="step"><span class="who">Buyer site</span><b>Publish</b><span>Vehicle appears on /shop; inquiries become leads.</span></div>
+    <div class="arrow">→</div>
+    <div class="step"><span class="who">Leads / CRM</span><b>Sell the deal</b><span>Follow up, qualify, link the customer.</span></div>
+    <div class="arrow">→</div>
+    <div class="step"><span class="who">DMS</span><b>Sell</b><span>Date + price together; purchase fields lock; needs no open work orders.</span></div>
+    <div class="arrow">→</div>
+    <div class="step"><span class="who">Payments</span><b>Collect</b><span>Record payments to zero balance; print the bill of sale.</span></div>
+  </div>
+  <p>Every step writes an audit row in the same transaction as the change. Changing the vehicle's condition, or the ad's text, type or medium, makes a previously passed check <b>Stale</b>, which removes the vehicle from the buyer site until it is checked again.</p>
+
+  <h3>8.3 Lead pipeline</h3>
+  <div class="states">
+    <span class="chip blue">NEW</span><span class="arrow">→</span>
+    <span class="chip blue">CONTACTED</span><span class="arrow">→</span>
+    <span class="chip blue">QUALIFIED</span><span class="arrow">→</span>
+    <span class="chip green">WON</span>
+    <span class="arrow">or</span>
+    <span class="chip red">LOST (reason required)</span>
+  </div>
+  <p>While a lead is open, staff may move it to any stage. <code>WON</code> and <code>LOST</code> are final (<code>LEAD_CLOSED</code>), though notes can still be added. Winning a lead does not sell the vehicle; the sale remains the DMS Sell action. Buyer-site inquiries create a <code>NEW</code> lead due today, reusing an existing customer with the same phone.</p>
+
+  <h3>8.4 Work-order states</h3>
+  <div class="states">
+    <span class="chip blue">OPEN</span><span class="arrow">→</span>
+    <span class="chip amber">IN_PROGRESS</span><span class="arrow">→</span>
+    <span class="chip green">DONE (note + cost)</span>
+    <span class="arrow">·</span>
+    <span class="chip blue">OPEN</span><span class="arrow">→</span><span class="chip green">DONE</span>
+    <span class="arrow">·</span>
+    <span class="chip blue">OPEN / IN_PROGRESS</span><span class="arrow">→</span><span class="chip gray">CANCELLED</span>
+  </div>
+
+  <h3>8.5 Vehicle states</h3>
+  <div class="states">
+    <span class="chip blue">IN_STOCK</span><span class="arrow">→ Sell (date + price) →</span><span class="chip green">SOLD</span>
+    <span class="arrow">·</span><span class="chip gray">Soft-deleted</span><span class="arrow">kept for history</span>
+  </div>
+</section>
+
+<!-- 9 -->
+<section id="compliance">
+  <h2><span class="num">09</span>Ad compliance and AI</h2>
+  <p>OMVIC requires dealer advertisements to disclose specific facts. DealerOps checks each ad in two layers: a deterministic rule engine in Core, then a real AI review through the AI service. The AI only adds advisory notes; it can never turn a blocked ad into a passed one.</p>
+
+  <h3>9.1 Check flow</h3>
+  <div class="flow">
+    <div class="step"><span class="who">Staff</span><b>Run check</b><span>POST through the Gateway with the ad's version.</span></div>
+    <div class="arrow">→</div>
+    <div class="step"><span class="who">Core</span><b>Guard</b><span>Tenant and optimistic-lock checks.</span></div>
+    <div class="arrow">→</div>
+    <div class="step"><span class="who">Core</span><b>Fixed OMVIC rules</b><span>Uses ad text, public vehicle fields and the dealer profile.</span></div>
+    <div class="arrow">→</div>
+    <div class="step"><span class="who">Decision</span><b>Any BLOCK?</b><span>Yes: save <code>BLOCKED</code>, AI not called. No: continue.</span></div>
+    <div class="arrow">→</div>
+    <div class="step"><span class="who">ai-service</span><b>AI review</b><span>15 s budget (2 s connect + 13 s response).</span></div>
+    <div class="arrow">→</div>
+    <div class="step"><span class="who">Core</span><b>Persist</b><span>Success: <code>PASSED</code>. Failure: <code>AI_UNAVAILABLE</code>, never a pass.</span></div>
+  </div>
+
+  <h3>9.2 Check states shown to the user</h3>
+  <div class="tbl"><table>
+    <thead><tr><th>State</th><th>Meaning</th><th>Ready / Export</th></tr></thead>
+    <tbody>
+      <tr><td><span class="chip red">BLOCKED</span></td><td>At least one hard rule failed; the model was not called. Returned as a normal result, not an error.</td><td class="no">No</td></tr>
+      <tr><td><span class="chip amber">NEEDS_AI</span></td><td>No check yet, or the ad changed after a Blocked or Unavailable result.</td><td class="no">No</td></tr>
+      <tr><td><span class="chip green">PASSED</span></td><td>Rules passed and the AI review succeeded for the current ad version.</td><td class="yes">Yes</td></tr>
+      <tr><td><span class="chip gray">STALE</span></td><td>Was Passed, but the ad or the vehicle's condition changed since.</td><td class="no">No</td></tr>
+      <tr><td><span class="chip red">AI_UNAVAILABLE</span></td><td>Rules passed but the model failed or timed out.</td><td class="no">No</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>9.3 Rule coverage</h3>
+  <div class="tbl"><table>
+    <thead><tr><th>Ad type</th><th>BLOCK (hard) rules</th><th>REVIEW (advisory) rules</th></tr></thead>
+    <tbody>
+      <tr><td>All ads</td><td>Price missing; dealer name missing; all dealer contact missing; "certified" claimed on a non-certified vehicle; as-is / unfit / irreparable not disclosed</td><td>Contact incomplete; year not in copy; new/used contradiction or not stated; prior use unclear; warranty claim; certified vehicle not described as certified</td></tr>
+      <tr><td>FINANCE</td><td>APR missing; no cash price or cost of borrowing</td><td>APR not near the payment (online only; broadcast exempt); term missing</td></tr>
+      <tr><td>LEASE</td><td>Not stated as a lease; APR missing; allowance under 20,000 km without an excess-km charge</td><td>Lease term, payment or down payment missing; allowance not stated</td></tr>
+    </tbody>
+  </table></div>
+  <p>The platform admin can enable or disable a rule, switch it between BLOCK and REVIEW, and change its message. Any change marks every existing check Stale so ads are rechecked under the new rules.</p>
+
+  <h3>9.4 What the AI receives</h3>
+  <ul>
+    <li>Ad title and body, ad type and medium, the vehicle's public fields (no purchase cost, repair cost or sold price) and the dealership's public profile.</li>
+    <li>Never: customer contact details, leads, notes, photos or anything from another dealership.</li>
+    <li>The assistant receives the question plus up to five pre-filtered records of the user's own dealership. Any record id the model invents is dropped. If the model is down, the assistant still shows the matching records with "Smart explanation is temporarily unavailable."</li>
+  </ul>
+</section>
+
+<!-- 10 -->
+<section id="audit">
+  <h2><span class="num">10</span>Audit and traceability</h2>
+  <p>DealerOps records vehicle sales and payments, so its audit trail is held to a finance standard: every sign-in attempt and every create, update, delete or other state change on the platform writes one audit row. Each row is one version step of the record, so any vehicle, customer, lead or ad can be traced back to who changed what, when, from where, and what the value was before.</p>
+
+  <h3>10.1 How an audit row is written</h3>
+  <div class="flow">
+    <div class="step"><span class="who">Any user</span><b>Change or sign-in</b><span>A save, sell, link, check, export, payment or sign-in attempt.</span></div>
+    <div class="arrow">→</div>
+    <div class="step"><span class="who">Gateway</span><b>Stamp source IP</b><span>Decides the caller's IP once; a client-supplied forwarding header never reaches Core.</span></div>
+    <div class="arrow">→</div>
+    <div class="step"><span class="who">Core</span><b>Business write</b><span>Validates and applies the change.</span></div>
+    <div class="arrow">→</div>
+    <div class="step"><span class="who">Core</span><b>Audit row, same transaction</b><span>New values, replaced values, actor, IP, time. If either write fails, both roll back.</span></div>
+    <div class="arrow">→</div>
+    <div class="step"><span class="who">Manager / Admin</span><b>Read</b><span>Record history, dealership log or platform log, newest first.</span></div>
+  </div>
+
+  <h3>10.2 What is recorded</h3>
+  <div class="tbl"><table>
+    <thead><tr><th>Area</th><th>Entity type</th><th>Audited actions</th></tr></thead>
+    <tbody>
+      <tr><td>Sign-in and accounts</td><td><code>APP_USER</code></td><td>Successful sign-in (<code>LOGIN</code>), failed sign-in with method and reason (<code>LOGIN_FAILED</code>), registration by password, Google or Firebase</td></tr>
+      <tr><td>Inventory</td><td><code>VEHICLE</code></td><td>Create, edit, sell, soft delete; repair cost added by a completed work order; payment added or removed</td></tr>
+      <tr><td>Customers</td><td><code>CUSTOMER</code>, <code>CUSTOMER_VEHICLE</code></td><td>Create, edit, soft delete, link and unlink a vehicle; anonymization by the retention job (actor <code>system</code>)</td></tr>
+      <tr><td>Sales leads</td><td><code>LEAD</code></td><td>Create, stage / owner / follow-up changes, notes; buyer-site inquiries (actor <code>buyer-site</code>)</td></tr>
+      <tr><td>Work orders and photos</td><td><code>WORK_ORDER</code>, <code>VEHICLE_PHOTO</code></td><td>Create and status changes; photo upload, enhance and delete</td></tr>
+      <tr><td>Advertising</td><td><code>LISTING</code></td><td>Ad edits, each compliance check run with its result (<code>CHECK</code>), each TXT export (<code>EXPORT</code>)</td></tr>
+      <tr><td>Administration</td><td><code>DEALER</code>, <code>MEMBERSHIP</code>, <code>RULE_OVERRIDE</code></td><td>Dealership create and edit; bind, unbind, role change, approved join request, staff removal; OMVIC rule changes</td></tr>
+    </tbody>
+  </table></div>
+  <p>Only changes are audited, not page views. A save that changes nothing writes no row.</p>
+
+  <h3>10.3 Contents of an audit row</h3>
+  <div class="tbl"><table>
+    <thead><tr><th>Field</th><th>Content</th></tr></thead>
+    <tbody>
+      <tr><td>Actor</td><td>Username of the person, or <code>anonymous</code>, <code>buyer-site</code> or <code>system</code></td></tr>
+      <tr><td>Action</td><td><code>CREATE</code>, <code>UPDATE</code>, <code>SELL</code>, <code>LINK</code>, <code>UNLINK</code>, <code>NOTE</code>, <code>DELETE</code>, <code>LOGIN</code>, <code>LOGIN_FAILED</code>, <code>CHECK</code>, <code>EXPORT</code></td></tr>
+      <tr><td>Entity</td><td>Entity type and record id</td></tr>
+      <tr><td>New values</td><td>Each changed field with its new value</td></tr>
+      <tr><td>Previous values</td><td>The same fields with the values they replaced</td></tr>
+      <tr><td>Dealership</td><td>The dealership the record belongs to</td></tr>
+      <tr><td>Client IP</td><td>The caller's address (IPv4 or IPv6)</td></tr>
+      <tr><td>Time</td><td>Stored in UTC, shown in the viewer's local time</td></tr>
+    </tbody>
+  </table></div>
+  <p>Example: a manager opens a vehicle's history and sees <i>2026-10-21 14:05 · alex.dealer · UPDATE · purchaseCost 18,500.00 → 18,900.00 · 203.0.113.24</i>.</p>
+
+  <h3>10.4 Guarantees</h3>
+  <div class="cards">
+    <div class="card"><h4>Append-only</h4><p>No screen or API can edit or delete an audit row. Rows are kept for the life of the database and are covered by the 7-day backups.</p></div>
+    <div class="card"><h4>Atomic</h4><p>The audit row and the business change commit in one transaction; there is never a change without its record.</p></div>
+    <div class="card"><h4>Closed vocabulary</h4><p>Only the listed entity types and actions can be written; anything else is rejected, never stored.</p></div>
+    <div class="card"><h4>Safe sign-in records</h4><p>A failed sign-in for an unknown name is recorded as <code>anonymous</code>; the text typed into the sign-in box is never stored.</p></div>
+  </div>
+
+  <h3>10.5 Who can read the audit trail</h3>
+  <div class="tbl"><table>
+    <thead><tr><th>View</th><th>Where</th><th>Scope</th><th class="c">Admin</th><th class="c">Manager</th><th class="c">Staff</th></tr></thead>
+    <tbody>
+      <tr><td>Record history</td><td>Bottom of the vehicle, customer, lead and ad detail</td><td>One record, including its linked events</td><td class="c no">403</td><td class="c yes">✓</td><td class="c no">Hidden</td></tr>
+      <tr><td>Dealership audit log</td><td><code>/team</code></td><td>Every row of the manager's dealership</td><td class="c no">403</td><td class="c yes">✓</td><td class="c no">403</td></tr>
+      <tr><td>Platform audit log</td><td><code>/admin</code></td><td>Every row of every dealership, plus sign-ins and admin actions</td><td class="c yes">✓</td><td class="c no">403</td><td class="c no">403</td></tr>
+    </tbody>
+  </table></div>
+  <p>Both logs list rows newest first and filter by entity type, record id, action, actor and date range; the platform log also filters and labels by dealership. Because audit rows carry customer contact values (old and new), staff see no audit data at all.</p>
+</section>
+
+<!-- 11 -->
+<section id="data">
+  <h2><span class="num">11</span>Data model</h2>
+  <p>One MySQL database, <code>dealer_core</code>. Every business table carries <code>dealer_id</code> and is filtered by the request's tenant. Writes use an optimistic-lock <code>version</code>; a stale write returns <code>409 VERSION_CONFLICT</code>.</p>
+  <div class="tbl"><table>
+    <thead><tr><th>Area</th><th>Tables</th><th>Key rules</th></tr></thead>
+    <tbody>
+      <tr><td>Identity and tenancy</td><td><code>dealer</code>, <code>app_user</code>, <code>membership</code>, <code>notification</code></td><td>Username is the account key and JWT subject. Exactly one active membership per user; it carries <code>MANAGER</code> / <code>STAFF</code>. Notifications hold join requests.</td></tr>
+      <tr><td>Inventory</td><td><code>vehicle</code>, <code>vehicle_photo</code>, <code>work_order</code>, <code>vehicle_payment</code></td><td>VIN unique per dealership; sold pair; sold lock; photos as original + enhanced blobs</td></tr>
+      <tr><td>Customers and sales</td><td><code>customer</code>, <code>customer_vehicle</code>, <code>sales_lead</code>, <code>sales_lead_note</code></td><td>One vehicle, one customer; notes append-only</td></tr>
+      <tr><td>Advertising</td><td><code>listing</code>, <code>compliance_check</code>, <code>compliance_rule_override</code></td><td>Listing <code>contentVersion</code> increments on change; each check stores rule findings, AI notes, AI status and recommendation</td></tr>
+      <tr><td>Audit</td><td><code>audit_event</code></td><td>Append-only; actor, entity, action, new and previous values, client IP, time</td></tr>
+    </tbody>
+  </table></div>
+  <h3>Relationships</h3>
+  <ul>
+    <li><b>dealer</b> 1—n <b>membership</b> n—1 <b>app_user</b></li>
+    <li><b>dealer</b> 1—n <b>vehicle</b> 1—n <b>work_order</b> / <b>vehicle_photo</b> / <b>vehicle_payment</b>; <b>vehicle</b> 1—1 <b>listing</b> 1—n <b>compliance_check</b></li>
+    <li><b>dealer</b> 1—n <b>customer</b> 1—n <b>customer_vehicle</b> 1—1 <b>vehicle</b></li>
+    <li><b>customer</b> 1—n <b>sales_lead</b> 1—n <b>sales_lead_note</b>; a lead optionally points at one vehicle</li>
+  </ul>
+</section>
+
+<!-- 12 -->
+<section id="api">
+  <h2><span class="num">12</span>API design</h2>
+  <p>All public endpoints live under <code>/api/v1</code> on the Gateway. The full contract is <code>design/14-Backend-API-Contract.md</code> and <code>dealer-platform/openapi.yaml</code>; Swagger UI is served from the Gateway origin.</p>
+  <div class="grid2">
+    <div>
+      <h3>Conventions</h3>
+      <ul>
+        <li>Lists: <code>{ items, page, size, total }</code>, 10 per page, newest first.</li>
+        <li>Errors: <code>{ code, message }</code> with field-level errors where relevant.</li>
+        <li>Writes carry <code>version</code> for optimistic locking.</li>
+        <li>Money in CAD with two decimals; dates as <code>YYYY-MM-DD</code>.</li>
+        <li>Blocked ads are <b>200</b> results, not HTTP errors.</li>
+      </ul>
+    </div>
+    <div>
+      <h3>Status code rules</h3>
+      <ul>
+        <li><b>401</b> not signed in · <b>403</b> wrong role or no dealership</li>
+        <li><b>404</b> missing or another dealership's record</li>
+        <li><b>409</b> business conflicts: <code>SOLD_LOCKED</code>, <code>DUP_MEMBER</code>, <code>VEHICLE_ALREADY_LINKED</code>, <code>CHECK_STALE</code>, <code>NOT_PASSED</code>, <code>WORK_ORDERS_OPEN</code>, <code>LEAD_CLOSED</code></li>
+        <li><b>429</b> rate limited · <b>502</b> <code>AI_UNAVAILABLE</code> / <code>CATALOG_UNAVAILABLE</code></li>
+      </ul>
+    </div>
+  </div>
+  <h3>Endpoint families</h3>
+  <div class="tbl"><table>
+    <thead><tr><th>Family</th><th>Representative routes</th><th>Access</th></tr></thead>
+    <tbody>
+      <tr><td>Auth and self</td><td><code>POST /auth/login|register|google|firebase</code>, <code>GET|PATCH|DELETE /me</code></td><td>Anonymous / signed in</td></tr>
+      <tr><td>Admin</td><td><code>/admin/dealers</code>, <code>/admin/dealers/{id}/members</code>, <code>…/role</code>, <code>…/password</code>, <code>/admin/pending-users</code>, <code>/admin/compliance-rules</code>, <code>/admin/audit</code></td><td>Platform.Admin</td></tr>
+      <tr><td>DMS</td><td><code>/vehicles</code>, <code>/vehicles/{id}/sell</code>, <code>/vehicles/report/sales</code>, <code>/vehicles/{id}/work-orders</code>, <code>/vehicles/{id}/photos</code>, <code>/vehicles/{id}/payments</code>, <code>/catalog/*</code></td><td>Dealer.User</td></tr>
+      <tr><td>CRM and leads</td><td><code>/customers</code>, <code>PUT|DELETE /customers/{id}/vehicles/{vehicleId}</code>, <code>/leads</code>, <code>/leads/{id}/notes</code>, <code>/leads/report/funnel</code>, <code>/members</code></td><td>Dealer.User</td></tr>
+      <tr><td>Ads</td><td><code>GET|PATCH /vehicles/{id}/listing</code>, <code>POST /listings/{id}/checks|ready|exports</code></td><td>Dealer.User</td></tr>
+      <tr><td>Team</td><td><code>/dealer/join-requests</code>, <code>/dealer/members/{username}</code>, <code>/dealer/profile</code>, <code>/dealer/audit</code></td><td>Manager</td></tr>
+      <tr><td>Assistant</td><td><code>POST /assistant/ask</code></td><td>Dealer.User</td></tr>
+      <tr><td>Audit</td><td><code>GET /audit?entityType=&amp;entityId=</code>, <code>GET /dealer/audit</code> (manager); <code>GET /admin/audit</code> (admin)</td><td>Manager / Admin</td></tr>
+      <tr><td>Public</td><td><code>GET /catalog/vin/{vin}</code>, <code>/public/dealers/{id}/inventory</code>, <code>…/photo</code>, <code>POST …/inquiries</code></td><td>Anonymous, rate-limited</td></tr>
+      <tr><td>Internal</td><td><code>POST /internal/v1/ad-check</code>, <code>POST /internal/v1/assistant</code></td><td>Core only (browser gets 404)</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<!-- 13 -->
+<section id="frontend">
+  <h2><span class="num">13</span>Frontend design</h2>
+  <div class="tbl"><table>
+    <thead><tr><th>Route</th><th>Page</th><th>Who</th></tr></thead>
+    <tbody>
+      <tr><td><code>/</code></td><td>Landing page with VIN decoder; signed-in users are sent to their home page</td><td>Everyone</td></tr>
+      <tr><td><code>/login</code>, <code>/register</code></td><td>Sign in and self sign-up (Google button when configured)</td><td>Visitors</td></tr>
+      <tr><td><code>/shop</code>, <code>/shop/:dealerId</code>, <code>/disclaimer</code></td><td>Buyer site and disclaimer</td><td>Everyone</td></tr>
+      <tr><td><code>/admin</code></td><td>Dealerships, members, pending accounts, rules, audit</td><td>Admin</td></tr>
+      <tr><td><code>/dashboard</code></td><td>KPI overview</td><td>Staff, Manager</td></tr>
+      <tr><td><code>/dms</code>, <code>/dms/:vehicleId/bill-of-sale</code></td><td>Inventory (post-login home) and printable bill of sale</td><td>Staff, Manager</td></tr>
+      <tr><td><code>/crm</code>, <code>/leads</code>, <code>/reports/sales-funnel</code></td><td>Customers, leads, sales report</td><td>Staff, Manager</td></tr>
+      <tr><td><code>/ads</code></td><td>Ad compliance</td><td>Staff, Manager</td></tr>
+      <tr><td><code>/team</code></td><td>Join requests, members, dealership profile, dealership audit</td><td>Manager</td></tr>
+      <tr><td><code>/profile</code></td><td>Own display name, phone, account deletion</td><td>Users with business access</td></tr>
+    </tbody>
+  </table></div>
+  <ul>
+    <li><b>Guards</b>: signed-out users go to <code>/login</code>; the wrong role is redirected to its own home; an unbound user sees the no-access screen on every protected path.</li>
+    <li><b>Patterns</b>: list + side drawer for detail and edit; every page handles loading, empty, error and success states; errors show in the page, never as an empty table.</li>
+    <li><b>API layer</b>: all calls go through one client pointed at the configured Gateway URL, which attaches the bearer token. Pages never build service URLs.</li>
+    <li>The footer shows the release time of web, gateway, core and ai, read from the Gateway's release endpoint.</li>
+  </ul>
+</section>
+
+<!-- 14 -->
+<section id="dev">
+  <h2><span class="num">14</span>Development process</h2>
+  <h3>Repository layout</h3>
+  <div class="tbl"><table>
+    <thead><tr><th>Path</th><th>Content</th></tr></thead>
+    <tbody>
+      <tr><td><code>frontend/react</code></td><td>dealer-web SPA</td></tr>
+      <tr><td><code>backend/dotnet/DealerOps.Gateway</code></td><td>dealer-gateway</td></tr>
+      <tr><td><code>backend/dotnet/DealerOps.Core</code></td><td>dealer-core, organized by business area</td></tr>
+      <tr><td><code>backend/dotnet/DealerOps.AiService</code></td><td>ai-service</td></tr>
+      <tr><td><code>backend/dotnet/DealerOps.Logging</code></td><td>Shared file logging and release information</td></tr>
+      <tr><td><code>dealer-platform</code></td><td>OpenAPI contract, API notes, environment template, demo seed data</td></tr>
+      <tr><td><code>deploy</code></td><td>Terraform for Azure and the app upload scripts</td></tr>
+      <tr><td><code>design</code>, <code>requirements</code>, <code>project-plan</code></td><td>Design decisions, client sources and requirement IDs, plans and status</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>Engineering rules</h3>
+  <ul>
+    <li><b>Design first</b>: <code>design/</code> is the source of truth. A change to authentication, tenancy, roles, routing or the API contract updates its design document in the same change.</li>
+    <li><b>Traceability</b>: every feature maps to a requirement ID (AUTH, DMS, CRM, LEAD, WO, IMG, AD, PAY, SALE, SHOP, AUD, NFR) and to an acceptance case.</li>
+    <li><b>Small, complete changes</b>: extend the service that already owns a behaviour; no speculative abstraction and no dead code.</li>
+    <li><b>Configuration, not literals</b>: no URLs, ports, credentials or provider keys in code.</li>
+    <li><b>English</b> for all code, comments, documents and commit messages.</li>
+  </ul>
+
+  <h3>Continuous integration</h3>
+  <div class="flow">
+    <div class="step"><span class="who">Developer</span><b>Branch + PR</b><span>Change in one service; design doc updated if the contract moves.</span></div>
+    <div class="arrow">→</div>
+    <div class="step"><span class="who">GitHub Actions</span><b>Per-service build</b><span><code>dealer-web</code>, <code>dealer-gateway</code>, <code>dealer-core</code>, <code>ai-service</code> workflows.</span></div>
+    <div class="arrow">→</div>
+    <div class="step"><span class="who">GitHub Actions</span><b>Terraform</b><span><code>fmt -check</code> and <code>validate</code>.</span></div>
+    <div class="arrow">→</div>
+    <div class="step"><span class="who">Lead</span><b>Review + merge</b><span>Pull-request review before <code>main</code>.</span></div>
+  </div>
+
+  <h3>Acceptance</h3>
+  <p>Acceptance is defined in <code>design/16-Acceptance-and-Test.md</code> and <code>design/21-Feature-Extensions.md</code>: six classroom scripts, backend and frontend use cases, and extension cases EXT-01 to EXT-18. The six core demonstrations are:</p>
+  <ol class="list">
+    <li>The admin opens two dealerships and binds one person to each.</li>
+    <li>Dealership A records a vehicle and a customer and links them; dealership B cannot see either.</li>
+    <li>The admin calling the vehicle API is rejected.</li>
+    <li>A missing price, or a finance ad without APR, is blocked without calling the AI.</li>
+    <li>Real ad text goes through a real AI model once and missing items are identified.</li>
+    <li>After a price change, the old check cannot be used to export.</li>
+  </ol>
+</section>
+
+<!-- 15 -->
+<section id="deploy">
+  <h2><span class="num">15</span>Deployment and operations</h2>
+  <div class="rg">
+    <div class="lbl">Azure resource group · created by Terraform</div>
+    <div class="cards">
+      <div class="card"><h4>App Service plan (Linux)</h4><p>Hosts four Linux Web Apps: <b>web</b> (built SPA served with SPA fallback), <b>gateway</b>, <b>core</b>, <b>ai</b> (.NET 10 packages).</p></div>
+      <div class="card"><h4>MySQL Flexible Server</h4><p>Database <code>dealer_core</code>, TLS required, firewall limited to Azure services and named operator addresses, 7-day automatic backups.</p></div>
+      <div class="card"><h4>Key Vault + managed identity</h4><p>Internal token, MySQL password, JWT signing secret, AI key and admin password, resolved as app-setting references.</p></div>
+      <div class="card"><h4>Log Analytics + Application Insights</h4><p>Logs and telemetry for all services.</p></div>
+    </div>
+  </div>
+  <ul>
+    <li><b>Network rule</b>: core and ai accept only Azure-internal callers; the internal header and JWT checks remain the real authorization.</li>
+    <li><b>Release</b>: an operator runs <code>terraform apply</code>, then the deploy script that publishes the three .NET apps and builds the SPA against the Gateway URL. Demo data loads from committed seed scripts.</li>
+    <li><b>Health</b>: the Gateway exposes <code>/actuator/health</code> (aggregating downstream services) and <code>/actuator/release</code> (release time of all four apps).</li>
+    <li><b>Restore</b>: point-in-time restore to a new MySQL server within the 7-day window, then repoint Core through Key Vault.</li>
+    <li><b>Local development</b>: the four apps run as plain processes against local MySQL 8, started in order MySQL → Core → AI → Gateway → web (ports 8081, 8082, 8080, 5174).</li>
+  </ul>
+</section>
+
+<!-- 16 -->
+<section id="scope">
+  <h2><span class="num">16</span>Scope and limitations</h2>
+  <p>All feasible features from the client's specification and notes are in the delivery. Where a feature needs third-party agreements or paid accounts that this project does not have, the system either offers a clearly labelled alternative or leaves it out with a stated reason.</p>
+  <div class="tbl"><table>
+    <thead><tr><th>Item</th><th>Status</th><th>Detail</th></tr></thead>
+    <tbody>
+      <tr><td>Marketplace publishing (Kijiji, AutoTrader.ca)</td><td><span class="chip amber">Simulated</span></td><td>Needs a partner agreement and dealer API credentials. The app offers Ready + TXT export, a labelled simulated publish flow, and the DealerOps buyer site as the real public channel.</td></tr>
+      <tr><td>Card payment processing</td><td><span class="chip gray">Not built</span></td><td>Needs a merchant account and PCI scope. The payment ledger records payments taken at the dealership.</td></tr>
+      <tr><td>OCR of documents</td><td><span class="chip gray">Not built</span></td><td>The configured model reads text only and no document type was specified; VIN decode covers vehicle data entry.</td></tr>
+      <tr><td>Message queue, second database</td><td><span class="chip gray">Not built</span></td><td>No requirement needs them; they would add failure modes to the single-database design.</td></tr>
+      <tr><td>Containerization</td><td><span class="chip amber">Changed</span></td><td>Replaced by Terraform + Azure Linux App Service packages.</td></tr>
+      <tr><td>Automated production deployment</td><td><span class="chip amber">Partial</span></td><td>CI builds and validates; the production release is run by an operator because CI holds no Azure credential.</td></tr>
+      <tr><td>Bill of sale</td><td><span class="chip blue">Template</span></td><td>Printable document, not a lawyer-reviewed contract.</td></tr>
+      <tr><td>Custom domain</td><td><span class="chip gray">Pending</span></td><td>Default Azure host names are used.</td></tr>
+      <tr><td>Manual acceptance</td><td><span class="chip amber">In progress</span></td><td>Feature code is complete; acceptance cases are being walked through.</td></tr>
+    </tbody>
+  </table></div>
+  <div class="callout warn"><p>Retention periods, rate-limit values and SLO targets ship with configurable defaults. They await the dealership's confirmation before production use.</p></div>
+</section>
+
+<!-- 17 -->
+<section id="docs">
+  <h2><span class="num">17</span>Document map</h2>
+  <div class="tbl"><table>
+    <thead><tr><th>Topic</th><th>Document</th></tr></thead>
+    <tbody>
+      <tr><td>Delivery scope and errata</td><td><code>design/SCOPE-BASELINE.md</code></td></tr>
+      <tr><td>Requirement IDs</td><td><code>requirements/DealerOps-Requirements.md</code></td></tr>
+      <tr><td>Architecture and diagrams</td><td><code>design/07-Azure-Microservices-Architecture.md</code>, <code>design/diagrams/</code></td></tr>
+      <tr><td>Technology baseline</td><td><code>design/TECHNOLOGY-STACK.md</code></td></tr>
+      <tr><td>Backend design</td><td><code>design/DEVELOPMENT-DESIGN.md</code></td></tr>
+      <tr><td>API contract</td><td><code>design/14-Backend-API-Contract.md</code>, <code>dealer-platform/openapi.yaml</code></td></tr>
+      <tr><td>Data, authentication, gateway, cloud</td><td><code>design/15-Data-Auth-and-Gateway.md</code></td></tr>
+      <tr><td>Frontend</td><td><code>design/12-Frontend-UI-Conventions.md</code>, <code>design/13-Frontend-Engineering.md</code></td></tr>
+      <tr><td>Feature extensions</td><td><code>design/21-Feature-Extensions.md</code></td></tr>
+      <tr><td>Acceptance</td><td><code>design/16-Acceptance-and-Test.md</code>, <code>design/17-Ad-Check-Fixtures.md</code>, <code>design/TESTING-AND-ACCEPTANCE-GUIDE.md</code></td></tr>
+      <tr><td>Team</td><td><code>design/TEAM.md</code></td></tr>
+      <tr><td>Deployment</td><td><code>deploy/README.md</code></td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<footer>DealerOps · Team G2 · System design briefing, 2026-10-21. Summarizes the documents in <code>design/</code>; where they differ, the source documents win.</footer>
+</main>
+</div>
+</body>
+</html>
