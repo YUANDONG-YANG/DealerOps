@@ -63,7 +63,7 @@ Handbook page names: Login / Admin / DMS / CRM / Ad compliance / Assistant, plus
 | `/` | `home` | `LandingView` | `public: true` | Public landing page for signed-out visitors |
 | `/login` | `login` | `LoginView` | `public: true` | — |
 | `/register` | `register` | `RegisterView` | `public: true` | Self sign-up; signed-in users are redirected as on `/login` |
-| `/shop`, `/shop/:dealerId` | `shop` | `ShopPage` | `public: true` | Buyer site (design/21 SHOP-01–05): dealership directory, then one dealership's listed vehicles with **Ask about this vehicle** (inquiry drawer). Ad text highlights prices; phone numbers are `sms:` links and e-mail addresses are `mailto:` links prefilled with the ad's vehicle. Calls only `/api/v1/public/**` through `api/buyerSite.ts`, without a token |
+| `/shop`, `/shop/:dealer` | `shop` | `ShopPage` | `public: true` | Buyer site (design/21 SHOP-01–05): dealership directory of logo cards with in-stock and sold counts, linking to `/shop/{slug}`, then one dealership's listed vehicles under a **Vehicles listed** count; a numeric id link (Dashboard **Open buyer site**, the ad page) is replaced by the slug once the inventory loads with **Ask about this vehicle** (inquiry drawer). Ad text highlights prices; phone numbers are `sms:` links and e-mail addresses are `mailto:` links prefilled with the ad's vehicle. Calls only `/api/v1/public/**` through `api/buyerSite.ts`, without a token |
 | `/disclaimer` | `disclaimer` | `DisclaimerPage` | `public: true` | Full disclaimer (AD-14); the ad result panel shows the same text in a right-side drawer; linked from the landing page, the buyer site and the bill of sale |
 | `/admin` | `admin` | `AdminView` | `roles: ['Platform.Admin']` | Admin default page |
 | `/dashboard` | `dashboard` | `DashboardPage` | `roles: ['Dealer.User']` | first menu item **Dashboard** (DASH-01): inventory, sales, lead and workshop KPIs from the report endpoints, plus **Open buyer site**. Not the post-login page, which stays `/dms` |
@@ -227,7 +227,7 @@ Left: pick a vehicle + ad form; right: check results. The checklist changes imme
 
 | Control | Handbook path | Success refresh | Failure |
 |---|---|---|---|
-| Left vehicle row / select vehicle | `GET /vehicles` (prefer no `status` filter; sold vehicles can still show ads but are product-read-only) | left table | same as DMS |
+| Left vehicle row / select vehicle | `GET /vehicles` (prefer no `status` filter; sold vehicles can still show ads but are product-read-only) | left table with one filter per column (search, ad type, medium, check status, buyer site; `GET /vehicles?q=&adKind=&medium=&checkStatus=&buyerSite=`, applied by Search, cleared by Reset), a **Buyer site** column (Listed when in stock, ready and passed; Taken down (sold) for a sold vehicle with a ready ad) and the buyer-site listed count from `GET /public/dealers/{dealerId}/inventory` above it | same as DMS |
 | Load listing after select | `GET /vehicles/{id}/listing` (empty draft if none) | left form + right status | `404` Vehicle not found |
 | `Save draft` | `PATCH /vehicles/{id}/listing` with `version` | form version; right state becomes Stale (if it was Passed) | `404`; `409 VERSION_CONFLICT` |
 | `Run check` | `POST /listings/{id}/checks` | right results; wait up to about 15s, button loading | `404`; `409` version conflict; `502 AI_UNAVAILABLE` right state **AI unavailable**, **never show Pass** |

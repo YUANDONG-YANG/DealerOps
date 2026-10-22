@@ -38,9 +38,20 @@ public class BuyerSiteService
         _logger = logger;
     }
 
-    /// <summary>The active dealership's contact card and its publicly listed vehicles, newest first.</summary>
-    public PublicInventory Inventory(long dealerId)
+    /// <summary>
+    /// The active dealership's contact card and its publicly listed vehicles, newest first. The
+    /// dealership is named by its slug, or by its numeric id for links made before slugs.
+    /// </summary>
+    public PublicInventory Inventory(string dealerRef)
     {
+        var active = _db.Dealers.AsNoTracking().Where(d => d.Active)
+            .Select(d => new { d.Id, d.LegalName }).ToList();
+        var slugs = Dealer.DealerSlug.Assign(active.Select(d => (d.Id, d.LegalName)));
+        var reference = dealerRef.Trim().ToLowerInvariant();
+        var dealerId = slugs.Where(s => s.Value == reference).Select(s => (long?)s.Key).FirstOrDefault()
+                       ?? (long.TryParse(reference, out var id) && slugs.ContainsKey(id)
+                           ? id
+                           : throw new ApiException(ErrorCode.NotFound, "Not found"));
         var dealer = LoadDealer(dealerId);
         var vehicles = PublicVehicles(dealerId)
             .OrderByDescending(x => x.Vehicle.AddedOn).ThenByDescending(x => x.Vehicle.Id)
@@ -51,8 +62,22 @@ public class BuyerSiteService
                 _db.VehiclePhotos.IgnoreQueryFilters()
                     .Any(p => p.VehicleId == x.Vehicle.Id && p.DealerId == dealerId)))
             .ToList();
-        return new PublicInventory(dealer.Id, dealer.LegalName, dealer.ContactPhone,
+        return new PublicInventory(dealer.Id, slugs[dealer.Id], dealer.LegalName, dealer.ContactPhone,
             dealer.ContactEmail, dealer.ContactAddress, vehicles);
+    }
+
+    /// <summary>
+    /// The active dealership's logo, decoded from the data URL the profile stores (PNG, JPEG or
+    /// WebP, validated on save).
+    /// </summary>
+    public (byte[] Data, string ContentType) Logo(long dealerId)
+    {
+        var logo = LoadDealer(dealerId).LogoDataUrl;
+        var comma = logo?.IndexOf(',') ?? -1;
+        if (logo == null || !logo.StartsWith("data:") || comma < 0)
+            throw new ApiException(ErrorCode.NotFound, "Not found");
+        var contentType = logo[5..comma].Replace(";base64", "");
+        return (Convert.FromBase64String(logo[(comma + 1)..]), contentType);
     }
 
     /// <summary>The vehicle's first photo, enhanced when an enhancement exists.</summary>

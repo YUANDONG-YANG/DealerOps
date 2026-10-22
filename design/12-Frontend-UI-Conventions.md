@@ -22,7 +22,7 @@ Do not fork any full dealer repository. Those projects usually include a buyer s
 - Admin members: Username, Dealership, Status, Actions
 - DMS: Year Make Model, VIN, Source, Condition, Cost (CAD, 2 decimals), Date added, Status, Actions (UI-20)
 - CRM: Name, Email, Phone, Linked vehicle, Vehicles purchased (`linkedVehicleCount`, UI-30), Actions
-- Ad: Vehicle, Type, Medium, Check status, Actions
+- Ad: Vehicle, Type, Medium, Check status, Buyer site (Listed / Not listed / Taken down when sold, by the SHOP-01 rule), Actions; above the table, the number of vehicles the buyer site lists now, read from the public inventory
 
 Use Tags for status. The actions column has at most 3 text links. 10 rows per page. Sold rows are dimmed; purchase fields are read-only.
 
@@ -33,6 +33,7 @@ One row: search + 1–3 dropdowns + Search + Reset. No price sliders, fuel filte
 - DMS: VIN/Make/Model; Status; Condition
 - CRM: Name/Email/Phone; whether a vehicle is already linked
 - Admin: dealership name / username
+- Ad compliance: VIN/Make/Model; Ad type; Medium; Check status; Buyer site (Listed / Not listed / Taken down) — one filter per table column, the one page with four dropdowns, so sales staff can find ads to fix or list
 
 Every free-text search box on a list page uses `SearchSuggest` (type-ahead): after a 300 ms pause it shows up to 8 suggestions that contain the typed text anywhere (the list APIs already match `LIKE %q%`), with the match in bold and a muted hint line. Arrow keys move, Enter picks the highlighted suggestion or runs the typed search, Escape or a click outside closes the list. Picking a suggestion fills the box and filters the list at once. A suggestion equal to the typed text is not shown. This covers Leads (customer name), CRM (name / email / phone), DMS (VIN / make / model search, Model, and Make when the catalog is unavailable), Admin (dealership name, members) and both audit logs (actor username). Form pickers inside drawers keep their own controls.
 

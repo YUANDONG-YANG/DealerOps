@@ -1,5 +1,5 @@
 import { type FormEvent, type ReactNode, useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import BrandMark from '../components/BrandMark';
 import FormDrawer from '../components/FormDrawer';
 import PageState from '../components/PageState';
@@ -78,13 +78,13 @@ function ShopHeader() {
   );
 }
 
-/** Buyer site: /shop lists dealerships, /shop/:dealerId shows one dealership's listed vehicles. */
+/** Buyer site: /shop lists dealerships, /shop/:dealer (the dealership's slug) shows its listed vehicles. */
 export default function ShopPage() {
-  const { dealerId } = useParams();
+  const { dealer } = useParams();
   return (
     <div className="landing">
       <ShopHeader />
-      {dealerId ? <DealerInventory dealerId={Number(dealerId)} /> : <DealerDirectory />}
+      {dealer ? <DealerInventory dealer={dealer} /> : <DealerDirectory />}
     </div>
   );
 }
@@ -109,9 +109,14 @@ function DealerDirectory() {
         emptyText="No dealerships are listed yet." loadingText="Loading dealerships…">
         <div className="landing-grid">
           {dealers.map(d => (
-            <Link key={d.id} to={`/shop/${d.id}`} className="card landing-card" style={{ textDecoration: 'none' }}>
+            <Link key={d.id} to={`/shop/${d.slug}`} className="card landing-card dealer-card" style={{ textDecoration: 'none' }}>
+              {d.logoUrl && <div className="dealer-card-logo" role="img" aria-label={`${d.legalName} logo`}
+                style={{ backgroundImage: `url("${d.logoUrl}")` }} />}
               <h3>{d.legalName}</h3>
-              <span className="muted">View inventory</span>
+              <div className="dealer-card-stats">
+                <div><strong>{d.inStockCount.toLocaleString('en-CA')}</strong><span>In stock</span></div>
+                <div><strong>{d.soldCount.toLocaleString('en-CA')}</strong><span>Sold</span></div>
+              </div>
             </Link>
           ))}
         </div>
@@ -120,7 +125,8 @@ function DealerDirectory() {
   );
 }
 
-function DealerInventory({ dealerId }: { dealerId: number }) {
+function DealerInventory({ dealer }: { dealer: string }) {
+  const navigate = useNavigate();
   const [inventory, setInventory] = useState<PublicInventory | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -134,12 +140,17 @@ function DealerInventory({ dealerId }: { dealerId: number }) {
   useEffect(() => {
     let active = true;
     setLoading(true);
-    buyerSiteApi.inventory(dealerId)
-      .then(data => { if (active) setInventory(data); })
+    buyerSiteApi.inventory(dealer)
+      .then(data => {
+        if (!active) return;
+        setInventory(data);
+        // An id link (the dashboard and ad page know only the id) or an old name settles on the slug.
+        if (dealer !== data.slug) navigate(`/shop/${encodeURIComponent(data.slug)}`, { replace: true });
+      })
       .catch(e => { if (active) setError(describeError(e, 'load this dealership')); })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
-  }, [dealerId]);
+  }, [dealer, navigate]);
 
   function openInquiry(vehicle: PublicVehicle) {
     setAsking(vehicle);
@@ -149,13 +160,13 @@ function DealerInventory({ dealerId }: { dealerId: number }) {
 
   async function send(e: FormEvent) {
     e.preventDefault();
-    if (!asking || sending) return;
+    if (!asking || !inventory || sending) return;
     setSending(true);
     setFieldErrors({});
     setFormError('');
     try {
       const { message, ...contact } = form;
-      await buyerSiteApi.inquire(dealerId, { vehicleId: asking.vehicleId, contact, message });
+      await buyerSiteApi.inquire(inventory.dealerId, { vehicleId: asking.vehicleId, contact, message });
       setSentFor(`${asking.modelYear} ${asking.make} ${asking.model}`);
       setForm(EMPTY_INQUIRY);
       setAsking(null);
@@ -178,6 +189,9 @@ function DealerInventory({ dealerId }: { dealerId: number }) {
               {inventory.contactAddress} · <a href={smsFor(inventory.contactPhone)} title="Send a text message">{inventory.contactPhone}</a>
               {' · '}<a href={mailtoFor(inventory.contactEmail)}>{inventory.contactEmail}</a>
             </p>
+            <div className="dealer-card-stats dealer-page-stats">
+              <div><strong>{inventory.vehicles.length.toLocaleString('en-CA')}</strong><span>Vehicles listed</span></div>
+            </div>
             {sentFor && <p className="success-text" role="status">Thanks. {inventory.legalName} received your question about the {sentFor} and will contact you.</p>}
             {inventory.vehicles.length === 0 ? (
               <div className="state">No vehicles are listed right now.</div>

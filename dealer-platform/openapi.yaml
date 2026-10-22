@@ -932,6 +932,22 @@ paths:
             type: boolean
             default: false
           description: When true, excludes vehicles linked to any customer
+        - name: adKind
+          in: query
+          schema: { type: string, enum: [CASH, FINANCE, LEASE] }
+          description: Ad kind; a vehicle with no saved ad counts as CASH (its virtual draft)
+        - name: medium
+          in: query
+          schema: { type: string, enum: [ONLINE, RADIO_TV_BILLBOARD] }
+          description: Ad medium; a vehicle with no saved ad counts as ONLINE (its virtual draft)
+        - name: checkStatus
+          in: query
+          schema: { type: string, enum: [BLOCKED, NEEDS_AI, PASSED, STALE, AI_UNAVAILABLE] }
+          description: Derived check status of the vehicle's ad; no saved ad or no check counts as NEEDS_AI. Other values → 400 VALIDATION
+        - name: buyerSite
+          in: query
+          schema: { type: string, enum: [LISTED, NOT_LISTED, TAKEN_DOWN] }
+          description: LISTED when the vehicle is in stock and its ad is READY with a PASSED check on the current content version (the buyer-site rule); TAKEN_DOWN when the vehicle is sold and its ad is READY; NOT_LISTED otherwise
         - $ref: "#/components/parameters/Page"
         - $ref: "#/components/parameters/Size"
       responses:
@@ -1095,7 +1111,7 @@ paths:
       tags: [Catalog]
       operationId: listPublicDealers
       summary: Public dealer directory
-      description: Anonymous. Active dealerships sorted by legal name, id and legal name only. Used by the Google sign-in dealership picker.
+      description: Anonymous. Active dealerships sorted by legal name; id, legal name and the derived buyer-site slug only. Used by the Google sign-in dealership picker and the buyer-site directory.
       security: []
       responses:
         "200":
@@ -1445,12 +1461,13 @@ paths:
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
 
-  /api/v1/public/dealers/{dealerId}/inventory:
+  /api/v1/public/dealers/{dealer}/inventory:
     parameters:
-      - name: dealerId
+      - name: dealer
         in: path
         required: true
-        schema: { type: integer, format: int64 }
+        description: The dealership's slug (see PublicDealer.slug), or its numeric id for older links
+        schema: { type: string }
     get:
       tags: [BuyerSite]
       operationId: getPublicInventory
@@ -1464,6 +1481,27 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/PublicInventory"
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /api/v1/public/dealers/{dealerId}/logo:
+    parameters:
+      - name: dealerId
+        in: path
+        required: true
+        schema: { type: integer, format: int64 }
+    get:
+      tags: [BuyerSite]
+      operationId: getPublicDealerLogo
+      summary: A dealership's logo
+      description: Anonymous. Decoded from the stored data URL; cacheable for five minutes. Unknown or inactive dealership, or no logo → **404**.
+      security: []
+      responses:
+        "200":
+          description: Image
+          content:
+            image/png: { schema: { type: string, format: binary } }
+            image/jpeg: { schema: { type: string, format: binary } }
+            image/webp: { schema: { type: string, format: binary } }
         "404": { $ref: "#/components/responses/NotFound" }
 
   /api/v1/public/dealers/{dealerId}/vehicles/{vehicleId}/photo:
@@ -3066,13 +3104,25 @@ components:
 
     PublicDealer:
       type: object
-      required: [id, legalName]
+      required: [id, legalName, slug, hasLogo, inStockCount, soldCount]
       properties:
         id:
           type: integer
           format: int64
         legalName:
           type: string
+        slug:
+          type: string
+          description: Buyer-site URL name derived from the legal name; unique among active dealerships (a later duplicate gets `-{id}`)
+        hasLogo:
+          type: boolean
+          description: True when GET /api/v1/public/dealers/{id}/logo returns an image
+        inStockCount:
+          type: integer
+          description: The dealership's in-stock vehicles, deleted ones excluded
+        soldCount:
+          type: integer
+          description: The dealership's sold vehicles
 
     JoinRequest:
       type: object
@@ -3582,9 +3632,10 @@ components:
 
     PublicInventory:
       type: object
-      required: [dealerId, legalName, contactPhone, contactEmail, contactAddress, vehicles]
+      required: [dealerId, slug, legalName, contactPhone, contactEmail, contactAddress, vehicles]
       properties:
         dealerId: { type: integer, format: int64 }
+        slug: { type: string }
         legalName: { type: string }
         contactPhone: { type: string }
         contactEmail: { type: string }

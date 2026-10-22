@@ -6,8 +6,10 @@ namespace DealerOps.Core.BuyerSite.Dto;
 /// A dealership's public inventory page: its contact details and every in-stock vehicle whose ad
 /// is marked ready and still passes the current compliance check. No cost, VIN, or customer data.
 /// </summary>
+/// <param name="Slug">The dealership's buyer-site URL name (<c>/shop/{slug}</c>).</param>
 public record PublicInventory(
     long DealerId,
+    string Slug,
     string LegalName,
     string ContactPhone,
     string ContactEmail,

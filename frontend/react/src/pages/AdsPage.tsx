@@ -10,6 +10,8 @@ import StatusTag from '../components/StatusTag';
 import AuditTrail, { type AuditRow } from '../components/AuditTrail';
 import { auditApi } from '../api/audit';
 import { vehiclesApi } from '../api/vehicles';
+import { buyerSiteApi } from '../api/buyerSite';
+import SearchSuggest, { SUGGEST_LIMIT, uniqueSuggestions } from '../components/SearchSuggest';
 import {
   apiError, applyCheckToListing, checkStatusLabel, emptyListing,
   listingsApi, readyExportMessageAsync, saveMessage,
@@ -33,6 +35,21 @@ function mediumLabel(medium?: string) {
 }
 
 /** The editable ad fields as one string, compared with the saved copy to detect unsaved edits. */
+/**
+ * Whether the vehicle is on the buyer site, by the same rule the public inventory uses (SHOP-01):
+ * in stock, ad ready, and its check passed on the current version.
+ */
+function buyerSiteLabel(vehicleStatus: string, ad?: { status?: string; checkStatus?: CheckStatus | null }) {
+  if (vehicleStatus === 'SOLD') return <span className="muted">{ad?.status === 'READY' ? 'Taken down' : 'Not listed'}</span>;
+  if (ad?.status === 'READY' && ad.checkStatus === 'PASSED') return <StatusTag status="PASSED">Listed</StatusTag>;
+  if (ad?.checkStatus === 'PASSED') return <span className="muted">Mark ready</span>;
+  return <span className="muted">Not listed</span>;
+}
+
+// One filter per table column: Vehicle, Type, Medium, Check status, Buyer site.
+const EMPTY_AD_FILTERS = { q: '', adKind: '', medium: '', checkStatus: '', buyerSite: '' };
+const CHECK_STATUSES: CheckStatus[] = ['NEEDS_AI', 'BLOCKED', 'PASSED', 'STALE', 'AI_UNAVAILABLE'];
+
 function contentKey(row: Listing) {
   return JSON.stringify([row.title ?? '', row.body ?? '', row.adKind, row.medium, row.priorUse, row.warrantyTerms, row.annualKmAllowance]);
 }
@@ -43,9 +60,14 @@ export default function AdsPage() {
   const [vehicles, setVehicles] = useState<any[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(0);
+  // Typed filters, and the ones the list was last searched with.
+  const [filters, setFilters] = useState(EMPTY_AD_FILTERS);
+  const [applied, setApplied] = useState(EMPTY_AD_FILTERS);
   const [selected, setSelected] = useState<any>();
   const [listing, setListing] = useState<Listing>(emptyListing());
-  const [summaries, setSummaries] = useState<Record<number, { adKind?: string; medium?: string; checkStatus?: CheckStatus | null }>>({});
+  const [summaries, setSummaries] = useState<Record<number, { adKind?: string; medium?: string; status?: string; checkStatus?: CheckStatus | null }>>({});
+  // How many vehicles the buyer site lists right now, read from the public inventory itself.
+  const [listedCount, setListedCount] = useState<number | null>(null);
   const [listLoading, setListLoading] = useState(false);
   const [listError, setListError] = useState('');
   const [listForbidden, setListForbidden] = useState(false);
@@ -86,14 +108,14 @@ export default function AdsPage() {
 
   const rememberSummary = (row: Listing) => {
     if (!row.vehicleId) return;
-    setSummaries((s) => ({ ...s, [row.vehicleId]: { adKind: row.adKind, medium: row.medium, checkStatus: row.checkStatus } }));
+    setSummaries((s) => ({ ...s, [row.vehicleId]: { adKind: row.adKind, medium: row.medium, status: row.status, checkStatus: row.checkStatus } }));
   };
 
   const loadVehicles = useCallback(async () => {
     const seq = ++vehicleListSeq.current;
     setListLoading(true); setListError(''); setListForbidden(false);
     try {
-      const r = await vehiclesApi.list({ page, size: 10 });
+      const r = await vehiclesApi.list({ ...applied, page, size: 10 });
       if (seq !== vehicleListSeq.current) return;
       const items = r.data.items || [];
       setVehicles(items); setTotal(r.data.totalElements || 0);
@@ -107,7 +129,7 @@ export default function AdsPage() {
         results.forEach((res, i) => {
           if (res.status !== 'fulfilled') return;
           const l = res.value.data;
-          next[items[i].id] = { adKind: l.adKind, medium: l.medium, checkStatus: l.checkStatus };
+          next[items[i].id] = { adKind: l.adKind, medium: l.medium, status: l.status, checkStatus: l.checkStatus };
         });
         return next;
       });
@@ -120,9 +142,21 @@ export default function AdsPage() {
     } finally {
       if (seq === vehicleListSeq.current) setListLoading(false);
     }
-  }, [page]);
+  }, [page, applied]);
+
+  function search(next = filters) { setFilters(next); setApplied(next); setPage(0); }
 
   useEffect(() => { void loadVehicles(); }, [loadVehicles]);
+
+  // Any saved, checked, ready or sold change shows up in summaries; recount the buyer site then.
+  useEffect(() => {
+    if (dealerId == null) return;
+    let active = true;
+    buyerSiteApi.inventory(String(dealerId))
+      .then((inv) => { if (active) setListedCount(inv.vehicles.length); })
+      .catch(() => { if (active) setListedCount(null); });
+    return () => { active = false; };
+  }, [dealerId, summaries]);
 
   // The saved ad's LISTING history (managers only); a reply for an ad that is no longer open is ignored.
   async function loadAudit(listingId: number, seq: number, page = 0) {
@@ -322,6 +356,50 @@ export default function AdsPage() {
           pickerSlot={
             <div className="card">
               <div className="card-header">Vehicles</div>
+              <div className="filters ads-filters">
+                <SearchSuggest value={filters.q} placeholder="VIN, make or model" ariaLabel="Search vehicles"
+                  onChange={(v) => setFilters((f) => ({ ...f, q: v }))}
+                  suggest={async (q) => {
+                    const r = await vehiclesApi.list({ ...filters, q, size: SUGGEST_LIMIT });
+                    return uniqueSuggestions((r.data.items || []).map((v: any) => ({
+                      value: v.model, label: `${v.make} ${v.model}`, hint: `${v.modelYear} · ${v.vin}` })));
+                  }}
+                  onPick={(s) => search({ ...filters, q: s.value })}
+                  onEnter={() => search()} />
+                <select className="select" aria-label="Ad type" value={filters.adKind}
+                  onChange={(e) => setFilters((f) => ({ ...f, adKind: e.target.value }))}>
+                  <option value="">Ad type</option>
+                  <option value="CASH">Cash</option>
+                  <option value="FINANCE">Finance</option>
+                  <option value="LEASE">Lease</option>
+                </select>
+                <select className="select" aria-label="Medium" value={filters.medium}
+                  onChange={(e) => setFilters((f) => ({ ...f, medium: e.target.value }))}>
+                  <option value="">Medium</option>
+                  <option value="ONLINE">Online</option>
+                  <option value="RADIO_TV_BILLBOARD">Radio / TV / Billboard</option>
+                </select>
+                <select className="select" aria-label="Check status" value={filters.checkStatus}
+                  onChange={(e) => setFilters((f) => ({ ...f, checkStatus: e.target.value }))}>
+                  <option value="">Check status</option>
+                  {CHECK_STATUSES.map((s) => <option key={s} value={s}>{checkStatusLabel(s)}</option>)}
+                </select>
+                <select className="select" aria-label="Buyer site" value={filters.buyerSite}
+                  onChange={(e) => setFilters((f) => ({ ...f, buyerSite: e.target.value }))}>
+                  <option value="">Buyer site</option>
+                  <option value="LISTED">Listed</option>
+                  <option value="NOT_LISTED">Not listed</option>
+                  <option value="TAKEN_DOWN">Taken down (sold)</option>
+                </select>
+                <button className="btn" onClick={() => search()}>Search</button>
+                <button className="btn" onClick={() => search(EMPTY_AD_FILTERS)}>Reset</button>
+              </div>
+              {listedCount != null && dealerId != null && (
+                <p className="muted" style={{ margin: '0 0 12px' }}>
+                  <strong>{listedCount}</strong> {listedCount === 1 ? 'vehicle is' : 'vehicles are'} listed on your{' '}
+                  <Link to={`/shop/${dealerId}`} target="_blank">buyer site</Link>. A sold vehicle is taken down automatically.
+                </p>
+              )}
               <PageState loading={listLoading} error={listError} forbidden={listForbidden}
                 empty={!listLoading && !listError && !listForbidden && !vehicles.length}
                 emptyText="No vehicles to advertise." loadingText="Loading listing…"
@@ -337,6 +415,7 @@ export default function AdsPage() {
                       const s = summaries[r.id]?.checkStatus;
                       return s ? <StatusTag status={s}>{checkStatusLabel(s)}</StatusTag> : <span className="muted">Unavailable</span>;
                     } },
+                    { label: 'Buyer site', render: (r: any) => buyerSiteLabel(r.status, summaries[r.id]) },
                   ]}
                   actions={(r: any) => <button className="btn-link" onClick={() => select(r)}>Open</button>}
                 />

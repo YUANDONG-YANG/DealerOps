@@ -20,6 +20,8 @@ export type PublicVehicle = {
 
 export type PublicInventory = {
   dealerId: number;
+  /** The URL name used by `/shop/{slug}`. */
+  slug: string;
   legalName: string;
   contactPhone: string;
   contactEmail: string;
@@ -38,9 +40,11 @@ export type InquiryBody = {
  * buyer has no token; the gateway lets only /api/v1/public/** through without one.
  */
 export const buyerSiteApi = {
-  async inventory(dealerId: number): Promise<PublicInventory> {
-    const base = `${await resolveGatewayUrl()}/api/v1/public/dealers/${dealerId}`;
-    const data = (await axios.get<PublicInventory>(`${base}/inventory`)).data;
+  /** `dealer` is the slug from the URL, or the numeric id of an older link. */
+  async inventory(dealer: string): Promise<PublicInventory> {
+    const gateway = `${await resolveGatewayUrl()}/api/v1/public/dealers`;
+    const data = (await axios.get<PublicInventory>(`${gateway}/${encodeURIComponent(dealer)}/inventory`)).data;
+    const base = `${gateway}/${data.dealerId}`;
     return {
       ...data,
       vehicles: data.vehicles.map(v => ({ ...v, photoUrl: v.hasPhoto ? `${base}/vehicles/${v.vehicleId}/photo` : null })),

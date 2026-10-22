@@ -673,6 +673,15 @@ textarea.input, .textarea { height: auto; padding: 10px 12px; resize: vertical; 
   box-shadow: var(--shadow);
 }
 .filters .input { width: 220px; }
+/* Ad compliance filters sit inside the narrow vehicle card: a search row, then one dropdown per column. */
+.ads-filters {
+  display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px;
+  padding: 0; box-shadow: none; border: 0; background: transparent; margin-bottom: 12px;
+}
+.ads-filters .suggest { grid-column: 1 / -3; }
+.ads-filters .suggest .input, .ads-filters .select { width: 100%; min-width: 0; }
+.ads-filters > .btn { width: 100%; }
+
 /* Search box with type-ahead suggestions (SearchSuggest). */
 .suggest { position: relative; }
 .suggest-list {
@@ -1137,6 +1146,18 @@ div.state {
 .landing-card:hover, .landing-steps li:hover { transform: translateY(-3px); box-shadow: 0 16px 40px -20px rgba(0,0,0,.25); }
 /* Buyer-site cards stack their content so the inquiry button sits on one line across a row. */
 .shop-card { display: flex; flex-direction: column; }
+/* Dealership directory: the logo fills the top of the card. */
+.dealer-card-logo {
+  height: 140px; margin-bottom: 16px;
+  background: center / contain no-repeat;
+}
+.dealer-card { text-align: center; }
+.dealer-card-stats { display: flex; justify-content: center; gap: 32px; margin-top: 4px; }
+.dealer-card-stats div { display: flex; flex-direction: column; align-items: center; }
+.dealer-page-stats { justify-content: flex-start; margin: 0 0 20px; }
+.dealer-page-stats div { align-items: flex-start; }
+.dealer-card-stats strong { font-size: 26px; font-weight: 600; line-height: 1.1; color: var(--fg); }
+.dealer-card-stats span { font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted-fg); }
 .shop-card > .btn { margin-top: auto; align-self: flex-start; }
 .shop-card > p { margin-bottom: 16px; }
 .shop-card .ad-price { padding: 0 4px; border-radius: 4px; background: var(--grad-soft); color: var(--fg); font-weight: 700; }

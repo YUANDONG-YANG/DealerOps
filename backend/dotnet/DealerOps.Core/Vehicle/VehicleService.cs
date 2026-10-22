@@ -2,6 +2,7 @@ using DealerOps.Core.Audit;
 using DealerOps.Core.Common;
 using DealerOps.Core.Common.Exceptions;
 using DealerOps.Core.Common.Tenant;
+using DealerOps.Core.Compliance;
 using DealerOps.Core.Data;
 using DealerOps.Core.Listing;
 using DealerOps.Core.Vehicle.Dto;
@@ -28,6 +29,63 @@ public class VehicleService
     }
 
     /// <summary>Lists this dealer's vehicles matching the filter, newest first.</summary>
+    /// <summary>
+    /// The Ad compliance filters: ad kind, medium, derived check status (the <see cref="Compliance.CheckStatusMapper"/>
+    /// rules in SQL) and buyer-site listing. A vehicle without a saved ad counts as its virtual
+    /// draft: Cash, Online, Needs AI review, not listed (14 §7.1).
+    /// </summary>
+    private IQueryable<VehicleEntity> ApplyAdFilters(IQueryable<VehicleEntity> query, VehicleFilter filter)
+    {
+        if (filter.AdKind is { } kind)
+            query = kind == AdKind.Cash
+                ? query.Where(v => !_db.Listings.Any(l => l.VehicleId == v.Id)
+                                   || _db.Listings.Any(l => l.VehicleId == v.Id && l.AdKind == kind))
+                : query.Where(v => _db.Listings.Any(l => l.VehicleId == v.Id && l.AdKind == kind));
+        if (filter.Medium is { } medium)
+            query = medium == AdMedium.Online
+                ? query.Where(v => !_db.Listings.Any(l => l.VehicleId == v.Id)
+                                   || _db.Listings.Any(l => l.VehicleId == v.Id && l.Medium == medium))
+                : query.Where(v => _db.Listings.Any(l => l.VehicleId == v.Id && l.Medium == medium));
+
+        var checks =
+            from l in _db.Listings
+            join c in _db.ComplianceChecks on l.LastCheckId equals c.Id
+            select new { l.VehicleId, l.Status, Current = c.ContentVersion == l.ContentVersion, c.Recommendation };
+
+        var checkStatus = TrimToNull(filter.CheckStatus)?.ToUpperInvariant();
+        if (checkStatus != null)
+        {
+            var passed = Recommendation.Passed;
+            query = checkStatus switch
+            {
+                CheckStatusMapper.Passed => query.Where(v => checks.Any(x => x.VehicleId == v.Id && x.Current && x.Recommendation == passed)),
+                CheckStatusMapper.Stale => query.Where(v => checks.Any(x => x.VehicleId == v.Id && !x.Current && x.Recommendation == passed)),
+                CheckStatusMapper.Blocked => query.Where(v => checks.Any(x => x.VehicleId == v.Id && x.Current && x.Recommendation == Recommendation.Blocked)),
+                CheckStatusMapper.AiUnavailable => query.Where(v => checks.Any(x => x.VehicleId == v.Id && x.Current && x.Recommendation == Recommendation.Unavailable)),
+                // Everything the four statuses above do not cover, including vehicles with no ad or no check.
+                CheckStatusMapper.NeedsAi => query.Where(v => !checks.Any(x => x.VehicleId == v.Id
+                    && (x.Current ? x.Recommendation != Recommendation.NeedsAi : x.Recommendation == passed))),
+                _ => throw new ApiException(ErrorCode.Validation, "Unknown check status",
+                    new Dictionary<string, string> { ["checkStatus"] = "Unknown check status" }),
+            };
+        }
+
+        if (filter.BuyerSite is { } site)
+        {
+            var listed = query.Where(v => v.Status == VehicleStatus.InStock && checks.Any(x => x.VehicleId == v.Id
+                && x.Status == ListingStatus.Ready && x.Current && x.Recommendation == Recommendation.Passed));
+            var takenDown = query.Where(v => v.Status == VehicleStatus.Sold
+                && _db.Listings.Any(l => l.VehicleId == v.Id && l.Status == ListingStatus.Ready));
+            query = site switch
+            {
+                BuyerSiteFilter.Listed => listed,
+                BuyerSiteFilter.TakenDown => takenDown,
+                _ => query.Where(v => !listed.Any(l => l.Id == v.Id) && !takenDown.Any(t => t.Id == v.Id)),
+            };
+        }
+        return query;
+    }
+
     public PageResponse<VehicleResponse> List(VehicleFilter filter, int page, int size)
     {
         var tenant = TenantGuard.RequireTenantId();
@@ -60,6 +118,7 @@ public class VehicleService
             query = query.Where(v => v.ModelYear == filter.ModelYear.Value);
         if (filter.UnlinkedOnly)
             query = query.Where(v => !_db.CustomerVehicles.Any(cv => cv.VehicleId == v.Id));
+        query = ApplyAdFilters(query, filter);
 
         var total = query.LongCount();
         var items = query

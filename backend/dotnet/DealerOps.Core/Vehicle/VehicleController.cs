@@ -1,4 +1,5 @@
 using DealerOps.Core.Common;
+using DealerOps.Core.Listing;
 using DealerOps.Core.Vehicle.Dto;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -29,11 +30,16 @@ public class VehicleController : ControllerBase
         [FromQuery] string? model,
         [FromQuery] int? modelYear,
         [FromQuery] bool unlinkedOnly = false,
+        [FromQuery] AdKind? adKind = null,
+        [FromQuery] AdMedium? medium = null,
+        [FromQuery] string? checkStatus = null,
+        [FromQuery] BuyerSiteFilter? buyerSite = null,
         [FromQuery] int page = 0,
         [FromQuery] int size = 10)
     {
         return _vehicleService.List(
-            new VehicleFilter(q, status, condition, bodyType, make, model, modelYear, unlinkedOnly), page, size);
+            new VehicleFilter(q, status, condition, bodyType, make, model, modelYear, unlinkedOnly,
+                adKind, medium, checkStatus, buyerSite), page, size);
     }
 
     /// <summary>Adds a vehicle and returns 201 with the created record.</summary>

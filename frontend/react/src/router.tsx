@@ -136,7 +136,7 @@ export default function AppRoutes() {
       <Route path="/register" element={<RegisterPage />} />
       <Route path="/disclaimer" element={<DisclaimerPage />} />
       <Route path="/shop" element={<ShopPage />} />
-      <Route path="/shop/:dealerId" element={<ShopPage />} />
+      <Route path="/shop/:dealer" element={<ShopPage />} />
 
       <Route element={<AuthGuard />}>
         {/* Both roles, once the account has business access. */}

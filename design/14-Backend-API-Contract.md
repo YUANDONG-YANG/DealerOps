@@ -404,7 +404,7 @@ Platform.Admin only; dealer users and unbound accounts receive **403**. `GET /ap
 
 Admin hitting any URL in this section → **403** `FORBIDDEN` (same as CRM/ads/assistant; the body must not contain vin/cost or other business fields). Staff sees this dealership only. Staff with no valid membership → **403** (see §1.3).
 
-List query: `q` (substring of VIN / make / model), `make` and `model` (exact match, ignoring case), `modelYear` (exact), `status`=`IN_STOCK`\|`SOLD`, `condition` (that is `conditionCode`), `bodyType` (exact), `unlinkedOnly`=`true` (exclude vehicles linked to any customer), `page`, `size`. Blank values are ignored and the filters combine with AND. Default `createdAt` descending.
+List query: `q` (substring of VIN / make / model), `make` and `model` (exact match, ignoring case), `modelYear` (exact), `status`=`IN_STOCK`\|`SOLD`, `condition` (that is `conditionCode`), `bodyType` (exact), `unlinkedOnly`=`true` (exclude vehicles linked to any customer), the Ad compliance filters `adKind`=`CASH`\|`FINANCE`\|`LEASE`, `medium`=`ONLINE`\|`RADIO_TV_BILLBOARD`, `checkStatus` (one of the five §8 values, derived exactly as there; anything else → `400 VALIDATION`) and `buyerSite`=`LISTED`\|`NOT_LISTED`\|`TAKEN_DOWN` (`LISTED` by the §12a listing rule; `TAKEN_DOWN` is a sold vehicle whose ad is `READY`; `NOT_LISTED` is the rest), `page`, `size`. A vehicle with no saved ad counts as its virtual draft (§7.1): `CASH`, `ONLINE`, `NEEDS_AI`, not listed. Blank values are ignored and the filters combine with AND. Default `createdAt` descending.
 
 ### 4.1 `GET /api/v1/vehicles`
 
@@ -569,11 +569,13 @@ Successful decodes are cached in memory for 12 hours. Errors: VIN not 17 charact
 
 #### 4.6.2 Public dealer directory: `GET /api/v1/catalog/dealers` (public)
 
-Anonymous. Active dealerships sorted by legal name, for the Google sign-in dealership picker (§1.6). Returns only the id and legal name, which ads already publish:
+Anonymous. Active dealerships sorted by legal name, for the Google sign-in dealership picker (§1.6) and the buyer-site directory (§12a). Returns only the id, the legal name, which ads already publish, the buyer-site `slug` derived from it, `hasLogo` (whether `GET /api/v1/public/dealers/{id}/logo` returns an image, §12a), and the dealership's `inStockCount` and `soldCount` (vehicles not deleted), which the buyer-site directory cards show:
 
 ```json
-[ { "id": 1, "legalName": "Prairie Auto Ltd." } ]
+[ { "id": 1, "legalName": "Prairie Auto Ltd.", "slug": "prairie-auto-ltd", "hasLogo": true, "inStockCount": 42, "soldCount": 118 } ]
 ```
+
+`slug` is computed, not stored: the legal name lowercased, with each run of characters other than letters and digits replaced by one hyphen. When active dealerships share a slug, the lowest id keeps it and each later one gets `-{id}`; a name with no letters or digits becomes `dealer-{id}`. Renaming a dealership changes its slug.
 
 ### 4.7 Work orders (Dealer.User)
 
@@ -1146,7 +1148,8 @@ Public routes for `/shop` (design/21 SHOP-01–05). The Gateway passes `GET` and
 
 | Method and path | Body | Result |
 |---|---|---|
-| `GET /api/v1/public/dealers/{dealerId}/inventory` | — | 200 `{ dealerId, legalName, contactPhone, contactEmail, contactAddress, vehicles: [{ vehicleId, modelYear, make, model, bodyType, conditionCode, mileageKm, exteriorColor, fuelType, title, body, hasPhoto }] }`, newest `addedOn` first. No VIN, cost, list price, or customer data |
+| `GET /api/v1/public/dealers/{dealer}/inventory` | — | `dealer` is the dealership's slug (§4.6.2) or its numeric id (older links). 200 `{ dealerId, slug, legalName, contactPhone, contactEmail, contactAddress, vehicles: [{ vehicleId, modelYear, make, model, bodyType, conditionCode, mileageKm, exteriorColor, fuelType, title, body, hasPhoto }] }`, newest `addedOn` first. No VIN, cost, list price, or customer data |
+| `GET /api/v1/public/dealers/{dealerId}/logo` | — | 200 image: the dealership logo decoded from its stored data URL (PNG, JPEG or WebP); `Cache-Control: public, max-age=300`. No logo → 404. The `/shop` directory cards use it as their artwork |
 | `GET /api/v1/public/dealers/{dealerId}/vehicles/{vehicleId}/photo` | — | 200 image: the first photo, enhanced copy when present; `Cache-Control: public, max-age=300`. No photo → 404 |
 | `POST /api/v1/public/dealers/{dealerId}/inquiries` | `{ vehicleId, contact: { name, email, phone, homeAddress }, message }` | 204. `contact` follows §5.2; `message` 1–1000; errors are `400 VALIDATION` with `contact.name`-style keys. Reuses the active customer with the same phone, else creates one; creates a `NEW` lead on the vehicle due today with the message as its first note, and posts a `BUYER_INQUIRY` notification to the dealership. Actor `buyer-site` on the customer, lead, note, and audit rows. Rate-limited per IP (`inquiryPerMinute`, default 5) → `429 RATE_LIMITED` |
 

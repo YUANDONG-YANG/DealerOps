@@ -1,3 +1,5 @@
+using DealerOps.Core.Listing;
+
 namespace DealerOps.Core.Vehicle.Dto;
 
 public record VehicleFilter(
@@ -8,4 +10,8 @@ public record VehicleFilter(
     string? Make,
     string? Model,
     int? ModelYear,
-    bool UnlinkedOnly = false);
+    bool UnlinkedOnly = false,
+    AdKind? AdKind = null,
+    AdMedium? Medium = null,
+    string? CheckStatus = null,
+    BuyerSiteFilter? BuyerSite = null);
