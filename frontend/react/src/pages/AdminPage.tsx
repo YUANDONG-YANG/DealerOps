@@ -12,10 +12,12 @@ import { auditApi } from '../api/audit';
 import { apiError, codeOf, collectAllPages, fieldErrorsOf, statusOf } from '../api/http';
 import { describeError, errorReason } from '../api/errors';
 import { enumLabel } from '../format';
+import SearchSuggest, { SUGGEST_LIMIT, matchesAny, uniqueSuggestions, type Suggestion } from '../components/SearchSuggest';
+import { useSessionStore } from '../store/session';
 
 type FlatMember = Member & { dealerId: number; legalName: string };
 
-const memberContact = (m: Member) => [m.email, m.phone].filter(Boolean).join(' / ') || '—';
+const memberContact = (m: Member) => [m.email, m.phone].filter(Boolean).join(' / ') || 'No contact provided';
 
 function isForbidden(e: unknown) {
   return codeOf(e) === 'FORBIDDEN' || statusOf(e) === 403;
@@ -113,6 +115,11 @@ export default function AdminPage() {
   const membersLoadSeq = useRef(0);
   const drawerMembersLoadSeq = useRef(0);
 
+  // Every member of every dealership, loaded once for the member and actor suggestions; a member
+  // list reload drops it so a bind or unbind shows up in the next suggestions.
+  const memberPool = useRef<Promise<FlatMember[]> | null>(null);
+  const signedInUser = useSessionStore((s) => s.username);
+
   const pagedMembers = flatMembers.slice(memberPage * 10, memberPage * 10 + 10);
 
   const loadDealers = useCallback(async () => {
@@ -147,16 +154,43 @@ export default function AdminPage() {
     return items;
   };
 
+  const allMembers = () => {
+    memberPool.current ??= (async () => {
+      const flat: FlatMember[] = [];
+      for (const d of await fetchAllDealers()) {
+        for (const m of await fetchDealerMembers(d.id, '')) flat.push({ ...m, dealerId: d.id, legalName: d.legalName });
+      }
+      return flat;
+    })().catch((e) => { memberPool.current = null; throw e; });
+    return memberPool.current;
+  };
+
+  const suggestMembers = async (q: string): Promise<Suggestion[]> => {
+    const matches = (await allMembers()).filter((m) => matchesAny(q, m.username, m.displayName, m.email, m.phone));
+    return uniqueSuggestions(matches.map((m) => ({
+      value: m.username,
+      label: m.displayName && m.displayName !== m.username ? `${m.displayName} (${m.username})` : m.username,
+      hint: [m.legalName, m.email, m.phone].filter(Boolean).join(' · '),
+    }))).slice(0, SUGGEST_LIMIT);
+  };
+
+  // The platform admin acts without a membership, so the signed-in username joins the actor list.
+  const suggestActors = async (q: string): Promise<Suggestion[]> => {
+    const own = signedInUser && matchesAny(q, signedInUser) ? [{ value: signedInUser, label: signedInUser }] : [];
+    return uniqueSuggestions([...own, ...await suggestMembers(q)]).slice(0, SUGGEST_LIMIT);
+  };
+
   // The Members tab lists every dealership's staff in one table, paged on the client.
-  const loadFlatMembers = async () => {
+  const loadFlatMembers = async (filterQ = memberQ) => {
     const seq = ++membersLoadSeq.current;
+    memberPool.current = null;
     setMembersLoading(true); setMembersError(''); setMembersForbidden(false);
     try {
       const dealers = await fetchAllDealers();
       if (seq !== membersLoadSeq.current) return;
       const flat: FlatMember[] = [];
       for (const d of dealers) {
-        const items = await fetchDealerMembers(d.id, memberQ);
+        const items = await fetchDealerMembers(d.id, filterQ);
         if (seq !== membersLoadSeq.current) return;
         for (const m of items) flat.push({ ...m, dealerId: d.id, legalName: d.legalName });
       }
@@ -416,7 +450,14 @@ export default function AdminPage() {
         {tab === 'dealers' && (
           <>
             <div className="filters">
-              <input className="input" value={q} placeholder="Dealership name" aria-label="Dealership name" onChange={(e) => setQ(e.target.value)} />
+              <SearchSuggest value={q} placeholder="Dealership name" ariaLabel="Dealership name"
+                onChange={(v) => setQ(v)}
+                suggest={async (text) => {
+                  const r = await adminApi.dealers({ q: text, size: SUGGEST_LIMIT });
+                  return (r.data.items || []).map((d) => ({ value: d.legalName, label: d.legalName, hint: d.contactEmail }));
+                }}
+                onPick={(s) => { setQ(s.value); setPage(0); }}
+                onEnter={() => { setPage(0); loadDealers(); }} />
               <button className="btn" onClick={() => { setPage(0); loadDealers(); }}>Search</button>
               <button className="btn" onClick={() => { setQ(''); setPage(0); }}>Reset</button>
             </div>
@@ -430,7 +471,7 @@ export default function AdminPage() {
                     <>{r.logoDataUrl && <img src={r.logoDataUrl} alt="" className="dealer-logo-sm" />}{r.legalName}</>
                   )},
                   { label: 'Contact', render: (r) => `${r.contactPhone} / ${r.contactEmail}` },
-                  { label: 'Staff count', render: (r) => r.staffCount == null ? '—' : String(r.staffCount) },
+                  { label: 'Staff count', render: (r) => String(r.staffCount ?? 0) },
                 ]}
                 actions={(r) => (
                   <>
@@ -446,9 +487,13 @@ export default function AdminPage() {
         {tab === 'members' && (
           <>
             <div className="filters">
-              <input className="input" value={memberQ} placeholder="Username, name, email or phone" aria-label="Search members" onChange={(e) => setMemberQ(e.target.value)} />
+              <SearchSuggest value={memberQ} placeholder="Username, name, email or phone" ariaLabel="Search members"
+                onChange={(v) => setMemberQ(v)}
+                suggest={suggestMembers}
+                onPick={(s) => { setMemberQ(s.value); setMemberPage(0); loadFlatMembers(s.value); }}
+                onEnter={() => { setMemberPage(0); loadFlatMembers(); }} />
               <button className="btn" onClick={() => { setMemberPage(0); loadFlatMembers(); }}>Search</button>
-              <button className="btn" onClick={() => { setMemberQ(''); setMemberPage(0); loadFlatMembers(); }}>Reset</button>
+              <button className="btn" onClick={() => { setMemberQ(''); setMemberPage(0); loadFlatMembers(''); }}>Reset</button>
             </div>
             {resetNotice && !memberDrawer && <p className="success-text">{resetNotice}</p>}
             <PageState loading={membersLoading} error={membersError} forbidden={membersForbidden}
@@ -482,7 +527,7 @@ export default function AdminPage() {
           <PendingAccounts key={pendingReload} onBound={() => { void loadFlatMembers(); void loadDealers(); }} />
         )}
         {tab === 'rules' && <ComplianceRulesPanel />}
-        {tab === 'audit' && <AuditLogPanel load={auditApi.platformLog} showDealer />}
+        {tab === 'audit' && <AuditLogPanel load={auditApi.platformLog} showDealer suggestActors={suggestActors} />}
       </div>
 
       <FormDrawer title={editingDealer ? 'Edit dealership' : 'New dealership'} open={drawer} onClose={() => setDrawer(false)}>

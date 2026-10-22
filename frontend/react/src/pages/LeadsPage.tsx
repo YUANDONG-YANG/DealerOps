@@ -14,9 +14,10 @@ import { memberLabel, membersApi, type MemberOption } from '../api/members';
 import { describeError } from '../api/errors';
 import { dateTimeLocal } from '../format';
 import { useSessionStore } from '../store/session';
+import SearchSuggest, { SUGGEST_LIMIT, uniqueSuggestions } from '../components/SearchSuggest';
 
 function vehicleLabel(v: Record<string, unknown> | null | undefined) {
-  if (!v) return '—';
+  if (!v) return 'None';
   return `${v.modelYear} ${v.make} ${v.model}`;
 }
 
@@ -221,9 +222,14 @@ export default function LeadsPage() {
           <button className="btn btn-primary" onClick={openCreate}>Add lead</button>
         </div>
         <div className="filters">
-          <input className="input" value={filters.q} placeholder="Customer name" aria-label="Customer name"
-            onChange={(e) => setFilters((f) => ({ ...f, q: e.target.value }))}
-            onKeyDown={(e) => e.key === 'Enter' && load(0)} />
+          <SearchSuggest value={filters.q} placeholder="Customer name" ariaLabel="Customer name"
+            onChange={(v) => setFilters((f) => ({ ...f, q: v }))}
+            suggest={async (q) => {
+              const r = await leadsApi.list({ ...filters, q, size: SUGGEST_LIMIT });
+              return uniqueSuggestions((r.data.items || []).map((l: any) => ({ value: l.customerName, label: l.customerName })));
+            }}
+            onPick={(s) => { const next = { ...filters, q: s.value }; setFilters(next); setPage(0); load(0, next); }}
+            onEnter={() => { setPage(0); load(0); }} />
           <select className="select" aria-label="Stage" value={filters.stage}
             onChange={(e) => setFilters((f) => ({ ...f, stage: e.target.value }))}>
             <option value="">Stage</option>
@@ -251,11 +257,14 @@ export default function LeadsPage() {
               { label: 'Customer', render: (r: any) => r.customerName },
               { label: 'Vehicle of interest', render: (r: any) => vehicleLabel(r.vehicle) },
               { label: 'Stage', width: '120px', render: (r: any) => <span className={`tag ${stageColor(r.stage)}`}>{stageLabel(r.stage)}</span> },
-              { label: 'Owner', width: '140px', render: (r: any) => r.ownerUsername || '—' },
-              { label: 'Next follow-up', width: '150px', render: (r: any) => (
-                <><span className={r.overdue ? 'danger-text' : ''}>{r.nextFollowUpOn || '—'}</span>
+              { label: 'Owner', width: '140px', render: (r: any) => r.ownerUsername || <span className="muted">Unassigned</span> },
+              // A won or lost lead is final and never overdue (LEAD-03, LEAD-06), so its stored date is not shown.
+              { label: 'Next follow-up', width: '150px', render: (r: any) => isClosedStage(r.stage)
+                ? <span className="muted">Not needed</span>
+                : !r.nextFollowUpOn ? <span className="muted">Not scheduled</span>
+                : <><span className={r.overdue ? 'danger-text' : ''}>{r.nextFollowUpOn}</span>
                   {r.overdue && <span className="danger-text"> · Overdue</span>}</>
-              )},
+              },
             ]}
             actions={(r: any) => <button className="btn-link" onClick={() => openDetail(r.id)}>Open</button>}
           />

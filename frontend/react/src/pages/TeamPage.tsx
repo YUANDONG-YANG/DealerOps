@@ -4,7 +4,8 @@ import ConfirmDialog from '../components/ConfirmDialog';
 import AuditLogPanel from '../components/AuditLogPanel';
 import { auditApi } from '../api/audit';
 import { joinRequestsApi } from '../api/joinRequests';
-import { accountSourceLabel, membersApi, teamApi, type DealerProfileBody, type MemberOption } from '../api/members';
+import { accountSourceLabel, memberLabel, membersApi, teamApi, type DealerProfileBody, type MemberOption } from '../api/members';
+import { SUGGEST_LIMIT, matchesAny } from '../components/SearchSuggest';
 import { getMe } from '../api/me';
 import { useSessionStore } from '../store/session';
 import {
@@ -157,7 +158,11 @@ export default function TeamPage() {
 
       {/* The audit log loads and pages on its own, so it does not wait for the team data. */}
       {tab === 'activity' ? (
-        <AuditLogPanel load={auditApi.dealershipLog} />
+        <AuditLogPanel load={auditApi.dealershipLog}
+          suggestActors={async (q) => members
+            .filter((m) => matchesAny(q, m.username, m.displayName))
+            .slice(0, SUGGEST_LIMIT)
+            .map((m) => ({ value: m.username, label: memberLabel(m) }))} />
       ) : loading ? (
         <div className="state">Loading…</div>
       ) : tab === 'profile' ? (
@@ -203,7 +208,7 @@ export default function TeamPage() {
                 <td>
                   {m.dealerRole === 'STAFF'
                     ? <button type="button" className="btn-link danger" onClick={() => setRemoveTarget(m)}>Remove</button>
-                    : '—'}
+                    : <span className="muted">Managed by platform admin</span>}
                 </td>
               </tr>
             ))}
@@ -235,7 +240,7 @@ export default function TeamPage() {
               return (
                 <tr key={r.id}>
                   <td style={{ whiteSpace: 'nowrap' }}>{r.payload.displayName}</td>
-                  <td>{r.payload.email ?? '—'}</td>
+                  <td>{r.payload.email ?? <span className="muted">Not provided</span>}</td>
                   <td>{r.payload.username}</td>
                   <td><span className="tag">{accountSourceLabel(r.payload.source)}</span></td>
                   <td>{dateTimeLocal(r.createdAt)}</td>
@@ -244,7 +249,7 @@ export default function TeamPage() {
                     {r.resolvedAt
                       ? <>{dateTimeLocal(r.resolvedAt)}<br />
                           <span className="muted">by {r.resolvedBy}</span></>
-                      : '—'}
+                      : <span className="muted">Pending</span>}
                   </td>
                   <td>
                     {r.resolvedAt == null ? (
@@ -267,7 +272,7 @@ export default function TeamPage() {
                           Reject
                         </button>
                       </>
-                    ) : '—'}
+                    ) : <span className="muted">No action needed</span>}
                   </td>
                 </tr>
               );

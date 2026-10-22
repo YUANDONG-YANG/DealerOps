@@ -9,11 +9,12 @@ import AuditTrail from '../components/AuditTrail';
 import { customersApi } from '../api/customers';
 import { vehiclesApi } from '../api/vehicles';
 import { auditApi } from '../api/audit';
-import { leadsApi, stageLabel } from '../api/leads';
+import { isClosedStage, leadsApi, stageLabel } from '../api/leads';
 import { codeOf, collectAllPages, fieldErrorsOf, messageOf, statusOf } from '../api/http';
 import { describeError } from '../api/errors';
 import { enumLabel } from '../format';
 import { useSessionStore } from '../store/session';
+import SearchSuggest, { SUGGEST_LIMIT } from '../components/SearchSuggest';
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+$/;
 const PHONE_PATTERN = /^(?=(?:\D*\d){7,20}\D*$)[0-9+\-() ]+$/;
@@ -30,7 +31,6 @@ function blankForm(): CustomerForm {
 }
 
 function linkedLabel(v: any) {
-  if (!v) return '—';
   return `${v.modelYear} ${v.make} ${v.model}`;
 }
 
@@ -396,7 +396,7 @@ export default function CrmPage() {
         const extra = Number(row.linkedVehicleCount ?? 0) - 1;
         return (
           <>
-            {linkedLabel(row.linkedVehicle)}
+            {row.linkedVehicle ? linkedLabel(row.linkedVehicle) : <span className="muted">None</span>}
             {extra > 0 && <span className="muted"> +{extra} more</span>}
           </>
         );
@@ -420,8 +420,14 @@ export default function CrmPage() {
           <button className="btn btn-primary" onClick={openCreate}>Add customer</button>
         </div>
         <div className="filters">
-          <input className="input" placeholder="Name / Email / Phone" aria-label="Name / Email / Phone" value={filters.q}
-            onChange={e => { setFilters(f => ({ ...f, q: e.target.value })); setPage(0); }} />
+          <SearchSuggest placeholder="Name / Email / Phone" ariaLabel="Name / Email / Phone" value={filters.q}
+            onChange={v => { setFilters(f => ({ ...f, q: v })); setPage(0); }}
+            suggest={async q => {
+              const r = await customersApi.list({ q, linked: filters.linked, size: SUGGEST_LIMIT });
+              return (r.data.items || []).map((c: any) => ({ value: c.name, label: c.name, hint: [c.email, c.phone].filter(Boolean).join(' · ') }));
+            }}
+            onPick={s => { setFilters(f => ({ ...f, q: s.value })); setPage(0); setApplied({ q: s.value, linked: filters.linked }); }}
+            onEnter={() => { setPage(0); setApplied({ q: filters.q.trim(), linked: filters.linked }); }} />
           <select className="select" aria-label="Link status" value={filters.linked}
             onChange={e => { setFilters(f => ({ ...f, linked: e.target.value })); setPage(0); }}>
             <option value="">Any</option>
@@ -531,7 +537,7 @@ export default function CrmPage() {
                 <Link to={`/leads?leadId=${l.id}`}>
                   {stageLabel(l.stage)} · {l.vehicle ? linkedLabel(l.vehicle) : 'No vehicle'}
                 </Link>
-                <span className="muted"> · Follow-up {l.nextFollowUpOn || '—'}</span>
+                <span className="muted"> · Follow-up {isClosedStage(l.stage) ? 'not needed' : l.nextFollowUpOn || 'not scheduled'}</span>
               </div>
             ))}
             {leadTotal > 10 && selected && (

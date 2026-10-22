@@ -19,6 +19,7 @@ import { auditApi } from '../api/audit';
 import { codeOf, collectAllPages, fieldErrorsOf, messageOf, statusOf } from '../api/http';
 import { describeError } from '../api/errors';
 import { useSessionStore } from '../store/session';
+import SearchSuggest, { SUGGEST_LIMIT, matchesAny, uniqueSuggestions } from '../components/SearchSuggest';
 
 const SOURCES = ['TRADE_IN', 'AUCTION', 'PRIVATE_PURCHASE', 'OTHER'] as const;
 const CONDITIONS = ['CERTIFIED', 'AS_IS', 'UNFIT', 'IRREPARABLE'] as const;
@@ -251,6 +252,13 @@ export default function DmsPage() {
     } catch {
       if (seq === modelsSeqRef.current) setCatalogError('Vehicle catalog unavailable; type a make and model instead.');
     }
+  }
+
+  // Distinct makes or models of this dealership's inventory that contain the typed text.
+  async function inventorySuggestions(q: string, field: (v: any) => string) {
+    const r = await vehiclesApi.list({ ...filters, make: '', model: '', q, size: 50 });
+    const values = (r.data.items || []).map(field).filter((x: string) => matchesAny(q, x));
+    return uniqueSuggestions(values.map((x: string) => ({ value: x, label: x }))).slice(0, SUGGEST_LIMIT);
   }
 
   function applySearch() {
@@ -525,14 +533,14 @@ export default function DmsPage() {
   const columns = [
     { key: 'ymm', label: 'Year Make Model', render: (row: any) => `${row.modelYear} ${row.make} ${row.model}` },
     { key: 'vin', label: 'VIN' },
-    { key: 'stockNumber', label: 'Stock #', render: (row: any) => row.stockNumber || '—' },
+    { key: 'stockNumber', label: 'Stock #', render: (row: any) => row.stockNumber || <span className="muted">Not set</span> },
     { key: 'bodyType', label: 'Body', render: (row: any) => enumLabel(row.bodyType) },
     { key: 'source', label: 'Source', render: (row: any) => enumLabel(row.source) },
     { key: 'conditionCode', label: 'Condition', render: (row: any) => enumLabel(row.conditionCode) },
     { key: 'purchaseCost', label: 'Cost', render: (row: any) => cad(row.purchaseCost) },
-    { key: 'listPrice', label: 'List price', render: (row: any) => cad(row.listPrice) },
+    { key: 'listPrice', label: 'List price', render: (row: any) => row.listPrice != null ? cad(row.listPrice) : <span className="muted">Not set</span> },
     { key: 'addedOn', label: 'Date added' },
-    { key: 'openWorkOrders', label: 'Open WOs', render: (row: any) => row.openWorkOrders || '—' },
+    { key: 'openWorkOrders', label: 'Open WOs', render: (row: any) => row.openWorkOrders ?? 0 },
     { key: 'status', label: 'Status', render: (row: any) => <StatusTag status={row.status}>{enumLabel(row.status)}</StatusTag> },
   ];
 
@@ -574,24 +582,38 @@ export default function DmsPage() {
         </div>
         <div className="filters">
           {catalogUnavailable ? (
-            <input className="input" placeholder="Make" aria-label="Make" value={drafts.make} onChange={e => setDrafts(d => ({ ...d, make: e.target.value }))} />
+            <SearchSuggest placeholder="Make" ariaLabel="Make" value={drafts.make}
+              onChange={v => setDrafts(d => ({ ...d, make: v }))}
+              suggest={q => inventorySuggestions(q, v => v.make)}
+              onPick={s => { setDrafts(d => ({ ...d, make: s.value })); changeFilter({ make: s.value }); }}
+              onEnter={applySearch} />
           ) : (
             <select className="select" aria-label="Make" value={filters.make} onChange={e => onMakeChange(e.target.value)}>
               <option value="">Make</option>
               {makeOptions.map(m => <option key={m} value={m}>{m}</option>)}
             </select>
           )}
-          <input className="input" placeholder="Model" aria-label="Model" list="dms-filter-models" value={drafts.model}
-            onChange={e => setDrafts(d => ({ ...d, model: e.target.value }))} />
-          <datalist id="dms-filter-models">
-            {modelOptions.map(m => <option key={m} value={m} />)}
-          </datalist>
+          <SearchSuggest placeholder="Model" ariaLabel="Model" value={drafts.model}
+            onChange={v => setDrafts(d => ({ ...d, model: v }))}
+            suggest={async q => modelOptions.length
+              ? modelOptions.filter(m => matchesAny(q, m)).map(m => ({ value: m, label: m }))
+              : inventorySuggestions(q, v => v.model)}
+            onPick={s => { setDrafts(d => ({ ...d, model: s.value })); changeFilter({ model: s.value }); }}
+            onEnter={applySearch} />
           <select className="select" aria-label="Year" value={filters.modelYear} onChange={e => changeFilter({ modelYear: e.target.value })}>
             <option value="">Year</option>
             {yearOptions.map(y => <option key={y} value={y}>{y}</option>)}
           </select>
-          <input className="input" placeholder="Search VIN, make or model" aria-label="Search VIN, make or model" value={drafts.q}
-            onChange={e => setDrafts(d => ({ ...d, q: e.target.value }))} />
+          <SearchSuggest placeholder="Search VIN, make or model" ariaLabel="Search VIN, make or model" value={drafts.q}
+            onChange={v => setDrafts(d => ({ ...d, q: v }))}
+            suggest={async q => {
+              const r = await vehiclesApi.list({ ...filters, q, size: SUGGEST_LIMIT });
+              return (r.data.items || []).map((v: any) => ({
+                value: v.vin, label: `${v.modelYear} ${v.make} ${v.model}`, hint: [v.vin, v.stockNumber].filter(Boolean).join(' · '),
+              }));
+            }}
+            onPick={s => { setDrafts(d => ({ ...d, q: s.value })); changeFilter({ q: s.value }); }}
+            onEnter={applySearch} />
           <select className="select" aria-label="Status" value={filters.status} onChange={e => changeFilter({ status: e.target.value })}>
             <option value="">Status</option>
             <option value="IN_STOCK">In stock</option>
@@ -746,8 +768,8 @@ export default function DmsPage() {
           {edit?.id && !isSold && (
             <>
               {/* Optional fields set by the sell action; an in-stock vehicle shows them empty. */}
-              <div className="form-item"><label className="form-label">Sold date</label><span>—</span></div>
-              <div className="form-item"><label className="form-label">Sold price</label><span>—</span></div>
+              <div className="form-item"><label className="form-label">Sold date</label><span className="muted">Not sold</span></div>
+              <div className="form-item"><label className="form-label">Sold price</label><span className="muted">Not sold</span></div>
             </>
           )}
 
@@ -778,7 +800,7 @@ export default function DmsPage() {
               <label className="form-label">Linked customer</label>
               {edit.linkedCustomer ? (
                 <Link to={`/crm?customerId=${edit.linkedCustomer.id}`}>{edit.linkedCustomer.name}</Link>
-              ) : <span>—</span>}
+              ) : <span className="muted">None</span>}
             </div>
           )}
 
@@ -787,7 +809,7 @@ export default function DmsPage() {
               <label className="form-label">Ad check status</label>
               {adStatus
                 ? <StatusTag status={adStatus}>{checkStatusLabel(adStatus) || 'Not checked'}</StatusTag>
-                : <span>—</span>}
+                : <span className="muted">Unavailable</span>}
             </div>
           )}
 

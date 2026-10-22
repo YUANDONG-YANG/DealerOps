@@ -48,7 +48,8 @@ public class LeadService
         if (!string.IsNullOrWhiteSpace(q))
         {
             var term = q.Trim();
-            var matchingCustomerIds = _db.Customers
+            // Leads of a soft-deleted customer stay listed (CRM-14), so the name search must find them too.
+            var matchingCustomerIds = _db.Customers.IgnoreQueryFilters()
                 .Where(c => c.DealerId == tenant && c.Name.Contains(term))
                 .Select(c => c.Id);
             query = query.Where(l => matchingCustomerIds.Contains(l.CustomerId));

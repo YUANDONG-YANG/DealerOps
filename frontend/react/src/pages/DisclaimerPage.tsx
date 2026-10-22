@@ -1,5 +1,7 @@
 import { Link } from 'react-router-dom';
 import BrandMark from '../components/BrandMark';
+import { accessToken, roleHome } from '../auth/login';
+import { useSessionStore } from '../store/session';
 
 const SECTIONS: { title: string; text: string }[] = [
   {
@@ -32,26 +34,43 @@ const SECTIONS: { title: string; text: string }[] = [
   },
 ];
 
+/** The disclaimer text, shared by the public page and the drawer on the ad check result. */
+export function DisclaimerSections() {
+  return (
+    <>
+      <p className="muted">What Dealer Ops does and does not do. Last updated 2026-10-21.</p>
+      {SECTIONS.map(s => (
+        <div key={s.title} style={{ marginTop: 20 }}>
+          <h2 style={{ fontSize: 18 }}>{s.title}</h2>
+          <p>{s.text}</p>
+        </div>
+      ))}
+    </>
+  );
+}
+
 /** Public disclaimer page, linked from the ad check result, the buyer site, and the bill of sale. */
 export default function DisclaimerPage() {
+  const role = useSessionStore((s) => s.role);
+  const signedIn = !!accessToken();
   return (
     <div className="landing">
       <header className="landing-nav">
         <Link to="/" className="landing-brand"><BrandMark />Dealer Ops</Link>
         <nav className="landing-links" aria-label="Pages">
-          <Link to="/shop">Shop</Link>
-          <Link to="/login">Sign in</Link>
+          {signedIn ? (
+            <Link to={roleHome(role)}>Back to app</Link>
+          ) : (
+            <>
+              <Link to="/shop">Shop</Link>
+              <Link to="/login">Sign in</Link>
+            </>
+          )}
         </nav>
       </header>
       <section className="landing-section" style={{ maxWidth: 820 }}>
         <h1>Disclaimer</h1>
-        <p className="muted">What Dealer Ops does and does not do. Last updated 2026-10-21.</p>
-        {SECTIONS.map(s => (
-          <div key={s.title} style={{ marginTop: 20 }}>
-            <h2 style={{ fontSize: 18 }}>{s.title}</h2>
-            <p>{s.text}</p>
-          </div>
-        ))}
+        <DisclaimerSections />
       </section>
     </div>
   );

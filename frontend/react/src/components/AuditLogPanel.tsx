@@ -5,6 +5,7 @@ import { actionText, summaryText } from './AuditTrail';
 import type { AuditLogFilter, AuditLogRow } from '../api/audit';
 import { messageOf } from '../api/http';
 import { dateTimeLocal } from '../format';
+import SearchSuggest, { type Suggestion } from './SearchSuggest';
 
 const ENTITY_TYPES = ['APP_USER', 'DEALER', 'MEMBERSHIP', 'VEHICLE', 'CUSTOMER', 'CUSTOMER_VEHICLE', 'LEAD',
   'WORK_ORDER', 'VEHICLE_PHOTO', 'LISTING', 'RULE_OVERRIDE'];
@@ -14,9 +15,11 @@ const ACTIONS = ['CREATE', 'UPDATE', 'DELETE', 'SELL', 'LINK', 'UNLINK', 'NOTE',
  * Filterable audit log, newest first (AUD-10, AUD-11). The admin page passes the platform log
  * and shows the dealership column; the Team page passes the manager's own dealership log.
  */
-export default function AuditLogPanel({ load, showDealer = false }: {
+export default function AuditLogPanel({ load, showDealer = false, suggestActors }: {
   load: (filter: AuditLogFilter, page: number) => Promise<{ items: AuditLogRow[]; totalElements: number }>;
   showDealer?: boolean;
+  /** Usernames for the actor box; the API matches the actor exactly, so a pick is the full username. */
+  suggestActors: (q: string) => Promise<Suggestion[]>;
 }) {
   const [draft, setDraft] = useState<AuditLogFilter>({});
   const [filter, setFilter] = useState<AuditLogFilter>({});
@@ -52,8 +55,11 @@ export default function AuditLogPanel({ load, showDealer = false }: {
           <option value="">All actions</option>
           {ACTIONS.map((a) => <option key={a} value={a}>{a}</option>)}
         </select>
-        <input className="input" placeholder="Actor username" aria-label="Actor username" value={draft.actor ?? ''}
-          onChange={(e) => set('actor', e.target.value)} />
+        <SearchSuggest placeholder="Actor username" ariaLabel="Actor username" value={draft.actor ?? ''}
+          onChange={(v) => set('actor', v)}
+          suggest={suggestActors}
+          onPick={(s) => { const next = { ...draft, actor: s.value }; setDraft(next); setPage(0); setFilter(next); }}
+          onEnter={() => { setPage(0); setFilter({ ...draft }); }} />
         {showDealer && (
           <input className="input" type="number" placeholder="Dealership id" aria-label="Dealership id" value={draft.dealerId ?? ''}
             onChange={(e) => set('dealerId', e.target.value ? Number(e.target.value) : undefined)} />
@@ -71,9 +77,9 @@ export default function AuditLogPanel({ load, showDealer = false }: {
             { label: 'Actor', key: 'actorUsername' },
             { label: 'Action', render: (r) => actionText(r) },
             { label: 'Record', render: (r) => `${r.entityType} #${r.entityId}` },
-            ...(showDealer ? [{ label: 'Dealership', render: (r: AuditLogRow) => r.dealerId == null ? '—' : String(r.dealerId) }] : []),
+            ...(showDealer ? [{ label: 'Dealership', render: (r: AuditLogRow) => r.dealerId == null ? 'Platform' : String(r.dealerId) }] : []),
             { label: 'Changes', render: (r) => summaryText(r.fieldSummary, r.previous) },
-            { label: 'Source IP', render: (r) => r.clientIp ?? '—' },
+            { label: 'Source IP', render: (r) => r.clientIp ?? 'Not recorded' },
           ]}
         />
       </PageState>

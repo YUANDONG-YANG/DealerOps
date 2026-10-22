@@ -1,8 +1,10 @@
 import type { ReactNode } from 'react';
-import { Link } from 'react-router-dom';
+import { useState } from 'react';
 import { useSessionStore } from '../store/session';
 import { checkStatusLabel, isCheckStatus, type Listing, type PriorUse, type RuleFinding } from '../api/listings';
 import StatusTag from './StatusTag';
+import FormDrawer from './FormDrawer';
+import { DisclaimerSections } from '../pages/DisclaimerPage';
 import { enumLabel } from '../format';
 
 type ChecklistItem = { label: string; codes: string[] };
@@ -84,6 +86,7 @@ interface Props {
 /** The ad editor beside its last check result; the page supplies the vehicle picker and action buttons. */
 export default function AdWorkspace({ listing, onChange, vehicle, readOnly, pickerSlot, actionsSlot }: Props) {
   const session = useSessionStore();
+  const [disclaimerOpen, setDisclaimerOpen] = useState(false);
   const hasSelection = !!vehicle;
   const findings = listing.lastCheck?.ruleFindings || [];
   const aiNotes = listing.lastCheck?.aiNotes || [];
@@ -101,10 +104,10 @@ export default function AdWorkspace({ listing, onChange, vehicle, readOnly, pick
           {hasSelection ? (
             <>
               <p className="muted">
-                Year {String(vehicle?.modelYear ?? '—')} · Condition {enumLabel(vehicle?.conditionCode) || '—'} · Dealership {session.dealerLegalName || '—'}
+                Year {String(vehicle?.modelYear ?? 'not set')} · Condition {enumLabel(vehicle?.conditionCode) || 'not set'} · Dealership {session.dealerLegalName || 'not set'}
               </p>
               <p className="muted">
-                Contact {session.dealerContactPhone || '—'} · {session.dealerContactEmail || '—'} · {session.dealerContactAddress || '—'}
+                Contact {session.dealerContactPhone || 'phone not set'} · {session.dealerContactEmail || 'email not set'} · {session.dealerContactAddress || 'address not set'}
               </p>
               <div className="form-item"><label className="form-label">Title</label>
                 <input className="input" value={listing.title} disabled={formDisabled}
@@ -155,7 +158,11 @@ export default function AdWorkspace({ listing, onChange, vehicle, readOnly, pick
       <div className="card result-pane">
         <div className="card-header">Check result</div>
         <p className="muted" style={{ fontSize: 13, marginBottom: 0 }}>This check is not legal advice and is not an OMVIC approval.</p>
-        <Link to="/disclaimer" target="_blank" style={{ fontSize: 13, display: 'inline-block', marginBottom: 12 }}>Read the full disclaimer</Link>
+        <button type="button" className="btn-link" style={{ fontSize: 13, display: 'inline-block', marginBottom: 12 }}
+          onClick={() => setDisclaimerOpen(true)}>Read the full disclaimer</button>
+        <FormDrawer title="Disclaimer" open={disclaimerOpen} onClose={() => setDisclaimerOpen(false)}>
+          <DisclaimerSections />
+        </FormDrawer>
         {!hasSelection ? (
           <div className="state">Select a vehicle to start.</div>
         ) : (
