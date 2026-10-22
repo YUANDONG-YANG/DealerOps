@@ -8,6 +8,8 @@
 #        deploy/seed/load-demo-sql.sh --check   # local file check only; no Azure, no MySQL
 # Needs: terraform apply done, and dealer-core started once (it creates the tables).
 set -euo pipefail
+# az prints routine notices (no build automation, Kudu warm-up) as warnings; show only errors.
+export AZURE_CORE_ONLY_SHOW_ERRORS=true
 
 seed_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 repo="$(cd "${seed_dir}/../.." && pwd)"

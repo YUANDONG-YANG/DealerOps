@@ -9,6 +9,8 @@
 # Needs: az (logged in), terraform, .NET 10 SDK, Node 20 + npm/pnpm.
 # Procedure and verification: ../README.md
 set -euo pipefail
+# az prints routine notices (no build automation, Kudu warm-up) as warnings; show only errors.
+export AZURE_CORE_ONLY_SHOW_ERRORS=true
 
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 repo="$(cd "${here}/../.." && pwd)"

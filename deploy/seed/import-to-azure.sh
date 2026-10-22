@@ -12,6 +12,8 @@
 #        SEED_FILE=deploy/seed/azure-backup-<time>.sql.gz deploy/seed/import-to-azure.sh  # roll back
 # Needs: terraform apply done, and dealer-core started once (it creates the tables).
 set -euo pipefail
+# az prints routine notices (no build automation, Kudu warm-up) as warnings; show only errors.
+export AZURE_CORE_ONLY_SHOW_ERRORS=true
 
 seed_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 tf_dir="${seed_dir}/../terraform"
