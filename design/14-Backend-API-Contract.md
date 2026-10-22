@@ -528,7 +528,7 @@ Staff may only record payments (PAY-05): reading the ledger and removing a payme
 |---|---|---|
 | `GET /api/v1/vehicles/{vehicleId}/payments` | — | Manager only. 200 ledger; `soldPrice` and `balanceDue` are null while the vehicle is in stock |
 | `POST /api/v1/vehicles/{vehicleId}/payments` | `amount` (> 0, two decimals), `method`, `paidOn`, `note?` (≤ 200) | Every dealer user. 201: a manager gets the updated ledger; staff get only the recorded `PaymentItem` (PAY-05). In-stock vehicle → `400 VALIDATION` "Record the sale before adding payments."; more than the balance due → `400 VALIDATION` on `amount`; `paidOn` after today or before `soldOn` → `400 VALIDATION` on `paidOn` |
-| `DELETE /api/v1/vehicles/{vehicleId}/payments/{paymentId}` | — | Manager only. 200 ledger |
+| `DELETE /api/v1/vehicles/{vehicleId}/payments/{paymentId}` | — | Manager only. 200 ledger. The payment is soft-deleted (row kept, `deleted_at` set) and leaves the ledger totals |
 
 Creating a payment locks the vehicle row (`SELECT … FOR UPDATE`) before the balance check, so concurrent payments on the same vehicle cannot together exceed the balance due.
 
@@ -610,7 +610,7 @@ Vehicle photos with automatic enhancement ([21](21-Feature-Extensions.md) §6). 
 | `POST /api/v1/vehicles/{vehicleId}/photos` | `multipart/form-data`, part `file` | 201 `PhotoItem` |
 | `GET /api/v1/vehicles/{vehicleId}/photos/{photoId}/content?variant=original\|enhanced` | — | 200 image bytes (`image/jpeg` or `image/png` for the original, always `image/jpeg` enhanced), `Cache-Control: no-store` |
 | `POST /api/v1/vehicles/{vehicleId}/photos/{photoId}/enhance` | `{ "preset": "AUTO" \| "BRIGHTEN" \| "SHARPEN" }` | 200 `PhotoItem`; replaces the previous enhanced copy |
-| `DELETE /api/v1/vehicles/{vehicleId}/photos/{photoId}` | — | 204 |
+| `DELETE /api/v1/vehicles/{vehicleId}/photos/{photoId}` | — | 204. The photo is soft-deleted (row and both variants kept, `deleted_at` set); its content then returns 404 |
 
 Errors: not JPEG/PNG (checked from the bytes, not the declared type) → `415 UNSUPPORTED_MEDIA_TYPE`; over 2 MB → `400 VALIDATION` "Photo must be 2 MB or smaller."; an 11th photo → `400 VALIDATION`; empty `file` → `400 VALIDATION`; image over 40 megapixels → `400 VALIDATION`; `variant=enhanced` before any enhancement → 404; other `variant` or missing `preset` → `400 VALIDATION`. Limits are configuration (`PHOTO_MAX_FILE_SIZE`, `PHOTO_MAX_REQUEST_SIZE`, `PHOTO_MAX_PER_VEHICLE`, `PHOTO_MAX_EDGE_PX`). Audit `VEHICLE_PHOTO`: `CREATE`, `UPDATE` (`enhancement`), `DELETE`.
 
@@ -796,7 +796,7 @@ Audit `CUSTOMER_VEHICLE` / `LINK`. `entityId` = `customer_vehicle.id`; `fieldSum
 
 ### 6.2 `DELETE /api/v1/customers/{id}/vehicles/{vehicleId}` → 204
 
-Remove the association between that customer and that vehicle. The vehicle returns to "unlinked" and can be linked again. Do not change vehicle `status`.  
+Remove the association between that customer and that vehicle. The link row is soft-deleted (`deleted_at` set, row kept; design/15 §8.6). The vehicle returns to "unlinked" and can be linked again. Do not change vehicle `status`.  
 **Sold vehicles cannot be unlinked** (15): vehicle `status=SOLD` → **409** `SOLD_LOCKED` (sale record must not be erased).  
 No such association or cross-dealership → **404** (not 403). Audit `CUSTOMER_VEHICLE` / `UNLINK`.
 

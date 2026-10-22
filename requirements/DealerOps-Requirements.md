@@ -279,7 +279,7 @@ The spec PDF has no such page. It is added by scope erratum 2 to meet the course
 | NFR-04 | Database backup policy (MySQL Flexible Server keeps backups for 7 days) | Should |
 | NFR-05 | Custom domain. It is not configured yet; the default Azure host names are used | Should |
 | NFR-06 | Desktop first, usable at phone width | Could |
-| NFR-07 | Rate limits, throughput SLOs and PIPEDA retention | Must. Gateway per-client limits with 429 `RATE_LIMITED` (design/19 §1.5.1); SLO targets (design/20 §6); deleted-customer anonymization and retention table (design/15 §8.6). Default values are configurable and await the dealership's confirmation. |
+| NFR-07 | Rate limits, throughput SLOs and data retention | Must. Gateway per-client limits with 429 `RATE_LIMITED` (design/19 §1.5.1); SLO targets (design/20 §6). No business data is deleted: customers, vehicles, customer-vehicle links, photos and payments are soft-deleted and kept, and deleted customers are never anonymized (design/15 §8.6). Default values are configurable and await the dealership's confirmation. |
 | NFR-08 | After every deploy, the release time (UTC) of all four apps is visible. Each Java service logs one startup line. The Swagger description shows dealer-core's time. The bottom left of every web page lists web / gateway / core / ai, read from the gateway's anonymous `GET /actuator/release`. The deploy step stamps `PUBLISHED_AT`; without it, the build time is used ([design/20-Observability.md](../design/20-Observability.md) §5) | Must |
 
 ## 8. Pages

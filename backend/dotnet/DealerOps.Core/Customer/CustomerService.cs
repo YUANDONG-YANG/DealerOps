@@ -189,7 +189,7 @@ public class CustomerService
         catch (DbUpdateException ex) when (DuplicateKey.Is(ex))
         {
             // A concurrent request linked the same vehicle after the check above (CRM-07).
-            // Error 1062 is enough: customer_vehicle's only unique key is the vehicle id.
+            // Error 1062 is enough: customer_vehicle's only unique key is the active vehicle id.
             throw new ApiException(ErrorCode.VehicleAlreadyLinked, "Vehicle is already linked.");
         }
         _audit.Record("CUSTOMER_VEHICLE", row.Id, "LINK", tenant, TenantContext.ActorUsername(),
@@ -216,7 +216,7 @@ public class CustomerService
             customer.Id, tenant, TenantContext.ActorUsername());
     }
 
-    /// <summary>Removes a customer-vehicle link; a sold vehicle's link is locked.</summary>
+    /// <summary>Unlinks a customer and vehicle by soft-deleting the link; a sold vehicle's link is locked.</summary>
     public void Unlink(long customerId, long vehicleId)
     {
         var tenant = TenantGuard.RequireTenantId();
@@ -231,7 +231,7 @@ public class CustomerService
             throw new ApiException(ErrorCode.SoldLocked, "Sold vehicle cannot be unlinked.");
 
         var entityId = row.Id;
-        _db.CustomerVehicles.Remove(row);
+        row.DeletedAt = DateTime.UtcNow;
 
         _audit.Record("CUSTOMER_VEHICLE", entityId, "UNLINK", tenant, TenantContext.ActorUsername(),
             new Dictionary<string, object> { ["customerId"] = customerId, ["vehicleId"] = vehicleId });

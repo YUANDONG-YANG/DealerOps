@@ -250,7 +250,6 @@ builder.Services.AddHttpClient<VehicleCatalogService>(client =>
 });
 
 builder.Services.AddHostedService<AdminSeeder>();
-builder.Services.AddHostedService<CustomerRetention>();
 builder.Services.AddHealthChecks();
 
 var app = builder.Build();
@@ -382,6 +381,7 @@ using (var scope = app.Services.CreateScope())
             enhancement VARCHAR(16) NULL,
             uploaded_by VARCHAR(64) NOT NULL,
             created_at DATETIME(6) NOT NULL,
+            deleted_at DATETIME(6) NULL,
             KEY idx_vehicle_photo_vehicle (dealer_id, vehicle_id),
             CONSTRAINT fk_vehicle_photo_dealer FOREIGN KEY (dealer_id) REFERENCES dealer (id),
             CONSTRAINT fk_vehicle_photo_vehicle FOREIGN KEY (vehicle_id) REFERENCES vehicle (id)
@@ -397,6 +397,7 @@ using (var scope = app.Services.CreateScope())
             note VARCHAR(200) NULL,
             recorded_by VARCHAR(64) NOT NULL,
             created_at DATETIME(6) NOT NULL,
+            deleted_at DATETIME(6) NULL,
             KEY idx_vehicle_payment_vehicle (dealer_id, vehicle_id),
             CONSTRAINT fk_vehicle_payment_dealer FOREIGN KEY (dealer_id) REFERENCES dealer (id),
             CONSTRAINT fk_vehicle_payment_vehicle FOREIGN KEY (vehicle_id) REFERENCES vehicle (id)
@@ -420,11 +421,23 @@ using (var scope = app.Services.CreateScope())
         "ALTER TABLE vehicle_photo ADD KEY idx_vehicle_photo_vehicle (dealer_id, vehicle_id)",
         "ALTER TABLE vehicle_photo ADD CONSTRAINT fk_vehicle_photo_dealer FOREIGN KEY (dealer_id) REFERENCES dealer (id)",
         "ALTER TABLE vehicle_photo ADD CONSTRAINT fk_vehicle_photo_vehicle FOREIGN KEY (vehicle_id) REFERENCES vehicle (id)",
+        // No data is destroyed: deleting a photo, a payment or a customer-vehicle link sets
+        // deleted_at and keeps the row.
+        "ALTER TABLE vehicle_photo ADD COLUMN deleted_at DATETIME(6) NULL",
+        "ALTER TABLE vehicle_payment ADD COLUMN deleted_at DATETIME(6) NULL",
+        "ALTER TABLE customer_vehicle ADD COLUMN deleted_at DATETIME(6) NULL",
+        // Unlinked rows stay, so the one-link-per-vehicle rule moves from vehicle_id to a column
+        // that is NULL for unlinked rows. The plain index replaces the unique one fk_cv_vehicle uses.
+        "ALTER TABLE customer_vehicle ADD COLUMN active_vehicle_id BIGINT GENERATED ALWAYS AS (CASE WHEN deleted_at IS NULL THEN vehicle_id END) STORED",
+        "ALTER TABLE customer_vehicle ADD UNIQUE KEY uk_cv_active_vehicle (active_vehicle_id)",
+        "ALTER TABLE customer_vehicle ADD KEY idx_cv_vehicle (vehicle_id)",
+        "ALTER TABLE customer_vehicle DROP INDEX uk_cv_vehicle",
     })
     {
         try { db.Database.ExecuteSqlRaw(ddl); }
-        // 1061/1022/1826: the index or foreign key already exists.
-        catch (MySqlException ex) when (ex.Number is 1061 or 1022 or 1826) { }
+        // 1061/1022/1826/1060: the index, foreign key or column already exists; 1091: the index
+        // to drop is already gone.
+        catch (MySqlException ex) when (ex.Number is 1061 or 1022 or 1826 or 1060 or 1091) { }
         // 1452/1138/1265: existing rows (an orphan or a NULL dealer_id) block the constraint.
         // Core still starts; the warning names the statement to repair by hand.
         catch (MySqlException ex) when (ex.Number is 1452 or 1138 or 1265)

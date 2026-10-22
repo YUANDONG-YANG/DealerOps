@@ -103,7 +103,8 @@ public class VehiclePaymentService
     }
 
     /// <summary>
-    /// Removes one payment from the vehicle's ledger. The audit row keeps the removed payment's
+    /// Removes one payment from the vehicle's ledger by soft-deleting it: the row stays in
+    /// <c>vehicle_payment</c> with <c>deleted_at</c> set. The audit row keeps the removed payment's
     /// amount, method, date and whether it had a note in <c>previous</c>.
     /// </summary>
     public PaymentLedger Delete(long vehicleId, long paymentId)
@@ -115,10 +116,10 @@ public class VehiclePaymentService
                       ?? throw new ApiException(ErrorCode.NotFound, "Not found");
         var actor = TenantContext.ActorUsername();
         using var tx = _db.Database.BeginTransaction();
-        _db.VehiclePayments.Remove(payment);
+        payment.DeletedAt = DateTime.UtcNow;
         var paidOnText = payment.PaidOn.ToString("yyyy-MM-dd");
         var method = EnumWireName.Of(payment.Method);
-        // The removed row is gone after this change, so previous keeps what it held; the note
+        // The removed row leaves the ledger after this change, so previous keeps what it held; the note
         // body stays out of the audit (only whether one existed).
         _audit.Record("VEHICLE", vehicle.Id, "UPDATE", tenant, actor,
             new Dictionary<string, object>

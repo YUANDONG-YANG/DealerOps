@@ -223,7 +223,7 @@ Every `Information` line ends with `by {Actor}` (the signed-in username) unless 
 | Vehicle | created; updated; sold; repair cost updated; deleted | `vehicleId`, `stockNumber`, `fields` |
 | Vehicle photo | uploaded; enhanced; deleted | `photoId`, `vehicleId`, `bytes`, `preset`, `previousPreset` |
 | Payment | Payment recorded; Payment removed | `paymentId`, `vehicleId`, `amount`, `method`, `paidOn` |
-| Customer | created; updated; deleted; vehicle linked; vehicle unlinked; Anonymized N customers (*system*, retention job) | `customerId`, `fields`, `linkId`, `vehicleId`, `customerIds`, `cutoff` |
+| Customer | created; updated; deleted; vehicle linked; vehicle unlinked | `customerId`, `fields`, `linkId`, `vehicleId` |
 | Lead | created; updated; note added | `leadId`, `customerId`, `OldStage`→`NewStage`, `fields`, `noteId` |
 | Buyer site | Buyer inquiry filed (anonymous) | `leadId`, `vehicleId`, `customerId`, `newCustomer` |
 | Work order | created; updated; completed | `workOrderId`, `vehicleId`, `fields`, `status`, `cost` |

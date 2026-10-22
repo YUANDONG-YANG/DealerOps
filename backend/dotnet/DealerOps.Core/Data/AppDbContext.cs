@@ -75,7 +75,12 @@ public class AppDbContext : DbContext
     {
         mb.Entity<CustomerVehicleEntity>(e =>
         {
-            e.HasIndex(cv => cv.VehicleId).IsUnique().HasDatabaseName("uk_cv_vehicle");
+            // Unlinked rows are kept, so uniqueness covers only active links: active_vehicle_id is
+            // NULL once deleted_at is set, and MySQL allows many NULLs in a unique index.
+            e.Property(cv => cv.ActiveVehicleId)
+                .HasComputedColumnSql("(CASE WHEN deleted_at IS NULL THEN vehicle_id END)", stored: true);
+            e.HasIndex(cv => cv.ActiveVehicleId).IsUnique().HasDatabaseName("uk_cv_active_vehicle");
+            e.HasIndex(cv => cv.VehicleId).HasDatabaseName("idx_cv_vehicle");
         });
     }
 
@@ -201,14 +206,14 @@ public class AppDbContext : DbContext
         // Admin services do not query these tables; they stay on dealer, membership, and app_user.
         mb.Entity<VehicleEntity>().HasQueryFilter(e => _tenantDealerId != null && e.DealerId == _tenantDealerId && e.DeletedAt == null);
         mb.Entity<CustomerEntity>().HasQueryFilter(e => _tenantDealerId != null && e.DealerId == _tenantDealerId && e.DeletedAt == null);
-        mb.Entity<CustomerVehicleEntity>().HasQueryFilter(e => _tenantDealerId != null && e.DealerId == _tenantDealerId);
+        mb.Entity<CustomerVehicleEntity>().HasQueryFilter(e => _tenantDealerId != null && e.DealerId == _tenantDealerId && e.DeletedAt == null);
         mb.Entity<ListingEntity>().HasQueryFilter(e => _tenantDealerId != null && e.DealerId == _tenantDealerId);
         mb.Entity<ComplianceCheckEntity>().HasQueryFilter(e => _tenantDealerId != null && e.DealerId == _tenantDealerId);
         mb.Entity<LeadEntity>().HasQueryFilter(e => _tenantDealerId != null && e.DealerId == _tenantDealerId);
         mb.Entity<LeadNoteEntity>().HasQueryFilter(e => _tenantDealerId != null && e.DealerId == _tenantDealerId);
         mb.Entity<WorkOrderEntity>().HasQueryFilter(e => _tenantDealerId != null && e.DealerId == _tenantDealerId);
-        mb.Entity<VehiclePhotoEntity>().HasQueryFilter(e => _tenantDealerId != null && e.DealerId == _tenantDealerId);
-        mb.Entity<VehiclePaymentEntity>().HasQueryFilter(e => _tenantDealerId != null && e.DealerId == _tenantDealerId);
+        mb.Entity<VehiclePhotoEntity>().HasQueryFilter(e => _tenantDealerId != null && e.DealerId == _tenantDealerId && e.DeletedAt == null);
+        mb.Entity<VehiclePaymentEntity>().HasQueryFilter(e => _tenantDealerId != null && e.DealerId == _tenantDealerId && e.DeletedAt == null);
     }
 
     public override int SaveChanges(bool acceptAllChangesOnSuccess)

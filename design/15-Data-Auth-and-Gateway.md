@@ -509,17 +509,20 @@ Verification rules enforced server-side, never in the browser: RS256 only, issue
 
 ---
 
-### 8.6 Personal-information retention (NFR-07, PIPEDA)
+### 8.6 Data retention: nothing is deleted (NFR-07)
+
+Dealer Ops keeps financial and sales records, so no business data is destroyed or overwritten. Every delete is a soft delete: the row stays and `deleted_at` hides it from active lists. This applies to customers (CRM-14), vehicles (DMS-17), customer-vehicle links (unlink), vehicle photos (both variants) and payments (PAY-03). Removed staff memberships keep their row with `active = false`.
 
 | Data category | Retention |
 |---|---|
 | Active customer (name, email, phone, home address) | While the dealership keeps the record |
-| Soft-deleted customer (CRM-14) | Row kept for lead, link and audit history; personal fields anonymized `Retention:DeletedCustomerDays` (default 730) days after deletion |
-| Audit events | Kept for the life of the database, append-only (AUD-05); they hold contact values, new and replaced, so every version is traceable (AUD-04). Customer anonymization never rewrites audit rows, so an anonymized customer's earlier contact values stay in the audit trail, readable only by managers and the admin |
+| Soft-deleted customer (CRM-14) | Row and personal fields kept unchanged for lead, link and audit history; never anonymized |
+| Unlinked customer-vehicle link, deleted photo, deleted payment | Row kept with `deleted_at`; hidden from lists, the ledger and the buyer site |
+| Audit events | Kept for the life of the database, append-only (AUD-05); they hold contact values, new and replaced, so every version is traceable (AUD-04). Readable only by managers and the admin |
 | Staff accounts (`app_user`) | Until the user deletes the account (`DELETE /api/v1/me`) or an admin removes it |
 | Database backups | 7 days (NFR-04) |
 
-`CustomerRetention` (Core background service) runs at startup and daily. It replaces name, email, phone and address with `Deleted customer #{id}`, `deleted-{id}@invalid.example`, `0000000` and `Removed`, and audits a `CUSTOMER`/`UPDATE` by `system` with field names only. `0` turns it off. The 730-day default is a placeholder until the dealership confirms its retention period.
+There is no retention job: the former `CustomerRetention` service, which anonymized deleted customers after 730 days, was removed on 2026-10-22 because the project must not delete data. A customer-vehicle link keeps one active row per vehicle through the generated column `active_vehicle_id` (the vehicle id while `deleted_at` is NULL), which carries the unique key `uk_cv_active_vehicle`, so a vehicle can be linked again after an unlink.
 
 ### 8.7 Database backup and restore (specification §8 hosting)
 

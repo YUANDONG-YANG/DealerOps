@@ -60,7 +60,7 @@ public class BuyerSiteService
                 x.Vehicle.BodyType, x.Vehicle.ConditionCode, x.Vehicle.MileageKm,
                 x.Vehicle.ExteriorColor, x.Vehicle.FuelType, x.Listing.Title, x.Listing.Body,
                 _db.VehiclePhotos.IgnoreQueryFilters()
-                    .Any(p => p.VehicleId == x.Vehicle.Id && p.DealerId == dealerId)))
+                    .Any(p => p.VehicleId == x.Vehicle.Id && p.DealerId == dealerId && p.DeletedAt == null)))
             .ToList();
         return new PublicInventory(dealer.Id, slugs[dealer.Id], dealer.LegalName, dealer.ContactPhone,
             dealer.ContactEmail, dealer.ContactAddress, vehicles);
@@ -86,7 +86,7 @@ public class BuyerSiteService
         LoadDealer(dealerId);
         RequirePublicVehicle(dealerId, vehicleId);
         var photo = _db.VehiclePhotos.IgnoreQueryFilters().AsNoTracking()
-                        .Where(p => p.VehicleId == vehicleId && p.DealerId == dealerId)
+                        .Where(p => p.VehicleId == vehicleId && p.DealerId == dealerId && p.DeletedAt == null)
                         .OrderBy(p => p.Id)
                         .FirstOrDefault()
                     ?? throw new ApiException(ErrorCode.NotFound, "Not found");

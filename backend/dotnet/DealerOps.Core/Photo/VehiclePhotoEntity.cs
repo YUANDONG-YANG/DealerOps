@@ -44,4 +44,8 @@ public class VehiclePhotoEntity : ITenantOwned
 
     [Column("created_at")]
     public DateTime CreatedAt { get; set; }
+
+    /// <summary>Set when the row is deleted; the row itself is kept (no data is destroyed).</summary>
+    [Column("deleted_at")]
+    public DateTime? DeletedAt { get; set; }
 }

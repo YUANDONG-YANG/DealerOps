@@ -127,12 +127,12 @@ public class VehiclePhotoService
         return ToItem(photo);
     }
 
-    /// <summary>Deletes a photo and both its variants, auditing it as VEHICLE_PHOTO DELETE.</summary>
+    /// <summary>Soft-deletes a photo (the row and both variants are kept), auditing it as VEHICLE_PHOTO DELETE.</summary>
     public void Delete(long vehicleId, long photoId)
     {
         var tenant = RequireVehicle(vehicleId);
         var photo = Load(photoId, vehicleId, tenant);
-        _db.VehiclePhotos.Remove(photo);
+        photo.DeletedAt = DateTime.UtcNow;
         _audit.Record("VEHICLE_PHOTO", photoId, "DELETE", tenant, TenantContext.ActorUsername(),
             new Dictionary<string, object> { ["vehicleId"] = vehicleId });
         _db.SaveChanges();
