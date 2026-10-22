@@ -87,6 +87,20 @@ done
 
 published_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 
+# A new app's Kudu site restarts during its first deploy, and az then fails with "Connection
+# refused" although the zip may already be in place. Uploading the same zip again is harmless,
+# and the health checks below still decide whether the deployment worked.
+upload_zip() {
+  local app="$1" zip="$2" attempt
+  for attempt in 1 2 3; do
+    az webapp deploy --resource-group "${resource_group}" --name "${app}" --type zip \
+      --src-path "${zip}" --async false --track-status false --output none && return 0
+    [ "${attempt}" -lt 3 ] && { echo "==> ${app}: upload attempt ${attempt} failed; retrying in 30s" >&2; sleep 30; }
+  done
+  echo "==> ${app}: upload failed 3 times" >&2
+  return 1
+}
+
 if [ "$#" -eq 0 ]; then
   set -- core ai gateway web
 fi
@@ -108,14 +122,7 @@ deploy_dotnet() {
 
   echo "==> ${project}: zip and upload to ${app}"
   (cd "${work}/${project}" && zip -r -q "${work}/${project}.zip" .)
-  az webapp deploy \
-    --resource-group "${resource_group}" \
-    --name "${app}" \
-    --type zip \
-    --src-path "${work}/${project}.zip" \
-    --async false \
-    --track-status false \
-    --output none
+  upload_zip "${app}" "${work}/${project}.zip"
 }
 
 for target in "$@"; do
@@ -151,14 +158,7 @@ for target in "$@"; do
           || { echo "SPA build does not contain ${gateway_url}" >&2; exit 1; }
         echo "==> react frontend: zip and upload dist/ to ${web_app}"
         (cd dist && zip -r -q ../web.zip .)
-        az webapp deploy \
-          --resource-group "${resource_group}" \
-          --name "${web_app}" \
-          --type zip \
-          --src-path web.zip \
-          --async false \
-          --track-status false \
-          --output none
+        upload_zip "${web_app}" web.zip
       )
       ;;
     *)
