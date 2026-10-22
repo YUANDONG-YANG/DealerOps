@@ -202,7 +202,8 @@ test('LEAD-03: move a lead through the pipeline to Won, after which it cannot be
   const row = await findRow(page, customer.name);
   await expect(row).toContainText('Won');
   await expect(row).toContainText(env.staff.username);
-  await expect(row).toContainText('2030-05-01');
+  // A closed lead needs no follow-up, so the column says so instead of the stored date.
+  await expect(row).toContainText('Not needed');
 
   // The server enforces it too.
   const reopen = await staffApi.patch(`/api/v1/leads/${created.id}`, {

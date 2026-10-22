@@ -65,10 +65,13 @@ test('DASH-01 / UI: the dashboard and sales report do not scroll sideways at pho
   }
 });
 
-test('AD-14: the ad workspace links to the full disclaimer and the buyer site', async ({ staffPage: page, staffApi }) => {
+test('AD-14: the ad workspace opens the full disclaimer and links to the buyer site', async ({ staffPage: page, staffApi }) => {
   const v = await staffApi.createVehicle();
   await page.goto(`/ads?vehicleId=${v.id}`);
   await expect(page.getByRole('button', { name: 'Save draft' })).toBeEnabled(LOAD);
-  await expect(page.getByRole('link', { name: 'Read the full disclaimer' })).toHaveAttribute('href', '/disclaimer');
-  await expect(page.getByRole('link', { name: 'buyer site' })).toHaveAttribute('href', /^\/shop\/\d+$/);
+  // The listed-count line above the table repeats the link once this dealership lists any ad.
+  await expect(page.getByRole('region', { name: 'Demo publishing' }).getByRole('link', { name: 'buyer site' }))
+    .toHaveAttribute('href', /^\/shop\/[a-z0-9-]+$/);
+  await page.getByRole('button', { name: 'Read the full disclaimer' }).click();
+  await expect(page.getByRole('dialog')).toBeVisible();
 });

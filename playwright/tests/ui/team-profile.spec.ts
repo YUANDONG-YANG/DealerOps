@@ -128,7 +128,7 @@ test.describe('/team', () => {
     await expect(page.getByText('No join requests yet.')).toBeVisible();
     await expect(page.getByRole('link', { name: 'Team' })).toHaveClass(/active/);
 
-    const bell = page.getByRole('button', { name: 'No join requests' });
+    const bell = page.getByRole('button', { name: 'No inbox messages' });
     await expect(bell).toBeVisible();
     await bell.click();
     await expect(page.getByText("You're all caught up.")).toBeVisible();
@@ -214,11 +214,11 @@ test.describe('/team', () => {
     await expect(adaRow.locator('.chip')).toHaveText('Pending');
     await expect(bobRow.locator('.chip')).toHaveText('Rejected');
     await expect(bobRow).toContainText('by someone.else');
-    await expect(bobRow).toContainText('—'); // no email
+    await expect(bobRow).toContainText('Not provided'); // no email
     await expect(bobRow.getByRole('button')).toHaveCount(0);
 
     // Header bell reflects the unresolved count.
-    await expect(page.getByRole('button', { name: '1 join request', exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: '1 inbox message', exact: true })).toBeVisible();
 
     await adaRow.getByRole('button', { name: 'Approve' }).click();
     await expect(adaRow.locator('.chip')).toHaveText('Approved');
@@ -228,7 +228,7 @@ test.describe('/team', () => {
     expect(approveCalls[0]).toContain('/api/v1/dealer/join-requests/ada.lee/approve');
 
     // The header inbox refreshes from the change event, without a reload.
-    await expect(page.getByRole('button', { name: 'No join requests' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'No inbox messages' })).toBeVisible();
   });
 
   test('AUTH-25: header inbox lists pending requests, rejects one and opens Team', async ({
@@ -268,7 +268,7 @@ test.describe('/team', () => {
     });
 
     await page.goto('/dms');
-    const bell = page.getByRole('button', { name: '2 join requests' });
+    const bell = page.getByRole('button', { name: '2 inbox messages' });
     await expect(bell.locator('.inbox-badge')).toHaveText('2');
     await bell.click();
 
@@ -281,7 +281,7 @@ test.describe('/team', () => {
 
     await cy.getByRole('button', { name: 'Reject' }).click();
     await expect(popover.locator('.inbox-item')).toHaveCount(1);
-    await expect(page.getByRole('button', { name: '1 join request', exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: '1 inbox message', exact: true })).toBeVisible();
     expect(rejectCalls).toHaveLength(1);
     expect(rejectCalls[0]).toContain('/api/v1/dealer/join-requests/cy.tan/reject');
 
@@ -394,7 +394,7 @@ test.describe('/profile', () => {
     await page.getByLabel('Phone').fill('   ');
     await page.getByRole('button', { name: 'Save changes' }).click();
     await expect(page.locator('.alert-success')).toHaveText('Profile saved.');
-    await expect(definition(page, 'Phone')).toHaveText('—');
+    await expect(definition(page, 'Phone')).toHaveText('Not provided');
 
     const meRes = await me.api.get('/api/v1/me');
     // The gateway omits null members, so an absent key also means "no phone".
@@ -547,7 +547,7 @@ test.describe('/profile', () => {
   }) => {
     await page.goto('/profile');
     await expect(definition(page, 'Role')).toHaveText('Platform.Admin');
-    await expect(definition(page, 'Dealership')).toHaveText('—');
+    await expect(definition(page, 'Dealership')).toHaveText('No dealership');
     await expect(page.getByText('Platform admin accounts cannot delete themselves.')).toBeVisible();
     await expect(page.getByRole('button', { name: 'Delete my account' })).toHaveCount(0);
   });

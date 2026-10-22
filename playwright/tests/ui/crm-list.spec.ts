@@ -257,7 +257,7 @@ test.describe('CRM create and edit', () => {
 
     await search(page, c.email);
     const row = rowOf(page, c.email);
-    await expect(row.getByRole('cell').nth(4)).toHaveText('—');
+    await expect(row.getByRole('cell').nth(4)).toHaveText('None');
     await expect(row.getByRole('cell').nth(5)).toHaveText('0');
 
     const detail = await staffApi.get(`/api/v1/customers/${id}`);

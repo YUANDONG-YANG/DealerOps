@@ -114,10 +114,10 @@ test('UI-23: "Mark as sold" in the edit drawer opens the confirm dialog and sell
   await expect(drawer).toBeVisible();
 
   // Sold date and price are not editable fields of the vehicle form (DMS-02): an in-stock
-  // vehicle shows them as empty read-only rows.
-  await expect(field(drawer, 'Sold date')).toContainText('—');
+  // vehicle shows them as read-only "Not sold" rows.
+  await expect(field(drawer, 'Sold date')).toContainText('Not sold');
   await expect(field(drawer, 'Sold date').locator('input')).toHaveCount(0);
-  await expect(field(drawer, 'Sold price')).toContainText('—');
+  await expect(field(drawer, 'Sold price')).toContainText('Not sold');
   await expect(field(drawer, 'Sold price').locator('input')).toHaveCount(0);
 
   await drawer.getByRole('button', { name: 'Mark as sold' }).click();

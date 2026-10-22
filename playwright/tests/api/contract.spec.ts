@@ -176,10 +176,10 @@ test.describe('§9 audit query', () => {
     await expectErrorBody(await staffApi.get('/api/v1/audit', { entityType: 'VEHICLE' }), 400, 'VALIDATION');
   });
 
-  test('AUD-09: entityType=LISTING (or any unknown type) returns 400 VALIDATION', async ({ staffApi }) => {
+  test('AUD-14: LISTING is an audited type (unknown id → 404); any unknown type returns 400 VALIDATION', async ({ staffApi }) => {
     const vehicle = await staffApi.createVehicle();
     await expectErrorBody(
-      await staffApi.get('/api/v1/audit', { entityType: 'LISTING', entityId: vehicle.id }), 400, 'VALIDATION');
+      await staffApi.get('/api/v1/audit', { entityType: 'LISTING', entityId: 999_999_999 }), 404, 'NOT_FOUND');
     await expectErrorBody(
       await staffApi.get('/api/v1/audit', { entityType: 'BOGUS', entityId: vehicle.id }), 400, 'VALIDATION');
   });

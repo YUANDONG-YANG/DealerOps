@@ -253,7 +253,7 @@ test.describe('CRM link and unlink (UI)', () => {
     expect((await unlink.json()).code).toBe('SOLD_LOCKED');
   });
 
-  test('CRM-11: history shows LINK and UNLINK without contact values', async ({ staffPage: page, staffApi }) => {
+  test('CRM-11: history shows LINK and UNLINK and the created contact values', async ({ staffPage: page, staffApi }) => {
     const customer = await staffApi.createCustomer();
     const vehicle = await staffApi.createVehicle({ model: uniqueModel() });
 
@@ -276,17 +276,12 @@ test.describe('CRM link and unlink (UI)', () => {
     await expect(audit.getByRole('cell', { name: 'Vehicle link · UNLINK', exact: true })).toHaveCount(1);
     await expect(audit.getByRole('cell', { name: 'CREATE', exact: true })).toHaveCount(1);
 
-    const historyText = (await audit.innerText()).toLowerCase();
-    for (const secret of [customer.email, customer.phone, customer.homeAddress]) {
-      expect(historyText, 'history must not show contact values').not.toContain(secret.toLowerCase());
-    }
-
-    // The underlying audit response must not carry the values either.
+    // AUD-04 (changed 2026-10-21): the audit records contact values; the manager reads them (AUD-17).
     const res = await staffApi.get('/api/v1/audit', { entityType: 'CUSTOMER', entityId: customer.id });
     await expectStatus(res, 200);
     const raw = (await res.text()).toLowerCase();
-    for (const secret of [customer.email, customer.phone, customer.homeAddress]) {
-      expect(raw, 'audit API must not carry contact values').not.toContain(secret.toLowerCase());
+    for (const value of [customer.email, customer.phone]) {
+      expect(raw, 'audit API records contact values').toContain(value.toLowerCase());
     }
   });
 });

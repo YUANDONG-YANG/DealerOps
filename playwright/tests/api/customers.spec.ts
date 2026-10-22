@@ -109,7 +109,7 @@ test('AT-29 / CRM-06 / CRM-09: cross-dealer ids and missing links return 404', a
   await expectError(await staffApi.delete(`/api/v1/customers/${customer.id}/vehicles/${ownVehicle.id}`), 404, 'NOT_FOUND');
 });
 
-test('CRM-11 / AUD-02 / AUD-04 / CRM-12: customer history records changes without contact values', async ({
+test('CRM-11 / AUD-02 / AUD-04 / CRM-12: customer history records changes with contact values', async ({
   staffApi,
 }) => {
   const vehicle = await staffApi.createVehicle();
@@ -128,8 +128,9 @@ test('CRM-11 / AUD-02 / AUD-04 / CRM-12: customer history records changes withou
   const actions = JSON.parse(text).items.map((i: { action: string }) => i.action);
   expect(actions).toEqual(['UNLINK', 'LINK', 'UPDATE', 'CREATE']);
 
-  for (const secret of [customer.email, customer.phone, customer.homeAddress, newContact.email, newContact.phone]) {
-    expect(text, 'audit must not contain contact values').not.toContain(secret);
+  // AUD-04 (changed 2026-10-21): contact values are recorded, new and replaced.
+  for (const value of [customer.email, customer.phone, newContact.email, newContact.phone]) {
+    expect(text, 'audit records contact values').toContain(value);
   }
 });
 

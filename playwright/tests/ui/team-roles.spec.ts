@@ -43,7 +43,7 @@ async function signInAs(page: Page, token: string) {
   await page.addInitScript(([key, value]) => window.sessionStorage.setItem(key, value), [TOKEN_KEY, token] as const);
 }
 
-test('AUTH-27: staff see no Team menu or inbox, and /team sends them to DMS', async ({ page, request, adminApi }) => {
+test('AUTH-27: staff see the inbox but no Team menu, and /team sends them to DMS', async ({ page, request, adminApi }) => {
   const dealer = await createDealer(adminApi);
   const staff = await bindMember(request, adminApi, dealer, 'STAFF');
   await signInAs(page, staff.token);
@@ -52,7 +52,7 @@ test('AUTH-27: staff see no Team menu or inbox, and /team sends them to DMS', as
   await expect(page.getByRole('heading', { name: 'Dashboard', level: 1 })).toBeVisible(LOAD);
   await expect(page.locator('.header-role')).toHaveText('Staff');
   await expect(page.locator('.side-menu').getByRole('link', { name: 'Team' })).toHaveCount(0);
-  await expect(page.locator('.inbox-bell')).toHaveCount(0);
+  await expect(page.locator('.inbox-bell')).toHaveCount(1);
 
   await page.goto('/team');
   await expect(page).toHaveURL(/\/dms$/);

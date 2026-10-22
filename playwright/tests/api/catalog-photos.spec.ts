@@ -128,7 +128,7 @@ test.describe('catalog (§4.6, anonymous)', () => {
     }
   });
 
-  test('§4.6.2: public dealer directory exposes only id and legalName, sorted by legal name', async ({ request }) => {
+  test('§4.6.2: public dealer directory exposes id, legalName, slug, logo flag and stock counts, sorted by legal name', async ({ request }) => {
     const res = await anonGet(request, '/dealers');
     await expectStatus(res, 200);
     const text = await res.text();
@@ -136,9 +136,13 @@ test.describe('catalog (§4.6, anonymous)', () => {
     expect(Array.isArray(dealers)).toBe(true);
 
     for (const d of dealers) {
-      expect(Object.keys(d).sort(), JSON.stringify(d)).toEqual(['id', 'legalName']);
+      expect(Object.keys(d).sort(), JSON.stringify(d)).toEqual(['hasLogo', 'id', 'inStockCount', 'legalName', 'slug', 'soldCount']);
       expect(typeof d.id).toBe('number');
       expect(typeof d.legalName).toBe('string');
+      expect(d.slug).toMatch(/^[a-z0-9]+(-[a-z0-9]+)*$/);
+      expect(typeof d.hasLogo).toBe('boolean');
+      expect(Number.isInteger(d.inStockCount)).toBe(true);
+      expect(Number.isInteger(d.soldCount)).toBe(true);
     }
     const names = dealers.map((d) => d.legalName as string);
     expect(names).toContain(env.dealerA.legalName);

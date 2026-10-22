@@ -140,11 +140,11 @@ test.describe('with the real AI', () => {
     const customer = await staffApi.get(`/api/v1/customers/${page.items[0].customerId}`);
     expect(((await customer.json()) as { email: string }).email).toBe(first.contact.email.toLowerCase());
 
-    // The audit names the buyer site and redacts contact values.
+    // The audit names the buyer site and records contact values (AUD-04).
     const audit = await staffApi.get('/api/v1/audit', { entityType: 'CUSTOMER', entityId: page.items[0].customerId });
     const created = ((await audit.json()) as { items: { actorUsername: string; fieldSummary: Record<string, unknown> }[] }).items[0];
     expect(created.actorUsername).toBe('buyer-site');
-    expect(created.fieldSummary.email).toBe(true);
+    expect(created.fieldSummary.email).toBe(first.contact.email.toLowerCase());
 
     const repeat = inquiry(v.id, { message: 'Second question' });
     repeat.contact.phone = first.contact.phone;

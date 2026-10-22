@@ -76,14 +76,19 @@ test('AUTH-26: members start as staff; only the admin promotes and demotes, and 
   await expectError(await first.api.get('/api/v1/dealer/join-requests'), 403, 'FORBIDDEN');
 });
 
-test('AUTH-27: staff get 403 on the inbox, join requests, the dealership profile and removing members', async ({
+test('AUTH-27: staff read the inbox but get 403 on join requests, the dealership profile and removing members', async ({
   staffApi, staff2Api,
 }) => {
   // e2e.staff is a manager, e2e.staff2 is staff (global setup).
-  for (const path of ['/api/v1/dealer/join-requests', '/api/v1/dealer/notifications', '/api/v1/dealer/profile']) {
+  for (const path of ['/api/v1/dealer/join-requests', '/api/v1/dealer/profile']) {
     await expectStatus(await staffApi.get(path), 200);
     await expectError(await staff2Api.get(path), 403, 'FORBIDDEN');
   }
+  // Any member reads the inbox; staff get every kind except JOIN_REQUEST (design/14).
+  await expectStatus(await staffApi.get('/api/v1/dealer/notifications'), 200);
+  const inbox = await staff2Api.get('/api/v1/dealer/notifications');
+  await expectStatus(inbox, 200);
+  expect(await inbox.text()).not.toContain('JOIN_REQUEST');
   await expectError(await staff2Api.post('/api/v1/dealer/join-requests/nobody.here/approve'), 403, 'FORBIDDEN');
   await expectError(await staff2Api.post('/api/v1/dealer/join-requests/nobody.here/reject'), 403, 'FORBIDDEN');
   await expectError(await staff2Api.delete(`/api/v1/dealer/members/${env.staff.username}`), 403, 'FORBIDDEN');

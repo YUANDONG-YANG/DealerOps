@@ -269,10 +269,10 @@ test('DMS-09: staff edits every non-sold field of an in-stock vehicle through th
   await expect(drawer.getByText('In stock', { exact: true })).toBeVisible();
   // Sold fields are not editable in the form; selling is a separate action.
   await expect(drawer.getByRole('button', { name: 'Mark as sold' })).toBeVisible();
-  // An in-stock vehicle shows the sold date and price as empty read-only rows, with no input.
-  await expect(field(drawer, 'Sold date')).toContainText('—');
+  // An in-stock vehicle shows the sold date and price as read-only "Not sold" rows, with no input.
+  await expect(field(drawer, 'Sold date')).toContainText('Not sold');
   await expect(field(drawer, 'Sold date').locator('input')).toHaveCount(0);
-  await expect(field(drawer, 'Sold price')).toContainText('—');
+  await expect(field(drawer, 'Sold price')).toContainText('Not sold');
   await expect(field(drawer, 'Sold price').locator('input')).toHaveCount(0);
 
   await chooseMakeModel(drawer, 'Toyota', 'Corolla');
