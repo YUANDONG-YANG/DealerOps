@@ -18,7 +18,7 @@ tf_dir="${seed_dir}/../terraform"
 seed="${SEED_FILE:-${seed_dir}/dealer_core_seed.sql.gz}"
 rule="seed-import-$(date +%s)"
 
-for tool in az terraform mysql mysqldump curl; do
+for tool in az terraform mysql mysqldump curl python3; do
   command -v "$tool" >/dev/null 2>&1 || { echo "Missing required tool: $tool" >&2; exit 1; }
 done
 [ -f "${seed}" ] || { echo "Missing ${seed}; run deploy/seed/export-local-data.sh first" >&2; exit 1; }
@@ -103,5 +103,20 @@ done
 
 echo "==> restarting ${core_app} so no cached state predates the import"
 az webapp restart -g "${rg}" -n "${core_app}" -o none
+
+# The import counts only once the public site serves it: the gateway must list every dealership.
+expected="$("${mysql_cmd[@]}" -N -e "SELECT COUNT(*) FROM dealer")"
+echo "==> waiting for ${gateway_url} to list ${expected} dealerships"
+served=-1
+for i in $(seq 1 30); do
+  served="$(curl -fsS --max-time 30 "${gateway_url}/api/v1/catalog/dealers" 2>/dev/null \
+    | python3 -I -c 'import json,sys; print(len(json.load(sys.stdin)))' 2>/dev/null || echo -1)"
+  [ "${served}" = "${expected}" ] && break
+  sleep 10
+done
+if [ "${served}" != "${expected}" ]; then
+  echo "The gateway lists ${served} dealerships after 5 minutes; Azure MySQL has ${expected}" >&2
+  exit 1
+fi
 echo "==> done. Sign in with the same accounts as the local database."
 echo "    Roll back: SEED_FILE=${backup} deploy/seed/import-to-azure.sh"
