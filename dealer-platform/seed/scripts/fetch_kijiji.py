@@ -9,7 +9,7 @@ every seeded vehicle (VIN, year, trim, mileage, colour, asking price) is a real 
 
 --photos mode: download up to three listing photos for every vehicle in contract/vehicles-plan.json
 into images/kijiji/<VIN>_<n>.jpg. Those photos belong to the advertising dealerships, so the folder
-is git-ignored and only used by load_photos.py on the machine that downloaded them.
+is git-ignored; load_photos.py does not load them, because they carry those dealerships' branding.
 
 Usage:
   python3 -I dealer-platform/seed/scripts/fetch_kijiji.py            # refresh the snapshot

@@ -2,9 +2,10 @@
 """Load seed vehicle photographs into `vehicle_photo`.
 
 For every vehicle in contract/vehicles-plan.json that belongs to a seed dealership, this inserts
-one to three real photographs (IN_STOCK vehicles get 2-3, SOLD vehicles get 1). Photos of the actual
-Kijiji listing in seed/images/kijiji/<VIN>_<n>.jpg (cached by `fetch_kijiji.py --photos`) are used
-when present; otherwise photographs of the same make and model come from seed/images/. Rows look exactly like rows written by the photo upload endpoint:
+one to three real photographs (IN_STOCK vehicles get 2-3, SOLD vehicles get 1) of the same make and
+model from seed/images/, all freely licensed Wikimedia Commons files (see images/ATTRIBUTION-*.md).
+Cached Kijiji listing photos are never used: they belong to the advertising dealerships and carry
+their watermarks and phone numbers. Rows look exactly like rows written by the photo upload endpoint:
 
 - content_type is detected from the file bytes (image/jpeg or image/png only),
 - original_data holds the unmodified file bytes (at most 2 MB, at most 10 photos per vehicle),
@@ -46,7 +47,6 @@ from pathlib import Path
 
 SEED_DIR = Path(__file__).resolve().parent.parent
 IMAGES_DIR = SEED_DIR / "images"
-KIJIJI_DIR = IMAGES_DIR / "kijiji"
 REFERENCE_DATE = dt.date(2026, 10, 16)
 
 # Mirrors the DealerOps.Core defaults (Photos:MaxFileSizeMb, Photos:MaxPerVehicle, Photos:MaxEdgePx).
@@ -170,7 +170,7 @@ def main():
         if int(existing) > 0:
             skipped_existing += 1
             continue
-        files = sorted(KIJIJI_DIR.glob(f'{v["vin"]}_*.jpg')) or images.get((slug(v["make"]), slug(v["model"])))
+        files = images.get((slug(v["make"]), slug(v["model"])))
         if not files:
             missing_models.add(f'{v["make"]} {v["model"]}')
             continue

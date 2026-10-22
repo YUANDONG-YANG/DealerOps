@@ -21,7 +21,7 @@ least 30 rows. The seed is additive: it never touches rows that existed before i
 | `sql/06_work_orders.sql` | seed task | `work_order` |
 | `sql/07_join_requests.sql` | seed task | pending `app_user` rows and `notification` |
 | `sql/08_audit.sql` | seed task | `audit_event` history for all seeded records |
-| `images/` + `scripts/load_photos.py` | seed tasks | Vehicle photos: the actual Kijiji listing photos when cached in `images/kijiji/` (git-ignored, `fetch_kijiji.py --photos`), otherwise Wikimedia Commons photos of the same model |
+| `images/` + `scripts/load_photos.py` | seed tasks | Vehicle photos: freely licensed Wikimedia Commons photos of the same make and model. Kijiji listing photos (`images/kijiji/`, git-ignored, `fetch_kijiji.py --photos`) are never loaded, because they carry the advertising dealerships' branding |
 | `scripts/load-seed.sh` | integration | Runs the SQL files in order, then the photo loader |
 
 ## Natural keys
