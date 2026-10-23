@@ -1,8 +1,22 @@
 # DealerOps Implementation and Delivery Status
 
-Status date: 2026-10-12
+Status date: 2026-10-23
 
-This document records the working-tree implementation of client-requested extensions. The delivery is not complete until clean builds, manual acceptance, and target-database migration checks finish.
+## Delivery status (2026-10-23)
+
+Yuandong Yang completed the DealerOps development alone and accepted the current implementation. On 2026-10-23 every previously open issue in Jira project KAN on sait-group2-private was transitioned to Finished on that confirmation. This section does not record CI run URLs, instructor signatures, or a separate test-execution log.
+
+The active stack is .NET 10 (`DealerOps.Core`, `DealerOps.AiService`, `DealerOps.Gateway`) and React. Java and Vue are retired. The browser calls only the gateway. Core calls ai-service directly with the `X-Dealer-Internal` header. Passwords are stored as BCrypt hashes. Azure hosts four Linux App Service apps: web, gateway, core, and ai. Local password sign-in remains, and the current core also accepts Google and Firebase ID tokens as additional sign-in paths (`design/SCOPE-BASELINE.md` errata 1 and 9).
+
+Implemented product behavior covers AUTH, DMS, CRM including the sales report, ads and OMVIC rules, the assistant, VIN decode, leads, work orders, photos, and membership and join requests. The 2026-10-21 extensions in `design/21-Feature-Extensions.md` are in the same build: the public `/disclaimer` page (AD-14), the buyer site, the payment ledger, the bill-of-sale template, optional vehicle fields, the KPI dashboard, lead stage history, and the workshop cost report. Live marketplace publishing, card payment processing, OCR, a message queue, and a second database are not built. There is no separate garage-billing invoice product.
+
+`terraform apply` alone does not load demo data. `./deploy/deploy.sh --apply --seed` exports the local development database and replaces the Azure rows in one transaction after a backup. `deploy/seed/load-demo-sql.sh` loads the committed `dealer-platform/seed` and keeps existing rows; it does not truncate.
+
+The sections below are the 2026-10-12 working record. Where they name Java `dealer-core` as the running service, or say delivery work is still outstanding, read them as history from that date.
+
+## Working record (2026-10-12)
+
+This document records the working-tree implementation of client-requested extensions as of 2026-10-12.
 
 ## Delivered scope
 
