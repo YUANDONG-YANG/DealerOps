@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { useSessionStore } from '../store/session';
 import { checkStatusLabel, isCheckStatus, type Listing, type PriorUse, type RuleFinding } from '../api/listings';
 import StatusTag from './StatusTag';
+import CheckMark, { type CheckResult } from './CheckMark';
 import FormDrawer from './FormDrawer';
 import { DisclaimerSections } from '../pages/DisclaimerPage';
 import { enumLabel } from '../format';
@@ -57,15 +58,11 @@ function buildChecklist(listing: Listing): ChecklistItem[] {
 
 // The engine only emits failures, so a pass is derived: after a completed check a row
 // with no matching finding passed.
-function checklistIcon(item: ChecklistItem, findings: RuleFinding[], evaluated: boolean): string {
+function checklistResult(item: ChecklistItem, findings: RuleFinding[], evaluated: boolean): CheckResult | null {
   const matched = findings.filter((f) => item.codes.includes(f.ruleId));
-  if (matched.some((f) => f.severity === 'BLOCK')) return '❌';
-  if (matched.length) return '⚠️';
-  return evaluated ? '✅' : '';
-}
-
-function findingIcon(finding: RuleFinding): string {
-  return finding.severity === 'BLOCK' ? '❌' : '⚠️';
+  if (matched.some((f) => f.severity === 'BLOCK')) return 'fail';
+  if (matched.length) return 'warn';
+  return evaluated ? 'pass' : null;
 }
 
 function emptyFindingsText(status: Listing['checkStatus']): string {
@@ -173,8 +170,9 @@ export default function AdWorkspace({ listing, onChange, vehicle, readOnly, pick
             <h4 style={{ margin: '16px 0 8px', fontSize: 15, fontWeight: 600 }}>Checklist</h4>
             <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
               {checklist.map((item) => (
-                <li key={item.label} style={{ padding: '4px 0' }}>
-                  {checklistIcon(item, findings, evaluated)} {item.label}
+                <li key={item.label} className="check-row">
+                  <CheckMark result={checklistResult(item, findings, evaluated)} />
+                  <span>{item.label}</span>
                 </li>
               ))}
             </ul>
@@ -185,8 +183,9 @@ export default function AdWorkspace({ listing, onChange, vehicle, readOnly, pick
             {findings.length > 0 ? (
               <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
                 {findings.map((f, i) => (
-                  <li key={i} style={{ padding: '4px 0' }}>
-                    {findingIcon(f)} <strong>{f.severity === 'BLOCK' ? 'Block' : 'Review'} · {f.ruleId}</strong>: {f.message}
+                  <li key={i} className="check-row">
+                    <CheckMark result={f.severity === 'BLOCK' ? 'fail' : 'warn'} />
+                    <span><strong>{f.severity === 'BLOCK' ? 'Block' : 'Review'} · {f.ruleId}</strong>: {f.message}</span>
                   </li>
                 ))}
               </ul>

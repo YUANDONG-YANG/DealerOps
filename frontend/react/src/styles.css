@@ -397,6 +397,12 @@ textarea.input, .textarea { height: auto; padding: 10px 12px; resize: vertical; 
 .tag-success { background: #e6f2ec; color: var(--success); }
 .tag-danger { background: #f8e7ea; color: var(--danger); }
 .tag-warning { background: #fbf0e1; color: var(--warning); }
+/* Check-result marks (CheckMark): same tints as the status tags. */
+.check-mark { flex: none; width: 16px; height: 16px; margin-top: 2px; border-radius: 50%; display: inline-grid; place-items: center; }
+.check-mark-pass { background: #e6f2ec; color: var(--success); }
+.check-mark-fail { background: #f8e7ea; color: var(--danger); }
+.check-mark-warn { background: #fbf0e1; color: var(--warning); }
+.check-row { display: flex; gap: 8px; align-items: flex-start; padding: 4px 0; }
 .tag-info { background: #e8eef5; color: #1f4e79; }
 
 /* Tabs */
@@ -1118,7 +1124,7 @@ button.landing-preview-row { width: 100%; border: 0; font: inherit; text-align: 
 .landing-sample-warn { border-left-color: var(--warning); }
 .landing-sample-ad { margin: 0 0 10px; color: var(--muted-fg); font-style: italic; }
 .landing-sample ul { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 6px; }
-.landing-sample li { display: flex; gap: 8px; align-items: baseline; }
+.landing-sample li { display: flex; gap: 8px; align-items: flex-start; }
 .landing-sample-verdict { margin: 12px 0 8px; font-weight: 600; }
 @keyframes landing-sample-in { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { .landing-sample { animation: none; } }

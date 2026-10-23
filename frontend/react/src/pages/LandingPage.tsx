@@ -5,6 +5,7 @@ import { getMe } from '../api/me'
 import { accessToken, roleHome } from '../auth/login'
 import { useSessionStore } from '../store/session'
 import BrandMark from '../components/BrandMark'
+import CheckMark, { type CheckResult } from '../components/CheckMark'
 import LandingArt, { type LandingArtKind } from '../components/LandingArt'
 import rav4 from '../assets/landing/rav4.webp'
 import civic from '../assets/landing/civic.webp'
@@ -32,7 +33,7 @@ const STEPS: { title: string; text: string; art: LandingArtKind }[] = [
   { title: 'Export', text: 'Only a current passed check can be marked ready and exported.', art: 'export' },
 ]
 
-type SampleRow = { label: string; result: 'pass' | 'fail' | 'warn'; note?: string }
+type SampleRow = { label: string; result: CheckResult; note?: string }
 
 // Illustrative ad checks for fictional vehicles: no dealership data is read (design/12). The row
 // labels match the real ad-check checklist, so a visitor sees what a signed-in check shows.
@@ -75,8 +76,6 @@ const PREVIEW_ROWS: {
     verdict: 'Stale. An edit after the check voids the pass until the ad is checked again.',
   },
 ]
-
-const SAMPLE_ICON: Record<SampleRow['result'], string> = { pass: '✅', fail: '❌', warn: '⚠️' }
 
 const SAMPLE_VIN = '1HGCM82633A004352'
 // Decorative CTA conveyor: ads roll through the compliance gate and come out stamped. Stamps use
@@ -211,7 +210,7 @@ export default function LandingPage() {
                   <ul>
                     {row.rows.map(r => (
                       <li key={r.label}>
-                        <span aria-hidden="true">{SAMPLE_ICON[r.result]}</span>
+                        <CheckMark result={r.result} />
                         <span>{r.label}{r.note && <span className="muted"> · {r.note}</span>}</span>
                       </li>
                     ))}
