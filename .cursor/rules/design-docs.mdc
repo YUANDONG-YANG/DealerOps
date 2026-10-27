@@ -14,7 +14,7 @@ alwaysApply: true
 - This is a student capstone: implement only required behavior and avoid unnecessary complexity.
 
 
-# Design documentation (备案)
+# Design documentation (record of decisions)
 
 Major or important design decisions **must** be documented on file under `design/`. That folder is the source of truth for team alignment — do not leave the design only in chat, only in a README, or only in code comments.
 

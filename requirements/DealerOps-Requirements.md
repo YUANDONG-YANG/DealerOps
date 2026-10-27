@@ -1,6 +1,6 @@
 # DealerOps Requirements Specification
 
-This is the current English requirements specification. [DealerOps-Requirements-zh.html](DealerOps-Requirements-zh.html) is an earlier Chinese translation (v1.0, 2026-10-07) and may not include later scope updates. Sources: [requirements/DealerOps-Specification.pdf](DealerOps-Specification.pdf) (2026-09-21, authoritative for fields and business rules), `requirements/Dos Car dealership.docx` (product vision and requested DMS/CRM/AI/Image Studio capabilities), and [design/SCOPE-BASELINE.md](../design/SCOPE-BASELINE.md) (course scope and errata; decides conflicts). Per-topic analysis lives in [requirements/analysis/](analysis/). This document follows the academic demonstration delivery baseline in design/SCOPE-BASELINE.md; customer-source features that are reasonably implementable are in scope.
+This is the current English requirements specification. [DealerOps-Requirements-en.html](DealerOps-Requirements-en.html) is an earlier HTML edition (v1.0, 2026-10-07) and may not include later scope updates. Sources: [requirements/DealerOps-Specification.pdf](DealerOps-Specification.pdf) (2026-09-21, authoritative for fields and business rules), `requirements/Dos Car dealership.docx` (product vision and requested DMS/CRM/AI/Image Studio capabilities), and [design/SCOPE-BASELINE.md](../design/SCOPE-BASELINE.md) (course scope and errata; decides conflicts). Per-topic analysis lives in [requirements/analysis/](analysis/). This document follows the academic demonstration delivery baseline in design/SCOPE-BASELINE.md; customer-source features that are reasonably implementable are in scope.
 
 **Conflict handling:** The course requirements govern academic delivery constraints; customer PDF and DOCX requests govern product functionality. Where wording conflicts, preserve all requested behavior where feasible and document a technical implementation choice. Current delivery policy is in `design/SCOPE-BASELINE.md`.
 
@@ -300,7 +300,7 @@ The spec PDF has no such page. It is added by scope erratum 2 to meet the course
 
 ## 9. Open items
 
-- **Assumptions (Q-01..Q-15 in the Chinese document §11.2):**
+- **Assumptions (Q-01..Q-15 in [DealerOps-Requirements-en.html](DealerOps-Requirements-en.html) §11.2):**
   - The four fixed source values.
   - Purchased vehicles are optional.
   - Linking and selling are two separate steps.

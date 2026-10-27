@@ -1,50 +1,50 @@
-# DealerOps Jira 四状态审核与发布 — 2026-09-28
+# DealerOps Jira Four-Status Review and Publication - 2026-09-28
 
-已按用户授权，通过浏览器 MCP 在现有 Jira KAN 项目保存状态变更。当前会话未提供专用 Jira connector 工具；实际操作与确认均来自 Jira 页面。共读取 89 条事项详情，完成并逐项回读核实 64 次状态转换，保存 3 条验收描述纠正。没有新建项目、删除事项、发布软件版本或执行云端部署。
+With the user's authorization, status changes were saved in the existing Jira KAN project through the browser MCP. The current session provided no dedicated Jira connector tool; all actual operations and confirmations come from the Jira pages. In total, 89 issue details were read, 64 status transitions were completed and each was read back and verified, and 3 acceptance description corrections were saved. No project was created, no issue was deleted, no software version was released, and no cloud deployment was performed.
 
-## 发布结果
+## Publication results
 
-看板（78 张卡片，不含 10 个 Epic 与 1 个子任务）：To Do **8**、In Progress **41**、Review **28**、Finished **1**。这四个计数已在最终看板页面直接核实。
+Board (78 cards, excluding 10 Epics and 1 subtask): To Do **8**, In Progress **41**, Review **28**, Finished **1**. These four counts were verified directly on the final board page.
 
-全项目（89 条）：To Do **11**、In Progress **49**、Review **28**、Finished **1**；根据审核前完整清单和逐项成功转换记录汇总。审核前为 68 / 5 / 15 / 1。
+Whole project (89 issues): To Do **11**, In Progress **49**, Review **28**, Finished **1**; totaled from the complete pre-review list and the per-issue record of successful transitions. Before the review it was 68 / 5 / 15 / 1.
 
-看板：https://sait-group2-private.atlassian.net/jira/software/projects/KAN/boards/2
+Board: https://sait-group2-private.atlassian.net/jira/software/projects/KAN/boards/2
 
-## 四列口径
+## Four-column criteria
 
-- To Do：尚无充分实施证据，或仍待签字、外部决定、实际走查。不是要求为学生演示增加复杂功能。
-- In Progress：已有代码/文档/测试，但仍有明确的运行、描述、部署或验收缺口。Epic 随已有子项推进，但不由单个子项代表完成。
-- Review：静态审查已找到主要实现，可进入人工验收；不代表构建、自动测试、真实登录或课堂演示已通过。
-- Finished：仅保留 KAN-15 的单 MySQL、九张表架构交付；不代表整个项目完成。
+- To Do: no sufficient implementation evidence yet, or still awaiting sign-off, an external decision, or an actual walkthrough. This does not call for adding complex features to the student demo.
+- In Progress: code/documents/tests exist, but there is still a clear gap in runtime, description, deployment, or acceptance. An Epic advances with its existing child items, but no single child item represents its completion.
+- Review: static review found the main implementation, and the item can go to manual acceptance; this does not mean the build, automated tests, real login, or classroom demo have passed.
+- Finished: only KAN-15's single-MySQL, nine-table architecture deliverable is kept; this does not mean the whole project is complete.
 
-## 主要证据与未完成事项
+## Main evidence and open items
 
-1. KAN-67 已进入 Review。CustomerService 允许同店未关联的 IN_STOCK/SOLD 车辆首次关联，重复关联 409，跨店 404，SOLD 解绑 409。当前 A3 决定明确允许售后首次关联。KAN-23、KAN-50、KAN-67 的 Jira 描述已保存纠正，撤销旧的 sold-link 400 要求；历史评论保留，新的描述明确覆盖旧结论。KAN-23 仍待测试执行证据。
-2. KAN-51/52/53/64/69/74/75/76 等接口已逐项阅读 Controller/Service，进入 Review。对应证据为 MeService、DealerAdminService、MembershipService、CustomerService、ListingService、AuditService、AssistantService。KAN-77/78/79 的内部调用与安全实现进入 Review；不等于 KAN-86 的真实模型接入完成。
+1. KAN-67 has moved to Review. CustomerService allows the first link of an unlinked same-dealer IN_STOCK/SOLD vehicle; a repeated link returns 409, cross-dealer returns 404, and SOLD unlink returns 409. The current A3 decision explicitly allows a first link after sale. The Jira descriptions of KAN-23, KAN-50, and KAN-67 have been corrected and saved, withdrawing the old sold-link 400 requirement; historical comments are kept, and the new descriptions explicitly supersede the old conclusion. KAN-23 still awaits test execution evidence.
+2. The APIs for KAN-51/52/53/64/69/74/75/76 and others had their Controller/Service read one by one and moved to Review. The corresponding evidence is MeService, DealerAdminService, MembershipService, CustomerService, ListingService, AuditService, and AssistantService. The internal calls and security implementation of KAN-77/78/79 moved to Review; this does not mean the real model integration in KAN-86 is complete.
 3. The frontend already has routing, PageState, and the Admin/DMS/CRM/Ads/Assistant implementations. KAN-28/33/60 move to Review. The sign-in SDK and login tasks KAN-32/41 stay In Progress; the placeholder defaults in code alone neither prove that the external sign-in registration is missing nor prove that login has passed.
-4. dealer-web/package.json 缺少测试脚本及 vitest、@vue/test-utils 等运行依赖，web CI 仅构建。AdminView.spec.ts 有实际挂载测试，不能误称为空测试；但干净环境不可复现运行，因此 KAN-65 调回 In Progress，其余已有前端测试源文件也进入 In Progress。
-5. core CI 的普通 mvn test 与 IT 分离，而集成测试步骤使用 mvn verify -DskipTests，不能作为 IT 实际通过的证据。所有测试卡暂留 In Progress，包含此前 Review 的 KAN-16/21/22/37。需要恢复执行入口并保存报告，本次未运行测试、未声称通过。
-6. CoreNotPublicIT 与 CL-4/CL-5 存在源码/配置扫描，不能代替实际网络隔离和浏览器演示。KAN-43/72/73 保留 In Progress。
+4. dealer-web/package.json lacks a test script and runtime dependencies such as vitest and @vue/test-utils, and web CI only builds. AdminView.spec.ts has real mount tests and must not be mislabeled as an empty test; but it cannot be run reproducibly in a clean environment, so KAN-65 is moved back to In Progress, and the other existing frontend test source files also move to In Progress.
+5. Core CI keeps the plain mvn test separate from IT, while the integration test step uses mvn verify -DskipTests, which cannot serve as evidence that IT actually passed. All test cards stay In Progress for now, including KAN-16/21/22/37, which were previously in Review. The execution entry point needs to be restored and its report saved; this pass ran no tests and claims no pass.
+6. CoreNotPublicIT and CL-4/CL-5 are source/configuration scans and cannot replace actual network isolation and a browser demo. KAN-43/72/73 stay In Progress.
 7. deploy/README.md records the deployed Azure VM, Caddy TLS, and Compose services; AI is still a stub. main.bicep is not deployed, and publish-ghcr only pushes images and does not update the VM. KAN-19/81/87 are In Progress. KAN-86 (real AI), KAN-88 (live acceptance of the earlier external sign-in plan), and KAN-89 (repository organization decision) stay To Do. The VM deployment must not replace the course Container Apps requirement unless an exemption is confirmed.
-8. KAN-11 README、KAN-82 文档一致性、KAN-84 发布卫生、KAN-85 隔离测试与文档收尾进入 In Progress。当前工作树审查不代表全部内容已提交或部署。
-9. KAN-83 的复杂 NFR 与当前学生演示范围有偏差，保留 To Do 待范围收敛，不扩建限流、性能 SLO、保留策略等功能。KAN-91 待教师决定。KAN-5 签字、KAN-20/61 实际走查、KAN-92 图示验收未获得完成证据，保留 To Do；KAN-7 已有图附件不等于本次验证图中所有内容。
+8. KAN-11 README, KAN-82 documentation consistency, KAN-84 release hygiene, and KAN-85 isolation tests and documentation wrap-up move to In Progress. A review of the current working tree does not mean everything has been committed or deployed.
+9. KAN-83's complex NFRs deviate from the current student demo scope and stay To Do pending scope convergence; no rate limiting, performance SLOs, retention policies, or similar features are built. KAN-91 awaits the instructor's decision. KAN-5 sign-off, KAN-20/61 actual walkthroughs, and KAN-92 diagram acceptance have no completion evidence and stay To Do; the existing diagram attachment on KAN-7 does not mean everything in the diagram was verified in this pass.
 
-## 后续验收应对齐的文字
+## Wording that later acceptance should align with
 
-- KAN-31 应保留 15 秒上限的语义，避免把旧 .orTimeout 写法作为唯一实现要求；现有实现为有界执行器与超时取消。
-- KAN-35 的内部 token 默认值应限于 dev/local，生产需显式配置。
-- KAN-38 与 KAN-74 应统一导出门槛：当前 ListingService 检查有效 PASSED 与版本一致，不能据旧措辞臆造额外 READY 状态门槛。
-- KAN-73 成功结果措辞需对齐当前 PASSED 合同；真实模型演示仍待执行。
+- KAN-31 should keep the semantics of the 15-second upper bound and avoid making the old .orTimeout style the only implementation requirement; the existing implementation is a bounded executor with timeout cancellation.
+- The internal token default for KAN-35 should be limited to dev/local; production needs explicit configuration.
+- KAN-38 and KAN-74 should unify the export gate: the current ListingService checks for a valid PASSED and a matching version, and an extra READY status gate must not be invented from the old wording.
+- The success-result wording of KAN-73 needs to align with the current PASSED contract; the real model demo is still pending.
 
-上述文字问题留作 In Progress 的收尾项；本次仅实际修改了 KAN-23/50/67 的描述。
+The wording issues above remain as In Progress wrap-up items; this pass actually modified only the descriptions of KAN-23/50/67.
 
-## 全部事项发布清单
+## Full issue publication list
 
-下面是本次审核前状态到保存后状态。未变更事项明确列出；每个变更均经 Jira 状态控件回读。
+Below is each issue's status before this review and after saving. Unchanged issues are listed explicitly; every change was read back through the Jira status control.
 
-- KAN-3: To Do（保留）
-- KAN-5: To Do（保留）
-- KAN-6: To Do（保留）
+- KAN-3: To Do (kept)
+- KAN-5: To Do (kept)
+- KAN-6: To Do (kept)
 - KAN-7: To Do → In Progress
 - KAN-8: To Do → In Progress
 - KAN-9: To Do → In Progress
@@ -53,24 +53,24 @@
 - KAN-12: To Do → In Progress
 - KAN-13: To Do → Review
 - KAN-14: To Do → Review
-- KAN-15: Finished（保留）
+- KAN-15: Finished (kept)
 - KAN-16: Review → In Progress
 - KAN-17: To Do → Review
 - KAN-18: To Do → In Progress
-- KAN-19: In Progress（保留）
-- KAN-20: To Do（保留）
+- KAN-19: In Progress (kept)
+- KAN-20: To Do (kept)
 - KAN-21: Review → In Progress
 - KAN-22: Review → In Progress
-- KAN-23: In Progress（保留）
+- KAN-23: In Progress (kept)
 - KAN-24: To Do → In Progress
 - KAN-25: To Do → In Progress
 - KAN-26: To Do → In Progress
 - KAN-27: To Do → In Progress
 - KAN-28: To Do → Review
-- KAN-29: Review（保留）
-- KAN-30: Review（保留）
+- KAN-29: Review (kept)
+- KAN-30: Review (kept)
 - KAN-31: To Do → In Progress
-- KAN-32: In Progress（保留）
+- KAN-32: In Progress (kept)
 - KAN-33: To Do → Review
 - KAN-34: To Do → In Progress
 - KAN-35: To Do → In Progress
@@ -82,24 +82,24 @@
 - KAN-41: To Do → In Progress
 - KAN-42: To Do → In Progress
 - KAN-43: To Do → In Progress
-- KAN-44: Review（保留）
+- KAN-44: Review (kept)
 - KAN-45: To Do → In Progress
 - KAN-46: To Do → In Progress
 - KAN-47: To Do → Review
-- KAN-48: Review（保留）
-- KAN-49: Review（保留）
-- KAN-50: Review（保留）
+- KAN-48: Review (kept)
+- KAN-49: Review (kept)
+- KAN-50: Review (kept)
 - KAN-51: To Do → Review
 - KAN-52: To Do → Review
 - KAN-53: To Do → Review
-- KAN-54: Review（保留）
+- KAN-54: Review (kept)
 - KAN-55: To Do → In Progress
-- KAN-56: Review（保留）
+- KAN-56: Review (kept)
 - KAN-57: To Do → In Progress
 - KAN-58: To Do → In Progress
 - KAN-59: To Do → In Progress
 - KAN-60: To Do → Review
-- KAN-61: To Do（保留）
+- KAN-61: To Do (kept)
 - KAN-62: To Do → In Progress
 - KAN-63: To Do → In Progress
 - KAN-64: To Do → Review
@@ -109,8 +109,8 @@
 - KAN-68: To Do → In Progress
 - KAN-69: To Do → Review
 - KAN-70: To Do → In Progress
-- KAN-71: Review（保留）
-- KAN-72: In Progress（保留）
+- KAN-71: Review (kept)
+- KAN-72: In Progress (kept)
 - KAN-73: To Do → In Progress
 - KAN-74: To Do → Review
 - KAN-75: To Do → Review
@@ -121,20 +121,20 @@
 - KAN-80: To Do → In Progress
 - KAN-81: To Do → In Progress
 - KAN-82: To Do → In Progress
-- KAN-83: To Do（保留）
+- KAN-83: To Do (kept)
 - KAN-84: To Do → In Progress
 - KAN-85: To Do → In Progress
-- KAN-86: To Do（保留）
+- KAN-86: To Do (kept)
 - KAN-87: To Do → In Progress
-- KAN-88: To Do（保留）
-- KAN-89: To Do（保留）
+- KAN-88: To Do (kept)
+- KAN-89: To Do (kept)
 - KAN-90: To Do → In Progress
-- KAN-91: To Do（保留）
-- KAN-92: To Do（保留）
+- KAN-91: To Do (kept)
+- KAN-92: To Do (kept)
 
 ---
 
-## 历史记录（以下不是当前状态）
+## Historical record (the following is not the current status)
 
 # DealerOps Jira progress — 2026-09-28
 

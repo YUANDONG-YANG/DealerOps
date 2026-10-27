@@ -16,22 +16,22 @@ die() { printf '\033[1;31m[DealerOps]\033[0m %s\n' "$*" >&2; exit 1; }
 cleanup() {
   trap - EXIT INT TERM
   if ((${#PIDS[@]})); then
-    say "正在停止本次启动的服务..."
+    say "Stopping the services started by this run..."
     kill "${PIDS[@]}" 2>/dev/null || true
     wait "${PIDS[@]}" 2>/dev/null || true
   fi
 }
 trap cleanup EXIT INT TERM
 
-command -v dotnet >/dev/null || die "未找到 .NET SDK 8，请先安装 dotnet。"
-command -v node >/dev/null || die "未找到 Node.js，请先安装 Node.js 20+。"
-command -v npm >/dev/null || die "未找到 npm，请先安装 Node.js 20+。"
-command -v mysql >/dev/null || die "未找到 MySQL 客户端，请先安装 MySQL 8。"
+command -v dotnet >/dev/null || die ".NET SDK 8 not found. Install dotnet first."
+command -v node >/dev/null || die "Node.js not found. Install Node.js 20+ first."
+command -v npm >/dev/null || die "npm not found. Install Node.js 20+ first."
+command -v mysql >/dev/null || die "MySQL client not found. Install MySQL 8 first."
 
 mkdir -p "$LOG_DIR"
 
 if [[ ! -f "$ENV_FILE" ]]; then
-  say "首次运行，创建本机开发环境..."
+  say "First run: creating the local development environment..."
   cp "$ROOT_DIR/dealer-platform/env.example" "$ENV_FILE"
   chmod 600 "$ENV_FILE"
 fi
@@ -63,9 +63,9 @@ export DEV_JWT_SECRET="${DEV_JWT_SECRET:-dealer-dev-jwt-secret-change-me}"
 export INTERNAL_TOKEN="${INTERNAL_TOKEN:-dealer-internal}"
 export CORS_ALLOWED_ORIGIN="${CORS_ALLOWED_ORIGIN:-http://localhost:5174}"
 
-say "检查 MySQL..."
+say "Checking MySQL..."
 if ! mysqladmin ping -h 127.0.0.1 -P 3306 --silent >/dev/null 2>&1; then
-  warn "MySQL 尚未运行，尝试启动。"
+  warn "MySQL is not running yet; trying to start it."
   if command -v brew >/dev/null && brew services start mysql@8.4 >/dev/null 2>&1; then
     for _ in {1..30}; do
       mysqladmin ping -h 127.0.0.1 -P 3306 --silent >/dev/null 2>&1 && break
@@ -73,7 +73,7 @@ if ! mysqladmin ping -h 127.0.0.1 -P 3306 --silent >/dev/null 2>&1; then
     done
   fi
 fi
-mysqladmin ping -h 127.0.0.1 -P 3306 --silent >/dev/null 2>&1 || die "MySQL 未运行，请启动 MySQL 后重试。"
+mysqladmin ping -h 127.0.0.1 -P 3306 --silent >/dev/null 2>&1 || die "MySQL is not running. Start MySQL and try again."
 
 mysql -h 127.0.0.1 -P 3306 -u root <<'SQL'
 CREATE DATABASE IF NOT EXISTS dealer_core CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
@@ -85,13 +85,13 @@ FLUSH PRIVILEGES;
 SQL
 
 if [[ ! -d "$ROOT_DIR/frontend/react/node_modules" ]]; then
-  say "首次安装前端依赖..."
+  say "Installing frontend dependencies for the first time..."
   (cd "$ROOT_DIR/frontend/react" && npm install)
 fi
 
 start_service() {
   local name="$1" project="$2"
-  say "启动 $name..."
+  say "Starting $name..."
   (cd "$ROOT_DIR" && dotnet run --project "$project" --no-launch-profile >>"$LOG_DIR/$name.log" 2>&1) &
   PIDS+=("$!")
 }
@@ -100,11 +100,11 @@ start_service "dealer-core" "backend/dotnet/DealerOps.Core/DealerOps.Core.csproj
 start_service "ai-service" "backend/dotnet/DealerOps.AiService/DealerOps.AiService.csproj"
 start_service "dealer-gateway" "backend/dotnet/DealerOps.Gateway/DealerOps.Gateway.csproj"
 
-say "启动 React 前端..."
+say "Starting the React frontend..."
 (cd "$ROOT_DIR/frontend/react" && npm run dev -- --host 127.0.0.1 >>"$LOG_DIR/dealer-web.log" 2>&1) &
 PIDS+=("$!")
 
-say "等待服务就绪..."
+say "Waiting for services to become ready..."
 for url in \
   http://127.0.0.1:8081/actuator/health \
   http://127.0.0.1:8082/actuator/health \
@@ -118,15 +118,15 @@ for url in \
     if "${probe[@]}" >/dev/null 2>&1; then ready=1; break; fi
     sleep 1
   done
-  ((ready)) || warn "服务尚未响应：${url}（详情见 ${LOG_DIR}）"
+  ((ready)) || warn "Service is not responding yet: ${url} (see ${LOG_DIR} for details)"
 done
 
 if [[ -z "$AIMANAGER_API_KEY" ]]; then
-  warn "AI Key 未配置：系统和前端已启动，AI 请求会返回 AI_KEY_MISSING。"
-  warn "如需启用 AI，把 AIMANAGER_API_KEY 写入 $ENV_FILE 后重新运行本脚本。"
+  warn "AI key is not configured: the system and frontend are running, but AI requests will return AI_KEY_MISSING."
+  warn "To enable AI, set AIMANAGER_API_KEY in $ENV_FILE and run this script again."
 fi
 
-say "启动完成：打开 http://localhost:5174"
-say "登录账号：${ADMIN_USERNAME} / ${ADMIN_PASSWORD}"
-say "按 Ctrl+C 可停止本次启动的全部服务。"
+say "Startup complete: open http://localhost:5174"
+say "Sign-in account: ${ADMIN_USERNAME} / ${ADMIN_PASSWORD}"
+say "Press Ctrl+C to stop all services started by this run."
 wait

@@ -1,5 +1,5 @@
-# 后端实现说明
+# Backend implementation
 
-当前项目的后端已使用 .NET 实现，代码位于 [`backend/dotnet/`](./dotnet/)。
+The active backend is implemented in .NET. The code is in [`backend/dotnet/`](./dotnet/).
 
-Java 后端实现已废弃，不再作为当前项目的开发、构建、部署或运行入口。
+The Java backend implementation is retired and is no longer a development, build, deployment, or runtime entry point for this project.

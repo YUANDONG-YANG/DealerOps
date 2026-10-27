@@ -56,7 +56,7 @@ This section records missing or indirect acceptance coverage, not missing produc
 
 | Requirement | Why it has no case |
 |---|---|
-| AUTH-09 (server ignores a client-supplied `dealerId`) | No `analysis/06` AT case, but design/16 **BE-16** covers it (mapped above); `AT-31` in `../DealerOps-Requirements-zh.html` is the same check |
+| AUTH-09 (server ignores a client-supplied `dealerId`) | No `analysis/06` AT case, but design/16 **BE-16** covers it (mapped above); `AT-31` in `../DealerOps-Requirements-en.html` is the same check |
 | AUTH-10 | Only route guards (FE-02) are planned; no case calls an admin API as a dealer user. Join-request approval on `/team` is the documented AUTH-25 exception |
 | AUTH-11, AUTH-15 | Identity and admin dealership edit; partly covered by CL-1 / CL-2 as side effects |
 | AUTH-23 | Google sign-in has no EXT case in design/16 §5a |

@@ -4,7 +4,7 @@ Record of work on the requirement sources in this folder. Newest entry first.
 
 ## 2026-10-15 · Full status re-verification and source cross-check
 
-Re-verified all 199 requirement rows in `DealerOps-Requirements-zh.html` against the current working tree (20 parallel source-review passes, one per requirement block), then cross-checked that document against the original client sources: the specification PDF and both `Dos Car dealership` DOCX files. Updated 58 status cells and added a status legend: 182 implemented, 8 partial, 2 not implemented, 7 out of scope. No application code or configuration was changed, and no tests were written or run.
+Re-verified all 199 requirement rows in `DealerOps-Requirements-en.html` against the current working tree (20 parallel source-review passes, one per requirement block), then cross-checked that document against the original client sources: the specification PDF and both `Dos Car dealership` DOCX files. Updated 58 status cells and added a status legend: 182 implemented, 8 partial, 2 not implemented, 7 out of scope. No application code or configuration was changed, and no tests were written or run.
 
 The previous status marks were materially stale: 26 rows marked Partial had already been fixed by then-uncommitted frontend work, `CRM-13` was marked unimplemented although a warn-only duplicate-email check exists, `NFR-04` was marked unimplemented although Terraform configures a 7-day backup retention, and `AD-R02` / `AT-37` rested on the wrong premise that `DEALER_CONTACT_INCOMPLETE` was unreachable (the rule reads the ad copy, not the dealer record).
 

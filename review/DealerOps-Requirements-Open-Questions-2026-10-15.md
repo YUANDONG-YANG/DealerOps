@@ -1,7 +1,7 @@
 # DealerOps Requirements — Open Questions and Coverage Gaps
 
 **Date:** 2026-10-15
-**Trigger:** Full re-verification of all 199 requirement rows in `requirements/DealerOps-Requirements-zh.html` against the current working tree, followed by a cross-check of that document against the original client sources.
+**Trigger:** Full re-verification of all 199 requirement rows in `requirements/DealerOps-Requirements-en.html` against the current working tree, followed by a cross-check of that document against the original client sources.
 **Method:** Static source review of `backend/dotnet/**` and `frontend/react/src/**` (20 parallel review passes, one per requirement block), then a reading of the client sources: `requirements/DealerOps-Specification.pdf`, `requirements/Dos Car dealership.docx`, `requirements/Dos Car dealership2.docx`. No automated tests were written or run, and no service was started — this is a document-and-code audit only.
 **Status outcome recorded in the requirements document:** 182 implemented, 8 partial, 2 not implemented, 7 out of scope.
 
@@ -57,7 +57,7 @@ The requirements document's §1 names exactly two errata (login by email/usernam
 
 ## 4. Residual implementation gaps
 
-Carried with an inline note in `requirements/DealerOps-Requirements-zh.html`; listed here only so this file is self-contained.
+Carried with an inline note in `requirements/DealerOps-Requirements-en.html`; listed here only so this file is self-contained.
 
 | Row | Status | Substance |
 |---|---|---|

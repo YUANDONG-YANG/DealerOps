@@ -1,28 +1,28 @@
-# 需求问题处理记录 — 2026-09-28
+# Requirements Issue Resolution Record - 2026-09-28
 
-范围：按用户要求，以学生毕设演示为准，解决本轮六项需求文档问题；不增加业务功能、数据库字段、审批步骤或测试框架。
+Scope: as requested by the user, and based on the student capstone demo, resolve the six requirements-document issues of this pass; add no business features, database fields, approval steps, or test frameworks.
 
-## 已完成
+## Completed
 
-1. 广告严重性：04 的规则逐条统一为现有 BLOCK / REVIEW，涵盖联系方式、年份、用途、保修、融资与租赁规则；与范围勘误4一致。
-2. AI 结果：成功返回 PASSED，保留提示；提示不否决 Ready；失败为 AI_UNAVAILABLE。同步修正 design/16 的课堂脚本。
-3. CASH 融资触发：补全决策矩阵，修正协议可复制骨架并补上 PAYMENT 定义；沿用现有匹配规则，不新增识别算法。
-4. 已售车辆关联：基线允许同店未关联的库存或已售车辆关联；已售车辆仍不能解绑。修正旧追踪报告及 Jira 报告将此行为判成缺陷的文字。
-5. 清单范围：仅展示清单、分析广告文本，不新增历史用途/保修/年里程答题字段。规则配置、专用免责声明界面与额外失效触发仍延期。历史审查建议明确标为历史记录。
-6. 验收追踪：关联现有 BE/FE/CL，补 AT-24–28（CASH付款、先售后关联、CRM字段、软提示通过、展示清单）。补齐登录等追踪项，注明局部覆盖和需要人工检查的证据；课堂演示最小集合不变。
+1. Ad severity: every rule in 04 is unified to the existing BLOCK / REVIEW, covering the contact information, year, usage, warranty, financing, and leasing rules; consistent with scope erratum 4.
+2. AI results: success returns PASSED and keeps hints; hints do not veto Ready; failure is AI_UNAVAILABLE. The classroom script in design/16 was corrected accordingly.
+3. CASH financing trigger: the decision matrix was completed, the copyable protocol skeleton was corrected, and the PAYMENT definition was added; the existing matching rules are reused and no new detection algorithm is added.
+4. Linking sold vehicles: the baseline allows linking an unlinked same-dealer in-stock or sold vehicle; a sold vehicle still cannot be unlinked. The text in the old tracking report and the Jira report that judged this behavior a defect was corrected.
+5. Checklist scope: only display the checklist and analyze the ad text; add no answer fields for historical usage/warranty/annual mileage. Rule configuration, a dedicated disclaimer UI, and extra invalidation triggers remain deferred. Historical review recommendations are explicitly labeled as historical records.
+6. Acceptance traceability: linked the existing BE/FE/CL items and added AT-24–28 (CASH payment, link after sale, CRM fields, soft hints pass, checklist display). Filled in traceability items such as login, noting partial coverage and evidence that needs manual checking; the minimal classroom demo set is unchanged.
 
-## review 目录核对
+## review directory check
 
-旧报告属于当时快照，不能直接当成当前待办。当前工作区已有大量修改，本次保留这些修改。
+The old reports are snapshots of their time and cannot be taken directly as current to-dos. The current working tree already has many changes, and this pass keeps them.
 
-只读检查发现 DC-1 的 PATCH 合并、DC-2 的已评估版本保存、DW-1 的广告选择请求序号与保存对象校验、GW-3 的有界执行器及超时取消已经存在于当前代码。这些不是本轮新修复，未在本轮运行其测试，不据此宣布整份代码审查全部关闭。
+A read-only check found that the DC-1 PATCH merge, the DC-2 saving of the evaluated version, the DW-1 ad selection request sequence number and saved-object validation, and the GW-3 bounded executor with timeout cancellation already exist in the current code. These are not new fixes in this pass, their tests were not run in this pass, and this is not grounds to declare the whole code review closed.
 
-Jira 进度报告中 KAN-23 / KAN-67 的“允许关联已售车是缺陷”已纠正；未操作在线 Jira。Azure、真实 AI、课程签字等交付证据未在本轮验证，也未标为完成。
+The statement in the Jira progress report for KAN-23 / KAN-67 that "allowing a sold vehicle to be linked is a defect" has been corrected; the live Jira was not touched. Delivery evidence such as Azure, real AI, and course sign-off was not verified in this pass and was not marked complete.
 
-## 本轮验证
+## Validation in this pass
 
-- 6 项定向文档断言通过：范围基线、融资骨架和 PAYMENT 定义、AI 语义、清单范围、验收映射。
-- AT-01–AT-28 共 28 个编号，均唯一；本轮修改文档代码围栏成对。
-- 验收步骤是待执行定义，不是测试通过记录。本轮仅修改 Markdown，未修改应用代码、未部署。
+- 6 targeted document assertions passed: scope baseline, financing skeleton and PAYMENT definition, AI semantics, checklist scope, and acceptance mapping.
+- AT-01–AT-28 total 28 IDs, all unique; the code fences in the documents changed in this pass are paired.
+- The acceptance steps are definitions awaiting execution, not records of passed tests. This pass changed only Markdown; no application code was modified and nothing was deployed.
 
-入口：[广告需求](../requirements/analysis/04-Ad-Compliance.md)、[验收步骤](../requirements/analysis/06-Pages-and-Acceptance.md)、[追踪矩阵](../requirements/analysis/Traceability-Matrix.md)。
+Entry points: [Ad requirements](../requirements/analysis/04-Ad-Compliance.md), [Acceptance steps](../requirements/analysis/06-Pages-and-Acceptance.md), [Traceability matrix](../requirements/analysis/Traceability-Matrix.md).

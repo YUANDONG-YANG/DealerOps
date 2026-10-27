@@ -164,8 +164,8 @@ Committed `appsettings.json` leaves the database connection, JWT signing secret,
 |---|---|
 | Web app (Vue) | http://localhost:5173 |
 | Web app (React) | http://localhost:5174 |
-| Swagger UI (唯一外部入口) | http://localhost:8080/swagger/index.html |
-| Swagger 文档 | Gateway 自动合并 Core 和 AI Service API，无需切换 |
+| Swagger UI (the only external entry point) | http://localhost:8080/swagger/index.html |
+| Swagger documents | The gateway merges the Core and AI Service APIs automatically; no switching is needed |
 | Gateway OpenAPI JSON | http://localhost:8080/swagger/v1/swagger.json |
 | Gateway health | http://localhost:8080/actuator/health |
 | Core health | http://localhost:8081/actuator/health |

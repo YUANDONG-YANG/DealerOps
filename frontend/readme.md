@@ -1,5 +1,5 @@
-# 前端实现说明
+# Frontend implementation
 
-当前项目的前端已使用 React 实现，代码位于 [`frontend/react/`](./react/)。
+The active frontend is implemented in React. The code is in [`frontend/react/`](./react/).
 
-Vue 前端已废弃，不再作为当前项目的实现或开发入口。
+The Vue frontend is retired and is no longer an implementation or development entry point for this project.
