@@ -37,6 +37,7 @@ export const adminApi = {
   bind: (id: number, body: BindMemberBody) => http.post<Member>(`/api/v1/admin/dealers/${id}/members`, body),
   pendingUsers: (p: { q?: string; page?: number } = {}) =>
     http.get<Page<PendingUser>>('/api/v1/admin/pending-users', { params: { ...p, size: 10 } }),
+  /** Sets a temporary password. The password is sent to the gateway and is not written to the client log. */
   resetPassword: (id: number, username: string, password: string) =>
     http.put(`/api/v1/admin/dealers/${id}/members/${encodeURIComponent(username)}/password`, { password }),
   setRole: (id: number, username: string, dealerRole: DealerRole) =>

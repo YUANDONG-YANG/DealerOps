@@ -17,6 +17,7 @@ interface Props<T = Record<string, unknown>> {
   rowClassName?: (row: T) => string;
 }
 
+/** Paged table of records with optional per-row actions. */
 export default function DataTable<T extends Record<string, unknown>>({
   columns, rows, total, page, onPage, actions, rowClassName,
 }: Props<T>) {

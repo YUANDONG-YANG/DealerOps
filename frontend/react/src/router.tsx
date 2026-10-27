@@ -128,6 +128,7 @@ function DealerGuard() {
   return <Outlet />;
 }
 
+/** Public pages, then signed-in pages behind the admin, dealer, and manager guards. */
 export default function AppRoutes() {
   return (
     <Routes>

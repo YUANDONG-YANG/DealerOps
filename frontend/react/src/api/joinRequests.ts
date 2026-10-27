@@ -8,6 +8,7 @@ export type JoinRequest = {
   source: string | null;
 };
 
+/** Manager actions on accounts waiting to join the caller's dealership. */
 export const joinRequestsApi = {
   list: () => http.get<JoinRequest[]>('/api/v1/dealer/join-requests').then(r => r.data),
   approve: (username: string) =>

@@ -1,3 +1,5 @@
+import { logApiFailure } from './apiFailure';
+
 declare global {
   interface Window {
     __DEALER_GATEWAY_URL__?: string;
@@ -27,11 +29,30 @@ let runtimeConfig: Promise<RuntimeConfig> | undefined;
 
 function loadRuntimeConfig(): Promise<RuntimeConfig> {
   runtimeConfig ??= fetch('/config.json', { cache: 'no-store' })
-    .then((r) => (r.ok ? (r.json() as Promise<RuntimeConfig>) : {}))
-    .catch(() => ({}));
+    .then((response) => {
+      if (response.ok) return response.json() as Promise<RuntimeConfig>;
+      // A missing file is the normal local fallback. Any other status is a broken deploy.
+      if (response.status !== 404) {
+        logApiFailure(
+          { response: { status: response.status }, config: { method: 'get', url: '/config.json' } },
+          'GET /config.json',
+        );
+      }
+      return {};
+    })
+    .catch((error: unknown) => {
+      logApiFailure(error, 'GET /config.json');
+      return {};
+    });
   return runtimeConfig;
 }
 
+/**
+ * Gateway origin for browser calls. The first allowed source wins: the host page, `/config.json`,
+ * then the build-time environment variable. Core and AI origins (ports 8081 and 8082) and `/internal` are rejected.
+ *
+ * @returns origin without a trailing slash, or an empty string when none is configured
+ */
 export async function resolveGatewayUrl(): Promise<string> {
   const fromWindow = accept(window.__DEALER_GATEWAY_URL__);
   if (fromWindow) return fromWindow;

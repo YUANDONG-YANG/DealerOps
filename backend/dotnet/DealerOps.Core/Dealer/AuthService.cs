@@ -58,6 +58,10 @@ public class AuthService
     /// Firebase owns the password; DealerOps still owns the local account, role, dealership
     /// membership and authorization decisions.
     /// </summary>
+    /// <param name="request">The Firebase ID token and optional local username, display name and phone. The token is never logged.</param>
+    /// <param name="cancellationToken">Cancels token verification.</param>
+    /// <returns>The application access token, platform role and display name.</returns>
+    /// <exception cref="ApiException">Unauthorized or Forbidden when sign-in is rejected, or a field conflict when the new account is not unique.</exception>
     public async Task<LoginResponse> FirebaseSignIn(
         FirebaseSignInRequest request, CancellationToken cancellationToken)
     {
@@ -68,7 +72,7 @@ public class AuthService
         }
         catch (ApiException ex) when (IsRejection(ex))
         {
-            throw LoginFailed(null, "firebase", "invalid_token", ex);
+            throw LoginFailed(null, "firebase", FailureReason(ex), ex);
         }
         var email = LoginIdentifiers.Email(identity.Email);
         var user = _db.AppUsers.FirstOrDefault(u => u.FirebaseUid == identity.Uid && u.Active)
@@ -112,13 +116,15 @@ public class AuthService
             }
             catch (DbUpdateException ex)
             {
-                throw _accountRules.Conflict(ex);
+                ThrowConflict(ex, user.Id);
             }
 
             _audit.Record("APP_USER", user.Id, "CREATE", null, user.Username,
                 new Dictionary<string, object> { ["registration"] = "firebase" });
             _db.SaveChanges();
             tx.Commit();
+            _logger.LogInformation("Account registered userId={UserId} username={Username} method={Method}",
+                user.Id, user.Username, "firebase");
         }
         else if (user.FirebaseUid != identity.Uid)
         {
@@ -146,6 +152,9 @@ public class AuthService
     /// same 401 message, and the hash check always runs, so a caller cannot tell an unknown
     /// account from a wrong password; only the audit row records the real reason.
     /// </summary>
+    /// <param name="request">The sign-in name and password. The password and an unknown name are never logged.</param>
+    /// <returns>The application access token, platform role and display name.</returns>
+    /// <exception cref="ApiException">Unauthorized when the account is unknown, has no password, the password is wrong, or the account is inactive.</exception>
     public LoginResponse Login(LoginRequest request)
     {
         var user = FindForSignIn(request.Identifier.Trim());
@@ -170,6 +179,9 @@ public class AuthService
     /// Creates an unbound password account and signs it in. The new account has no dealership
     /// until an admin binds it or a manager approves its join request (AUTH-13, AUTH-25).
     /// </summary>
+    /// <param name="request">Username, display name, password and email or phone. The password is hashed and never logged.</param>
+    /// <returns>The application access token, platform role and display name.</returns>
+    /// <exception cref="ApiException">A field conflict when the username, display name, email or phone is already registered.</exception>
     public LoginResponse Register(RegisterRequest request)
     {
         var contact = _accountRules.CanonicalContact(request.Email, request.Phone);
@@ -197,7 +209,7 @@ public class AuthService
         }
         catch (DbUpdateException ex)
         {
-            throw _accountRules.Conflict(ex);
+            ThrowConflict(ex, user.Id);
         }
 
         _audit.Record("APP_USER", user.Id, "CREATE", null, user.Username,
@@ -217,6 +229,10 @@ public class AuthService
     /// (AUTH-13, AUTH-14). Tenancy is unchanged — it is resolved per request from the
     /// membership table, never from the identity provider.
     /// </summary>
+    /// <param name="request">The Google ID token and an optional dealership to request. The token is never logged.</param>
+    /// <param name="cancellationToken">Cancels token verification.</param>
+    /// <returns>A session containing the application access token, platform role and display name.</returns>
+    /// <exception cref="ApiException">Unauthorized or Forbidden when sign-in is rejected, NotFound when the requested dealership does not exist, or a field conflict when the new account is not unique.</exception>
     public async Task<GoogleSignInResponse> GoogleSignIn(GoogleSignInRequest request, CancellationToken cancellationToken)
     {
         GoogleIdentity identity;
@@ -226,7 +242,7 @@ public class AuthService
         }
         catch (ApiException ex) when (IsRejection(ex))
         {
-            throw LoginFailed(null, "google", "invalid_token", ex);
+            throw LoginFailed(null, "google", FailureReason(ex), ex);
         }
         var email = LoginIdentifiers.Email(identity.Email);
         // An optional dealerId must name an active dealership (contract §1.6: 404 otherwise).
@@ -296,7 +312,7 @@ public class AuthService
         }
         catch (DbUpdateException ex)
         {
-            throw _accountRules.Conflict(ex);
+            ThrowConflict(ex, user.Id);
         }
 
         var summary = new Dictionary<string, object> { ["registration"] = "google" };
@@ -387,9 +403,34 @@ public class AuthService
             user?.Username ?? AnonymousActor,
             new Dictionary<string, object> { ["method"] = method, ["reason"] = reason });
         _db.SaveChanges();
-        _logger.LogWarning("Sign-in failed username={Username} method={Method} reason={Reason}",
-            user?.Username ?? AnonymousActor, method, reason);
+        var outcome = error.Code switch
+        {
+            ErrorCode.Forbidden => "forbidden",
+            ErrorCode.NotFound => "not_found",
+            ErrorCode.EmailTaken => "email_taken",
+            ErrorCode.Validation => "validation",
+            _ => "unauthorized"
+        };
+        _logger.LogWarning(
+            "Sign-in failed userId={UserId} username={Username} dealerId={DealerId} method={Method} reason={Reason} outcome={Outcome}",
+            user?.Id, user?.Username ?? AnonymousActor, dealerId, method, reason, outcome);
         return error;
+    }
+
+    // Verifiers stash a reason code on the exception. The token is never copied onto it.
+    private static string FailureReason(ApiException ex) =>
+        ex.Data["authReason"] as string ?? "invalid_token";
+
+    // A duplicate key is an expected conflict. Any other save failure is still returned as a
+    // conflict, so it is logged here. The database message can contain an email or phone, so
+    // only the exception type is recorded.
+    private void ThrowConflict(DbUpdateException ex, long userId)
+    {
+        if (!DuplicateKey.Is(ex))
+            _logger.LogError(
+                "Account save failed userId={UserId} reason={Reason} outcome={Outcome}",
+                userId, ex.InnerException?.GetType().Name ?? ex.GetType().Name, "error");
+        throw _accountRules.Conflict(ex);
     }
 
     private long? ActiveDealerId(string username) =>

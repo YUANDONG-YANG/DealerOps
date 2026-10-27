@@ -10,6 +10,7 @@ const webBuiltAt =
 
 const PENDING: ReleaseTimes = { web: '…', gateway: '…', core: '…', ai: '…' };
 
+/** Root shell: the routes, the dealer assistant on signed-in dealer pages, and the build footer. */
 export default function App() {
   const location = useLocation();
   const session = useSessionStore();

@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { logApiFailure } from './apiFailure';
 import { resolveGatewayUrl } from './gateway';
 
 /**
@@ -12,12 +13,19 @@ export type PublicDealer = {
 };
 
 /**
- * Public dealer directory used by the Google sign-in "pick your dealership" step. Deliberately
- * does not go through the authenticated http client (http.ts) because it runs before the user
- * has a token.
+ * Dealerships a visitor can browse or ask to join, before a token exists.
+ * This skips the authenticated http client. Logo URLs are filled in on the client from `hasLogo`.
+ *
+ * @returns public rows; `logoUrl` is null when the dealership has no logo
  */
 export async function listPublicDealers(): Promise<PublicDealer[]> {
-  const baseURL = await resolveGatewayUrl();
-  const { data } = await axios.get<PublicDealer[]>(`${baseURL}/api/v1/catalog/dealers`);
-  return data.map(d => ({ ...d, logoUrl: d.hasLogo ? `${baseURL}/api/v1/public/dealers/${d.id}/logo` : null }));
+  const route = 'GET /api/v1/catalog/dealers';
+  try {
+    const baseURL = await resolveGatewayUrl();
+    const { data } = await axios.get<PublicDealer[]>(`${baseURL}/api/v1/catalog/dealers`);
+    return data.map(d => ({ ...d, logoUrl: d.hasLogo ? `${baseURL}/api/v1/public/dealers/${d.id}/logo` : null }));
+  } catch (error) {
+    logApiFailure(error, route);
+    throw error;
+  }
 }

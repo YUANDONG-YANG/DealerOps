@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using System.Threading.RateLimiting;
+using DealerOps.Logging;
 
 namespace DealerOps.Gateway.Middleware;
 
@@ -16,6 +17,7 @@ public static class RateLimitSetup
     /// <summary>
     /// Registers the partitioned limiter from <c>dealerops:rateLimits</c>.
     /// </summary>
+    /// <param name="builder">The host whose configuration supplies the limits and whose services receive the limiter.</param>
     /// <returns><c>true</c> when limits are enabled and <c>UseRateLimiter</c> must be called.</returns>
     public static bool AddDealerRateLimits(this WebApplicationBuilder builder)
     {
@@ -35,9 +37,12 @@ public static class RateLimitSetup
             options.OnRejected = async (context, cancellationToken) =>
             {
                 var http = context.HttpContext;
+                var requestId = http.Request.Headers[RequestId.Header].FirstOrDefault();
                 http.RequestServices.GetRequiredService<ILoggerFactory>()
                     .CreateLogger(typeof(RateLimitSetup))
-                    .LogWarning("Rate limit exceeded clientIp={ClientIp} user={User} {Method} {Path}",
+                    .LogWarning(
+                        "Rate limit exceeded requestId={RequestId} clientIp={ClientIp} user={User} {Method} {Path}",
+                        RequestId.IsValid(requestId) ? requestId : "",
                         ClientIp(http), Username(http) ?? "anonymous", http.Request.Method, http.Request.Path.Value);
                 http.Response.Headers.RetryAfter = "60";
                 await http.Response.WriteAsJsonAsync(

@@ -5,11 +5,19 @@ public static class SystemPrompts
 {
     // SEC-06: the listing title and body are user input. They travel inside these
     // markers so the model can tell trusted facts from untrusted advertising copy.
+    /// <summary>Opening marker for the untrusted listing title.</summary>
     public const string AdTitleOpen = "<<<UNTRUSTED_AD_TITLE";
+
+    /// <summary>Closing marker for the untrusted listing title.</summary>
     public const string AdTitleClose = "UNTRUSTED_AD_TITLE>>>";
+
+    /// <summary>Opening marker for the untrusted listing body.</summary>
     public const string AdBodyOpen = "<<<UNTRUSTED_AD_BODY";
+
+    /// <summary>Closing marker for the untrusted listing body.</summary>
     public const string AdBodyClose = "UNTRUSTED_AD_BODY>>>";
 
+    /// <summary>System prompt for the second-pass ad review. It is not logged.</summary>
     public const string AdCheck = $"""
         You are a second-pass reviewer for a used-vehicle dealership advertisement.
 
@@ -26,6 +34,7 @@ public static class SystemPrompts
         Never say the ad is OMVIC approved, OMVIC certified, or legally cleared. Never output SQL, stack traces, API keys, phone/email/address that are not already in the user message. Never instruct the caller to change HTTP status codes.
         """;
 
+    /// <summary>System prompt for the read-only assistant. It is not logged.</summary>
     public const string Assistant = """
         You are an in-dealership read-only assistant. Answer only from the dealership resource cards supplied in the user JSON, and from no other source. If a fact is not on those cards, you do not know it.
 

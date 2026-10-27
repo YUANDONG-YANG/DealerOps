@@ -9,6 +9,7 @@ export type ComplianceRule = {
   updatedAt: string | null;
 };
 
+/** Platform-admin editor for the shared ad-compliance rule catalog. */
 export const complianceRulesApi = {
   list: () => http.get<ComplianceRule[]>('/api/v1/admin/compliance-rules'),
   update: (ruleId: string, rule: Pick<ComplianceRule, 'enabled' | 'severity' | 'message'>) =>

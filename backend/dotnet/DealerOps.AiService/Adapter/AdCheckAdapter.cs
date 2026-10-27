@@ -20,14 +20,22 @@ public class AdCheckAdapter
 
     private readonly AiProviderClient _client;
     private readonly TimedModelCall _timedCall;
+    private readonly ILogger<AdCheckAdapter> _logger;
 
-    public AdCheckAdapter(AiProviderClient client, TimedModelCall timedCall)
+    /// <summary>Creates the ad-check adapter.</summary>
+    /// <param name="client">Outbound model client.</param>
+    /// <param name="timedCall">Applies the time budget and the concurrency cap.</param>
+    /// <param name="logger">Logger for a model reply that produced no note.</param>
+    public AdCheckAdapter(AiProviderClient client, TimedModelCall timedCall, ILogger<AdCheckAdapter> logger)
     {
         _client = client;
         _timedCall = timedCall;
+        _logger = logger;
     }
 
     /// <summary>Reviews the listing copy against its public facts.</summary>
+    /// <param name="req">Listing copy and the public facts it is checked against.</param>
+    /// <returns>A successful body with at most eight advisory notes.</returns>
     /// <exception cref="ModelFailureException">The model call failed or returned no usable note.</exception>
     public async Task<AdCheckOkResponse> RunAsync(AdCheckInternalRequest req)
     {
@@ -37,8 +45,18 @@ public class AdCheckAdapter
             await _client.ChatAsync("ad-check", SystemPrompts.AdCheck, userContent, ct));
 
         var notes = NotesFrom(content);
+        // Empty notes are a failed call. A success body with no notes would look like a pass.
         if (notes.Count == 0)
+        {
+            if (!string.IsNullOrWhiteSpace(content))
+            {
+                _logger.LogWarning(
+                    "AI provider failed dependency={Dependency} operation={Operation} status={Status} reason={Reason}",
+                    _client.DependencyName, "ad-check", "ok", "no_usable_notes");
+            }
+
             throw ModelFailureException.ProviderFailedError();
+        }
 
         return new AdCheckOkResponse(true, notes);
     }

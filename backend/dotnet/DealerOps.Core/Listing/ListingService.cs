@@ -205,10 +205,20 @@ public class ListingService
 
         var last = _complianceCheckService.LoadCheck(listing);
         if (last == null || last.Recommendation != Recommendation.Passed)
+        {
+            _logger.LogWarning(
+                "Listing ready or export rejected because the check has not passed listingId={ListingId} vehicleId={VehicleId} dealerId={DealerId} by {Actor}",
+                listing.Id, listing.VehicleId, tenant, TenantContext.ActorUsername());
             throw new ApiException(ErrorCode.NotPassed, "Listing has not passed the current check.");
+        }
 
         if (CheckStatusMapper.Stale == _checkStatusMapper.Derive(listing, last))
+        {
+            _logger.LogWarning(
+                "Listing ready or export rejected because the check is stale listingId={ListingId} vehicleId={VehicleId} contentVersion={ContentVersion} dealerId={DealerId} by {Actor}",
+                listing.Id, listing.VehicleId, listing.ContentVersion, tenant, TenantContext.ActorUsername());
             throw new ApiException(ErrorCode.CheckStale, "Check is stale.");
+        }
 
         return listing;
     }

@@ -182,8 +182,9 @@ This section applies to the active .NET 10 services and replaces §2's per-class
 
 - **Injection.** A class that logs takes `ILogger<T>` in its constructor and keeps it in `private readonly ILogger<T> _logger`. No extra registration is needed.
 - **Structured templates.** Use message templates with named placeholders, never string interpolation, for example `"Payment recorded paymentId={PaymentId} vehicleId={VehicleId} dealerId={DealerId} by {Actor}"`. Log at key business points: a completed change, a rejected attempt, an external call that fails.
-- **Levels.** `Information` for a successful business change; `Warning` for a rejected or suspicious attempt (failed sign-in, forbidden action, cross-dealership access, rate limit); `Error` only together with the caught exception. Do not log the same failure twice.
-- **No personal data, secrets, prompts, or ad text.** Log ids and usernames only. Never log passwords, tokens or claims, API keys, email addresses, phone numbers, home addresses, note or message bodies, a typed sign-in identifier that matched no account, model prompts or responses, assistant questions, or listing title/body text. An update line names the changed field keys, never their values.
+- **Levels.** `Information` for a successful business change and for the one access line per request; `Warning` for a rejected or suspicious attempt (failed sign-in, forbidden action, cross-dealership access, rate limit) and for a pipeline failure the request still answers; `Error` only together with the caught exception. Do not log the same failure twice.
+- **No personal data, secrets, prompts, or ad text.** Log ids and usernames only. Never log passwords, tokens or claims, API keys, email addresses, phone numbers, home addresses, note or message bodies, a typed sign-in identifier that matched no account, model prompts or responses, assistant questions, or listing title/body text. An update line names the changed field keys, never their values. Do not log a query string, an audit JSON blob, or an exception message that can echo a token or a row value.
+- **Correlation.** A line written during a request includes the request id that already exists (`X-Request-ID`, stored on the request and echoed as `[{RequestId}]` on the access line). No second id is created. A startup line has none.
 - **Comments.** Classes and public methods carry a `///` summary of their responsibility; inline comments explain why, not what.
 
 ### 7.1 Gateway events (`DealerOps.Gateway`)
@@ -243,3 +244,22 @@ Every `Information` line ends with `by {Actor}` (the signed-in username) unless 
 | Ad check AI unavailable | `listingId`, `dealerId`, actor, with the exception | `ComplianceCheckService` (check stored as `UNAVAILABLE`) |
 | AI call failed / reported failure / returned no summary | `path`, `status`, `error`, `elapsedMs` | `Integration/AiGatewayClient` |
 | vPIC call failed / returned no Results | `operation`, `status`, `error`, `elapsedMs` | `Catalog/VehicleCatalogService` (`CATALOG_UNAVAILABLE`) |
+| Rejected JWT | `reason` (exception type name only), method, path, request id | `Program.cs` `OnChallenge`, only when token validation threw |
+| Forbidden | method, path, request id | `Program.cs` `OnForbidden` (authorization middleware) |
+| Version conflict | method, path, request id | `ApiExceptionFilter`, the concurrency collision only |
+| Audit summary unreadable | `auditEventId`, `column` (`fieldSummary` or `previousValues`) | `AuditService` |
+| Schema upgrade skipped | statement, MySQL error text | `Program.cs` startup, when existing rows block a constraint |
+
+`Error`, one line, exception attached: unhandled exception in `Program.cs`, with method, path, and request id. A client disconnect (`OperationCanceledException`) is not logged.
+
+### 7.4 Core pipeline (host, exception filter, audit read)
+
+These lines are the host and the audit reader. They are not a second copy of the business events above.
+
+- **Access line.** `RequestLoggingMiddleware` already writes one `Information` line per request: method, path, status, duration, and the existing request id. The query string is not included. A 401 with no token stays on that line only; there is no exception to log.
+- **Unhandled exception.** `Error`, with the exception, method, path, and the existing request id. `ApiException` is handled before this and is not logged again: the access line already has the status, and the domain service logs the rejection when it is one.
+- **Rejected JWT.** `Warning` when a presented token fails validation. `reason` is the exception type name. The token and the exception message are not logged. A missing token is not this line.
+- **Forbidden.** `Warning` from the authorization middleware only. Dealership rejections that a service or the tenant middleware already logs are not written again here.
+- **Version conflict.** `Warning` only for `DbUpdateConcurrencyException` (two saves passed the service check and collided). The exception text is omitted because it can contain row values. A version check the service throws itself is an `ApiException` and is not logged again in the filter.
+- **Audit summary.** `Warning` when stored `fieldSummary` or `previousValues` JSON cannot be parsed. The line has the audit event id and the column name. The JSON and the parser message are omitted because they hold contact values. A record history still returns that row with the blob empty. A customer or vehicle history match that cannot read `fieldSummary` drops the link row, because it can no longer tell which record the row belongs to.
+- **Startup schema.** An index, foreign key, or column that is already present is not a failure and is not logged. A constraint the existing rows block is the `Warning` already written at startup (statement and MySQL error text). That line has no request id.

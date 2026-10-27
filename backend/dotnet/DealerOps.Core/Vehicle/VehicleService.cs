@@ -28,7 +28,6 @@ public class VehicleService
         _logger = logger;
     }
 
-    /// <summary>Lists this dealer's vehicles matching the filter, newest first.</summary>
     /// <summary>
     /// The Ad compliance filters: ad kind, medium, derived check status (the <see cref="Compliance.CheckStatusMapper"/>
     /// rules in SQL) and buyer-site listing. A vehicle without a saved ad counts as its virtual
@@ -86,6 +85,7 @@ public class VehicleService
         return query;
     }
 
+    /// <summary>Lists this dealer's vehicles matching the filter, newest first.</summary>
     public PageResponse<VehicleResponse> List(VehicleFilter filter, int page, int size)
     {
         var tenant = TenantGuard.RequireTenantId();
@@ -150,7 +150,12 @@ public class VehicleService
 
         // Deleted vehicles keep their VIN under the unique key, so the check includes them.
         if (_db.Vehicles.IgnoreQueryFilters().Any(v => v.DealerId == tenant && v.Vin == vin))
+        {
+            _logger.LogWarning(
+                "Vehicle create rejected because the VIN is already in the dealership dealerId={DealerId} by {Actor}",
+                tenant, TenantContext.ActorUsername());
             throw new ApiException(ErrorCode.VinDup, "VIN already exists in this dealership, possibly on a deleted vehicle.");
+        }
 
         var vehicle = new VehicleEntity
         {
@@ -271,13 +276,23 @@ public class VehicleService
         var (changed, previous) = ChangedVehicleFields(vehicle, next);
 
         if (vehicle.Status == VehicleStatus.Sold && PurchaseFieldsChanged(changed))
+        {
+            _logger.LogWarning(
+                "Vehicle update rejected because the vehicle is sold vehicleId={VehicleId} dealerId={DealerId} by {Actor}",
+                vehicle.Id, tenant, TenantContext.ActorUsername());
             throw new ApiException(ErrorCode.SoldLocked, "Sold vehicle is locked.");
+        }
 
         if (changed.ContainsKey("stockNumber"))
             RequireUniqueStockNumber(tenant, next.StockNumber, vehicle.Id);
 
         if (changed.ContainsKey("vin") && _db.Vehicles.IgnoreQueryFilters().Any(v => v.DealerId == tenant && v.Vin == next.Vin))
+        {
+            _logger.LogWarning(
+                "Vehicle update rejected because the VIN is already in the dealership vehicleId={VehicleId} dealerId={DealerId} by {Actor}",
+                vehicle.Id, tenant, TenantContext.ActorUsername());
             throw new ApiException(ErrorCode.VinDup, "VIN already exists in this dealership, possibly on a deleted vehicle.");
+        }
 
         if (changed.Count == 0)
             return ToResponse(vehicle);
@@ -349,10 +364,21 @@ public class VehicleService
             throw new ApiException(ErrorCode.VersionConflict, "Version conflict.");
 
         if (vehicle.Status == VehicleStatus.Sold)
+        {
+            _logger.LogWarning(
+                "Vehicle sale rejected because the vehicle is already sold vehicleId={VehicleId} dealerId={DealerId} by {Actor}",
+                vehicle.Id, tenant, TenantContext.ActorUsername());
             throw new ApiException(ErrorCode.SoldLocked, "Sold vehicle is locked.");
+        }
 
-        if (CountOpenWorkOrders(vehicle) > 0)
+        var openWorkOrders = CountOpenWorkOrders(vehicle);
+        if (openWorkOrders > 0)
+        {
+            _logger.LogWarning(
+                "Vehicle sale blocked by open work orders vehicleId={VehicleId} openWorkOrders={OpenWorkOrders} dealerId={DealerId} by {Actor}",
+                vehicle.Id, openWorkOrders, tenant, TenantContext.ActorUsername());
             throw new ApiException(ErrorCode.WorkOrdersOpen, "Finish or cancel open work orders before selling.");
+        }
 
         if (body.SoldOn.Value < vehicle.AddedOn)
         {
@@ -391,7 +417,12 @@ public class VehicleService
         var vehicle = LoadThisDealer(vehicleId);
 
         if (vehicle.Status == VehicleStatus.Sold)
+        {
+            _logger.LogWarning(
+                "Vehicle repair cost update rejected because the vehicle is sold vehicleId={VehicleId} dealerId={DealerId} by {Actor}",
+                vehicle.Id, tenant, TenantContext.ActorUsername());
             throw new ApiException(ErrorCode.SoldLocked, "Sold vehicle is locked.");
+        }
 
         // The cost is added to the repair cost (WO-04). A zero cost still sets an empty repair
         // cost to 0; when nothing changes, no audit row is written.
@@ -418,11 +449,27 @@ public class VehicleService
         // A sale or customer link is the purchase record (CRM "car(s) purchased"), and open work
         // orders are live work; deleting the vehicle would hide them, so each must be settled first.
         if (vehicle.Status == VehicleStatus.Sold)
+        {
+            _logger.LogWarning(
+                "Vehicle delete rejected because the vehicle is sold vehicleId={VehicleId} dealerId={DealerId} by {Actor}",
+                vehicle.Id, tenant, TenantContext.ActorUsername());
             throw new ApiException(ErrorCode.SoldLocked, "Sold vehicle cannot be deleted.");
+        }
         if (_db.CustomerVehicles.Any(cv => cv.VehicleId == vehicle.Id))
+        {
+            _logger.LogWarning(
+                "Vehicle delete rejected because a customer is still linked vehicleId={VehicleId} dealerId={DealerId} by {Actor}",
+                vehicle.Id, tenant, TenantContext.ActorUsername());
             throw new ApiException(ErrorCode.VehicleAlreadyLinked, "Unlink the customer before deleting this vehicle.");
-        if (CountOpenWorkOrders(vehicle) > 0)
+        }
+        var openWorkOrders = CountOpenWorkOrders(vehicle);
+        if (openWorkOrders > 0)
+        {
+            _logger.LogWarning(
+                "Vehicle delete blocked by open work orders vehicleId={VehicleId} openWorkOrders={OpenWorkOrders} dealerId={DealerId} by {Actor}",
+                vehicle.Id, openWorkOrders, tenant, TenantContext.ActorUsername());
             throw new ApiException(ErrorCode.WorkOrdersOpen, "Finish or cancel open work orders before deleting.");
+        }
         vehicle.DeletedAt = DateTime.UtcNow;
         _audit.Record("VEHICLE", vehicle.Id, "DELETE", tenant, TenantContext.ActorUsername(),
             new Dictionary<string, object> { ["deleted"] = true },
@@ -605,6 +652,9 @@ public class VehicleService
         }
         catch (DbUpdateException ex) when (DuplicateKey.Is(ex))
         {
+            _logger.LogWarning(
+                "Vehicle save rejected because the VIN is already in the dealership dealerId={DealerId} by {Actor}",
+                TenantGuard.RequireTenantId(), TenantContext.ActorUsername());
             throw new ApiException(ErrorCode.VinDup, "VIN already exists in this dealership.");
         }
     }
@@ -639,6 +689,9 @@ public class VehicleService
         if (stockNumber == null) return;
         if (_db.Vehicles.Any(v => v.DealerId == tenant && v.StockNumber == stockNumber && v.Id != exceptVehicleId))
         {
+            _logger.LogWarning(
+                "Vehicle save rejected because the stock number is already used dealerId={DealerId} by {Actor}",
+                tenant, TenantContext.ActorUsername());
             const string message = "Stock number is already used by another vehicle.";
             throw new ApiException(ErrorCode.Validation, message,
                 new Dictionary<string, string> { ["stockNumber"] = message });

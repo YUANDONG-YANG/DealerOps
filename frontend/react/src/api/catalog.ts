@@ -7,12 +7,19 @@ export type VinDecode = {
   country: string | null; manufacturer: string | null;
 };
 
+/** Vehicle catalog, and the anonymous VIN decode used by the landing page and the DMS form. */
 export const catalogApi = {
   decodeVin: (vin: string) => http.get<VinDecode>(`/api/v1/catalog/vin/${encodeURIComponent(vin)}`),
   makes: () => http.get<string[]>('/api/v1/catalog/makes'),
   models: (make: string) => http.get<string[]>('/api/v1/catalog/models', { params: { make } }),
 };
 
+/**
+ * User message for a rejected VIN decode. A catalog outage stays distinct from a VIN the catalog does not know.
+ *
+ * @param err rejection from `catalogApi.decodeVin`
+ * @returns text safe to show next to the VIN field
+ */
 export function vinDecodeError(err: unknown): string {
   const { status, code } = apiError(err);
   if (code === 'VALIDATION') return 'VIN must be 17 characters (no I, O, Q).';

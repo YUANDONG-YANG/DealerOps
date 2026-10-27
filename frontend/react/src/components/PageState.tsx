@@ -11,6 +11,7 @@ interface Props {
   children?: ReactNode;
 }
 
+/** Stand-in for a page body while it loads, fails, is forbidden, or has no rows. */
 export default function PageState({
   loading, error, forbidden, empty,
   loadingText, emptyText, forbiddenText, children,

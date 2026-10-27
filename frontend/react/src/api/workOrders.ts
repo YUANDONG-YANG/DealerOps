@@ -32,6 +32,7 @@ export interface PatchWorkOrderBody {
   version: number;
 }
 
+/** Workshop orders for one vehicle. A patch sends the full editable state, including unchanged fields. */
 export const workOrdersApi = {
   list: (vehicleId: number) => http.get<WorkOrder[]>(`/api/v1/vehicles/${vehicleId}/work-orders`),
   create: (vehicleId: number, body: CreateWorkOrderBody) =>

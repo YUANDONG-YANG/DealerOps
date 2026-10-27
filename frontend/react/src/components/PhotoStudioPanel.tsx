@@ -24,6 +24,7 @@ function snapshot(cache: Map<number, string>): Record<number, string> {
   return urls;
 }
 
+/** Vehicle photos: upload, enhance a preset, preview either variant, and delete. */
 export default function PhotoStudioPanel({ vehicleId, onChanged }: Props) {
   const [photos, setPhotos] = useState<PhotoItem[]>([]);
   const [loading, setLoading] = useState(false);

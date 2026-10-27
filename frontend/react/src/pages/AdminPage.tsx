@@ -226,8 +226,13 @@ export default function AdminPage() {
     const seq = ++drawerMembersLoadSeq.current;
     try {
       const items = await fetchDealerMembers(staffDealer.id, '');
-      if (seq === drawerMembersLoadSeq.current) setDrawerMembers(items);
-    } catch {}
+      if (seq !== drawerMembersLoadSeq.current) return;
+      setDrawerMembers(items);
+      setDrawerError('');
+    } catch (e) {
+      if (seq !== drawerMembersLoadSeq.current) return;
+      setDrawerError(describeError(e, 'load this dealership\'s staff'));
+    }
   };
 
   const refreshMemberships = async (dealerId: number) => {

@@ -105,7 +105,15 @@ public class BuyerSiteService
     {
         LoadDealer(dealerId);
         var vehicleId = body.VehicleId!.Value;
-        var vehicle = RequirePublicVehicle(dealerId, vehicleId);
+        var vehicle = ListedVehicle(dealerId, vehicleId);
+        if (vehicle == null)
+        {
+            // Ids only: the buyer typed contact details that must not reach the log.
+            _logger.LogWarning(
+                "Buyer inquiry rejected dealerId={DealerId} vehicleId={VehicleId} reason={Reason}",
+                dealerId, vehicleId, "NotListed");
+            throw new ApiException(ErrorCode.NotFound, "This vehicle is no longer listed.");
+        }
 
         var contact = body.Contact;
         var name = contact.Name.Trim();
@@ -193,8 +201,12 @@ public class BuyerSiteService
               && v.DeletedAt == null
         select new PublicRow { Vehicle = v, Listing = l };
 
+    /// <summary>The publicly listed vehicle, or null when the buyer site no longer shows it.</summary>
+    private VehicleEntity? ListedVehicle(long dealerId, long vehicleId) =>
+        PublicVehicles(dealerId).Where(x => x.Vehicle.Id == vehicleId).Select(x => x.Vehicle).FirstOrDefault();
+
     private VehicleEntity RequirePublicVehicle(long dealerId, long vehicleId) =>
-        PublicVehicles(dealerId).Where(x => x.Vehicle.Id == vehicleId).Select(x => x.Vehicle).FirstOrDefault()
+        ListedVehicle(dealerId, vehicleId)
         ?? throw new ApiException(ErrorCode.NotFound, "This vehicle is no longer listed.");
 
     private Dealer.DealerEntity LoadDealer(long dealerId) =>

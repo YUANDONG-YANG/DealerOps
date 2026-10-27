@@ -1,5 +1,6 @@
 import { http } from './http';
 
+/** CRM customers for the signed-in dealership, including linking and unlinking a vehicle. */
 export const customersApi = {
   list(p: Record<string, unknown> = {}) {
     const params: Record<string, unknown> = { page: p.page ?? 0, size: p.size ?? 10 };

@@ -4,12 +4,33 @@ using Microsoft.EntityFrameworkCore;
 
 namespace DealerOps.Core.Common.Exceptions;
 
+/// <summary>
+/// Maps a known <see cref="ApiException"/> or a lost update onto the error envelope.
+/// Anything else stays unhandled so the request pipeline can log it once.
+/// </summary>
 public class ApiExceptionFilter : IExceptionFilter
 {
+    private readonly ILogger<ApiExceptionFilter> _logger;
+
+    public ApiExceptionFilter(ILogger<ApiExceptionFilter> logger) => _logger = logger;
+
+    /// <summary>Writes the envelope for a handled failure and leaves every other exception to the pipeline.</summary>
     public void OnException(ExceptionContext context)
     {
         // Two saves that both pass a service-level version check still collide on the
         // [ConcurrencyCheck] Version column; report that race as the same 409 the check returns.
+        // Domain services already log the version check they throw themselves, so only this
+        // collision is logged here. The exception text is omitted: it can echo row values.
+        if (context.Exception is DbUpdateConcurrencyException)
+        {
+            var raceRequestId = context.HttpContext.Items["RequestId"] as string ?? "";
+            _logger.LogWarning(
+                "Version conflict method={Method} path={Path} [{RequestId}]",
+                context.HttpContext.Request.Method,
+                context.HttpContext.Request.Path,
+                raceRequestId);
+        }
+
         var ex = context.Exception switch
         {
             ApiException api => api,

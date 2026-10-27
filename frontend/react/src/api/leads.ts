@@ -10,10 +10,22 @@ export const LEAD_STAGES: { value: LeadStage; label: string }[] = [
   { value: 'LOST', label: 'Lost' },
 ];
 
+/**
+ * Display label of a lead stage.
+ *
+ * @param stage stage code from the API
+ * @returns the label, or the code itself when the stage is unknown
+ */
 export function stageLabel(stage: string) {
   return LEAD_STAGES.find((s) => s.value === stage)?.label ?? stage;
 }
 
+/**
+ * Whether the lead can no longer be edited.
+ *
+ * @param stage stage code from the API
+ * @returns true for won and lost
+ */
 export function isClosedStage(stage: string) {
   return stage === 'WON' || stage === 'LOST';
 }
@@ -42,6 +54,7 @@ export type PatchLeadBody = {
 
 const blankToUndefined = (value?: string) => (value && value.trim() ? value.trim() : undefined);
 
+/** Sales leads for the signed-in dealership. Blank optional strings are omitted so the server keeps its defaults. */
 export const leadsApi = {
   list(p: LeadFilters & { page?: number; size?: number } = {}) {
     const params: Record<string, unknown> = { page: p.page ?? 0, size: p.size ?? 10 };

@@ -130,7 +130,12 @@ public class WorkOrderService
         RequireInStock(LoadVehicle(order.VehicleId, tenant));
         var next = body.Status;
         if (next != order.Status && !order.Status.CanMoveTo(next))
+        {
+            _logger.LogWarning(
+                "Work order status change rejected workOrderId={WorkOrderId} from={From} to={To} dealerId={DealerId} by {Actor}",
+                order.Id, EnumWireName.Of(order.Status), EnumWireName.Of(next), tenant, TenantContext.ActorUsername());
             throw new ApiException(ErrorCode.Validation, "This status change is not allowed.");
+        }
 
         var task = body.Task.Trim();
         var assignee = TrimToNull(body.AssigneeUsername);
@@ -166,7 +171,12 @@ public class WorkOrderService
         {
             completionNote = TrimToNull(body.CompletionNote);
             if (completionNote == null || body.Cost == null)
+            {
+                _logger.LogWarning(
+                    "Work order completion rejected because note or cost is missing workOrderId={WorkOrderId} vehicleId={VehicleId} dealerId={DealerId} by {Actor}",
+                    order.Id, order.VehicleId, tenant, TenantContext.ActorUsername());
                 throw new ApiException(ErrorCode.Validation, "A finished work order needs a completion note and a cost.");
+            }
             repairCost = body.Cost.Value;
             // An open order has no cost or note yet, so both previous values are always null.
             changed["cost"] = true;
@@ -215,17 +225,26 @@ public class WorkOrderService
             ?? throw new ApiException(ErrorCode.NotFound, "Not found");
     }
 
-    private static void RequireInStock(VehicleEntity vehicle)
+    private void RequireInStock(VehicleEntity vehicle)
     {
-        if (vehicle.Status == VehicleStatus.Sold)
-            throw new ApiException(ErrorCode.SoldLocked, "Sold vehicle is locked.");
+        if (vehicle.Status != VehicleStatus.Sold)
+            return;
+        _logger.LogWarning(
+            "Work order rejected because the vehicle is sold vehicleId={VehicleId} dealerId={DealerId} by {Actor}",
+            vehicle.Id, vehicle.DealerId, TenantContext.ActorUsername());
+        throw new ApiException(ErrorCode.SoldLocked, "Sold vehicle is locked.");
     }
 
     private void RequireMember(long tenant, string? username)
     {
         if (username != null &&
             !_db.Memberships.Any(m => m.DealerId == tenant && m.Username == username && m.Active))
+        {
+            _logger.LogWarning(
+                "Work order assignee rejected dealerId={DealerId} by {Actor}",
+                tenant, TenantContext.ActorUsername());
             throw new ApiException(ErrorCode.Validation, "Assignee must be a member of this dealership.");
+        }
     }
 
     private void Audit(long orderId, string action, long tenant, Dictionary<string, object> fields,

@@ -15,6 +15,12 @@ public class DownstreamHealthCheck
     private readonly string _gatewayPublishedAt;
     private readonly string _webPublishedAt;
 
+    /// <summary>
+    /// Builds the probes from <c>CORE_URL</c>, <c>AI_URL</c>, <c>PUBLISHED_AT</c> and <c>WEB_PUBLISHED_AT</c>.
+    /// </summary>
+    /// <param name="httpClientFactory">Factory for the server-side "health" client.</param>
+    /// <param name="config">Application configuration.</param>
+    /// <param name="logger">Receives a warning when a probe fails.</param>
     public DownstreamHealthCheck(IHttpClientFactory httpClientFactory, IConfiguration config,
         ILogger<DownstreamHealthCheck> logger)
     {
@@ -33,9 +39,11 @@ public class DownstreamHealthCheck
     public string GatewayPublishedAt => _gatewayPublishedAt;
 
     /// <summary>Release time reported by Core, or <c>unavailable</c>.</summary>
-    public Task<string> CorePublishedAtAsync() => FetchRelease(_coreUrl);
+    /// <returns>Core's <c>publishedAt</c>, or <c>unavailable</c> when the probe fails.</returns>
+    public Task<string> CorePublishedAtAsync() => FetchRelease("core", _coreUrl);
 
     /// <summary>Aggregated UP/DOWN status of Core and the AI service.</summary>
+    /// <returns>An object with an overall status and a status for Core and the AI service.</returns>
     public async Task<object> CheckAsync()
     {
         var coreOk = await CheckService("core", _coreUrl);
@@ -52,10 +60,11 @@ public class DownstreamHealthCheck
     }
 
     /// <summary>Release times of the web app, Gateway, Core and AI service.</summary>
+    /// <returns>An object with the web, Gateway, Core and AI release times. A failed probe is <c>unavailable</c>.</returns>
     public async Task<object> ReleaseAsync()
     {
-        var coreTime = await FetchRelease(_coreUrl);
-        var aiTime = await FetchRelease(_aiUrl);
+        var coreTime = await FetchRelease("core", _coreUrl);
+        var aiTime = await FetchRelease("ai", _aiUrl);
         return new
         {
             web = _webPublishedAt,
@@ -85,22 +94,34 @@ public class DownstreamHealthCheck
         }
     }
 
-    private async Task<string> FetchRelease(string baseUrl)
+    private async Task<string> FetchRelease(string service, string baseUrl)
     {
         try
         {
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
-            var response = await _httpClient.GetAsync($"{baseUrl}/actuator/release", cts.Token);
-            if (!response.IsSuccessStatusCode) return "unavailable";
+            using var response = await _httpClient.GetAsync($"{baseUrl}/actuator/release", cts.Token);
+            if (!response.IsSuccessStatusCode)
+            {
+                _logger.LogWarning("Downstream release check failed service={Service} status={Status}",
+                    service, (int)response.StatusCode);
+                return "unavailable";
+            }
 
             var json = await response.Content.ReadFromJsonAsync<Dictionary<string, System.Text.Json.JsonElement>>(
                 cancellationToken: cts.Token);
             if (json != null && json.TryGetValue("publishedAt", out var published))
-                return published.GetString() ?? "unavailable";
+            {
+                var publishedAt = published.GetString();
+                if (!string.IsNullOrWhiteSpace(publishedAt)) return publishedAt;
+            }
+
+            _logger.LogWarning("Downstream release check returned no publishedAt service={Service}", service);
             return "unavailable";
         }
-        catch
+        catch (Exception ex)
         {
+            _logger.LogWarning("Downstream release check failed service={Service} reason={Reason}",
+                service, ex.GetType().Name);
             return "unavailable";
         }
     }

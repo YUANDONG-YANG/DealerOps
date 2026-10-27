@@ -42,6 +42,7 @@ function trimToNull(value: string): string | null {
   return value.trim() ? value.trim() : null;
 }
 
+/** Workshop tasks for one vehicle: create, assign, update, complete, or cancel them. */
 export default function WorkOrderPanel({ vehicleId, sold, onChanged }: Props) {
   const [orders, setOrders] = useState<WorkOrder[]>([]);
   const [members, setMembers] = useState<MemberOption[]>([]);

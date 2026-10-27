@@ -14,7 +14,12 @@ const ACCOUNT_SOURCE_LABEL: Record<string, string> = {
   admin: 'Added by admin',
 };
 
-/** How an account was created; the backend sends null when the channel is unknown (seed data). */
+/**
+ * How an account was created. The backend sends null when the channel is unknown (seed data).
+ *
+ * @param source account source code, or null
+ * @returns a display label, or "Not recorded" when the source is missing
+ */
 export function accountSourceLabel(source: string | null | undefined): string {
   return (source && ACCOUNT_SOURCE_LABEL[source]) || 'Not recorded';
 }
@@ -31,7 +36,12 @@ export const teamApi = {
   saveProfile: (body: DealerProfileBody) => http.patch<Dealer>('/api/v1/dealer/profile', body).then(r => r.data),
 };
 
-/** Picker label: "Display name (username)", or just the username when they match. */
+/**
+ * Picker label: "Display name (username)", or just the username when they match.
+ *
+ * @param m member row from the dealership list
+ * @returns the label shown in assignee pickers
+ */
 export function memberLabel(m: MemberOption) {
   return m.displayName && m.displayName !== m.username ? `${m.displayName} (${m.username})` : m.username;
 }

@@ -48,6 +48,7 @@ public class VehiclePaymentService
     {
         var user = TenantGuard.RequireDealerUser();
         var tenant = user.TenantDealerId!.Value;
+        var actor = TenantContext.ActorUsername();
         using var tx = _db.Database.BeginTransaction();
         // Lock the vehicle row first, so two payments recorded at the same time cannot both pass
         // the balance check. It must be the transaction's first read: MySQL takes the snapshot for
@@ -56,21 +57,35 @@ public class VehiclePaymentService
             $"SELECT id FROM vehicle WHERE id = {vehicleId} AND dealer_id = {tenant} FOR UPDATE");
         var vehicle = LoadVehicle(vehicleId, tenant);
         if (vehicle.Status != VehicleStatus.Sold || vehicle.SoldPrice == null || vehicle.SoldOn == null)
+        {
+            RejectPayment(vehicle.Id, tenant, actor, "SaleNotRecorded");
             throw new ApiException(ErrorCode.Validation, "Record the sale before adding payments.");
+        }
 
         var amount = body.Amount!.Value;
         if (decimal.Round(amount, 2) != amount)
+        {
+            RejectPayment(vehicle.Id, tenant, actor, "AmountScale");
             throw FieldError("amount", "Use at most 2 decimals.");
+        }
         var paid = PaymentsOf(vehicle).Sum(p => (decimal?)p.Amount) ?? 0;
         if (amount > vehicle.SoldPrice.Value - paid)
+        {
+            RejectPayment(vehicle.Id, tenant, actor, "AmountExceedsBalance");
             throw FieldError("amount", "Amount is more than the balance due.");
+        }
         var paidOn = body.PaidOn!.Value;
         if (paidOn > DateOnly.FromDateTime(DateTime.UtcNow))
+        {
+            RejectPayment(vehicle.Id, tenant, actor, "PaidOnAfterToday");
             throw FieldError("paidOn", "Payment date must not be later than today.");
+        }
         if (paidOn < vehicle.SoldOn.Value)
+        {
+            RejectPayment(vehicle.Id, tenant, actor, "PaidOnBeforeSoldDate");
             throw FieldError("paidOn", "Payment date must not be before the sold date.");
+        }
 
-        var actor = TenantContext.ActorUsername();
         var payment = new VehiclePaymentEntity
         {
             DealerId = tenant,
@@ -159,6 +174,12 @@ public class VehiclePaymentService
     private VehicleEntity LoadVehicle(long vehicleId, long tenant) =>
         _db.Vehicles.FirstOrDefault(v => v.Id == vehicleId && v.DealerId == tenant)
         ?? throw new ApiException(ErrorCode.NotFound, "Not found");
+
+    /// <summary>Logs an expected payment rejection. The payment note stays out of the log.</summary>
+    private void RejectPayment(long vehicleId, long dealerId, string actor, string reason) =>
+        _logger.LogWarning(
+            "Payment rejected vehicleId={VehicleId} dealerId={DealerId} reason={Reason} by {Actor}",
+            vehicleId, dealerId, reason, actor);
 
     private static ApiException FieldError(string field, string message) =>
         new(ErrorCode.Validation, message, new Dictionary<string, string> { [field] = message });

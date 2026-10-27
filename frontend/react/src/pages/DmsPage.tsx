@@ -146,6 +146,7 @@ function mapWrite(e: unknown) {
 
 const yearOptions = Array.from({ length: new Date().getFullYear() + 2 - 1900 }, (_, i) => new Date().getFullYear() + 1 - i);
 
+/** Dealership inventory: search, add, edit, and sell vehicles, with workshop, photos, and payments. */
 export default function DmsPage() {
   // Record history is manager only (AUD-17); staff never call the audit API.
   const isManager = useSessionStore().dealerRole === 'MANAGER';
@@ -281,7 +282,9 @@ export default function DmsPage() {
     try {
       const models = (await catalogApi.models(make)).data;
       setFormModelOptions(models);
-    } catch { /* ignore */ }
+    } catch (e) {
+      setCatalogError(describeError(e, 'load models'));
+    }
   }
 
   function openCreate() {
@@ -314,7 +317,9 @@ export default function DmsPage() {
       setForm(vehicleToForm(r.data));
       setFormModelOptions([]);
       if (r.data.make) {
-        catalogApi.models(r.data.make).then(mr => setFormModelOptions(mr.data)).catch(() => {});
+        catalogApi.models(r.data.make)
+          .then(mr => setFormModelOptions(mr.data))
+          .catch((e) => setCatalogError(describeError(e, 'load models')));
       }
       setDrawer(true);
       loadAdStatus(id, seq);
@@ -488,7 +493,9 @@ export default function DmsPage() {
         bodyType: d.bodyType || form.bodyType,
       }, { ...touched, make: true, model: true, modelYear: true, bodyType: true });
       if (d.make) {
-        catalogApi.models(d.make).then(r => setFormModelOptions(r.data)).catch(() => {});
+        catalogApi.models(d.make)
+          .then(r => setFormModelOptions(r.data))
+          .catch((e) => setCatalogError(describeError(e, 'load models')));
       }
       setVinFacts([d.bodyClass, d.engine, d.country, d.manufacturer].filter(Boolean).join(' · '));
     } catch (err) {

@@ -113,6 +113,7 @@ const ARTS: Record<LandingArtKind, () => React.JSX.Element> = {
   export: ExportArt,
 }
 
+/** Decorative illustration for one section of the public landing page. */
 export default function LandingArt({ kind }: { kind: LandingArtKind }) {
   const Art = ARTS[kind]
   return <div className="art"><Art /></div>

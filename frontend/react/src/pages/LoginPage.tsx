@@ -6,6 +6,7 @@ import {
 } from '../auth/login'
 import { renderGoogleButton } from '../auth/google'
 
+/** Sign-in with a DealerOps password, Google, or a Firebase-owned password. */
 export default function LoginPage() {
   const navigate = useNavigate()
   const [params] = useSearchParams()

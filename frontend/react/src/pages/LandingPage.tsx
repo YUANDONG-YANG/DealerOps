@@ -105,6 +105,7 @@ function vinFacts(d: VinDecode) {
   return VIN_FACTS.map(([label, key]) => [label, d[key]] as const)
 }
 
+/** Public marketing page with a VIN preview. A signed-in user is sent to their role home. */
 export default function LandingPage() {
   const role = useSessionStore(s => s.role)
   const setProfile = useSessionStore(s => s.setProfile)

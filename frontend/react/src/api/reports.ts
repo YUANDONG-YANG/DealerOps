@@ -30,6 +30,7 @@ export type WorkshopSettlementReport = {
   assignees: { assigneeUsername: string | null; outstandingCount: number; doneCount: number; settledCost: number }[];
 };
 
+/** Dashboard figures: lead funnel, vehicle sales, and workshop settlement. */
 export const reportsApi = {
   salesFunnel: () => http.get<SalesFunnelReport>('/api/v1/leads/report/funnel'),
   sales: () => http.get<SalesReport>('/api/v1/vehicles/report/sales'),

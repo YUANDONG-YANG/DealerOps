@@ -59,17 +59,35 @@ public class VehiclePhotoService
         if (file.Length > _maxBytes)
             throw new ApiException(ErrorCode.Validation, $"Photo must be {_maxBytes / (1024 * 1024)} MB or smaller.");
         if (_db.VehiclePhotos.Count(p => p.VehicleId == vehicleId && p.DealerId == tenant) >= _maxPerVehicle)
+        {
+            _logger.LogWarning(
+                "Vehicle photo upload rejected because the vehicle is at the photo cap vehicleId={VehicleId} dealerId={DealerId} by {Actor}",
+                vehicleId, tenant, TenantContext.ActorUsername());
             throw new ApiException(ErrorCode.Validation, $"A vehicle can have at most {_maxPerVehicle} photos.");
+        }
 
         using var ms = new MemoryStream();
         file.CopyTo(ms);
         var data = ms.ToArray();
 
+        string contentType;
+        try
+        {
+            contentType = _enhancer.DetectContentType(data);
+        }
+        catch (ApiException ex)
+        {
+            _logger.LogWarning(
+                "Vehicle photo upload rejected vehicleId={VehicleId} dealerId={DealerId} code={Code}",
+                vehicleId, tenant, ex.Code);
+            throw;
+        }
+
         var photo = new VehiclePhotoEntity
         {
             DealerId = tenant,
             VehicleId = vehicleId,
-            ContentType = _enhancer.DetectContentType(data),
+            ContentType = contentType,
             OriginalData = data,
             UploadedBy = TenantContext.ActorUsername()
         };

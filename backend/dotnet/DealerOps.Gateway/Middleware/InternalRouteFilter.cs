@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using DealerOps.Logging;
 
 namespace DealerOps.Gateway.Middleware;
 
@@ -20,6 +21,13 @@ public class InternalRouteFilter
 
     private readonly ILogger<InternalRouteFilter> _logger;
 
+    /// <summary>Reads the internal header name and credential from configuration.</summary>
+    /// <param name="next">The next pipeline component.</param>
+    /// <param name="config">Application configuration.</param>
+    /// <param name="logger">Receives one warning for each rejected request.</param>
+    /// <exception cref="InvalidOperationException">
+    /// The internal credential is missing, or it is the well-known default while JWT mode is not dev.
+    /// </exception>
     public InternalRouteFilter(
         RequestDelegate next,
         IConfiguration config,
@@ -50,7 +58,9 @@ public class InternalRouteFilter
         return null;
     }
 
-    /// <summary>Rejects the request with 404 or passes it on.</summary>
+    /// <summary>Rejects a request that exposes or omits the internal credential, or passes it on.</summary>
+    /// <param name="context">The current request.</param>
+    /// <returns>A task that completes when the request has been rejected or the rest of the pipeline has finished.</returns>
     public async Task InvokeAsync(HttpContext context)
     {
         var path = context.Request.Path.Value ?? "";
@@ -62,8 +72,9 @@ public class InternalRouteFilter
         {
             if (header != null)
             {
-                _logger.LogWarning("Rejecting {Method} {Path} (non-internal path carries {Header})",
-                    context.Request.Method, path, _headerName);
+                _logger.LogWarning(
+                    "Rejecting requestId={RequestId} {Method} {Path} (non-internal path carries {Header})",
+                    CurrentRequestId(context), context.Request.Method, path, _headerName);
                 await WriteNotFound(context);
                 return;
             }
@@ -74,13 +85,20 @@ public class InternalRouteFilter
 
         if (WellKnownDefaultBlocked() || !TokenMatches(header))
         {
-            _logger.LogWarning("Rejecting {Method} {Path} (missing or invalid {Header})",
-                context.Request.Method, path, _headerName);
+            _logger.LogWarning(
+                "Rejecting requestId={RequestId} {Method} {Path} (missing or invalid {Header})",
+                CurrentRequestId(context), context.Request.Method, path, _headerName);
             await WriteNotFound(context);
             return;
         }
 
         await _next(context);
+    }
+
+    private static string CurrentRequestId(HttpContext context)
+    {
+        var requestId = context.Request.Headers[RequestId.Header].FirstOrDefault();
+        return RequestId.IsValid(requestId) ? requestId : "";
     }
 
     private static Task WriteNotFound(HttpContext context)

@@ -43,6 +43,7 @@ if (!string.Equals(jwtMode.Trim(), "dev", StringComparison.OrdinalIgnoreCase))
 }
 
 var signingKey = JwtSupport.HmacSecret(jwtSecret);
+const string JwtRejectedItem = "DealerOps.Gateway.JwtRejected";
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
@@ -65,14 +66,24 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             // the token and its claims are never logged.
             OnAuthenticationFailed = context =>
             {
+                context.HttpContext.Items[JwtRejectedItem] = true;
                 context.HttpContext.RequestServices.GetRequiredService<ILoggerFactory>()
                     .CreateLogger(typeof(JwtSupport))
-                    .LogWarning("Rejected JWT reason={Reason} {Method} {Path}",
-                        context.Exception.GetType().Name, context.Request.Method, context.Request.Path.Value);
+                    .LogWarning("Rejected JWT requestId={RequestId} reason={Reason} {Method} {Path}",
+                        RequestIdOf(context.HttpContext), context.Exception?.GetType().Name ?? "unknown",
+                        context.Request.Method, context.Request.Path.Value);
                 return Task.CompletedTask;
             },
             OnChallenge = context =>
             {
+                // A failed token is already logged above. This line is a challenge with no credential.
+                if (context.AuthenticateFailure is null)
+                {
+                    context.HttpContext.RequestServices.GetRequiredService<ILoggerFactory>()
+                        .CreateLogger(typeof(JwtSupport))
+                        .LogWarning("Authentication required requestId={RequestId} {Method} {Path}",
+                            RequestIdOf(context.HttpContext), context.Request.Method, context.Request.Path.Value);
+                }
                 context.HandleResponse();
                 context.Response.StatusCode = 401;
                 context.Response.ContentType = "application/json";
@@ -81,6 +92,11 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             },
             OnForbidden = context =>
             {
+                var http = context.HttpContext;
+                http.RequestServices.GetRequiredService<ILoggerFactory>()
+                    .CreateLogger(typeof(JwtSupport))
+                    .LogWarning("Forbidden requestId={RequestId} {Method} {Path}",
+                        RequestIdOf(http), http.Request.Method, http.Request.Path.Value);
                 context.Response.StatusCode = 403;
                 context.Response.ContentType = "application/json";
                 return context.Response.WriteAsync(
@@ -183,19 +199,33 @@ if (rateLimited) app.UseRateLimiter();
 
 // One Gateway OpenAPI document. Only Core operations are browser-facing: the AI service's
 // /internal/v1/** routes are core-to-AI only and are not browser Swagger operations.
+var openApiLogger = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("DealerOps.Gateway.OpenApi");
 app.MapGet("/swagger/v1/swagger.json", async (IHttpClientFactory httpClientFactory,
-    DownstreamHealthCheck healthCheck) =>
+    DownstreamHealthCheck healthCheck, HttpContext context) =>
 {
-    var corePublishedAt = await healthCheck.CorePublishedAtAsync();
-    var http = httpClientFactory.CreateClient("swagger");
-    var coreUrl = builder.Configuration["CORE_URL"] ?? "http://localhost:8081";
+    try
+    {
+        var corePublishedAt = await healthCheck.CorePublishedAtAsync();
+        var http = httpClientFactory.CreateClient("swagger");
+        var coreUrl = builder.Configuration["CORE_URL"] ?? "http://localhost:8081";
 
-    var core = JsonNode.Parse(await http.GetStringAsync($"{coreUrl}/swagger/v1/swagger.json"))!.AsObject();
-    core["info"]!["title"] = "DealerOps Gateway API";
-    core["info"]!["description"] =
-        $"Core backend API through the Gateway. Core published {corePublishedAt}.";
+        var core = JsonNode.Parse(await http.GetStringAsync($"{coreUrl}/swagger/v1/swagger.json"))!.AsObject();
+        core["info"]!["title"] = "DealerOps Gateway API";
+        core["info"]!["description"] =
+            $"Core backend API through the Gateway. Core published {corePublishedAt}.";
 
-    return Results.Json(core);
+        return Results.Json(core);
+    }
+    catch (Exception ex) when (ex is not OperationCanceledException || !context.RequestAborted.IsCancellationRequested)
+    {
+        openApiLogger.LogError(
+            "Downstream OpenAPI fetch failed requestId={RequestId} {Method} {Path} status={Status} reason={Reason}",
+            RequestIdOf(context), context.Request.Method, context.Request.Path.Value,
+            StatusCodes.Status502BadGateway, ex.GetType().Name);
+        return Results.Json(
+            new { code = "INTERNAL_ERROR", message = "Unexpected server error." },
+            statusCode: StatusCodes.Status502BadGateway);
+    }
 });
 
 // Role gate: authenticated /api/v1/** must have Platform.Admin or Dealer.User
@@ -237,9 +267,15 @@ app.Use(async (context, next) =>
         return;
     }
 
-    // Must be authenticated
+    // Must be authenticated. OnAuthenticationFailed already logged a presented token.
     if (context.User.Identity?.IsAuthenticated != true)
     {
+        if (context.Items[JwtRejectedItem] is not true)
+        {
+            roleGateLogger.LogWarning(
+                "Rejected unauthenticated API call requestId={RequestId} {Method} {Path}",
+                RequestIdOf(context), method, path);
+        }
         context.Response.StatusCode = 401;
         context.Response.ContentType = "application/json";
         await context.Response.WriteAsync(
@@ -255,8 +291,9 @@ app.Use(async (context, next) =>
                    ?? context.User.FindFirstValue("sub") ?? "unknown";
     if (roles != "Platform.Admin" && roles != "Dealer.User")
     {
-        roleGateLogger.LogWarning("Rejected token without an API role user={User} {Method} {Path}",
-            username, method, path);
+        roleGateLogger.LogWarning(
+            "Rejected token without an API role requestId={RequestId} user={User} {Method} {Path}",
+            RequestIdOf(context), username, method, path);
         context.Response.StatusCode = 401;
         context.Response.ContentType = "application/json";
         await context.Response.WriteAsync(
@@ -271,8 +308,9 @@ app.Use(async (context, next) =>
         && !path.StartsWith("/api/v1/me", StringComparison.OrdinalIgnoreCase)
         && !path.StartsWith("/api/v1/auth", StringComparison.OrdinalIgnoreCase))
     {
-        roleGateLogger.LogWarning("Forbidden platform admin on business route user={User} {Method} {Path}",
-            username, method, path);
+        roleGateLogger.LogWarning(
+            "Forbidden platform admin on business route requestId={RequestId} user={User} {Method} {Path}",
+            RequestIdOf(context), username, method, path);
         context.Response.StatusCode = 403;
         context.Response.ContentType = "application/json";
         await context.Response.WriteAsync(
@@ -308,13 +346,30 @@ app.Use(async (context, next) =>
 
 // A destination that never answers would otherwise be a bodyless 502. Keep that status and
 // write the same {code, message} envelope. A downstream body is left as the destination sent it.
+// Client disconnects are Warning. A timeout or a destination failure is Error.
+var proxyLogger = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("DealerOps.Gateway.Proxy");
 app.Use(async (context, next) =>
 {
     await next();
-    if (context.Features.Get<IForwarderErrorFeature>() is null || context.Response.HasStarted)
+    var failure = context.Features.Get<IForwarderErrorFeature>();
+    if (failure is null || failure.Error == ForwarderError.None)
         return;
-    if (context.Response.StatusCode < 400)
+
+    if (!context.Response.HasStarted && context.Response.StatusCode < 400)
         context.Response.StatusCode = StatusCodes.Status502BadGateway;
+
+    proxyLogger.Log(
+        ProxyFailureLevel(failure.Error),
+        "Downstream proxy failed requestId={RequestId} {Method} {Path} status={Status} error={Error} reason={Reason}",
+        RequestIdOf(context),
+        context.Request.Method,
+        context.Request.Path.Value,
+        context.Response.StatusCode,
+        failure.Error,
+        failure.Exception?.GetType().Name ?? "none");
+
+    if (context.Response.HasStarted)
+        return;
     await context.Response.WriteAsJsonAsync(
         new { code = "INTERNAL_ERROR", message = "Unexpected server error." },
         new JsonSerializerOptions(JsonSerializerDefaults.Web));
@@ -336,3 +391,25 @@ static string? FirstConfigured(params string?[] values)
         if (!string.IsNullOrWhiteSpace(value)) return value;
     return null;
 }
+
+static string RequestIdOf(HttpContext context)
+{
+    var requestId = context.Request.Headers[RequestId.Header].FirstOrDefault();
+    return RequestId.IsValid(requestId) ? requestId : "";
+}
+
+// The client closed the connection, or the client side of an upgrade failed.
+// A timeout or a destination failure stays Error.
+static LogLevel ProxyFailureLevel(ForwarderError error) => error switch
+{
+    ForwarderError.RequestCanceled
+        or ForwarderError.RequestBodyCanceled
+        or ForwarderError.RequestBodyClient
+        or ForwarderError.ResponseBodyCanceled
+        or ForwarderError.ResponseBodyClient
+        or ForwarderError.UpgradeRequestCanceled
+        or ForwarderError.UpgradeRequestClient
+        or ForwarderError.UpgradeResponseCanceled
+        or ForwarderError.UpgradeResponseClient => LogLevel.Warning,
+    _ => LogLevel.Error
+};

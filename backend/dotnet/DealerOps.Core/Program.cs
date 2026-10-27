@@ -67,6 +67,18 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         {
             OnChallenge = async context =>
             {
+                // A presented token that fails validation never reaches the action. The access
+                // line only has the status. Log the exception type, never the token or the message.
+                if (context.AuthenticateFailure is { } failure)
+                {
+                    PipelineLogger(context.HttpContext).LogWarning(
+                        "Rejected JWT reason={Reason} method={Method} path={Path} [{RequestId}]",
+                        failure.GetType().Name,
+                        context.Request.Method,
+                        context.Request.Path,
+                        context.HttpContext.Items["RequestId"] as string ?? "");
+                }
+
                 context.HandleResponse();
                 if (context.Response.HasStarted) return;
                 context.Response.StatusCode = StatusCodes.Status401Unauthorized;
@@ -77,6 +89,11 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             },
             OnForbidden = async context =>
             {
+                PipelineLogger(context.HttpContext).LogWarning(
+                    "Forbidden method={Method} path={Path} [{RequestId}]",
+                    context.Request.Method,
+                    context.Request.Path,
+                    context.HttpContext.Items["RequestId"] as string ?? "");
                 if (context.Response.HasStarted) return;
                 context.Response.StatusCode = StatusCodes.Status403Forbidden;
                 var requestId = context.HttpContext.Items["RequestId"] as string ?? "";
@@ -272,33 +289,33 @@ using (var scope = app.Services.CreateScope())
     // duplicate-column error (1060) is swallowed.
     foreach (var patch in new[]
     {
-        "app_user ADD COLUMN requested_dealer_id BIGINT NULL",
-        "app_user ADD COLUMN google_sub VARCHAR(64) NULL",
-        "app_user ADD COLUMN firebase_uid VARCHAR(128) NULL",
-        "app_user ADD COLUMN given_name VARCHAR(120) NULL",
-        "app_user ADD COLUMN family_name VARCHAR(120) NULL",
-        "app_user ADD COLUMN avatar_url TEXT NULL",
-        "app_user ADD COLUMN locale VARCHAR(16) NULL",
+        "ALTER TABLE app_user ADD COLUMN requested_dealer_id BIGINT NULL",
+        "ALTER TABLE app_user ADD COLUMN google_sub VARCHAR(64) NULL",
+        "ALTER TABLE app_user ADD COLUMN firebase_uid VARCHAR(128) NULL",
+        "ALTER TABLE app_user ADD COLUMN given_name VARCHAR(120) NULL",
+        "ALTER TABLE app_user ADD COLUMN family_name VARCHAR(120) NULL",
+        "ALTER TABLE app_user ADD COLUMN avatar_url TEXT NULL",
+        "ALTER TABLE app_user ADD COLUMN locale VARCHAR(16) NULL",
         // Existing members become staff; the platform admin promotes managers afterwards.
-        "membership ADD COLUMN dealer_role VARCHAR(16) NOT NULL DEFAULT 'staff'",
-        "audit_event ADD COLUMN previous_values JSON NULL",
-        "audit_event ADD COLUMN client_ip VARCHAR(45) NULL",
+        "ALTER TABLE membership ADD COLUMN dealer_role VARCHAR(16) NOT NULL DEFAULT 'staff'",
+        "ALTER TABLE audit_event ADD COLUMN previous_values JSON NULL",
+        "ALTER TABLE audit_event ADD COLUMN client_ip VARCHAR(45) NULL",
         // Existing rows get the catch-all body type so the NOT NULL column needs no backfill;
         // the add-vehicle form chooses an explicit value for new rows.
-        "vehicle ADD COLUMN body_type VARCHAR(16) NOT NULL DEFAULT 'other'",
-        "vehicle ADD COLUMN mileage_km INT NULL",
-        "vehicle ADD COLUMN exterior_color VARCHAR(40) NULL",
-        "vehicle ADD COLUMN fuel_type VARCHAR(16) NULL",
-        "vehicle ADD COLUMN stock_number VARCHAR(20) NULL",
-        "vehicle ADD COLUMN list_price DECIMAL(12,2) NULL",
-        "vehicle ADD COLUMN deleted_at DATETIME(6) NULL",
-        "customer ADD COLUMN deleted_at DATETIME(6) NULL",
-        "listing ADD COLUMN prior_use VARCHAR(32) NULL",
-        "listing ADD COLUMN warranty_terms TEXT NULL",
-        "listing ADD COLUMN annual_km_allowance INT NULL",
+        "ALTER TABLE vehicle ADD COLUMN body_type VARCHAR(16) NOT NULL DEFAULT 'other'",
+        "ALTER TABLE vehicle ADD COLUMN mileage_km INT NULL",
+        "ALTER TABLE vehicle ADD COLUMN exterior_color VARCHAR(40) NULL",
+        "ALTER TABLE vehicle ADD COLUMN fuel_type VARCHAR(16) NULL",
+        "ALTER TABLE vehicle ADD COLUMN stock_number VARCHAR(20) NULL",
+        "ALTER TABLE vehicle ADD COLUMN list_price DECIMAL(12,2) NULL",
+        "ALTER TABLE vehicle ADD COLUMN deleted_at DATETIME(6) NULL",
+        "ALTER TABLE customer ADD COLUMN deleted_at DATETIME(6) NULL",
+        "ALTER TABLE listing ADD COLUMN prior_use VARCHAR(32) NULL",
+        "ALTER TABLE listing ADD COLUMN warranty_terms TEXT NULL",
+        "ALTER TABLE listing ADD COLUMN annual_km_allowance INT NULL",
     })
     {
-        try { db.Database.ExecuteSqlRaw($"ALTER TABLE {patch}"); }
+        try { db.Database.ExecuteSqlRaw(patch); }
         catch (Exception ex) when (
             ex.ToString().Contains("Duplicate column", StringComparison.OrdinalIgnoreCase)
             || ex.ToString().Contains("1060", StringComparison.Ordinal))
@@ -447,6 +464,9 @@ using (var scope = app.Services.CreateScope())
     }
 }
 
+static ILogger PipelineLogger(HttpContext http) =>
+    http.RequestServices.GetRequiredService<ILoggerFactory>().CreateLogger("DealerOps.Core");
+
 static string? FirstConfigured(params string?[] values)
 {
     foreach (var value in values)
@@ -463,12 +483,14 @@ app.UseExceptionHandler(errorApp =>
     {
         var error = context.Features.Get<Microsoft.AspNetCore.Diagnostics.IExceptionHandlerFeature>()?.Error;
         if (error is OperationCanceledException) return;
-        var logger = context.RequestServices.GetRequiredService<ILoggerFactory>()
-            .CreateLogger("DealerOps.Core");
-        logger.LogError(error, "Unhandled exception");
+        var requestId = context.Items["RequestId"] as string ?? "";
+        PipelineLogger(context).LogError(error,
+            "Unhandled exception method={Method} path={Path} [{RequestId}]",
+            context.Request.Method,
+            context.Request.Path,
+            requestId);
         if (context.Response.HasStarted) return;
         context.Response.StatusCode = StatusCodes.Status500InternalServerError;
-        var requestId = context.Items["RequestId"] as string ?? "";
         await context.Response.WriteAsJsonAsync(
             new ErrorBody(ErrorCode.InternalError.ToWireCode(), "Unexpected server error.", requestId),
             new JsonSerializerOptions(JsonSerializerDefaults.Web));

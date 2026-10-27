@@ -69,6 +69,10 @@ public class MembershipService
     /// Binds a login to the dealership as staff, creating the login first when the username is
     /// new. A login is active staff at one dealership at most (AUTH-03).
     /// </summary>
+    /// <param name="dealerId">The dealership that gains the staff member.</param>
+    /// <param name="body">The login to bind. A password is required only when the login is new, and it is never logged.</param>
+    /// <returns>The bound member.</returns>
+    /// <exception cref="ApiException">Forbidden when the caller is not the platform admin, NotFound when the dealership is missing, or a conflict when the login cannot be bound.</exception>
     public MemberResponse Add(long dealerId, CreateMemberRequest body)
     {
         TenantGuard.RequireAdmin();
@@ -77,8 +81,13 @@ public class MembershipService
 
         var existing = _db.AppUsers.FirstOrDefault(u => u.Username == username);
         if (existing != null && existing.Role == AppRole.PlatformAdmin)
+        {
+            _logger.LogWarning(
+                "Member bind rejected dealerId={DealerId} username={Username} reason={Reason} outcome={Outcome} by {Actor}",
+                dealerId, username, "platform_admin", "dup_member", TenantContext.ActorUsername());
             throw DuplicateMember(username,
                 $"'{username}' is the platform admin account and cannot be dealership staff. Choose a different username.");
+        }
 
         // Admin-only endpoint, so naming the other dealership reveals nothing across tenants and
         // tells the admin exactly where the login already lives (AUTH-03: one login, one dealership).
@@ -156,7 +165,7 @@ public class MembershipService
         }
 
         try { _db.SaveChanges(); }
-        catch (DbUpdateException ex) { throw _accountRules.Conflict(ex); }
+        catch (DbUpdateException ex) { ThrowConflict(ex, dealerId, user.Id); }
 
         // First creation of the login (AUTH-22). The actor is the new username. The password
         // is never written into the summary. The membership row below stays as well.
@@ -205,6 +214,10 @@ public class MembershipService
     /// DealerOps password qualify: Google and Firebase accounts sign in with a password that
     /// lives at that provider, so the person must reset it there.
     /// </summary>
+    /// <param name="dealerId">The dealership whose staff member is updated.</param>
+    /// <param name="username">The staff login. The new password is never logged.</param>
+    /// <param name="body">The replacement password.</param>
+    /// <exception cref="ApiException">Forbidden when the caller is not the platform admin, NotFound when the member is missing, or Validation when the account has no DealerOps password.</exception>
     public void ResetPassword(long dealerId, string username, ResetMemberPasswordRequest body)
     {
         TenantGuard.RequireAdmin();
@@ -217,6 +230,9 @@ public class MembershipService
         var method = SignInMethod(user);
         if (method != "password")
         {
+            _logger.LogWarning(
+                "Password reset rejected dealerId={DealerId} username={Username} reason={Reason} outcome={Outcome} by {Actor}",
+                dealerId, username, "external_provider", "validation", TenantContext.ActorUsername());
             var provider = method == "firebase" ? "Firebase" : "Google";
             var message = $"'{username}' signs in with {provider}, so the password is managed by {provider}, "
                           + $"not DealerOps. Ask them to use the {provider} password recovery for their email.";
@@ -319,6 +335,18 @@ public class MembershipService
             .ToList();
 
         return new PageResponse<PendingUserResponse>(items, p, s, total);
+    }
+
+    // A duplicate key is an expected conflict. Any other save failure is still returned as a
+    // conflict, so it is logged here. The database message can contain an email or phone, so
+    // only the exception type is recorded.
+    private void ThrowConflict(DbUpdateException ex, long dealerId, long userId)
+    {
+        if (!DuplicateKey.Is(ex))
+            _logger.LogError(
+                "Member save failed userId={UserId} dealerId={DealerId} reason={Reason} outcome={Outcome}",
+                userId, dealerId, ex.InnerException?.GetType().Name ?? ex.GetType().Name, "error");
+        throw _accountRules.Conflict(ex);
     }
 
     private static void RequireNewUserFields(CreateMemberRequest body)

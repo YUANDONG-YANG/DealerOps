@@ -125,7 +125,12 @@ public class CustomerService
         var tenant = TenantGuard.RequireTenantId();
         var customer = LoadThisDealer(id);
         if (body.Version != customer.Version)
+        {
+            _logger.LogWarning(
+                "Customer update rejected customerId={CustomerId} dealerId={DealerId} code={Code} by {Actor}",
+                customer.Id, tenant, ErrorCode.VersionConflict, TenantContext.ActorUsername());
             throw new ApiException(ErrorCode.VersionConflict, "Version conflict.");
+        }
 
         var name = body.Name.Trim();
         var email = NormalizeEmail(body.Email);
@@ -172,7 +177,12 @@ public class CustomerService
         var vehicle = _db.Vehicles.FirstOrDefault(v => v.Id == vehicleId && v.DealerId == tenant)
             ?? throw new ApiException(ErrorCode.NotFound, "Not found");
         if (_db.CustomerVehicles.Any(cv => cv.VehicleId == vehicleId))
+        {
+            _logger.LogWarning(
+                "Customer vehicle link rejected customerId={CustomerId} vehicleId={VehicleId} dealerId={DealerId} code={Code} by {Actor}",
+                customer.Id, vehicle.Id, tenant, ErrorCode.VehicleAlreadyLinked, TenantContext.ActorUsername());
             throw new ApiException(ErrorCode.VehicleAlreadyLinked, "Vehicle is already linked.");
+        }
 
         var row = new CustomerVehicleEntity
         {
@@ -190,6 +200,9 @@ public class CustomerService
         {
             // A concurrent request linked the same vehicle after the check above (CRM-07).
             // Error 1062 is enough: customer_vehicle's only unique key is the active vehicle id.
+            _logger.LogWarning(
+                "Customer vehicle link rejected customerId={CustomerId} vehicleId={VehicleId} dealerId={DealerId} code={Code} by {Actor}",
+                customer.Id, vehicle.Id, tenant, ErrorCode.VehicleAlreadyLinked, TenantContext.ActorUsername());
             throw new ApiException(ErrorCode.VehicleAlreadyLinked, "Vehicle is already linked.");
         }
         _audit.Record("CUSTOMER_VEHICLE", row.Id, "LINK", tenant, TenantContext.ActorUsername(),
@@ -228,7 +241,12 @@ public class CustomerService
             cv => cv.CustomerId == customerId && cv.VehicleId == vehicleId)
             ?? throw new ApiException(ErrorCode.NotFound, "Not found");
         if (vehicle.Status == VehicleStatus.Sold)
+        {
+            _logger.LogWarning(
+                "Customer vehicle unlink rejected customerId={CustomerId} vehicleId={VehicleId} dealerId={DealerId} code={Code} by {Actor}",
+                customerId, vehicleId, tenant, ErrorCode.SoldLocked, TenantContext.ActorUsername());
             throw new ApiException(ErrorCode.SoldLocked, "Sold vehicle cannot be unlinked.");
+        }
 
         var entityId = row.Id;
         row.DeletedAt = DateTime.UtcNow;
@@ -288,6 +306,9 @@ public class CustomerService
         if (duplicatePhone)
         {
             const string message = "That phone number is already used by another customer.";
+            _logger.LogWarning(
+                "Customer save rejected dealerId={DealerId} customerId={CustomerId} code={Code} by {Actor}",
+                tenant, excludingId, ErrorCode.PhoneTaken, TenantContext.ActorUsername());
             throw new ApiException(ErrorCode.PhoneTaken, message,
                 new Dictionary<string, string> { ["phone"] = message });
         }

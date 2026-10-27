@@ -22,6 +22,7 @@ const SUGGESTIONS = [
 
 let nextId = 1
 
+/** Dealer assistant: asks a question and opens the vehicle, customer, or ad it returns. */
 export default function AssistantWidget() {
   const navigate = useNavigate()
   const [open, setOpen] = useState(false)

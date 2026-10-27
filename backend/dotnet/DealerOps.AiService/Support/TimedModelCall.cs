@@ -12,6 +12,9 @@ public class TimedModelCall
     private readonly int _connectTimeoutMs;
     private readonly int _responseTimeoutMs;
 
+    /// <summary>Stores the AI-02 connect and response budgets.</summary>
+    /// <param name="connectTimeoutMs">Socket connect budget, in milliseconds.</param>
+    /// <param name="responseTimeoutMs">Response budget, in milliseconds. The call budget is the sum of both.</param>
     public TimedModelCall(int connectTimeoutMs, int responseTimeoutMs)
     {
         _connectTimeoutMs = connectTimeoutMs;
@@ -19,6 +22,8 @@ public class TimedModelCall
     }
 
     /// <summary>Runs <paramref name="call"/> with a cancellation token that fires at the budget.</summary>
+    /// <param name="call">Model call that observes the budget token.</param>
+    /// <returns>The value returned by <paramref name="call"/>.</returns>
     /// <exception cref="ModelFailureException">Busy, timed out, or any other failure.</exception>
     public async Task<T> RequestAsync<T>(Func<CancellationToken, Task<T>> call)
     {

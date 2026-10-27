@@ -15,6 +15,9 @@ public class AssistantAdapter
     private readonly AiProviderClient _client;
     private readonly TimedModelCall _timedCall;
 
+    /// <summary>Creates the assistant adapter.</summary>
+    /// <param name="client">Outbound model client.</param>
+    /// <param name="timedCall">Applies the time budget and the concurrency cap.</param>
     public AssistantAdapter(AiProviderClient client, TimedModelCall timedCall)
     {
         _client = client;
@@ -22,6 +25,8 @@ public class AssistantAdapter
     }
 
     /// <summary>Answers the question in one or two sentences.</summary>
+    /// <param name="req">The question and at most five resource cards from Core.</param>
+    /// <returns>A successful body whose summary is the trimmed model answer.</returns>
     /// <exception cref="ModelFailureException">The model call failed or returned an empty answer.</exception>
     public async Task<AssistantOkResponse> RunAsync(AssistantInternalRequest req)
     {

@@ -11,6 +11,12 @@ export const PHOTO_PRESETS: { value: PhotoPreset; label: string }[] = [
   { value: 'SHARPEN', label: 'Sharpen' },
 ];
 
+/**
+ * Display label of a photo preset.
+ *
+ * @param preset preset code from the API
+ * @returns the label, or the code itself when the preset is unknown
+ */
 export function presetLabel(preset: string) {
   return PHOTO_PRESETS.find((p) => p.value === preset)?.label ?? preset;
 }
@@ -30,6 +36,7 @@ export interface PhotoItem {
 
 const base = (vehicleId: number) => `/api/v1/vehicles/${vehicleId}/photos`;
 
+/** Vehicle photos for one stock record. Content is fetched as a blob so the bearer token can be sent. */
 export const photosApi = {
   list: (vehicleId: number) => http.get<PhotoItem[]>(base(vehicleId)),
 

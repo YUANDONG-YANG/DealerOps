@@ -3,7 +3,10 @@
  * dealership binding is still granted by a platform admin, so a successful Google sign-in
  * on an unknown account lands on the no-access page until that account is activated.
  */
+import { logApiFailure } from '../api/apiFailure';
+
 const GIS_SRC = 'https://accounts.google.com/gsi/client';
+const GOOGLE_SCRIPT_ROUTE = 'GET accounts.google.com/gsi/client';
 
 /**
  * The Google OAuth web client this deployment belongs to. A client id is a public
@@ -37,7 +40,11 @@ function loadGoogleIdentity(): Promise<void> {
       if (existing.dataset.loaded === 'true') resolve();
       else {
         existing.addEventListener('load', () => resolve());
-        existing.addEventListener('error', () => reject(new Error('Google script failed to load')));
+        existing.addEventListener('error', () => {
+          const error = Object.assign(new Error('Google script failed to load'), { code: 'SCRIPT_LOAD_FAILED' });
+          logApiFailure(error, GOOGLE_SCRIPT_ROUTE);
+          reject(error);
+        });
       }
       return;
     }
@@ -51,7 +58,9 @@ function loadGoogleIdentity(): Promise<void> {
     };
     script.onerror = () => {
       loader = null;
-      reject(new Error('Google script failed to load'));
+      const error = Object.assign(new Error('Google script failed to load'), { code: 'SCRIPT_LOAD_FAILED' });
+      logApiFailure(error, GOOGLE_SCRIPT_ROUTE);
+      reject(error);
     };
     document.head.appendChild(script);
   });
@@ -61,6 +70,10 @@ function loadGoogleIdentity(): Promise<void> {
 /**
  * Renders Google's own sign-in button into `target` and reports the ID token it returns.
  * Rejects when the script cannot load, so the caller can keep password sign-in usable.
+ * The ID token is passed to the callback and is never logged.
+ *
+ * @param target element that will hold Google's button
+ * @param onCredential called with the ID token
  */
 export async function renderGoogleButton(
   target: HTMLElement,
@@ -69,7 +82,11 @@ export async function renderGoogleButton(
   await loadGoogleIdentity();
 
   const api = (window as unknown as { google?: GoogleIdentityApi }).google;
-  if (!api?.accounts?.id) throw new Error('Google Identity Services unavailable');
+  if (!api?.accounts?.id) {
+    const error = Object.assign(new Error('Google Identity Services unavailable'), { code: 'GIS_UNAVAILABLE' });
+    logApiFailure(error, GOOGLE_SCRIPT_ROUTE);
+    throw error;
+  }
 
   api.accounts.id.initialize({
     client_id: googleClientId,

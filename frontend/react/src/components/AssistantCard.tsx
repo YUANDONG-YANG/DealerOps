@@ -11,6 +11,7 @@ function pretty(s?: string) {
   return s ? s.charAt(0) + s.slice(1).toLowerCase().replace(/_/g, ' ') : '';
 }
 
+/** One assistant result, opened in DMS, CRM, or ad compliance. */
 export default function AssistantCard({ card, onOpen }: { card: AssistantCardDto; onOpen: () => void }) {
   const kind = KINDS[card.kind] || KINDS.VEHICLE;
   return (

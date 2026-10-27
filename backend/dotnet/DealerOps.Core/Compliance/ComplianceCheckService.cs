@@ -52,9 +52,16 @@ public class ComplianceCheckService
     }
 
     /// <summary>
-    /// Checks the listing's current content. A BLOCK finding skips the AI call; an AI failure is
-    /// stored as UNAVAILABLE and then reported as AI_UNAVAILABLE.
+    /// Checks the listing's current content. A BLOCK finding skips the AI call. A model timeout,
+    /// a transport failure, or a non-success result is stored as UNAVAILABLE and then reported
+    /// as AI_UNAVAILABLE.
     /// </summary>
+    /// <param name="listingId">Listing to check, in the caller's dealership.</param>
+    /// <param name="body">Optimistic lock; <c>version</c> must match the listing.</param>
+    /// <returns>The stored check, including the derived check status.</returns>
+    /// <exception cref="ApiException">
+    /// Not found, version conflict, or AI_UNAVAILABLE after the failed model call is stored.
+    /// </exception>
     public CheckResponse Check(long listingId, VersionBody body)
     {
         var stopwatch = Stopwatch.StartNew();
@@ -106,8 +113,12 @@ public class ComplianceCheckService
         }
         catch (AiCallFailed ex)
         {
-            _logger.LogWarning(ex, "Ad check AI unavailable listingId={ListingId} dealerId={DealerId} by {Actor}",
-                listing.Id, tenant, actor);
+            // One warning for timeout, transport failure, and a non-success model body.
+            // The recorded-check line below is the separate audit of the stored row.
+            _logger.LogWarning(ex,
+                "Ad check AI unavailable listingId={ListingId} vehicleId={VehicleId} checkStatus={CheckStatus} failureType={FailureType} dealerId={DealerId} by {Actor} in {ElapsedMs} ms",
+                listing.Id, vehicle.Id, CheckStatusMapper.AiUnavailable, AiFailureType(ex), tenant, actor,
+                stopwatch.ElapsedMilliseconds);
             PersistCheck(listing, evaluatedContentVersion, findings,
                 AiStatus.Unavailable, null, Recommendation.Unavailable, actor, stopwatch);
             throw new ApiException(ErrorCode.AiUnavailable, "Ad check AI is unavailable.");
@@ -183,6 +194,20 @@ public class ComplianceCheckService
             current.Id, check.Id, EnumWireName.Of(recommendation), EnumWireName.Of(aiStatus),
             current.DealerId, actor, stopwatch.ElapsedMilliseconds);
         return check;
+    }
+
+    // The call budget surfaces as OperationCanceledException. AiCallFailed with no inner
+    // exception is a response that did not report success. Other failures keep the inner
+    // exception type name, never the response body.
+    private static string AiFailureType(Exception ex)
+    {
+        for (var current = ex; current != null; current = current.InnerException)
+        {
+            if (current is TimeoutException or OperationCanceledException)
+                return "timeout";
+        }
+
+        return ex.InnerException == null ? "non_success" : ex.InnerException.GetType().Name;
     }
 
     private static List<RuleFinding> DeserializeFindings(string? json)

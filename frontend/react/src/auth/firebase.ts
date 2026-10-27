@@ -21,11 +21,22 @@ const firebaseAuth: Auth | null = env.VITE_FIREBASE_API_KEY
     }))
   : null
 
+/**
+ * Signs out of Firebase when email sign-in is configured. Does nothing when the API key is absent.
+ */
 export async function firebaseSignOut(): Promise<void> {
   if (firebaseAuth) await signOutFirebase(firebaseAuth)
 }
 
+/**
+ * Email and password sign-in against Firebase. Rejects when Firebase is not configured.
+ * Callers log the failure without the email or password.
+ *
+ * @param email Firebase account email
+ * @param password Firebase account password
+ * @returns the Firebase credential; `signInWithFirebase` exchanges its ID token
+ */
 export function firebaseSignIn(email: string, password: string): Promise<UserCredential> {
-  if (!firebaseAuth) return Promise.reject(new Error('Firebase is not configured.'))
+  if (!firebaseAuth) return Promise.reject(Object.assign(new Error('Firebase is not configured.'), { code: 'FIREBASE_UNCONFIGURED' }))
   return signInWithEmailAndPassword(firebaseAuth, email, password)
 }

@@ -1,3 +1,4 @@
+/** Dealer Ops logo mark. */
 export default function BrandMark() {
   return (
     <span className="brand-mark">

@@ -31,6 +31,7 @@ function mapWrite(e: unknown, fallback: string) {
   return describeError(e, fallback);
 }
 
+/** Sales leads: filter the list, create a lead, and update its stage, owner, vehicle, and notes. */
 export default function LeadsPage() {
   // Record history is manager-only (AUD-17); staff never call the audit API.
   const isManager = useSessionStore().dealerRole === 'MANAGER';
@@ -43,6 +44,7 @@ export default function LeadsPage() {
   const [forbidden, setForbidden] = useState(false);
   const [filters, setFilters] = useState({ q: '', stage: '', owner: '', overdue: false });
   const [owners, setOwners] = useState<MemberOption[]>([]);
+  const [ownersError, setOwnersError] = useState('');
   const listSeq = useRef(0);
   const detailSeq = useRef(0);
 
@@ -94,7 +96,9 @@ export default function LeadsPage() {
 
   useEffect(() => { void load(); }, [page]);
   useEffect(() => {
-    membersApi.list().then((r) => setOwners(r.data || [])).catch(() => {});
+    membersApi.list()
+      .then((r) => setOwners(r.data || []))
+      .catch((e) => setOwnersError(describeError(e, 'load owners')));
   }, []);
 
   const searchCustomers = async (q: string) => {
@@ -248,6 +252,7 @@ export default function LeadsPage() {
           <button className="btn" onClick={() => { setPage(0); load(0); }}>Search</button>
           <button className="btn" onClick={() => { setFilters({ q: '', stage: '', owner: '', overdue: false }); setPage(0); load(0, { q: '', stage: '', owner: '', overdue: false }); }}>Reset</button>
         </div>
+        {ownersError && <p className="warning-text">{ownersError}</p>}
         <PageState loading={loading} error={error} forbidden={forbidden}
           empty={!loading && !error && !forbidden && !rows.length}
           emptyText="No leads match." loadingText="Loading leads…"

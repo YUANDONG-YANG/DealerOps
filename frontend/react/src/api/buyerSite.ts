@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { logApiFailure } from './apiFailure';
 import { resolveGatewayUrl } from './gateway';
 
 export type PublicVehicle = {
@@ -40,18 +41,41 @@ export type InquiryBody = {
  * buyer has no token; the gateway lets only /api/v1/public/** through without one.
  */
 export const buyerSiteApi = {
-  /** `dealer` is the slug from the URL, or the numeric id of an older link. */
+  /**
+   * One dealership's public inventory.
+   *
+   * @param dealer slug from `/shop/{slug}`, or a numeric id from an older link
+   * @returns inventory with photo URLs filled in on the client
+   */
   async inventory(dealer: string): Promise<PublicInventory> {
-    const gateway = `${await resolveGatewayUrl()}/api/v1/public/dealers`;
-    const data = (await axios.get<PublicInventory>(`${gateway}/${encodeURIComponent(dealer)}/inventory`)).data;
-    const base = `${gateway}/${data.dealerId}`;
-    return {
-      ...data,
-      vehicles: data.vehicles.map(v => ({ ...v, photoUrl: v.hasPhoto ? `${base}/vehicles/${v.vehicleId}/photo` : null })),
-    };
+    const route = `GET /api/v1/public/dealers/${encodeURIComponent(dealer)}/inventory`;
+    try {
+      const gateway = `${await resolveGatewayUrl()}/api/v1/public/dealers`;
+      const data = (await axios.get<PublicInventory>(`${gateway}/${encodeURIComponent(dealer)}/inventory`)).data;
+      const base = `${gateway}/${data.dealerId}`;
+      return {
+        ...data,
+        vehicles: data.vehicles.map(v => ({ ...v, photoUrl: v.hasPhoto ? `${base}/vehicles/${v.vehicleId}/photo` : null })),
+      };
+    } catch (error) {
+      logApiFailure(error, route);
+      throw error;
+    }
   },
+  /**
+   * Files a buyer question as a new lead. The contact fields are not logged.
+   *
+   * @param dealerId dealership that owns the vehicle
+   * @param body vehicle, contact, and message
+   */
   async inquire(dealerId: number, body: InquiryBody): Promise<void> {
-    const baseURL = await resolveGatewayUrl();
-    await axios.post(`${baseURL}/api/v1/public/dealers/${dealerId}/inquiries`, body);
+    const route = `POST /api/v1/public/dealers/${dealerId}/inquiries`;
+    try {
+      const baseURL = await resolveGatewayUrl();
+      await axios.post(`${baseURL}/api/v1/public/dealers/${dealerId}/inquiries`, body);
+    } catch (error) {
+      logApiFailure(error, route);
+      throw error;
+    }
   },
 };

@@ -65,6 +65,10 @@ public class GoogleIdTokenVerifier
     /// Throws 401 for a rejected or unverified-email token, 403 for a token outside the configured
     /// hosted domain, and 500 when Google's signing keys cannot be fetched.
     /// </summary>
+    /// <param name="idToken">The Google ID token. It is verified and never logged.</param>
+    /// <param name="cancellationToken">Cancels the signing-key fetch.</param>
+    /// <returns>The verified Google identity claims this application stores.</returns>
+    /// <exception cref="ApiException">Unauthorized or Forbidden when the token is rejected, or InternalError when signing keys cannot be fetched.</exception>
     public async Task<GoogleIdentity> VerifyAsync(string idToken, CancellationToken cancellationToken)
     {
         OpenIdConnectConfiguration config;
@@ -97,27 +101,30 @@ public class GoogleIdTokenVerifier
         {
             principal = _handler.ValidateToken(idToken, parameters, out _);
         }
-        catch (Exception)
+        catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
         {
-            throw Rejected();
+            if (ex is SecurityTokenException or ArgumentException)
+                throw Rejected(TokenReason(ex));
+            LogVerifierFailure(ex, idToken);
+            throw Rejected("verifier_failure");
         }
 
         var email = principal.FindFirstValue("email");
         if (string.IsNullOrWhiteSpace(email))
-            throw Rejected();
+            throw Rejected("email_missing");
 
         // An unverified address would let anyone claim a colleague's email, so it is refused
         // even though the signature is valid.
         if (!bool.TryParse(principal.FindFirstValue("email_verified"), out var verified) || !verified)
-            throw new ApiException(ErrorCode.Unauthorized, "Verify your email address with Google first.");
+            throw Denied(ErrorCode.Unauthorized, "Verify your email address with Google first.", "email_unverified");
 
         if (_hostedDomain != null
             && !string.Equals(principal.FindFirstValue("hd"), _hostedDomain, StringComparison.OrdinalIgnoreCase))
-            throw new ApiException(ErrorCode.Forbidden, "Use your organisation's Google account to sign in.");
+            throw Denied(ErrorCode.Forbidden, "Use your organisation's Google account to sign in.", "hosted_domain");
 
         var subject = principal.FindFirstValue("sub");
         if (string.IsNullOrWhiteSpace(subject))
-            throw Rejected();
+            throw Rejected("subject_missing");
 
         return new GoogleIdentity(
             subject,
@@ -129,7 +136,35 @@ public class GoogleIdTokenVerifier
             principal.FindFirstValue("locale"));
     }
 
-    // One message for every rejection, so a caller cannot probe which part of the token failed.
-    private static ApiException Rejected() =>
-        new(ErrorCode.Unauthorized, "Google sign-in failed.");
+    // One message for every cryptographic rejection, so a caller cannot probe which part failed.
+    // The reason code is for the sign-in log and audit row, not the response body.
+    private static ApiException Rejected(string reason = "invalid_token") =>
+        Denied(ErrorCode.Unauthorized, "Google sign-in failed.", reason);
+
+    private static ApiException Denied(ErrorCode code, string message, string reason)
+    {
+        var error = new ApiException(code, message);
+        error.Data["authReason"] = reason;
+        return error;
+    }
+
+    private static string TokenReason(Exception ex) => ex switch
+    {
+        SecurityTokenExpiredException => "expired_token",
+        SecurityTokenInvalidSignatureException => "invalid_signature",
+        SecurityTokenInvalidAudienceException => "invalid_audience",
+        SecurityTokenInvalidIssuerException => "invalid_issuer",
+        SecurityTokenInvalidLifetimeException => "invalid_lifetime",
+        SecurityTokenMalformedException => "malformed_token",
+        _ => "invalid_token"
+    };
+
+    // The exception text is dropped when it contains the token.
+    private void LogVerifierFailure(Exception ex, string idToken)
+    {
+        if (idToken.Length > 0 && ex.ToString().Contains(idToken, StringComparison.Ordinal))
+            _logger.LogError("Google token verification failed reason={Reason} outcome={Outcome}", "verifier_failure", "unauthorized");
+        else
+            _logger.LogError(ex, "Google token verification failed reason={Reason} outcome={Outcome}", "verifier_failure", "unauthorized");
+    }
 }

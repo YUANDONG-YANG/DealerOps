@@ -14,6 +14,7 @@ export type AskResponse = {
   count?: { count: number; singularLabel: string; pluralLabel: string; summary: string } | null;
 };
 
+/** In-app assistant. The question goes to the gateway; this client does not call the AI service. */
 export const assistantApi = {
   ask: (text: string) => http.post<AskResponse>('/api/v1/assistant/ask', { text }),
 };

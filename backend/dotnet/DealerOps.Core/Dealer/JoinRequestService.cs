@@ -61,7 +61,8 @@ public class JoinRequestService
         // Same rule as the admin bind (AUTH-03): one login, one active dealership. The other
         // dealership is not named, because the approver is a dealer user, not the admin.
         if (_db.Memberships.Any(m => m.Username == username && m.Active && m.DealerId != tenant))
-            throw new ApiException(ErrorCode.DupMember, $"'{username}' is already active staff at another dealership.");
+            throw Deny(user.Id, tenant, "already_active_elsewhere", "dup_member",
+                new ApiException(ErrorCode.DupMember, $"'{username}' is already active staff at another dealership."));
 
         var membership = _db.Memberships
             .FirstOrDefault(m => m.DealerId == tenant && m.Username == username)
@@ -137,11 +138,14 @@ public class JoinRequestService
     {
         var user = LoadCaller();
         if (user.DealerId != null)
-            throw new ApiException(ErrorCode.Forbidden, "This account is already in a dealership.");
+            throw Deny(user.Id, user.DealerId, "already_in_dealership", "forbidden",
+                new ApiException(ErrorCode.Forbidden, "This account is already in a dealership."));
         if (user.RequestedDealerId is long existing && existing != dealerId)
-            throw new ApiException(ErrorCode.Validation, "This account already requested a dealership.");
+            throw Deny(user.Id, existing, "already_requested", "validation",
+                new ApiException(ErrorCode.Validation, "This account already requested a dealership."));
         if (!_db.Dealers.Any(d => d.Id == dealerId && d.Active))
-            throw new ApiException(ErrorCode.NotFound, "Dealership not found.");
+            throw Deny(user.Id, dealerId, "dealer_not_found", "not_found",
+                new ApiException(ErrorCode.NotFound, "Dealership not found."));
         if (user.RequestedDealerId != dealerId)
             SetRequested(user, dealerId);
         var name = _db.Dealers.Where(d => d.Id == dealerId).Select(d => d.LegalName).FirstOrDefault();
@@ -170,19 +174,37 @@ public class JoinRequestService
     private AppUserEntity LoadCaller()
     {
         var username = TenantContext.ActorUsername();
+        var dealerId = TenantContext.Get()?.TenantDealerId;
         if (string.IsNullOrWhiteSpace(username))
-            throw new ApiException(ErrorCode.Unauthorized, "Unauthorized");
+            throw Deny(null, dealerId, "missing_actor", "unauthorized",
+                new ApiException(ErrorCode.Unauthorized, "Unauthorized"));
         var user = _db.AppUsers.FirstOrDefault(u => u.Username == username && u.Active)
-            ?? throw new ApiException(ErrorCode.NotFound, "Account not found.");
+            ?? throw Deny(null, dealerId, "account_not_found", "not_found",
+                new ApiException(ErrorCode.NotFound, "Account not found."));
         if (user.Role == AppRole.PlatformAdmin)
-            throw new ApiException(ErrorCode.Forbidden, "Forbidden");
+            throw Deny(user.Id, user.DealerId ?? dealerId, "platform_admin", "forbidden",
+                new ApiException(ErrorCode.Forbidden, "Forbidden"));
         return user;
     }
 
-    private AppUserEntity LoadRequest(long tenant, string username) =>
-        _db.AppUsers.FirstOrDefault(u =>
+    private AppUserEntity LoadRequest(long tenant, string username)
+    {
+        var user = _db.AppUsers.FirstOrDefault(u =>
             u.Username == username && u.RequestedDealerId == tenant && u.DealerId == null && u.Active
-            && u.Role == AppRole.DealerUser)
-        ?? throw new ApiException(ErrorCode.NotFound, "Join request not found.");
+            && u.Role == AppRole.DealerUser);
+        if (user != null) return user;
+        throw Deny(null, tenant, "request_not_found", "not_found",
+            new ApiException(ErrorCode.NotFound, "Join request not found."));
+    }
+
+    // The filter writes the status and does not log, so each refusal is recorded here.
+    // The client message is omitted.
+    private ApiException Deny(long? userId, long? dealerId, string reason, string outcome, ApiException error)
+    {
+        _logger.LogWarning(
+            "Join request refused userId={UserId} dealerId={DealerId} reason={Reason} outcome={Outcome}",
+            userId, dealerId, reason, outcome);
+        return error;
+    }
 
 }

@@ -14,6 +14,7 @@ const icons: Record<string, string> = {
   team: 'M17 20h5v-2a4 4 0 00-3-3.9M9 20H3v-2a4 4 0 014-4h4a4 4 0 014 4v2M9 11a4 4 0 100-8 4 4 0 000 8zM16 3.1a4 4 0 010 7.8',
 };
 
+/** Signed-in shell: the role-based side menu, the request inbox, and the profile link. */
 export default function AppLayout({ children }: { children: ReactNode }) {
   const session = useSessionStore();
   const location = useLocation();

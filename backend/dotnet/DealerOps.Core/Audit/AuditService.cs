@@ -28,11 +28,13 @@ public class AuditService : IAuditService
 
     private readonly AppDbContext _db;
     private readonly IHttpContextAccessor _http;
+    private readonly ILogger<AuditService> _logger;
 
-    public AuditService(AppDbContext db, IHttpContextAccessor http)
+    public AuditService(AppDbContext db, IHttpContextAccessor http, ILogger<AuditService> logger)
     {
         _db = db;
         _http = http;
+        _logger = logger;
     }
 
     public void Record(string entityType, long entityId, string action,
@@ -70,14 +72,14 @@ public class AuditService : IAuditService
         var query = Filtered(_db.AuditEvents, filter);
         if (filter.DealerId != null)
             query = query.Where(e => e.DealerId == filter.DealerId);
-        return PageOfLog(query, page, size);
+        return PageOfLog(query, page, size, ToItem);
     }
 
     /// <summary>The manager's own dealership log: every row of the tenant, newest first (AUD-11).</summary>
     public PageResponse<AuditItem> ListDealership(AuditLogFilter filter, int page, int size)
     {
         var tenant = TenantGuard.RequireManager().TenantDealerId!.Value;
-        return PageOfLog(Filtered(_db.AuditEvents.Where(e => e.DealerId == tenant), filter), page, size);
+        return PageOfLog(Filtered(_db.AuditEvents.Where(e => e.DealerId == tenant), filter), page, size, ToItem);
     }
 
     private static IQueryable<AuditEventEntity> Filtered(IQueryable<AuditEventEntity> query, AuditLogFilter filter)
@@ -115,7 +117,8 @@ public class AuditService : IAuditService
         return query;
     }
 
-    private static PageResponse<AuditItem> PageOfLog(IQueryable<AuditEventEntity> query, int page, int size)
+    private static PageResponse<AuditItem> PageOfLog(
+        IQueryable<AuditEventEntity> query, int page, int size, Func<AuditEventEntity, AuditItem> toItem)
     {
         var p = Paging.ClampPage(page);
         var s = Paging.ClampSize(size);
@@ -123,7 +126,7 @@ public class AuditService : IAuditService
         var items = query.OrderByDescending(e => e.CreatedAt).ThenByDescending(e => e.Id)
             .Skip(p * s).Take(s)
             .AsEnumerable()
-            .Select(e => ToItem(e) with { DealerId = e.DealerId, ClientIp = e.ClientIp })
+            .Select(e => toItem(e) with { DealerId = e.DealerId, ClientIp = e.ClientIp })
             .ToList();
         return new PageResponse<AuditItem>(items, p, s, total);
     }
@@ -195,7 +198,7 @@ public class AuditService : IAuditService
                     return e.EntityId == customerId;
                 if (e.EntityType != EntityType.CustomerVehicle)
                     return false;
-                var summary = DeserializeSummary(e.FieldSummary);
+                var summary = DeserializeSummary(e.FieldSummary, e.Id, "fieldSummary");
                 if (summary == null) return false;
                 if (!summary.TryGetValue("customerId", out var val)) return false;
                 if (val is JsonElement je && je.TryGetInt64(out var id))
@@ -247,7 +250,7 @@ public class AuditService : IAuditService
 
         var events = source
             .Where(e => e.EntityType == EntityType.Vehicle || e.EntityType == EntityType.WorkOrder
-                || SummaryIdEquals(DeserializeSummary(e.FieldSummary), "vehicleId", vehicleId))
+                || SummaryIdEquals(DeserializeSummary(e.FieldSummary, e.Id, "fieldSummary"), "vehicleId", vehicleId))
             .Select(ToItem).ToList();
 
         return PageOf(events, page, size);
@@ -276,17 +279,27 @@ public class AuditService : IAuditService
             throw new ApiException(ErrorCode.NotFound, "Not found");
     }
 
-    private static AuditItem ToItem(AuditEventEntity e) =>
+    private AuditItem ToItem(AuditEventEntity e) =>
         new(e.Id, EnumSnakeCaseConverter<EntityType>.ToWire(e.EntityType), e.EntityId,
             EnumSnakeCaseConverter<AuditAction>.ToWire(e.Action),
-            DeserializeSummary(e.FieldSummary), e.ActorUsername,
+            DeserializeSummary(e.FieldSummary, e.Id, "fieldSummary"), e.ActorUsername,
             DateTime.SpecifyKind(e.CreatedAt, DateTimeKind.Utc),
-            DeserializeSummary(e.PreviousValues));
+            DeserializeSummary(e.PreviousValues, e.Id, "previousValues"));
 
-    private static Dictionary<string, object>? DeserializeSummary(string? json)
+    /// <summary>
+    /// Reads one stored JSON object. A blob that cannot be parsed is omitted and logged once;
+    /// the text is never logged because it holds contact values.
+    /// </summary>
+    private Dictionary<string, object>? DeserializeSummary(string? json, long auditEventId, string column)
     {
         if (string.IsNullOrWhiteSpace(json)) return null;
         try { return JsonSerializer.Deserialize<Dictionary<string, object>>(json); }
-        catch { return null; }
+        catch (JsonException)
+        {
+            _logger.LogWarning(
+                "Audit summary unreadable auditEventId={AuditEventId} column={Column}",
+                auditEventId, column);
+            return null;
+        }
     }
 }

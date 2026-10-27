@@ -5,6 +5,7 @@ import { describeError } from '../api/errors'
 import { signOut } from '../auth/login'
 import { useSessionStore } from '../store/session'
 
+/** Shown when an account has no dealership yet, so the user can request to join one. */
 export default function NoAccessPage() {
   const username = useSessionStore((s) => s.username);
   const [dealers, setDealers] = useState<PublicDealer[]>([]);

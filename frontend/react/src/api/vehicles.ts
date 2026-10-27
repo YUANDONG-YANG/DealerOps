@@ -24,6 +24,7 @@ function vehicleWriteBody(b: any) {
   return body;
 }
 
+/** Inventory for the signed-in dealership. An omitted body type lets the server default a new vehicle to OTHER. */
 export const vehiclesApi = {
   list(p: Record<string, unknown> = {}) {
     const params: Record<string, unknown> = { page: p.page ?? 0, size: p.size ?? 10 };

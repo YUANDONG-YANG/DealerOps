@@ -10,6 +10,7 @@ interface Props {
   modal?: boolean;
 }
 
+/** Side drawer, or a wide centred modal, that closes when Escape is pressed. */
 export default function FormDrawer({ title, open, onClose, children, modal }: Props) {
   useEffect(() => {
     if (!open) return;

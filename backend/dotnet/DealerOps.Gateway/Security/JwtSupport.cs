@@ -17,6 +17,9 @@ public static class JwtSupport
     /// Builds the signing key. Only the well-known dev secret is padded to 32 bytes; a short custom
     /// secret is rejected.
     /// </summary>
+    /// <param name="secret">The UTF-8 HMAC secret.</param>
+    /// <returns>The HS256 signing key.</returns>
+    /// <exception cref="ArgumentException">The secret is blank, or it is a custom secret shorter than 32 UTF-8 bytes.</exception>
     public static SymmetricSecurityKey HmacSecret(string secret)
     {
         if (string.IsNullOrWhiteSpace(secret))
@@ -38,6 +41,9 @@ public static class JwtSupport
     }
 
     /// <summary>Reads the signing secret from <c>DEV_JWT_SECRET</c> or <c>dealerops:jwt:devSecret</c>.</summary>
+    /// <param name="config">Application configuration.</param>
+    /// <returns>The configured secret.</returns>
+    /// <exception cref="InvalidOperationException">Neither setting is present.</exception>
     public static string ResolveDevSecret(IConfiguration config)
     {
         var secret = First(config["DEV_JWT_SECRET"], config["dealerops:jwt:devSecret"]);

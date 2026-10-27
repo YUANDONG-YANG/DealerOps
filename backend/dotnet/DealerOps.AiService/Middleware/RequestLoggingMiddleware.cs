@@ -12,6 +12,9 @@ public class RequestLoggingMiddleware
     private readonly RequestDelegate _next;
     private readonly ILogger<RequestLoggingMiddleware> _logger;
 
+    /// <summary>Creates the access logger.</summary>
+    /// <param name="next">Next middleware.</param>
+    /// <param name="logger">Logger for one information line per request.</param>
     public RequestLoggingMiddleware(RequestDelegate next, ILogger<RequestLoggingMiddleware> logger)
     {
         _next = next;
@@ -19,6 +22,8 @@ public class RequestLoggingMiddleware
     }
 
     /// <summary>Runs the rest of the pipeline and logs the access line.</summary>
+    /// <param name="context">Current request. A valid gateway request id is echoed; otherwise a new one is generated.</param>
+    /// <returns>A task that completes when the rest of the pipeline has finished.</returns>
     public async Task InvokeAsync(HttpContext context)
     {
         var requestId = context.Request.Headers[RequestId.Header].FirstOrDefault();

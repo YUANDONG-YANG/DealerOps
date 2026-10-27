@@ -85,7 +85,7 @@ public class PhotoEnhancer
         var width = Math.Max(1, (int)Math.Round(source.Width * ratio));
         var height = Math.Max(1, (int)Math.Round(source.Height * ratio));
 
-        return source.Resize(new SKImageInfo(width, height), SKFilterQuality.High);
+        return source.Resize(new SKImageInfo(width, height), new SKSamplingOptions(SKCubicResampler.Mitchell));
     }
 
     private static SKBitmap AutoLevels(SKBitmap bitmap)

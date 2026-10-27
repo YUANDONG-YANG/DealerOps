@@ -13,12 +13,15 @@ public class AiExceptionFilter : IExceptionFilter
 {
     private readonly ILogger<AiExceptionFilter> _logger;
 
+    /// <summary>Creates the filter that maps handled AI failures.</summary>
+    /// <param name="logger">Logger for one warning per handled failure.</param>
     public AiExceptionFilter(ILogger<AiExceptionFilter> logger)
     {
         _logger = logger;
     }
 
     /// <summary>Writes the failure body; other exceptions are left to the framework.</summary>
+    /// <param name="context">Exception context for the current request.</param>
     public void OnException(ExceptionContext context)
     {
         if (context.Exception is ModelFailureException ex)

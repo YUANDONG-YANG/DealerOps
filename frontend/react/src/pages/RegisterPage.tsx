@@ -15,6 +15,7 @@ const TAKEN_FIELD: Record<string, string> = {
   PHONE_TAKEN: 'phone',
 }
 
+/** Self-service registration. A new account still needs a dealership before it can work. */
 export default function RegisterPage() {
   const navigate = useNavigate()
   const [form, setForm] = useState({

@@ -19,6 +19,13 @@ public class InternalGuardFilter : IMiddleware
     private readonly byte[] _expectedTokenBytes;
     private readonly ILogger<InternalGuardFilter> _logger;
 
+    /// <summary>
+    /// Reads the internal credential. Startup fails when it is missing, or when the well-known
+    /// default is used outside dev.
+    /// </summary>
+    /// <param name="config">Application configuration.</param>
+    /// <param name="logger">Logger for rejected calls.</param>
+    /// <exception cref="InvalidOperationException">The token is missing, or it is the well-known default while JWT mode is not dev.</exception>
     public InternalGuardFilter(IConfiguration config, ILogger<InternalGuardFilter> logger)
     {
         _headerName = config["AiService:InternalHeaderName"]
@@ -42,6 +49,9 @@ public class InternalGuardFilter : IMiddleware
     }
 
     /// <summary>Rejects the request with 404 or passes it on.</summary>
+    /// <param name="context">Current request.</param>
+    /// <param name="next">Next middleware.</param>
+    /// <returns>A task that completes when the response has been started or the rest of the pipeline has finished.</returns>
     public async Task InvokeAsync(HttpContext context, RequestDelegate next)
     {
         // Every path, including health and OpenAPI. A direct 8082 call has no gateway credential.

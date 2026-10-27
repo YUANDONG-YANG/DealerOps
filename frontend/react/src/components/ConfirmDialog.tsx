@@ -11,6 +11,7 @@ interface Props {
   children?: ReactNode;
 }
 
+/** Confirmation dialog that closes when Escape is pressed. */
 export default function ConfirmDialog({
   open, title, message, confirmLabel, onConfirm, onCancel, children,
 }: Props) {

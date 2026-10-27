@@ -39,6 +39,7 @@ interface Props {
   placeholder?: string;
 }
 
+/** Phone field that keeps a country calling code in front of the national number. */
 export default function PhoneInput({ value, onChange, onBlur, placeholder }: Props) {
   const [country, setCountry] = useState('CA');
   const [national, setNational] = useState('');

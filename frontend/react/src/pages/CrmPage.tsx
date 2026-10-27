@@ -108,6 +108,7 @@ const CUSTOMER_FIELDS: { key: keyof CustomerForm; label: string }[] = [
   { key: 'homeAddress', label: 'Home address' },
 ];
 
+/** Customer records: search, edit, link vehicles, and review that customer's leads. */
 export default function CrmPage() {
   const [searchParams] = useSearchParams();
   const session = useSessionStore();

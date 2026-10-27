@@ -17,12 +17,14 @@ public class CustomerVehicleController : ControllerBase
         _service = service;
     }
 
+    /// <summary>Links a vehicle of this dealership to the customer.</summary>
     [HttpPut("{vehicleId}")]
     public LinkResponse Link(long id, long vehicleId)
     {
         return _service.Link(id, vehicleId);
     }
 
+    /// <summary>Unlinks a vehicle from the customer; returns 204.</summary>
     [HttpDelete("{vehicleId}")]
     public IActionResult Unlink(long id, long vehicleId)
     {

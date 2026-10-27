@@ -22,6 +22,7 @@ export interface PaymentLedger {
 
 export type CreatePaymentBody = { amount: number; method: string; paidOn: string; note: string | null };
 
+/** Payments recorded against a sold vehicle. Staff record rows; managers can also read and remove them. */
 export const paymentsApi = {
   ledger: (vehicleId: number) => http.get<PaymentLedger>(`/api/v1/vehicles/${vehicleId}/payments`),
   /** A manager gets the updated ledger back; staff get only the recorded payment (PAY-05). */

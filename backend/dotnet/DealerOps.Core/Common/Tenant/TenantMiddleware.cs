@@ -7,6 +7,12 @@ using Microsoft.AspNetCore.Http;
 
 namespace DealerOps.Core.Common.Tenant;
 
+/// <summary>
+/// Resolves the signed-in account and its dealership for the request. A missing subject, an
+/// inactive account, an unsupported role, an unbound dealer user outside their own account
+/// routes, or a dealer user on an admin route is rejected here. The context is cleared when
+/// the request ends.
+/// </summary>
 public class TenantMiddleware
 {
     private readonly RequestDelegate _next;
@@ -18,8 +24,16 @@ public class TenantMiddleware
         _logger = logger;
     }
 
+    /// <summary>Establishes <see cref="TenantContext"/> for an authenticated request, then calls the rest of the pipeline.</summary>
+    /// <param name="context">The current HTTP request.</param>
+    /// <param name="db">The request-scoped database context used to load membership and sync the account.</param>
+    /// <returns>A task that completes when the rest of the pipeline completes.</returns>
+    /// <exception cref="Exception">Auth rejections are written as error bodies. Failures from the rest of the pipeline propagate.</exception>
     public async Task InvokeAsync(HttpContext context, AppDbContext db)
     {
+        // TenantGuard is static, so it cannot be an ILogger<T> type argument. Denial
+        // messages still name the reason, username, and dealer id.
+        TenantGuard.UseLogger(_logger);
         try
         {
             if (context.User.Identity?.IsAuthenticated != true)
@@ -40,8 +54,20 @@ public class TenantMiddleware
                            ?? context.User.FindFirstValue("sub");
             if (string.IsNullOrWhiteSpace(username))
             {
+                // The token had no subject. The token itself is not logged.
+                _logger.LogWarning(
+                    "Access denied username={Username} dealerId={DealerId} method={Method} path={Path} reason={Reason} outcome={Outcome}",
+                    "anonymous", null, method, path, "missing_subject", "unauthorized");
                 await WriteError(context, ErrorCode.Unauthorized, "Unauthorized");
                 return;
+            }
+
+            Task RejectInactive(long? dealerId)
+            {
+                _logger.LogWarning(
+                    "Access denied username={Username} dealerId={DealerId} method={Method} path={Path} reason={Reason} outcome={Outcome}",
+                    username, dealerId, method, path, "account_missing_or_inactive", "unauthorized");
+                return WriteError(context, ErrorCode.Unauthorized, "Unauthorized");
             }
 
             var roleClaim = context.User.FindFirstValue("roles")
@@ -50,8 +76,9 @@ public class TenantMiddleware
 
             if (role == null && !isMeGet)
             {
-                _logger.LogWarning("Rejecting request with no supported role username={Username} {Method} {Path}",
-                    username, method, path);
+                _logger.LogWarning(
+                    "Rejecting request with no supported role username={Username} method={Method} path={Path} reason={Reason} outcome={Outcome}",
+                    username, method, path, "unsupported_role", "forbidden");
                 await WriteError(context, ErrorCode.Forbidden, "Forbidden");
                 return;
             }
@@ -60,7 +87,7 @@ public class TenantMiddleware
             {
                 if (!SyncAppUser(db, username, role, null))
                 {
-                    await WriteError(context, ErrorCode.Unauthorized, "Unauthorized");
+                    await RejectInactive(null);
                     return;
                 }
                 TenantContext.Set(new CurrentUser(username, role, null));
@@ -76,8 +103,9 @@ public class TenantMiddleware
 
                 if (rows.Count >= 2)
                 {
-                    _logger.LogError("Multiple active memberships username={Username} count={Count}",
-                        username, rows.Count);
+                    _logger.LogError(
+                        "Multiple active memberships username={Username} count={Count} dealerId={DealerId} reason={Reason} outcome={Outcome}",
+                        username, rows.Count, null, "multiple_memberships", "internal_error");
                     await WriteError(context, ErrorCode.InternalError, "Unexpected server error.");
                     return;
                 }
@@ -86,7 +114,7 @@ public class TenantMiddleware
 
                 if (!SyncAppUser(db, username, role, dealerId))
                 {
-                    await WriteError(context, ErrorCode.Unauthorized, "Unauthorized");
+                    await RejectInactive(dealerId);
                     return;
                 }
 
@@ -95,16 +123,18 @@ public class TenantMiddleware
 
                 if (path.StartsWith("/api/v1/admin", StringComparison.OrdinalIgnoreCase))
                 {
-                    _logger.LogWarning("Rejecting admin request for dealer user username={Username} {Method} {Path}",
-                        username, method, path);
+                    _logger.LogWarning(
+                        "Rejecting admin request for dealer user username={Username} dealerId={DealerId} method={Method} path={Path} reason={Reason} outcome={Outcome}",
+                        username, dealerId, method, path, "dealer_user_on_admin_route", "forbidden");
                     await WriteError(context, ErrorCode.Forbidden, "Forbidden");
                     return;
                 }
 
                 if (!isMe && dealerId == null)
                 {
-                    _logger.LogWarning("Rejecting unbound dealer user username={Username} {Method} {Path}",
-                        username, method, path);
+                    _logger.LogWarning(
+                        "Rejecting unbound dealer user username={Username} dealerId={DealerId} method={Method} path={Path} reason={Reason} outcome={Outcome}",
+                        username, dealerId, method, path, "unbound", "forbidden");
                     await WriteError(context, ErrorCode.Forbidden, "Forbidden");
                     return;
                 }
@@ -115,7 +145,7 @@ public class TenantMiddleware
 
             if (!SyncAppUser(db, username, null, null))
             {
-                await WriteError(context, ErrorCode.Unauthorized, "Unauthorized");
+                await RejectInactive(null);
                 return;
             }
             TenantContext.Set(new CurrentUser(username, null, null));

@@ -54,7 +54,13 @@ function requestIdOf(error: unknown): string | undefined {
   return typeof value === 'string' && value ? value : undefined;
 }
 
-/** Why a request failed, phrased for the user, with what to do next. */
+/**
+ * Why a request failed, phrased for the user, with what to do next.
+ * The diagnostic line for the same error is written by `logApiFailure`.
+ *
+ * @param error rejection from the gateway client
+ * @returns user-facing reason; codes that name a field or record keep the server message
+ */
 export function errorReason(error: unknown): string {
   const response = (error as { response?: unknown }).response;
   if (!response) {
@@ -74,7 +80,13 @@ export function errorReason(error: unknown): string {
   return reason;
 }
 
-/** "Could not <action>. <reason>" — keeps the action the user tried next to the cause. */
+/**
+ * "Could not <action>. <reason>" — keeps the action the user tried next to the cause.
+ *
+ * @param error rejection from the gateway client
+ * @param action what the user tried, without a leading "Could not"
+ * @returns the action plus the reason, or the reason alone when no action is given
+ */
 export function describeError(error: unknown, action?: string): string {
   return action ? `Could not ${action}. ${errorReason(error)}` : errorReason(error);
 }

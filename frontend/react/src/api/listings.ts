@@ -65,7 +65,12 @@ export function checkStatusLabel(value: unknown): string {
   return isCheckStatus(value) ? CHECK_STATUS_LABEL[value] : '';
 }
 
-/** An unsaved cash, online draft for the vehicle. */
+/**
+ * An unsaved cash, online draft for the vehicle.
+ *
+ * @param vehicleId vehicle the draft belongs to; `0` when the caller has not chosen one
+ * @returns a listing that has never been saved
+ */
 export function emptyListing(vehicleId = 0): Listing {
   return {
     id: null, vehicleId, title: '', body: '', adKind: 'CASH', medium: 'ONLINE',
@@ -74,7 +79,13 @@ export function emptyListing(vehicleId = 0): Listing {
   };
 }
 
-/** The listing with a fresh check result applied, used when the listing itself cannot be reloaded. */
+/**
+ * The listing with a fresh check result applied, used when the listing itself cannot be reloaded.
+ *
+ * @param listing listing currently on screen
+ * @param check result just returned by the check call
+ * @returns the same listing with the check fields replaced
+ */
 export function applyCheckToListing(listing: Listing, check: CheckResult): Listing {
   return { ...listing, checkStatus: check.checkStatus, lastCheckId: check.id, lastCheck: check };
 }
@@ -89,12 +100,22 @@ function mapReadyExport({ status, code }: { status?: number; code?: string; mess
   return 'Check has not passed: run the compliance check and fix any blocking findings first.';
 }
 
-/** Reads the error body (a blob for exports) and maps it to a Mark ready / Export message. */
+/**
+ * Reads the error body (a blob for exports) and maps it to a Mark ready or Export message.
+ *
+ * @param error rejection from ready or export
+ * @returns text safe to show on the ad page
+ */
 export async function readyExportMessageAsync(error: unknown): Promise<string> {
   return mapReadyExport(await parseApiError(error));
 }
 
-/** User message for a rejected Save draft call. */
+/**
+ * User message for a rejected Save draft call.
+ *
+ * @param error rejection from save
+ * @returns text safe to show on the ad page
+ */
 export function saveMessage(error: unknown): string {
   const { status, code } = apiError(error);
   if (code === 'VERSION_CONFLICT') return 'Refresh and retry: someone else changed this record after you opened it. Reopen it to load the latest version, then make your change again.';

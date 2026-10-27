@@ -153,12 +153,23 @@ public class LeadService
     {
         var tenant = TenantGuard.RequireTenantId();
         if ((body.CustomerId == null) == (body.NewCustomer == null))
+        {
+            _logger.LogWarning(
+                "Lead create rejected dealerId={DealerId} reason={Reason} by {Actor}",
+                tenant, "customer_choice", TenantContext.ActorUsername());
             throw new ApiException(ErrorCode.Validation, "Choose an existing customer or enter a new one.");
+        }
 
         if (body.CustomerId != null)
         {
-            _ = _db.Customers.FirstOrDefault(c => c.Id == body.CustomerId && c.DealerId == tenant)
-                ?? throw new ApiException(ErrorCode.NotFound, "Not found");
+            var customer = _db.Customers.FirstOrDefault(c => c.Id == body.CustomerId && c.DealerId == tenant);
+            if (customer == null)
+            {
+                _logger.LogWarning(
+                    "Lead create rejected customerId={CustomerId} dealerId={DealerId} code={Code} by {Actor}",
+                    body.CustomerId, tenant, ErrorCode.NotFound, TenantContext.ActorUsername());
+                throw new ApiException(ErrorCode.NotFound, "Not found");
+            }
         }
 
         var owner = TrimToNull(body.OwnerUsername);
@@ -222,15 +233,30 @@ public class LeadService
         var tenant = TenantGuard.RequireTenantId();
         var lead = Load(id, tenant);
         if (body.Version != lead.Version)
+        {
+            _logger.LogWarning(
+                "Lead update rejected leadId={LeadId} dealerId={DealerId} code={Code} by {Actor}",
+                lead.Id, tenant, ErrorCode.VersionConflict, TenantContext.ActorUsername());
             throw new ApiException(ErrorCode.VersionConflict, "Version conflict.");
+        }
         if (lead.Stage.IsClosed())
+        {
+            _logger.LogWarning(
+                "Change to closed lead rejected leadId={LeadId} stage={Stage} dealerId={DealerId} by {Actor}",
+                lead.Id, EnumWireName.Of(lead.Stage), tenant, TenantContext.ActorUsername());
             throw new ApiException(ErrorCode.LeadClosed, "Won and lost leads cannot be changed.");
+        }
 
         var owner = TrimToNull(body.OwnerUsername);
         var lostReason = TrimToNull(body.LostReason);
 
         if (body.Stage == LeadStage.Lost && lostReason == null)
+        {
+            _logger.LogWarning(
+                "Lead update rejected leadId={LeadId} dealerId={DealerId} reason={Reason} by {Actor}",
+                lead.Id, tenant, "lost_reason_required", TenantContext.ActorUsername());
             throw new ApiException(ErrorCode.Validation, "A lost lead needs a reason.");
+        }
         if (body.Stage != LeadStage.Lost)
             lostReason = null;
 
@@ -367,7 +393,12 @@ public class LeadService
     {
         if (username != null &&
             !_db.Memberships.Any(m => m.DealerId == tenant && m.Username == username && m.Active))
+        {
+            _logger.LogWarning(
+                "Lead owner rejected dealerId={DealerId} username={Username} code={Code} by {Actor}",
+                tenant, username, ErrorCode.Validation, TenantContext.ActorUsername());
             throw new ApiException(ErrorCode.Validation, "Owner must be a member of this dealership.");
+        }
     }
 
     private void RequireInStockVehicle(long tenant, long? vehicleId)
@@ -376,7 +407,12 @@ public class LeadService
         var ok = _db.Vehicles.Any(
             v => v.Id == vehicleId && v.DealerId == tenant && v.Status == VehicleStatus.InStock);
         if (!ok)
+        {
+            _logger.LogWarning(
+                "Lead vehicle rejected vehicleId={VehicleId} dealerId={DealerId} code={Code} by {Actor}",
+                vehicleId, tenant, ErrorCode.WrongDealerOrSold, TenantContext.ActorUsername());
             throw new ApiException(ErrorCode.WrongDealerOrSold, "Vehicle must be in stock at this dealership.");
+        }
     }
 
     private LeadEntity Load(long id, long tenant)

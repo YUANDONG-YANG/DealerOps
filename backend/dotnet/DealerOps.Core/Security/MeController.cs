@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using DealerOps.Core.Audit;
 using DealerOps.Core.Common.Exceptions;
 using DealerOps.Core.Common.Tenant;
@@ -53,8 +54,7 @@ public class MeController : ControllerBase
     [HttpGet("me")]
     public MeResponse Me()
     {
-        var user = TenantContext.Get()
-                   ?? throw new ApiException(ErrorCode.Unauthorized, "Unauthorized");
+        var user = TenantContext.Get() ?? throw MissingTenantContext();
         var appUser = _db.AppUsers.FirstOrDefault(u => u.Username == user.Username);
         var displayName = appUser?.DisplayName ?? "";
         var signInMethod = string.IsNullOrEmpty(appUser?.PasswordHash) ? "google" : "password";
@@ -91,8 +91,7 @@ public class MeController : ControllerBase
     [HttpPatch("me")]
     public MeResponse PatchMe([FromBody] PatchMeRequest body)
     {
-        var current = TenantContext.Get()
-                      ?? throw new ApiException(ErrorCode.Unauthorized, "Unauthorized");
+        var current = TenantContext.Get() ?? throw MissingTenantContext();
         var username = current.Username;
         var user = _db.AppUsers.FirstOrDefault(u => u.Username == username && u.Active)
                    ?? throw new ApiException(ErrorCode.NotFound, "Account not found.");
@@ -144,8 +143,7 @@ public class MeController : ControllerBase
     [HttpDelete("me")]
     public IActionResult DeleteMe()
     {
-        var current = TenantContext.Get()
-                      ?? throw new ApiException(ErrorCode.Unauthorized, "Unauthorized");
+        var current = TenantContext.Get() ?? throw MissingTenantContext();
         var username = current.Username;
         var user = _db.AppUsers.FirstOrDefault(u => u.Username == username && u.Active)
                    ?? throw new ApiException(ErrorCode.NotFound, "Account not found.");
@@ -195,5 +193,35 @@ public class MeController : ControllerBase
             user.Id, username, current.TenantDealerId);
 
         return NoContent();
+    }
+
+    /// <summary>
+    /// Returns 401 when the request has no tenant context. The warning names the route and the
+    /// user id already on the principal. The token and any email are omitted.
+    /// </summary>
+    private ApiException MissingTenantContext()
+    {
+        _logger.LogWarning(
+            "Access denied method={Method} path={Path} userId={UserId} reason={Reason} outcome={Outcome}",
+            Request.Method,
+            Request.Path.Value,
+            PrincipalUserId(),
+            "tenant_context_missing",
+            "unauthorized");
+        return new ApiException(ErrorCode.Unauthorized, "Unauthorized");
+    }
+
+    /// <summary>
+    /// The user id already on the principal. The subject claim is that id here. An email-shaped
+    /// value is skipped, and the token is not read.
+    /// </summary>
+    private string? PrincipalUserId()
+    {
+        var id = User.FindFirst("userId")?.Value
+                 ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value
+                 ?? User.FindFirst("sub")?.Value;
+        if (string.IsNullOrWhiteSpace(id) || id.Contains('@'))
+            return null;
+        return id;
     }
 }
