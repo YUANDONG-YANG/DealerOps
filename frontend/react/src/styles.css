@@ -852,7 +852,7 @@ div.state {
 .dealer-logo {
   width: 36px;
   height: 36px;
-  object-fit: contain;
+  object-fit: cover;
   border-radius: var(--radius);
   border: 1px solid var(--border);
   background: #fff;
@@ -860,7 +860,7 @@ div.state {
 .dealer-logo-sm {
   width: 28px;
   height: 28px;
-  object-fit: contain;
+  object-fit: cover;
   border-radius: var(--radius);
   vertical-align: middle;
   margin-right: 8px;
