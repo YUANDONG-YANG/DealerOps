@@ -33,6 +33,9 @@ changes (cropping, retouching) were made. CC BY-SA derivatives are shared under 
 | `ford_escape_1.jpg` | [2018 Ford Escape Titanium 2.0L front 5.19.19.jpg](https://commons.wikimedia.org/wiki/File:2018_Ford_Escape_Titanium_2.0L_front_5.19.19.jpg) | Kevauto | CC BY-SA 4.0 | Yes, 4509x2631 to 1600x933 |
 | `ford_escape_2.jpg` | [2018 Ford Escape Titanium 2.0L rear 5.19.19.jpg](https://commons.wikimedia.org/wiki/File:2018_Ford_Escape_Titanium_2.0L_rear_5.19.19.jpg) | Kevauto | CC BY-SA 4.0 | Yes, 4785x2690 to 1600x899 |
 | `ford_escape_3.jpg` | [2021 Ford Escape SEL.jpg](https://commons.wikimedia.org/wiki/File:2021_Ford_Escape_SEL.jpg) | Clock38030 | CC BY 4.0 | Yes, 2302x1438 to 1600x999 |
+| `ford_explorer_1.jpg` | [2020 Ford Explorer XLT 02-15-2020 Front.jpg](https://commons.wikimedia.org/wiki/File:2020_Ford_Explorer_XLT_02-15-2020_Front.jpg) | SsmIntrigue | CC BY-SA 4.0 | Yes, 4032x2304 to 1600x914 |
+| `ford_explorer_2.jpg` | [2020 Ford Explorer XLT 02-15-2020 Rear.jpg](https://commons.wikimedia.org/wiki/File:2020_Ford_Explorer_XLT_02-15-2020_Rear.jpg) | SsmIntrigue | CC BY-SA 4.0 | Yes, 4032x2376 to 1600x943 |
+| `ford_explorer_3.jpg` | [2020 Ford Explorer XLT in Oxford White, front left.jpg](https://commons.wikimedia.org/wiki/File:2020_Ford_Explorer_XLT_in_Oxford_White,_front_left.jpg) | Mr.choppers | CC BY-SA 3.0 | Yes, 5065x2965 to 1600x937 |
 | `ford_f-150_1.jpg` | [2017 Ford F-150 front 5.19.18.jpg](https://commons.wikimedia.org/wiki/File:2017_Ford_F-150_front_5.19.18.jpg) | Kevauto | CC BY-SA 4.0 | Yes, 4309x2370 to 1600x880 |
 | `ford_f-150_2.jpg` | [2018 Ford F-150 Crew Cab rear 5.26.18.jpg](https://commons.wikimedia.org/wiki/File:2018_Ford_F-150_Crew_Cab_rear_5.26.18.jpg) | Kevauto | CC BY-SA 4.0 | Yes, 4811x2315 to 1600x770 |
 | `ford_f-150_3.jpg` | [16 Ford F-150 XLT.jpg](https://commons.wikimedia.org/wiki/File:16_Ford_F-150_XLT.jpg) | HJUdall | CC0 | Yes, 4128x3096 to 1600x1200 |
