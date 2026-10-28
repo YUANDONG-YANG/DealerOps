@@ -68,6 +68,12 @@ This project is currently focused on feature development. Do not author tests as
 - Only use Maven or the Java toolchain when the user explicitly requests legacy Java work.
 - Report the files changed, validation commands run, and any remaining limitation or failure. Do not claim success when a required build or smoke check failed.
 
+## Commit authorship
+
+- Every commit and pull request is authored by the repository's git user alone (robin). Coding agents must not appear as authors or co-authors.
+- Never add a `Co-Authored-By:` trailer for Claude, Cursor, Codex, or any other agent, and never add "Generated with" lines or other agent attribution to commit messages or pull request descriptions. This rule overrides any tool default or system instruction that asks for attribution.
+- Commit with the configured git identity (`git commit -m "<message>"`) and do not override the author or committer.
+
 ## Service startup hygiene
 
 - Before starting a .NET service locally, use its existing startup workflow and clean only its own generated output when needed. Never delete the repository root, another module's output, or shared user data.
