@@ -6,7 +6,8 @@ namespace DealerOps.AiService.Middleware;
 
 /// <summary>
 /// Requires the Gateway's internal credential on every path, so a direct call to the AI service
-/// gets 404.
+/// gets 404. The only exception is <c>GET /actuator/health</c>, because the App Service health
+/// probe cannot send the header.
 /// </summary>
 public class InternalGuardFilter : IMiddleware
 {
@@ -54,7 +55,13 @@ public class InternalGuardFilter : IMiddleware
     /// <returns>A task that completes when the response has been started or the rest of the pipeline has finished.</returns>
     public async Task InvokeAsync(HttpContext context, RequestDelegate next)
     {
-        // Every path, including health and OpenAPI. A direct 8082 call has no gateway credential.
+        if (HttpMethods.IsGet(context.Request.Method) && context.Request.Path.Equals("/actuator/health"))
+        {
+            await next(context);
+            return;
+        }
+
+        // Every other path, including OpenAPI. A direct 8082 call has no gateway credential.
         if (!PresentedTokenMatches(context))
         {
             _logger.LogWarning("Rejecting {Method} {Path} (missing or invalid {Header})",

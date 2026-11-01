@@ -375,7 +375,7 @@ Align 15 §10 / 08: browser-to-service HTTP **only** goes through Gateway `8080`
 
 | Item | Requirement |
 |---|---|
-| Listen | bind **8081** only (`CORE_PORT`). A direct caller without `X-Dealer-Internal` gets **404**. Azure: App Service access restrictions deny every caller but Azure-internal ones |
+| Listen | bind **8081** only (`CORE_PORT`). A direct caller without `X-Dealer-Internal` gets **404**, except on `GET /actuator/health`, which stays open for the App Service health probe. Azure: App Service access restrictions deny every caller but Azure-internal ones |
 | CORS | **do not** configure `http://localhost:5173`. Direct `fetch(8081)` must be blocked by the browser |
 | Routes | implement `/api/v1/**` business only. Do not implement `/internal/v1/**` for the browser |
 | Outbound | AI calls add the internal header only; see section 7 |

@@ -403,8 +403,8 @@ Do all three; missing one will be torn apart in defense:
 
 1. **Gateway predicate:** `/internal/v1/**` requires header `X-Dealer-Internal: <INTERNAL_TOKEN>` (value from env / Key Vault, **not** the user JWT). Browser without this header → Gateway **404** `{code, message}`. The well-known default `dealer-internal` is accepted only when `JWT_MODE=dev`. Any other mode must set a non-default `INTERNAL_TOKEN` shared by gateway, ai-service, and dealer-core. Gateway and ai-service refuse to start on that default.
 2. **core outbound:** add that header when calling AI; **do not** forward the user JWT to ai-service (ai-service has no users and no database).
-3. **ai-service:** every path, including health and OpenAPI, requires the header. Missing or wrong → **404** `{code, message}`. A direct connection to 8082 fails.
-4. **core inbound:** every path, including health and OpenAPI, requires the same header. Missing or wrong → **404** `{code, message, requestId}`. The gateway adds the header on the outbound proxy and on its server-side health and OpenAPI calls. It still rejects a client-supplied header on any non-internal path.
+3. **ai-service:** every path, including OpenAPI, requires the header, except `GET /actuator/health`, which is open for the App Service health probe and returns only a status. Missing or wrong → **404** `{code, message}`. A direct connection to 8082 fails.
+4. **core inbound:** every path, including OpenAPI, requires the same header, with the same `GET /actuator/health` exception. Missing or wrong → **404** `{code, message, requestId}`. The gateway adds the header on the outbound proxy and on its server-side health and OpenAPI calls. It still rejects a client-supplied header on any non-internal path.
 
 `/api/v1/**` **must not** be forwarded to ai-service.  
 core **must not** be configured with browser-reachable public Ingress.
@@ -582,7 +582,7 @@ One defense sentence: the proposal's async was scope creep; this course uses syn
 | ai-service | **8082** (`AI_PORT`) | must fail |
 | MySQL | 3306 | not for the browser |
 
-There is no orchestrator locally: each process is started by hand. Gateway binds `0.0.0.0:8080` and is the only browser origin. Core and ai-service reject every direct call that lacks `X-Dealer-Internal` with **404** `{code, message}` (core also includes `requestId`). The gateway adds that header on the outbound proxy only. Loopback binding is not the control: a client on the same machine still fails without the credential.
+There is no orchestrator locally: each process is started by hand. Gateway binds `0.0.0.0:8080` and is the only browser origin. Core and ai-service reject every direct call that lacks `X-Dealer-Internal` with **404** `{code, message}` (core also includes `requestId`), except `GET /actuator/health`. The gateway adds that header on the outbound proxy only. Loopback binding is not the control: a client on the same machine still fails without the credential.
 
 ### 10.2 Configuration principles (demo-able in Sprint 1)
 

@@ -50,6 +50,8 @@ check_seed_files
 for tool in az terraform mysql python3 curl; do
   command -v "$tool" >/dev/null 2>&1 || { echo "Missing required tool: $tool" >&2; exit 1; }
 done
+# Windows mysql.exe ends lines with CRLF. Strip the CR so captured values work under Git Bash.
+mysql() { command mysql "$@" | tr -d '\r'; }
 
 rule="demo-seed-$(date +%s)"
 rg="$(terraform -chdir="${tf_dir}" output -raw resource_group_name)"
@@ -57,7 +59,7 @@ host="$(terraform -chdir="${tf_dir}" output -raw mysql_fqdn)"
 server="${host%%.*}"
 user="$(sed -n 's/^ *mysql_admin_username *= *"\(.*\)".*/\1/p' "${tf_dir}/terraform.tfvars" 2>/dev/null || true)"
 if [ -z "${user}" ]; then
-  user="$(az mysql flexible-server show -g "${rg}" -n "${server}" --query administratorLogin -o tsv)"
+  user="$(az mysql flexible-server show -g "${rg}" -n "${server}" --query administratorLogin -o tsv | tr -d '\r')"
 fi
 export MYSQL_PWD
 MYSQL_PWD="$(terraform -chdir="${tf_dir}" output -raw mysql_admin_password)"

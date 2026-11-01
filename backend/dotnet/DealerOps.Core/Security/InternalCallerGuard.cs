@@ -9,6 +9,8 @@ namespace DealerOps.Core.Security;
 /// <summary>
 /// Core is not a public entry. The gateway stamps <c>X-Dealer-Internal</c> on the outbound
 /// call; a browser or curl that reaches this process without that credential gets 404.
+/// The only exception is <c>GET /actuator/health</c>, because the App Service health probe cannot
+/// send the header.
 /// </summary>
 public class InternalCallerGuard
 {
@@ -43,6 +45,12 @@ public class InternalCallerGuard
 
     public async Task InvokeAsync(HttpContext context)
     {
+        if (HttpMethods.IsGet(context.Request.Method) && context.Request.Path.Equals("/actuator/health"))
+        {
+            await _next(context);
+            return;
+        }
+
         var header = context.Request.Headers[_headerName].FirstOrDefault();
         if (!TokenMatches(header))
         {

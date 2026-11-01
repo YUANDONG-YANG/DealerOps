@@ -61,8 +61,8 @@ for i, x in enumerate(d):
         L.append(f"       {q(s['email'])}, {q(s['phone'])}, {q(s['given_name'])}, {q(s['family_name'])}, {q(avatar)}, 'en-CA'")
         L.append(f"FROM DUAL WHERE @d{n} IS NOT NULL AND NOT EXISTS (SELECT 1 FROM app_user WHERE username = {q(s['username'])}"
                  f" OR email = {q(s['email'])} OR display_name = {q(s['display_name'])} OR phone = {q(s['phone'])});")
-        L.append("INSERT INTO membership (dealer_id, username, active, created_by, created_at)")
-        L.append(f"SELECT @d{n}, {q(s['username'])}, 1, 'admin', {ts}")
+        L.append("INSERT INTO membership (dealer_id, username, active, dealer_role, created_by, created_at)")
+        L.append(f"SELECT @d{n}, {q(s['username'])}, 1, 'staff', 'admin', {ts}")
         L.append(f"FROM DUAL WHERE EXISTS (SELECT 1 FROM app_user WHERE username = {q(s['username'])} AND dealer_id = @d{n})")
         L.append(f"  AND NOT EXISTS (SELECT 1 FROM membership WHERE dealer_id = @d{n} AND username = {q(s['username'])});")
 open(out, "w").write("\n".join(L) + "\n")
