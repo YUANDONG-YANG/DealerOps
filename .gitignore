@@ -61,3 +61,6 @@ log-sum/*.log
 
 # Demo data exported by deploy/seed/export-local-data.sh
 deploy/seed/*.sql.gz
+
+# Azure backups: too large for git
+deploy/seed/backups/

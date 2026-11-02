@@ -6,7 +6,8 @@
 #
 # Before it changes anything, it saves the Azure rows to deploy/seed/azure-backup-*.sql.gz and
 # stops if the file has a column the deployed dealer-core has not created. The rows are then
-# replaced in one transaction, so a failed import leaves Azure as it was.
+# replaced in one transaction, so a failed import leaves Azure as it was. It also stops if an Azure
+# account is missing from the file, unless ALLOW_ACCOUNT_REMOVAL=1 is set.
 #
 # Usage: deploy/seed/import-to-azure.sh
 #        SEED_FILE=deploy/seed/azure-backup-<time>.sql.gz deploy/seed/import-to-azure.sh  # roll back
@@ -70,6 +71,19 @@ missing="$(gunzip -c "${seed}" | grep -o '^INSERT INTO `[a-z_]*` ([^)]*)' | sort
 if [ -n "${missing}" ]; then
   echo "Azure has no such columns; deploy the dealer-core that adds them, then sync again:" >&2
   printf '  %s\n' ${missing} >&2
+  exit 1
+fi
+
+# People create accounts on the cloud demo, and the local database does not have them.
+echo "==> checking that every Azure account is in the file"
+azure_users="$("${mysql_cmd[@]}" -N -e "SELECT username FROM app_user" | LC_ALL=C sort -u)"
+lost_users="$(LC_ALL=C comm -23 <(printf '%s\n' "${azure_users}") \
+  <(gunzip -c "${seed}" | grep -a '^INSERT INTO `app_user`' | grep -a -oE "\([0-9]+,'[^']+'," \
+    | sed -E "s/^\([0-9]+,'(.*)',$/\1/" | LC_ALL=C sort -u))"
+if [ -n "${lost_users}" ] && [ "${ALLOW_ACCOUNT_REMOVAL:-}" != "1" ]; then
+  echo "These Azure accounts are not in ${seed}, so they could no longer sign in:" >&2
+  printf '  %s\n' ${lost_users} >&2
+  echo "Nothing was imported. To remove them on purpose, rerun with ALLOW_ACCOUNT_REMOVAL=1." >&2
   exit 1
 fi
 

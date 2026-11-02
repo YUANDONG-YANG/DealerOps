@@ -38,6 +38,13 @@ while IFS= read -r t; do tables+=("$t"); done < <(
     ORDER BY table_name")
 [ "${#tables[@]}" -gt 0 ] || { echo "No tables found in ${db}" >&2; exit 1; }
 
+# Rows created on the cloud demo must survive --seed. The file is safe to load more than once.
+additions="${repo}/dealer-platform/seed/sql/09_cloud_additions.sql"
+if [ -f "${additions}" ]; then
+  echo "==> adding ${additions##*/} to ${db}"
+  mysql "${conn[@]}" --default-character-set=utf8mb4 "${db}" < "${additions}"
+fi
+
 echo "==> exporting ${#tables[@]} tables from ${db}"
 {
   echo "SET FOREIGN_KEY_CHECKS=0;"

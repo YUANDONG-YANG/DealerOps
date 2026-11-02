@@ -109,11 +109,12 @@ Details, layout and the `autofix` loop: [playwright/README.md](playwright/README
 
 ## Cloud deployment (Azure)
 
-Terraform creates the App Service plan, the four web apps, MySQL Flexible Server, Key Vault and monitoring; a script uploads the apps. `terraform apply` alone leaves the database empty apart from the platform admin. One command deploys everything and then loads the committed demo seed:
+Terraform creates the App Service plan, the four web apps, MySQL Flexible Server, Key Vault and monitoring; a script uploads the apps. `terraform apply` alone leaves the database empty apart from the platform admin. One command deploys everything and keeps the data already in Azure. Before any `terraform destroy`, run `deploy/seed/save-cloud-to-seed.sh` to save the cloud data into the seed:
 
 ```bash
 az login
-./deploy/deploy.sh --apply --seed     # terraform apply, upload all apps, then copy the local database to Azure
+./deploy/deploy.sh --apply            # terraform apply, upload all apps
+./deploy/deploy.sh --apply --seed     # the same, then replace the Azure rows with the local database (first load, after a destroy, or demo reset)
 ```
 
 `--seed` exports the local development database and replaces every Azure row with it, so the cloud demo shows the same dealerships, logos, vehicle photos, ads and sign-ins as the local stack (the platform admin password is then the local one). It backs up the Azure rows first and stops if the local data has a column the deployed code lacks; see [deploy/README.md](deploy/README.md). `terraform destroy` in `deploy/terraform` removes the whole stack; apply and destroy can be repeated. Full procedure, verification and cost control: [deploy/README.md](deploy/README.md).

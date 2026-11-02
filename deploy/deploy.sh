@@ -11,7 +11,8 @@
 # Terraform apply is intentionally opt-in because it can create or modify Azure
 # resources. The default mode only runs the application upload script.
 # --seed is also opt-in. It exports the local development database (every row, dealership logos
-# and vehicle photos included) and replaces the Azure rows with it, after backing them up.
+# and vehicle photos included) and replaces the Azure rows with it, after backing them up. It stops
+# if an Azure account is missing from the local database.
 set -euo pipefail
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -24,7 +25,7 @@ seed_data=false
 targets=()
 
 usage() {
-  sed -n '2,14p' "$0"
+  sed -n '2,15p' "$0"
 }
 
 while [ "$#" -gt 0 ]; do
