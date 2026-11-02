@@ -5,7 +5,7 @@ Install Azure CLI, Terraform, .NET 10, Node.js/npm, MySQL client, and Python 3. 
 ```bash
 az login
 az account set --subscription "<subscription id>"
-./deploy/deploy.sh --apply
+./deploy/deploy.sh --apply --seed
 ```
 
 The command prints the frontend URL when deployment succeeds.
