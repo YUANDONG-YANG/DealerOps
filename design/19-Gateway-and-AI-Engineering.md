@@ -188,7 +188,7 @@ Same port set as 15 §10 (`env.example`): web `5173`, gateway **`8080`**, core *
 |---|---|
 | Page `fetch('http://localhost:8081/api/v1/vehicles')` (with or without Bearer) | browser blocks (no CORS). A non-browser client without `X-Dealer-Internal` gets **404** `{code, message}` |
 | Same request via `http://localhost:8080/api/v1/vehicles` + Bearer | 200 or a business error (401/403/404…) |
-| `curl` to core `8081` or ai-service `8082` without `X-Dealer-Internal` | **404** `{code, message}` on every path, including health |
+| `curl` to core `8081` or ai-service `8082` without `X-Dealer-Internal` | **404** `{code, message}` on every path except `GET /actuator/health`, which stays open for the App Service health probe and returns only a status (core `Healthy`, ai-service `{"status":"UP"}`) |
 | Page `fetch('http://localhost:8080/internal/v1/ad-check')` (no internal header) | Gateway **404** `{code, message}` |
 | Azure | core / ai **internal** Ingress; public FQDNs are web + gateway only |
 
@@ -205,7 +205,7 @@ The gateway is the only browser entry point, so it applies one per-client limite
 | Signed-in API | username from the JWT | 600 | `dealerops:rateLimits:userPerMinute` |
 | AI calls: `POST /api/v1/listings/{id}/checks`, `POST /api/v1/assistant/ask` | username, or IP | 30 | `dealerops:rateLimits:aiPerMinute` |
 
-Over the limit the gateway answers **429** `{ "code": "RATE_LIMITED", "message": … }` with `Retry-After: 60`. The client IP is the socket address. Outside `Development` the gateway runs the ASP.NET Core forwarded-headers middleware with `ForwardLimit = 1`, so the socket address becomes the one hop the Azure App Service front end appends; a caller-supplied `X-Forwarded-For` is never read, so the limit cannot be dodged by rotating that header. The same value is forwarded to Core as the audit client IP. The gateway proxies no AI Swagger route: `/internal/v1/**` is the only AI route and is rejected from the browser. `dealerops:rateLimits:enabled` defaults to `true` outside `Development`; local and E2E stacks run `Development` and opt in by setting it. The values are starting defaults for the capstone and can be changed per environment without a code change.
+Over the limit the gateway answers **429** `{ "code": "RATE_LIMITED", "message": … }` with `Retry-After: 60`. The client IP is the socket address. Outside `Development` the gateway runs the ASP.NET Core forwarded-headers middleware with `ForwardLimit = 1`, so the socket address becomes the one hop the Azure App Service front end appends; a caller-supplied `X-Forwarded-For` is never read, so the limit cannot be dodged by rotating that header. The same value is forwarded to Core as the audit client IP. The gateway proxies no AI Swagger route: `/internal/v1/**` is the only AI route and is rejected from the browser. `dealerops:rateLimits:enabled` defaults to `true` outside `Development`; local and E2E stacks run `Development` and opt in by setting it. The values are starting defaults for the capstone and can be changed per environment without a code change. The Azure stack sets `dealerops__rateLimits__anonymousPerMinute=600` on the gateway (`deploy/terraform/main.tf`), because each dealer logo and buyer photo counts as a request and a classroom demo shares one IP; the other limits keep their defaults.
 
 ### 1.6 Half-page defense pointer (Auth domain)
 

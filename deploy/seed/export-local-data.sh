@@ -18,7 +18,7 @@ out="${seed_dir}/dealer_core_seed.sql.gz"
 
 env_file="${repo}/dealer-platform/.env.local"
 local_url=""
-[ -f "${env_file}" ] && local_url="$(sed -n 's/^MYSQL_URL=//p' "${env_file}" | tail -1 | tr -d '"')"
+[ -f "${env_file}" ] && local_url="$(sed -n 's/^MYSQL_URL=//p' "${env_file}" | tail -1 | tr -d '"\r')"
 case "${local_url}" in
   ""|jdbc:*) local_url="$(sed -n 's/^ *MYSQL_URL="\(Server=[^"]*\)".*/\1/p' "${repo}/start-local.sh" | head -1)" ;;
 esac
@@ -28,7 +28,13 @@ db="${SEED_DB_NAME:-$(url_field Database)}"
 conn=(-h "${SEED_DB_HOST:-$(url_field Server)}" -P "${SEED_DB_PORT:-$(url_field Port)}" -u "${SEED_DB_USER:-$(url_field User)}")
 export MYSQL_PWD="${SEED_DB_PASSWORD:-$(url_field Password)}"
 
-command -v mysqldump >/dev/null 2>&1 || { echo "Missing required tool: mysqldump" >&2; exit 1; }
+for tool in mysql mysqldump; do
+  command -v "$tool" >/dev/null 2>&1 || { echo "Missing required tool: $tool" >&2; exit 1; }
+done
+# Windows mysql.exe and mysqldump.exe end lines with CRLF. Strip the CR so captured values work
+# under Git Bash. mysqldump escapes any CR inside a value, so none are lost.
+mysql() { command mysql "$@" | tr -d '\r'; }
+mysqldump() { command mysqldump "$@" | tr -d '\r'; }
 
 # flyway_schema_history belongs to the retired Java stack and is not part of the .NET schema.
 tables=()

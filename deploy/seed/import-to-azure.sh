@@ -24,6 +24,10 @@ rule="seed-import-$(date +%s)"
 for tool in az terraform mysql mysqldump curl python3; do
   command -v "$tool" >/dev/null 2>&1 || { echo "Missing required tool: $tool" >&2; exit 1; }
 done
+# Windows mysql.exe and mysqldump.exe end lines with CRLF. Strip the CR so captured values and
+# line-anchored sed patterns work under Git Bash. mysqldump escapes any CR inside a value.
+mysql() { command mysql "$@" | tr -d '\r'; }
+mysqldump() { command mysqldump "$@" | tr -d '\r'; }
 [ -f "${seed}" ] || { echo "Missing ${seed}; run deploy/seed/export-local-data.sh first" >&2; exit 1; }
 
 rg="$(terraform -chdir="${tf_dir}" output -raw resource_group_name)"
@@ -32,7 +36,7 @@ core_app="$(terraform -chdir="${tf_dir}" output -raw core_app_name)"
 server="${host%%.*}"
 user="$(sed -n 's/^ *mysql_admin_username *= *"\(.*\)".*/\1/p' "${tf_dir}/terraform.tfvars" 2>/dev/null || true)"
 if [ -z "${user}" ]; then
-  user="$(az mysql flexible-server show -g "${rg}" -n "${server}" --query administratorLogin -o tsv)"
+  user="$(az mysql flexible-server show -g "${rg}" -n "${server}" --query administratorLogin -o tsv | tr -d '\r')"
 fi
 export MYSQL_PWD
 MYSQL_PWD="$(terraform -chdir="${tf_dir}" output -raw mysql_admin_password)"
@@ -120,18 +124,18 @@ done
 echo "==> restarting ${core_app} so no cached state predates the import"
 az webapp restart -g "${rg}" -n "${core_app}" -o none
 
-# The import counts only once the public site serves it: the gateway must list every dealership.
-expected="$("${mysql_cmd[@]}" -N -e "SELECT COUNT(*) FROM dealer")"
-echo "==> waiting for ${gateway_url} to list ${expected} dealerships"
+# The import counts only once the public site serves it: the gateway must list every active dealership.
+expected="$("${mysql_cmd[@]}" -N -e "SELECT COUNT(*) FROM dealer WHERE active = 1")"
+echo "==> waiting for ${gateway_url} to list ${expected} active dealerships"
 served=-1
 for i in $(seq 1 30); do
   served="$(curl -fsS --max-time 30 "${gateway_url}/api/v1/catalog/dealers" 2>/dev/null \
-    | python3 -I -c 'import json,sys; print(len(json.load(sys.stdin)))' 2>/dev/null || echo -1)"
+    | python3 -I -c 'import json,sys; print(len(json.load(sys.stdin)))' 2>/dev/null | tr -d '\r' || echo -1)"
   [ "${served}" = "${expected}" ] && break
   sleep 10
 done
 if [ "${served}" != "${expected}" ]; then
-  echo "The gateway lists ${served} dealerships after 5 minutes; Azure MySQL has ${expected}" >&2
+  echo "The gateway lists ${served} dealerships after 5 minutes; Azure MySQL has ${expected} active" >&2
   exit 1
 fi
 echo "==> done. Sign in with the same accounts as the local database."

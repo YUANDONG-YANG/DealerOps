@@ -310,6 +310,8 @@ resource "azurerm_linux_web_app" "gateway" {
     WEB_PUBLISHED_AT            = ""
     "dealerops__internalToken"  = "@Microsoft.KeyVault(SecretUri=${azurerm_key_vault_secret.internal_token.versionless_id})"
     "dealerops__jwt__devSecret" = "@Microsoft.KeyVault(SecretUri=${azurerm_key_vault_secret.jwt_signing_secret.versionless_id})"
+    # Each dealer logo and buyer photo counts, and a classroom shares one IP (design/19 section 1.5.1).
+    "dealerops__rateLimits__anonymousPerMinute" = "600"
   })
 
   lifecycle {

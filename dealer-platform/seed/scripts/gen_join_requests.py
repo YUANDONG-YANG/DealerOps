@@ -192,8 +192,8 @@ WHERE NOT EXISTS (
 ORDER BY s.requested_at;
 
 -- Approved applicants get the membership JoinRequestService.Approve creates.
-INSERT INTO membership (dealer_id, username, active, created_by, created_at)
-SELECT d.id, s.username, 1, s.resolved_by, s.resolved_at
+INSERT INTO membership (dealer_id, username, active, dealer_role, created_by, created_at)
+SELECT d.id, s.username, 1, 'staff', s.resolved_by, s.resolved_at
 FROM seed_join_request s
 JOIN dealer d ON d.contact_email = s.dealer_email
 WHERE s.outcome = 'APPROVED'
