@@ -978,7 +978,8 @@ Admin → **403** `FORBIDDEN` for every `entityType`, no `fieldSummary` content;
       "createdAt": "2026-09-21T21:10:00Z",
       "previous": null,
       "dealerId": null,
-      "clientIp": null
+      "clientIp": null,
+      "clientLocation": null
     }
   ],
   "page": 0,
@@ -997,6 +998,7 @@ Admin → **403** `FORBIDDEN` for every `entityType`, no `fieldSummary` content;
 | `previous` | changed field → **replaced** value, same keys and formatting as `fieldSummary`, on updates and other state changes where the old value is known; otherwise `null`. Each row is one version step of the record (AUD-13) |
 | `dealerId` | the row's dealership (`null` when the row has none); returned only by §9.2 and §9.3, `null` here |
 | `clientIp` | the caller's IP (AUD-16); returned only by §9.2 and §9.3, `null` here |
+| `clientLocation` | place name stored with the row (design/15 §8.8): neighborhood, city with quadrant (`Calgary SW`), region, and country. `Local or private network` for a non-routable address. `null` when the lookup did not return a place. Returned only by §9.2 and §9.3, `null` here |
 
 Contact fields (`email`, `phone`, `address`, `homeAddress`, `contact*`) are recorded by value like every other field: the new value in `fieldSummary` and the replaced value in `previous` (AUD-04, changed 2026-10-21). Only managers and the admin can read audit rows (AUD-17). Application logs still never carry contact values.
 
@@ -1004,11 +1006,11 @@ Contact fields (`email`, `phone`, `address`, `homeAddress`, `contact*`) are reco
 
 Platform audit log (AUD-10). `Platform.Admin` only; any other caller → **403** `FORBIDDEN`. Returns every audit row across dealerships, including sign-ins and admin operations.
 
-Query (all optional): `entityType`, `entityId`, `action`, `actor` (exact username, `anonymous` for unknown sign-in identifiers), `dealerId`, `from` (inclusive) and `to` (exclusive) as ISO 8601 instants, so the UI can filter by the viewer's local days, `page`, `size` (default **20**, at most 100). An unknown `entityType` or `action` → `400 VALIDATION`. Each item carries `dealerId` and `clientIp`.
+Query (all optional): `entityType`, `entityId`, `action`, `actor` (exact username, `anonymous` for unknown sign-in identifiers), `dealerId`, `from` (inclusive) and `to` (exclusive) as ISO 8601 instants, so the UI can filter by the viewer's local days, `page`, `size` (default **20**, at most 100). An unknown `entityType` or `action` → `400 VALIDATION`. Each item carries `dealerId`, `clientIp`, and `clientLocation`. Sign-ins (`LOGIN`, `LOGIN_FAILED`) and other operations are the same rows; filter `action` to separate them.
 
 ### 9.3 `GET /api/v1/dealer/audit`
 
-Dealership audit log (AUD-11). A dealership manager (`MANAGER` role, §5.8) only; staff → **403** `FORBIDDEN` (`Only a dealership manager can do this.`); Admin → **403**. Returns every row whose `dealerId` is the caller's dealership. Same query as §9.2 except that `dealerId` is ignored. Each item carries `dealerId` and `clientIp`.
+Dealership audit log (AUD-11). A dealership manager (`MANAGER` role, §5.8) only; staff → **403** `FORBIDDEN` (`Only a dealership manager can do this.`); Admin → **403**. Returns every row whose `dealerId` is the caller's dealership. Same query as §9.2 except that `dealerId` is ignored. Each item carries `dealerId`, `clientIp`, and `clientLocation`.
 
 ---
 

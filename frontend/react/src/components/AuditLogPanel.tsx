@@ -80,6 +80,7 @@ export default function AuditLogPanel({ load, showDealer = false, suggestActors 
             ...(showDealer ? [{ label: 'Dealership', render: (r: AuditLogRow) => r.dealerId == null ? 'Platform' : String(r.dealerId) }] : []),
             { label: 'Changes', render: (r) => summaryText(r.fieldSummary, r.previous) },
             { label: 'Source IP', render: (r) => r.clientIp ?? 'Not recorded' },
+            { label: 'Location', render: (r) => r.clientLocation ?? (r.clientIp ? 'Unavailable' : 'Not recorded') },
           ]}
         />
       </PageState>

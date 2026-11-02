@@ -44,6 +44,14 @@ public class AuditEventEntity
     [MaxLength(45)]
     public string? ClientIp { get; set; }
 
+    /// <summary>
+    /// Place name resolved from <see cref="ClientIp"/> when the row was written. Null when the
+    /// address was missing or the lookup did not return a place. Private networks keep a local label.
+    /// </summary>
+    [Column("client_location")]
+    [MaxLength(255)]
+    public string? ClientLocation { get; set; }
+
     [Column("created_at")]
     public DateTime CreatedAt { get; set; }
 }

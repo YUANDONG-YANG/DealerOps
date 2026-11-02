@@ -266,6 +266,13 @@ builder.Services.AddHttpClient<VehicleCatalogService>(client =>
     client.Timeout = TimeSpan.FromSeconds(5);
 });
 
+var ipGeoTimeout = builder.Configuration.GetValue("IpGeo:TimeoutSeconds", 2);
+builder.Services.AddHttpClient<IpGeolocator>(client =>
+{
+    client.Timeout = TimeSpan.FromSeconds(Math.Clamp(ipGeoTimeout, 1, 5));
+    client.DefaultRequestHeaders.UserAgent.ParseAdd("DealerOps");
+});
+
 builder.Services.AddHostedService<AdminSeeder>();
 builder.Services.AddHealthChecks();
 
@@ -300,6 +307,7 @@ using (var scope = app.Services.CreateScope())
         "ALTER TABLE membership ADD COLUMN dealer_role VARCHAR(16) NOT NULL DEFAULT 'staff'",
         "ALTER TABLE audit_event ADD COLUMN previous_values JSON NULL",
         "ALTER TABLE audit_event ADD COLUMN client_ip VARCHAR(45) NULL",
+        "ALTER TABLE audit_event ADD COLUMN client_location VARCHAR(255) NULL",
         // Existing rows get the catch-all body type so the NOT NULL column needs no backfill;
         // the add-vehicle form chooses an explicit value for new rows.
         "ALTER TABLE vehicle ADD COLUMN body_type VARCHAR(16) NOT NULL DEFAULT 'other'",
