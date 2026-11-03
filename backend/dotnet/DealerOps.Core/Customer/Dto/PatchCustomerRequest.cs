@@ -23,4 +23,7 @@ public record PatchCustomerRequest(
 
     [NotBlank(ErrorMessage = "Home address is required.")]
     [MaxLength(300, ErrorMessage = "Home address must be at most 300 characters.")]
-    string HomeAddress);
+    string HomeAddress,
+
+    [MaxLength(2000, ErrorMessage = "Notes must be at most 2000 characters.")]
+    string? Notes = null);

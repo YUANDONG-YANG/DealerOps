@@ -24,4 +24,17 @@ public class AdminPendingUserController : ControllerBase
         [FromQuery] int page = 0,
         [FromQuery] int size = 10) =>
         _membershipService.Pending(q, page, size);
+
+    /// <summary>Edits a pending login's username, email and phone.</summary>
+    [HttpPatch("api/v1/admin/pending-users/{username}")]
+    public PendingUserResponse Update(string username, [FromBody] UpdatePendingUserRequest body) =>
+        _membershipService.UpdatePending(username, body);
+
+    /// <summary>Soft-deletes a pending login.</summary>
+    [HttpDelete("api/v1/admin/pending-users/{username}")]
+    public IActionResult Delete(string username)
+    {
+        _membershipService.DeletePending(username);
+        return NoContent();
+    }
 }

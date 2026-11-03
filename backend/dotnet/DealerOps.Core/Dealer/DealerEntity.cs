@@ -47,4 +47,9 @@ public class DealerEntity
 
     [Column("updated_at")]
     public DateTime UpdatedAt { get; set; }
+
+    // Soft delete by the platform admin: the row stays so sale and audit history keep their
+    // dealership. A deleted dealership is also inactive and has no active members.
+    [Column("deleted_at")]
+    public DateTime? DeletedAt { get; set; }
 }

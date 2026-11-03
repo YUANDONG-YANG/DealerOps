@@ -10,6 +10,8 @@ export type PublicDealer = {
   id: number; legalName: string; slug: string; hasLogo: boolean; logoUrl: string | null;
   /** Vehicles in stock and sold so far, deleted vehicles excluded. */
   inStockCount: number; soldCount: number;
+  /** The dealership's public contact card, as shown on its buyer-site page. */
+  contactPhone: string; contactEmail: string; contactAddress: string;
 };
 
 /**

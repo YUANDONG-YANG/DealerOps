@@ -5,7 +5,8 @@ namespace DealerOps.Core.Dealer.Dto;
 
 public record CreateMemberRequest(
     [Required]
-    [RegularExpression(@"(?=.*[A-Za-z])[A-Za-z0-9._-]{3,64}")]
+    [RegularExpression(@"(?=.*[A-Za-z])[A-Za-z0-9._-]{3,64}",
+        ErrorMessage = "Username must be 3-64 characters: letters, digits, dot, underscore or hyphen, with at least one letter.")]
     string Username,
     [MaxLength(120)] string? DisplayName,
     [MinLength(8, ErrorMessage = "Use 8-72 characters.")][MaxLength(72, ErrorMessage = "Use 8-72 characters.")] string? Password,

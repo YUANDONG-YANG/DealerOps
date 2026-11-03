@@ -3,7 +3,7 @@ import AppLayout from '../layouts/AppLayout';
 import PageState from '../components/PageState';
 import KpiCard from '../components/KpiCard';
 import { describeError } from '../api/errors';
-import { reportsApi, type SalesFunnelReport, type SalesReport, type WorkshopSettlementReport } from '../api/reports';
+import { reportsApi, SALES_PERIODS, type SalesFunnelReport, type SalesPeriod, type SalesReport, type WorkshopSettlementReport } from '../api/reports';
 import { stageLabel } from '../api/leads';
 import { cad } from '../format';
 
@@ -24,13 +24,23 @@ export default function SalesFunnelPage() {
   const [workshop, setWorkshop] = useState<WorkshopSettlementReport | null>(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
+  const [period, setPeriod] = useState<SalesPeriod>('MONTH');
 
   useEffect(() => {
-    Promise.all([reportsApi.sales(), reportsApi.salesFunnel(), reportsApi.workshop()])
-      .then(([s, f, w]) => { setSales(s.data); setFunnel(f.data); setWorkshop(w.data); })
+    Promise.all([reportsApi.salesFunnel(), reportsApi.workshop()])
+      .then(([f, w]) => { setFunnel(f.data); setWorkshop(w.data); })
       .catch((reason) => setError(describeError(reason, 'load sales report')))
       .finally(() => setLoading(false));
   }, []);
+
+  // The sales section reloads on its own when the period changes; the rest of the page stays.
+  useEffect(() => {
+    reportsApi.sales(period)
+      .then((s) => setSales(s.data))
+      .catch((reason) => setError(describeError(reason, 'load sales report')));
+  }, [period]);
+
+  const periodLabel = SALES_PERIODS.find((p) => p.value === period)?.label ?? '';
 
   const peak = Math.max(1, ...(funnel?.stages.map((s) => s.count) ?? [0]));
 
@@ -40,14 +50,46 @@ export default function SalesFunnelPage() {
         <div className="page-header">
           <div><h1>Sales report</h1><span className="muted">Vehicle sales and the lead pipeline for this dealership</span></div>
         </div>
-        <PageState loading={loading} error={error} loadingText="Loading sales report…">
+        <PageState loading={loading || (!sales && !error)} error={error} loadingText="Loading sales report…">
           {sales && funnel && workshop && (
             <>
-              <h2>Vehicle sales</h2>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                <h2 style={{ marginRight: 'auto' }}>Sales for {periodLabel.toLowerCase()}</h2>
+                <select className="select" aria-label="Sales period" value={period}
+                  onChange={(e) => setPeriod(e.target.value as SalesPeriod)}>
+                  {SALES_PERIODS.map((p) => <option key={p.value} value={p.value}>{p.label}</option>)}
+                </select>
+              </div>
+              {sales.period && (
+                <>
+                  <div style={{ display: 'flex', gap: 16, marginBottom: 20, flexWrap: 'wrap' }}>
+                    <KpiCard label="Vehicles sold" value={String(sales.period.soldCount)} hint={`${sales.period.from} to ${sales.period.to}`} />
+                    <KpiCard label="Revenue" value={cad(sales.period.revenue)} />
+                    <KpiCard label="Gross profit" value={cad(sales.period.grossProfit)} hint="Sold price − purchase − repair" />
+                  </div>
+                  <div className="table-wrap" style={{ marginBottom: 24 }}>
+                    <table className="table" aria-label="Sales by salesperson">
+                      <thead><tr><th>Salesperson</th><th>Vehicles sold</th><th>Revenue</th><th>Gross profit</th><th>Open leads</th><th>Won leads</th></tr></thead>
+                      <tbody>{sales.salespeople.length === 0 ? (
+                        <tr><td colSpan={6} className="muted">No sales employees yet.</td></tr>
+                      ) : sales.salespeople.map((p) => (
+                        <tr key={p.username}>
+                          <td>{p.displayName}{!p.activeMember && <span className="muted"> (former member)</span>}</td>
+                          <td>{p.soldCount}</td><td>{cad(p.revenue)}</td>
+                          <td style={{ color: p.grossProfit < 0 ? 'var(--danger)' : undefined }}>{cad(p.grossProfit)}</td>
+                          <td>{p.openLeads}</td><td>{p.wonLeads}</td>
+                        </tr>
+                      ))}</tbody>
+                    </table>
+                  </div>
+                </>
+              )}
+
+              <h2>All-time vehicle sales</h2>
               <div style={{ display: 'flex', gap: 16, marginBottom: 20, flexWrap: 'wrap' }}>
-                <KpiCard label="Vehicles sold" value={String(sales.soldCount)} />
-                <KpiCard label="Revenue" value={cad(sales.revenue)} />
-                <KpiCard label="Gross profit" value={cad(sales.grossProfit)} hint="Sold price − purchase − repair" />
+                <KpiCard label="Total vehicles sold" value={String(sales.soldCount)} />
+                <KpiCard label="Total revenue" value={cad(sales.revenue)} />
+                <KpiCard label="Total gross profit" value={cad(sales.grossProfit)} hint="Sold price − purchase − repair" />
                 <KpiCard label="Avg. days to sell" value={sales.averageDaysToSell == null ? 'No sales yet' : String(sales.averageDaysToSell)} />
                 <KpiCard label="In stock" value={String(sales.inStockCount)} hint={`${cad(sales.inventoryCost)} invested`} />
               </div>

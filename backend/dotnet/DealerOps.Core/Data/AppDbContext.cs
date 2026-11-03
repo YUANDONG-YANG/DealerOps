@@ -176,7 +176,6 @@ public class AppDbContext : DbContext
             e.HasIndex(u => u.Username).IsUnique().HasDatabaseName("uk_user_username");
             e.HasIndex(u => u.Email).IsUnique().HasDatabaseName("uk_app_user_email");
             e.HasIndex(u => u.Phone).IsUnique().HasDatabaseName("uk_app_user_phone");
-            e.HasIndex(u => u.DisplayName).IsUnique().HasDatabaseName("uk_app_user_display_name");
             e.Property(u => u.Role).HasConversion(
                 new ValueConverter<AppRole, string>(
                     v => v.Value,

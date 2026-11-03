@@ -2,7 +2,18 @@ import { http } from './http';
 import type { Dealer } from './admin';
 import type { DealerRole } from './me';
 
-export type MemberOption = { username: string; displayName: string; source: string | null; dealerRole: DealerRole };
+export type MemberOption = {
+  username: string;
+  displayName: string;
+  source: string | null;
+  dealerRole: DealerRole;
+  phone: string | null;
+  /** When the membership was created, UTC. */
+  joinedAt: string;
+};
+
+/** The member fields a manager may edit; a null phone clears it. */
+export type MemberPatchBody = { displayName: string; phone: string | null };
 
 /** A manager's edit of their own dealership; active status stays with the platform admin. */
 export type DealerProfileBody = Pick<Dealer, 'legalName' | 'contactPhone' | 'contactEmail' | 'contactAddress' | 'logoDataUrl' | 'version'>;
@@ -32,6 +43,10 @@ export const membersApi = {
 /** Manager-only routes for the caller's own dealership (AUTH-27). */
 export const teamApi = {
   remove: (username: string) => http.delete(`/api/v1/dealer/members/${encodeURIComponent(username)}`),
+  setRole: (username: string, dealerRole: DealerRole) =>
+    http.put(`/api/v1/dealer/members/${encodeURIComponent(username)}/role`, { dealerRole }),
+  update: (username: string, body: MemberPatchBody) =>
+    http.patch(`/api/v1/dealer/members/${encodeURIComponent(username)}`, body),
   profile: () => http.get<Dealer>('/api/v1/dealer/profile').then(r => r.data),
   saveProfile: (body: DealerProfileBody) => http.patch<Dealer>('/api/v1/dealer/profile', body).then(r => r.data),
 };

@@ -10,7 +10,6 @@ const PHONE_RX = /^\+?[1-9][0-9]{6,14}$/
 
 const TAKEN_FIELD: Record<string, string> = {
   USERNAME_TAKEN: 'username',
-  DISPLAY_NAME_TAKEN: 'displayName',
   EMAIL_TAKEN: 'email',
   PHONE_TAKEN: 'phone',
 }

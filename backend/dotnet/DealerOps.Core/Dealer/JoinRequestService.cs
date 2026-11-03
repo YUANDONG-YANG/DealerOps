@@ -147,29 +147,54 @@ public class JoinRequestService
             throw Deny(user.Id, dealerId, "dealer_not_found", "not_found",
                 new ApiException(ErrorCode.NotFound, "Dealership not found."));
         if (user.RequestedDealerId != dealerId)
-            SetRequested(user, dealerId);
+            SetRequested(user, dealerId, user.Username);
         var name = _db.Dealers.Where(d => d.Id == dealerId).Select(d => d.LegalName).FirstOrDefault();
         return new MyJoinRequestResponse(dealerId, name);
     }
 
-    // File() only reaches here while no request is pending, so the old value is always empty.
-    // The row carries the requested dealership so it shows in that dealership's audit log.
-    private void SetRequested(AppUserEntity user, long dealerId)
+    /// <summary>
+    /// Files a join request to <paramref name="dealerId"/> for an unbound account, replacing any
+    /// request it had pending at another dealership (whose inbox entry is cancelled). Used by the
+    /// applicant (<see cref="File"/>) and by the platform admin's create-staff and bind actions
+    /// once the dealership has a manager (AUTH-25). The row carries the requested dealership so it
+    /// shows in that dealership's audit log.
+    /// </summary>
+    internal void SetRequested(AppUserEntity user, long dealerId, string actor)
     {
+        var previous = user.RequestedDealerId;
+        if (previous == dealerId) return;
+        if (previous is long other)
+            _notifications.ResolveByCorrelation(other, "JOIN_REQUEST", "username", user.Username,
+                "CANCELLED", actor);
         user.RequestedDealerId = dealerId;
-        _audit.Record("APP_USER", user.Id, "UPDATE", dealerId, user.Username,
+        _audit.Record("APP_USER", user.Id, "UPDATE", dealerId, actor,
             new Dictionary<string, object> { ["requestedDealerId"] = dealerId },
-            new Dictionary<string, object?> { ["requestedDealerId"] = null });
+            new Dictionary<string, object?> { ["requestedDealerId"] = previous });
         _db.SaveChanges();
+        Notify(user, dealerId);
+        _logger.LogInformation("Join request filed username={Username} dealerId={DealerId} by {Actor}",
+            user.Username, dealerId, actor);
+    }
+
+    /// <summary>
+    /// Replaces the inbox entry of a pending request after the admin edits the applicant's
+    /// username or contact details, so the manager sees, and approves by, the current values.
+    /// </summary>
+    internal void RefreshNotification(AppUserEntity user, string previousUsername, string actor)
+    {
+        if (user.RequestedDealerId is not long dealerId) return;
+        _notifications.ResolveByCorrelation(dealerId, "JOIN_REQUEST", "username", previousUsername,
+            "CANCELLED", actor);
+        Notify(user, dealerId);
+    }
+
+    private void Notify(AppUserEntity user, long dealerId) =>
         _notifications.Create(dealerId, "JOIN_REQUEST", new
         {
             username = user.Username,
             displayName = user.DisplayName,
             email = user.Email
         });
-        _logger.LogInformation("Join request filed username={Username} dealerId={DealerId}",
-            user.Username, dealerId);
-    }
 
     private AppUserEntity LoadCaller()
     {

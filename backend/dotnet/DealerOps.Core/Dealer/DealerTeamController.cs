@@ -30,6 +30,22 @@ public class DealerTeamController : ControllerBase
     [HttpPatch("profile")]
     public DealerResponse PatchProfile([FromBody] PatchDealerProfileRequest body) => _dealers.PatchOwn(body);
 
+    /// <summary>Sets another member of the caller's dealership to MANAGER or STAFF.</summary>
+    [HttpPut("members/{username}/role")]
+    public IActionResult SetMemberRole(string username, [FromBody] SetDealerRoleRequest body)
+    {
+        _memberships.SetRoleInOwnDealership(username, body.DealerRole!.Value);
+        return NoContent();
+    }
+
+    /// <summary>Edits a member's full name and phone.</summary>
+    [HttpPatch("members/{username}")]
+    public IActionResult PatchMember(string username, [FromBody] PatchMemberRequest body)
+    {
+        _memberships.UpdateInOwnDealership(username, body);
+        return NoContent();
+    }
+
     /// <summary>Removes a staff member from the caller's dealership.</summary>
     [HttpDelete("members/{username}")]
     public IActionResult RemoveMember(string username)

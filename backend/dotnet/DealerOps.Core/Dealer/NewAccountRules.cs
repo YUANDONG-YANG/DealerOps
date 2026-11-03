@@ -6,7 +6,8 @@ namespace DealerOps.Core.Dealer;
 
 /// <summary>
 /// Validation shared by every account-creating flow (registration, Google, Firebase and admin
-/// creation): canonical contact details and uniqueness of username, display name, email and phone.
+/// creation): canonical contact details and uniqueness of username, email and phone. The full
+/// name is not unique.
 /// </summary>
 public class NewAccountRules
 {
@@ -50,22 +51,23 @@ public class NewAccountRules
         return new Contact(email, phone);
     }
 
-    /// <summary>Throws a conflict naming every field already registered to another account.</summary>
-    public void RequireAvailable(string username, string displayName, Contact contact)
+    /// <summary>
+    /// Throws a conflict naming every field already registered to another account.
+    /// <paramref name="exceptUserId"/> skips the account being edited.
+    /// </summary>
+    public void RequireAvailable(string username, Contact contact, long? exceptUserId = null)
     {
+        var others = _db.AppUsers.Where(u => exceptUserId == null || u.Id != exceptUserId);
         var taken = new Dictionary<string, string>();
         ErrorCode? first = null;
 
-        if (_db.AppUsers.Any(u => u.Username == username))
+        if (others.Any(u => u.Username == username))
         { first = Put(taken, first, "username", ErrorCode.UsernameTaken, "That username is already taken."); }
 
-        if (_db.AppUsers.Any(u => EF.Functions.Like(u.DisplayName, displayName)))
-        { first = Put(taken, first, "displayName", ErrorCode.DisplayNameTaken, "That full name is already registered."); }
-
-        if (contact.Email != null && _db.AppUsers.Any(u => u.Email != null && EF.Functions.Like(u.Email, contact.Email)))
+        if (contact.Email != null && others.Any(u => u.Email != null && EF.Functions.Like(u.Email, contact.Email)))
         { first = Put(taken, first, "email", ErrorCode.EmailTaken, "That email address is already registered."); }
 
-        if (contact.Phone != null && _db.AppUsers.Any(u => u.Phone == contact.Phone))
+        if (contact.Phone != null && others.Any(u => u.Phone == contact.Phone))
         { first = Put(taken, first, "phone", ErrorCode.PhoneTaken, "That phone number is already registered."); }
 
         if (first.HasValue)
@@ -82,7 +84,6 @@ public class NewAccountRules
         var conflicts = new (string Field, ErrorCode Code, string Constraint, string Message)[]
         {
             ("username", ErrorCode.UsernameTaken, "uk_user_username", "That username is already taken."),
-            ("displayName", ErrorCode.DisplayNameTaken, "uk_app_user_display_name", "That full name is already registered."),
             ("email", ErrorCode.EmailTaken, "uk_app_user_email", "That email address is already registered."),
             ("phone", ErrorCode.PhoneTaken, "uk_app_user_phone", "That phone number is already registered."),
         };

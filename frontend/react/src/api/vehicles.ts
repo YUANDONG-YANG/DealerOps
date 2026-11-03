@@ -36,21 +36,30 @@ export const vehiclesApi = {
     if (p.model) params.model = p.model;
     if (p.modelYear) params.modelYear = p.modelYear;
     if (p.unlinkedOnly) params.unlinkedOnly = true;
+    if (p.openWorkOrdersOnly) params.openWorkOrdersOnly = true;
     if (p.adKind) params.adKind = p.adKind;
     if (p.medium) params.medium = p.medium;
     if (p.checkStatus) params.checkStatus = p.checkStatus;
     if (p.buyerSite) params.buyerSite = p.buyerSite;
+    // `field,asc|desc`, e.g. `listPrice,desc`; omitted is newest first.
+    if (p.sort) params.sort = p.sort;
     return http.get('/api/v1/vehicles', { params });
   },
   get: (id: number) => http.get(`/api/v1/vehicles/${id}`),
   create: (b: object) => http.post('/api/v1/vehicles', vehicleWriteBody(b)),
   update: (id: number, b: object & { version?: number }) =>
     http.patch(`/api/v1/vehicles/${id}`, { ...vehicleWriteBody(b), version: b.version }),
-  sell: (id: number, b: { soldOn: string; soldPrice: unknown; version: number }) =>
+  /** Records the sale, links the CRM buyer and closes the vehicle's open leads in one call; the response carries soldBy and soldToName. */
+  sell: (
+    id: number,
+    b: { soldOn: string; soldPrice: unknown; version: number; buyerCustomerId?: number | null; buyerName?: string | null },
+  ) =>
     http.post(`/api/v1/vehicles/${id}/sell`, {
       soldOn: b.soldOn,
       soldPrice: b.soldPrice === '' || b.soldPrice == null ? b.soldPrice : Number(b.soldPrice),
       version: b.version,
+      buyerCustomerId: b.buyerCustomerId ?? null,
+      buyerName: b.buyerName ?? null,
     }),
   delete: (id: number) => http.delete(`/api/v1/vehicles/${id}`),
 };

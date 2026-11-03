@@ -4,9 +4,15 @@ import type { AuditRow } from '../components/AuditTrail';
 /** A row of the admin or dealership audit log; those logs also carry the dealership and source IP. */
 export type AuditLogRow = AuditRow & { id: number; entityId: number; dealerId?: number | null; clientIp?: string | null };
 
-/** Optional filters of the audit logs; `from` and `to` are inclusive `YYYY-MM-DD` days in the viewer's time zone. */
+/**
+ * Optional filters of the audit logs; `from` and `to` are inclusive `YYYY-MM-DD` days in the viewer's time zone.
+ * `actor` matches any part of the username, ignoring case. `q` is free text matched against the action,
+ * the record type and the changed values (new and previous), ignoring case.
+ * `sort` is `field,asc|desc` (createdAt, actorUsername, action, entityType, dealerId, clientIp); omitted is newest first.
+ */
 export type AuditLogFilter = {
-  entityType?: string; action?: string; actor?: string; dealerId?: number; from?: string; to?: string;
+  entityType?: string; action?: string; actor?: string; dealerId?: number; from?: string; to?: string; q?: string;
+  sort?: string;
 };
 
 type AuditLogPage = { items: AuditLogRow[]; totalElements: number };

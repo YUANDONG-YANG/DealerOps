@@ -1,13 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import AppLayout from '../layouts/AppLayout';
 import DataTable from '../components/DataTable';
+import { useSort } from '../components/TableSort';
 import FormDrawer from '../components/FormDrawer';
+import { useFormBaseline } from '../components/unsavedChanges';
 import ConfirmDialog from '../components/ConfirmDialog';
 import PageState from '../components/PageState';
 import PendingAccounts from '../components/PendingAccounts';
 import ComplianceRulesPanel from '../components/ComplianceRulesPanel';
 import AuditLogPanel from '../components/AuditLogPanel';
-import { adminApi, type Dealer, type Member } from '../api/admin';
+import { adminApi, isJoinRequestSent, type Dealer, type Member } from '../api/admin';
 import { auditApi } from '../api/audit';
 import { apiError, codeOf, collectAllPages, fieldErrorsOf, statusOf } from '../api/http';
 import { describeError, errorReason } from '../api/errors';
@@ -49,12 +51,11 @@ function SignInTag({ method }: { method: Member['signInMethod'] }) {
 
 // What to do when a new staff account collides with an existing one (409 *_TAKEN, per field).
 const FIELD_LABELS: Record<string, string> = {
-  username: 'Username', displayName: 'Display name', password: 'Temporary password', email: 'Login email', phone: 'Login phone',
+  username: 'Username', displayName: 'Full name', password: 'Temporary password', email: 'Login email', phone: 'Login phone',
 };
 
 const TAKEN_HINTS: Record<string, string> = {
   username: 'Pick another username, e.g. add a number or the dealership name (kevin.ng2, kevin.parkway).',
-  displayName: 'Display names are unique across the platform. Add a middle initial or the full surname.',
   email: 'Use a different email, or leave this blank and enter a phone number instead.',
   phone: 'Use a different number, or leave this blank and enter an email instead.',
 };
@@ -83,6 +84,7 @@ export default function AdminPage() {
   const [creating, setCreating] = useState(false);
   const [editingDealer, setEditingDealer] = useState<Dealer | null>(null);
   const [logoDataUrl, setLogoDataUrl] = useState<string | null>(null);
+  const dealerBaseline = useFormBaseline({ ...form, logoDataUrl });
 
   const [staffDealer, setStaffDealer] = useState<Dealer | null>(null);
   // One table at a time in the staff drawer: its members or the accounts waiting to be bound.
@@ -92,6 +94,8 @@ export default function AdminPage() {
   const [drawerError, setDrawerError] = useState('');
   const [member, setMember] = useState({ username: '', displayName: '', password: '', email: '', phone: '' });
   const [bindError, setBindError] = useState('');
+  // Success line after a create or bind: the member was bound, or a join request was sent (AUTH-28).
+  const [bindNotice, setBindNotice] = useState('');
   const [memberErrors, setMemberErrors] = useState<Record<string, string>>({});
   const [memberHints, setMemberHints] = useState<Record<string, string>>({});
   const [binding, setBinding] = useState(false);
@@ -106,6 +110,18 @@ export default function AdminPage() {
   const [resetError, setResetError] = useState('');
   const [resetNotice, setResetNotice] = useState('');
   const [resetting, setResetting] = useState(false);
+  // Delete a dealership (A5) or a member account (A6): both confirm by typing its name.
+  const [deleteDealerTarget, setDeleteDealerTarget] = useState<Dealer | null>(null);
+  const [deleteAccountTarget, setDeleteAccountTarget] = useState<FlatMember | null>(null);
+  const [typedName, setTypedName] = useState('');
+  const [deleteError, setDeleteError] = useState('');
+  const [deleting, setDeleting] = useState(false);
+  const [contactTarget, setContactTarget] = useState<FlatMember | null>(null);
+  const [contactForm, setContactForm] = useState({ email: '', phone: '' });
+  const [contactErrors, setContactErrors] = useState<Record<string, string>>({});
+  const [contactError, setContactError] = useState('');
+  const [contactSaving, setContactSaving] = useState(false);
+  const [accountNotice, setAccountNotice] = useState('');
   // Bumped to remount the status checkboxes so a cancelled confirm snaps back to the stored state.
   const [statusRevert, setStatusRevert] = useState(0);
   // Bumped to remount the pending lists after a membership change adds or removes a pending account.
@@ -120,7 +136,9 @@ export default function AdminPage() {
   const memberPool = useRef<Promise<FlatMember[]> | null>(null);
   const signedInUser = useSessionStore((s) => s.username);
 
-  const pagedMembers = flatMembers.slice(memberPage * 10, memberPage * 10 + 10);
+  // The member list is paged here, so it is sorted in full before the page is cut.
+  const memberSort = useSort(flatMembers);
+  const pagedMembers = memberSort.sorted.slice(memberPage * 10, memberPage * 10 + 10);
 
   const loadDealers = useCallback(async () => {
     const seq = ++dealersLoadSeq.current;
@@ -208,7 +226,7 @@ export default function AdminPage() {
 
   const openMembers = async (row: Dealer) => {
     const seq = ++drawerMembersLoadSeq.current;
-    setStaffDealer(row); setStaffTab('staff'); setMemberDrawer(true); setBindError('');
+    setStaffDealer(row); setStaffTab('staff'); setMemberDrawer(true); setBindError(''); setBindNotice('');
     setMemberErrors({}); setDrawerError(''); setDrawerMembers([]);
     try {
       const items = await fetchDealerMembers(row.id, '');
@@ -244,13 +262,15 @@ export default function AdminPage() {
 
   const openDealer = () => {
     setEditingDealer(null);
-    setForm({ legalName: '', contactPhone: '', contactEmail: '', contactAddress: '' });
+    const empty = { legalName: '', contactPhone: '', contactEmail: '', contactAddress: '' };
+    setForm(empty); dealerBaseline.reset({ ...empty, logoDataUrl: null });
     setFormError(''); setLogoDataUrl(null); setDrawer(true);
   };
 
   const openEdit = (row: Dealer) => {
     setEditingDealer(row);
-    setForm({ legalName: row.legalName, contactPhone: row.contactPhone, contactEmail: row.contactEmail, contactAddress: row.contactAddress });
+    const values = { legalName: row.legalName, contactPhone: row.contactPhone, contactEmail: row.contactEmail, contactAddress: row.contactAddress };
+    setForm(values); dealerBaseline.reset({ ...values, logoDataUrl: row.logoDataUrl });
     setLogoDataUrl(row.logoDataUrl); setFormError(''); setDrawer(true);
   };
 
@@ -304,11 +324,11 @@ export default function AdminPage() {
   };
 
   const bind = async () => {
-    setBindError(''); setMemberErrors({}); setMemberHints({});
+    setBindError(''); setBindNotice(''); setMemberErrors({}); setMemberHints({});
     if (!staffDealer) return;
     const missing: Record<string, string> = {};
     if (!member.username.trim()) missing.username = 'Enter a username.';
-    if (!member.displayName.trim()) missing.displayName = 'Enter the display name.';
+    if (!member.displayName.trim()) missing.displayName = 'Enter the full name.';
     if (!member.password) missing.password = 'Enter a temporary password.';
     if (!member.email.trim() && !member.phone.trim()) {
       missing.email = 'Enter an email address or a phone number.';
@@ -321,13 +341,14 @@ export default function AdminPage() {
     }
     if (binding) return; setBinding(true);
     try {
-      await adminApi.bind(staffDealer.id, {
+      const r = await adminApi.bind(staffDealer.id, {
         ...member,
         username: member.username.trim(),
         displayName: member.displayName.trim(),
         email: member.email.trim() || undefined,
         phone: member.phone.trim() || undefined,
       });
+      setBindNotice(isJoinRequestSent(r.data) ? r.data.message : `${r.data.username} is bound as the dealership's first manager.`);
       setMember({ username: '', displayName: '', password: '', email: '', phone: '' });
       await refreshMemberships(staffDealer.id);
     } catch (e) {
@@ -351,9 +372,10 @@ export default function AdminPage() {
 
   const setStatus = async (dealerId: number, username: string, active: boolean) => {
     if (!active) { setPendingUnbind({ dealerId, username }); setUnbindError(''); setConfirm(true); return; }
-    setStatusBusy(`${dealerId}:${username}`);
+    setStatusBusy(`${dealerId}:${username}`); setBindNotice('');
     try {
-      await adminApi.bind(dealerId, { username });
+      const r = await adminApi.bind(dealerId, { username });
+      if (isJoinRequestSent(r.data)) setBindNotice(r.data.message);
       await refreshMemberships(dealerId);
     } catch (e) {
       setStatusRevert((n) => n + 1);
@@ -415,7 +437,7 @@ export default function AdminPage() {
     );
   };
 
-  // Only the platform admin promotes staff to manager or demotes a manager (AUTH-26).
+  // The platform admin promotes staff to manager or demotes a manager in any dealership (AUTH-26).
   const roleAction = (dealerId: number, m: Member) => {
     if (!m.active) return null;
     const next = m.dealerRole === 'MANAGER' ? 'STAFF' : 'MANAGER';
@@ -435,6 +457,77 @@ export default function AdminPage() {
     } catch (e) {
       alert(describeError(e, `change the role of ${username}`));
     } finally { setStatusBusy(''); }
+  };
+
+  const openDeleteDealer = (row: Dealer) => {
+    setDeleteDealerTarget(row); setTypedName(''); setDeleteError('');
+  };
+
+  const deleteDealer = async () => {
+    if (!deleteDealerTarget || deleting || typedName.trim() !== deleteDealerTarget.legalName) return;
+    const { id, legalName } = deleteDealerTarget;
+    setDeleting(true); setDeleteError('');
+    try {
+      await adminApi.deleteDealer(id);
+      setDeleteDealerTarget(null);
+      if (staffDealer?.id === id) setMemberDrawer(false);
+      setAccountNotice(`${legalName} was deleted. Its members were unbound and can be bound to another dealership.`);
+      await loadDealers();
+      setPendingReload((n) => n + 1);
+    } catch (e) {
+      if (codeOf(e) === 'NOT_FOUND') setDeleteError(`${legalName} no longer exists. Close this dialog and refresh the list.`);
+      else if (isForbidden(e)) setDeleteError('You do not have access to Admin.');
+      else setDeleteError(describeError(e, `delete ${legalName}`));
+    } finally { setDeleting(false); }
+  };
+
+  const openDeleteAccount = (m: FlatMember) => {
+    setDeleteAccountTarget(m); setTypedName(''); setDeleteError('');
+  };
+
+  const deleteAccount = async () => {
+    if (!deleteAccountTarget || deleting || typedName.trim() !== deleteAccountTarget.username) return;
+    const { dealerId, username } = deleteAccountTarget;
+    setDeleting(true); setDeleteError('');
+    try {
+      await adminApi.deleteMemberAccount(dealerId, username);
+      setDeleteAccountTarget(null);
+      setAccountNotice(`The account ${username} was deleted.`);
+      await refreshMemberships(dealerId);
+    } catch (e) {
+      if (codeOf(e) === 'NOT_FOUND') setDeleteError(`${username} no longer exists. Close this dialog and refresh the list.`);
+      else if (isForbidden(e)) setDeleteError(apiError(e).message || 'You do not have access to Admin.');
+      else setDeleteError(describeError(e, `delete ${username}`));
+    } finally { setDeleting(false); }
+  };
+
+  const openContact = (m: FlatMember) => {
+    setContactTarget(m); setContactForm({ email: m.email ?? '', phone: m.phone ?? '' });
+    setContactErrors({}); setContactError('');
+  };
+
+  const saveContact = async () => {
+    if (!contactTarget || contactSaving) return;
+    const email = contactForm.email.trim(), phone = contactForm.phone.trim();
+    if (!email && !phone) {
+      const msg = 'Enter an email address or a phone number.';
+      setContactErrors({ email: msg, phone: msg }); setContactError(msg); return;
+    }
+    const { dealerId, username } = contactTarget;
+    setContactSaving(true); setContactErrors({}); setContactError('');
+    try {
+      await adminApi.updateMemberContact(dealerId, username, { email: email || null, phone: phone || null });
+      setContactTarget(null);
+      setAccountNotice(`Contact details for ${username} were saved.`);
+      await refreshMemberships(dealerId);
+    } catch (e) {
+      const fields = fieldErrorsOf(e);
+      setContactErrors(fields);
+      if (Object.keys(fields).length) setContactError(`Fix: ${Object.keys(fields).map((f) => FIELD_LABELS[f] ?? f).join(', ')}.`);
+      else if (codeOf(e) === 'NOT_FOUND') setContactError(`${username} no longer exists. Close this dialog and refresh the list.`);
+      else if (isForbidden(e)) setContactError('You do not have access to Admin.');
+      else setContactError(describeError(e, `save the contact details for ${username}`));
+    } finally { setContactSaving(false); }
   };
 
   return (
@@ -466,6 +559,7 @@ export default function AdminPage() {
               <button className="btn" onClick={() => { setPage(0); loadDealers(); }}>Search</button>
               <button className="btn" onClick={() => { setQ(''); setPage(0); }}>Reset</button>
             </div>
+            {accountNotice && <p className="success-text">{accountNotice}</p>}
             <PageState loading={loading} error={error} forbidden={forbidden}
               empty={!loading && !error && !forbidden && !rows.length}
               emptyText="No dealerships yet." loadingText="Loading dealerships…"
@@ -482,6 +576,7 @@ export default function AdminPage() {
                   <>
                     <button className="btn-link" onClick={() => openEdit(r)}>Edit</button>
                     <button className="btn-link" onClick={() => openMembers(r)}>Staff</button>
+                    <button className="btn-link danger" onClick={() => openDeleteDealer(r)}>Delete</button>
                   </>
                 )}
               />
@@ -501,18 +596,21 @@ export default function AdminPage() {
               <button className="btn" onClick={() => { setMemberQ(''); setMemberPage(0); loadFlatMembers(''); }}>Reset</button>
             </div>
             {resetNotice && !memberDrawer && <p className="success-text">{resetNotice}</p>}
+            {bindNotice && !memberDrawer && <p className="success-text">{bindNotice}</p>}
+            {accountNotice && <p className="success-text">{accountNotice}</p>}
             <PageState loading={membersLoading} error={membersError} forbidden={membersForbidden}
               empty={!membersLoading && !membersError && !membersForbidden && !flatMembers.length}
               emptyText="No members yet." loadingText="Loading members…"
               forbiddenText="You do not have access to Admin.">
               <DataTable rows={pagedMembers} total={flatMembers.length} page={memberPage} onPage={setMemberPage}
+                sort={memberSort.sort} onSort={(key) => { memberSort.toggle(key); setMemberPage(0); }}
                 columns={[
                   { label: 'Username', render: (r) => r.username },
-                  { key: 'legalName', label: 'Dealership' },
-                  { label: 'Role', render: (r) => <span className={`tag ${r.dealerRole === 'MANAGER' ? 'tag-success' : ''}`}>{enumLabel(r.dealerRole)}</span> },
+                  { key: 'legalName', label: 'Dealership', sortable: true },
+                  { key: 'dealerRole', label: 'Role', sortable: true, render: (r) => <span className={`tag ${r.dealerRole === 'MANAGER' ? 'tag-success' : ''}`}>{enumLabel(r.dealerRole)}</span> },
                   { label: 'Contact', render: (r) => memberContact(r) },
-                  { label: 'Sign-in', render: (r) => <SignInTag method={r.signInMethod} /> },
-                  { label: 'Status', render: (r) => (
+                  { key: 'signInMethod', label: 'Sign-in', sortable: true, render: (r) => <SignInTag method={r.signInMethod} /> },
+                  { key: 'active', label: 'Status', sortable: true, render: (r) => (
                     <label className="checkbox-label">
                       <input type="checkbox" key={`${r.dealerId}:${r.username}:${statusRevert}`}
                         checked={r.active}
@@ -523,6 +621,12 @@ export default function AdminPage() {
                   )},
                   { label: 'Password', render: (r) => passwordAction(r.dealerId, r) },
                   { label: 'Change role', render: (r) => roleAction(r.dealerId, r) },
+                  { label: 'Account', render: (r) => (
+                    <>
+                      <button className="btn-link" onClick={() => openContact(r)}>Edit contact</button>
+                      <button className="btn-link danger" onClick={() => openDeleteAccount(r)}>Delete account</button>
+                    </>
+                  )},
                 ]}
               />
             </PageState>
@@ -535,7 +639,7 @@ export default function AdminPage() {
         {tab === 'audit' && <AuditLogPanel load={auditApi.platformLog} showDealer suggestActors={suggestActors} />}
       </div>
 
-      <FormDrawer title={editingDealer ? 'Edit dealership' : 'New dealership'} open={drawer} onClose={() => setDrawer(false)}>
+      <FormDrawer title={editingDealer ? 'Edit dealership' : 'New dealership'} open={drawer} dirty={dealerBaseline.dirty} onClose={() => setDrawer(false)}>
         {formError && <p className="danger-text">{formError}</p>}
         <div className="form-item"><label className="form-label form-required">Legal name</label>
           <input className="input" value={form.legalName} onChange={(e) => setForm((f) => ({ ...f, legalName: e.target.value }))} />
@@ -570,8 +674,9 @@ export default function AdminPage() {
         open={memberDrawer} onClose={() => setMemberDrawer(false)}>
         {drawerError && <p className="danger-text">{drawerError}</p>}
         <div className="muted" style={{ marginBottom: 8 }}>
-          Create a new staff account — a temporary password is required. An account that registered itself is bound
-          from the Pending accounts tab below, without one.
+          Create a new staff account — a temporary password is required. An account that registered itself is added
+          from the Pending accounts tab below, without one. While the dealership has no manager, the account is bound as
+          its first manager; otherwise a join request is sent for a dealership manager to approve in Team &gt; Join Requests.
         </div>
         <div className="form-item"><label className="form-label form-required">Username</label>
           <input className="input" value={member.username}
@@ -579,11 +684,10 @@ export default function AdminPage() {
           {memberErrors.username && <div className="form-error">{memberErrors.username}</div>}
           {memberHints.username && <div className="muted form-hint">{memberHints.username}</div>}
         </div>
-        <div className="form-item"><label className="form-label form-required">Display name</label>
+        <div className="form-item"><label className="form-label form-required">Full name</label>
           <input className="input" value={member.displayName}
             onChange={(e) => setMember((m) => ({ ...m, displayName: e.target.value }))} />
           {memberErrors.displayName && <div className="form-error">{memberErrors.displayName}</div>}
-          {memberHints.displayName && <div className="muted form-hint">{memberHints.displayName}</div>}
         </div>
         <div className="form-item"><label className="form-label form-required">Temporary password</label>
           <input className="input" type="password" value={member.password}
@@ -606,6 +710,7 @@ export default function AdminPage() {
         </div>
         {/* Shown next to the button: the drawer is usually scrolled down when the error arrives. */}
         {bindError && <p className="danger-text">{bindError}</p>}
+        {bindNotice && <p className="success-text">{bindNotice}</p>}
         <button className="btn btn-primary" disabled={binding} onClick={bind}>
           {binding ? 'Binding…' : 'Create and bind'}
         </button>

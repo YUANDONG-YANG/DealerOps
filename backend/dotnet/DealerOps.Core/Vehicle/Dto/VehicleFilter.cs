@@ -14,4 +14,6 @@ public record VehicleFilter(
     AdKind? AdKind = null,
     AdMedium? Medium = null,
     string? CheckStatus = null,
-    BuyerSiteFilter? BuyerSite = null);
+    BuyerSiteFilter? BuyerSite = null,
+    string? Sort = null,
+    bool OpenWorkOrdersOnly = false);

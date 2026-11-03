@@ -19,7 +19,7 @@ public class VehicleController : ControllerBase
         _vehicleService = vehicleService;
     }
 
-    /// <summary>Lists vehicles matching the filters, newest first.</summary>
+    /// <summary>Lists vehicles matching the filters, newest first unless <c>sort=field,asc|desc</c> is given.</summary>
     [HttpGet]
     public PageResponse<VehicleResponse> List(
         [FromQuery] string? q,
@@ -34,12 +34,14 @@ public class VehicleController : ControllerBase
         [FromQuery] AdMedium? medium = null,
         [FromQuery] string? checkStatus = null,
         [FromQuery] BuyerSiteFilter? buyerSite = null,
+        [FromQuery] string? sort = null,
+        [FromQuery] bool openWorkOrdersOnly = false,
         [FromQuery] int page = 0,
         [FromQuery] int size = 10)
     {
         return _vehicleService.List(
             new VehicleFilter(q, status, condition, bodyType, make, model, modelYear, unlinkedOnly,
-                adKind, medium, checkStatus, buyerSite), page, size);
+                adKind, medium, checkStatus, buyerSite, sort, openWorkOrdersOnly), page, size);
     }
 
     /// <summary>Adds a vehicle and returns 201 with the created record.</summary>
@@ -50,9 +52,9 @@ public class VehicleController : ControllerBase
         return StatusCode(201, _vehicleService.Create(body));
     }
 
-    /// <summary>Returns the dealership sales report.</summary>
+    /// <summary>Returns the dealership sales report, optionally with one period's totals (TODAY, WEEK, MONTH, YEAR).</summary>
     [HttpGet("report/sales")]
-    public SalesReport SalesReport() => _vehicleService.SalesReport();
+    public SalesReport SalesReport([FromQuery] SalesPeriod? period = null) => _vehicleService.SalesReport(period);
 
     /// <summary>Returns one vehicle.</summary>
     [HttpGet("{id}")]

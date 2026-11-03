@@ -14,7 +14,6 @@ const REASONS: Record<string, string> = {
   VERSION_CONFLICT: 'Someone else changed this record after you opened it. Reopen it to load the latest version, then make your change again.',
   DUP_MEMBER: 'This login already belongs to a dealership. A login can belong to only one dealership.',
   USERNAME_TAKEN: 'That username is already in use. Choose another one.',
-  DISPLAY_NAME_TAKEN: 'Another account already uses that name. Add a middle initial or a surname.',
   EMAIL_TAKEN: 'That email address is already used by another account. Use a different email.',
   PHONE_TAKEN: 'That phone number is already used by another account. Use a different number.',
   VEHICLE_ALREADY_LINKED: 'This vehicle is already linked to another customer. Unlink it from that customer first.',
@@ -22,6 +21,7 @@ const REASONS: Record<string, string> = {
   CHECK_STALE: 'The ad was edited after its last compliance check. Run the check again.',
   NOT_PASSED: 'The ad has not passed its latest compliance check. Fix the findings and run the check again.',
   LEAD_CLOSED: 'This lead is closed (won or lost) and can no longer be changed.',
+  LEAD_DUPLICATE: 'This customer already has an open lead for this vehicle. Open that lead instead of adding another.',
   WORK_ORDER_CLOSED: 'This work order is already done or cancelled and can no longer be changed.',
   WORK_ORDERS_OPEN: 'This vehicle still has open work orders. Complete or cancel them first.',
   UNSUPPORTED_MEDIA_TYPE: 'That file type is not supported. Use a JPEG, PNG or WebP image.',
@@ -32,7 +32,7 @@ const REASONS: Record<string, string> = {
 };
 
 const SPECIFIC_SERVER_MESSAGE = new Set([
-  'VALIDATION', 'DUP_MEMBER', 'USERNAME_TAKEN', 'DISPLAY_NAME_TAKEN', 'EMAIL_TAKEN', 'PHONE_TAKEN',
+  'VALIDATION', 'DUP_MEMBER', 'USERNAME_TAKEN', 'EMAIL_TAKEN', 'PHONE_TAKEN',
 ]);
 
 const BY_STATUS: Record<number, string> = {

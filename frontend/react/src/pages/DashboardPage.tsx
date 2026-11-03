@@ -4,15 +4,10 @@ import AppLayout from '../layouts/AppLayout';
 import PageState from '../components/PageState';
 import KpiCard from '../components/KpiCard';
 import { describeError } from '../api/errors';
-import { reportsApi, type SalesFunnelReport, type SalesReport, type WorkshopSettlementReport } from '../api/reports';
+import { reportsApi, SALES_PERIODS, type SalesFunnelReport, type SalesPeriod, type SalesReport, type WorkshopSettlementReport } from '../api/reports';
 import { leadsApi } from '../api/leads';
 import { useSessionStore } from '../store/session';
-import { cad, dateTimeLocal } from '../format';
-
-// The current month in the viewer's local zone, as YYYY-MM (the report's month key).
-function thisMonth() {
-  return dateTimeLocal(new Date().toISOString()).slice(0, 7);
-}
+import { cad } from '../format';
 
 /** The dealership's KPIs on one page: inventory, sales, leads, and the workshop. */
 export default function DashboardPage() {
@@ -23,15 +18,21 @@ export default function DashboardPage() {
   const [overdue, setOverdue] = useState(0);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
+  const [period, setPeriod] = useState<SalesPeriod>('MONTH');
 
   useEffect(() => {
-    Promise.all([reportsApi.sales(), reportsApi.salesFunnel(), reportsApi.workshop(), leadsApi.list({ overdue: true, size: 1 })])
-      .then(([s, f, w, o]) => { setSales(s.data); setFunnel(f.data); setWorkshop(w.data); setOverdue(o.data.totalElements ?? 0); })
+    Promise.all([reportsApi.salesFunnel(), reportsApi.workshop(), leadsApi.list({ overdue: true, size: 1 })])
+      .then(([f, w, o]) => { setFunnel(f.data); setWorkshop(w.data); setOverdue(o.data.totalElements ?? 0); })
       .catch((reason) => setError(describeError(reason, 'load the dashboard')))
       .finally(() => setLoading(false));
   }, []);
 
-  const month = sales?.months.find((m) => m.month === thisMonth());
+  // Only the sales figures depend on the period selector.
+  useEffect(() => {
+    reportsApi.sales(period)
+      .then((s) => setSales(s.data))
+      .catch((reason) => setError(describeError(reason, 'load the dashboard')));
+  }, [period]);
 
   return (
     <AppLayout>
@@ -40,7 +41,7 @@ export default function DashboardPage() {
           <div><h1>Dashboard</h1><span className="muted">Key numbers for this dealership</span></div>
           {dealerId != null && <Link to={`/shop/${dealerId}`} target="_blank" className="btn">Open buyer site</Link>}
         </div>
-        <PageState loading={loading} error={error} loadingText="Loading dashboard…">
+        <PageState loading={loading || (!sales && !error)} error={error} loadingText="Loading dashboard…">
           {sales && funnel && workshop && (
             <>
               <h2>Inventory</h2>
@@ -51,12 +52,19 @@ export default function DashboardPage() {
                 <KpiCard label="Workshop cost settled" value={cad(workshop.settledCost)} hint={`${workshop.doneCount} work order${workshop.doneCount === 1 ? '' : 's'} done`} />
               </div>
 
-              <h2>Sales</h2>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                <h2 style={{ marginRight: 'auto' }}>Sales</h2>
+                <select className="select" aria-label="Sales period" value={period}
+                  onChange={(e) => setPeriod(e.target.value as SalesPeriod)}>
+                  {SALES_PERIODS.map((p) => <option key={p.value} value={p.value}>{p.label}</option>)}
+                </select>
+              </div>
               <div style={{ display: 'flex', gap: 16, marginBottom: 20, flexWrap: 'wrap' }}>
-                <KpiCard label="Sold this month" value={String(month?.soldCount ?? 0)} hint={cad(month?.revenue ?? 0)} />
-                <KpiCard label="Vehicles sold" value={String(sales.soldCount)} hint={`${cad(sales.revenue)} revenue`} />
-                <KpiCard label="Gross profit" value={cad(sales.grossProfit)} hint="Sold price − purchase − repair" />
-                <KpiCard label="Avg. days to sell" value={sales.averageDaysToSell == null ? 'No sales yet' : String(sales.averageDaysToSell)} />
+                <KpiCard label="Vehicles sold" value={String(sales.period?.soldCount ?? 0)}
+                  hint={sales.period ? `${sales.period.from} to ${sales.period.to}` : undefined} />
+                <KpiCard label="Revenue" value={cad(sales.period?.revenue ?? 0)} />
+                <KpiCard label="Gross profit" value={cad(sales.period?.grossProfit ?? 0)} hint="Sold price − purchase − repair" />
+                <KpiCard label="Avg. days to sell" value={sales.averageDaysToSell == null ? 'No sales yet' : String(sales.averageDaysToSell)} hint="All time" />
               </div>
 
               <h2>Leads</h2>

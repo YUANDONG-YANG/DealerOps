@@ -5,7 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace DealerOps.Core.Dealer;
 
-/// <summary>Platform admin dealership management: list, create, read and edit or deactivate.</summary>
+/// <summary>Platform admin dealership management: list, create, read, edit or deactivate, and delete.</summary>
 [ApiController]
 [Route("api/v1/admin/dealers")]
 [Authorize]
@@ -40,4 +40,12 @@ public class AdminDealerController : ControllerBase
     [HttpPatch("{id}")]
     public DealerResponse Patch(long id, [FromBody] PatchDealerRequest body) =>
         _dealerAdminService.Patch(id, body);
+
+    /// <summary>Soft-deletes a dealership and unbinds its members.</summary>
+    [HttpDelete("{id}")]
+    public IActionResult Delete(long id)
+    {
+        _dealerAdminService.Delete(id);
+        return NoContent();
+    }
 }

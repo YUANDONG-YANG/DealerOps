@@ -6,6 +6,8 @@ interface Props {
   title?: string;
   message?: string;
   confirmLabel?: string;
+  /** Keeps the confirm button disabled, e.g. until a typed confirmation matches. */
+  confirmDisabled?: boolean;
   onConfirm: () => void;
   onCancel: () => void;
   children?: ReactNode;
@@ -13,7 +15,7 @@ interface Props {
 
 /** Confirmation dialog that closes when Escape is pressed. */
 export default function ConfirmDialog({
-  open, title, message, confirmLabel, onConfirm, onCancel, children,
+  open, title, message, confirmLabel, confirmDisabled, onConfirm, onCancel, children,
 }: Props) {
   useEffect(() => {
     if (!open) return;
@@ -32,7 +34,7 @@ export default function ConfirmDialog({
         </div>
         <div className="dialog-footer">
           <button className="btn" onClick={onCancel}>Cancel</button>
-          <button className="btn btn-primary" onClick={onConfirm}>{confirmLabel || 'Confirm'}</button>
+          <button className="btn btn-primary" disabled={confirmDisabled} onClick={onConfirm}>{confirmLabel || 'Confirm'}</button>
         </div>
       </div>
     </div>

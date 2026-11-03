@@ -309,7 +309,11 @@ using (var scope = app.Services.CreateScope())
         "ALTER TABLE vehicle ADD COLUMN stock_number VARCHAR(20) NULL",
         "ALTER TABLE vehicle ADD COLUMN list_price DECIMAL(12,2) NULL",
         "ALTER TABLE vehicle ADD COLUMN deleted_at DATETIME(6) NULL",
+        "ALTER TABLE vehicle ADD COLUMN sold_by VARCHAR(64) NULL",
+        "ALTER TABLE vehicle ADD COLUMN sold_to_name VARCHAR(120) NULL",
         "ALTER TABLE customer ADD COLUMN deleted_at DATETIME(6) NULL",
+        "ALTER TABLE dealer ADD COLUMN deleted_at DATETIME(6) NULL",
+        "ALTER TABLE customer ADD COLUMN notes VARCHAR(2000) NULL",
         "ALTER TABLE listing ADD COLUMN prior_use VARCHAR(32) NULL",
         "ALTER TABLE listing ADD COLUMN warranty_terms TEXT NULL",
         "ALTER TABLE listing ADD COLUMN annual_km_allowance INT NULL",
@@ -449,6 +453,8 @@ using (var scope = app.Services.CreateScope())
         "ALTER TABLE customer_vehicle ADD UNIQUE KEY uk_cv_active_vehicle (active_vehicle_id)",
         "ALTER TABLE customer_vehicle ADD KEY idx_cv_vehicle (vehicle_id)",
         "ALTER TABLE customer_vehicle DROP INDEX uk_cv_vehicle",
+        // Full names are no longer unique (CR D1).
+        "ALTER TABLE app_user DROP INDEX uk_app_user_display_name",
     })
     {
         try { db.Database.ExecuteSqlRaw(ddl); }

@@ -29,6 +29,18 @@ public class CustomerController : ControllerBase
         return _service.List(q, linked, page, size);
     }
 
+    /// <summary>Fields of a draft customer that match another customer here, for the duplicate confirm (CR R4).</summary>
+    [HttpGet("duplicates")]
+    public CustomerDuplicatesResponse Duplicates(
+        [FromQuery] string? name,
+        [FromQuery] string? email,
+        [FromQuery] string? phone,
+        [FromQuery] string? homeAddress,
+        [FromQuery] long? excludeId)
+    {
+        return _service.Duplicates(name, email, phone, homeAddress, excludeId);
+    }
+
     /// <summary>Creates a customer; returns 201 with the customer detail.</summary>
     [HttpPost]
     [ProducesResponseType(201)]

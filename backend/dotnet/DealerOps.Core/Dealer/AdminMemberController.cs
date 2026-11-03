@@ -27,11 +27,18 @@ public class AdminMemberController : ControllerBase
         [FromQuery] int size = 10) =>
         _membershipService.List(id, q, page, size);
 
-    /// <summary>Binds an existing or new login to the dealership as staff.</summary>
+    /// <summary>
+    /// Binds an existing or new login directly while the dealership has no active manager (201,
+    /// the member); otherwise files a join request for a manager to approve (202).
+    /// </summary>
     [HttpPost]
-    [ProducesResponseType(201)]
-    public IActionResult Add(long id, [FromBody] CreateMemberRequest body) =>
-        StatusCode(201, _membershipService.Add(id, body));
+    [ProducesResponseType(typeof(MemberResponse), 201)]
+    [ProducesResponseType(typeof(JoinRequestSentResponse), 202)]
+    public IActionResult Add(long id, [FromBody] CreateMemberRequest body)
+    {
+        var result = _membershipService.Add(id, body);
+        return result.Member != null ? StatusCode(201, result.Member) : StatusCode(202, result.JoinRequest);
+    }
 
     /// <summary>Sets a new DealerOps password for an active member.</summary>
     [HttpPut("{username}/password")]
@@ -54,6 +61,19 @@ public class AdminMemberController : ControllerBase
     public IActionResult Remove(long id, string username)
     {
         _membershipService.Remove(id, username);
+        return NoContent();
+    }
+
+    /// <summary>Edits a member's sign-in email and phone.</summary>
+    [HttpPatch("{username}")]
+    public MemberResponse UpdateContact(long id, string username, [FromBody] PatchMemberContactRequest body) =>
+        _membershipService.UpdateContact(id, username, body);
+
+    /// <summary>Soft-deletes a member's account.</summary>
+    [HttpDelete("{username}/account")]
+    public IActionResult DeleteAccount(long id, string username)
+    {
+        _membershipService.DeleteAccount(id, username);
         return NoContent();
     }
 }

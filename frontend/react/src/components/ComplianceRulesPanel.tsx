@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { complianceRulesApi, type ComplianceRule } from '../api/complianceRules';
 import { describeError } from '../api/errors';
+import { SortableTh, useSort } from './TableSort';
 
 /** Admin editor for the ad compliance rules; each row is saved on its own. */
 export default function ComplianceRulesPanel() {
@@ -28,6 +29,8 @@ export default function ComplianceRulesPanel() {
     finally { setSaving(''); }
   }
 
+  const ruleSort = useSort(rules);
+
   if (loading) return <p className="muted">Loading compliance rules…</p>;
   return (
     <section>
@@ -37,8 +40,11 @@ export default function ComplianceRulesPanel() {
       {notice && <p className="success-text">{notice}</p>}
       <div className="table-wrap">
         <table className="table">
-          <thead><tr><th>Rule</th><th>Enabled</th><th>Severity</th><th>Message</th><th>Action</th></tr></thead>
-          <tbody>{rules.map((rule) => (
+          <thead><tr><th>Rule</th>
+            <SortableTh label="Enabled" sortKey="enabled" sort={ruleSort.sort} onSort={ruleSort.toggle} />
+            <SortableTh label="Severity" sortKey="severity" sort={ruleSort.sort} onSort={ruleSort.toggle} />
+            <th>Message</th><th>Action</th></tr></thead>
+          <tbody>{ruleSort.sorted.map((rule) => (
             <tr key={rule.ruleId}>
               <td>{rule.ruleId}</td>
               <td><input aria-label={`${rule.ruleId} enabled`} type="checkbox" checked={rule.enabled}

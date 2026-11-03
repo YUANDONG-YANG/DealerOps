@@ -26,14 +26,16 @@ public class LeadController : ControllerBase
     [HttpGet]
     public PageResponse<LeadListItem> List(
         [FromQuery] string? q,
+        [FromQuery] string? vehicle,
         [FromQuery] LeadStage? stage,
         [FromQuery] string? owner,
         [FromQuery] long? customerId,
+        [FromQuery] long? vehicleId,
         [FromQuery] bool? overdue,
         [FromQuery] int page = 0,
         [FromQuery] int size = 10)
     {
-        return _service.List(q, stage, owner, customerId, overdue, page, size);
+        return _service.List(q, vehicle, stage, owner, customerId, vehicleId, overdue, page, size);
     }
 
     /// <summary>Creates a lead; returns 201 with the lead detail.</summary>
@@ -53,6 +55,13 @@ public class LeadController : ControllerBase
     public LeadDetail Patch(long id, [FromBody] PatchLeadRequest body)
     {
         return _service.Patch(id, body);
+    }
+
+    /// <summary>Reopens a won or lost lead to an open stage (L4).</summary>
+    [HttpPost("{id}/reopen")]
+    public LeadDetail Reopen(long id, [FromBody] ReopenLeadRequest body)
+    {
+        return _service.Reopen(id, body);
     }
 
     /// <summary>Adds a note to a lead; returns 201 with the note.</summary>

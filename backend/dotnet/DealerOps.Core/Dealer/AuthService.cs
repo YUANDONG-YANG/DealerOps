@@ -16,11 +16,11 @@ namespace DealerOps.Core.Dealer;
 /// </summary>
 public class AuthService
 {
-    // A Google account carries no username, so one is derived from the email address. Each cap
-    // leaves room for the longest collision suffix without exceeding the column: username
-    // 56 + ".123456" = 63 of 64, display name 110 + " (123456)" = 119 of 120.
+    // A Google account carries no username, so one is derived from the email address. The cap
+    // leaves room for the longest collision suffix without exceeding the column:
+    // 56 + ".123456" = 63 of 64. The display name column holds 120 characters.
     private const int UsernameBaseMaxLength = 56;
-    private const int DisplayNameBaseMaxLength = 110;
+    private const int DisplayNameMaxLength = 120;
     private const int MaxSuffixAttempts = 50;
 
     // Actor and entity id of a failed sign-in whose identifier matched no account. The typed
@@ -92,7 +92,7 @@ public class AuthService
                 : request.DisplayName.Trim();
             if (displayName.Length == 0) displayName = username;
             var contact = _accountRules.CanonicalContact(email, request.Phone);
-            _accountRules.RequireAvailable(username, displayName, contact);
+            _accountRules.RequireAvailable(username, contact);
 
             user = new AppUserEntity
             {
@@ -187,7 +187,7 @@ public class AuthService
         var contact = _accountRules.CanonicalContact(request.Email, request.Phone);
         var username = request.Username.Trim();
         var displayName = request.DisplayName.Trim();
-        _accountRules.RequireAvailable(username, displayName, contact);
+        _accountRules.RequireAvailable(username, contact);
 
         var user = new AppUserEntity
         {
@@ -290,7 +290,7 @@ public class AuthService
             // No password hash: Login treats an empty hash as "cannot sign in with a password",
             // so this account can only ever come back through Google.
             PasswordHash = "",
-            DisplayName = AvailableDisplayName(identity.Name, username),
+            DisplayName = GoogleDisplayName(identity.Name, username),
             Email = email,
             Phone = null,
             Role = AppRole.DealerUser,
@@ -475,19 +475,13 @@ public class AuthService
             (b, n) => $"{b}.{n}");
     }
 
-    private string AvailableDisplayName(string? name, string username)
+    // Full names are not unique, so the Google name is used as is.
+    private static string GoogleDisplayName(string? name, string username)
     {
-        var baseName = (name ?? "").Trim();
-        if (baseName.Length == 0)
-            baseName = username;
-        if (baseName.Length > DisplayNameBaseMaxLength)
-            baseName = baseName[..DisplayNameBaseMaxLength];
-
-        // Display names are unique in this schema, so two people with the same Google name need
-        // a discriminator rather than a failed sign-in.
-        return FirstAvailable(baseName,
-            candidate => _db.AppUsers.Any(u => EF.Functions.Like(u.DisplayName, candidate)),
-            (b, n) => $"{b} ({n})");
+        var displayName = (name ?? "").Trim();
+        if (displayName.Length == 0)
+            displayName = username;
+        return displayName.Length > DisplayNameMaxLength ? displayName[..DisplayNameMaxLength] : displayName;
     }
 
     private static string FirstAvailable(string baseName, Func<string, bool> taken, Func<string, int, string> suffixed)

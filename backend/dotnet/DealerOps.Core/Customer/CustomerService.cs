@@ -78,7 +78,37 @@ public class CustomerService
         return new PageResponse<CustomerListItem>(items, p, s, total);
     }
 
-    /// <summary>Creates a customer; a duplicate phone is rejected, a duplicate email only warns (CRM-13).</summary>
+    /// <summary>
+    /// Names the fields (name, email, phone, homeAddress, in that order) that match another
+    /// customer of this dealership. Nothing is unique: the client asks the user to confirm
+    /// before it saves (CR R4). Phones are compared digits only; excludeId skips the customer
+    /// being edited.
+    /// </summary>
+    public CustomerDuplicatesResponse Duplicates(string? name, string? email, string? phone,
+        string? homeAddress, long? excludeId)
+    {
+        var tenant = TenantGuard.RequireTenantId();
+        var others = _db.Customers.Where(c => c.DealerId == tenant && (excludeId == null || c.Id != excludeId));
+        var fields = new List<string>();
+
+        var trimmedName = name?.Trim() ?? "";
+        if (trimmedName.Length > 0 && others.Any(c => c.Name == trimmedName)) fields.Add("name");
+
+        var normalizedEmail = NormalizeEmail(email ?? "");
+        if (normalizedEmail.Length > 0 && others.Any(c => c.Email == normalizedEmail)) fields.Add("email");
+
+        var phoneDigits = new string((phone ?? "").Where(char.IsDigit).ToArray());
+        if (phoneDigits.Length > 0 && others.Any(c => c.Phone.Replace(" ", "").Replace("-", "").Replace("(", "")
+                .Replace(")", "").Replace("+", "") == phoneDigits))
+            fields.Add("phone");
+
+        var trimmedAddress = homeAddress?.Trim() ?? "";
+        if (trimmedAddress.Length > 0 && others.Any(c => c.HomeAddress == trimmedAddress)) fields.Add("homeAddress");
+
+        return new CustomerDuplicatesResponse(fields);
+    }
+
+    /// <summary>Creates a customer; no field is unique, a duplicate email only warns (CRM-13, CR R4).</summary>
     public CustomerDetail Create(CreateCustomerRequest body)
     {
         var tenant = TenantGuard.RequireTenantId();
@@ -86,7 +116,6 @@ public class CustomerService
         var email = NormalizeEmail(body.Email);
         var phone = body.Phone.Trim();
         var homeAddress = body.HomeAddress.Trim();
-        RequireUniquePhone(tenant, phone, excludingId: null);
         var emailWarning = DuplicateEmailWarning(tenant, email, excludingId: null);
         var customer = new CustomerEntity
         {
@@ -94,15 +123,17 @@ public class CustomerService
             Name = name,
             Email = email,
             Phone = phone,
-            HomeAddress = homeAddress
+            HomeAddress = homeAddress,
+            Notes = NormalizeNotes(body.Notes)
         };
         // A caller such as lead creation may already own a transaction (LEAD-01); begin one
         // only when none is active, and commit only the one begun here.
         using var tx = _db.Database.CurrentTransaction is null ? _db.Database.BeginTransaction() : null;
         _db.Customers.Add(customer);
         _db.SaveChanges();
-        _audit.Record("CUSTOMER", customer.Id, "CREATE", tenant, TenantContext.ActorUsername(),
-            ContactFieldChanges(null, null, null, null, name, email, phone, homeAddress));
+        var createdFields = ContactFieldChanges(null, null, null, null, name, email, phone, homeAddress);
+        if (customer.Notes != null) createdFields["notes"] = customer.Notes;
+        _audit.Record("CUSTOMER", customer.Id, "CREATE", tenant, TenantContext.ActorUsername(), createdFields);
         _db.SaveChanges();
         tx?.Commit();
         _logger.LogInformation("Customer created customerId={CustomerId} dealerId={DealerId} by {Actor}",
@@ -136,11 +167,12 @@ public class CustomerService
         var email = NormalizeEmail(body.Email);
         var phone = body.Phone.Trim();
         var homeAddress = body.HomeAddress.Trim();
-        RequireUniquePhone(tenant, phone, excludingId: customer.Id);
         var emailWarning = DuplicateEmailWarning(tenant, email, excludingId: customer.Id);
         var fieldSummary = ContactFieldChanges(
             customer.Name, customer.Email, customer.Phone, customer.HomeAddress,
             name, email, phone, homeAddress);
+        var notes = NormalizeNotes(body.Notes);
+        if (notes != customer.Notes) fieldSummary["notes"] = notes ?? "";
 
         // Like a vehicle patch, a save that changes nothing writes no audit entry.
         if (fieldSummary.Count == 0)
@@ -151,13 +183,15 @@ public class CustomerService
         var before = new Dictionary<string, object?>
         {
             ["name"] = customer.Name, ["email"] = customer.Email,
-            ["phone"] = customer.Phone, ["homeAddress"] = customer.HomeAddress
+            ["phone"] = customer.Phone, ["homeAddress"] = customer.HomeAddress,
+            ["notes"] = customer.Notes
         };
         var previous = fieldSummary.Keys.ToDictionary(k => k, k => before[k]);
         customer.Name = name;
         customer.Email = email;
         customer.Phone = phone;
         customer.HomeAddress = homeAddress;
+        customer.Notes = notes;
         customer.UpdatedAt = DateTime.UtcNow;
 
         _audit.Record("CUSTOMER", customer.Id, "UPDATE", tenant, TenantContext.ActorUsername(), fieldSummary, previous);
@@ -275,9 +309,12 @@ public class CustomerService
                 brief = new LinkedVehicleBrief(v.Id, v.ModelYear, v.Make, v.Model);
         }
 
+        // The CRM list shows the customer's leads in place of the purchase count (CR R1).
+        var leadCount = _db.Leads.Count(l => l.CustomerId == customer.Id);
+
         return new CustomerListItem(
             customer.Id, customer.Name, customer.Email, customer.Phone,
-            customer.HomeAddress, brief, links.Count, customer.Version);
+            customer.HomeAddress, brief, links.Count, leadCount, customer.Version);
     }
 
     private CustomerDetail ToDetail(CustomerEntity customer, string? emailWarning = null)
@@ -294,26 +331,11 @@ public class CustomerService
 
         return new CustomerDetail(
             customer.Id, customer.Name, customer.Email, customer.Phone,
-            customer.HomeAddress, items, customer.Version, emailWarning);
+            customer.HomeAddress, customer.Notes, items, customer.Version, emailWarning);
     }
 
-    // Phone stays unique inside the dealership. Email may be shared (CRM-13): the caller
-    // warns and still saves. On a Patch, excludingId skips the customer being edited.
-    private void RequireUniquePhone(long tenant, string phone, long? excludingId)
-    {
-        var duplicatePhone = _db.Customers.Any(c =>
-            c.DealerId == tenant && c.Phone == phone && (excludingId == null || c.Id != excludingId));
-        if (duplicatePhone)
-        {
-            const string message = "That phone number is already used by another customer.";
-            _logger.LogWarning(
-                "Customer save rejected dealerId={DealerId} customerId={CustomerId} code={Code} by {Actor}",
-                tenant, excludingId, ErrorCode.PhoneTaken, TenantContext.ActorUsername());
-            throw new ApiException(ErrorCode.PhoneTaken, message,
-                new Dictionary<string, string> { ["phone"] = message });
-        }
-    }
-
+    // Email may be shared (CRM-13): the caller warns and still saves. On a Patch, excludingId
+    // skips the customer being edited.
     private string? DuplicateEmailWarning(long tenant, string email, long? excludingId)
     {
         var duplicateEmail = _db.Customers.Any(c =>
@@ -338,6 +360,10 @@ public class CustomerService
         if (previousHomeAddress != homeAddress) changed["homeAddress"] = homeAddress;
         return changed;
     }
+
+    /// <summary>Notes are stored trimmed; blank notes are stored as null (CR R3).</summary>
+    private static string? NormalizeNotes(string? notes) =>
+        string.IsNullOrWhiteSpace(notes) ? null : notes.Trim();
 
     /// <summary>Emails are stored trimmed and lower-case (CRM-03).</summary>
     internal static string NormalizeEmail(string email) => email.Trim().ToLowerInvariant();

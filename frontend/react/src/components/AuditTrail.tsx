@@ -1,4 +1,5 @@
 import { dateTimeLocal } from '../format';
+import { SortableTh, useSort } from './TableSort';
 
 export type AuditRow = {
   entityType?: string;
@@ -47,6 +48,10 @@ export function summaryText(raw: unknown, previous?: Record<string, unknown> | n
   return items.length ? items.join(', ') : 'No field changes';
 }
 
+function trailSortValue(row: AuditRow, key: string) {
+  return key === 'action' ? actionText(row) : key === 'actorUsername' ? row.actorUsername : row.createdAt;
+}
+
 /** A record's audit history, newest first as the API returns it, with optional paging. */
 export default function AuditTrail({
   rows, page = 0, total, onPage,
@@ -59,6 +64,8 @@ export default function AuditTrail({
   const count = total ?? rows.length;
   const pageSize = 10;
   const pageCount = Math.max(1, Math.ceil(count / pageSize));
+  // Sorts the loaded page; the API's order is newest first.
+  const rowSort = useSort(rows, trailSortValue);
   if (!rows.length && count === 0) return null;
   return (
     <div className="detail-audit">
@@ -66,14 +73,14 @@ export default function AuditTrail({
       <table className="table" style={{ marginTop: 8 }}>
         <thead>
           <tr>
-            <th style={{ width: 170 }}>Action</th>
-            <th>Actor</th>
-            <th>When</th>
+            <SortableTh label="Action" sortKey="action" sort={rowSort.sort} onSort={rowSort.toggle} style={{ width: 170 }} />
+            <SortableTh label="Actor" sortKey="actorUsername" sort={rowSort.sort} onSort={rowSort.toggle} />
+            <SortableTh label="When" sortKey="createdAt" sort={rowSort.sort} onSort={rowSort.toggle} />
             <th>Summary</th>
           </tr>
         </thead>
         <tbody>
-          {rows.map((row, i) => (
+          {rowSort.sorted.map((row, i) => (
             <tr key={i}>
               <td>{actionText(row)}</td>
               <td>{row.actorUsername}</td>

@@ -170,7 +170,7 @@ paths:
         "400":
           $ref: "#/components/responses/Validation"
         "409":
-          description: A value is already registered. code is `USERNAME_TAKEN`, `DISPLAY_NAME_TAKEN`, `EMAIL_TAKEN`, or `PHONE_TAKEN`; `fieldErrors` names every taken field.
+          description: A value is already registered. code is `USERNAME_TAKEN`, `EMAIL_TAKEN`, or `PHONE_TAKEN`; `fieldErrors` names every taken field. The full name is not unique.
           content:
             application/json:
               schema:
@@ -219,7 +219,7 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
         "409":
-          description: Derived account values collide. code is `USERNAME_TAKEN`, `DISPLAY_NAME_TAKEN`, or `EMAIL_TAKEN`
+          description: Derived account values collide. code is `USERNAME_TAKEN` or `EMAIL_TAKEN`
           content:
             application/json:
               schema:
@@ -271,7 +271,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
         "409":
-          description: New account values collide (`USERNAME_TAKEN`, `DISPLAY_NAME_TAKEN`, `EMAIL_TAKEN`, `PHONE_TAKEN`), or an unverified email matches an existing account not yet linked to this uid (`EMAIL_TAKEN`)
+          description: New account values collide (`USERNAME_TAKEN`, `EMAIL_TAKEN`, `PHONE_TAKEN`), or an unverified email matches an existing account not yet linked to this uid (`EMAIL_TAKEN`)
           content:
             application/json:
               schema:
@@ -327,7 +327,7 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
         "409":
-          description: code is `DISPLAY_NAME_TAKEN` or `PHONE_TAKEN`; `fieldErrors` names the field
+          description: code is `PHONE_TAKEN`; `fieldErrors` names the field. The full name is not unique.
           content:
             application/json:
               schema:
@@ -753,7 +753,7 @@ paths:
       operationId: setMemberDealerRole
       summary: Promote to manager or demote to staff
       description: |
-        Platform admin only; no dealer user can change a role (design/21 AUTH-26). Setting the current role is a no-op.
+        Platform admin only (design/21 AUTH-26); a dealership manager uses `PUT /api/v1/dealer/members/{username}/role` for their own dealership. Setting the current role is a no-op.
         No active binding of that username at this dealership → 404. Audit `MEMBERSHIP`/`UPDATE` `{username, dealerRole}`.
       parameters:
         - $ref: "#/components/parameters/DealerId"
@@ -857,6 +857,75 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
+    patch:
+      tags: [DealerTeam]
+      operationId: updateOwnMember
+      summary: Edit a member's full name and phone
+      description: |
+        Dealership manager only. A blank or null phone clears it; the phone is stored as `+digits`.
+        No active member of that name in this dealership → 404. Audit `APP_USER`/`UPDATE` with the changed keys.
+      parameters:
+        - $ref: "#/components/parameters/Username"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [displayName]
+              properties:
+                displayName: { type: string, maxLength: 120 }
+                phone: { type: string, nullable: true, maxLength: 40 }
+      responses:
+        "204":
+          description: Saved, no body
+        "400":
+          $ref: "#/components/responses/Validation"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: The phone belongs to another account. code=`PHONE_TAKEN`
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/v1/dealer/members/{username}/role:
+    put:
+      tags: [DealerTeam]
+      operationId: setOwnMemberDealerRole
+      summary: Set another member of the own dealership to manager or staff
+      description: |
+        Dealership manager only. The caller's own username → 403 ("You cannot change your own role.").
+        Setting the current role is a no-op. No active member of that name in this dealership → 404.
+        Audit `MEMBERSHIP`/`UPDATE` `{username, dealerRole}`.
+      parameters:
+        - $ref: "#/components/parameters/Username"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [dealerRole]
+              properties:
+                dealerRole:
+                  $ref: "#/components/schemas/DealerRole"
+      responses:
+        "204":
+          description: Role set, no body
+        "400":
+          $ref: "#/components/responses/Validation"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
 
   /api/v1/admin/pending-users:
     get:
@@ -932,6 +1001,12 @@ paths:
             type: boolean
             default: false
           description: When true, excludes vehicles linked to any customer
+        - name: openWorkOrdersOnly
+          in: query
+          schema:
+            type: boolean
+            default: false
+          description: When true, only vehicles with at least one OPEN or IN_PROGRESS work order
         - name: adKind
           in: query
           schema: { type: string, enum: [CASH, FINANCE, LEASE] }
@@ -948,6 +1023,13 @@ paths:
           in: query
           schema: { type: string, enum: [LISTED, NOT_LISTED, TAKEN_DOWN] }
           description: LISTED when the vehicle is in stock and its ad is READY with a PASSED check on the current content version (the buyer-site rule); TAKEN_DOWN when the vehicle is sold and its ad is READY; NOT_LISTED otherwise
+        - name: sort
+          in: query
+          schema: { type: string, example: "listPrice,desc" }
+          description: |
+            `field,asc|desc` (direction defaults to asc), applied before paging with newest first breaking ties; field is one of
+            stockNumber, bodyType, source, conditionCode, purchaseCost, listPrice, addedOn, openWorkOrders, leadCount, status,
+            soldOn, soldBy, soldToName. Omitted → newest first. Other values → 400 VALIDATION.
         - $ref: "#/components/parameters/Page"
         - $ref: "#/components/parameters/Size"
       responses:
@@ -1111,7 +1193,7 @@ paths:
       tags: [Catalog]
       operationId: listPublicDealers
       summary: Public dealer directory
-      description: Anonymous. Active dealerships sorted by legal name; id, legal name and the derived buyer-site slug only. Used by the Google sign-in dealership picker and the buyer-site directory.
+      description: Anonymous. Active dealerships sorted by legal name: id, legal name, the derived buyer-site slug, logo flag, vehicle counts and the public contact card (phone, email, address). Used by the Google sign-in dealership picker and the buyer-site directory.
       security: []
       responses:
         "200":
@@ -1236,6 +1318,10 @@ paths:
         Missing either, or `soldPrice` ≤ 0 → **400** `SOLD_PAIR_REQUIRED`. `soldOn` in the future or before `addedOn`
         → **400** `VALIDATION`. Selling again → **409** `SOLD_LOCKED`.
         Open (`OPEN`/`IN_PROGRESS`) work orders → **409** `WORK_ORDERS_OPEN`.
+        A buyer is required: `buyerCustomerId` (links that customer in the same transaction) or a typed
+        `buyerName` for "Other"; neither → **400** `VALIDATION`. A vehicle linked to another customer →
+        **409** `VEHICLE_ALREADY_LINKED`. The server sets `soldBy` and closes the vehicle's open leads:
+        the buyer's become `WON`, others `LOST` with reason "Vehicle sold".
       parameters:
         - $ref: "#/components/parameters/VehicleId"
       requestBody:
@@ -1267,7 +1353,7 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
         "409":
-          description: SOLD_LOCKED, WORK_ORDERS_OPEN, or VERSION_CONFLICT
+          description: SOLD_LOCKED, WORK_ORDERS_OPEN, VEHICLE_ALREADY_LINKED, or VERSION_CONFLICT
           content:
             application/json:
               schema:
@@ -1759,12 +1845,42 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
-        "409":
-          description: Phone is already used by another customer in this dealership (`PHONE_TAKEN`, `fieldErrors.phone`). A duplicate email is saved and returned as `emailWarning`.
+
+  /api/v1/customers/duplicates:
+    get:
+      tags: [Customers]
+      operationId: customerDuplicates
+      summary: Fields of a draft customer that match another customer
+      description: No customer field is unique. The client calls this before a create or edit and asks the user to confirm when `fields` is not empty. Name and address compare trimmed, email lower-case, phone digits only. Read-only.
+      parameters:
+        - { name: name, in: query, schema: { type: string } }
+        - { name: email, in: query, schema: { type: string } }
+        - { name: phone, in: query, schema: { type: string } }
+        - { name: homeAddress, in: query, schema: { type: string } }
+        - name: excludeId
+          in: query
+          schema:
+            type: integer
+            format: int64
+          description: The customer being edited
+      responses:
+        "200":
+          description: Matching fields in the order name, email, phone, homeAddress; empty when none match
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Error"
+                type: object
+                required: [fields]
+                properties:
+                  fields:
+                    type: array
+                    items:
+                      type: string
+                      enum: [name, email, phone, homeAddress]
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
 
   /api/v1/customers/{id}:
     parameters:
@@ -1815,7 +1931,7 @@ paths:
           $ref: "#/components/responses/NotFound"
         "409":
           description: |
-            Version conflict (`VERSION_CONFLICT`), or phone already used by another customer in this dealership (`PHONE_TAKEN`, with `fieldErrors.phone`). A duplicate email is saved and returned as `emailWarning`.
+            Version conflict (`VERSION_CONFLICT`). No customer field is unique; a duplicate email is saved and returned as `emailWarning`.
           content:
             application/json:
               schema:
@@ -2087,6 +2203,14 @@ paths:
           in: query
           description: Customer name contains (case-insensitive)
           schema: { type: string }
+        - name: vehicle
+          in: query
+          description: Vehicle "year make model" or VIN contains (CR L2)
+          schema: { type: string }
+        - name: vehicleId
+          in: query
+          description: Only leads on this vehicle (CR D-11)
+          schema: { type: integer, format: int64 }
         - name: stage
           in: query
           schema:
@@ -2123,6 +2247,7 @@ paths:
       description: |
         Exactly one of `customerId` or `newCustomer` → else **400** `VALIDATION`. Owner must be an active member → else **400**.
         Vehicle must be IN_STOCK in this dealership → else **400** `WRONG_DEALER_OR_SOLD`. Starts at NEW; `note` becomes the first note.
+        An existing customer who already has an open lead on the same vehicle → **409** `LEAD_DUPLICATE` (CR L5).
       requestBody:
         required: true
         content:
@@ -2144,12 +2269,24 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
+        "409":
+          description: LEAD_DUPLICATE
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
 
   /api/v1/vehicles/report/sales:
     get:
       tags: [Vehicles]
       operationId: getSalesReport
-      summary: Tenant-scoped vehicle sales summary (units, revenue, gross profit, months)
+      summary: Tenant-scoped vehicle sales summary (units, revenue, gross profit, months, optional period, salespeople)
+      parameters:
+        - name: period
+          in: query
+          required: false
+          description: Calendar period ending today (UTC); TODAY, WEEK (from Monday), MONTH, or YEAR
+          schema: { type: string, enum: [TODAY, WEEK, MONTH, YEAR] }
       responses:
         "200":
           description: Sales summary
@@ -2200,7 +2337,8 @@ paths:
       operationId: patchLead
       summary: Change a lead (full editable state; null clears a field)
       description: |
-        WON and LOST are final → **409** `LEAD_CLOSED`. LOST needs `lostReason` → else **400**; `lostReason` is cleared for other stages.
+        WON and LOST are closed → **409** `LEAD_CLOSED` (reopen them first). LOST needs `lostReason` → else **400**; `lostReason` is cleared for other stages.
+        A vehicle change that gives the customer a second open lead on that vehicle → **409** `LEAD_DUPLICATE`.
       requestBody:
         required: true
         content:
@@ -2223,7 +2361,50 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
         "409":
-          description: LEAD_CLOSED or VERSION_CONFLICT
+          description: LEAD_CLOSED, LEAD_DUPLICATE or VERSION_CONFLICT
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/v1/leads/{id}/reopen:
+    parameters:
+      - $ref: "#/components/parameters/LeadId"
+    post:
+      tags: [Leads]
+      operationId: reopenLead
+      summary: Reopen a won or lost lead to an open stage (CR L4)
+      description: |
+        A LOST lead can always be reopened; a WON lead only while its vehicle is not SOLD and linked to the lead's customer → else **409** `LEAD_CLOSED`.
+        An open lead, or a closed target stage → **400** `VALIDATION`. Another open lead for the same customer and vehicle → **409** `LEAD_DUPLICATE`.
+        `lostReason` is cleared. Audit `LEAD`/`UPDATE` with `stage` and `reopened: true`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [stage, version]
+              properties:
+                stage: { type: string, enum: [NEW, CONTACTED, QUALIFIED] }
+                version: { type: integer }
+      responses:
+        "200":
+          description: Reopened
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeadDetail"
+        "400":
+          $ref: "#/components/responses/Validation"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: LEAD_CLOSED, LEAD_DUPLICATE or VERSION_CONFLICT
           content:
             application/json:
               schema:
@@ -2275,7 +2456,7 @@ paths:
                 type: array
                 items:
                   type: object
-                  required: [username, displayName, source, dealerRole]
+                  required: [username, displayName, source, dealerRole, phone, joinedAt]
                   properties:
                     username: { type: string }
                     displayName: { type: string, description: Falls back to the username }
@@ -2283,6 +2464,8 @@ paths:
                       $ref: "#/components/schemas/AccountSource"
                     dealerRole:
                       $ref: "#/components/schemas/DealerRole"
+                    phone: { type: string, nullable: true, description: "The account's own phone, +digits" }
+                    joinedAt: { type: string, format: date-time, description: "Membership created_at, UTC" }
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -2351,8 +2534,10 @@ paths:
             type: integer
             format: int64
           description: Rows of this dealership only
+        - $ref: "#/components/parameters/AuditLogQ"
         - $ref: "#/components/parameters/AuditLogFrom"
         - $ref: "#/components/parameters/AuditLogTo"
+        - $ref: "#/components/parameters/AuditLogSort"
         - $ref: "#/components/parameters/Page"
         - $ref: "#/components/parameters/AuditLogSize"
       responses:
@@ -2383,8 +2568,10 @@ paths:
         - $ref: "#/components/parameters/AuditLogEntityId"
         - $ref: "#/components/parameters/AuditLogAction"
         - $ref: "#/components/parameters/AuditLogActor"
+        - $ref: "#/components/parameters/AuditLogQ"
         - $ref: "#/components/parameters/AuditLogFrom"
         - $ref: "#/components/parameters/AuditLogTo"
+        - $ref: "#/components/parameters/AuditLogSort"
         - $ref: "#/components/parameters/Page"
         - $ref: "#/components/parameters/AuditLogSize"
       responses:
@@ -2572,7 +2759,15 @@ components:
       in: query
       schema:
         type: string
-      description: Exact actor username
+      description: Any part of the actor username, ignoring case
+    AuditLogQ:
+      name: q
+      in: query
+      schema:
+        type: string
+      description: >-
+        Free text, ignoring case, matched against the action, the record type and the stored change values
+        (`fieldSummary` and `previous`), for example `password`. Spaces match the underscores of wire names.
     AuditLogFrom:
       name: from
       in: query
@@ -2587,6 +2782,15 @@ components:
         type: string
         format: date-time
       description: End instant, exclusive (ISO 8601). The UI sends the start of the day after the viewer's last local day.
+    AuditLogSort:
+      name: sort
+      in: query
+      schema:
+        type: string
+        example: actorUsername,asc
+      description: |
+        `field,asc|desc` (direction defaults to asc); field is one of createdAt, actorUsername, action,
+        entityType (then entityId), dealerId, clientIp. Omitted → newest first. Other values → 400 VALIDATION.
     QLegalName:
       name: q
       in: query
@@ -2821,10 +3025,10 @@ components:
         | VERSION_CONFLICT | 409 | version mismatch |
         | DUP_MEMBER | 409 | This dealership already has this active member |
         | USERNAME_TAKEN | 409 | Sign-up (password, Google, Firebase) or new member with a username already in use |
-        | DISPLAY_NAME_TAKEN | 409 | Sign-up, new member, or `PATCH /me` with a full name already in use (trimmed, case-insensitive) |
         | EMAIL_TAKEN | 409 | Sign-up or new member with an email already in use. Customer email is not rejected; a shared customer email is `emailWarning` on the saved detail |
-        | PHONE_TAKEN | 409 | Sign-up, new member, or `PATCH /me` with a phone already in use; or a customer phone already used in this dealership |
-        | LEAD_CLOSED | 409 | Change to a WON or LOST lead |
+        | PHONE_TAKEN | 409 | Sign-up, new member, or `PATCH /me` with a phone already in use |
+        | LEAD_CLOSED | 409 | Change to a WON or LOST lead, or reopen of a won lead whose vehicle was sold to its customer |
+        | LEAD_DUPLICATE | 409 | A second open lead for the same customer and vehicle |
         | WORK_ORDER_CLOSED | 409 | Change to a DONE or CANCELLED work order |
         | WORK_ORDERS_OPEN | 409 | Sell while open work orders exist |
         | VEHICLE_ALREADY_LINKED | 409 | Vehicle already linked to a customer |
@@ -2847,10 +3051,10 @@ components:
         - VERSION_CONFLICT
         - DUP_MEMBER
         - USERNAME_TAKEN
-        - DISPLAY_NAME_TAKEN
         - EMAIL_TAKEN
         - PHONE_TAKEN
         - LEAD_CLOSED
+        - LEAD_DUPLICATE
         - WORK_ORDER_CLOSED
         - WORK_ORDERS_OPEN
         - VEHICLE_ALREADY_LINKED
@@ -3104,7 +3308,7 @@ components:
 
     PublicDealer:
       type: object
-      required: [id, legalName, slug, hasLogo, inStockCount, soldCount]
+      required: [id, legalName, slug, hasLogo, inStockCount, soldCount, contactPhone, contactEmail, contactAddress]
       properties:
         id:
           type: integer
@@ -3123,6 +3327,15 @@ components:
         soldCount:
           type: integer
           description: The dealership's sold vehicles
+        contactPhone:
+          type: string
+          description: Public contact phone, as on the buyer-site inventory
+        contactEmail:
+          type: string
+          description: Public contact email
+        contactAddress:
+          type: string
+          description: Public contact address; the buyer-site directory search matches the city in it
 
     JoinRequest:
       type: object
@@ -3346,6 +3559,7 @@ components:
         - bodyType
         - status
         - openWorkOrders
+        - leadCount
         - version
       properties:
         id:
@@ -3399,6 +3613,14 @@ components:
         soldPrice:
           type: number
           nullable: true
+        soldBy:
+          type: string
+          nullable: true
+          description: Username who recorded the sale
+        soldToName:
+          type: string
+          nullable: true
+          description: Typed buyer name for an "Other" sale; null when sold to a CRM customer
         status:
           $ref: "#/components/schemas/VehicleStatus"
         linkedCustomer:
@@ -3416,6 +3638,9 @@ components:
           type: integer
           format: int64
           description: Number of OPEN and IN_PROGRESS work orders (WO-07)
+        leadCount:
+          type: integer
+          description: Number of the vehicle's leads in any stage (CR D-11)
         version:
           type: integer
           format: int64
@@ -3439,7 +3664,7 @@ components:
         vin:
           type: string
           pattern: "^[A-HJ-NPR-Za-hj-npr-z0-9]{17}$"
-          description: 17 characters without I, O, or Q; stored upper-cased
+          description: 17 characters without I, O, or Q; stored upper-cased. From model year 1980 on, the 10th character (model-year code, 30-year cycle) must match `modelYear`, else 400 VALIDATION on `vin`; PATCH re-checks it only when `vin` or `modelYear` changes.
         source:
           $ref: "#/components/schemas/VehicleSource"
         purchaseCost:
@@ -3462,7 +3687,7 @@ components:
           type: string
           maxLength: 500
           pattern: "^[Hh][Tt][Tt][Pp][Ss]?://\\S+$"
-          description: http(s) URL
+          description: An https link on carfax.com or carfax.ca (or a subdomain); anything else is 400 VALIDATION on `carfaxUrl`. PATCH re-checks it only when it changes.
           nullable: true
         mileageKm:
           type: integer
@@ -3510,7 +3735,7 @@ components:
         vin:
           type: string
           pattern: "^[A-HJ-NPR-Za-hj-npr-z0-9]{17}$"
-          description: 17 characters without I, O, or Q; stored upper-cased
+          description: 17 characters without I, O, or Q; stored upper-cased. From model year 1980 on, the 10th character (model-year code, 30-year cycle) must match `modelYear`, else 400 VALIDATION on `vin`; PATCH re-checks it only when `vin` or `modelYear` changes.
         source:
           $ref: "#/components/schemas/VehicleSource"
         purchaseCost:
@@ -3533,7 +3758,7 @@ components:
           type: string
           maxLength: 500
           pattern: "^[Hh][Tt][Tt][Pp][Ss]?://\\S+$"
-          description: http(s) URL
+          description: An https link on carfax.com or carfax.ca (or a subdomain); anything else is 400 VALIDATION on `carfaxUrl`. PATCH re-checks it only when it changes.
           nullable: true
         mileageKm:
           type: integer
@@ -3686,6 +3911,16 @@ components:
         version:
           type: integer
           format: int64
+        buyerCustomerId:
+          type: integer
+          format: int64
+          nullable: true
+          description: CRM customer who bought the vehicle; omit for an "Other" buyer
+        buyerName:
+          type: string
+          maxLength: 120
+          nullable: true
+          description: Typed buyer name when the buyer is "Other"; stored as `soldToName`
 
     PageVehicle:
       allOf:
@@ -3751,7 +3986,10 @@ components:
           nullable: true
         linkedVehicleCount:
           type: integer
-          description: Number of vehicles linked to this customer (CRM list "vehicles purchased" count)
+          description: Number of vehicles linked to this customer (the "+N more" hint in the Linked vehicles column)
+        leadCount:
+          type: integer
+          description: Number of this customer's leads in any stage (CRM list Leads column, CR R1)
         version:
           type: integer
           format: int64
@@ -3771,6 +4009,10 @@ components:
           type: string
         homeAddress:
           type: string
+        notes:
+          type: string
+          nullable: true
+          description: Free-text customer notes (CR R3)
         linkedVehicles:
           type: array
           items:
@@ -3812,6 +4054,11 @@ components:
         homeAddress:
           type: string
           maxLength: 300
+        notes:
+          type: string
+          nullable: true
+          maxLength: 2000
+          description: Optional free-text notes; blank is stored as null (CR R3)
 
     CustomerPatch:
       type: object
@@ -3836,6 +4083,11 @@ components:
         homeAddress:
           type: string
           maxLength: 300
+        notes:
+          type: string
+          nullable: true
+          maxLength: 2000
+          description: Optional free-text notes; blank is stored as null (CR R3)
 
     PageCustomerListItem:
       allOf:
@@ -4208,7 +4460,7 @@ components:
 
     SalesReport:
       type: object
-      required: [soldCount, revenue, grossProfit, averageDaysToSell, inStockCount, inventoryCost, months]
+      required: [soldCount, revenue, grossProfit, averageDaysToSell, inStockCount, inventoryCost, months, period, salespeople]
       properties:
         soldCount: { type: integer }
         revenue: { type: number, format: decimal, description: Sum of sold prices }
@@ -4227,6 +4479,33 @@ components:
               soldCount: { type: integer }
               revenue: { type: number, format: decimal }
               grossProfit: { type: number, format: decimal }
+        period:
+          type: object
+          nullable: true
+          description: Totals for the requested period; null when no period was requested
+          required: [period, from, to, soldCount, revenue, grossProfit]
+          properties:
+            period: { type: string, enum: [TODAY, WEEK, MONTH, YEAR] }
+            from: { type: string, format: date }
+            to: { type: string, format: date }
+            soldCount: { type: integer }
+            revenue: { type: number, format: decimal }
+            grossProfit: { type: number, format: decimal }
+        salespeople:
+          type: array
+          description: Active members plus former members who sold in the period, ordered by revenue; sales cover the period (all time without one)
+          items:
+            type: object
+            required: [username, displayName, activeMember, soldCount, revenue, grossProfit, openLeads, wonLeads]
+            properties:
+              username: { type: string }
+              displayName: { type: string }
+              activeMember: { type: boolean }
+              soldCount: { type: integer, description: Vehicles with soldBy = username }
+              revenue: { type: number, format: decimal }
+              grossProfit: { type: number, format: decimal }
+              openLeads: { type: integer, description: Currently open leads the user owns }
+              wonLeads: { type: integer, description: Owned WON leads last updated in the period }
 
     LeadVehicle:
       type: object

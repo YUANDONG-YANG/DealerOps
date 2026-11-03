@@ -189,7 +189,7 @@ Unified error body: `{"code":"VIN_DUP","message":"..."}`. Cross-dealership id �
 | Method | Path | Who | Key checks | Error codes |
 |---|---|---|---|---|
 | POST | `/auth/login` | Anonymous | `{identifier,password}` where identifier is the email, username, or phone → `{accessToken,role,displayName}` | 400 VALIDATION; 401 UNAUTHORIZED |
-| POST | `/auth/register` | Anonymous | `{username,displayName,email,phone,password}` with at least one email or phone; creates unbound account | 400 VALIDATION; 409 `USERNAME_TAKEN`, `DISPLAY_NAME_TAKEN`, `EMAIL_TAKEN`, or `PHONE_TAKEN` (one code per field, with `fieldErrors`) |
+| POST | `/auth/register` | Anonymous | `{username,displayName,email,phone,password}` with at least one email or phone; creates unbound account | 400 VALIDATION; 409 `USERNAME_TAKEN`, `EMAIL_TAKEN`, or `PHONE_TAKEN` (one code per field, with `fieldErrors`) |
 | GET | `/me` | Signed in | Returns `role`, `dealerId` (empty for Admin) | 401 |
 | GET | `/admin/dealers` | Admin | — | 403 |
 | POST | `/admin/dealers` | Admin | Four contact fields required | 400 VALIDATION |

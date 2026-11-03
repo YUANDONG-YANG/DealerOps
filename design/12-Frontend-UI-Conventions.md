@@ -11,8 +11,9 @@ Do not fork any full dealer repository. Those projects usually include a buyer s
 - Other pages: left menu + top bar (dealership name or `Platform Admin`, role, `Sign out`).
 - Admin sees Admin only; staff sees DMS / CRM / Ad compliance / Assistant only. Block unauthorized routes immediately.
 - Post-login landing: admin → Admin; staff → DMS. The KPI page is `/dashboard`, the first menu item, not the landing page (design/21 DASH-01).
-- Signed-out visitors at `/` see a static landing page: brand bar with `Sign in` and `Create account`, hero (car photo plus an illustrative inventory preview whose three fictional cars open a sample ad-check result: passed, blocked and stale, using the real checklist labels), feature cards with illustrative mini screens, a VIN decoder (14 §4.6.1), and ad-approval steps. The page exposes no dealership data or public inventory.
+- Signed-out visitors at `/` see a static landing page: brand bar with `Sign in` (no create-account button, CR C5), a banner stating the site is for dealerships, not car shoppers, linking shoppers to `/shop`, hero (car photo plus an illustrative inventory preview whose three fictional cars open a sample ad-check result: passed, blocked and stale, using the real checklist labels, each ending with a **Sign up to check your own ads** link to `/register`), feature cards with illustrative mini screens, a VIN decoder (14 §4.6.1), and ad-approval steps. The page exposes no dealership data or public inventory.
 - Primary action is top-right; Sell/Unbind require a second confirmation.
+- Unsaved changes (CR F2): a form drawer opened with `dirty` (Admin dealership create/edit, DMS add/edit vehicle, CRM customer, Leads add lead and lead detail) asks `Discard unsaved changes?` (title `Unsaved changes`, buttons `Cancel` / `Discard`) when closed by ×, the overlay or Escape. While such a form or the Team dealership profile is dirty, closing or reloading the tab triggers the browser `beforeunload` prompt, and an in-app link asks `Discard unsaved changes?` in a native confirm. Saving the Team dealership profile first asks `Save changes to the dealership profile?`; saving a lead as Won or Lost first asks `Close this lead as Won/Lost? …` (button `Close lead`). Shared code: `useFormBaseline` / `useLeaveWarning` in `frontend/react/src/components/unsavedChanges.ts` and the `dirty` prop of `FormDrawer`.
 - One table per page, tab, or drawer view. A second list goes behind its own tab (`tab-bar`, as on Admin and Team); never stack two tables on one screen.
 - Every page must have loading, empty, and error states. Failures must not look like empty tables; an AI failure must never show Pass.
 
@@ -21,7 +22,7 @@ Do not fork any full dealer repository. Those projects usually include a buyer s
 - Admin dealerships: Name, Contact, Staff count, Actions
 - Admin members: Username, Dealership, Status, Actions
 - DMS: Year Make Model, VIN, Source, Condition, Cost (CAD, 2 decimals), Date added, Status, Actions (UI-20)
-- CRM: Name, Email, Phone, Linked vehicle, Vehicles purchased (`linkedVehicleCount`, UI-30), Actions
+- CRM: Name, Email, Phone, Home address, Linked vehicles, Leads (`leadCount`, CR R1; replaced "Vehicles purchased"), Actions
 - Ad: Vehicle, Type, Medium, Check status, Buyer site (Listed / Not listed / Taken down when sold, by the SHOP-01 rule), Actions; above the table, the number of vehicles the buyer site lists now, read from the public inventory
 
 Use Tags for status. The actions column has at most 3 text links. 10 rows per page. Sold rows are dimmed; purchase fields are read-only.

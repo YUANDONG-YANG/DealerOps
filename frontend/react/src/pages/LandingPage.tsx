@@ -170,10 +170,14 @@ export default function LandingPage() {
           <Link to="/shop">Shop vehicles</Link>
         </nav>
         <div className="landing-auth-links">
-          <Link to="/register">Create account</Link>
           <Link to="/login"><button className="btn btn-primary">Sign in</button></Link>
         </div>
       </header>
+
+      <div className="landing-audience" role="note">
+        <strong>Dealer Ops is software for car dealerships, not a place to buy a car.</strong>{' '}
+        Looking for a vehicle? <Link to="/shop">Shop vehicles from our dealerships →</Link>
+      </div>
 
       <section className="landing-hero">
         <div className="landing-hero-copy">
@@ -185,7 +189,6 @@ export default function LandingPage() {
           </p>
           <div className="landing-actions">
             <Link to="/login"><button className="btn btn-primary btn-lg">Sign in</button></Link>
-            <Link to="/register"><button className="btn btn-lg">Create account</button></Link>
             <a href="#vin"><button className="btn btn-lg">Decode a VIN</button></a>
           </div>
         </div>
@@ -217,7 +220,7 @@ export default function LandingPage() {
                     ))}
                   </ul>
                   <p className="landing-sample-verdict">{row.verdict}</p>
-                  <Link to="/login">Sign in to check your own ads →</Link>
+                  <Link to="/register">Sign up to check your own ads →</Link>
                 </div>
               )}
             </div>
@@ -321,9 +324,8 @@ export default function LandingPage() {
           ))}
         </div>
         <h2>Ready to get started?</h2>
-        <p className="muted">Sign in, or create an account and ask your platform administrator to add it to your dealership.</p>
-        <Link to="/login"><button className="btn btn-primary btn-lg">Sign in</button></Link>{' '}
-        <Link to="/register"><button className="btn btn-lg">Create account</button></Link>
+        <p className="muted">Dealership staff sign in with the account their dealership or platform administrator set up.</p>
+        <Link to="/login"><button className="btn btn-primary btn-lg">Sign in</button></Link>
       </section>
 
       <p className="landing-credit muted"><Link to="/disclaimer">Disclaimer</Link> · <Link to="/shop">Shop vehicles</Link></p>

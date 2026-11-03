@@ -36,6 +36,11 @@ public class CustomerEntity : ITenantOwned
     [Required]
     public string HomeAddress { get; set; } = "";
 
+    /// <summary>Free-text customer notes (CR R3).</summary>
+    [Column("notes")]
+    [MaxLength(2000)]
+    public string? Notes { get; set; }
+
     [Column("version")]
     [ConcurrencyCheck]
     public int Version { get; set; }

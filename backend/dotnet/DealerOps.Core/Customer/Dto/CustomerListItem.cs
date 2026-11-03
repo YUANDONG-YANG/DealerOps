@@ -8,4 +8,5 @@ public record CustomerListItem(
     string? HomeAddress,
     LinkedVehicleBrief? LinkedVehicle,
     int LinkedVehicleCount,
+    int LeadCount,
     int Version);

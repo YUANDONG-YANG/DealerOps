@@ -9,6 +9,8 @@ import { fieldErrorsOf } from '../api/http';
 import { describeError } from '../api/errors';
 import { enumLabel, km } from '../format';
 
+/** Matches the server limit on InquiryRequest.Message. */
+const INQUIRY_MESSAGE_MAX = 1000;
 const EMPTY_INQUIRY = { name: '', email: '', phone: '', homeAddress: '', message: '' };
 const INQUIRY_FIELDS = [
   { key: 'name', label: 'Name', type: 'text' },
@@ -93,6 +95,7 @@ function DealerDirectory() {
   const [dealers, setDealers] = useState<PublicDealer[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [query, setQuery] = useState('');
 
   useEffect(() => {
     listPublicDealers()
@@ -101,18 +104,32 @@ function DealerDirectory() {
       .finally(() => setLoading(false));
   }, []);
 
+  // The address holds the city, so one box searches the name and the city.
+  const term = query.trim().toLowerCase();
+  const shown = term
+    ? dealers.filter(d => `${d.legalName} ${d.contactAddress}`.toLowerCase().includes(term))
+    : dealers;
+
   return (
     <section className="landing-section">
-      <h1>Shop used vehicles</h1>
+      <h1>Shop vehicles</h1>
       <p className="muted">Choose a dealership to see the vehicles it has listed.</p>
-      <PageState loading={loading} error={error} empty={!loading && !error && !dealers.length}
-        emptyText="No dealerships are listed yet." loadingText="Loading dealerships…">
+      <input type="search" className="input" aria-label="Search dealerships" placeholder="Search by dealership name or city"
+        value={query} onChange={e => setQuery(e.target.value)} style={{ maxWidth: 360, margin: '8px 0 16px' }} />
+      <PageState loading={loading} error={error} empty={!loading && !error && !shown.length}
+        emptyText={dealers.length ? 'No dealerships match your search.' : 'No dealerships are listed yet.'}
+        loadingText="Loading dealerships…">
         <div className="landing-grid">
-          {dealers.map(d => (
+          {shown.map(d => (
             <Link key={d.id} to={`/shop/${d.slug}`} className="card landing-card dealer-card" style={{ textDecoration: 'none' }}>
               {d.logoUrl && <div className="dealer-card-logo" role="img" aria-label={`${d.legalName} logo`}
                 style={{ backgroundImage: `url("${d.logoUrl}")` }} />}
               <h3>{d.legalName}</h3>
+              <div className="muted" style={{ fontSize: 13 }}>
+                {d.contactAddress && <div>{d.contactAddress}</div>}
+                {d.contactPhone && <div>{d.contactPhone}</div>}
+                {d.contactEmail && <div>{d.contactEmail}</div>}
+              </div>
               <div className="dealer-card-stats">
                 <div><strong>{d.inStockCount.toLocaleString('en-CA')}</strong><span>In stock</span></div>
                 <div><strong>{d.soldCount.toLocaleString('en-CA')}</strong><span>Sold</span></div>
@@ -136,6 +153,7 @@ function DealerInventory({ dealer }: { dealer: string }) {
   const [formError, setFormError] = useState('');
   const [sending, setSending] = useState(false);
   const [sentFor, setSentFor] = useState('');
+  const [query, setQuery] = useState('');
 
   useEffect(() => {
     let active = true;
@@ -151,6 +169,14 @@ function DealerInventory({ dealer }: { dealer: string }) {
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, [dealer, navigate]);
+
+  // Every word must match the year, make or model, so "2021 civic" narrows to that vehicle.
+  const words = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  const vehicles = (inventory?.vehicles ?? []).filter(v => {
+    const text = `${v.modelYear} ${v.make} ${v.model}`.toLowerCase();
+    return words.every(w => text.includes(w));
+  });
+  const messageLeft = INQUIRY_MESSAGE_MAX - form.message.length;
 
   function openInquiry(vehicle: PublicVehicle) {
     setAsking(vehicle);
@@ -181,6 +207,7 @@ function DealerInventory({ dealer }: { dealer: string }) {
 
   return (
     <section className="landing-section">
+      <Link to="/shop" className="btn" style={{ marginBottom: 16 }}>← Back to dealerships</Link>
       <PageState loading={loading} error={error} loadingText="Loading vehicles…">
         {inventory && (
           <>
@@ -193,11 +220,18 @@ function DealerInventory({ dealer }: { dealer: string }) {
               <div><strong>{inventory.vehicles.length.toLocaleString('en-CA')}</strong><span>Vehicles listed</span></div>
             </div>
             {sentFor && <p className="success-text" role="status">Thanks. {inventory.legalName} received your question about the {sentFor} and will contact you.</p>}
+            {inventory.vehicles.length > 0 && (
+              <input type="search" className="input" aria-label="Search this dealership's vehicles"
+                placeholder="Search by make, model or year" value={query} onChange={e => setQuery(e.target.value)}
+                style={{ maxWidth: 360, margin: '8px 0 16px' }} />
+            )}
             {inventory.vehicles.length === 0 ? (
               <div className="state">No vehicles are listed right now.</div>
+            ) : vehicles.length === 0 ? (
+              <div className="state">No vehicles match your search.</div>
             ) : (
               <div className="landing-grid">
-                {inventory.vehicles.map(v => (
+                {vehicles.map(v => (
                   <article key={v.vehicleId} className="card landing-card shop-card" aria-label={`${v.modelYear} ${v.make} ${v.model}`}>
                     {v.photoUrl && <img src={v.photoUrl} alt={`${v.modelYear} ${v.make} ${v.model}`} loading="lazy"
                       style={{ width: '100%', aspectRatio: '4 / 3', objectFit: 'cover', borderRadius: 6 }} />}
@@ -232,8 +266,13 @@ function DealerInventory({ dealer }: { dealer: string }) {
             ))}
             <div className="form-item">
               <label className="form-label form-required" htmlFor="inquiry-message">Message</label>
-              <textarea id="inquiry-message" className="input" rows={4} maxLength={1000} value={form.message}
+              <textarea id="inquiry-message" className="input" rows={4} maxLength={INQUIRY_MESSAGE_MAX} value={form.message}
                 onChange={e => setForm(prev => ({ ...prev, message: e.target.value }))} />
+              {messageLeft <= 50 && (
+                <div className="muted" style={{ fontSize: 12 }} aria-live="polite">
+                  {messageLeft} of {INQUIRY_MESSAGE_MAX} characters left
+                </div>
+              )}
               {fieldErrors.message && <div className="form-error">{fieldErrors.message}</div>}
             </div>
             <p className="muted" style={{ fontSize: 12 }}>

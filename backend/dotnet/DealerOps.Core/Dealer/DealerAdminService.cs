@@ -8,7 +8,7 @@ using DealerOps.Core.Dealer.Dto;
 namespace DealerOps.Core.Dealer;
 
 /// <summary>
-/// Dealership records: the platform admin creates, edits and deactivates any dealership, and a
+/// Dealership records: the platform admin creates, edits, deactivates and soft-deletes any dealership, and a
 /// manager edits their own dealership's profile (AUTH-27). Every change writes a DEALER audit row.
 /// </summary>
 public class DealerAdminService
@@ -30,7 +30,7 @@ public class DealerAdminService
         TenantGuard.RequireAdmin();
         var p = Paging.ClampPage(page);
         var s = Paging.ClampSize(size);
-        IQueryable<DealerEntity> query = _db.Dealers;
+        var query = _db.Dealers.Where(d => d.DeletedAt == null);
         if (!string.IsNullOrWhiteSpace(q))
             query = query.Where(d => d.LegalName.Contains(q.Trim()));
 
@@ -158,8 +158,53 @@ public class DealerAdminService
             dealer.Id, string.Join(",", changed.Keys), TenantContext.ActorUsername());
     }
 
+    /// <summary>
+    /// The admin soft-deletes a dealership (A5): it gets <c>deleted_at</c>, becomes inactive and
+    /// leaves the admin list, the public shop and sign-in tenancy. Every active member is unbound
+    /// with the same soft unbind as Members > Unbind, and pending join requests to it are cleared.
+    /// Vehicles, sales, customers and audit rows stay for history. The UI confirms by typed name.
+    /// </summary>
+    public void Delete(long id)
+    {
+        TenantGuard.RequireAdmin();
+        var dealer = Load(id);
+        var actor = TenantContext.ActorUsername();
+        using var tx = _db.Database.BeginTransaction();
+
+        var memberships = _db.Memberships.Where(m => m.DealerId == id && m.Active).ToList();
+        var usernames = memberships.Select(m => m.Username).ToList();
+        var users = _db.AppUsers.Where(u => usernames.Contains(u.Username) || u.RequestedDealerId == id).ToList();
+        foreach (var membership in memberships)
+        {
+            membership.Active = false;
+            _audit.Record("MEMBERSHIP", membership.Id, "UPDATE", id, actor,
+                new Dictionary<string, object> { ["username"] = membership.Username, ["unbound"] = true },
+                new Dictionary<string, object?> { ["unbound"] = false });
+        }
+        foreach (var user in users)
+        {
+            if (user.DealerId == id) user.DealerId = null;
+            if (user.RequestedDealerId == id) user.RequestedDealerId = null;
+        }
+
+        var wasActive = dealer.Active;
+        dealer.Active = false;
+        dealer.DeletedAt = DateTime.UtcNow;
+        _audit.Record("DEALER", dealer.Id, "DELETE", dealer.Id, actor,
+            new Dictionary<string, object>
+            {
+                ["legalName"] = dealer.LegalName, ["deleted"] = true, ["unboundMembers"] = memberships.Count
+            },
+            new Dictionary<string, object?> { ["active"] = wasActive, ["deleted"] = false });
+        _db.SaveChanges();
+        tx.Commit();
+        _logger.LogInformation("Dealer deleted dealerId={DealerId} unboundMembers={Count} by {Actor}",
+            dealer.Id, memberships.Count, actor);
+    }
+
     private DealerEntity Load(long id) =>
-        _db.Dealers.Find(id) ?? throw new ApiException(ErrorCode.NotFound, "Not found");
+        _db.Dealers.FirstOrDefault(d => d.Id == id && d.DeletedAt == null)
+        ?? throw new ApiException(ErrorCode.NotFound, "Not found");
 
     private DealerResponse ToResponse(DealerEntity dealer)
     {

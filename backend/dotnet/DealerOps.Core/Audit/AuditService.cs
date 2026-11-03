@@ -72,14 +72,15 @@ public class AuditService : IAuditService
         var query = Filtered(_db.AuditEvents, filter);
         if (filter.DealerId != null)
             query = query.Where(e => e.DealerId == filter.DealerId);
-        return PageOfLog(query, page, size, ToItem);
+        return PageOfLog(Sorted(query, filter.Sort), page, size, ToItem);
     }
 
     /// <summary>The manager's own dealership log: every row of the tenant, newest first (AUD-11).</summary>
     public PageResponse<AuditItem> ListDealership(AuditLogFilter filter, int page, int size)
     {
         var tenant = TenantGuard.RequireManager().TenantDealerId!.Value;
-        return PageOfLog(Filtered(_db.AuditEvents.Where(e => e.DealerId == tenant), filter), page, size, ToItem);
+        return PageOfLog(Sorted(Filtered(_db.AuditEvents.Where(e => e.DealerId == tenant), filter), filter.Sort),
+            page, size, ToItem);
     }
 
     private static IQueryable<AuditEventEntity> Filtered(IQueryable<AuditEventEntity> query, AuditLogFilter filter)
@@ -100,8 +101,24 @@ public class AuditService : IAuditService
         }
         if (!string.IsNullOrWhiteSpace(filter.Actor))
         {
-            var actor = filter.Actor.Trim();
-            query = query.Where(e => e.ActorUsername == actor);
+            var actor = filter.Actor.Trim().ToLowerInvariant();
+            query = query.Where(e => e.ActorUsername.ToLower().Contains(actor));
+        }
+        if (!string.IsNullOrWhiteSpace(filter.Q))
+        {
+            // Action and record type are stored by wire name, so the text picks the matching enum
+            // values here; the JSON change columns are matched as lower-cased text in the database.
+            var text = filter.Q.Trim().ToLowerInvariant();
+            var wireText = text.Replace(' ', '_');
+            var actions = ActionMap.Where(kv => kv.Key.Contains(wireText, StringComparison.OrdinalIgnoreCase))
+                .Select(kv => kv.Value).ToList();
+            var types = EntityTypeMap.Where(kv => kv.Key.Contains(wireText, StringComparison.OrdinalIgnoreCase))
+                .Select(kv => kv.Value).ToList();
+            // EF.Constant inlines the short enum lists as an IN list of converted wire names.
+            query = query.Where(e => EF.Constant(actions).Contains(e.Action)
+                || EF.Constant(types).Contains(e.EntityType)
+                || (e.FieldSummary != null && e.FieldSummary.ToLower().Contains(text))
+                || (e.PreviousValues != null && e.PreviousValues.ToLower().Contains(text)));
         }
         // Rows are stored in UTC; the caller sends instants so a "day" follows the viewer's time zone.
         if (filter.From != null)
@@ -117,13 +134,35 @@ public class AuditService : IAuditService
         return query;
     }
 
+    /// <summary>Fields the admin and dealership logs sort by (C7); the wire names of the AuditItem fields.</summary>
+    private static readonly string[] SortFields = ["createdAt", "actorUsername", "action", "entityType", "dealerId", "clientIp"];
+
+    // The requested order, then newest first; "entityType" orders by record type and then record id.
+    private static IOrderedQueryable<AuditEventEntity> Sorted(IQueryable<AuditEventEntity> query, string? sort)
+    {
+        var parsed = Paging.ParseSort(sort, SortFields);
+        if (parsed == null)
+            return query.OrderByDescending(e => e.CreatedAt).ThenByDescending(e => e.Id);
+        var (field, desc) = parsed.Value;
+        var ordered = field switch
+        {
+            "createdAt" => query.OrderByDirection(e => e.CreatedAt, desc),
+            "actorUsername" => query.OrderByDirection(e => e.ActorUsername, desc),
+            "action" => query.OrderByDirection(e => e.Action, desc),
+            "entityType" => query.OrderByDirection(e => e.EntityType, desc).ThenBy(e => e.EntityId),
+            "dealerId" => query.OrderByDirection(e => e.DealerId, desc),
+            _ => query.OrderByDirection(e => e.ClientIp, desc),
+        };
+        return ordered.ThenByDescending(e => e.CreatedAt).ThenByDescending(e => e.Id);
+    }
+
     private static PageResponse<AuditItem> PageOfLog(
-        IQueryable<AuditEventEntity> query, int page, int size, Func<AuditEventEntity, AuditItem> toItem)
+        IOrderedQueryable<AuditEventEntity> query, int page, int size, Func<AuditEventEntity, AuditItem> toItem)
     {
         var p = Paging.ClampPage(page);
         var s = Paging.ClampSize(size);
         var total = query.Count();
-        var items = query.OrderByDescending(e => e.CreatedAt).ThenByDescending(e => e.Id)
+        var items = query
             .Skip(p * s).Take(s)
             .AsEnumerable()
             .Select(e => toItem(e) with { DealerId = e.DealerId, ClientIp = e.ClientIp })

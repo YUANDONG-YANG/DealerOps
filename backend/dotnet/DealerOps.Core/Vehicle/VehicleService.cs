@@ -4,6 +4,7 @@ using DealerOps.Core.Common.Exceptions;
 using DealerOps.Core.Common.Tenant;
 using DealerOps.Core.Compliance;
 using DealerOps.Core.Data;
+using DealerOps.Core.Lead;
 using DealerOps.Core.Listing;
 using DealerOps.Core.Vehicle.Dto;
 using DealerOps.Core.WorkOrder;
@@ -20,12 +21,15 @@ public class VehicleService
     private readonly AppDbContext _db;
     private readonly IAuditService _audit;
     private readonly ILogger<VehicleService> _logger;
+    private readonly DealerOps.Core.Notifications.NotificationService _notifications;
 
-    public VehicleService(AppDbContext db, IAuditService audit, ILogger<VehicleService> logger)
+    public VehicleService(AppDbContext db, IAuditService audit, ILogger<VehicleService> logger,
+        DealerOps.Core.Notifications.NotificationService notifications)
     {
         _db = db;
         _audit = audit;
         _logger = logger;
+        _notifications = notifications;
     }
 
     /// <summary>
@@ -85,7 +89,49 @@ public class VehicleService
         return query;
     }
 
-    /// <summary>Lists this dealer's vehicles matching the filter, newest first.</summary>
+    /// <summary>
+    /// Fields the DMS list sorts by (C7): VehicleResponse wire names. <c>soldToName</c> orders by the
+    /// linked customer's name or, without one, the typed buyer name.
+    /// </summary>
+    private static readonly string[] SortFields =
+    [
+        "stockNumber", "bodyType", "source", "conditionCode", "purchaseCost", "listPrice", "addedOn",
+        "openWorkOrders", "leadCount", "status", "soldOn", "soldBy", "soldToName",
+    ];
+
+    // The requested order, then newest first so equal keys keep a stable page order.
+    private IOrderedQueryable<VehicleEntity> Sorted(IQueryable<VehicleEntity> query, string? sort)
+    {
+        var parsed = Paging.ParseSort(sort, SortFields);
+        if (parsed == null)
+            return query.OrderByDescending(v => v.CreatedAt).ThenByDescending(v => v.Id);
+        var (field, desc) = parsed.Value;
+        var ordered = field switch
+        {
+            "stockNumber" => query.OrderByDirection(v => v.StockNumber, desc),
+            "bodyType" => query.OrderByDirection(v => v.BodyType, desc),
+            "source" => query.OrderByDirection(v => v.Source, desc),
+            "conditionCode" => query.OrderByDirection(v => v.ConditionCode, desc),
+            "purchaseCost" => query.OrderByDirection(v => v.PurchaseCost, desc),
+            "listPrice" => query.OrderByDirection(v => v.ListPrice, desc),
+            "addedOn" => query.OrderByDirection(v => v.AddedOn, desc),
+            "openWorkOrders" => query.OrderByDirection(v => _db.WorkOrders.Count(wo =>
+                wo.VehicleId == v.Id && wo.DealerId == v.DealerId &&
+                (wo.Status == WorkOrderStatus.Open || wo.Status == WorkOrderStatus.InProgress)), desc),
+            "leadCount" => query.OrderByDirection(v => _db.Leads.Count(l => l.VehicleId == v.Id), desc),
+            "status" => query.OrderByDirection(v => v.Status, desc),
+            "soldOn" => query.OrderByDirection(v => v.SoldOn, desc),
+            "soldBy" => query.OrderByDirection(v => v.SoldBy, desc),
+            // The linked customer's name, else the typed buyer name, as the DMS column shows it.
+            _ => query.OrderByDirection(v => (from cv in _db.CustomerVehicles
+                join c in _db.Customers on cv.CustomerId equals c.Id
+                where cv.VehicleId == v.Id
+                select c.Name).FirstOrDefault() ?? v.SoldToName, desc),
+        };
+        return ordered.ThenByDescending(v => v.CreatedAt).ThenByDescending(v => v.Id);
+    }
+
+    /// <summary>Lists this dealer's vehicles matching the filter, newest first unless the filter names a sort.</summary>
     public PageResponse<VehicleResponse> List(VehicleFilter filter, int page, int size)
     {
         var tenant = TenantGuard.RequireTenantId();
@@ -118,12 +164,14 @@ public class VehicleService
             query = query.Where(v => v.ModelYear == filter.ModelYear.Value);
         if (filter.UnlinkedOnly)
             query = query.Where(v => !_db.CustomerVehicles.Any(cv => cv.VehicleId == v.Id));
+        // D-4: vehicles with at least one OPEN or IN_PROGRESS work order, as counted in openWorkOrders.
+        if (filter.OpenWorkOrdersOnly)
+            query = query.Where(v => _db.WorkOrders.Any(wo => wo.VehicleId == v.Id && wo.DealerId == v.DealerId &&
+                (wo.Status == WorkOrderStatus.Open || wo.Status == WorkOrderStatus.InProgress)));
         query = ApplyAdFilters(query, filter);
 
         var total = query.LongCount();
-        var items = query
-            .OrderByDescending(v => v.CreatedAt)
-            .ThenByDescending(v => v.Id)
+        var items = Sorted(query, filter.Sort)
             .Skip(p * s).Take(s)
             // Materialised before projecting: the projection below queries the database
             // per row, which cannot share the connection with a still-open result set.
@@ -143,6 +191,8 @@ public class VehicleService
         RequireCents("repairCost", body.RepairCost);
         RequireCents("listPrice", body.ListPrice);
         var vin = NormalizeVin(body.Vin);
+        RequireVinMatchesModelYear(vin, body.ModelYear);
+        RequireCarfaxLink(body.CarfaxUrl);
         var stockNumber = TrimToNull(body.StockNumber);
         RequireUniqueStockNumber(tenant, stockNumber, null);
         var addedOn = body.AddedOn!.Value;
@@ -194,20 +244,41 @@ public class VehicleService
         return ToResponse(vehicle);
     }
 
-    /// <summary>Sales totals, profit and stock value for this dealer, with the last 12 months that had sales.</summary>
-    public SalesReport SalesReport()
+    /// <summary>
+    /// Sales totals, profit and stock value for this dealer, with the last 12 months that had sales.
+    /// With a period it also returns that period's totals; the per-salesperson table covers the
+    /// period, or all time without one.
+    /// </summary>
+    public SalesReport SalesReport(SalesPeriod? period = null)
     {
         var tenant = TenantGuard.RequireTenantId();
         var vehicles = _db.Vehicles.AsNoTracking()
             .Where(v => v.DealerId == tenant)
-            .Select(v => new { v.Status, v.PurchaseCost, v.RepairCost, v.AddedOn, v.SoldOn, v.SoldPrice })
+            .Select(v => new { v.Status, v.PurchaseCost, v.RepairCost, v.AddedOn, v.SoldOn, v.SoldPrice, v.SoldBy })
             .ToList();
         var sold = vehicles
             .Where(v => v.Status == VehicleStatus.Sold && v.SoldOn != null && v.SoldPrice != null)
             .Select(v => (SoldOn: v.SoldOn!.Value, Price: v.SoldPrice!.Value,
                 Profit: v.SoldPrice!.Value - v.PurchaseCost - (v.RepairCost ?? 0),
-                Days: v.SoldOn!.Value.DayNumber - v.AddedOn.DayNumber))
+                Days: v.SoldOn!.Value.DayNumber - v.AddedOn.DayNumber, v.SoldBy))
             .ToList();
+
+        var today = Today();
+        var from = period switch
+        {
+            SalesPeriod.Today => today,
+            SalesPeriod.Week => today.AddDays(-(((int)today.DayOfWeek + 6) % 7)),
+            SalesPeriod.Month => new DateOnly(today.Year, today.Month, 1),
+            SalesPeriod.Year => new DateOnly(today.Year, 1, 1),
+            _ => DateOnly.MinValue,
+        };
+        var inPeriod = period == null ? sold : sold.Where(s => s.SoldOn >= from && s.SoldOn <= today).ToList();
+        PeriodSales? periodSales = period is { } p
+            ? new PeriodSales(p, from, today, inPeriod.Count, inPeriod.Sum(s => s.Price), inPeriod.Sum(s => s.Profit))
+            : null;
+        var salespeople = Salespeople(tenant,
+            inPeriod.Select(s => (s.SoldBy, s.Price, s.Profit)).ToList(),
+            period == null ? (DateTime?)null : from.ToDateTime(TimeOnly.MinValue));
         var inStock = vehicles.Where(v => v.Status == VehicleStatus.InStock).ToList();
 
         var months = sold
@@ -224,7 +295,49 @@ public class VehicleService
             sold.Count == 0 ? null : Math.Round((decimal)sold.Average(s => s.Days), 1),
             inStock.Count,
             inStock.Sum(v => v.PurchaseCost + (v.RepairCost ?? 0)),
-            months);
+            months,
+            periodSales,
+            salespeople);
+    }
+
+    /// <summary>
+    /// One row per active member of the dealership, plus anyone else who sold a vehicle in the
+    /// period (a former member). Won leads count leads last updated as WON since <paramref name="wonSince"/>
+    /// (UTC), or all won leads without it.
+    /// </summary>
+    private List<SalespersonSales> Salespeople(long tenant,
+        List<(string? SoldBy, decimal Price, decimal Profit)> sales, DateTime? wonSince)
+    {
+        var members = _db.Memberships.AsNoTracking()
+            .Where(m => m.DealerId == tenant && m.Active)
+            .Select(m => m.Username)
+            .ToList();
+        var usernames = members
+            .Concat(sales.Where(s => s.SoldBy != null).Select(s => s.SoldBy!))
+            .Distinct()
+            .ToList();
+        var names = _db.AppUsers.AsNoTracking()
+            .Where(u => usernames.Contains(u.Username))
+            .Select(u => new { u.Username, u.DisplayName })
+            .ToDictionary(u => u.Username, u => u.DisplayName);
+        var leads = _db.Leads.AsNoTracking()
+            .Where(l => l.DealerId == tenant && l.OwnerUsername != null && usernames.Contains(l.OwnerUsername))
+            .Select(l => new { l.OwnerUsername, l.Stage, l.UpdatedAt })
+            .ToList();
+
+        return usernames
+            .Select(u =>
+            {
+                var own = sales.Where(s => s.SoldBy == u).ToList();
+                var owned = leads.Where(l => l.OwnerUsername == u).ToList();
+                return new SalespersonSales(u, names.GetValueOrDefault(u, u), members.Contains(u),
+                    own.Count, own.Sum(s => s.Price), own.Sum(s => s.Profit),
+                    owned.Count(l => !l.Stage.IsClosed()),
+                    owned.Count(l => l.Stage == LeadStage.Won && (wonSince == null || l.UpdatedAt >= wonSince)));
+            })
+            .OrderByDescending(r => r.Revenue)
+            .ThenBy(r => r.DisplayName)
+            .ToList();
     }
 
     /// <summary>Returns one vehicle of this dealer, or NOT_FOUND.</summary>
@@ -285,6 +398,12 @@ public class VehicleService
 
         if (changed.ContainsKey("stockNumber"))
             RequireUniqueStockNumber(tenant, next.StockNumber, vehicle.Id);
+
+        // Checked only when edited, so a stored vehicle saved before these rules can still be updated.
+        if (changed.ContainsKey("vin") || changed.ContainsKey("modelYear"))
+            RequireVinMatchesModelYear(next.Vin, next.ModelYear);
+        if (changed.ContainsKey("carfaxUrl"))
+            RequireCarfaxLink(next.CarfaxUrl);
 
         if (changed.ContainsKey("vin") && _db.Vehicles.IgnoreQueryFilters().Any(v => v.DealerId == tenant && v.Vin == next.Vin))
         {
@@ -394,20 +513,114 @@ public class VehicleService
                 new Dictionary<string, string> { ["soldOn"] = message });
         }
 
+        // The buyer is a CRM customer of this dealership, or "Other" with a typed name (D-10).
+        var buyerName = TrimToNull(body.BuyerName);
+        var buyer = body.BuyerCustomerId is { } buyerId
+            ? _db.Customers.FirstOrDefault(c => c.Id == buyerId && c.DealerId == tenant)
+              ?? throw new ApiException(ErrorCode.Validation, "Customer not found.",
+                  new Dictionary<string, string> { ["buyerCustomerId"] = "Customer not found." })
+            : null;
+        if (buyer == null && buyerName == null)
+        {
+            const string message = "Choose a customer, or Other with the buyer's name.";
+            throw new ApiException(ErrorCode.Validation, message,
+                new Dictionary<string, string> { ["buyerName"] = message });
+        }
+
+        // A vehicle has one owner link (CRM-07): an existing link must be the chosen buyer.
+        var existingLink = _db.CustomerVehicles.FirstOrDefault(cv => cv.VehicleId == vehicle.Id);
+        if (existingLink != null && existingLink.CustomerId != buyer?.Id)
+        {
+            _logger.LogWarning(
+                "Vehicle sale rejected because another customer is linked vehicleId={VehicleId} dealerId={DealerId} by {Actor}",
+                vehicle.Id, tenant, TenantContext.ActorUsername());
+            throw new ApiException(ErrorCode.VehicleAlreadyLinked,
+                "This vehicle is linked to another customer. Choose that customer or unlink first.");
+        }
+
+        var actor = TenantContext.ActorUsername();
         var (changed, previous) = ChangedSellFields(vehicle, body);
+        changed["soldBy"] = actor;
+        previous["soldBy"] = vehicle.SoldBy ?? "";
+        if (buyer != null)
+            changed["buyerCustomerId"] = buyer.Id;
+        else
+            changed["soldToName"] = true; // free text is never copied into the audit
+
+        using var tx = _db.Database.CurrentTransaction is null ? _db.Database.BeginTransaction() : null;
 
         vehicle.Status = VehicleStatus.Sold;
         vehicle.SoldOn = body.SoldOn;
         vehicle.SoldPrice = body.SoldPrice;
+        vehicle.SoldBy = actor;
+        vehicle.SoldToName = buyer == null ? buyerName : null;
         vehicle.UpdatedAt = DateTime.UtcNow;
 
-        _audit.Record("VEHICLE", vehicle.Id, "SELL",
-            tenant, TenantContext.ActorUsername(), changed, previous);
+        _audit.Record("VEHICLE", vehicle.Id, "SELL", tenant, actor, changed, previous);
+
+        if (buyer != null && existingLink == null)
+        {
+            var link = new DealerOps.Core.Customer.CustomerVehicleEntity
+            {
+                DealerId = tenant,
+                CustomerId = buyer.Id,
+                VehicleId = vehicle.Id
+            };
+            _db.CustomerVehicles.Add(link);
+            try
+            {
+                _db.SaveChanges();
+            }
+            catch (DbUpdateException ex) when (DuplicateKey.Is(ex))
+            {
+                // A concurrent request linked the vehicle after the check above (CRM-07).
+                throw new ApiException(ErrorCode.VehicleAlreadyLinked, "Vehicle is already linked.");
+            }
+            _audit.Record("CUSTOMER_VEHICLE", link.Id, "LINK", tenant, actor,
+                new Dictionary<string, object> { ["customerId"] = buyer.Id, ["vehicleId"] = vehicle.Id });
+        }
+
+        var closedLeads = CloseLeadsForSale(vehicle.Id, buyer?.Id, tenant, actor);
         _db.SaveChanges();
-        _logger.LogInformation("Vehicle sold vehicleId={VehicleId} stockNumber={StockNumber} dealerId={DealerId} by {Actor}",
-            vehicle.Id, vehicle.StockNumber, tenant, TenantContext.ActorUsername());
+        tx?.Commit();
+
+        foreach (var leadId in closedLeads)
+            _notifications.ResolveByCorrelation(tenant, DealerOps.Core.Notifications.NotificationService.BuyerInquiry, "leadId",
+                leadId.ToString(), "TAKEN", actor);
+
+        _logger.LogInformation(
+            "Vehicle sold vehicleId={VehicleId} stockNumber={StockNumber} buyerCustomerId={BuyerCustomerId} closedLeads={ClosedLeads} dealerId={DealerId} by {Actor}",
+            vehicle.Id, vehicle.StockNumber, buyer?.Id, closedLeads.Count, tenant, actor);
 
         return ToResponse(vehicle);
+    }
+
+    /// <summary>
+    /// Closes the open leads on a sold vehicle (L6): the buyer's leads become WON, every other open
+    /// lead becomes LOST with the reason "Vehicle sold". Returns the closed lead ids.
+    /// </summary>
+    private List<long> CloseLeadsForSale(long vehicleId, long? buyerCustomerId, long tenant, string actor)
+    {
+        var open = _db.Leads
+            .Where(l => l.VehicleId == vehicleId && l.DealerId == tenant &&
+                        l.Stage != LeadStage.Won && l.Stage != LeadStage.Lost)
+            .ToList();
+        foreach (var lead in open)
+        {
+            var stage = lead.CustomerId == buyerCustomerId ? LeadStage.Won : LeadStage.Lost;
+            var changed = new Dictionary<string, object> { ["stage"] = EnumWireName.Of(stage) };
+            var previous = new Dictionary<string, object?> { ["stage"] = EnumWireName.Of(lead.Stage) };
+            if (stage == LeadStage.Lost)
+            {
+                changed["lostReason"] = true;
+                previous["lostReason"] = null;
+            }
+            lead.Stage = stage;
+            lead.LostReason = stage == LeadStage.Lost ? "Vehicle sold" : null;
+            lead.UpdatedAt = DateTime.UtcNow;
+            _audit.Record("LEAD", lead.Id, "UPDATE", tenant, actor, changed, previous);
+        }
+        return open.Select(l => l.Id).ToList();
     }
 
     /// <summary>Adds a completed work order's cost to the vehicle's repair cost (WO-04).</summary>
@@ -524,9 +737,13 @@ public class VehicleService
             vehicle.ListPrice,
             vehicle.SoldOn,
             vehicle.SoldPrice,
+            vehicle.SoldBy,
+            vehicle.SoldToName,
             vehicle.Status,
             linked,
             CountOpenWorkOrders(vehicle),
+            // Every lead on the vehicle, open or closed (D-11).
+            _db.Leads.Count(l => l.VehicleId == vehicle.Id && l.DealerId == dealerId),
             vehicle.Version);
     }
 
@@ -670,6 +887,43 @@ public class VehicleService
             throw new ApiException(ErrorCode.Validation, message,
                 new Dictionary<string, string> { ["modelYear"] = message });
         }
+    }
+
+    // Model-year codes of the VIN's 10th character for 1980-2009; the cycle repeats every 30 years
+    // (A = 1980 or 2010, Y = 2000 or 2030), so a code matches either year of its pair.
+    private const string VinYearCodes = "ABCDEFGHJKLMNPRSTVWXY123456789";
+
+    /// <summary>D-8: the VIN's model-year code must match the entered year. Years before 1980 predate the code.</summary>
+    private static void RequireVinMatchesModelYear(string vin, int modelYear)
+    {
+        if (modelYear < 1980 || vin.Length != 17) return;
+        var code = vin[9];
+        var expected = VinYearCodes[(modelYear - 1980) % VinYearCodes.Length];
+        if (code == expected) return;
+        var index = VinYearCodes.IndexOf(code);
+        var message = index < 0
+            ? $"VIN character 10 '{code}' is not a model-year code. Check the VIN."
+            : $"VIN does not match the model year: character 10 '{code}' means {1980 + index} or {2010 + index}, not {modelYear}.";
+        throw new ApiException(ErrorCode.Validation, message,
+            new Dictionary<string, string> { ["vin"] = message });
+    }
+
+    /// <summary>D-9: a Carfax link must be https on carfax.com or carfax.ca (or one of their subdomains).</summary>
+    private static void RequireCarfaxLink(string? carfaxUrl)
+    {
+        if (string.IsNullOrWhiteSpace(carfaxUrl)) return;
+        if (Uri.TryCreate(carfaxUrl.Trim(), UriKind.Absolute, out var uri) && uri.Scheme == Uri.UriSchemeHttps
+            && IsCarfaxHost(uri.Host))
+            return;
+        const string message = "Carfax URL must be an https link on carfax.com or carfax.ca.";
+        throw new ApiException(ErrorCode.Validation, message,
+            new Dictionary<string, string> { ["carfaxUrl"] = message });
+    }
+
+    private static bool IsCarfaxHost(string host)
+    {
+        host = host.ToLowerInvariant();
+        return host is "carfax.com" or "carfax.ca" || host.EndsWith(".carfax.com") || host.EndsWith(".carfax.ca");
     }
 
     // Money is stored with two decimals, so a third decimal is refused rather than rounded away.

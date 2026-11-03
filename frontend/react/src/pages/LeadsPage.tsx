@@ -3,10 +3,12 @@ import { Link, useSearchParams } from 'react-router-dom';
 import AppLayout from '../layouts/AppLayout';
 import DataTable from '../components/DataTable';
 import FormDrawer from '../components/FormDrawer';
+import { useFormBaseline } from '../components/unsavedChanges';
 import PageState from '../components/PageState';
 import AuditTrail from '../components/AuditTrail';
 import { codeOf, fieldErrorsOf, messageOf, statusOf } from '../api/http';
-import { customersApi } from '../api/customers';
+import { customersApi, duplicateCustomerMessage } from '../api/customers';
+import ConfirmDialog from '../components/ConfirmDialog';
 import { vehiclesApi } from '../api/vehicles';
 import { auditApi } from '../api/audit';
 import { LEAD_STAGES, isClosedStage, leadsApi, stageLabel, type LeadStage } from '../api/leads';
@@ -26,15 +28,30 @@ function mapWrite(e: unknown, fallback: string) {
   if (code === 'VALIDATION') return messageOf(e, 'Check required fields: some fields are missing or invalid.');
   if (code === 'WRONG_DEALER_OR_SOLD') return 'Vehicle must be in stock at this dealership. Pick a vehicle that is not sold.';
   if (code === 'VERSION_CONFLICT') return 'Refresh and retry: someone else changed this record after you opened it. Reopen it to load the latest version, then make your change again.';
-  if (code === 'LEAD_CLOSED') return 'Won and lost leads cannot be changed. Create a new lead to follow up again.';
+  if (code === 'LEAD_CLOSED') return messageOf(e, 'Won and lost leads cannot be changed. Reopen the lead first.');
+  if (code === 'LEAD_DUPLICATE') return 'This customer already has an open lead for this vehicle. Open that lead instead of adding another.';
   if (statusOf(e) === 404 || code === 'NOT_FOUND') return 'Lead not found';
   return describeError(e, fallback);
 }
 
+// Text filters reload the list once typing pauses, like the DMS and CRM lists (L2).
+const FILTER_DEBOUNCE_MS = 300;
+const BLANK_FILTERS = { q: '', vehicle: '', stage: '', owner: '', overdue: false };
+const OPEN_STAGES = LEAD_STAGES.filter((s) => !isClosedStage(s.value));
+
+const suggestCustomers = async (q: string) =>
+  ((await customersApi.list({ q, size: SUGGEST_LIMIT })).data.items || [])
+    .map((c: any) => ({ value: String(c.id), label: c.name, hint: c.email }));
+
+const suggestVehicles = async (q: string) =>
+  ((await vehiclesApi.list({ q, status: 'IN_STOCK', size: SUGGEST_LIMIT })).data.items || [])
+    .map((v: any) => ({ value: String(v.id), label: vehicleLabel(v), hint: v.vin }));
+
 /** Sales leads: filter the list, create a lead, and update its stage, owner, vehicle, and notes. */
 export default function LeadsPage() {
   // Record history is manager-only (AUD-17); staff never call the audit API.
-  const isManager = useSessionStore().dealerRole === 'MANAGER';
+  const session = useSessionStore();
+  const isManager = session.dealerRole === 'MANAGER';
   const [searchParams] = useSearchParams();
   const [rows, setRows] = useState<any[]>([]);
   const [total, setTotal] = useState(0);
@@ -42,7 +59,9 @@ export default function LeadsPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [forbidden, setForbidden] = useState(false);
-  const [filters, setFilters] = useState({ q: '', stage: '', owner: '', overdue: false });
+  const [filters, setFilters] = useState(BLANK_FILTERS);
+  // Filters of the last list request, so the debounce does not reload what is already shown.
+  const loadedFilters = useRef('');
   const [owners, setOwners] = useState<MemberOption[]>([]);
   const [ownersError, setOwnersError] = useState('');
   const listSeq = useRef(0);
@@ -60,8 +79,12 @@ export default function LeadsPage() {
     vehicleId: undefined as number | undefined,
     ownerUsername: '', nextFollowUpOn: '', note: '',
   });
-  const [customerOptions, setCustomerOptions] = useState<any[]>([]);
-  const [vehicleOptions, setVehicleOptions] = useState<any[]>([]);
+  const createBaseline = useFormBaseline({ ...createForm, customerMode });
+  const [duplicateMessage, setDuplicateMessage] = useState('');
+  // Text shown in the Customer and Vehicle of interest pickers (L3); the picked ids live in the forms.
+  const [customerText, setCustomerText] = useState('');
+  const [vehicleText, setVehicleText] = useState('');
+  const [editVehicleText, setEditVehicleText] = useState('');
 
   // Detail drawer
   const [detailOpen, setDetailOpen] = useState(false);
@@ -70,6 +93,10 @@ export default function LeadsPage() {
     stage: 'NEW' as LeadStage, ownerUsername: '', nextFollowUpOn: '',
     vehicleId: undefined as number | undefined, lostReason: '',
   });
+  const editBaseline = useFormBaseline(edit);
+  // Won and lost are final, so closing a lead asks first.
+  const [confirmClose, setConfirmClose] = useState(false);
+  const [reopenStage, setReopenStage] = useState<LeadStage>('CONTACTED');
   const [saving, setSaving] = useState(false);
   const [editError, setEditError] = useState('');
   const [noteText, setNoteText] = useState('');
@@ -79,6 +106,7 @@ export default function LeadsPage() {
 
   const load = useCallback(async (p = page, f = filters) => {
     const seq = ++listSeq.current;
+    loadedFilters.current = JSON.stringify(f);
     setLoading(true); setError(''); setForbidden(false);
     try {
       const r = await leadsApi.list({ ...f, page: p, size: 10 });
@@ -96,29 +124,30 @@ export default function LeadsPage() {
 
   useEffect(() => { void load(); }, [page]);
   useEffect(() => {
+    const timer = setTimeout(() => {
+      if (JSON.stringify(filters) === loadedFilters.current) return;
+      setPage(0); void load(0, filters);
+    }, FILTER_DEBOUNCE_MS);
+    return () => clearTimeout(timer);
+  }, [filters.q, filters.vehicle]);
+  useEffect(() => {
     membersApi.list()
       .then((r) => setOwners(r.data || []))
       .catch((e) => setOwnersError(describeError(e, 'load owners')));
   }, []);
 
-  const searchCustomers = async (q: string) => {
-    try { setCustomerOptions((await customersApi.list({ q, size: 10 })).data.items || []); }
-    catch { setCustomerOptions([]); }
-  };
-
-  const searchVehicles = async (q: string) => {
-    try { setVehicleOptions((await vehiclesApi.list({ q, status: 'IN_STOCK', size: 10 })).data.items || []); }
-    catch { setVehicleOptions([]); }
-  };
-
-  const openCreate = () => {
-    setCreateForm({
-      customerId: undefined, name: '', email: '', phone: '', homeAddress: '',
-      vehicleId: undefined, ownerUsername: '', nextFollowUpOn: '', note: '',
-    });
+  // `customer` preselects an existing customer, as the CRM "New lead" action does (CR R2).
+  const openCreate = (customer?: { id: number; name: string; email: string }) => {
+    const blank = {
+      customerId: customer?.id, name: '', email: '', phone: '', homeAddress: '',
+      // The creator owns a new lead by default and can change it (L1).
+      vehicleId: undefined, ownerUsername: session.username, nextFollowUpOn: '', note: '',
+    };
+    setCreateForm(blank);
     setCustomerMode('existing');
+    createBaseline.reset({ ...blank, customerMode: 'existing' });
     setCreateError(''); setCreateFieldErrors({}); setCreateOpen(true);
-    void searchCustomers(''); void searchVehicles('');
+    setCustomerText(customer?.name ?? ''); setVehicleText('');
   };
 
   const create = async () => {
@@ -128,6 +157,25 @@ export default function LeadsPage() {
     if (customerMode === 'new' && ![f.name, f.email, f.phone, f.homeAddress].every((v) => v.trim())) {
       setCreateError('Check required fields'); return;
     }
+    if (creating) return;
+    if (customerMode === 'new') {
+      // Customer fields are not unique (CR R4): a match asks for confirmation first.
+      setCreating(true);
+      try {
+        const { data } = await customersApi.duplicates({
+          name: f.name.trim(), email: f.email.trim(), phone: f.phone.trim(), homeAddress: f.homeAddress.trim(),
+        });
+        if (data.fields.length) { setDuplicateMessage(duplicateCustomerMessage(data.fields)); return; }
+      } catch (e) {
+        setCreateError(describeError(e, 'check for duplicate customers')); return;
+      } finally { setCreating(false); }
+    }
+    await submitCreate();
+  };
+
+  const submitCreate = async () => {
+    const f = createForm;
+    setDuplicateMessage('');
     if (creating) return;
     setCreating(true);
     try {
@@ -153,12 +201,15 @@ export default function LeadsPage() {
 
   const fillEdit = (lead: any) => {
     setSelected(lead);
-    setEdit({
-      stage: lead.stage, ownerUsername: lead.ownerUsername ?? '',
-      nextFollowUpOn: lead.nextFollowUpOn ?? '', vehicleId: lead.vehicle?.id,
+    const loaded = {
+      stage: lead.stage as LeadStage, ownerUsername: lead.ownerUsername ?? '',
+      nextFollowUpOn: lead.nextFollowUpOn ?? '', vehicleId: lead.vehicle?.id as number | undefined,
       lostReason: lead.lostReason ?? '',
-    });
-    setVehicleOptions(lead.vehicle ? [lead.vehicle] : []);
+    };
+    setEdit(loaded);
+    editBaseline.reset(loaded);
+    setEditVehicleText(lead.vehicle ? vehicleLabel(lead.vehicle) : '');
+    setReopenStage('CONTACTED');
   };
 
   const openDetail = async (id: number) => {
@@ -181,6 +232,8 @@ export default function LeadsPage() {
     if (!selected || saving) return;
     setEditError('');
     if (edit.stage === 'LOST' && !edit.lostReason.trim()) { setEditError('A lost lead needs a reason'); return; }
+    if (isClosedStage(edit.stage) && !confirmClose) { setConfirmClose(true); return; }
+    setConfirmClose(false);
     setSaving(true);
     try {
       const r = await leadsApi.update(selected.id, {
@@ -190,6 +243,16 @@ export default function LeadsPage() {
       });
       fillEdit(r.data); await load(); await loadAudit(r.data.id, detailSeq.current);
     } catch (err) { setEditError(mapWrite(err, 'save lead')); }
+    finally { setSaving(false); }
+  };
+
+  const reopen = async () => {
+    if (!selected || saving) return;
+    setEditError(''); setSaving(true);
+    try {
+      const r = await leadsApi.reopen(selected.id, reopenStage, selected.version);
+      fillEdit(r.data); await load(); await loadAudit(r.data.id, detailSeq.current);
+    } catch (err) { setEditError(mapWrite(err, 'reopen lead')); }
     finally { setSaving(false); }
   };
 
@@ -212,6 +275,15 @@ export default function LeadsPage() {
     if (leadId) { const id = Number(leadId); if (Number.isFinite(id)) void openDetail(id); }
   }, [searchParams.get('leadId')]);
 
+  // /leads?newLeadFor=<customerId> opens "Add lead" for that customer (CR R2).
+  useEffect(() => {
+    const customerId = Number(searchParams.get('newLeadFor'));
+    if (!customerId) return;
+    customersApi.get(customerId)
+      .then((r) => openCreate(r.data))
+      .catch((e) => alert(describeError(e, 'load customer')));
+  }, [searchParams.get('newLeadFor')]);
+
   const stageColor = (stage: string) => {
     if (stage === 'WON') return 'tag-success';
     if (stage === 'LOST') return 'tag-info';
@@ -223,7 +295,7 @@ export default function LeadsPage() {
       <div className="page">
         <div className="page-header">
           <div><h1>Leads</h1><span className="muted">Sales opportunities and follow-ups</span></div>
-          <button className="btn btn-primary" onClick={openCreate}>Add lead</button>
+          <button className="btn btn-primary" onClick={() => openCreate()}>Add lead</button>
         </div>
         <div className="filters">
           <SearchSuggest value={filters.q} placeholder="Customer name" ariaLabel="Customer name"
@@ -233,6 +305,15 @@ export default function LeadsPage() {
               return uniqueSuggestions((r.data.items || []).map((l: any) => ({ value: l.customerName, label: l.customerName })));
             }}
             onPick={(s) => { const next = { ...filters, q: s.value }; setFilters(next); setPage(0); load(0, next); }}
+            onEnter={() => { setPage(0); load(0); }} />
+          <SearchSuggest value={filters.vehicle} placeholder="Vehicle" ariaLabel="Vehicle"
+            onChange={(v) => setFilters((f) => ({ ...f, vehicle: v }))}
+            suggest={async (vehicle) => {
+              const r = await leadsApi.list({ ...filters, vehicle, size: SUGGEST_LIMIT });
+              return uniqueSuggestions((r.data.items || []).filter((l: any) => l.vehicle)
+                .map((l: any) => ({ value: vehicleLabel(l.vehicle), label: vehicleLabel(l.vehicle) })));
+            }}
+            onPick={(s) => { const next = { ...filters, vehicle: s.value }; setFilters(next); setPage(0); load(0, next); }}
             onEnter={() => { setPage(0); load(0); }} />
           <select className="select" aria-label="Stage" value={filters.stage}
             onChange={(e) => setFilters((f) => ({ ...f, stage: e.target.value }))}>
@@ -250,7 +331,7 @@ export default function LeadsPage() {
             Overdue only
           </label>
           <button className="btn" onClick={() => { setPage(0); load(0); }}>Search</button>
-          <button className="btn" onClick={() => { setFilters({ q: '', stage: '', owner: '', overdue: false }); setPage(0); load(0, { q: '', stage: '', owner: '', overdue: false }); }}>Reset</button>
+          <button className="btn" onClick={() => { setFilters(BLANK_FILTERS); setPage(0); load(0, BLANK_FILTERS); }}>Reset</button>
         </div>
         {ownersError && <p className="warning-text">{ownersError}</p>}
         <PageState loading={loading} error={error} forbidden={forbidden}
@@ -259,12 +340,12 @@ export default function LeadsPage() {
           forbiddenText="You do not have access to leads.">
           <DataTable rows={rows} total={total} page={page} onPage={(p) => { setPage(p); }}
             columns={[
-              { label: 'Customer', render: (r: any) => r.customerName },
-              { label: 'Vehicle of interest', render: (r: any) => vehicleLabel(r.vehicle) },
-              { label: 'Stage', width: '120px', render: (r: any) => <span className={`tag ${stageColor(r.stage)}`}>{stageLabel(r.stage)}</span> },
-              { label: 'Owner', width: '140px', render: (r: any) => r.ownerUsername || <span className="muted">Unassigned</span> },
+              { key: 'customerName', label: 'Customer', sortable: true, render: (r: any) => r.customerName },
+              { key: 'vehicle', label: 'Vehicle of interest', sortable: true, sortValue: (r: any) => r.vehicle ? `${r.vehicle.make} ${r.vehicle.model} ${r.vehicle.modelYear}` : null, render: (r: any) => vehicleLabel(r.vehicle) },
+              { key: 'stage', label: 'Stage', width: '120px', sortable: true, sortValue: (r: any) => LEAD_STAGES.findIndex((s) => s.value === r.stage), render: (r: any) => <span className={`tag ${stageColor(r.stage)}`}>{stageLabel(r.stage)}</span> },
+              { key: 'ownerUsername', label: 'Owner', width: '140px', sortable: true, render: (r: any) => r.ownerUsername || <span className="muted">Unassigned</span> },
               // A won or lost lead is final and never overdue (LEAD-03, LEAD-06), so its stored date is not shown.
-              { label: 'Next follow-up', width: '150px', render: (r: any) => isClosedStage(r.stage)
+              { key: 'nextFollowUpOn', label: 'Next follow-up', width: '150px', sortable: true, sortValue: (r: any) => isClosedStage(r.stage) ? null : r.nextFollowUpOn, render: (r: any) => isClosedStage(r.stage)
                 ? <span className="muted">Not needed</span>
                 : !r.nextFollowUpOn ? <span className="muted">Not scheduled</span>
                 : <><span className={r.overdue ? 'danger-text' : ''}>{r.nextFollowUpOn}</span>
@@ -276,7 +357,7 @@ export default function LeadsPage() {
         </PageState>
       </div>
 
-      <FormDrawer title="Add lead" open={createOpen} onClose={() => setCreateOpen(false)}>
+      <FormDrawer title="Add lead" open={createOpen} dirty={createBaseline.dirty} onClose={() => setCreateOpen(false)}>
         <div className="form-item" style={{ marginBottom: 16 }}>
           <label className="radio-label">
             <input type="radio" checked={customerMode === 'existing'} onChange={() => setCustomerMode('existing')} /> Existing customer
@@ -288,12 +369,10 @@ export default function LeadsPage() {
         {customerMode === 'existing' ? (
           <div className="form-item">
             <label className="form-label">Customer</label>
-            <select className="select" value={createForm.customerId ?? ''}
-              onChange={(e) => setCreateForm((f) => ({ ...f, customerId: e.target.value ? Number(e.target.value) : undefined }))}>
-              <option value="">Select customer</option>
-              {customerOptions.map((c: any) => <option key={c.id} value={c.id}>{c.name} · {c.email}</option>)}
-            </select>
-            <input className="input" placeholder="Search customers" onChange={(e) => searchCustomers(e.target.value)} />
+            <SearchSuggest value={customerText} placeholder="Search customers" ariaLabel="Customer"
+              onChange={(v) => { setCustomerText(v); setCreateForm((f) => ({ ...f, customerId: undefined })); }}
+              suggest={suggestCustomers}
+              onPick={(s) => { setCustomerText(s.label); setCreateForm((f) => ({ ...f, customerId: Number(s.value) })); }} />
           </div>
         ) : (
           <>
@@ -316,12 +395,10 @@ export default function LeadsPage() {
           </>
         )}
         <div className="form-item"><label className="form-label">Vehicle of interest (in stock)</label>
-          <select className="select" value={createForm.vehicleId ?? ''}
-            onChange={(e) => setCreateForm((f) => ({ ...f, vehicleId: e.target.value ? Number(e.target.value) : undefined }))}>
-            <option value="">None</option>
-            {vehicleOptions.map((v: any) => <option key={v.id} value={v.id}>{vehicleLabel(v)} · {v.vin}</option>)}
-          </select>
-          <input className="input" placeholder="Search vehicles" onChange={(e) => searchVehicles(e.target.value)} />
+          <SearchSuggest value={vehicleText} placeholder="Search vehicles (blank for none)" ariaLabel="Vehicle of interest"
+            onChange={(v) => { setVehicleText(v); setCreateForm((f) => ({ ...f, vehicleId: undefined })); }}
+            suggest={suggestVehicles}
+            onPick={(s) => { setVehicleText(s.label); setCreateForm((f) => ({ ...f, vehicleId: Number(s.value) })); }} />
         </div>
         <div className="form-item"><label className="form-label">Owner</label>
           <select className="select" value={createForm.ownerUsername}
@@ -342,7 +419,7 @@ export default function LeadsPage() {
         <button className="btn btn-primary" disabled={creating} onClick={create}>{creating ? 'Saving…' : 'Save'}</button>
       </FormDrawer>
 
-      <FormDrawer title="Lead" open={detailOpen} onClose={() => { detailSeq.current++; setDetailOpen(false); }}>
+      <FormDrawer title="Lead" open={detailOpen} dirty={editBaseline.dirty || noteText.trim() !== ''} onClose={() => { detailSeq.current++; setDetailOpen(false); }}>
         {selected && (
           <>
             <p>
@@ -375,17 +452,28 @@ export default function LeadsPage() {
                 onChange={(e) => setEdit((ed) => ({ ...ed, nextFollowUpOn: e.target.value }))} />
             </div>
             <div className="form-item"><label className="form-label">Vehicle of interest (in stock)</label>
-              <select className="select" value={edit.vehicleId ?? ''} disabled={isClosedStage(selected.stage)}
-                onChange={(e) => setEdit((ed) => ({ ...ed, vehicleId: e.target.value ? Number(e.target.value) : undefined }))}>
-                <option value="">None</option>
-                {vehicleOptions.map((v: any) => <option key={v.id} value={v.id}>{vehicleLabel(v)} · {v.vin}</option>)}
-              </select>
-              {!isClosedStage(selected.stage) && (
-                <input className="input" placeholder="Search vehicles" style={{ marginTop: 4 }}
-                  onChange={(e) => searchVehicles(e.target.value)} />
+              {isClosedStage(selected.stage) ? (
+                <input className="input" aria-label="Vehicle of interest" value={editVehicleText || 'None'} disabled />
+              ) : (
+                <SearchSuggest value={editVehicleText} placeholder="Search vehicles (blank for none)" ariaLabel="Vehicle of interest"
+                  onChange={(v) => { setEditVehicleText(v); setEdit((ed) => ({ ...ed, vehicleId: undefined })); }}
+                  suggest={suggestVehicles}
+                  onPick={(s) => { setEditVehicleText(s.label); setEdit((ed) => ({ ...ed, vehicleId: Number(s.value) })); }} />
               )}
             </div>
-            {isClosedStage(selected.stage) && <p className="muted">This lead is closed. You can still add notes.</p>}
+            {isClosedStage(selected.stage) && (
+              <>
+                <p className="muted">This lead is closed. Reopen it to change it; you can still add notes.</p>
+                {/* L4: a closed lead goes back to an open stage; the server checks the sale (D7). */}
+                <div className="form-item"><label className="form-label">Reopen as</label>
+                  <select className="select" aria-label="Reopen as" value={reopenStage}
+                    onChange={(e) => setReopenStage(e.target.value as LeadStage)}>
+                    {OPEN_STAGES.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
+                  </select>
+                </div>
+                <button className="btn" disabled={saving} onClick={reopen}>{saving ? 'Reopening…' : 'Reopen lead'}</button>
+              </>
+            )}
             {editError && <p className="danger-text">{editError}</p>}
             {!isClosedStage(selected.stage) && (
               <button className="btn btn-primary" disabled={saving} onClick={saveDetail}>{saving ? 'Saving…' : 'Save'}</button>
@@ -411,6 +499,13 @@ export default function LeadsPage() {
           </>
         )}
       </FormDrawer>
+      <ConfirmDialog open={!!duplicateMessage} title="Possible duplicate customer" message={duplicateMessage}
+        confirmLabel="Create anyway"
+        onCancel={() => setDuplicateMessage('')} onConfirm={() => void submitCreate()} />
+      <ConfirmDialog open={confirmClose} title="Close lead"
+        message={`Close this lead as ${stageLabel(edit.stage)}? Won and lost leads are locked until someone reopens them.`}
+        confirmLabel="Close lead"
+        onCancel={() => setConfirmClose(false)} onConfirm={() => void saveDetail()} />
     </AppLayout>
   );
 }

@@ -2,11 +2,14 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import AppLayout from '../layouts/AppLayout';
 import DataTable from '../components/DataTable';
+import { sortParam, type SortState } from '../components/TableSort';
 import FormDrawer from '../components/FormDrawer';
+import { useFormBaseline } from '../components/unsavedChanges';
 import PageState from '../components/PageState';
 import ConfirmDialog from '../components/ConfirmDialog';
 import AuditTrail from '../components/AuditTrail';
 import WorkOrderPanel from '../components/WorkOrderPanel';
+import VehicleLeadsPanel from '../components/VehicleLeadsPanel';
 import PhotoStudioPanel from '../components/PhotoStudioPanel';
 import PaymentPanel from '../components/PaymentPanel';
 import StatusTag from '../components/StatusTag';
@@ -19,7 +22,8 @@ import { auditApi } from '../api/audit';
 import { codeOf, collectAllPages, fieldErrorsOf, messageOf, statusOf } from '../api/http';
 import { describeError } from '../api/errors';
 import { useSessionStore } from '../store/session';
-import SearchSuggest, { SUGGEST_LIMIT, matchesAny, uniqueSuggestions } from '../components/SearchSuggest';
+import SearchSuggest, { SUGGEST_LIMIT } from '../components/SearchSuggest';
+import { groupMakes, isCarfaxUrl, modelYearsFor, vinYearError } from '../vehicleRules';
 
 const SOURCES = ['TRADE_IN', 'AUCTION', 'PRIVATE_PURCHASE', 'OTHER'] as const;
 const CONDITIONS = ['CERTIFIED', 'AS_IS', 'UNFIT', 'IRREPARABLE'] as const;
@@ -38,12 +42,13 @@ function todayIso() {
 
 const VIN_PATTERN = /^[A-HJ-NPR-Z0-9]{17}$/;
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
-const URL_PATTERN = /^https?:\/\/\S+$/i;
 const MILEAGE_PATTERN = /^\d{1,7}$/;
 
 type Validation = Record<string, string>;
 
-function validateForm(form: VehicleForm, isSold: boolean): Validation {
+// `stored` is the vehicle as loaded for edit: its VIN/year and Carfax link are re-checked only when
+// changed, as on the server, so a record saved before those rules can still be edited.
+function validateForm(form: VehicleForm, isSold: boolean, stored?: { vin?: string; modelYear?: number; carfaxUrl?: string | null }): Validation {
   const e: Validation = {};
   if (isSold) {
     if (!form.conditionCode) e.conditionCode = 'Required';
@@ -61,6 +66,10 @@ function validateForm(form: VehicleForm, isSold: boolean): Validation {
   const maxYear = new Date().getFullYear() + 1;
   if (!Number.isInteger(year) || year < 1900 || year > maxYear) e.modelYear = `Year must be 1900 to ${maxYear}`;
   if (!VIN_PATTERN.test((form.vin || '').toUpperCase())) e.vin = 'VIN must be 17 letters or digits, without I, O or Q';
+  else if (!e.modelYear && (form.vin.toUpperCase() !== stored?.vin || year !== stored?.modelYear)) {
+    const mismatch = vinYearError(form.vin, year);
+    if (mismatch) e.vin = mismatch;
+  }
   if (!form.purchaseCost || !MONEY_PATTERN.test(form.purchaseCost)) e.purchaseCost = 'Must be an amount of 0 or more with at most 2 decimals';
   if (!form.addedOn || !DATE_PATTERN.test(form.addedOn) || Number.isNaN(Date.parse(form.addedOn))) {
     e.addedOn = 'Use the format YYYY-MM-DD';
@@ -68,8 +77,8 @@ function validateForm(form: VehicleForm, isSold: boolean): Validation {
     e.addedOn = 'Date cannot be in the future';
   }
   if (form.repairCost && !MONEY_PATTERN.test(form.repairCost)) e.repairCost = 'Must be an amount of 0 or more with at most 2 decimals';
-  if (form.carfaxUrl && (form.carfaxUrl.length > 500 || !URL_PATTERN.test(form.carfaxUrl))) {
-    e.carfaxUrl = 'Must be an http(s) URL of at most 500 characters';
+  if (form.carfaxUrl && (form.carfaxUrl.length > 500 || (form.carfaxUrl !== stored?.carfaxUrl && !isCarfaxUrl(form.carfaxUrl)))) {
+    e.carfaxUrl = 'Must be an https link on carfax.com or carfax.ca, at most 500 characters';
   }
   if (!form.source) e.source = 'Required';
   if (!form.conditionCode) e.conditionCode = 'Required';
@@ -83,20 +92,21 @@ interface VehicleForm {
   stockNumber: string; mileageKm: string; exteriorColor: string; fuelType: string; listPrice: string;
 }
 
+// The search box covers make and model, so there are no separate make and model filters (D-1).
 interface Filters {
-  make: string; model: string; modelYear: string;
-  q: string; status: string; condition: string; bodyType: string;
+  q: string; modelYear: string; status: string; condition: string; bodyType: string;
+  openWorkOrdersOnly: boolean;
 }
 
 function blankFilters(): Filters {
-  return { make: '', model: '', modelYear: '', q: '', status: '', condition: '', bodyType: '' };
+  return { q: '', modelYear: '', status: '', condition: '', bodyType: '', openWorkOrdersOnly: false };
 }
 
 // Filters the user types rather than picks; they are held as a draft until typing pauses.
-type TextFilters = Pick<Filters, 'make' | 'model' | 'q'>;
+type TextFilters = Pick<Filters, 'q' | 'modelYear'>;
 
 function blankDrafts(): TextFilters {
-  return { make: '', model: '', q: '' };
+  return { q: '', modelYear: '' };
 }
 
 function draftsPending(drafts: TextFilters, filters: Filters) {
@@ -140,9 +150,13 @@ function mapWrite(e: unknown) {
   if (code === 'VERSION_CONFLICT') return 'Refresh and retry: someone else changed this record after you opened it. Reopen it to load the latest version, then make your change again.';
   if (code === 'SOLD_PAIR_REQUIRED') return 'Sold date and price are required together. Enter both, with a price above $0.';
   if (code === 'WORK_ORDERS_OPEN') return 'Finish or cancel open work orders before selling. Open the vehicle\'s Work orders section to close them.';
+  if (code === 'VEHICLE_ALREADY_LINKED') return messageOf(e, 'This vehicle is linked to another customer. Choose that customer or unlink first.');
   if (status === 404 || code === 'NOT_FOUND') return 'Vehicle not found. It may have been deleted by a colleague; refresh the list.';
   return describeError(e, 'save vehicle');
 }
+
+/** Sell-dialog buyer choice for a buyer who is not a CRM customer. */
+const OTHER_BUYER = 'OTHER';
 
 const yearOptions = Array.from({ length: new Date().getFullYear() + 2 - 1900 }, (_, i) => new Date().getFullYear() + 1 - i);
 
@@ -154,6 +168,7 @@ export default function DmsPage() {
   const [rows, setRows] = useState<any[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(0);
+  const [sort, setSort] = useState<SortState | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [forbidden, setForbidden] = useState(false);
@@ -161,12 +176,12 @@ export default function DmsPage() {
   const [filters, setFilters] = useState<Filters>(blankFilters());
   const [drafts, setDrafts] = useState<TextFilters>(blankDrafts());
   const [makeOptions, setMakeOptions] = useState<string[]>([]);
-  const [modelOptions, setModelOptions] = useState<string[]>([]);
   const [catalogError, setCatalogError] = useState('');
 
   const [drawer, setDrawer] = useState(false);
   const [edit, setEdit] = useState<any>(null);
   const [form, setForm] = useState<VehicleForm>(blankForm());
+  const vehicleBaseline = useFormBaseline(form);
   const [formError, setFormError] = useState('');
   const [validationErrors, setValidationErrors] = useState<Validation>({});
   const [touched, setTouched] = useState<Record<string, boolean>>({});
@@ -182,13 +197,13 @@ export default function DmsPage() {
   const [formModelOptions, setFormModelOptions] = useState<string[]>([]);
 
   const [sellOpen, setSellOpen] = useState(false);
-  const [sellForm, setSellForm] = useState({ soldOn: '', soldPrice: '', buyerId: '' });
+  // buyerId is a CRM customer id, or OTHER_BUYER with a typed buyerName (D-10).
+  const [sellForm, setSellForm] = useState({ soldOn: '', soldPrice: '', buyerId: '', buyerName: '' });
   const [buyers, setBuyers] = useState<any[]>([]);
   const [sellError, setSellError] = useState('');
 
   const listSeqRef = useRef(0);
   const detailSeqRef = useRef(0);
-  const modelsSeqRef = useRef(0);
 
   const load = useCallback(async (p?: number) => {
     const seq = ++listSeqRef.current;
@@ -197,7 +212,7 @@ export default function DmsPage() {
     setError('');
     setForbidden(false);
     try {
-      const r = await vehiclesApi.list({ ...filters, page: usePage, size: 10 });
+      const r = await vehiclesApi.list({ ...filters, sort: sortParam(sort), page: usePage, size: 10 });
       if (seq !== listSeqRef.current) return;
       setRows(r.data.items || []);
       setTotal(r.data.totalElements || 0);
@@ -209,7 +224,7 @@ export default function DmsPage() {
     } finally {
       if (seq === listSeqRef.current) setLoading(false);
     }
-  }, [filters, page]);
+  }, [filters, page, sort]);
 
   useEffect(() => { void load(); }, [load]);
 
@@ -241,27 +256,6 @@ export default function DmsPage() {
     setPage(0);
   }
 
-  async function onMakeChange(make: string) {
-    setDrafts(d => ({ ...d, make, model: '' }));
-    changeFilter({ make, model: '' });
-    setModelOptions([]);
-    if (!make) return;
-    const seq = ++modelsSeqRef.current;
-    try {
-      const models = (await catalogApi.models(make)).data;
-      if (seq === modelsSeqRef.current) setModelOptions(models);
-    } catch {
-      if (seq === modelsSeqRef.current) setCatalogError('Vehicle catalog unavailable; type a make and model instead.');
-    }
-  }
-
-  // Distinct makes or models of this dealership's inventory that contain the typed text.
-  async function inventorySuggestions(q: string, field: (v: any) => string) {
-    const r = await vehiclesApi.list({ ...filters, make: '', model: '', q, size: 50 });
-    const values = (r.data.items || []).map(field).filter((x: string) => matchesAny(q, x));
-    return uniqueSuggestions(values.map((x: string) => ({ value: x, label: x }))).slice(0, SUGGEST_LIMIT);
-  }
-
   function applySearch() {
     setPage(0);
     if (draftsPending(drafts, filters)) setFilters(f => ({ ...f, ...drafts }));
@@ -271,7 +265,6 @@ export default function DmsPage() {
   function resetFilters() {
     setFilters(blankFilters());
     setDrafts(blankDrafts());
-    setModelOptions([]);
     setPage(0);
   }
 
@@ -290,7 +283,9 @@ export default function DmsPage() {
   function openCreate() {
     detailSeqRef.current++;
     setEdit(null);
-    setForm(blankForm());
+    const blank = blankForm();
+    setForm(blank);
+    vehicleBaseline.reset(blank);
     setFormModelOptions([]);
     setVinFacts('');
     setFormError('');
@@ -314,7 +309,9 @@ export default function DmsPage() {
       const r = await vehiclesApi.get(id);
       if (seq !== detailSeqRef.current) return;
       setEdit(r.data);
-      setForm(vehicleToForm(r.data));
+      const loaded = vehicleToForm(r.data);
+      setForm(loaded);
+      vehicleBaseline.reset(loaded);
       setFormModelOptions([]);
       if (r.data.make) {
         catalogApi.models(r.data.make)
@@ -364,7 +361,7 @@ export default function DmsPage() {
     setFormError('');
     setServerErrors({});
     const isSold = edit?.status === 'SOLD';
-    const errors = validateForm(form, isSold);
+    const errors = validateForm(form, isSold, edit);
     setTouched(ALL_TOUCHED);
     setValidationErrors(errors);
     if (Object.keys(errors).length) return;
@@ -378,7 +375,9 @@ export default function DmsPage() {
         const saved = await vehiclesApi.update(edit.id, { ...payload, version: edit.version });
         if (seq !== detailSeqRef.current) { await load(); return; }
         setEdit(saved.data);
-        setForm(vehicleToForm(saved.data));
+        const savedForm = vehicleToForm(saved.data);
+        setForm(savedForm);
+        vehicleBaseline.reset(savedForm);
         loadAdStatus(saved.data.id, seq);
         loadAudit(saved.data.id, seq);
       } else {
@@ -418,17 +417,20 @@ export default function DmsPage() {
       const r = await vehiclesApi.get(id);
       if (seq !== detailSeqRef.current) return;
       setEdit(r.data);
-      setForm(prev => ({ ...prev, repairCost: r.data.repairCost != null ? String(r.data.repairCost) : '' }));
+      const repairCost = r.data.repairCost != null ? String(r.data.repairCost) : '';
+      setForm(prev => ({ ...prev, repairCost }));
+      vehicleBaseline.reset(prev => prev && { ...prev, repairCost });
       loadAudit(id, seq);
     } catch { /* panel shows its own error */ }
     await load();
   }
 
-  function beginSell() {
+  function beginSell(vehicle: any = edit) {
     setSellError('');
-    setSellForm({ soldOn: '', soldPrice: '', buyerId: '' });
+    // A vehicle already linked in CRM is sold to that customer.
+    const linkedId = vehicle?.linkedCustomer?.id;
+    setSellForm({ soldOn: '', soldPrice: '', buyerId: linkedId != null ? String(linkedId) : '', buyerName: '' });
     setSellOpen(true);
-    // The buyer list is optional help for linking the sale to a CRM customer.
     collectAllPages<any>((p) => customersApi.list({ page: p, size: 100 }))
       .then(setBuyers).catch(() => setBuyers([]));
   }
@@ -442,7 +444,7 @@ export default function DmsPage() {
       setForm(vehicleToForm(r.data));
       setValidationErrors({});
       setTouched({});
-      beginSell();
+      beginSell(r.data);
     } catch (e) {
       if (seq !== detailSeqRef.current) return;
       const missing = statusOf(e) === 404 || codeOf(e) === 'NOT_FOUND';
@@ -460,17 +462,21 @@ export default function DmsPage() {
     if (!DATE_PATTERN.test(soldOn) || Number.isNaN(Date.parse(soldOn))) { setSellError('Use the format YYYY-MM-DD'); return; }
     if (soldOn > todayIso()) { setSellError('Date cannot be in the future'); return; }
     if (edit?.addedOn && soldOn < String(edit.addedOn)) { setSellError('Sold date cannot be before the date added'); return; }
+    const otherBuyer = sellForm.buyerId === OTHER_BUYER;
+    const buyerName = sellForm.buyerName.trim();
+    if (!sellForm.buyerId) { setSellError('Choose the buyer: a CRM customer or Other'); return; }
+    if (otherBuyer && !buyerName) { setSellError('Enter the buyer name'); return; }
 
     const seq = detailSeqRef.current;
     try {
-      await vehiclesApi.sell(edit.id, { soldOn, soldPrice: price, version: edit.version });
-      if (sellForm.buyerId) {
-        try {
-          await customersApi.link(Number(sellForm.buyerId), edit.id);
-        } catch (e) {
-          setError(`Vehicle sold, but linking the buyer failed: ${describeError(e, 'link buyer')} Link it from the CRM page.`);
-        }
-      }
+      // The backend links the CRM buyer and closes the vehicle's open leads in the same sale.
+      await vehiclesApi.sell(edit.id, {
+        soldOn,
+        soldPrice: price,
+        version: edit.version,
+        buyerCustomerId: otherBuyer ? null : Number(sellForm.buyerId),
+        buyerName: otherBuyer ? buyerName : null,
+      });
       if (seq === detailSeqRef.current) { setSellOpen(false); setDrawer(false); }
       await load();
     } catch (e) {
@@ -508,7 +514,7 @@ export default function DmsPage() {
   // Shows only the errors of fields the user has already left (or of a rejected save), so a field
   // being typed into stays quiet while a field that is done is checked straight away (UI-21).
   function showErrors(next: VehicleForm, visible: Record<string, boolean>) {
-    const all = validateForm(next, edit?.status === 'SOLD');
+    const all = validateForm(next, edit?.status === 'SOLD', edit);
     const shown: Validation = {};
     for (const key of Object.keys(all)) if (visible[key]) shown[key] = all[key];
     setValidationErrors(shown);
@@ -533,6 +539,9 @@ export default function DmsPage() {
   // With no catalog makes the dropdowns would be empty and no vehicle could be entered at all,
   // so make and model fall back to free text.
   const catalogUnavailable = !makeOptions.length;
+  const makeGroups = groupMakes(makeOptions);
+  // D-6: years the selected make and model were built, for common pairs; otherwise every year.
+  const formYearOptions = modelYearsFor(form.make, form.model, yearOptions);
   const sellTitle = edit
     ? `Sell ${edit.modelYear} ${edit.make} ${edit.model} · VIN ${edit.vin}`
     : 'Sell vehicle';
@@ -540,15 +549,19 @@ export default function DmsPage() {
   const columns = [
     { key: 'ymm', label: 'Year Make Model', render: (row: any) => `${row.modelYear} ${row.make} ${row.model}` },
     { key: 'vin', label: 'VIN' },
-    { key: 'stockNumber', label: 'Stock #', render: (row: any) => row.stockNumber || <span className="muted">Not set</span> },
-    { key: 'bodyType', label: 'Body', render: (row: any) => enumLabel(row.bodyType) },
-    { key: 'source', label: 'Source', render: (row: any) => enumLabel(row.source) },
-    { key: 'conditionCode', label: 'Condition', render: (row: any) => enumLabel(row.conditionCode) },
-    { key: 'purchaseCost', label: 'Cost', render: (row: any) => cad(row.purchaseCost) },
-    { key: 'listPrice', label: 'List price', render: (row: any) => row.listPrice != null ? cad(row.listPrice) : <span className="muted">Not set</span> },
-    { key: 'addedOn', label: 'Date added' },
-    { key: 'openWorkOrders', label: 'Open WOs', render: (row: any) => row.openWorkOrders ?? 0 },
-    { key: 'status', label: 'Status', render: (row: any) => <StatusTag status={row.status}>{enumLabel(row.status)}</StatusTag> },
+    { key: 'stockNumber', label: 'Stock #', sortable: true, render: (row: any) => row.stockNumber || <span className="muted">Not set</span> },
+    { key: 'bodyType', label: 'Body', sortable: true, render: (row: any) => enumLabel(row.bodyType) },
+    { key: 'source', label: 'Source', sortable: true, render: (row: any) => enumLabel(row.source) },
+    { key: 'conditionCode', label: 'Condition', sortable: true, render: (row: any) => enumLabel(row.conditionCode) },
+    { key: 'purchaseCost', label: 'Cost', sortable: true, render: (row: any) => cad(row.purchaseCost) },
+    { key: 'listPrice', label: 'List price', sortable: true, render: (row: any) => row.listPrice != null ? cad(row.listPrice) : <span className="muted">Not set</span> },
+    { key: 'addedOn', label: 'Date added', sortable: true },
+    { key: 'openWorkOrders', label: 'Open WOs', sortable: true, render: (row: any) => row.openWorkOrders ?? 0 },
+    { key: 'leadCount', label: 'Leads', sortable: true, render: (row: any) => row.leadCount ?? 0 },
+    { key: 'soldBy', label: 'Sold by', sortable: true, render: (row: any) => row.soldBy || <span className="muted">—</span> },
+    { key: 'soldToName', label: 'Sold to', sortable: true, render: (row: any) => row.linkedCustomer?.name || row.soldToName || <span className="muted">—</span> },
+    { key: 'soldOn', label: 'Date sold', sortable: true, render: (row: any) => row.soldOn || <span className="muted">—</span> },
+    { key: 'status', label: 'Status', sortable: true, render: (row: any) => <StatusTag status={row.status}>{enumLabel(row.status)}</StatusTag> },
   ];
 
   const actions = (row: any) => (
@@ -558,11 +571,12 @@ export default function DmsPage() {
     </>
   );
 
+  // VIN first (D-7): decoding it fills make, model and year below.
   const purchaseFields = [
+    { key: 'vin' as const, label: 'VIN', required: true },
     { key: 'make' as const, label: 'Make', required: true },
     { key: 'model' as const, label: 'Model', required: true },
     { key: 'modelYear' as const, label: 'Model year', required: true },
-    { key: 'vin' as const, label: 'VIN', required: true },
     { key: 'purchaseCost' as const, label: 'Purchase cost', required: true },
     { key: 'addedOn' as const, label: 'Added on', required: true },
     { key: 'repairCost' as const, label: 'Repair cost', required: false },
@@ -588,30 +602,7 @@ export default function DmsPage() {
           <button className="btn btn-primary" onClick={openCreate}>Add vehicle</button>
         </div>
         <div className="filters">
-          {catalogUnavailable ? (
-            <SearchSuggest placeholder="Make" ariaLabel="Make" value={drafts.make}
-              onChange={v => setDrafts(d => ({ ...d, make: v }))}
-              suggest={q => inventorySuggestions(q, v => v.make)}
-              onPick={s => { setDrafts(d => ({ ...d, make: s.value })); changeFilter({ make: s.value }); }}
-              onEnter={applySearch} />
-          ) : (
-            <select className="select" aria-label="Make" value={filters.make} onChange={e => onMakeChange(e.target.value)}>
-              <option value="">Make</option>
-              {makeOptions.map(m => <option key={m} value={m}>{m}</option>)}
-            </select>
-          )}
-          <SearchSuggest placeholder="Model" ariaLabel="Model" value={drafts.model}
-            onChange={v => setDrafts(d => ({ ...d, model: v }))}
-            suggest={async q => modelOptions.length
-              ? modelOptions.filter(m => matchesAny(q, m)).map(m => ({ value: m, label: m }))
-              : inventorySuggestions(q, v => v.model)}
-            onPick={s => { setDrafts(d => ({ ...d, model: s.value })); changeFilter({ model: s.value }); }}
-            onEnter={applySearch} />
-          <select className="select" aria-label="Year" value={filters.modelYear} onChange={e => changeFilter({ modelYear: e.target.value })}>
-            <option value="">Year</option>
-            {yearOptions.map(y => <option key={y} value={y}>{y}</option>)}
-          </select>
-          <SearchSuggest placeholder="Search VIN, make or model" ariaLabel="Search VIN, make or model" value={drafts.q}
+          <SearchSuggest placeholder="Search VIN, stock #, make or model" ariaLabel="Search VIN, stock #, make or model" value={drafts.q}
             onChange={v => setDrafts(d => ({ ...d, q: v }))}
             suggest={async q => {
               const r = await vehiclesApi.list({ ...filters, q, size: SUGGEST_LIMIT });
@@ -621,6 +612,10 @@ export default function DmsPage() {
             }}
             onPick={s => { setDrafts(d => ({ ...d, q: s.value })); changeFilter({ q: s.value }); }}
             onEnter={applySearch} />
+          <input className="input" type="number" inputMode="numeric" min={1900} max={new Date().getFullYear() + 1}
+            placeholder="Year" aria-label="Year" value={drafts.modelYear} style={{ width: 100 }}
+            onChange={e => setDrafts(d => ({ ...d, modelYear: e.target.value }))}
+            onKeyDown={e => { if (e.key === 'Enter') applySearch(); }} />
           <select className="select" aria-label="Status" value={filters.status} onChange={e => changeFilter({ status: e.target.value })}>
             <option value="">Status</option>
             <option value="IN_STOCK">In stock</option>
@@ -634,6 +629,11 @@ export default function DmsPage() {
             <option value="">Body type</option>
             {BODY_TYPES.map(b => <option key={b} value={b}>{enumLabel(b)}</option>)}
           </select>
+          <label className="checkbox-label">
+            <input type="checkbox" checked={filters.openWorkOrdersOnly}
+              onChange={e => changeFilter({ openWorkOrdersOnly: e.target.checked })} />
+            Open work orders only
+          </label>
           <button className="btn" onClick={applySearch}>Search</button>
           <button className="btn" onClick={resetFilters}>Reset</button>
         </div>
@@ -641,11 +641,12 @@ export default function DmsPage() {
         <PageState loading={loading} error={error} forbidden={forbidden} empty={!loading && !error && !forbidden && !rows.length}
           emptyText="No vehicles match." loadingText="Loading vehicles…" forbiddenText="You do not have access to DMS.">
           <DataTable rows={rows} total={total} page={page} columns={columns} actions={actions}
-            rowClassName={row => row.status === 'SOLD' ? 'sold-row' : ''} onPage={p => { setPage(p); void load(p); }} />
+            rowClassName={row => row.status === 'SOLD' ? 'sold-row' : ''} onPage={p => { setPage(p); void load(p); }}
+            sort={sort} onSort={(key, dir) => { setSort({ key, dir }); setPage(0); }} />
         </PageState>
       </div>
 
-      <FormDrawer title={edit ? 'Edit vehicle' : 'Add vehicle'} open={drawer} onClose={() => { if (!sellOpen) setDrawer(false); }}>
+      <FormDrawer title={edit ? 'Edit vehicle' : 'Add vehicle'} open={drawer} dirty={vehicleBaseline.dirty} onClose={() => { if (!sellOpen) setDrawer(false); }}>
         <form onSubmit={e => { e.preventDefault(); void save(); }}>
           {purchaseFields.map(field => (
             <div className="form-item" key={field.key}>
@@ -664,7 +665,14 @@ export default function DmsPage() {
                       {form.make && !makeOptions.includes(form.make) && (
                         <option value={form.make}>{form.make}</option>
                       )}
-                      {makeOptions.map(m => <option key={m} value={m}>{m}</option>)}
+                      {makeGroups.popular.length > 0 && (
+                        <optgroup label="Popular makes">
+                          {makeGroups.popular.map(m => <option key={`popular-${m}`} value={m}>{m}</option>)}
+                        </optgroup>
+                      )}
+                      <optgroup label="All makes">
+                        {makeGroups.all.map(m => <option key={m} value={m}>{m}</option>)}
+                      </optgroup>
                     </select>
                   )
                 ) : field.key === 'model' ? (
@@ -687,10 +695,10 @@ export default function DmsPage() {
                     <option value="">Select year</option>
                     {/* Pin the stored year if it is outside the current year window
                         (e.g. a very old vehicle or a VIN-decoded future model year). */}
-                    {form.modelYear && !yearOptions.some(y => String(y) === form.modelYear) && (
+                    {form.modelYear && !formYearOptions.some(y => String(y) === form.modelYear) && (
                       <option value={form.modelYear}>{form.modelYear}</option>
                     )}
-                    {yearOptions.map(y => <option key={y} value={String(y)}>{y}</option>)}
+                    {formYearOptions.map(y => <option key={y} value={String(y)}>{y}</option>)}
                   </select>
                 ) : field.key === 'vin' && !edit ? (
                   <div style={{ display: 'flex', gap: 8 }}>
@@ -705,7 +713,7 @@ export default function DmsPage() {
                     onBlur={() => blurForm(field.key)} disabled={isSold} />
                 )}
                 {field.key === 'vin' && !edit && vinFacts && <div className="muted" style={{ marginTop: 4 }}>{vinFacts}</div>}
-                {field.key === 'carfaxUrl' && URL_PATTERN.test(form.carfaxUrl) && (
+                {field.key === 'carfaxUrl' && isCarfaxUrl(form.carfaxUrl) && (
                   <a href={form.carfaxUrl} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-block', marginTop: 4 }}>Open Carfax report</a>
                 )}
               </div>
@@ -825,13 +833,14 @@ export default function DmsPage() {
             <button type="submit" className="btn btn-primary" disabled={saving}>{saving ? 'Saving…' : 'Save'}</button>
             {edit && edit.status !== 'SOLD' && <button type="button" className="btn danger" style={{ marginLeft: 8 }} onClick={() => void removeVehicle()}>Delete vehicle</button>}
             {edit?.id && !isSold && (
-              <button type="button" className="btn" onClick={beginSell}>Mark as sold</button>
+              <button type="button" className="btn" onClick={() => beginSell()}>Mark as sold</button>
             )}
           </div>
         </form>
 
         {isSold && <PaymentPanel vehicleId={edit.id} onChanged={() => loadAudit(edit.id, detailSeqRef.current)} />}
         {edit?.id && <WorkOrderPanel vehicleId={edit.id} sold={isSold} onChanged={refreshAfterWorkOrder} />}
+        {edit?.id && <VehicleLeadsPanel key={edit.id} vehicleId={edit.id} />}
         {edit?.id && <PhotoStudioPanel vehicleId={edit.id} onChanged={() => loadAudit(edit.id, detailSeqRef.current)} />}
         {edit?.id && isManager && (
           <AuditTrail
@@ -844,6 +853,12 @@ export default function DmsPage() {
       </FormDrawer>
 
       <ConfirmDialog open={sellOpen} title={sellTitle} confirmLabel="Confirm sale" onCancel={() => setSellOpen(false)} onConfirm={sell}>
+        <div className="form-item"><label className="form-label">Cost</label><span>{cad(edit?.purchaseCost)}</span></div>
+        <div className="form-item"><label className="form-label">Work-order spend</label><span>{cad(edit?.repairCost ?? 0)}</span></div>
+        <div className="form-item">
+          <label className="form-label">List price</label>
+          {edit?.listPrice != null ? <span>{cad(edit.listPrice)}</span> : <span className="muted">Not set</span>}
+        </div>
         <div className="form-item">
           <label className="form-label form-required">Sold date</label>
           <input className="input" type="date" value={sellForm.soldOn} onChange={e => setSellForm(f => ({ ...f, soldOn: e.target.value }))} lang="en" />
@@ -853,16 +868,23 @@ export default function DmsPage() {
           <input className="input" value={sellForm.soldPrice} onChange={e => setSellForm(f => ({ ...f, soldPrice: e.target.value }))} />
         </div>
         <div className="form-item">
-          <label className="form-label">Buyer (CRM customer)</label>
+          <label className="form-label form-required">Buyer</label>
           {edit?.linkedCustomer ? (
             <span>{edit.linkedCustomer.name}</span>
           ) : (
             <select className="select" aria-label="Buyer" value={sellForm.buyerId} onChange={e => setSellForm(f => ({ ...f, buyerId: e.target.value }))}>
-              <option value="">Not linked yet</option>
+              <option value="">Choose a buyer</option>
               {buyers.map(c => <option key={c.id} value={String(c.id)}>{c.name} · {c.phone}</option>)}
+              <option value={OTHER_BUYER}>Other (not in CRM)</option>
             </select>
           )}
         </div>
+        {sellForm.buyerId === OTHER_BUYER && (
+          <div className="form-item">
+            <label className="form-label form-required">Buyer name</label>
+            <input className="input" aria-label="Buyer name" maxLength={120} value={sellForm.buyerName} onChange={e => setSellForm(f => ({ ...f, buyerName: e.target.value }))} />
+          </div>
+        )}
         {sellError && <p className="danger-text">{sellError}</p>}
       </ConfirmDialog>
     </AppLayout>

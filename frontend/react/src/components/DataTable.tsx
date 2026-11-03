@@ -1,10 +1,15 @@
 import type { ReactNode } from 'react';
+import { SortableTh, nextSort, useSort, type SortDir, type SortState } from './TableSort';
 
 export interface Column<T = Record<string, unknown>> {
   key?: string;
   label: string;
   width?: number | string;
   render?: (row: T) => ReactNode;
+  /** The header sorts by this column's key; needs `key`. */
+  sortable?: boolean;
+  /** The compared value for a client-side sort; defaults to `row[key]`. */
+  sortValue?: (row: T) => unknown;
 }
 
 interface Props<T = Record<string, unknown>> {
@@ -15,12 +20,29 @@ interface Props<T = Record<string, unknown>> {
   onPage: (page: number) => void;
   actions?: (row: T) => ReactNode;
   rowClassName?: (row: T) => string;
+  /**
+   * Server-sorted tables pass the current sort and a handler that reloads the rows; without
+   * `onSort` the table sorts the given rows itself.
+   */
+  sort?: SortState | null;
+  onSort?: (key: string, dir: SortDir) => void;
 }
 
-/** Paged table of records with optional per-row actions. */
+/** Paged table of records with optional per-row actions and sortable columns. */
 export default function DataTable<T extends Record<string, unknown>>({
-  columns, rows, total, page, onPage, actions, rowClassName,
+  columns, rows, total, page, onPage, actions, rowClassName, sort, onSort,
 }: Props<T>) {
+  const local = useSort(rows, (row, key) => {
+    const col = columns.find((c) => c.key === key);
+    return col?.sortValue ? col.sortValue(row) : (row as Record<string, unknown>)[key];
+  });
+  const activeSort = onSort ? sort : local.sort;
+  const shownRows = onSort ? rows : local.sorted;
+  function toggleSort(key: string) {
+    if (!onSort) { local.toggle(key); return; }
+    const next = nextSort(sort, key);
+    onSort(next.key, next.dir);
+  }
   const pageSize = 10;
   const pageCount = Math.max(1, Math.ceil(total / pageSize));
 
@@ -42,14 +64,16 @@ export default function DataTable<T extends Record<string, unknown>>({
       <table className="table">
         <thead>
           <tr>
-            {columns.map((col, ci) => (
-              <th key={col.key ?? ci} style={col.width ? { width: col.width } : undefined}>{col.label}</th>
-            ))}
+            {columns.map((col, ci) => col.sortable && col.key
+              ? <SortableTh key={col.key} label={col.label} sortKey={col.key} sort={activeSort} onSort={toggleSort}
+                  style={col.width ? { width: col.width } : undefined} />
+              : <th key={col.key ?? ci} style={col.width ? { width: col.width } : undefined}>{col.label}</th>
+            )}
             {actions && <th className="col-actions" style={{ width: '1%' }}>Actions</th>}
           </tr>
         </thead>
         <tbody>
-          {rows.map((row, i) => (
+          {shownRows.map((row, i) => (
             <tr key={(row as Record<string, unknown>).id as string ?? i} className={rowClassName?.(row) || ''}>
               {columns.map((col, ci) => (
                 <td key={col.key ?? ci}>

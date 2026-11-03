@@ -37,7 +37,8 @@ public class LeadService
 
     /// <summary>Filtered page of the dealership's leads, newest first.</summary>
     public PageResponse<LeadListItem> List(
-        string? q, LeadStage? stage, string? owner, long? customerId, bool? overdue, int page, int size)
+        string? q, string? vehicle, LeadStage? stage, string? owner, long? customerId, long? vehicleId,
+        bool? overdue, int page, int size)
     {
         var tenant = TenantGuard.RequireTenantId();
         var p = Paging.ClampPage(page);
@@ -54,6 +55,21 @@ public class LeadService
                 .Select(c => c.Id);
             query = query.Where(l => matchingCustomerIds.Contains(l.CustomerId));
         }
+
+        if (!string.IsNullOrWhiteSpace(vehicle))
+        {
+            // Vehicle name search (L2): "year make model" as the list shows it, or the VIN.
+            // Soft-deleted and sold vehicles stay searchable, like the customer name above.
+            var term = vehicle.Trim();
+            var matchingVehicleIds = _db.Vehicles.IgnoreQueryFilters()
+                .Where(v => v.DealerId == tenant &&
+                            ((v.ModelYear.ToString() + " " + v.Make + " " + v.Model).Contains(term) ||
+                             v.Vin.Contains(term)))
+                .Select(v => (long?)v.Id);
+            query = query.Where(l => matchingVehicleIds.Contains(l.VehicleId));
+        }
+        if (vehicleId.HasValue)
+            query = query.Where(l => l.VehicleId == vehicleId.Value);
 
         if (stage.HasValue)
             query = query.Where(l => l.Stage == stage.Value);
@@ -175,6 +191,8 @@ public class LeadService
         var owner = TrimToNull(body.OwnerUsername);
         RequireMember(tenant, owner);
         RequireInStockVehicle(tenant, body.VehicleId);
+        if (body.CustomerId != null)
+            RequireNoOpenDuplicate(tenant, body.CustomerId.Value, body.VehicleId, null);
         var note = OptionalNote(body.Note);
 
         // The customer, the lead, the first note, and their audit rows commit together (LEAD-01, AUD-07).
@@ -282,6 +300,9 @@ public class LeadService
         if (lead.VehicleId != body.VehicleId)
         {
             RequireInStockVehicle(tenant, body.VehicleId);
+            // Closing a lead frees its pair, so only a lead that stays open must be unique.
+            if (!body.Stage.IsClosed())
+                RequireNoOpenDuplicate(tenant, lead.CustomerId, body.VehicleId, lead.Id);
             changed["vehicleId"] = body.VehicleId == null ? "" : body.VehicleId;
             previous["vehicleId"] = lead.VehicleId == null ? "" : lead.VehicleId;
         }
@@ -314,6 +335,90 @@ public class LeadService
                 lead.Id, EnumWireName.Of(oldStage), EnumWireName.Of(lead.Stage), string.Join(",", changed.Keys), tenant, TenantContext.ActorUsername());
 
         return ToDetail(lead);
+    }
+
+    /// <summary>
+    /// Reopens a won or lost lead to an open stage (L4, decision D7). A lost lead can always be
+    /// reopened; a won lead only while its vehicle was not sold to the lead's customer. The audit
+    /// row is an UPDATE with the new stage, so the funnel history counts the reopened stage.
+    /// </summary>
+    public LeadDetail Reopen(long id, ReopenLeadRequest body)
+    {
+        var tenant = TenantGuard.RequireTenantId();
+        var lead = Load(id, tenant);
+        if (body.Version != lead.Version)
+        {
+            _logger.LogWarning(
+                "Lead reopen rejected leadId={LeadId} dealerId={DealerId} code={Code} by {Actor}",
+                lead.Id, tenant, ErrorCode.VersionConflict, TenantContext.ActorUsername());
+            throw new ApiException(ErrorCode.VersionConflict, "Version conflict.");
+        }
+        if (!lead.Stage.IsClosed())
+            throw new ApiException(ErrorCode.Validation, "Only won and lost leads can be reopened.");
+        if (body.Stage.IsClosed())
+        {
+            const string message = "Reopen the lead as New, Contacted or Qualified.";
+            throw new ApiException(ErrorCode.Validation, message,
+                new Dictionary<string, string> { ["stage"] = message });
+        }
+        if (lead.Stage == LeadStage.Won && SoldToLeadCustomer(lead))
+        {
+            _logger.LogWarning(
+                "Lead reopen rejected leadId={LeadId} reason={Reason} dealerId={DealerId} by {Actor}",
+                lead.Id, "vehicle_sold_to_customer", tenant, TenantContext.ActorUsername());
+            throw new ApiException(ErrorCode.LeadClosed,
+                "This lead's vehicle was sold to this customer, so the won lead cannot be reopened.");
+        }
+        RequireNoOpenDuplicate(tenant, lead.CustomerId, lead.VehicleId, lead.Id);
+
+        var changed = new Dictionary<string, object>
+        {
+            ["stage"] = EnumWireName.Of(body.Stage),
+            ["reopened"] = true
+        };
+        var previous = new Dictionary<string, object?> { ["stage"] = EnumWireName.Of(lead.Stage) };
+        if (lead.LostReason != null)
+        {
+            changed["lostReason"] = false;
+            previous["lostReason"] = true;
+        }
+        var oldStage = lead.Stage;
+        lead.Stage = body.Stage;
+        lead.LostReason = null;
+        lead.UpdatedAt = DateTime.UtcNow;
+        Audit(lead.Id, "UPDATE", tenant, changed, previous);
+        _db.SaveChanges();
+
+        _logger.LogInformation(
+            "Lead reopened leadId={LeadId} stage={OldStage}->{NewStage} dealerId={DealerId} by {Actor}",
+            lead.Id, EnumWireName.Of(oldStage), EnumWireName.Of(lead.Stage), tenant, TenantContext.ActorUsername());
+        return ToDetail(lead);
+    }
+
+    // A sold vehicle linked to the lead's customer is that customer's purchase (D7).
+    private bool SoldToLeadCustomer(LeadEntity lead)
+    {
+        if (lead.VehicleId == null) return false;
+        return _db.Vehicles.IgnoreQueryFilters().Any(v =>
+                   v.Id == lead.VehicleId && v.DealerId == lead.DealerId && v.Status == VehicleStatus.Sold)
+               && _db.CustomerVehicles.Any(cv => cv.VehicleId == lead.VehicleId && cv.CustomerId == lead.CustomerId);
+    }
+
+    // Only one OPEN lead per customer and vehicle (L5); a lead without a vehicle is never a duplicate.
+    private void RequireNoOpenDuplicate(long tenant, long customerId, long? vehicleId, long? exceptLeadId)
+    {
+        if (vehicleId == null) return;
+        var duplicate = _db.Leads.Any(l =>
+            l.DealerId == tenant && l.CustomerId == customerId && l.VehicleId == vehicleId &&
+            l.Id != exceptLeadId && l.Stage != LeadStage.Won && l.Stage != LeadStage.Lost);
+        if (duplicate)
+        {
+            _logger.LogWarning(
+                "Lead rejected as duplicate customerId={CustomerId} vehicleId={VehicleId} dealerId={DealerId} code={Code} by {Actor}",
+                customerId, vehicleId, tenant, ErrorCode.LeadDuplicate, TenantContext.ActorUsername());
+            throw new ApiException(ErrorCode.LeadDuplicate,
+                "This customer already has an open lead for this vehicle.");
+        }
     }
 
     /// <summary>Adds a note to a lead; the audit row keeps the note id only, never the text.</summary>

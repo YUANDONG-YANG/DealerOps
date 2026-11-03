@@ -14,7 +14,7 @@ public class MemberDirectoryService
 
     public MemberDirectoryService(AppDbContext db) => _db = db;
 
-    /// <summary>Active members of the caller's dealership with display name, sign-in source and dealer role.</summary>
+    /// <summary>Active members of the caller's dealership with display name, sign-in source, dealer role, phone and joined date.</summary>
     public List<MemberOption> ActiveMembers()
     {
         TenantGuard.RequireDealerUser();
@@ -28,11 +28,13 @@ public class MemberDirectoryService
         return members
             .Select(m =>
             {
-                var displayName = _db.AppUsers
+                var user = _db.AppUsers
                     .Where(u => u.Username == m.Username)
-                    .Select(u => u.DisplayName)
-                    .FirstOrDefault() ?? m.Username;
-                return new MemberOption(m.Username, displayName, sources.GetValueOrDefault(m.Username), m.DealerRole);
+                    .Select(u => new { u.DisplayName, u.Phone })
+                    .FirstOrDefault();
+                return new MemberOption(m.Username, user?.DisplayName ?? m.Username,
+                    sources.GetValueOrDefault(m.Username), m.DealerRole, user?.Phone,
+                    DateTime.SpecifyKind(m.CreatedAt, DateTimeKind.Utc));
             })
             .ToList();
     }

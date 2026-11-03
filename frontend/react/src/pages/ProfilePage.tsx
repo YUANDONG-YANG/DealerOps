@@ -10,7 +10,7 @@ import { describeError } from '../api/errors';
 
 /**
  * Account self-service: the signed-in user's own information, how they got in, and the
- * actions they alone may take on themselves (edit display name / phone, delete the account).
+ * actions they alone may take on themselves (edit full name / phone, delete the account).
  * Username, role and dealer binding are read-only — those paths belong to sign-up and admin.
  */
 export default function ProfilePage() {
@@ -135,7 +135,7 @@ export default function ProfilePage() {
         <form onSubmit={onSave} className="card" style={{ padding: 20, marginBottom: 20 }}>
           <h3 style={{ marginTop: 0 }}>Edit</h3>
           <div className="form-item">
-            <label className="form-label" htmlFor="displayName">Display name</label>
+            <label className="form-label" htmlFor="displayName">Full name</label>
             <input id="displayName" className="input"
               value={displayName}
               onChange={(e) => setDisplayName(e.target.value)}

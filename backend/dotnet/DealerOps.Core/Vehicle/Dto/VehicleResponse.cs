@@ -20,7 +20,10 @@ public record VehicleResponse(
     decimal? ListPrice,
     DateOnly? SoldOn,
     decimal? SoldPrice,
+    string? SoldBy,
+    string? SoldToName,
     VehicleStatus Status,
     LinkedCustomerBrief? LinkedCustomer,
     long OpenWorkOrders,
+    int LeadCount,
     int Version);

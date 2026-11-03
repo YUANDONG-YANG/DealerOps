@@ -78,6 +78,16 @@ public class VehicleEntity : ITenantOwned
     [Column("sold_price", TypeName = "decimal(12,2)")]
     public decimal? SoldPrice { get; set; }
 
+    /// <summary>Username of the member who recorded the sale.</summary>
+    [Column("sold_by")]
+    [MaxLength(64)]
+    public string? SoldBy { get; set; }
+
+    /// <summary>Typed buyer name when the sale is to "Other" rather than a CRM customer.</summary>
+    [Column("sold_to_name")]
+    [MaxLength(120)]
+    public string? SoldToName { get; set; }
+
     [Column("status")]
     public VehicleStatus Status { get; set; }
 

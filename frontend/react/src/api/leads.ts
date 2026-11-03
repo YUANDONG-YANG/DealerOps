@@ -30,7 +30,9 @@ export function isClosedStage(stage: string) {
   return stage === 'WON' || stage === 'LOST';
 }
 
-export type LeadFilters = { q?: string; stage?: string; owner?: string; overdue?: boolean; customerId?: number };
+export type LeadFilters = {
+  q?: string; vehicle?: string; stage?: string; owner?: string; overdue?: boolean; customerId?: number; vehicleId?: number;
+};
 
 export type NewCustomer = { name: string; email: string; phone: string; homeAddress: string };
 
@@ -59,10 +61,12 @@ export const leadsApi = {
   list(p: LeadFilters & { page?: number; size?: number } = {}) {
     const params: Record<string, unknown> = { page: p.page ?? 0, size: p.size ?? 10 };
     if (p.q) params.q = p.q;
+    if (p.vehicle) params.vehicle = p.vehicle;
     if (p.stage) params.stage = p.stage;
     if (p.owner) params.owner = p.owner;
     if (p.overdue) params.overdue = true;
     if (p.customerId != null) params.customerId = p.customerId;
+    if (p.vehicleId != null) params.vehicleId = p.vehicleId;
     return http.get('/api/v1/leads', { params });
   },
   get: (id: number) => http.get(`/api/v1/leads/${id}`),
@@ -76,5 +80,8 @@ export const leadsApi = {
       note: blankToUndefined(b.note),
     }),
   update: (id: number, b: PatchLeadBody) => http.patch(`/api/v1/leads/${id}`, b),
+  /** Reopens a won or lost lead to an open stage (L4). */
+  reopen: (id: number, stage: LeadStage, version: number) =>
+    http.post(`/api/v1/leads/${id}/reopen`, { stage, version }),
   addNote: (id: number, body: string) => http.post(`/api/v1/leads/${id}/notes`, { body }),
 };

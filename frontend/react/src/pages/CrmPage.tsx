@@ -3,10 +3,11 @@ import { Link, useSearchParams } from 'react-router-dom';
 import AppLayout from '../layouts/AppLayout';
 import DataTable from '../components/DataTable';
 import FormDrawer from '../components/FormDrawer';
+import { useFormBaseline } from '../components/unsavedChanges';
 import PageState from '../components/PageState';
 import ConfirmDialog from '../components/ConfirmDialog';
 import AuditTrail from '../components/AuditTrail';
-import { customersApi } from '../api/customers';
+import { customersApi, duplicateCustomerMessage } from '../api/customers';
 import { vehiclesApi } from '../api/vehicles';
 import { auditApi } from '../api/audit';
 import { isClosedStage, leadsApi, stageLabel } from '../api/leads';
@@ -23,11 +24,11 @@ const SEARCH_DEBOUNCE_MS = 300;
 const LINK_OPTION_PAGE_SIZE = 100;
 
 interface CustomerForm {
-  name: string; email: string; phone: string; homeAddress: string;
+  name: string; email: string; phone: string; homeAddress: string; notes: string;
 }
 
 function blankForm(): CustomerForm {
-  return { name: '', email: '', phone: '', homeAddress: '' };
+  return { name: '', email: '', phone: '', homeAddress: '', notes: '' };
 }
 
 function linkedLabel(v: any) {
@@ -56,6 +57,7 @@ function trimForm(form: CustomerForm): CustomerForm {
     email: form.email.trim(),
     phone: form.phone.trim(),
     homeAddress: form.homeAddress.trim(),
+    notes: form.notes.trim(),
   };
 }
 
@@ -72,6 +74,7 @@ function validateCustomer(form: CustomerForm): Validation {
   else if (form.phone.length > 40) e.phone = 'At most 40 characters';
   if (!form.homeAddress) e.homeAddress = 'Check required fields';
   else if (form.homeAddress.length > 300) e.homeAddress = 'At most 300 characters';
+  if (form.notes.length > 2000) e.notes = 'At most 2000 characters';
   return e;
 }
 
@@ -79,7 +82,6 @@ function mapCustomerWrite(e: unknown) {
   const code = codeOf(e);
   const status = statusOf(e);
   if (code === 'VALIDATION') return messageOf(e, 'Check required fields: some fields are missing or invalid.');
-  if (code === 'PHONE_TAKEN') return `${messageOf(e, 'That phone number is already used by another customer.')} Search CRM for this number to open the existing customer.`;
   if (code === 'VERSION_CONFLICT') return 'Refresh and retry: someone else changed this record after you opened it. Reopen it to load the latest version, then make your change again.';
   if (status === 404 || code === 'NOT_FOUND') return 'Customer not found. It may have been deleted by a colleague; refresh the list.';
   return describeError(e, 'save customer');
@@ -127,6 +129,7 @@ export default function CrmPage() {
   const [drawer, setDrawer] = useState(false);
   const [selected, setSelected] = useState<any>(null);
   const [form, setForm] = useState<CustomerForm>(blankForm());
+  const customerBaseline = useFormBaseline(form);
   const [formError, setFormError] = useState('');
   const [validationErrors, setValidationErrors] = useState<Validation>({});
   const [serverErrors, setServerErrors] = useState<Record<string, string>>({});
@@ -144,6 +147,7 @@ export default function CrmPage() {
   const [leadPage, setLeadPage] = useState(0);
   const [leadTotal, setLeadTotal] = useState(0);
 
+  const [duplicateMessage, setDuplicateMessage] = useState('');
   const [confirmVisible, setConfirmVisible] = useState(false);
   const [unlinkVehicleId, setUnlinkVehicleId] = useState<number | null>(null);
 
@@ -236,7 +240,9 @@ export default function CrmPage() {
   function openCreate() {
     const seq = ++editSeqRef.current;
     setSelected(null);
-    setForm(blankForm());
+    const blank = blankForm();
+    setForm(blank);
+    customerBaseline.reset(blank);
     setFormError('');
     setValidationErrors({});
     setServerErrors({});
@@ -266,7 +272,9 @@ export default function CrmPage() {
       const r = await customersApi.get(id);
       if (seq !== editSeqRef.current) return;
       setSelected(r.data);
-      setForm({ name: r.data.name ?? '', email: r.data.email ?? '', phone: r.data.phone ?? '', homeAddress: r.data.homeAddress ?? '' });
+      const loaded = { name: r.data.name ?? '', email: r.data.email ?? '', phone: r.data.phone ?? '', homeAddress: r.data.homeAddress ?? '', notes: r.data.notes ?? '' };
+      setForm(loaded);
+      customerBaseline.reset(loaded);
       setDrawer(true);
       loadLinkOptions(seq);
       loadCustomerLeads(id, seq);
@@ -281,6 +289,8 @@ export default function CrmPage() {
     }
   }
 
+  // Nothing about a customer is unique (CR R4): a match on name, email, phone or address asks
+  // the user to confirm before the save goes ahead.
   async function save() {
     setFormError('');
     setServerErrors({});
@@ -290,6 +300,31 @@ export default function CrmPage() {
     if (Object.keys(errors).length || saving) return;
 
     setSaving(true);
+    try {
+      const { data } = await customersApi.duplicates(payload, selected?.id);
+      if (data.fields.length) {
+        setDuplicateMessage(duplicateCustomerMessage(data.fields, selected ? 'Save' : 'Create'));
+        setSaving(false);
+        return;
+      }
+    } catch (e) {
+      setFormError(describeError(e, 'check for duplicate customers'));
+      setSaving(false);
+      return;
+    }
+    await persist();
+  }
+
+  async function confirmDuplicate() {
+    setDuplicateMessage('');
+    if (saving) return;
+    setSaving(true);
+    await persist();
+  }
+
+  // Expects `saving` to be set already; clears it when done.
+  async function persist() {
+    const payload = trimForm(form);
     try {
       if (selected) {
         const saved = await customersApi.update(selected.id, { ...payload, version: selected.version });
@@ -321,9 +356,8 @@ export default function CrmPage() {
         }
       }
     } catch (e) {
-      const code = codeOf(e);
-      // VALIDATION and PHONE_TAKEN carry fieldErrors; show them inline on the field.
-      if (code === 'VALIDATION' || code === 'PHONE_TAKEN') {
+      // VALIDATION carries fieldErrors; show them inline on the field.
+      if (codeOf(e) === 'VALIDATION') {
         setServerErrors(fieldErrorsOf(e));
       }
       setFormError(mapCustomerWrite(e));
@@ -403,7 +437,7 @@ export default function CrmPage() {
         );
       },
     },
-    { key: 'linkedVehicleCount', label: 'Vehicles purchased' },
+    { key: 'leadCount', label: 'Leads' },
   ];
 
   const actions = (row: any) => (
@@ -445,7 +479,7 @@ export default function CrmPage() {
         </PageState>
       </div>
 
-      <FormDrawer title="Customer" open={drawer} onClose={() => { editSeqRef.current++; setDrawer(false); }}>
+      <FormDrawer title="Customer" open={drawer} dirty={customerBaseline.dirty} onClose={() => { editSeqRef.current++; setDrawer(false); }}>
         <form onSubmit={e => { e.preventDefault(); void save(); }}>
           {CUSTOMER_FIELDS.map(field => (
             <div className="form-item" key={field.key}>
@@ -462,6 +496,14 @@ export default function CrmPage() {
               )}
             </div>
           ))}
+          <div className="form-item">
+            <label className="form-label" htmlFor="customer-notes">Notes</label>
+            <textarea id="customer-notes" className="input" rows={4} maxLength={2000}
+              value={form.notes} onChange={e => updateForm('notes', e.target.value)} />
+            {(validationErrors.notes || serverErrors.notes) && (
+              <div className="form-error">{validationErrors.notes || serverErrors.notes}</div>
+            )}
+          </div>
           {!selected && <div className="form-item">
             <label className="form-label" htmlFor="customer-purchased-vehicle">Car(s) purchased</label>
             <select id="customer-purchased-vehicle" className="select" value={linkId ?? ''}
@@ -531,7 +573,10 @@ export default function CrmPage() {
             ))}
 
             <hr className="divider" />
-            <div className="muted">Leads</div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span className="muted">Leads</span>
+              <Link className="btn" to={`/leads?newLeadFor=${selected.id}`}>New lead</Link>
+            </div>
             {!customerLeads.length && <p className="muted">No leads for this customer.</p>}
             {customerLeads.map(l => (
               <div key={l.id} style={{ marginTop: 8 }}>
@@ -565,6 +610,9 @@ export default function CrmPage() {
 
       <ConfirmDialog open={confirmVisible} title="Unlink vehicle" message="Remove this vehicle link?"
         onCancel={() => { setConfirmVisible(false); setUnlinkVehicleId(null); }} onConfirm={unlink} />
+      <ConfirmDialog open={!!duplicateMessage} title="Possible duplicate customer" message={duplicateMessage}
+        confirmLabel={selected ? 'Save anyway' : 'Create anyway'}
+        onCancel={() => setDuplicateMessage('')} onConfirm={() => void confirmDuplicate()} />
     </AppLayout>
   );
 }

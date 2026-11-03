@@ -85,8 +85,8 @@ public class MeController : ControllerBase
 
     /// <summary>
     /// Updates the signed-in user's own profile. Only safe-to-self fields change: username,
-    /// role and dealer binding stay fixed. Uniqueness is enforced against every other row,
-    /// which is why the queries exclude the caller's own id.
+    /// role and dealer binding stay fixed. The full name is not unique; phone uniqueness is
+    /// enforced against every other row, which is why the query excludes the caller's own id.
     /// </summary>
     [HttpPatch("me")]
     public MeResponse PatchMe([FromBody] PatchMeRequest body)
@@ -99,10 +99,6 @@ public class MeController : ControllerBase
         var displayName = body.DisplayName.Trim();
         // Same canonical form as registration, so the phone stays usable as a sign-in name.
         var phone = string.IsNullOrWhiteSpace(body.Phone) ? null : LoginIdentifiers.Phone(body.Phone);
-
-        if (_db.AppUsers.Any(u => u.Id != user.Id && EF.Functions.Like(u.DisplayName, displayName)))
-            throw new ApiException(ErrorCode.DisplayNameTaken, "That full name is already registered.",
-                new Dictionary<string, string> { ["displayName"] = "That full name is already registered." });
 
         if (phone != null && _db.AppUsers.Any(u => u.Id != user.Id && u.Phone == phone))
             throw new ApiException(ErrorCode.PhoneTaken, "That phone number is already registered.",
