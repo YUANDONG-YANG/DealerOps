@@ -162,6 +162,27 @@ else
   echo "    every membership row already reads OWNER, MANAGER or SALES"
 fi
 
+# AUTH-03: one login, one dealership. TenantMiddleware answers 500 to every /api/v1 call from a
+# user bound to two dealerships at once, so the account cannot sign in at all. The seed's natural
+# key for a membership is (dealer_id, username), which cannot see a binding in another dealership,
+# so a cloud account added to a dealership the local database already binds produces exactly this.
+echo "==> checking that no account is active in two dealerships"
+double_bound="$("${mysql_cmd[@]}" -N -e "SELECT COUNT(*) FROM (SELECT username FROM membership
+  WHERE active = 1 GROUP BY username HAVING COUNT(*) > 1) multi")"
+if [ "${double_bound}" -gt 0 ]; then
+  echo "    ${double_bound} account(s) are active in more than one dealership; each gets HTTP 500" >&2
+  echo "    on every /api/v1 call until one membership is unbound:" >&2
+  "${mysql_cmd[@]}" -e "SELECT m.username, COUNT(*) AS active_memberships,
+    GROUP_CONCAT(CONCAT(d.legal_name, ' [', m.dealer_role, ']') ORDER BY m.dealer_id SEPARATOR ' | ') AS bound_to
+    FROM membership m JOIN dealer d ON d.id = m.dealer_id
+    WHERE m.active = 1 GROUP BY m.username HAVING COUNT(*) > 1" >&2
+  echo "    Unbind the membership the demo does not need:" >&2
+  echo "    UPDATE membership SET active = 0 WHERE dealer_id = <id> AND username = '<name>';" >&2
+  echo "    A dealership left with active members and no owner needs one appointed too." >&2
+else
+  echo "    every account is active in at most one dealership"
+fi
+
 echo "==> restarting ${core_app} so no cached state predates the import"
 az webapp restart -g "${rg}" -n "${core_app}" -o none
 
