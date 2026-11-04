@@ -14,7 +14,7 @@
 - Status: **current (v6 acceptance)**
 - **Conflict order (do not reverse):** course PPT hard items > spec PDF fields and enums > [IMPLEMENTATION-BRIEF.md](IMPLEMENTATION-BRIEF.md) / [00-Current-Development-Design.md](00-Current-Development-Design.md) > [15-Data-Auth-and-Gateway.md](15-Data-Auth-and-Gateway.md) / [14-Backend-API-Contract.md](14-Backend-API-Contract.md) / [13-Frontend-Engineering.md](13-Frontend-Engineering.md) > **this document**
 - This document is **use cases and live scripts**. **It does not change the contract**: paths, HTTP, error codes, five states, tenant, and fields follow 14 / 15 / the spec; routes and English copy follow 13. On contradiction, decide in the order above; do not invent new DTOs / routes / error codes here.
-- Extension scenarios are documented in [21-Feature-Extensions.md](21-Feature-Extensions.md) EXT-01–EXT-10: VIN decode, leads, work orders, email/phone registration and sign-in, and Image Studio. These are manual acceptance scripts, not authorization to write test code.
+- Extension scenarios are documented in [21-Feature-Extensions.md](21-Feature-Extensions.md) EXT-01–EXT-19: VIN decode, leads, work orders, email/phone registration and sign-in, and Image Studio, plus listing details, payments and bill of sale, reports and dashboard, the buyer site, membership roles, and audit and sales-restriction scenarios (EXT-11–EXT-19 in design/21). These are manual acceptance scripts, not authorization to write test code.
 - Out of scope: tickets, consumer buyer site, standalone Audit page, KPI, CSV import, and forgot password. The assistant only reuses the GitHub component and is read-only.
 - **Local-only cannot pass Sprint 2 / Sprint 3 (Review 2 / Review 3) acceptance.** Sprint 1 may explain architecture and four-repo builds on a local machine; S2/S3 must be a **cloud demo** (password sign-in → Gateway → business → real AI on Azure). See section 5.
 
@@ -174,7 +174,7 @@ Align [08](08-DevOps-and-Implementation.md) Sprint definition of done and [11](1
 
 ---
 
-## 5a. Extension cases EXT-01–EXT-10 ([21](21-Feature-Extensions.md))
+## 5a. Extension cases EXT-01–EXT-19 ([21](21-Feature-Extensions.md))
 
 Manual checks through the gateway (local or cloud). Ids and codes follow [14](14-Backend-API-Contract.md).
 

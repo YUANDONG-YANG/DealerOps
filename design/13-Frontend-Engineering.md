@@ -11,7 +11,7 @@ Coding repo: `frontend/react`. Browser HTTP **hits Gateway only**. UI is English
 
 ## 1. Stack and directories (enough to start)
 
-Stack: **React 19 + TypeScript + Vite + React Router + Zustand**. Vue is deprecated. No third-party identity SDK (see §4). HTTP uses axios. No Next.js, no chart library, no generic CRUD generator.
+Stack: **React 19 + TypeScript + Vite + React Router + Zustand**. Vue is deprecated. No third-party identity SDK beyond the Google / Firebase sign-in in §4. HTTP uses axios. No Next.js, no chart library, no generic CRUD generator.
 
 Layout:
 
@@ -21,7 +21,7 @@ frontend/react/
   src/
     main.ts
     App.tsx
-    router/index.tsx
+    router.tsx
     auth/login.ts       # email/username/phone + password login + sessionStorage token
     api/http.ts         # VITE_GATEWAY_URL only, Bearer
     api/me.ts
@@ -80,7 +80,7 @@ Handbook page names: Login / Admin / DMS / CRM / Ad compliance / Assistant, plus
 - `/` → if not signed in, show the public landing page (brand, a banner saying the site is for dealerships, not car shoppers, with a **Shop vehicles** link, hero, feature cards, VIN decoder, ad-approval steps, and `Sign in`; no create-account button since CR C5, 2026-11-03, while `/register` stays reachable and the sample ad checks link to it); if signed in, go to `/admin` or `/dms` by role, or `/no-access` without business access. The only API the landing page calls is the anonymous VIN decode (14 §4.6.1); it reads no dealership data. `/login` and `/register` use the local password account API (sign in by email, username, or phone). The DMS **Add vehicle** form has a `Decode` button on the VIN field that prefills make, model, year, and body type from the same endpoint.
 - Unknown path → signed out goes to `/login`; signed in follows the role landing above. Do not build a 404 page.
 - The assistant is a floating panel on staff pages, not a route.
-- **Do not** register: `/audit`, `/tickets`, `/dashboard`, or buyer public pages.
+- **Do not** register: `/audit` or `/tickets`.
 - `/login` accepts the account's email, username, or phone, plus its password. `/register` accepts a username, a display name, an email and/or phone, and a password. Both carry a **Google** sign-in button (AUTH-23, added 2026-10-15), which is hidden when no client id is configured; no other social provider is present.
 - Audit: **hidden at the bottom of the DMS / CRM / lead detail drawer and the ad workspace**, calling handbook `GET /audit?entityType=&entityId=`, **the owner and managers; sales members see none**. No standalone Audit page and no menu item; the dealership log is the Team `Activity` tab and the platform log is the Admin `Audit log` tab.
 
@@ -90,7 +90,7 @@ Query strings (optional deep links): `/dms?vehicleId=`, `/crm?customerId=`, `/ad
 
 ## 3. Route guards
 
-One `beforeEach` in `router/index.ts`, order fixed:
+The guard components in `src/router.tsx` (AuthGuard, AdminGuard, DealerGuard, TeamGuard) run in a fixed order:
 
 1. **Not signed in** (no stored login token, and not `meta.public`) → `/login`, remember `redirect`.
 2. **Signed in and on `/login`** → after `GET /me`, go to `/admin` or `/dms` by role.
@@ -120,7 +120,7 @@ Email, username, or phone plus password; the username is also the backend accoun
 - **Session**: after a successful login, `GET ${VITE_GATEWAY_URL}/api/v1/me` (14: `role`, `dealerId`, `dealerLegalName`; for Admin the last two are `null`). Top-bar dealership name: staff uses `dealerLegalName` (placeholder `Dealership` if empty); Admin is always `Platform Admin`.
 - **Gateway only**: `api/http.ts` uses `baseURL = import.meta.env.VITE_GATEWAY_URL`, path prefix `/api/v1`. Do not point axios at 8081/8082. Do not call `/internal/v1/**`.
 - **Bearer interceptor**: each request reads the stored token and sets `Authorization: Bearer <token>`; no silent refresh (tokens expire after 1 hour — sign in again). Do not put `dealerId` in query/body as a tenant switch (handbook: ignore dealer IDs sent by the frontend).
-- **Uniform error body**: `{ code, message }`. 401 → sign in again; 403/404/409/400/502 → in-page error or `ElMessage`, **not an empty table**. Optimistic writes include `version`; `409 VERSION_CONFLICT` tells the user to refresh and write again.
+- **Uniform error body**: `{ code, message }`. 401 → sign in again; 403/404/409/400/502 → in-page error or a toast/in-app error, **not an empty table**. Optimistic writes include `version`; `409 VERSION_CONFLICT` tells the user to refresh and write again.
 
 ---
 
@@ -132,7 +132,7 @@ All paths are relative to Gateway: `/api/v1/...`. After success, "refresh" means
 
 | When | Handbook path | Success | Failure copy |
 |---|---|---|---|
-| Enter any protected page / login landing | `GET /me` | Write Pinia: `role`, `dealerId` | `401` Sign in required; otherwise Could not load profile |
+| Enter any protected page / login landing | `GET /me` | Write the session store (Zustand): `role`, `dealerId` | `401` Sign in required; otherwise Could not load profile |
 
 ### 5.2 Login `/login`
 
@@ -149,7 +149,7 @@ The CRM link picker uses each vehicle’s `linkedCustomer` (`{id, name}` or `nul
 **Information-architecture ruling: one route, five in-page Tabs** (Dealerships, Members, Pending accounts, Ad rules, Audit log). Do not split a second Admin page.
 
 - Tab **Dealerships**: columns Name, Contact, Staff count, Actions. Filter: dealership name. Primary button `New dealership`.
-- Tab **Members**: columns Username, Dealership, Status, Actions. Filter: username. Compose data from existing APIs: `GET /admin/dealers`, then `GET /admin/dealers/{id}/members` per dealer, flatten on the frontend (**do not invent** `GET /admin/members`).
+- Tab **Members**: columns Username, Dealership, Role, Contact, Sign-in, Status, Actions. Filter: username. Compose data from existing APIs: `GET /admin/dealers`, then `GET /admin/dealers/{id}/members` per dealer, flatten on the frontend (**do not invent** `GET /admin/members`).
 - Row `Staff`: drawer showing that dealership's members only; binding happens in the drawer. Below the bind form, tabs `Staff` and `Pending accounts` show one table at a time. Each member row (drawer and Members tab) has a **Status switch** (`Active` / `Inactive`): switching off asks for confirmation and calls the Unbind DELETE; switching on re-activates the same membership with `POST /admin/dealers/{id}/members` and only `{username}` (the existing account keeps its password). `409 DUP_MEMBER` on re-activation → `Already active at another dealership. Deactivate it there first.`
 - **Pending accounts** tab (its own tab next to Members) ([21](21-Feature-Extensions.md) §5): `GET /admin/pending-users` lists self sign-ups with no dealership; `Add to dealership` picks a dealership and calls `POST /admin/dealers/{id}/members` with only `username` (no password; the account keeps its own email/phone and password).
 - Tab **Ad rules** (AD-15): `GET /admin/compliance-rules` lists the built-in catalog. Each row can be enabled or disabled, set to `BLOCK` or `REVIEW`, and given a finding message. `PUT /admin/compliance-rules/{ruleId}` saves that row and makes existing ad checks stale. Dealer users cannot open this tab.
@@ -279,8 +279,8 @@ Do not change vehicles/customers/checks on this page. Cards must not show phone 
 |---|---|---|
 | `AppLayout` | left menu + top bar (dealership name or `Platform Admin`, role, `Sign out`) + `router-view` | KPI strip, multi-dealership switcher |
 | `AppMenu` | Admin: one Admin item. Staff: DMS, CRM, Leads, Sales report, Ad compliance, Team. Assistant is the floating panel, not a menu item | inject tickets by permission |
-| `DataTable` | Element Table + page size 10 + at most 3 text links in actions + status Tag; sold rows dimmed | price slider, inline universal editor |
-| `FormDrawer` / Dialog | create/edit; enums via `el-select` | multi-step wizard |
+| `DataTable` | page size 10 + at most 3 text links in actions + status Tag; sold rows dimmed | price slider, inline universal editor |
+| `FormDrawer` / Dialog | create/edit; enums via the in-house Select | multi-step wizard |
 | `ConfirmDialog` | Sell, Unbind staff, Unlink (12: second confirmation for sell/unbind) | — |
 | `PageState` | shared loading / empty / error / forbidden slots | paint failures as empty tables |
 | `AdWorkspace` | form left, results right; checklist changes with type/medium | a fifth overall status |

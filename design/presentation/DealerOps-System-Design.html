@@ -392,7 +392,7 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);font-si
       <tr><td>Frontend</td><td>React 19, TypeScript, Vite, React Router, Zustand</td><td>Single-page app; one HTTP client pointed at the Gateway URL from configuration</td></tr>
       <tr><td>Gateway</td><td>.NET 10 / ASP.NET Core with YARP</td><td>Reverse proxy, JWT bearer validation, rate limiting, health aggregation</td></tr>
       <tr><td>Core service</td><td>.NET 10 / ASP.NET Core, EF Core</td><td>Controllers, services and entities grouped by business area (Vehicle, Customer, Lead, WorkOrder, Photo, Payment, Listing, Compliance, Audit, Dealer, BuyerSite, Assistant)</td></tr>
-      <tr><td>AI service</td><td>.NET 10 / ASP.NET Core</td><td>Provider client supporting Groq, OpenAI, DeepSeek and Anthropic endpoints; provider, model and key come from configuration</td></tr>
+      <tr><td>AI service</td><td>.NET 10 / ASP.NET Core</td><td>Provider client supporting Groq, OpenAI, DeepSeek, xAI and Anthropic endpoints; provider, model and key come from configuration</td></tr>
       <tr><td>Database</td><td>MySQL 8 (Azure Database for MySQL Flexible Server in the cloud)</td><td>TLS required in the cloud; 7-day automatic backups</td></tr>
       <tr><td>Identity</td><td>Local password (BCrypt), Google ID token, Firebase Auth</td><td>DealerOps always issues its own JWT; identity providers never grant roles or dealerships</td></tr>
       <tr><td>Infrastructure</td><td>Terraform, Azure Linux App Service, Key Vault, Application Insights</td><td>No containers; services deploy as .NET 10 app packages</td></tr>
@@ -823,7 +823,7 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);font-si
   </div>
 
   <h3>Acceptance</h3>
-  <p>Acceptance is defined in <code>design/16-Acceptance-and-Test.md</code> and <code>design/21-Feature-Extensions.md</code>: six classroom scripts, backend and frontend use cases, and extension cases EXT-01 to EXT-18. The six core demonstrations are:</p>
+  <p>Acceptance is defined in <code>design/16-Acceptance-and-Test.md</code> and <code>design/21-Feature-Extensions.md</code>: six classroom scripts, backend and frontend use cases, and extension cases EXT-01 to EXT-19. The six core demonstrations are:</p>
   <ol class="list">
     <li>The admin opens two dealerships and binds one person to each.</li>
     <li>Dealership A records a vehicle and a customer and links them; dealership B cannot see either.</li>

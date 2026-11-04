@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>DealerOps 开发汇报 · 2026-11-03 · iteration-2</title>
+<title>DealerOps Development Report · 2026-11-03 · iteration-2</title>
 <style>
   :root {
     --ink: #1c2128;
@@ -92,674 +92,669 @@
 <body>
 <main>
   <header class="banner">
-    <h1>DealerOps iteration-2 开发汇报</h1>
-    <p class="meta">日期：2026-11-03（星期二；本机 git 作者时间均为 -0600） · 作者：袁东阳（Robin） · 对照文档：<span class="id">requirements/iteration-2/Changes Document.docx</span></p>
-    <p class="lead">今天的工作是把该变更文档里的全部 68 条落到现行 .NET 10 后端和 React 前端。文档正文没有编号；下面的 CR-001 至 CR-068 沿用 <span class="id">requirements/iteration-2/analysis/01-change-inventory.md</span> 按正文顺序给出的编号，一条不漏。白天先完成第一轮实现和逐条核对，傍晚把带 Location 列的审计日志合并进当前分支，随后一次提交补上服务端排序、经销商 Owner / Manager / Sales 层级、VIN 与解码结果的核对，以及买家网站重复询价改为写入已有线索备注。最后一笔提交把首页示例广告指回注册页。按当前代码核对：62 条已完成，6 条部分完成，0 条今日未涉及。</p>
+    <h1>DealerOps iteration-2 Development Report</h1>
+    <p class="meta">Date: 2026-11-03 (Tuesday; all local git author times are -0600) · Author: Yuandong Yang (Robin) · Reference document: <span class="id">requirements/iteration-2/Changes Document.docx</span></p>
+    <p class="lead">Today's work was to land all 68 items from that change document into the current .NET 10 backend and React frontend. The document body has no numbering; the CR-001 to CR-068 below follow the numbering that <span class="id">requirements/iteration-2/analysis/01-change-inventory.md</span> assigns in body order, with none omitted. During the day I first completed a first implementation pass and item-by-item review, then in the evening merged the audit log with the Location column into the current branch, followed by a single commit adding server-side sorting, the dealer Owner / Manager / Sales hierarchy, the VIN-versus-decode-result check, and changing a duplicate buyer-site inquiry to write a note on the existing lead. The final commit pointed the home-page sample ad back to the sign-up page. Per the current code review: 62 items Done, 6 Partial, 0 Not addressed.</p>
     <div class="counts">
-      <div class="count"><b>68</b>需求条目</div>
-      <div class="count"><b style="color:var(--done)">62</b>已完成</div>
-      <div class="count"><b style="color:var(--partial)">6</b>部分完成</div>
-      <div class="count"><b>0</b>今日未涉及</div>
+      <div class="count"><b>68</b>requirement items</div>
+      <div class="count"><b style="color:var(--done)">62</b>Done</div>
+      <div class="count"><b style="color:var(--partial)">6</b>Partial</div>
+      <div class="count"><b>0</b>Not addressed</div>
     </div>
   </header>
 
-  <h2>今日提交</h2>
+  <h2>Today's commits</h2>
   <div class="wrap">
     <table>
-      <thead><tr><th>作者时间</th><th>提交</th><th>说明</th></tr></thead>
+      <thead><tr><th>Author time</th><th>Commit</th><th>Description</th></tr></thead>
       <tbody>
-        <tr><td>17:38</td><td><span class="id">a4006b74</span></td><td>第一轮实现：销售列与周期、角色与加入申请、首页与店铺、排序、全名与客户电话、未保存提示、审计筛选、CRM 线索与备注，以及变更分析文档。</td></tr>
-        <tr><td>18:07</td><td><span class="id">c981fbfb</span></td><td>补完线索、DMS 表单、管理员邀请与删除，并写入逐条实现核对。该核对写于后续收口之前，计数仍是 54 已实现、13 部分、1 不适用。</td></tr>
-        <tr><td>18:08</td><td><span class="id">a9fd9808</span></td><td>合并 <span class="id">origin/robin</span>。Location 列来自 2026-11-02 的 <span class="id">54b66640</span>，今天并入当前分支。</td></tr>
-        <tr><td>21:23</td><td><span class="id">2173c9c2</span></td><td>收口：Owner / Manager / Sales、服务端排序、买家网站重复询价写备注、VIN 解码核对、一次性数据补丁，并更新 API 合同与设计文档。</td></tr>
-        <tr><td>21:33</td><td><span class="id">d17858f0</span></td><td>首页展开后的示例广告改为 “Check your own ads”，打开注册页。首页创建账号按钮仍然去掉。</td></tr>
+        <tr><td>17:38</td><td><span class="id">a4006b74</span></td><td>First implementation pass: sales column and periods, roles and join requests, home page and storefront, sorting, full name and customer phone, unsaved-changes prompt, audit filtering, CRM leads and notes, plus the change analysis document.</td></tr>
+        <tr><td>18:07</td><td><span class="id">c981fbfb</span></td><td>Completed leads, the DMS form, admin invite and delete, and wrote the item-by-item implementation review. That review was written before the later wrap-up, so the counts are still 54 implemented, 13 partial, 1 not applicable.</td></tr>
+        <tr><td>18:08</td><td><span class="id">a9fd9808</span></td><td>Merged <span class="id">origin/robin</span>. The Location column comes from <span class="id">54b66640</span> on 2026-11-02 and was merged into the current branch today.</td></tr>
+        <tr><td>21:23</td><td><span class="id">2173c9c2</span></td><td>Wrap-up: Owner / Manager / Sales, server-side sorting, duplicate buyer-site inquiry writing a note, VIN decode check, a one-time data patch, plus updates to the API contract and design documents.</td></tr>
+        <tr><td>21:33</td><td><span class="id">d17858f0</span></td><td>The expanded home-page sample ad now reads "Check your own ads" and opens the sign-up page. The home-page create-account button remains removed.</td></tr>
       </tbody>
     </table>
   </div>
   <div class="note">
-    <p style="margin:0">工作区还有未提交改动，不是新的客户功能：<span class="id">design/IMPLEMENTATION-BRIEF.md</span>、<span class="id">design/DEVELOPMENT-DESIGN.md</span>、<span class="id">design/TESTING-AND-ACCEPTANCE-GUIDE.md</span> 和演示稿把角色描述改成 Owner / Manager / Sales；<span class="id">playwright/support/env.ts</span> 与测试栈脚本拒绝把端到端测试打到共享开发端口。本汇报的完成状态以已提交代码为准。<span class="id">requirements/iteration-2/CR-Followup-2026-11-03.md</span> 第 7.5 节记录最终 Playwright 为 428 通过、0 失败、11 跳过（跳过项依赖 AI 供应商密钥）。本汇报没有重跑该套测试。</p>
+    <p style="margin:0">The working tree still has uncommitted changes that are not new customer features: <span class="id">design/IMPLEMENTATION-BRIEF.md</span>, <span class="id">design/DEVELOPMENT-DESIGN.md</span>, <span class="id">design/TESTING-AND-ACCEPTANCE-GUIDE.md</span> and the presentation change the role descriptions to Owner / Manager / Sales; <span class="id">playwright/support/env.ts</span> and the test-stack scripts refuse to run end-to-end tests against the shared development port. The completion status in this report is based on committed code. Section 7.5 of <span class="id">requirements/iteration-2/CR-Followup-2026-11-03.md</span> records the final Playwright run as 428 passed, 0 failed, 11 skipped (the skipped ones depend on an AI-provider key). This report did not re-run that suite.</p>
   </div>
 
-  <h2>总表</h2>
+  <h2>Summary table</h2>
   <div class="wrap">
     <table>
-      <thead><tr><th>编号</th><th>要求</th><th>状态</th></tr></thead>
+      <thead><tr><th>ID</th><th>Requirement</th><th>Status</th></tr></thead>
       <tbody>
-        <tr><td><a href="#cr-001">CR-001</a></td><td>DMS 增加 Sold by、Sold to、Date sold</td><td><span class="badge done">已完成</span></td></tr>
-        <tr><td><a href="#cr-002">CR-002</a></td><td>出售菜单显示成本、工单花费、标价</td><td><span class="badge done">已完成</span></td></tr>
-        <tr><td><a href="#cr-003">CR-003</a></td><td>销售报表按今日、本周、本月、本年</td><td><span class="badge done">已完成</span></td></tr>
-        <tr><td><a href="#cr-004">CR-004</a></td><td>仪表盘销售区使用同样的四个周期</td><td><span class="badge done">已完成</span></td></tr>
-        <tr><td><a href="#cr-005">CR-005</a></td><td>列出销售人员及其销售指标</td><td><span class="badge done">已完成</span></td></tr>
-        <tr><td><a href="#cr-006">CR-006</a></td><td>经理可以把其他员工提升为经理</td><td><span class="badge done">已完成</span></td></tr>
-        <tr><td><a href="#cr-007">CR-007</a></td><td>经理可以编辑部分员工信息</td><td><span class="badge done">已完成</span></td></tr>
-        <tr><td><a href="#cr-008">CR-008</a></td><td>成员列表显示加入时间</td><td><span class="badge done">已完成</span></td></tr>
-        <tr><td><a href="#cr-009">CR-009</a></td><td>首页创建账号改为经销商咨询；现阶段先去掉按钮</td><td><span class="badge partial">部分完成</span></td></tr>
-        <tr><td><a href="#cr-010">CR-010</a></td><td>可选的经销商管理员 / Owner / 区域经理</td><td><span class="badge partial">部分完成</span></td></tr>
-        <tr><td><a href="#cr-011">CR-011</a></td><td>DMS 指定列可排序</td><td><span class="badge done">已完成</span></td></tr>
-        <tr><td><a href="#cr-012">CR-012</a></td><td>Leads 全部列可排序</td><td><span class="badge done">已完成</span></td></tr>
-        <tr><td><a href="#cr-013">CR-013</a></td><td>Team Members 的 Role、Source、加入日期可排序</td><td><span class="badge done">已完成</span></td></tr>
-        <tr><td><a href="#cr-014">CR-014</a></td><td>Team Activity 指定列可排序，含 Location</td><td><span class="badge done">已完成</span></td></tr>
-        <tr><td><a href="#cr-015">CR-015</a></td><td>Join Requests 的 Requested、Status、Resolved 可排序</td><td><span class="badge done">已完成</span></td></tr>
-        <tr><td><a href="#cr-016">CR-016</a></td><td>平台管理员审计日志指定列可排序，含 Location</td><td><span class="badge done">已完成</span></td></tr>
-        <tr><td><a href="#cr-017">CR-017</a></td><td>Ad Rules 的 Enabled、Severity 可排序</td><td><span class="badge done">已完成</span></td></tr>
-        <tr><td><a href="#cr-018">CR-018</a></td><td>Pending accounts 的 Registered 可排序</td><td><span class="badge done">已完成</span></td></tr>
-        <tr><td><a href="#cr-019">CR-019</a></td><td>平台管理员 Members 指定列可排序</td><td><span class="badge done">已完成</span></td></tr>
-        <tr><td><a href="#cr-020">CR-020</a></td><td>记录级审计的 Action、Actor、When 可排序</td><td><span class="badge done">已完成</span></td></tr>
-        <tr><td><a href="#cr-021">CR-021</a></td><td>全名重复仍可创建账号</td><td><span class="badge done">已完成</span></td></tr>
-        <tr><td><a href="#cr-022">CR-022</a></td><td>未保存的数据离开前要确认</td><td><span class="badge done">已完成</span></td></tr>
-        <tr><td><a href="#cr-023">CR-023</a></td><td>保存经销商资料前确认</td><td><span class="badge done">已完成</span></td></tr>
-        <tr><td><a href="#cr-024">CR-024</a></td><td>关闭线索前确认</td><td><span class="badge done">已完成</span></td></tr>
-        <tr><td><a href="#cr-025">CR-025</a></td><td>加入申请拆成待处理与历史</td><td><span class="badge done">已完成</span></td></tr>
-        <tr><td><a href="#cr-026">CR-026</a></td><td>活动日志与管理审计的日期框要有标签</td><td><span class="badge done">已完成</span></td></tr>
-        <tr><td><a href="#cr-027">CR-027</a></td><td>活动日志可按变更内容搜索</td><td><span class="badge done">已完成</span></td></tr>
-        <tr><td><a href="#cr-028">CR-028</a></td><td>活动日志筛选项与列的顺序一致</td><td><span class="badge done">已完成</span></td></tr>
-        <tr><td><a href="#cr-029">CR-029</a></td><td>去掉 DMS 的 Make、Model 筛选框</td><td><span class="badge done">已完成</span></td></tr>
-        <tr><td><a href="#cr-030">CR-030</a></td><td>DMS 年份改为可输入</td><td><span class="badge done">已完成</span></td></tr>
-        <tr><td><a href="#cr-031">CR-031</a></td><td>可按库存号搜索</td><td><span class="badge done">已完成</span></td></tr>
-        <tr><td><a href="#cr-032">CR-032</a></td><td>品牌下拉分成主要品牌与全部品牌</td><td><span class="badge done">已完成</span></td></tr>
-        <tr><td><a href="#cr-033">CR-033</a></td><td>年款下拉尽量只列该车能用的年份</td><td><span class="badge done">已完成</span></td></tr>
-        <tr><td><a href="#cr-034">CR-034</a></td><td>VIN 放到添加车辆表单顶部</td><td><span class="badge done">已完成</span></td></tr>
-        <tr><td><a href="#cr-035">CR-035</a></td><td>可筛选有未完工单的车辆</td><td><span class="badge done">已完成</span></td></tr>
-        <tr><td><a href="#cr-036">CR-036</a></td><td>新建线索的客户与意向车辆改为搜索建议</td><td><span class="badge done">已完成</span></td></tr>
-        <tr><td><a href="#cr-037">CR-037</a></td><td>按用户搜索活动日志支持部分匹配</td><td><span class="badge done">已完成</span></td></tr>
-        <tr><td><a href="#cr-038">CR-038</a></td><td>新建线索的负责人默认为当前用户且可改</td><td><span class="badge done">已完成</span></td></tr>
-        <tr><td><a href="#cr-039">CR-039</a></td><td>线索列表可按车辆搜索</td><td><span class="badge done">已完成</span></td></tr>
-        <tr><td><a href="#cr-040">CR-040</a></td><td>输入客户姓名时线索列表自动更新</td><td><span class="badge done">已完成</span></td></tr>
-        <tr><td><a href="#cr-041">CR-041</a></td><td>已关闭线索可以重新打开</td><td><span class="badge done">已完成</span></td></tr>
-        <tr><td><a href="#cr-042">CR-042</a></td><td>CRM 用线索数替换已购车辆列</td><td><span class="badge done">已完成</span></td></tr>
-        <tr><td><a href="#cr-043">CR-043</a></td><td>在客户抽屉里新建线索</td><td><span class="badge done">已完成</span></td></tr>
-        <tr><td><a href="#cr-044">CR-044</a></td><td>客户可以记备注</td><td><span class="badge done">已完成</span></td></tr>
-        <tr><td><a href="#cr-045">CR-045</a></td><td>客户资料重复时先确认</td><td><span class="badge done">已完成</span></td></tr>
-        <tr><td><a href="#cr-046">CR-046</a></td><td>客户电话不必唯一</td><td><span class="badge done">已完成</span></td></tr>
-        <tr><td><a href="#cr-047">CR-047</a></td><td>VIN 必须与车辆信息一致</td><td><span class="badge done">已完成</span></td></tr>
-        <tr><td><a href="#cr-048">CR-048</a></td><td>Carfax 链接必须真实且独占</td><td><span class="badge partial">部分完成</span></td></tr>
-        <tr><td><a href="#cr-049">CR-049</a></td><td>卖车必须指定买家，或选手填 Other</td><td><span class="badge done">已完成</span></td></tr>
-        <tr><td><a href="#cr-050">CR-050</a></td><td>DMS 车辆信息包含线索及线索数量</td><td><span class="badge done">已完成</span></td></tr>
-        <tr><td><a href="#cr-051">CR-051</a></td><td>同一客户和同一车辆不能重复建线索</td><td><span class="badge partial">部分完成</span></td></tr>
-        <tr><td><a href="#cr-052">CR-052</a></td><td>卖车后相关线索自动关闭并打上标签</td><td><span class="badge partial">部分完成</span></td></tr>
-        <tr><td><a href="#cr-053">CR-053</a></td><td>显示名标为 Full name</td><td><span class="badge done">已完成</span></td></tr>
-        <tr><td><a href="#cr-054">CR-054</a></td><td>非法用户名返回可读错误</td><td><span class="badge done">已完成</span></td></tr>
-        <tr><td><a href="#cr-055">CR-055</a></td><td>平台管理员不能直接绑定账号，只能发加入申请</td><td><span class="badge partial">部分完成</span></td></tr>
-        <tr><td><a href="#cr-056">CR-056</a></td><td>管理员可以移除待审账号</td><td><span class="badge done">已完成</span></td></tr>
-        <tr><td><a href="#cr-057">CR-057</a></td><td>管理员可以编辑待审账号</td><td><span class="badge done">已完成</span></td></tr>
-        <tr><td><a href="#cr-058">CR-058</a></td><td>管理审计日志的筛选与列对齐，且可按变更搜索</td><td><span class="badge done">已完成</span></td></tr>
-        <tr><td><a href="#cr-059">CR-059</a></td><td>管理审计搜索支持部分匹配，日期框有标签</td><td><span class="badge done">已完成</span></td></tr>
-        <tr><td><a href="#cr-060">CR-060</a></td><td>删除经销商需要额外确认</td><td><span class="badge done">已完成</span></td></tr>
-        <tr><td><a href="#cr-061">CR-061</a></td><td>删除用户需要额外确认</td><td><span class="badge done">已完成</span></td></tr>
-        <tr><td><a href="#cr-062">CR-062</a></td><td>管理员可以编辑账号邮箱或电话</td><td><span class="badge done">已完成</span></td></tr>
-        <tr><td><a href="#cr-063">CR-063</a></td><td>首页示例广告指向注册页</td><td><span class="badge done">已完成</span></td></tr>
-        <tr><td><a href="#cr-064">CR-064</a></td><td>首页明确产品是给经销商的</td><td><span class="badge done">已完成</span></td></tr>
-        <tr><td><a href="#cr-065">CR-065</a></td><td>店铺页不要写成二手车</td><td><span class="badge done">已完成</span></td></tr>
-        <tr><td><a href="#cr-066">CR-066</a></td><td>店铺可搜索经销商并展示联系方式</td><td><span class="badge done">已完成</span></td></tr>
-        <tr><td><a href="#cr-067">CR-067</a></td><td>买家站点有返回，并可搜索该店库存</td><td><span class="badge done">已完成</span></td></tr>
-        <tr><td><a href="#cr-068">CR-068</a></td><td>询价接近字数上限时显示剩余字数</td><td><span class="badge done">已完成</span></td></tr>
+        <tr><td><a href="#cr-001">CR-001</a></td><td>Add Sold by, Sold to, Date sold to DMS</td><td><span class="badge done">Done</span></td></tr>
+        <tr><td><a href="#cr-002">CR-002</a></td><td>Sell menu shows cost, work-order spend, list price</td><td><span class="badge done">Done</span></td></tr>
+        <tr><td><a href="#cr-003">CR-003</a></td><td>Sales report by today, this week, this month, this year</td><td><span class="badge done">Done</span></td></tr>
+        <tr><td><a href="#cr-004">CR-004</a></td><td>Dashboard sales section uses the same four periods</td><td><span class="badge done">Done</span></td></tr>
+        <tr><td><a href="#cr-005">CR-005</a></td><td>List salespeople and their sales metrics</td><td><span class="badge done">Done</span></td></tr>
+        <tr><td><a href="#cr-006">CR-006</a></td><td>A manager can promote other employees to manager</td><td><span class="badge done">Done</span></td></tr>
+        <tr><td><a href="#cr-007">CR-007</a></td><td>A manager can edit some employee information</td><td><span class="badge done">Done</span></td></tr>
+        <tr><td><a href="#cr-008">CR-008</a></td><td>The member list shows the join time</td><td><span class="badge done">Done</span></td></tr>
+        <tr><td><a href="#cr-009">CR-009</a></td><td>Change home-page create-account to a dealer inquiry; for now remove the button first</td><td><span class="badge partial">Partial</span></td></tr>
+        <tr><td><a href="#cr-010">CR-010</a></td><td>Optional dealer admin / Owner / regional manager</td><td><span class="badge partial">Partial</span></td></tr>
+        <tr><td><a href="#cr-011">CR-011</a></td><td>Designated DMS columns are sortable</td><td><span class="badge done">Done</span></td></tr>
+        <tr><td><a href="#cr-012">CR-012</a></td><td>All Leads columns are sortable</td><td><span class="badge done">Done</span></td></tr>
+        <tr><td><a href="#cr-013">CR-013</a></td><td>Team Members Role, Source, join date are sortable</td><td><span class="badge done">Done</span></td></tr>
+        <tr><td><a href="#cr-014">CR-014</a></td><td>Designated Team Activity columns are sortable, including Location</td><td><span class="badge done">Done</span></td></tr>
+        <tr><td><a href="#cr-015">CR-015</a></td><td>Join Requests Requested, Status, Resolved are sortable</td><td><span class="badge done">Done</span></td></tr>
+        <tr><td><a href="#cr-016">CR-016</a></td><td>Designated platform-admin audit log columns are sortable, including Location</td><td><span class="badge done">Done</span></td></tr>
+        <tr><td><a href="#cr-017">CR-017</a></td><td>Ad Rules Enabled, Severity are sortable</td><td><span class="badge done">Done</span></td></tr>
+        <tr><td><a href="#cr-018">CR-018</a></td><td>Pending accounts Registered is sortable</td><td><span class="badge done">Done</span></td></tr>
+        <tr><td><a href="#cr-019">CR-019</a></td><td>Designated platform-admin Members columns are sortable</td><td><span class="badge done">Done</span></td></tr>
+        <tr><td><a href="#cr-020">CR-020</a></td><td>Record-level audit Action, Actor, When are sortable</td><td><span class="badge done">Done</span></td></tr>
+        <tr><td><a href="#cr-021">CR-021</a></td><td>A duplicate full name still allows account creation</td><td><span class="badge done">Done</span></td></tr>
+        <tr><td><a href="#cr-022">CR-022</a></td><td>Confirm before leaving with unsaved data</td><td><span class="badge done">Done</span></td></tr>
+        <tr><td><a href="#cr-023">CR-023</a></td><td>Confirm before saving dealer profile</td><td><span class="badge done">Done</span></td></tr>
+        <tr><td><a href="#cr-024">CR-024</a></td><td>Confirm before closing a lead</td><td><span class="badge done">Done</span></td></tr>
+        <tr><td><a href="#cr-025">CR-025</a></td><td>Split join requests into pending and history</td><td><span class="badge done">Done</span></td></tr>
+        <tr><td><a href="#cr-026">CR-026</a></td><td>The date boxes in activity log and admin audit need labels</td><td><span class="badge done">Done</span></td></tr>
+        <tr><td><a href="#cr-027">CR-027</a></td><td>The activity log can be searched by change content</td><td><span class="badge done">Done</span></td></tr>
+        <tr><td><a href="#cr-028">CR-028</a></td><td>Activity-log filters match the column order</td><td><span class="badge done">Done</span></td></tr>
+        <tr><td><a href="#cr-029">CR-029</a></td><td>Remove the DMS Make, Model filter boxes</td><td><span class="badge done">Done</span></td></tr>
+        <tr><td><a href="#cr-030">CR-030</a></td><td>Make the DMS year an editable input</td><td><span class="badge done">Done</span></td></tr>
+        <tr><td><a href="#cr-031">CR-031</a></td><td>Searchable by stock number</td><td><span class="badge done">Done</span></td></tr>
+        <tr><td><a href="#cr-032">CR-032</a></td><td>Split the make dropdown into major makes and all makes</td><td><span class="badge done">Done</span></td></tr>
+        <tr><td><a href="#cr-033">CR-033</a></td><td>The year dropdown lists, as far as possible, only years valid for that vehicle</td><td><span class="badge done">Done</span></td></tr>
+        <tr><td><a href="#cr-034">CR-034</a></td><td>Move VIN to the top of the add-vehicle form</td><td><span class="badge done">Done</span></td></tr>
+        <tr><td><a href="#cr-035">CR-035</a></td><td>Can filter vehicles with open work orders</td><td><span class="badge done">Done</span></td></tr>
+        <tr><td><a href="#cr-036">CR-036</a></td><td>The customer and vehicle of interest on a new lead become search suggestions</td><td><span class="badge done">Done</span></td></tr>
+        <tr><td><a href="#cr-037">CR-037</a></td><td>Searching the activity log by user supports partial matches</td><td><span class="badge done">Done</span></td></tr>
+        <tr><td><a href="#cr-038">CR-038</a></td><td>A new lead's owner defaults to the current user and can be changed</td><td><span class="badge done">Done</span></td></tr>
+        <tr><td><a href="#cr-039">CR-039</a></td><td>The lead list can be searched by vehicle</td><td><span class="badge done">Done</span></td></tr>
+        <tr><td><a href="#cr-040">CR-040</a></td><td>The lead list updates automatically as you type a customer name</td><td><span class="badge done">Done</span></td></tr>
+        <tr><td><a href="#cr-041">CR-041</a></td><td>A closed lead can be reopened</td><td><span class="badge done">Done</span></td></tr>
+        <tr><td><a href="#cr-042">CR-042</a></td><td>CRM replaces the purchased-vehicles column with a lead count</td><td><span class="badge done">Done</span></td></tr>
+        <tr><td><a href="#cr-043">CR-043</a></td><td>Create a lead from the customer drawer</td><td><span class="badge done">Done</span></td></tr>
+        <tr><td><a href="#cr-044">CR-044</a></td><td>Customers can record notes</td><td><span class="badge done">Done</span></td></tr>
+        <tr><td><a href="#cr-045">CR-045</a></td><td>Confirm first when customer details are duplicated</td><td><span class="badge done">Done</span></td></tr>
+        <tr><td><a href="#cr-046">CR-046</a></td><td>Customer phone need not be unique</td><td><span class="badge done">Done</span></td></tr>
+        <tr><td><a href="#cr-047">CR-047</a></td><td>VIN must match the vehicle information</td><td><span class="badge done">Done</span></td></tr>
+        <tr><td><a href="#cr-048">CR-048</a></td><td>The Carfax link must be real and exclusive</td><td><span class="badge partial">Partial</span></td></tr>
+        <tr><td><a href="#cr-049">CR-049</a></td><td>Selling a car must specify a buyer, or optionally enter Other</td><td><span class="badge done">Done</span></td></tr>
+        <tr><td><a href="#cr-050">CR-050</a></td><td>DMS vehicle information includes leads and the lead count</td><td><span class="badge done">Done</span></td></tr>
+        <tr><td><a href="#cr-051">CR-051</a></td><td>The same customer and the same vehicle cannot create a duplicate lead</td><td><span class="badge partial">Partial</span></td></tr>
+        <tr><td><a href="#cr-052">CR-052</a></td><td>After a car is sold, related leads close automatically and are tagged</td><td><span class="badge partial">Partial</span></td></tr>
+        <tr><td><a href="#cr-053">CR-053</a></td><td>Label the display name as Full name</td><td><span class="badge done">Done</span></td></tr>
+        <tr><td><a href="#cr-054">CR-054</a></td><td>An invalid username returns a readable error</td><td><span class="badge done">Done</span></td></tr>
+        <tr><td><a href="#cr-055">CR-055</a></td><td>A platform admin cannot bind an account directly, only send a join request</td><td><span class="badge partial">Partial</span></td></tr>
+        <tr><td><a href="#cr-056">CR-056</a></td><td>An admin can remove a pending account</td><td><span class="badge done">Done</span></td></tr>
+        <tr><td><a href="#cr-057">CR-057</a></td><td>An admin can edit a pending account</td><td><span class="badge done">Done</span></td></tr>
+        <tr><td><a href="#cr-058">CR-058</a></td><td>Admin audit log filters align with columns and can be searched by change</td><td><span class="badge done">Done</span></td></tr>
+        <tr><td><a href="#cr-059">CR-059</a></td><td>Admin audit search supports partial matches, and the date boxes have labels</td><td><span class="badge done">Done</span></td></tr>
+        <tr><td><a href="#cr-060">CR-060</a></td><td>Deleting a dealer requires extra confirmation</td><td><span class="badge done">Done</span></td></tr>
+        <tr><td><a href="#cr-061">CR-061</a></td><td>Deleting a user requires extra confirmation</td><td><span class="badge done">Done</span></td></tr>
+        <tr><td><a href="#cr-062">CR-062</a></td><td>An admin can edit an account's email or phone</td><td><span class="badge done">Done</span></td></tr>
+        <tr><td><a href="#cr-063">CR-063</a></td><td>The home-page sample ad points to the sign-up page</td><td><span class="badge done">Done</span></td></tr>
+        <tr><td><a href="#cr-064">CR-064</a></td><td>The home page makes clear the product is for dealers</td><td><span class="badge done">Done</span></td></tr>
+        <tr><td><a href="#cr-065">CR-065</a></td><td>The storefront page should not be written as used cars</td><td><span class="badge done">Done</span></td></tr>
+        <tr><td><a href="#cr-066">CR-066</a></td><td>The storefront can search dealers and show contact details</td><td><span class="badge done">Done</span></td></tr>
+        <tr><td><a href="#cr-067">CR-067</a></td><td>The buyer site has a back action and can search that store's inventory</td><td><span class="badge done">Done</span></td></tr>
+        <tr><td><a href="#cr-068">CR-068</a></td><td>Show the remaining character count when an inquiry nears the limit</td><td><span class="badge done">Done</span></td></tr>
       </tbody>
     </table>
   </div>
 
-  <h2>一、客户请求</h2>
+  <h2>1. Client requests</h2>
 
   <article id="cr-001">
-    <h3>CR-001 DMS 出售列 <span class="badge done">已完成</span></h3>
-    <p><span class="k">要求。</span>DMS 库存表增加三列：谁卖的、卖给谁、哪一天卖的。</p>
-    <p><span class="k">今日。</span><span class="id">a4006b74</span> 增加 <span class="id">sold_by</span> 等字段；<span class="id">2173c9c2</span> 用一次性补丁从审计日志回填历史出售人。<span class="id">frontend/react/src/pages/DmsPage.tsx</span> 的列是 Sold by、Sold to、Date sold。</p>
-    <p><span class="k">可见行为。</span>已售车辆显示出售人、买家姓名（CRM 客户或手填姓名）和出售日期；未售车辆这三列为空。</p>
-    <p><span class="k">剩余。</span>无。文档没有指定这三列插在哪一格，当前放在线索数之后、状态之前。</p>
+    <h3>CR-001 DMS sold columns <span class="badge done">Done</span></h3>
+    <p><span class="k">Requirement.</span>Add three columns to the DMS inventory table: who sold it, who it was sold to, and the day it was sold.</p>
+    <p><span class="k">Today.</span><span class="id">a4006b74</span> adds the <span class="id">sold_by</span> and related fields; <span class="id">2173c9c2</span> backfills the historical seller from the audit log with a one-off patch. The columns in <span class="id">frontend/react/src/pages/DmsPage.tsx</span> are Sold by, Sold to, and Date sold.</p>
+    <p><span class="k">Visible behavior.</span>Sold vehicles show the seller, the buyer's name (a CRM customer or a manually entered name), and the sale date; for unsold vehicles these three columns are empty.</p>
+    <p><span class="k">Remaining.</span>None. The document does not specify where these three columns are inserted; they currently sit after the lead count and before status.</p>
   </article>
 
   <article id="cr-002">
-    <h3>CR-002 出售菜单上的成本信息 <span class="badge done">已完成</span></h3>
-    <p><span class="k">要求。</span>点击出售时，菜单里要看到成本、工单总花费和标价。</p>
-    <p><span class="k">今日。</span><span class="id">DmsPage.tsx</span> 的出售确认框展示 Cost、Work-order spend（<span class="id">repairCost</span>）和 List price。</p>
-    <p><span class="k">可见行为。</span>确认出售前能看到这三项，再填写出售日期、售价和买家。</p>
-    <p><span class="k">剩余。</span>无。</p>
+    <h3>CR-002 Cost information on the sell menu <span class="badge done">Done</span></h3>
+    <p><span class="k">Requirement.</span>When you click to sell, the menu should show the cost, the total work-order spend, and the list price.</p>
+    <p><span class="k">Today.</span>The sell confirmation dialog in <span class="id">DmsPage.tsx</span> displays Cost, Work-order spend (<span class="id">repairCost</span>), and List price.</p>
+    <p><span class="k">Visible behavior.</span>You can see these three items before confirming the sale, then fill in the sale date, sale price, and buyer.</p>
+    <p><span class="k">Remaining.</span>None.</p>
   </article>
 
   <article id="cr-003">
-    <h3>CR-003 销售报表的周期 <span class="badge done">已完成</span></h3>
-    <p><span class="k">要求。</span>销售报表要把今日、本周、本月、本年做成可选项。</p>
-    <p><span class="k">今日。</span><span class="id">frontend/react/src/api/reports.ts</span> 的周期为 TODAY、WEEK、MONTH、YEAR；<span class="id">SalesFunnelPage.tsx</span> 用同一组选项重新加载该周期的成交数、收入和毛利。</p>
-    <p><span class="k">可见行为。</span>报表标题随选项变成 “Sales for today / this week / this month / this year”，并显示该区间的起止日期。</p>
-    <p><span class="k">剩余。</span>无。周从周一开始，写在 <span class="id">reports.ts</span> 的注释里。</p>
+    <h3>CR-003 Sales report periods <span class="badge done">Done</span></h3>
+    <p><span class="k">Requirement.</span>The sales report should offer today, this week, this month, and this year as selectable options.</p>
+    <p><span class="k">Today.</span>The periods in <span class="id">frontend/react/src/api/reports.ts</span> are TODAY, WEEK, MONTH, YEAR; <span class="id">SalesFunnelPage.tsx</span> uses the same set of options to reload the deal count, revenue, and gross profit for that period.</p>
+    <p><span class="k">Visible behavior.</span>The report title changes with the option to "Sales for today / this week / this month / this year", and shows the start and end dates of that range.</p>
+    <p><span class="k">Remaining.</span>None. The week starts on Monday, as noted in the comments in <span class="id">reports.ts</span>.</p>
   </article>
 
   <article id="cr-004">
-    <h3>CR-004 仪表盘销售区 <span class="badge done">已完成</span></h3>
-    <p><span class="k">要求。</span>仪表盘的销售区也要能看今日、本周、本月、本年。</p>
-    <p><span class="k">今日。</span><span class="id">DashboardPage.tsx</span> 的 Sales 区使用同一组 <span class="id">SALES_PERIODS</span>，并调用同一销售报表接口。</p>
-    <p><span class="k">可见行为。</span>切换周期后，成交数、收入和毛利按该周期刷新。</p>
-    <p><span class="k">剩余。</span>销售人员明细表只在销售报表页，不在仪表盘。文档把人员列表单独写成下一条。</p>
+    <h3>CR-004 Dashboard sales section <span class="badge done">Done</span></h3>
+    <p><span class="k">Requirement.</span>The dashboard's sales section should also be able to show today, this week, this month, and this year.</p>
+    <p><span class="k">Today.</span>The Sales section in <span class="id">DashboardPage.tsx</span> uses the same set of <span class="id">SALES_PERIODS</span> and calls the same sales report endpoint.</p>
+    <p><span class="k">Visible behavior.</span>After switching periods, the deal count, revenue, and gross profit refresh for that period.</p>
+    <p><span class="k">Remaining.</span>The salesperson breakdown table is only on the sales report page, not on the dashboard. The document writes up the personnel list separately as the next item.</p>
   </article>
 
   <article id="cr-005">
-    <h3>CR-005 销售人员指标 <span class="badge done">已完成</span></h3>
-    <p><span class="k">要求。</span>列出全部销售人员及其销售指标。文档没有点名指标项。</p>
-    <p><span class="k">今日。</span><span class="id">SalesFunnelPage.tsx</span> 有 “Sales by salesperson” 表。报表按实际出售人统计，不按角色过滤，Owner 或经理卖出的车也会出现。</p>
-    <p><span class="k">可见行为。</span>每人一行：成交数、收入、毛利、当前未关闭线索、赢单线索。已离开的成员若在该周期有成交，会标成 former member。</p>
-    <p><span class="k">剩余。</span>文档没写指标清单，当前这五项是今日实现时选定的。</p>
+    <h3>CR-005 Salesperson metrics <span class="badge done">Done</span></h3>
+    <p><span class="k">Requirement.</span>List all salespeople and their sales metrics. The document does not name the specific metrics.</p>
+    <p><span class="k">Today.</span><span class="id">SalesFunnelPage.tsx</span> has a "Sales by salesperson" table. The report counts by the actual seller, not filtered by role, so cars sold by the Owner or a manager also appear.</p>
+    <p><span class="k">Visible behavior.</span>One row per person: deal count, revenue, gross profit, current open leads, and won leads. A member who has left is marked as a former member if they had deals in that period.</p>
+    <p><span class="k">Remaining.</span>The document does not list the metrics; these five were chosen during today's implementation.</p>
   </article>
 
   <article id="cr-006">
-    <h3>CR-006 经理提升其他员工 <span class="badge done">已完成</span></h3>
-    <p><span class="k">要求。</span>经理账号可以把其他员工提升为经理。</p>
-    <p><span class="k">今日。</span><span class="id">2173c9c2</span> 把店内角色改成 Owner、Manager、Sales。<span class="id">DealerRole.cs</span> 与 <span class="id">MembershipService.cs</span>：经理只能把 Sales 提升为 Manager，不能改自己的角色，也不能动 Owner 或其他经理。</p>
-    <p><span class="k">可见行为。</span>经理在 Team 成员里把销售人员设为经理。Owner 也可以任命经理。</p>
-    <p><span class="k">剩余。</span>无。权限比“任意经理改任意员工”更窄，这是今日角色决定里写明的。</p>
+    <h3>CR-006 Managers promoting other employees <span class="badge done">Done</span></h3>
+    <p><span class="k">Requirement.</span>A manager account can promote other employees to manager.</p>
+    <p><span class="k">Today.</span><span class="id">2173c9c2</span> changes the in-store roles to Owner, Manager, and Sales. <span class="id">DealerRole.cs</span> and <span class="id">MembershipService.cs</span>: a manager can only promote Sales to Manager, cannot change their own role, and cannot touch the Owner or other managers.</p>
+    <p><span class="k">Visible behavior.</span>A manager sets a salesperson as a manager in the Team members list. The Owner can also appoint managers.</p>
+    <p><span class="k">Remaining.</span>None. The permission is narrower than "any manager changes any employee", as spelled out in today's role decision.</p>
   </article>
 
   <article id="cr-007">
-    <h3>CR-007 编辑员工信息 <span class="badge done">已完成</span></h3>
-    <p><span class="k">要求。</span>经理可以编辑某些员工信息。文档没有列出字段。</p>
-    <p><span class="k">今日。</span>经理可以改 Sales 成员的全名和电话。Owner 可以改 Owner 以下成员的全名和电话。登录邮箱仍只有平台管理员能改。</p>
-    <p><span class="k">可见行为。</span>Team 成员编辑里有 Full name 和电话。</p>
-    <p><span class="k">剩余。</span>文档的 “certain employee information” 没有字段清单。今日决定只开放全名和电话。</p>
+    <h3>CR-007 Editing employee information <span class="badge done">Done</span></h3>
+    <p><span class="k">Requirement.</span>Managers can edit certain employee information. The document does not list the fields.</p>
+    <p><span class="k">Today.</span>A manager can change a Sales member's full name and phone number. The Owner can change the full name and phone number of members below Owner. The login email can still only be changed by a platform administrator.</p>
+    <p><span class="k">Visible behavior.</span>The Team member editor has Full name and phone number.</p>
+    <p><span class="k">Remaining.</span>The document's "certain employee information" has no field list. Today's decision was to open up only the full name and phone number.</p>
   </article>
 
   <article id="cr-008">
-    <h3>CR-008 加入时间 <span class="badge done">已完成</span></h3>
-    <p><span class="k">要求。</span>成员区增加一列，显示该成员何时加入。</p>
-    <p><span class="k">今日。</span><span class="id">TeamPage.tsx</span> 有 Joined 列，排序键 <span class="id">joinedAt</span>，来自成员关系的 <span class="id">created_at</span>。</p>
-    <p><span class="k">可见行为。</span>Team &gt; Members 能看到并按加入日期排序。</p>
-    <p><span class="k">剩余。</span>无。文档后文的 “Date Added (when added)” 用的就是这一列。</p>
+    <h3>CR-008 Join date <span class="badge done">Done</span></h3>
+    <p><span class="k">Requirement.</span>Add a column to the members section showing when each member joined.</p>
+    <p><span class="k">Today.</span><span class="id">TeamPage.tsx</span> has a Joined column, with the sort key <span class="id">joinedAt</span>, taken from the membership's <span class="id">created_at</span>.</p>
+    <p><span class="k">Visible behavior.</span>Team &gt; Members shows it and can be sorted by join date.</p>
+    <p><span class="k">Remaining.</span>None. The later "Date Added (when added)" in the document refers to this same column.</p>
   </article>
 
   <article id="cr-009">
-    <h3>CR-009 首页创建账号改为咨询 <span class="badge partial">部分完成</span></h3>
-    <p><span class="k">要求。</span>首页的创建账号要变成经销商咨询入口。作者接着写：账号的另一种创建方式还需和客户讨论，现阶段去掉首页按钮即可。</p>
-    <p><span class="k">今日。</span><span class="id">LandingPage.tsx</span> 的页头、主视觉和页脚不再放创建账号按钮。<span class="id">d17858f0</span> 仍让示例广告打开 <span class="id">/register</span>。登录页仍有 “Create account”。</p>
-    <p><span class="k">可见行为。</span>打开首页看不到创建账号按钮，可以看到登录和 “Shop vehicles”。想自助注册的人仍能从登录页或示例广告进入注册。</p>
-    <p><span class="k">剩余。</span>没有经销商“想使用本服务”的咨询表单，也没有对应接口。这是本条未完成的部分。跟进记录把“先去掉按钮”接受为这一轮的交付。</p>
+    <h3>CR-009 Changing home-page account creation to an inquiry <span class="badge partial">Partial</span></h3>
+    <p><span class="k">Requirement.</span>The home page's account creation should become a dealer inquiry entry point. The author goes on to write: the alternative way to create an account still needs to be discussed with the client, and for now it is enough to remove the home-page button.</p>
+    <p><span class="k">Today.</span>The header, hero, and footer of <span class="id">LandingPage.tsx</span> no longer carry the account-creation button. <span class="id">d17858f0</span> still has the sample ad open <span class="id">/register</span>. The login page still has "Create account".</p>
+    <p><span class="k">Visible behavior.</span>Opening the home page, you no longer see the account-creation button; you can see sign-in and "Shop vehicles". Anyone wanting to self-register can still get to registration from the login page or the sample ad.</p>
+    <p><span class="k">Remaining.</span>There is no dealer "want to use this service" inquiry form, and no corresponding endpoint. That is the unfinished part of this item. The follow-up record accepts "remove the button first" as this round's deliverable.</p>
   </article>
 
   <article id="cr-010">
-    <h3>CR-010 经销商专属管理员 <span class="badge partial">部分完成</span></h3>
-    <p><span class="k">要求。</span>讨论过一个只属于单店、又有些类似平台管理员能力的角色（admin / owner / regional manager）。文档写明该功能可选，完整实现前宜再与客户讨论。权限从高到低为：平台管理员、经销商管理员/Owner/区域经理、经销商经理、店员、未登录。</p>
-    <p><span class="k">今日。</span><span class="id">2173c9c2</span> 按 <span class="id">requirements/iteration-2/CR-Role-Hierarchy-2026-11-03.md</span> 做成一个 Owner。JWT 仍只有 Platform.Admin 与 Dealer.User，店内层级在成员行上：OWNER、MANAGER、SALES。每店一名在职 Owner；再任命 Owner 会把原 Owner 降为 Manager。最后一名 Owner 在仍有其他成员时不能被降级或移出（409 LAST_OWNER）。</p>
-    <p><span class="k">可见行为。</span>Owner 管经销商资料、加入申请，并任命经理和销售。经理能管销售人员。销售人员没有 Team 页。业务数据（DMS、CRM、线索、出售）三者都能看。</p>
-    <p><span class="k">剩余。</span>没有跨店的 regional manager。Owner 不能改成员登录邮箱、不能删除用户账号、不能处理平台待审账号。这些平台管理员能力按今日决定故意不给。中午的实现核对仍把本条标成不适用，该文件没有在晚上改过来。</p>
+    <h3>CR-010 Dealer-specific administrator <span class="badge partial">Partial</span></h3>
+    <p><span class="k">Requirement.</span>A role was discussed that belongs to a single store yet has some platform-administrator-like capabilities (admin / owner / regional manager). The document states this feature is optional and that it should be discussed with the client again before a full implementation. The permissions from highest to lowest are: platform administrator, dealer administrator/Owner/regional manager, dealer manager, store clerk, not signed in.</p>
+    <p><span class="k">Today.</span><span class="id">2173c9c2</span> implements a single Owner per <span class="id">requirements/iteration-2/CR-Role-Hierarchy-2026-11-03.md</span>. The JWT still has only Platform.Admin and Dealer.User, with the in-store hierarchy on the member row: OWNER, MANAGER, SALES. One active Owner per store; appointing another Owner demotes the original Owner to Manager. The last Owner cannot be demoted or removed while there are still other members (409 LAST_OWNER).</p>
+    <p><span class="k">Visible behavior.</span>The Owner manages the dealer profile and join requests, and appoints managers and sales. A manager can manage salespeople. Salespeople have no Team page. All three can see the business data (DMS, CRM, leads, sales).</p>
+    <p><span class="k">Remaining.</span>There is no cross-store regional manager. The Owner cannot change a member's login email, delete user accounts, or handle platform pending accounts. These platform-administrator capabilities are deliberately withheld per today's decision. The midday implementation check still marks this item as not applicable, and that file was not corrected in the evening.</p>
   </article>
-
   <article id="cr-011">
-    <h3>CR-011 DMS 列排序 <span class="badge done">已完成</span></h3>
-    <p><span class="k">要求。</span>任意已登录用户在 DMS 上可排序：Stock#、Body、Source、Condition、Cost、List Price、Date Added、Open WOs、Status。</p>
-    <p><span class="k">今日。</span><span class="id">DmsPage.tsx</span> 这些列都标了 <span class="id">sortable</span>。<span class="id">VehicleService.cs</span> 在分页前按 <span class="id">sort</span> 排序，经理和销售都能用。</p>
-    <p><span class="k">可见行为。</span>点表头会按整份库存重新排序，不是只排当前页。另外多排了 Sold by、Sold to、Date sold 和 Leads。</p>
-    <p><span class="k">剩余。</span>无。</p>
+    <h3>CR-011 DMS column sorting <span class="badge done">Done</span></h3>
+    <p><span class="k">Requirement.</span>Any signed-in user can sort these columns on the DMS: Stock#, Body, Source, Condition, Cost, List Price, Date Added, Open WOs, Status.</p>
+    <p><span class="k">Today.</span><span class="id">DmsPage.tsx</span> marks all of these columns <span class="id">sortable</span>. <span class="id">VehicleService.cs</span> sorts by <span class="id">sort</span> before paging, and both managers and salespeople can use it.</p>
+    <p><span class="k">Visible behavior.</span>Clicking a header re-sorts the entire inventory, not just the current page. Sold by, Sold to, Date sold, and Leads were also made sortable.</p>
+    <p><span class="k">Remaining.</span>None.</p>
   </article>
 
   <article id="cr-012">
-    <h3>CR-012 线索列排序 <span class="badge done">已完成</span></h3>
-    <p><span class="k">要求。</span>Leads 页所有列都可排序。</p>
-    <p><span class="k">今日。</span>中午核对时排序只作用于当前 10 行。<span class="id">2173c9c2</span> 改为服务端排序：<span class="id">LeadService.cs</span> 的 <span class="id">Sorted</span>，<span class="id">LeadsPage.tsx</span> 把 <span class="id">sort</span> 传给列表接口。</p>
-    <p><span class="k">可见行为。</span>Customer、Vehicle of interest、Stage、Owner、Next follow-up 的表头点击会重新加载，排序覆盖后面的页。</p>
-    <p><span class="k">剩余。</span>无。</p>
+    <h3>CR-012 Leads column sorting <span class="badge done">Done</span></h3>
+    <p><span class="k">Requirement.</span>Every column on the Leads page is sortable.</p>
+    <p><span class="k">Today.</span>At the midday check, sorting only applied to the current 10 rows. <span class="id">2173c9c2</span> switched to server-side sorting: <span class="id">Sorted</span> in <span class="id">LeadService.cs</span>, and <span class="id">LeadsPage.tsx</span> passes <span class="id">sort</span> to the list endpoint.</p>
+    <p><span class="k">Visible behavior.</span>Clicking the Customer, Vehicle of interest, Stage, Owner, or Next follow-up headers reloads the data, and the sort spans the later pages.</p>
+    <p><span class="k">Remaining.</span>None.</p>
   </article>
 
   <article id="cr-013">
-    <h3>CR-013 成员列排序 <span class="badge done">已完成</span></h3>
-    <p><span class="k">要求。</span>Team &gt; Members 的 Role、Source、Date Added 可排序。</p>
-    <p><span class="k">今日。</span><span class="id">TeamPage.tsx</span> 对 Role、Source 和 Joined（<span class="id">joinedAt</span>）使用可排序表头，排序作用在已加载的全部成员上。</p>
-    <p><span class="k">可见行为。</span>点这三列会按全部成员重排。</p>
-    <p><span class="k">剩余。</span>无。加入日期的列名是 Joined，不是 Date Added。</p>
+    <h3>CR-013 Members column sorting <span class="badge done">Done</span></h3>
+    <p><span class="k">Requirement.</span>Role, Source, and Date Added under Team &gt; Members are sortable.</p>
+    <p><span class="k">Today.</span><span class="id">TeamPage.tsx</span> uses sortable headers for Role, Source, and Joined (<span class="id">joinedAt</span>), with the sort applied across all loaded members.</p>
+    <p><span class="k">Visible behavior.</span>Clicking these three columns re-sorts all members.</p>
+    <p><span class="k">Remaining.</span>None. The join-date column is named Joined, not Date Added.</p>
   </article>
 
   <article id="cr-014">
-    <h3>CR-014 团队活动日志排序 <span class="badge done">已完成</span></h3>
-    <p><span class="k">要求。</span>Team &gt; Activity 可排序：When、Actor、Action、Record、Source IP、Location。</p>
-    <p><span class="k">今日。</span>Location 列在 11 月 2 日已存在，今天由 <span class="id">a9fd9808</span> 合并进来。<span class="id">AuditService.cs</span> 的排序字段含 <span class="id">clientLocation</span>；<span class="id">AuditLogPanel.tsx</span> 展示 Location，没有位置时显示 Unavailable 或 Not recorded。</p>
-    <p><span class="k">可见行为。</span>店内活动日志（Owner 与经理）可按包括 Location 在内的这些列做服务端排序。</p>
-    <p><span class="k">剩余。</span>无。销售人员打不开 Team，因此看不到这张日志。</p>
+    <h3>CR-014 Team activity log sorting <span class="badge done">Done</span></h3>
+    <p><span class="k">Requirement.</span>Team &gt; Activity is sortable: When, Actor, Action, Record, Source IP, Location.</p>
+    <p><span class="k">Today.</span>The Location column already existed on November 2 and was merged in today by <span class="id">a9fd9808</span>. The sort fields in <span class="id">AuditService.cs</span> include <span class="id">clientLocation</span>; <span class="id">AuditLogPanel.tsx</span> shows Location, displaying Unavailable or Not recorded when there is no location.</p>
+    <p><span class="k">Visible behavior.</span>The in-store activity log (Owner and managers) can be sorted server-side by these columns, including Location.</p>
+    <p><span class="k">Remaining.</span>None. Salespeople cannot open Team, so they do not see this log.</p>
   </article>
 
   <article id="cr-015">
-    <h3>CR-015 加入申请排序 <span class="badge done">已完成</span></h3>
-    <p><span class="k">要求。</span>Team &gt; Join Requests 的 Requested、Status、Resolved 可排序。</p>
-    <p><span class="k">今日。</span><span class="id">TeamPage.tsx</span> 把申请分成 Pending 与 History。待处理表按 Requested 排序；历史表按 Requested、Status、Resolved 排序。</p>
-    <p><span class="k">可见行为。</span>待处理申请还没有 Resolved，所以这一列只出现在历史表，与文档列出的三列一致。</p>
-    <p><span class="k">剩余。</span>无。</p>
+    <h3>CR-015 Join request sorting <span class="badge done">Done</span></h3>
+    <p><span class="k">Requirement.</span>Requested, Status, and Resolved under Team &gt; Join Requests are sortable.</p>
+    <p><span class="k">Today.</span><span class="id">TeamPage.tsx</span> splits requests into Pending and History. The pending table sorts by Requested; the history table sorts by Requested, Status, and Resolved.</p>
+    <p><span class="k">Visible behavior.</span>Pending requests have no Resolved yet, so that column only appears in the history table, matching the three columns listed in the documentation.</p>
+    <p><span class="k">Remaining.</span>None.</p>
   </article>
 
   <article id="cr-016">
-    <h3>CR-016 平台审计日志排序 <span class="badge done">已完成</span></h3>
-    <p><span class="k">要求。</span>平台管理员审计日志可排序：When、Actor、Action、Record、Location。</p>
-    <p><span class="k">今日。</span>与 CR-014 同一条审计排序路径。<span class="id">AuditLogPanel.tsx</span> 在管理日志上同样提供 Location，并额外可排 Dealership 与 Source IP。</p>
-    <p><span class="k">可见行为。</span>点表头按全部匹配记录排序，不是只排当前页。</p>
-    <p><span class="k">剩余。</span>无。</p>
+    <h3>CR-016 Platform audit log sorting <span class="badge done">Done</span></h3>
+    <p><span class="k">Requirement.</span>The platform admin audit log is sortable: When, Actor, Action, Record, Location.</p>
+    <p><span class="k">Today.</span>Same audit sort path as CR-014. <span class="id">AuditLogPanel.tsx</span> likewise offers Location on the admin log and additionally allows sorting by Dealership and Source IP.</p>
+    <p><span class="k">Visible behavior.</span>Clicking a header sorts all matching records, not just the current page.</p>
+    <p><span class="k">Remaining.</span>None.</p>
   </article>
 
   <article id="cr-017">
-    <h3>CR-017 广告规则排序 <span class="badge done">已完成</span></h3>
-    <p><span class="k">要求。</span>平台管理员的 Ad Rules 中，Enabled 和 Severity 可排序。</p>
-    <p><span class="k">今日。</span>规则表对这两列排序，范围是整份规则目录，不是单页。</p>
-    <p><span class="k">可见行为。</span>管理员可以按是否启用、按严重级别重排规则。</p>
-    <p><span class="k">剩余。</span>无。</p>
+    <h3>CR-017 Ad rules sorting <span class="badge done">Done</span></h3>
+    <p><span class="k">Requirement.</span>In the platform admin's Ad Rules, Enabled and Severity are sortable.</p>
+    <p><span class="k">Today.</span>The rules table sorts these two columns across the entire rule catalog, not a single page.</p>
+    <p><span class="k">Visible behavior.</span>Admins can re-sort rules by whether they are enabled and by severity.</p>
+    <p><span class="k">Remaining.</span>None.</p>
   </article>
 
   <article id="cr-018">
-    <h3>CR-018 待审账号的注册时间排序 <span class="badge done">已完成</span></h3>
-    <p><span class="k">要求。</span>平台管理员的 Pending accounts 中，Registered 可排序。</p>
-    <p><span class="k">今日。</span>中午只排序已加载的第一页。<span class="id">2173c9c2</span> 后，<span class="id">AdminPendingUserController.cs</span> 接受 <span class="id">sort=createdAt,asc|desc</span>，<span class="id">PendingAccounts.tsx</span> 把表头排序传给接口并回到第一页。</p>
-    <p><span class="k">可见行为。</span>点 Registered 会按注册时间重排待审账号，后续页跟着这个顺序。</p>
-    <p><span class="k">剩余。</span>无。</p>
+    <h3>CR-018 Sorting pending accounts by registration time <span class="badge done">Done</span></h3>
+    <p><span class="k">Requirement.</span>In the platform admin's Pending accounts, Registered is sortable.</p>
+    <p><span class="k">Today.</span>At midday only the loaded first page was sorted. After <span class="id">2173c9c2</span>, <span class="id">AdminPendingUserController.cs</span> accepts <span class="id">sort=createdAt,asc|desc</span>, and <span class="id">PendingAccounts.tsx</span> passes the header sort to the endpoint and returns to the first page.</p>
+    <p><span class="k">Visible behavior.</span>Clicking Registered re-sorts pending accounts by registration time, and the later pages follow that order.</p>
+    <p><span class="k">Remaining.</span>None.</p>
   </article>
 
   <article id="cr-019">
-    <h3>CR-019 平台成员列排序 <span class="badge done">已完成</span></h3>
-    <p><span class="k">要求。</span>平台管理员 Members 的 Dealership、Role、Sign-in、Status 可排序。</p>
-    <p><span class="k">今日。</span><span class="id">AdminPage.tsx</span> 对这四列排序。列表先按所选列排完整结果，再切页。</p>
-    <p><span class="k">可见行为。</span>管理员按经销商、角色、登录名或状态重排成员。</p>
-    <p><span class="k">剩余。</span>无。</p>
+    <h3>CR-019 Platform members column sorting <span class="badge done">Done</span></h3>
+    <p><span class="k">Requirement.</span>Dealership, Role, Sign-in, and Status under the platform admin's Members are sortable.</p>
+    <p><span class="k">Today.</span><span class="id">AdminPage.tsx</span> sorts these four columns. The list sorts the full result set by the chosen column first, then pages it.</p>
+    <p><span class="k">Visible behavior.</span>Admins re-sort members by dealership, role, sign-in, or status.</p>
+    <p><span class="k">Remaining.</span>None.</p>
   </article>
 
   <article id="cr-020">
-    <h3>CR-020 记录级审计排序 <span class="badge done">已完成</span></h3>
-    <p><span class="k">要求。</span>经理打开的各菜单审计里，Action、Actor、When 可排序。</p>
-    <p><span class="k">今日。</span>中午只排序已经加载的那一页。<span class="id">AuditTrail.tsx</span> 现在把排序交回调用方；DMS、线索等抽屉把 <span class="id">sort</span> 传给审计接口，服务端再分页。</p>
-    <p><span class="k">可见行为。</span>车辆、客户、线索和广告工作区里，能看审计的人可以按这三列重排该记录的审计，不限于当前 10 条。</p>
-    <p><span class="k">剩余。</span>无。今日角色决定后，店内审计给 Owner 和经理，不给 Sales。</p>
+    <h3>CR-020 Record-level audit sorting <span class="badge done">Done</span></h3>
+    <p><span class="k">Requirement.</span>In the per-menu audits a manager opens, Action, Actor, and When are sortable.</p>
+    <p><span class="k">Today.</span>At midday only the already-loaded page was sorted. <span class="id">AuditTrail.tsx</span> now hands sorting back to the caller; the DMS, Leads, and other drawers pass <span class="id">sort</span> to the audit endpoint, and the server pages the result.</p>
+    <p><span class="k">Visible behavior.</span>In the vehicle, customer, lead, and ad workspaces, anyone who can see the audit can re-sort that record's audit by these three columns, beyond just the current 10 entries.</p>
+    <p><span class="k">Remaining.</span>None. After today's role decision, the in-store audit goes to Owner and managers, not Sales.</p>
   </article>
-
-  <h2>二、站点修复与变更</h2>
+  <h2>2. Site fixes and changes</h2>
 
   <article id="cr-021">
-    <h3>CR-021 全名可以重复 <span class="badge done">已完成</span></h3>
-    <p><span class="k">要求。</span>全名已被占用时仍要能建账号。文档点名首页注册、管理员新建店员、个人资料三处。</p>
-    <p><span class="k">今日。</span><span class="id">Program.cs</span> 的补丁执行 <span class="id">ALTER TABLE app_user DROP INDEX uk_app_user_display_name</span>。注册、新建店员和资料保存不再因为全名重复被拒绝。</p>
-    <p><span class="k">可见行为。</span>两个账号可以使用同一个全名。用户名、邮箱和账号电话仍然唯一。</p>
-    <p><span class="k">剩余。</span>无。</p>
+    <h3>CR-021 Full names may repeat <span class="badge done">Done</span></h3>
+    <p><span class="k">Requirement.</span>An account must still be creatable when the full name is already taken. The document names three places: home-page sign-up, admin creating a clerk, and the profile.</p>
+    <p><span class="k">Today.</span>The patch in <span class="id">Program.cs</span> runs <span class="id">ALTER TABLE app_user DROP INDEX uk_app_user_display_name</span>. Sign-up, creating a clerk, and saving the profile are no longer rejected for a duplicate full name.</p>
+    <p><span class="k">Visible behavior.</span>Two accounts can use the same full name. Username, email, and account phone are still unique.</p>
+    <p><span class="k">Remaining.</span>None.</p>
   </article>
 
   <article id="cr-022">
-    <h3>CR-022 未保存内容的确认 <span class="badge done">已完成</span></h3>
-    <p><span class="k">要求。</span>表单里有未保存数据或已经改过时要确认，避免误改和丢数据。点名：经销商编辑、DMS 添加/编辑车辆、CRM 添加/编辑客户、线索添加/编辑。</p>
-    <p><span class="k">今日。</span><span class="id">unsavedChanges.ts</span> 的提示是 “Discard unsaved changes?”。上述抽屉以及后来补上的店员抽屉和成员编辑抽屉，在关闭、点遮罩、按 Esc 或离开页面时，若表单已脏会先询问。跟进决定：普通保存不逐次确认，保存确认只留给经销商资料（CR-023）和关闭线索（CR-024）。</p>
-    <p><span class="k">可见行为。</span>改了一半关掉抽屉，会问是否丢弃。直接保存则立即写入，并有成功提示。</p>
-    <p><span class="k">剩余。</span>无。若把“每次保存都再确认一次”算进本条，那一项是今日明确不做的。</p>
+    <h3>CR-022 Confirmation for unsaved content <span class="badge done">Done</span></h3>
+    <p><span class="k">Requirement.</span>When a form has unsaved data or has already been changed, confirm to avoid accidental edits and data loss. Named: dealership edit, DMS add/edit vehicle, CRM add/edit customer, lead add/edit.</p>
+    <p><span class="k">Today.</span>The prompt in <span class="id">unsavedChanges.ts</span> reads "Discard unsaved changes?". The drawers above, plus the clerk drawer and member edit drawer added later, ask first when the form is dirty and you close it, click the overlay, press Esc, or leave the page. Follow-up decision: an ordinary save is not confirmed each time; save confirmation is reserved for the dealership profile (CR-023) and closing a lead (CR-024).</p>
+    <p><span class="k">Visible behavior.</span>Close a drawer with a half-made change and it asks whether to discard. A direct save writes immediately and shows a success message.</p>
+    <p><span class="k">Remaining.</span>None. If "confirm again on every save" counts under this item, that one is explicitly out of scope for today.</p>
   </article>
 
   <article id="cr-023">
-    <h3>CR-023 保存经销商资料前确认 <span class="badge done">已完成</span></h3>
-    <p><span class="k">要求。</span>Team &gt; Dealership profile 这种较大的修改，保存前要确认。</p>
-    <p><span class="k">今日。</span>经销商资料保存会先打开确认框。该页现在只有 Owner 能改。</p>
-    <p><span class="k">可见行为。</span>Owner 改资料后要点确认才会写入。</p>
-    <p><span class="k">剩余。</span>无。</p>
+    <h3>CR-023 Confirm before saving the dealership profile <span class="badge done">Done</span></h3>
+    <p><span class="k">Requirement.</span>A larger change such as Team &gt; Dealership profile should be confirmed before saving.</p>
+    <p><span class="k">Today.</span>Saving the dealership profile opens a confirmation dialog first. Only the Owner can now edit this page.</p>
+    <p><span class="k">Visible behavior.</span>After the Owner changes the profile, it is only written on confirm.</p>
+    <p><span class="k">Remaining.</span>None.</p>
   </article>
 
   <article id="cr-024">
-    <h3>CR-024 关闭线索前确认 <span class="badge done">已完成</span></h3>
-    <p><span class="k">要求。</span>把线索收成结束状态时，保存前要确认。</p>
-    <p><span class="k">今日。</span>Leads 里把阶段改成 Won 或 Lost 时，保存前会询问。</p>
-    <p><span class="k">可见行为。</span>普通阶段修改直接保存；只有收成赢单或丢单才会多一次确认。</p>
-    <p><span class="k">剩余。</span>无。</p>
+    <h3>CR-024 Confirm before closing a lead <span class="badge done">Done</span></h3>
+    <p><span class="k">Requirement.</span>When wrapping a lead up into a closed state, confirm before saving.</p>
+    <p><span class="k">Today.</span>In Leads, changing the stage to Won or Lost asks before saving.</p>
+    <p><span class="k">Visible behavior.</span>An ordinary stage change saves directly; only closing as won or lost adds one more confirmation.</p>
+    <p><span class="k">Remaining.</span>None.</p>
   </article>
 
   <article id="cr-025">
-    <h3>CR-025 加入申请分表 <span class="badge done">已完成</span></h3>
-    <p><span class="k">要求。</span>加入申请不要混在一张表里：一张是待批准或拒绝的，一张是已经批准或拒绝的。</p>
-    <p><span class="k">今日。</span><span class="id">TeamPage.tsx</span> 渲染 Pending 与 History。审批权在 Owner。</p>
-    <p><span class="k">可见行为。</span>待处理行有 Approve / Reject。历史行显示结果和处理时间。</p>
-    <p><span class="k">剩余。</span>无。</p>
+    <h3>CR-025 Split the join requests table <span class="badge done">Done</span></h3>
+    <p><span class="k">Requirement.</span>Join requests should not be mixed in one table: one for those pending approval or rejection, one for those already approved or rejected.</p>
+    <p><span class="k">Today.</span><span class="id">TeamPage.tsx</span> renders Pending and History. Approval authority rests with the Owner.</p>
+    <p><span class="k">Visible behavior.</span>Pending rows have Approve / Reject. History rows show the result and the time it was handled.</p>
+    <p><span class="k">Remaining.</span>None.</p>
   </article>
 
   <article id="cr-026">
-    <h3>CR-026 日期框标签 <span class="badge done">已完成</span></h3>
-    <p><span class="k">要求。</span>团队活动页上没有标签的日期框要标出来，平台管理员审计日志上的日期框同样处理。</p>
-    <p><span class="k">今日。</span><span class="id">AuditLogPanel.tsx</span> 两处都使用 “From date” 和 “To date”。</p>
-    <p><span class="k">可见行为。</span>用户能看出左边是起始日、右边是结束日。</p>
-    <p><span class="k">剩余。</span>无。</p>
+    <h3>CR-026 Date-box labels <span class="badge done">Done</span></h3>
+    <p><span class="k">Requirement.</span>The unlabeled date boxes on the team activity page should be labeled, and the date boxes on the platform admin audit log handled the same way.</p>
+    <p><span class="k">Today.</span><span class="id">AuditLogPanel.tsx</span> uses "From date" and "To date" in both places.</p>
+    <p><span class="k">Visible behavior.</span>Users can tell the left box is the start date and the right box is the end date.</p>
+    <p><span class="k">Remaining.</span>None.</p>
   </article>
 
   <article id="cr-027">
-    <h3>CR-027 按变更内容搜索活动 <span class="badge done">已完成</span></h3>
-    <p><span class="k">要求。</span>活动日志要能按发生过的变更搜索，例如搜 password 找到用密码登录的记录。</p>
-    <p><span class="k">今日。</span>筛选框文案是 “Search changes”。<span class="id">2173c9c2</span> 修复了自由文本搜索：JSON 列不能用会翻译成非法 CAST 的比较，改为 <span class="id">LOCATE</span>，否则每次搜索都会 500。</p>
-    <p><span class="k">可见行为。</span>输入 password 可以匹配保存下来的变更说明，包括密码登录方式。</p>
-    <p><span class="k">剩余。</span>无。</p>
+    <h3>CR-027 Search activity by changed content <span class="badge done">Done</span></h3>
+    <p><span class="k">Requirement.</span>The activity log should be searchable by the changes that occurred, for example searching "password" to find records of logging in with a password.</p>
+    <p><span class="k">Today.</span>The filter box label is "Search changes". <span class="id">2173c9c2</span> fixed free-text search: a JSON column cannot use a comparison that translates into an invalid CAST, so it was changed to <span class="id">LOCATE</span>; otherwise every search would 500.</p>
+    <p><span class="k">Visible behavior.</span>Entering "password" matches the saved change descriptions, including the password login method.</p>
+    <p><span class="k">Remaining.</span>None.</p>
   </article>
 
   <article id="cr-028">
-    <h3>CR-028 筛选项与列对齐 <span class="badge done">已完成</span></h3>
-    <p><span class="k">要求。</span>Team &gt; Activity 的搜索项和列按同一顺序排列。</p>
-    <p><span class="k">今日。</span>筛选顺序跟在 When、Actor、Action、Record、Changes 后面，与表头一致，Location 也在列里。</p>
-    <p><span class="k">可见行为。</span>用户从左到右看到的筛选项和表头是同一套顺序。</p>
-    <p><span class="k">剩余。</span>无。</p>
+    <h3>CR-028 Align filters with columns <span class="badge done">Done</span></h3>
+    <p><span class="k">Requirement.</span>The search fields and columns on Team &gt; Activity should be in the same order.</p>
+    <p><span class="k">Today.</span>The filter order follows When, Actor, Action, Record, Changes, matching the header, and Location is also in the columns.</p>
+    <p><span class="k">Visible behavior.</span>The filters a user sees from left to right are in the same order as the table header.</p>
+    <p><span class="k">Remaining.</span>None.</p>
   </article>
 
   <article id="cr-029">
-    <h3>CR-029 去掉品牌和车型筛选框 <span class="badge done">已完成</span></h3>
-    <p><span class="k">要求。</span>DMS 单独的 Make、Model 框与 “Search VIN, make, or model” 重复，应去掉。</p>
-    <p><span class="k">今日。</span>DMS 筛选行没有这两个框。搜索框在服务端匹配 VIN、品牌和车型。</p>
-    <p><span class="k">可见行为。</span>用一个搜索框找车，不再维护两套条件。</p>
-    <p><span class="k">剩余。</span>无。</p>
+    <h3>CR-029 Remove the make and model filter boxes <span class="badge done">Done</span></h3>
+    <p><span class="k">Requirement.</span>The DMS separate Make and Model boxes duplicate "Search VIN, make, or model" and should be removed.</p>
+    <p><span class="k">Today.</span>The DMS filter row no longer has these two boxes. The search box matches VIN, make, and model on the server.</p>
+    <p><span class="k">Visible behavior.</span>Find a vehicle with a single search box, no longer maintaining two sets of criteria.</p>
+    <p><span class="k">Remaining.</span>None.</p>
   </article>
 
   <article id="cr-030">
-    <h3>CR-030 年份可输入 <span class="badge done">已完成</span></h3>
-    <p><span class="k">要求。</span>DMS 的 Year 下拉年份太多，改成可以打字的框。</p>
-    <p><span class="k">今日。</span>筛选区的年份是可输入的数字，作为精确的 <span class="id">modelYear</span> 发给服务端。</p>
-    <p><span class="k">可见行为。</span>输入 2020 只列出 2020 年的车，不再从长列表里点选。</p>
-    <p><span class="k">剩余。</span>无。添加车辆表单里的年款仍是下拉，那是 CR-033。</p>
+    <h3>CR-030 Year can be typed <span class="badge done">Done</span></h3>
+    <p><span class="k">Requirement.</span>The DMS Year dropdown has too many years; change it to a box you can type into.</p>
+    <p><span class="k">Today.</span>The year in the filter area is a typable number, sent to the server as an exact <span class="id">modelYear</span>.</p>
+    <p><span class="k">Visible behavior.</span>Entering 2020 lists only 2020 vehicles, no longer picking from a long list.</p>
+    <p><span class="k">Remaining.</span>None. The model year in the add-vehicle form is still a dropdown; that is CR-033.</p>
   </article>
 
   <article id="cr-031">
-    <h3>CR-031 按库存号搜索 <span class="badge done">已完成</span></h3>
-    <p><span class="k">要求。</span>增加按 Stock # 搜索的能力。</p>
-    <p><span class="k">今日。</span>没有单独再做一个库存号框。同一个 DMS 搜索框在服务端同时匹配库存号。</p>
-    <p><span class="k">可见行为。</span>把库存号打进搜索框即可找到该车。</p>
-    <p><span class="k">剩余。</span>无。文档写的是 “adding a box”；实现并进了已有搜索框，避免和 CR-029 的“减少重复框”相反。</p>
+    <h3>CR-031 Search by stock number <span class="badge done">Done</span></h3>
+    <p><span class="k">Requirement.</span>Add the ability to search by Stock #.</p>
+    <p><span class="k">Today.</span>No separate stock-number box was added. The same DMS search box also matches the stock number on the server.</p>
+    <p><span class="k">Visible behavior.</span>Type the stock number into the search box to find that vehicle.</p>
+    <p><span class="k">Remaining.</span>None. The document says "adding a box"; the implementation merged it into the existing search box to avoid contradicting CR-029's "reduce duplicate boxes".</p>
   </article>
 
   <article id="cr-032">
-    <h3>CR-032 品牌分成两组 <span class="badge done">已完成</span></h3>
-    <p><span class="k">要求。</span>添加车辆的品牌下拉太长，分成主要品牌和全部品牌，类似 Autotrader。</p>
-    <p><span class="k">今日。</span><span class="id">DmsPage.tsx</span> 使用两个 <span class="id">optgroup</span>：Popular makes 和 All makes。</p>
-    <p><span class="k">可见行为。</span>打开品牌列表时，常见品牌在上面，完整列表在下面。</p>
-    <p><span class="k">剩余。</span>无。</p>
+    <h3>CR-032 Split makes into two groups <span class="badge done">Done</span></h3>
+    <p><span class="k">Requirement.</span>The make dropdown when adding a vehicle is too long; split it into popular makes and all makes, similar to Autotrader.</p>
+    <p><span class="k">Today.</span><span class="id">DmsPage.tsx</span> uses two <span class="id">optgroup</span> elements: Popular makes and All makes.</p>
+    <p><span class="k">Visible behavior.</span>When the make list opens, common makes are at the top and the full list is below.</p>
+    <p><span class="k">Remaining.</span>None.</p>
   </article>
 
   <article id="cr-033">
-    <h3>CR-033 年款只列该车可用的年份 <span class="badge done">已完成</span></h3>
-    <p><span class="k">要求。</span>年款下拉尽量只列出所选车型能用的年份；若做不到每一款，就只对常见车做。</p>
-    <p><span class="k">今日。</span><span class="id">vehicleRules.ts</span> 的 <span class="id">modelYearsFor</span> 对一组固定的常见品牌/车型给出生产年份；其他组合仍是完整年份列表。</p>
-    <p><span class="k">可见行为。</span>选了常见车型后，年款列表变短。不常见的组合仍可从全表里选。</p>
-    <p><span class="k">剩余。</span>无。文档允许只覆盖常见车。</p>
+    <h3>CR-033 Model year lists only years available for that vehicle <span class="badge done">Done</span></h3>
+    <p><span class="k">Requirement.</span>The model-year dropdown should, where possible, list only the years available for the selected model; if that is not feasible for every model, cover only the common ones.</p>
+    <p><span class="k">Today.</span><span class="id">vehicleRules.ts</span>'s <span class="id">modelYearsFor</span> returns production years for a fixed set of common makes/models; other combinations still get the full year list.</p>
+    <p><span class="k">Visible behavior.</span>After picking a common model, the year list gets shorter. Uncommon combinations can still be chosen from the full list.</p>
+    <p><span class="k">Remaining.</span>None. The spec allows covering only common vehicles.</p>
   </article>
 
   <article id="cr-034">
-    <h3>CR-034 VIN 放到最上面 <span class="badge done">已完成</span></h3>
-    <p><span class="k">要求。</span>添加车辆时把 VIN 框移到顶部。</p>
-    <p><span class="k">今日。</span>添加和编辑车辆的抽屉里，VIN 是第一个字段。</p>
-    <p><span class="k">可见行为。</span>打开抽屉先看到 VIN，可先解码再填其余项。</p>
-    <p><span class="k">剩余。</span>无。</p>
+    <h3>CR-034 Move VIN to the top <span class="badge done">Done</span></h3>
+    <p><span class="k">Requirement.</span>Move the VIN field to the top when adding a vehicle.</p>
+    <p><span class="k">Today.</span>In the add and edit vehicle drawers, VIN is the first field.</p>
+    <p><span class="k">Visible behavior.</span>Opening the drawer shows VIN first, so you can decode it before filling in the rest.</p>
+    <p><span class="k">Remaining.</span>None.</p>
   </article>
 
   <article id="cr-035">
-    <h3>CR-035 筛选未完工单 <span class="badge done">已完成</span></h3>
-    <p><span class="k">要求。</span>增加一个条件，用来找有未完工单的车辆。</p>
-    <p><span class="k">今日。</span>DMS 筛选行有 “Open work orders only”。服务端只保留工单状态为 open 或 in progress 的车。</p>
-    <p><span class="k">可见行为。</span>勾选后库存表只剩还有未完成工单的车。</p>
-    <p><span class="k">剩余。</span>无。</p>
+    <h3>CR-035 Filter for open work orders <span class="badge done">Done</span></h3>
+    <p><span class="k">Requirement.</span>Add a filter to find vehicles that have open work orders.</p>
+    <p><span class="k">Today.</span>The DMS filter row has "Open work orders only". The server keeps only vehicles whose work order status is open or in progress.</p>
+    <p><span class="k">Visible behavior.</span>When checked, the inventory table shows only vehicles that still have unfinished work orders.</p>
+    <p><span class="k">Remaining.</span>None.</p>
   </article>
 
   <article id="cr-036">
-    <h3>CR-036 线索上的客户和车辆选择 <span class="badge done">已完成</span></h3>
-    <p><span class="k">要求。</span>新建线索时的 Customer 和 Vehicle of interest 不好用，改成和线索列表里那种搜索框一样。</p>
-    <p><span class="k">今日。</span>这两个字段使用 <span class="id">SearchSuggest</span>，与列表搜索同一控件。</p>
-    <p><span class="k">可见行为。</span>输入几个字就会出建议，选中后再保存，不必在长下拉里翻。</p>
-    <p><span class="k">剩余。</span>无。</p>
+    <h3>CR-036 Customer and vehicle selection on leads <span class="badge done">Done</span></h3>
+    <p><span class="k">Requirement.</span>The Customer and Vehicle of interest fields when creating a lead are hard to use; change them to the same search box used in the leads list.</p>
+    <p><span class="k">Today.</span>Both fields use <span class="id">SearchSuggest</span>, the same control as the list search.</p>
+    <p><span class="k">Visible behavior.</span>Type a few characters to get suggestions, then select and save, instead of scrolling through a long dropdown.</p>
+    <p><span class="k">Remaining.</span>None.</p>
   </article>
 
   <article id="cr-037">
-    <h3>CR-037 按用户部分匹配 <span class="badge done">已完成</span></h3>
-    <p><span class="k">要求。</span>按用户搜索团队活动时，输入用户名的一部分也要有结果。</p>
-    <p><span class="k">今日。</span>操作者筛选按用户名子串匹配，不区分大小写。</p>
-    <p><span class="k">可见行为。</span>输入名字中间的几个字母就能看到该人的活动。</p>
-    <p><span class="k">剩余。</span>无。</p>
+    <h3>CR-037 Partial match by user <span class="badge done">Done</span></h3>
+    <p><span class="k">Requirement.</span>When searching team activity by user, entering part of the username should also return results.</p>
+    <p><span class="k">Today.</span>The actor filter matches on a username substring, case-insensitive.</p>
+    <p><span class="k">Visible behavior.</span>Type a few letters from the middle of a name to see that person's activity.</p>
+    <p><span class="k">Remaining.</span>None.</p>
   </article>
 
   <article id="cr-038">
-    <h3>CR-038 线索负责人默认值 <span class="badge done">已完成</span></h3>
-    <p><span class="k">要求。</span>新建线索时，负责人先填上当前用户，但仍可改。</p>
-    <p><span class="k">今日。</span>添加线索把 Owner 设成当前登录用户名，下拉框保持可改。</p>
-    <p><span class="k">可见行为。</span>打开新建线索就能看到自己的名字，也可以改派给同事。</p>
-    <p><span class="k">剩余。</span>无。</p>
+    <h3>CR-038 Default lead owner <span class="badge done">Done</span></h3>
+    <p><span class="k">Requirement.</span>When creating a lead, pre-fill the owner with the current user, but keep it editable.</p>
+    <p><span class="k">Today.</span>Adding a lead sets Owner to the currently logged-in username, and the dropdown stays editable.</p>
+    <p><span class="k">Visible behavior.</span>Opening the new lead form shows your own name, and you can also reassign it to a colleague.</p>
+    <p><span class="k">Remaining.</span>None.</p>
   </article>
 
   <article id="cr-039">
-    <h3>CR-039 按车辆搜索线索 <span class="badge done">已完成</span></h3>
-    <p><span class="k">要求。</span>线索页增加按车辆名称搜索的框。</p>
-    <p><span class="k">今日。</span>线索列表有车辆搜索。<span class="id">vehicle</span> 匹配年款、品牌、车型，也匹配 VIN。</p>
-    <p><span class="k">可见行为。</span>输入车型名称后列表只留相关线索。</p>
-    <p><span class="k">剩余。</span>无。</p>
+    <h3>CR-039 Search leads by vehicle <span class="badge done">Done</span></h3>
+    <p><span class="k">Requirement.</span>Add a box on the leads page to search by vehicle name.</p>
+    <p><span class="k">Today.</span>The leads list has a vehicle search. <span class="id">vehicle</span> matches model year, make, and model, and also matches VIN.</p>
+    <p><span class="k">Visible behavior.</span>Entering a model name leaves only the relevant leads in the list.</p>
+    <p><span class="k">Remaining.</span>None.</p>
   </article>
 
   <article id="cr-040">
-    <h3>CR-040 客户姓名边输边查 <span class="badge done">已完成</span></h3>
-    <p><span class="k">要求。</span>在线索页的客户姓名框里打字时，列表应像 DMS 和 CRM 那样自动更新。</p>
-    <p><span class="k">今日。</span>姓名输入停约 300 毫秒后重新请求线索列表。</p>
-    <p><span class="k">可见行为。</span>不用再点一次搜索按钮。</p>
-    <p><span class="k">剩余。</span>无。</p>
+    <h3>CR-040 Live search as you type a customer name <span class="badge done">Done</span></h3>
+    <p><span class="k">Requirement.</span>While typing in the customer name box on the leads page, the list should update automatically, like DMS and CRM do.</p>
+    <p><span class="k">Today.</span>The list re-requests leads about 300 ms after name input stops.</p>
+    <p><span class="k">Visible behavior.</span>No need to click the search button again.</p>
+    <p><span class="k">Remaining.</span>None.</p>
   </article>
 
   <article id="cr-041">
-    <h3>CR-041 重新打开线索 <span class="badge done">已完成</span></h3>
-    <p><span class="k">要求。</span>已关闭的线索要能重新打开，以便纠正误关。</p>
-    <p><span class="k">今日。</span><span class="id">LeadsPage.tsx</span> 对已关闭线索提供 Reopen as New、Contacted 或 Qualified，并调用重新打开接口。</p>
-    <p><span class="k">可见行为。</span>误关的线索可以回到未关闭阶段，丢失原因会被清掉，并写一条审计。</p>
-    <p><span class="k">剩余。</span>两种情况会拒绝：该线索已是赢单且车辆已卖给这名客户；重新打开会造成同一客户、同一车辆的第二条未关闭线索。按钮仍会显示，拒绝出现在点击之后。这是今日记下的规则，用来不推翻已记录的成交。</p>
+    <h3>CR-041 Reopen a lead <span class="badge done">Done</span></h3>
+    <p><span class="k">Requirement.</span>A closed lead should be reopenable, so an accidental close can be corrected.</p>
+    <p><span class="k">Today.</span><span class="id">LeadsPage.tsx</span> offers Reopen as New, Contacted, or Qualified for closed leads, and calls the reopen endpoint.</p>
+    <p><span class="k">Visible behavior.</span>An accidentally closed lead can return to an unclosed stage, the original reason is cleared, and an audit entry is written.</p>
+    <p><span class="k">Remaining.</span>Three cases are rejected: the lead is already won and the vehicle has been sold to this customer; the vehicle the lead points to is no longer in inventory (for example, already sold to another customer); or reopening would create a second unclosed lead for the same customer and the same vehicle. The buttons still show, and the rejection appears after the click. This is a rule recorded today, to avoid overturning a recorded sale.</p>
   </article>
 
   <article id="cr-042">
-    <h3>CR-042 用线索数替换已购车辆列 <span class="badge done">已完成</span></h3>
-    <p><span class="k">要求。</span>CRM 的已购车辆列用处不大，改成该客户的线索。</p>
-    <p><span class="k">今日。</span><span class="id">CrmPage.tsx</span> 的列表列是 Leads（<span class="id">leadCount</span>）。没有 Vehicles purchased 列。</p>
-    <p><span class="k">可见行为。</span>客户列表直接看到此人有多少条线索。</p>
-    <p><span class="k">剩余。</span>无。</p>
+    <h3>CR-042 Replace the vehicles-purchased column with lead count <span class="badge done">Done</span></h3>
+    <p><span class="k">Requirement.</span>The CRM vehicles-purchased column is not very useful; change it to the customer's leads.</p>
+    <p><span class="k">Today.</span><span class="id">CrmPage.tsx</span>'s list column is Leads (<span class="id">leadCount</span>). There is no Vehicles purchased column.</p>
+    <p><span class="k">Visible behavior.</span>The customer list shows directly how many leads a person has.</p>
+    <p><span class="k">Remaining.</span>None.</p>
   </article>
 
   <article id="cr-043">
-    <h3>CR-043 从客户菜单新建线索 <span class="badge done">已完成</span></h3>
-    <p><span class="k">要求。</span>在客户菜单里就能为该客户添加线索。</p>
-    <p><span class="k">今日。</span>打开客户抽屉有 New lead，链到 <span class="id">/leads?newLeadFor=客户编号</span>，并带上该客户。</p>
-    <p><span class="k">可见行为。</span>不用先离开 CRM 再手工重选客户。</p>
-    <p><span class="k">剩余。</span>无。</p>
+    <h3>CR-043 Create a lead from the customer menu <span class="badge done">Done</span></h3>
+    <p><span class="k">Requirement.</span>It should be possible to add a lead for a customer right from the customer menu.</p>
+    <p><span class="k">Today.</span>Opening the customer drawer shows New lead, linking to <span class="id">/leads?newLeadFor=customerId</span> with that customer prefilled.</p>
+    <p><span class="k">Visible behavior.</span>No need to leave CRM first and manually reselect the customer.</p>
+    <p><span class="k">Remaining.</span>None.</p>
   </article>
 
   <article id="cr-044">
-    <h3>CR-044 客户备注 <span class="badge done">已完成</span></h3>
-    <p><span class="k">要求。</span>客户菜单里要能给客户记备注。</p>
-    <p><span class="k">今日。</span><span class="id">CustomerEntity</span> 有 <span class="id">notes</span>。客户抽屉有 Notes 文本框，最长 2000 字，随客户一起保存。</p>
-    <p><span class="k">可见行为。</span>备注留在这名客户上，下次打开还能看到。</p>
-    <p><span class="k">剩余。</span>无。</p>
+    <h3>CR-044 Customer notes <span class="badge done">Done</span></h3>
+    <p><span class="k">Requirement.</span>The customer menu should allow recording notes for a customer.</p>
+    <p><span class="k">Today.</span><span class="id">CustomerEntity</span> has <span class="id">notes</span>. The customer drawer has a Notes text box, up to 2000 characters, saved together with the customer.</p>
+    <p><span class="k">Visible behavior.</span>Notes stay on this customer and are still visible the next time it is opened.</p>
+    <p><span class="k">Remaining.</span>None.</p>
   </article>
-
   <article id="cr-045">
-    <h3>CR-045 重复客户先确认 <span class="badge done">已完成</span></h3>
-    <p><span class="k">要求。</span>新建客户时，若姓名、邮箱、电话或地址与已有客户相同，先提示并询问是否仍要新建。CRM 和从线索里新建客户都要这样。文档也写了编辑。</p>
-    <p><span class="k">今日。</span><span class="id">CustomerService.Duplicates</span> 按这四项比对。<span class="id">CrmPage.tsx</span> 弹出 “Possible duplicate customer”，确认后才保存。线索里新建客户走同一检查。</p>
-    <p><span class="k">可见行为。</span>提示会说出撞上的是姓名、邮箱、电话还是地址。取消则不保存。</p>
-    <p><span class="k">剩余。</span>无。</p>
+    <h3>CR-045 Confirm duplicate customer first <span class="badge done">Done</span></h3>
+    <p><span class="k">Requirement.</span>When creating a customer, if the name, email, phone, or address matches an existing customer, prompt first and ask whether to still create a new one. This applies both in the CRM and when creating a customer from a lead. The document also mentions editing.</p>
+    <p><span class="k">Today.</span><span class="id">CustomerService.Duplicates</span> compares those four fields. <span class="id">CrmPage.tsx</span> pops up "Possible duplicate customer" and only saves after confirmation. Creating a customer from a lead goes through the same check.</p>
+    <p><span class="k">Visible behavior.</span>The prompt states whether the collision is on the name, email, phone, or address. Cancel does not save.</p>
+    <p><span class="k">Remaining.</span>None.</p>
   </article>
 
   <article id="cr-046">
-    <h3>CR-046 客户电话可以重复 <span class="badge done">已完成</span></h3>
-    <p><span class="k">要求。</span>客户电话不要唯一，因为多人可能共用一个号码，仍要各自的客户档案。账号电话不在这条里。</p>
-    <p><span class="k">今日。</span><span class="id">CustomerEntity.Phone</span> 没有唯一约束。创建和更新接受另一名客户已经用过的电话。<span class="id">AppDbContext</span> 仍对登录账号电话保留 <span class="id">uk_app_user_phone</span>。</p>
-    <p><span class="k">可见行为。</span>两名客户可以填同一个电话。两个登录账号不行。</p>
-    <p><span class="k">剩余。</span>无。</p>
+    <h3>CR-046 Customer phone can repeat <span class="badge done">Done</span></h3>
+    <p><span class="k">Requirement.</span>Customer phone should not be unique, because several people may share one number and still need their own customer records. Account phone is not covered by this item.</p>
+    <p><span class="k">Today.</span><span class="id">CustomerEntity.Phone</span> has no unique constraint. Create and update accept a phone another customer has already used. <span class="id">AppDbContext</span> still keeps <span class="id">uk_app_user_phone</span> for login account phones.</p>
+    <p><span class="k">Visible behavior.</span>Two customers can enter the same phone. Two login accounts cannot.</p>
+    <p><span class="k">Remaining.</span>None.</p>
   </article>
 
   <article id="cr-047">
-    <h3>CR-047 VIN 与车辆信息一致 <span class="badge done">已完成</span></h3>
-    <p><span class="k">要求。</span>DMS 里的 VIN 必须和车辆信息相符。</p>
-    <p><span class="k">今日。</span>中午只校验 VIN 第 10 位是否对得上年款。<span class="id">2173c9c2</span> 在 <span class="id">VehicleService.cs</span> 于创建和修改时调用 vPIC 解码，品牌、车型或年款与解码结果不一致就拒绝。解码没有返回年款时，退回第 10 位年份码。表单在保存前做同样的年份码检查。</p>
-    <p><span class="k">可见行为。</span>VIN 和所填品牌、车型、年份对不上时，保存失败并指出哪一项不一致。</p>
-    <p><span class="k">剩余。</span>解码服务不可达或不认识该 VIN 时，只剩年份码检查。1980 年以前或不是 17 位的 VIN 不走这套年份码。跟进记录写明没有用例断言“解码不一致被拒绝”，因为结果依赖外部服务。</p>
+    <h3>CR-047 VIN consistent with vehicle details <span class="badge done">Done</span></h3>
+    <p><span class="k">Requirement.</span>The VIN in the DMS must match the vehicle details.</p>
+    <p><span class="k">Today.</span>At midday only the 10th VIN character was checked against the model year. <span class="id">2173c9c2</span> calls vPIC decoding in <span class="id">VehicleService.cs</span> on create and update, and rejects when the make, model, or year disagrees with the decode result. When the decode returns no year, it falls back to the 10th-position year code. The form runs the same year-code check before saving.</p>
+    <p><span class="k">Visible behavior.</span>When the VIN does not match the entered make, model, and year, the save fails and points out which field is inconsistent.</p>
+    <p><span class="k">Remaining.</span>When the decode service is unreachable or does not recognize the VIN, only the year-code check remains. VINs before 1980 or not 17 characters do not use this year-code path. The follow-up note records that there is no test asserting "decode mismatch is rejected," because the result depends on an external service.</p>
   </article>
 
   <article id="cr-048">
-    <h3>CR-048 Carfax 链接 <span class="badge partial">部分完成</span></h3>
-    <p><span class="k">要求。</span>DMS 的 Carfax URL 要独占，并且必须是真实的 Carfax 链接，否则不能保存。</p>
-    <p><span class="k">今日。</span><span class="id">VehicleService.RequireCarfaxLink</span> 与表单规则：非空值必须是 <span class="id">carfax.com</span> 或 <span class="id">carfax.ca</span>（含子域）上的 https。跟进记录把 “exclusive” 读成“只接受 Carfax 链接”。</p>
-    <p><span class="k">可见行为。</span>填了别的网站会被拒。留空可以保存。两辆车可以保存同一个 Carfax 地址。</p>
-    <p><span class="k">剩余。</span>没有“一个链接只能属于一辆车”，也没有“必须填写”。若独占是指全库唯一，这一条还没有做。</p>
+    <h3>CR-048 Carfax link <span class="badge partial">Partial</span></h3>
+    <p><span class="k">Requirement.</span>The DMS Carfax URL must be exclusive and must be a real Carfax link, otherwise it cannot be saved.</p>
+    <p><span class="k">Today.</span><span class="id">VehicleService.RequireCarfaxLink</span> and the form rule: a non-empty value must be https on <span class="id">carfax.com</span> or <span class="id">carfax.ca</span> (including subdomains). The follow-up note reads "exclusive" as "accept only Carfax links."</p>
+    <p><span class="k">Visible behavior.</span>Entering another website is rejected. Leaving it blank can be saved. Two vehicles can save the same Carfax address.</p>
+    <p><span class="k">Remaining.</span>There is no "one link can belong to only one vehicle," nor is it "required." If exclusive means unique across the whole database, this part is not done yet.</p>
   </article>
 
   <article id="cr-049">
-    <h3>CR-049 出售必须有买家 <span class="badge done">已完成</span></h3>
-    <p><span class="k">要求。</span>卖车前必须关联一名客户；也可以选 Other 并手填买家。</p>
-    <p><span class="k">今日。</span><span class="id">VehicleService</span> 要求 CRM 客户或手填姓名，否则 400，文案是 “Choose a customer, or Other with the buyer's name.” Other 写入 <span class="id">soldToName</span>，不新建客户。</p>
-    <p><span class="k">可见行为。</span>出售框的 Buyer 为必填。不选客户也不填姓名就不能确认出售。</p>
-    <p><span class="k">剩余。</span>无。</p>
+    <h3>CR-049 Sale must have a buyer <span class="badge done">Done</span></h3>
+    <p><span class="k">Requirement.</span>Before selling a vehicle a customer must be linked; Other can also be chosen and the buyer entered by hand.</p>
+    <p><span class="k">Today.</span><span class="id">VehicleService</span> requires a CRM customer or a hand-entered name, otherwise 400, with the text "Choose a customer, or Other with the buyer's name." Other writes to <span class="id">soldToName</span> and does not create a customer.</p>
+    <p><span class="k">Visible behavior.</span>The Buyer field in the sale dialog is required. The sale cannot be confirmed without choosing a customer or entering a name.</p>
+    <p><span class="k">Remaining.</span>None.</p>
   </article>
 
   <article id="cr-050">
-    <h3>CR-050 车辆上的线索 <span class="badge done">已完成</span></h3>
-    <p><span class="k">要求。</span>DMS 的车辆信息里加入该车的线索，并可以加一列线索数量。</p>
-    <p><span class="k">今日。</span>库存表有 Leads 列（<span class="id">leadCount</span>）。编辑抽屉里有 <span class="id">VehicleLeadsPanel</span>，列出这辆车的线索。</p>
-    <p><span class="k">可见行为。</span>不用离开 DMS 就能看到这辆车被多少条线索跟过，以及具体是哪些。</p>
-    <p><span class="k">剩余。</span>无。</p>
+    <h3>CR-050 Leads on the vehicle <span class="badge done">Done</span></h3>
+    <p><span class="k">Requirement.</span>Add the vehicle's leads to the DMS vehicle details, and allow a lead-count column.</p>
+    <p><span class="k">Today.</span>The inventory table has a Leads column (<span class="id">leadCount</span>). The edit drawer has <span class="id">VehicleLeadsPanel</span>, which lists this vehicle's leads.</p>
+    <p><span class="k">Visible behavior.</span>Without leaving the DMS you can see how many leads have followed this vehicle, and which ones they are.</p>
+    <p><span class="k">Remaining.</span>None.</p>
   </article>
 
   <article id="cr-051">
-    <h3>CR-051 重复线索 <span class="badge partial">部分完成</span></h3>
-    <p><span class="k">要求。</span>同一客户、同一车辆不能再建一条重复线索。</p>
-    <p><span class="k">今日。</span>店员创建、改车辆和重新打开时，若已有一条未关闭的相同客户与车辆线索，会被拒绝并提示去打开那一条。<span class="id">2173c9c2</span> 改了买家网站：<span class="id">BuyerSiteService.cs</span> 在已有未关闭线索时，把新询价写成该线索的备注，不再插第二条，也不再发第二条未处理通知。</p>
-    <p><span class="k">可见行为。</span>店内不能同时开着两条相同客户与车辆的线索。老客户再次从店铺询价时，内容追加到原线索。</p>
-    <p><span class="k">剩余。</span>已经赢单或丢单的线索不阻止再新建一条。数据库没有“经销商 + 客户 + 车辆”的唯一索引，靠保存前查询。已关闭后再开一条，严格说仍是文档里的重复。</p>
+    <h3>CR-051 Duplicate leads <span class="badge partial">Partial</span></h3>
+    <p><span class="k">Requirement.</span>A duplicate lead cannot be created again for the same customer and the same vehicle.</p>
+    <p><span class="k">Today.</span>When a clerk creates, changes the vehicle, or reopens, if an open lead already exists for the same customer and vehicle, it is rejected with a prompt to open that one. <span class="id">2173c9c2</span> changed the buyer site: <span class="id">BuyerSiteService.cs</span>, when an open lead already exists, writes the new inquiry as a note on that lead instead of inserting a second one and instead of sending a second unhandled notification.</p>
+    <p><span class="k">Visible behavior.</span>In the store, two leads for the same customer and vehicle cannot be open at once. When a returning customer inquires again from the store, the content is appended to the original lead.</p>
+    <p><span class="k">Remaining.</span>A lead already Won or Lost does not block creating a new one. The database has no unique index on "dealer + customer + vehicle" and relies on a pre-save query. Opening another lead after one is closed is, strictly, still a duplicate per the document.</p>
   </article>
 
   <article id="cr-052">
-    <h3>CR-052 卖车后关闭线索并打标签 <span class="badge partial">部分完成</span></h3>
-    <p><span class="k">要求。</span>车辆卖给某客户后，与该销售相关的线索应自动关闭，并把相应标签加到线索所关联的客户上。</p>
-    <p><span class="k">今日。</span><span class="id">VehicleService.CloseLeadsForSale</span> 在同一事务里关闭该车的未关闭线索。买家是 CRM 客户时，该客户的线索变为 Won，其余变为 Lost，原因 “Vehicle sold”。买家是 Other 时，该车全部未关闭线索变为 Lost。跟进记录把线索阶段当作“相应标签”。</p>
-    <p><span class="k">可见行为。</span>出售成功后，这辆车上的未关闭线索自己结束，销售人员不用逐条去关。</p>
-    <p><span class="k">剩余。</span>客户档案上没有新的标签字段，仍然只有姓名、邮箱、电话、地址和备注。已经是 Won 或 Lost 的线索保持原样。没有绑定这辆车的线索不会被关。</p>
+    <h3>CR-052 Close leads and tag after sale <span class="badge partial">Partial</span></h3>
+    <p><span class="k">Requirement.</span>After a vehicle is sold to a customer, leads related to that sale should close automatically, and the corresponding tag should be added to the customer the lead is linked to.</p>
+    <p><span class="k">Today.</span><span class="id">VehicleService.CloseLeadsForSale</span> closes the vehicle's open leads in the same transaction. When the buyer is a CRM customer, that customer's lead becomes Won and the rest become Lost, with the reason "Vehicle sold." When the buyer is Other, all open leads on the vehicle become Lost. The follow-up note treats the lead stage as the "corresponding tag."</p>
+    <p><span class="k">Visible behavior.</span>After a successful sale, the open leads on this vehicle close themselves, and the salesperson does not have to close them one by one.</p>
+    <p><span class="k">Remaining.</span>The customer record has no new tag field; it still has only name, email, phone, address, and notes. Leads already Won or Lost stay as they are. Leads not bound to this vehicle are not closed.</p>
   </article>
 
   <article id="cr-053">
-    <h3>CR-053 显示名改为全名 <span class="badge done">已完成</span></h3>
-    <p><span class="k">要求。</span>个人资料和管理员创建店员时，显示名应标成全名。</p>
-    <p><span class="k">今日。</span><span class="id">ProfilePage.tsx</span>、<span class="id">AdminPage.tsx</span> 和 <span class="id">TeamPage.tsx</span> 的字段标签都是 Full name。底层仍是 <span class="id">displayName</span>。</p>
-    <p><span class="k">可见行为。</span>用户看到的是 Full name，不再是 Display name。</p>
-    <p><span class="k">剩余。</span>无。</p>
+    <h3>CR-053 Rename display name to full name <span class="badge done">Done</span></h3>
+    <p><span class="k">Requirement.</span>In the profile and when an admin creates a clerk, the display name should be labeled as the full name.</p>
+    <p><span class="k">Today.</span>The field labels in <span class="id">ProfilePage.tsx</span>, <span class="id">AdminPage.tsx</span>, and <span class="id">TeamPage.tsx</span> are all Full name. The underlying field is still <span class="id">displayName</span>.</p>
+    <p><span class="k">Visible behavior.</span>Users see Full name, no longer Display name.</p>
+    <p><span class="k">Remaining.</span>None.</p>
   </article>
 
   <article id="cr-054">
-    <h3>CR-054 用户名错误要可读 <span class="badge done">已完成</span></h3>
-    <p><span class="k">要求。</span>为经销商创建店员时，用户名含非法字符不应返回难读的错误。</p>
-    <p><span class="k">今日。</span>非法用户名返回普通英文的字段错误，显示在店员抽屉的 Username 下面。</p>
-    <p><span class="k">可见行为。</span>管理员能看懂该改哪一项，而不是一条原始异常。</p>
-    <p><span class="k">剩余。</span>无。</p>
+    <h3>CR-054 Username errors should be readable <span class="badge done">Done</span></h3>
+    <p><span class="k">Requirement.</span>When creating a clerk for a dealer, an illegal character in the username should not return a hard-to-read error.</p>
+    <p><span class="k">Today.</span>An illegal username returns a plain-English field error, shown under Username in the clerk drawer.</p>
+    <p><span class="k">Visible behavior.</span>The admin can understand which field to fix, rather than see a raw exception.</p>
+    <p><span class="k">Remaining.</span>None.</p>
   </article>
 
   <article id="cr-055">
-    <h3>CR-055 平台管理员改为发加入申请 <span class="badge partial">部分完成</span></h3>
-    <p><span class="k">要求。</span>平台管理员不应直接把账号绑进经销商，只能向该店发送加入申请，以免管理员自行进入客户和车辆数据。</p>
-    <p><span class="k">今日。</span><span class="id">MembershipService</span>：店里已经有在职 Owner 时，管理员的创建或绑定只提交加入申请，由 Owner 在 Team &gt; Join requests 批准。店里还没有 Owner 时，同一次调用仍直接绑定，并把该人设为第一名 Owner。</p>
-    <p><span class="k">可见行为。</span>已有 Owner 的店，管理员看到的是“已发送加入申请”。空店的第一次绑定会立刻成为 Owner，按钮在这种情况下仍是直接绑定。</p>
-    <p><span class="k">剩余。</span>空店的第一名 Owner 仍是直接绑定。文档要求的是一律只发申请。今日把这次绑定写成必要例外，因为空店没有人能批准申请。中午的核对文件仍把“第一名经理直接绑定”写成缺口，晚上改成了第一名 Owner，行为同类。</p>
+    <h3>CR-055 Platform admin sends join requests instead <span class="badge partial">Partial</span></h3>
+    <p><span class="k">Requirement.</span>A platform admin should not bind an account directly into a dealer, only send a join request to that store, so admins cannot let themselves into customer and vehicle data.</p>
+    <p><span class="k">Today.</span><span class="id">MembershipService</span>: when the store already has an active Owner, an admin's create or bind only submits a join request, which the Owner approves under Team &gt; Join requests. When the store has no Owner yet, the same call still binds directly and makes that person the first Owner.</p>
+    <p><span class="k">Visible behavior.</span>For a store that already has an Owner, the admin sees "Join request sent." The first bind to an empty store becomes Owner immediately, and the button in that case is still a direct bind.</p>
+    <p><span class="k">Remaining.</span>The first Owner of an empty store is still a direct bind. The document requires that it always be a request only. Today this bind is written as a necessary exception, because an empty store has no one to approve the request. The midday review file still writes "first manager binds directly" as a gap; in the evening it was changed to first Owner, same kind of behavior.</p>
   </article>
 
   <article id="cr-056">
-    <h3>CR-056 移除待审账号 <span class="badge done">已完成</span></h3>
-    <p><span class="k">要求。</span>管理员要能移除待审账号。</p>
-    <p><span class="k">今日。</span>平台管理员在待审列表里软删除账号，删除前有确认框。</p>
-    <p><span class="k">可见行为。</span>确认后该账号从待审列表消失，登录资料按软删除处理。</p>
-    <p><span class="k">剩余。</span>无。</p>
+    <h3>CR-056 Remove pending accounts <span class="badge done">Done</span></h3>
+    <p><span class="k">Requirement.</span>Admins should be able to remove pending accounts.</p>
+    <p><span class="k">Today.</span>A platform admin soft-deletes an account in the pending list, with a confirmation dialog before deletion.</p>
+    <p><span class="k">Visible behavior.</span>After confirmation the account disappears from the pending list, and the login record is handled as a soft delete.</p>
+    <p><span class="k">Remaining.</span>None.</p>
   </article>
-
   <article id="cr-057">
-    <h3>CR-057 编辑待审账号 <span class="badge done">已完成</span></h3>
-    <p><span class="k">要求。</span>管理员要能改正待审账号里填错的信息，例如邮箱、电话、用户名。文档的 “such as” 不是封闭清单。</p>
-    <p><span class="k">今日。</span>待审账号可改用户名、邮箱和电话。</p>
-    <p><span class="k">可见行为。</span>创建时填错的这三项可以在批准前改正。</p>
-    <p><span class="k">剩余。</span>无。全名不在当前编辑项里；文档没有把它列为必须项。</p>
+    <h3>CR-057 Edit pending accounts <span class="badge done">Done</span></h3>
+    <p><span class="k">Requirement.</span>Admins must be able to correct information entered wrong on a pending account, such as email, phone, or username. The doc's "such as" is not a closed list.</p>
+    <p><span class="k">Today.</span>Pending accounts allow editing the username, email, and phone.</p>
+    <p><span class="k">Visible behavior.</span>Mistakes in these three fields made at creation can be corrected before approval.</p>
+    <p><span class="k">Remaining.</span>None. Full name is not among the current editable fields; the doc does not list it as required.</p>
   </article>
 
   <article id="cr-058">
-    <h3>CR-058 管理审计的筛选顺序与变更搜索 <span class="badge done">已完成</span></h3>
-    <p><span class="k">要求。</span>平台管理员审计日志的搜索项与列顺序一致，并且也能按变更内容搜索。</p>
-    <p><span class="k">今日。</span>筛选顺序跟着列走到 Changes。<span class="id">q</span> 搜索保存下来的变更文本，并使用 CR-027 里修好的查询。</p>
-    <p><span class="k">可见行为。</span>管理员用和活动日志相同的方式搜变更，筛选项不再和表头错位。</p>
-    <p><span class="k">剩余。</span>无。</p>
+    <h3>CR-058 Platform audit filter order and change search <span class="badge done">Done</span></h3>
+    <p><span class="k">Requirement.</span>The platform admin audit log's search fields match the column order, and it can also search by change content.</p>
+    <p><span class="k">Today.</span>The filter order follows the columns through to Changes. <span class="id">q</span> searches the stored change text and uses the query fixed in CR-027.</p>
+    <p><span class="k">Visible behavior.</span>Admins search changes the same way as in the activity log, and the filters no longer misalign with the headers.</p>
+    <p><span class="k">Remaining.</span>None.</p>
   </article>
 
   <article id="cr-059">
-    <h3>CR-059 管理审计的部分匹配与日期标签 <span class="badge done">已完成</span></h3>
-    <p><span class="k">要求。</span>管理审计的搜索在只输入一部分时也要有结果，日期框要有标签。</p>
-    <p><span class="k">今日。</span>操作者和变更文本都是子串匹配。日期标签与 CR-026 相同，为 From date 和 To date。</p>
-    <p><span class="k">可见行为。</span>输入用户名或变更说明的片段即可看到匹配行。</p>
-    <p><span class="k">剩余。</span>无。</p>
+    <h3>CR-059 Platform audit partial match and date labels <span class="badge done">Done</span></h3>
+    <p><span class="k">Requirement.</span>The platform audit search must return results for partial input, and the date boxes need labels.</p>
+    <p><span class="k">Today.</span>Both the actor and the change text use substring matching. The date labels are the same as CR-026: From date and To date.</p>
+    <p><span class="k">Visible behavior.</span>Entering a fragment of a username or change description shows matching rows.</p>
+    <p><span class="k">Remaining.</span>None.</p>
   </article>
 
   <article id="cr-060">
-    <h3>CR-060 删除经销商要多一步确认 <span class="badge done">已完成</span></h3>
-    <p><span class="k">要求。</span>平台管理员可以删除经销商，但至少要多一步确认。文档写在 Dealerships &gt; Edit 下。</p>
-    <p><span class="k">今日。</span>删除是软删除，管理员必须输入该店的法定名称才能继续。按钮在经销商列表上，不在编辑抽屉里。</p>
-    <p><span class="k">可见行为。</span>打错名称无法删除。删除后店从正常列表中退出，历史仍保留。</p>
-    <p><span class="k">剩余。</span>无。确认步骤比文档要求的“至少一步”更具体：要键入法定名称。</p>
+    <h3>CR-060 Deleting a dealership needs an extra confirmation step <span class="badge done">Done</span></h3>
+    <p><span class="k">Requirement.</span>Platform admins can delete a dealership, but with at least one extra confirmation step. The doc places this under Dealerships &gt; Edit.</p>
+    <p><span class="k">Today.</span>Deletion is a soft delete, and the admin must type the dealership's legal name to continue. The button is on the dealership list, not in the edit drawer.</p>
+    <p><span class="k">Visible behavior.</span>A mistyped name cannot delete. After deletion the dealership drops out of the normal list, and history is still kept.</p>
+    <p><span class="k">Remaining.</span>None. The confirmation step is more specific than the doc's "at least one step" requirement: it requires typing the legal name.</p>
   </article>
 
   <article id="cr-061">
-    <h3>CR-061 删除用户要多一步确认 <span class="badge done">已完成</span></h3>
-    <p><span class="k">要求。</span>管理员可以删除用户，且至少要多一步确认。</p>
-    <p><span class="k">今日。</span>删除成员账号是软删除，管理员必须输入该用户名。待审账号另有一次确认后删除（CR-056）。</p>
-    <p><span class="k">可见行为。</span>不能靠一次点击删掉用户。最后一名 Owner 在店里还有其他人时会被 409 LAST_OWNER 拒绝。</p>
-    <p><span class="k">剩余。</span>无。</p>
+    <h3>CR-061 Deleting a user needs an extra confirmation step <span class="badge done">Done</span></h3>
+    <p><span class="k">Requirement.</span>Admins can delete a user, with at least one extra confirmation step.</p>
+    <p><span class="k">Today.</span>Deleting a member account is a soft delete, and the admin must type the username. Pending accounts have their own delete-after-confirmation step (CR-056).</p>
+    <p><span class="k">Visible behavior.</span>A user cannot be deleted in a single click. The last Owner is rejected with a 409 LAST_OWNER when the dealership still has other people.</p>
+    <p><span class="k">Remaining.</span>None.</p>
   </article>
 
   <article id="cr-062">
-    <h3>CR-062 编辑账号的邮箱或电话 <span class="badge done">已完成</span></h3>
-    <p><span class="k">要求。</span>管理员要能编辑账号上的部分信息，例如邮箱或电话。</p>
-    <p><span class="k">今日。</span>平台管理员可以改成员的邮箱和电话。待审账号的编辑见 CR-057。</p>
-    <p><span class="k">可见行为。</span>联系方式填错时，管理员可以改正，不必让用户自己重开账号。</p>
-    <p><span class="k">剩余。</span>无。Owner 不能改登录邮箱，那是 CR-010 的范围决定。</p>
+    <h3>CR-062 Edit an account's email or phone <span class="badge done">Done</span></h3>
+    <p><span class="k">Requirement.</span>Admins must be able to edit some of an account's information, such as email or phone.</p>
+    <p><span class="k">Today.</span>Platform admins can change a member's email and phone. For editing pending accounts, see CR-057.</p>
+    <p><span class="k">Visible behavior.</span>When contact details are entered wrong, an admin can correct them without making the user reopen the account themselves.</p>
+    <p><span class="k">Remaining.</span>None. Owners cannot change the login email; that is decided by CR-010's scope.</p>
   </article>
 
   <article id="cr-063">
-    <h3>CR-063 示例广告指向注册 <span class="badge done">已完成</span></h3>
-    <p><span class="k">要求。</span>首页示例广告现在指向登录页。点击的人多半是潜在用户，应指向注册页。</p>
-    <p><span class="k">今日。</span><span class="id">d17858f0</span> 把展开后的示例广告改成 “Check your own ads”，链接到 <span class="id">/register</span>。同一天早些时候曾把它留在登录页，该决定在这最后一笔提交里撤回。首页创建账号按钮仍然没有。</p>
-    <p><span class="k">可见行为。</span>从示例广告进去的是注册，不是登录。</p>
-    <p><span class="k">剩余。</span>跟进记录写明：等 CR-009 的经销商咨询做出来后，广告应改指那里，而不是继续进入自助注册。</p>
+    <h3>CR-063 Sample ad points to sign-up <span class="badge done">Done</span></h3>
+    <p><span class="k">Requirement.</span>The home-page sample ad currently points to the sign-in page. The people who click it are mostly prospective users, so it should point to the sign-up page.</p>
+    <p><span class="k">Today.</span><span class="id">d17858f0</span> changes the expanded sample ad to "Check your own ads", linking to <span class="id">/register</span>. Earlier the same day it had been left on the sign-in page; that decision is reverted in this final commit. The home page still has no create-account button.</p>
+    <p><span class="k">Visible behavior.</span>Going in from the sample ad leads to sign-up, not sign-in.</p>
+    <p><span class="k">Remaining.</span>The follow-up note records that once CR-009's dealership inquiry is built, the ad should point there instead of continuing into self-service sign-up.</p>
   </article>
 
   <article id="cr-064">
-    <h3>CR-064 首页说明受众 <span class="badge done">已完成</span></h3>
-    <p><span class="k">要求。</span>首页要用更显眼的方式说明这个页面是给经销商的，不是给买车客户的。</p>
-    <p><span class="k">今日。</span><span class="id">LandingPage.tsx</span> 在主视觉上方有一行强调文字：Dealer Ops is software for car dealerships, not a place to buy a car.</p>
-    <p><span class="k">可见行为。</span>进首页首先看到这句，下面仍有通往店铺的链接，给真正想看车的人。</p>
-    <p><span class="k">剩余。</span>无。</p>
+    <h3>CR-064 Home page states its audience <span class="badge done">Done</span></h3>
+    <p><span class="k">Requirement.</span>The home page should state more prominently that this page is for dealerships, not for car-buying customers.</p>
+    <p><span class="k">Today.</span><span class="id">LandingPage.tsx</span> has an emphasized line above the hero: Dealer Ops is software for car dealerships, not a place to buy a car.</p>
+    <p><span class="k">Visible behavior.</span>On the home page this line is seen first, with a link below it to the shops for people who really want to look at cars.</p>
+    <p><span class="k">Remaining.</span>None.</p>
   </article>
 
   <article id="cr-065">
-    <h3>CR-065 店铺不要写 used <span class="badge done">已完成</span></h3>
-    <p><span class="k">要求。</span>经销商店铺页不应写 “used”，因为店里也有新车。</p>
-    <p><span class="k">今日。</span><span class="id">ShopPage.tsx</span> 的目录标题是 “Shop vehicles.” 页面不把库存标成二手。</p>
-    <p><span class="k">可见行为。</span>访客看到的是车辆目录，不是二手车专区。</p>
-    <p><span class="k">剩余。</span>无。</p>
+    <h3>CR-065 Shops should not say used <span class="badge done">Done</span></h3>
+    <p><span class="k">Requirement.</span>The dealership shop page should not say "used", because the dealership also has new cars.</p>
+    <p><span class="k">Today.</span><span class="id">ShopPage.tsx</span>'s catalog heading is "Shop vehicles." The page does not label the inventory as used.</p>
+    <p><span class="k">Visible behavior.</span>Visitors see a vehicle catalog, not a used-car section.</p>
+    <p><span class="k">Remaining.</span>None.</p>
   </article>
 
   <article id="cr-066">
-    <h3>CR-066 搜索经销商并展示联系方式 <span class="badge done">已完成</span></h3>
-    <p><span class="k">要求。</span>店铺页要能搜索经销商，并在每张店卡上列出地址和一些联系方式。</p>
-    <p><span class="k">今日。</span><span class="id">/shop</span> 按店名和地址搜索。每张卡展示地址、电话和邮箱。公开接口的联系字段写在 API 合同里。</p>
-    <p><span class="k">可见行为。</span>输入城市或店名可以缩小目录，不用点进去就看得到怎么联系。</p>
-    <p><span class="k">剩余。</span>无。</p>
+    <h3>CR-066 Search dealerships and show contact details <span class="badge done">Done</span></h3>
+    <p><span class="k">Requirement.</span>The shop page must be able to search dealerships and list an address and some contact details on each dealership card.</p>
+    <p><span class="k">Today.</span><span class="id">/shop</span> searches by dealership name and address. Each card shows the address, phone, and email. The public endpoint's contact fields are written in the API contract.</p>
+    <p><span class="k">Visible behavior.</span>Entering a city or dealership name narrows the catalog, and how to make contact is visible without clicking in.</p>
+    <p><span class="k">Remaining.</span>None.</p>
   </article>
 
   <article id="cr-067">
-    <h3>CR-067 返回与店内库存搜索 <span class="badge done">已完成</span></h3>
-    <p><span class="k">要求。</span>经销商买家站点要有返回按钮，并要能按具体车辆搜索该店库存。文档原文在 vehicle 后截断。</p>
-    <p><span class="k">今日。</span><span class="id">ShopPage.tsx</span> 有 “← Back to dealerships”，链回 <span class="id">/shop</span>。店内库存可按年份、品牌和车型搜索。</p>
-    <p><span class="k">可见行为。</span>看完一家店可以回到目录，也可以在该店里缩小到某一款车。</p>
-    <p><span class="k">剩余。</span>无。</p>
+    <h3>CR-067 Back button and in-shop inventory search <span class="badge done">Done</span></h3>
+    <p><span class="k">Requirement.</span>The dealership buyer site must have a back button and must be able to search a dealership's inventory by specific vehicle. The doc's text is cut off after "vehicle".</p>
+    <p><span class="k">Today.</span><span class="id">ShopPage.tsx</span> has "← Back to dealerships", linking back to <span class="id">/shop</span>. In-shop inventory can be searched by year, make, and model.</p>
+    <p><span class="k">Visible behavior.</span>After viewing a dealership you can return to the catalog, and you can also narrow down to a specific model within that dealership.</p>
+    <p><span class="k">Remaining.</span>None.</p>
   </article>
 
   <article id="cr-068">
-    <h3>CR-068 询价字数提示 <span class="badge done">已完成</span></h3>
-    <p><span class="k">要求。</span>询问某辆车时，字数快到上限才需要把上限显示出来。</p>
-    <p><span class="k">今日。</span>留言上限 1000 字。<span class="id">ShopPage.tsx</span> 在剩余不超过 50 字时显示 “n of 1000 characters left”。</p>
-    <p><span class="k">可见行为。</span>刚开始打字时不显示计数；快写满时才出现剩余字数。</p>
-    <p><span class="k">剩余。</span>无。“接近”没有精确数字，50 字是今日采用的阈值。</p>
+    <h3>CR-068 Inquiry character-count hint <span class="badge done">Done</span></h3>
+    <p><span class="k">Requirement.</span>When inquiring about a car, the limit only needs to be shown as the character count approaches it.</p>
+    <p><span class="k">Today.</span>The message limit is 1000 characters. <span class="id">ShopPage.tsx</span> shows "n of 1000 characters left" when no more than 50 characters remain.</p>
+    <p><span class="k">Visible behavior.</span>The count is not shown when you first start typing; the remaining characters appear only as it nears full.</p>
+    <p><span class="k">Remaining.</span>None. "Approaching" has no exact number; 50 characters is the threshold used today.</p>
   </article>
-
-  <h2>完成情况</h2>
+  <h2>Completion status</h2>
   <div class="wrap">
     <table>
-      <thead><tr><th>状态</th><th>条数</th><th>编号</th></tr></thead>
+      <thead><tr><th>Status</th><th>Count</th><th>IDs</th></tr></thead>
       <tbody>
-        <tr><td><span class="badge done">已完成</span></td><td>62</td><td>CR-001 至 CR-008，CR-011 至 CR-047，CR-049，CR-050，CR-053，CR-054，CR-056 至 CR-068</td></tr>
-        <tr><td><span class="badge partial">部分完成</span></td><td>6</td><td>CR-009 咨询入口未做；CR-010 没有区域经理，Owner 也没有平台管理员级账号权限；CR-048 Carfax 链接不唯一且可留空；CR-051 已关闭线索不阻止再开一条；CR-052 客户档案上没有标签；CR-055 空店的第一名 Owner 仍直接绑定</td></tr>
-        <tr><td><span class="badge none">今日未涉及</span></td><td>0</td><td>无。68 条都在今天的实现、核对或书面决定里处理过。</td></tr>
+        <tr><td><span class="badge done">Done</span></td><td>62</td><td>CR-001 to CR-008, CR-011 to CR-047, CR-049, CR-050, CR-053, CR-054, CR-056 to CR-068</td></tr>
+        <tr><td><span class="badge partial">Partial</span></td><td>6</td><td>CR-009 consultation entry point not built; CR-010 no regional manager, and Owner also lacks platform-administrator-level account permissions; CR-048 Carfax link is not unique and may be left blank; CR-051 a closed lead does not block reopening another one; CR-052 no tags on the customer profile; CR-055 the first Owner of an empty store is still bound directly</td></tr>
+        <tr><td><span class="badge none">Not addressed</span></td><td>0</td><td>None. All 68 items were handled today through implementation, verification, or a written decision.</td></tr>
       </tbody>
     </table>
   </div>
-  <p>已完成表示当前 .NET 与 React 代码满足该条的主要行为，并已在对应文件里核对。部分完成表示主要句子里仍有一块没有落地；今日书面决定把其中几块收成可接受的边界，汇报仍按原文记为部分完成，避免把决定说成文档原文已经全部满足。</p>
-  <p>中午写入的 <span class="id">requirements/iteration-2/implementation-check/IMPLEMENTATION-CHECK-SUMMARY.md</span> 仍是收口前的 54 / 13 / 1。晚上的服务端排序、Location、VIN 解码、买家网站备注和 Owner 层级以代码和 <span class="id">requirements/iteration-2/CR-Followup-2026-11-03.md</span> 第 7 节为准，不以那份旧计数为准。</p>
+  <p>Done means the current .NET and React code satisfies the item's main behavior, and it has been verified in the corresponding files. Partial means one piece of the main statement is still not in place; today's written decisions narrowed several of those pieces down to an acceptable boundary, but this report still records them as partial per the original text, to avoid presenting a decision as the original document already being fully satisfied.</p>
+  <p>The <span class="id">requirements/iteration-2/implementation-check/IMPLEMENTATION-CHECK-SUMMARY.md</span> written at midday still reads 54 / 13 / 1 from before the wrap-up. The evening's server-side sorting, Location, VIN decoding, buyer-site notes, and Owner hierarchy are governed by the code and section 7 of <span class="id">requirements/iteration-2/CR-Followup-2026-11-03.md</span>, not by that old count.</p>
   <footer>
-    <p>现行栈是 .NET 10 后端与 React 前端。今天的功能提交没有把 Java 或 Vue 当作交付物。数据补丁说明在 <span class="id">deploy/ROLE-MIGRATION-2026-11-03.md</span>：补丁只跑一次，恢复今天之前的数据库转储会按资历重新推导 Owner。</p>
+    <p>The current stack is the .NET 10 backend and React frontend. Today's feature commits do not treat Java or Vue as deliverables. The data-patch notes are in <span class="id">deploy/ROLE-MIGRATION-2026-11-03.md</span>: the patch runs only once, and restoring a database dump from before today will re-derive Owner by seniority.</p>
   </footer>
 </main>
 </body>

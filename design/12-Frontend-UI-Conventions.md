@@ -1,6 +1,6 @@
 # Frontend UI conventions (copy interaction, not business)
 
-Version v6.1 · 2026-09-21
+Version v6.2 · 2026-11-03
 
 Do not fork any full dealer repository. Those projects usually include a buyer site, dashboards, leads, and tickets. This project uses **React 19 + TypeScript + Vite**, the Graphite CSS design system in `frontend/react/src/styles.css` (soft white canvas, charcoal ink, 6px control / 10px panel radii, uppercase tracked labels, glossy graphite primary buttons, one 40px control height, soft layered shadows; colour is reserved for status), English UI, and the implemented React pages. Fields follow [00](00-Current-Development-Design.md) only.
 

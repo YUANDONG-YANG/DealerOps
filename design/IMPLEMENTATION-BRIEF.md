@@ -1,5 +1,7 @@
 # Dealer Ops implementation brief (for AI coding)
 
+> **Historical planning document.** The current stack and delivery scope are defined by [SCOPE-BASELINE.md](SCOPE-BASELINE.md) and the live .NET 10 + React code. Sections below that describe a Java/Maven stack or forbid features that have since shipped (work orders, leads, dashboards, payments, Image Studio, the buyer site) are retained for history and are superseded where they conflict.
+
 ## Development phase: no test authoring
 
 **Development is not complete. Do not write TEST code until the user confirms feature development is complete and explicitly authorizes test work.**
@@ -40,7 +42,7 @@ Conflict order: **PPT > specification fields > DEVELOPMENT-DESIGN / PROTOCOL > 1
 2. **This brief** (scope, fields, task order) → `00` (five pages + floating assistant widget)
 3. **[13-Frontend-Engineering.md](13-Frontend-Engineering.md)**: frontend file split, routes, page↔API (frontend still follows 13 + `AI-CODING-FRONTEND`)
 4. Backend design document: **[DEVELOPMENT-DESIGN.md](DEVELOPMENT-DESIGN.md)** (scope, phases, invariants). Public HTTP/DTOs still follow **14** + OpenAPI; internal protocol/rule details **PROTOCOL**; packaging **18** / **19**.
-5. Acceptance / NN-19: **[16-Acceptance-and-Test.md](16-Acceptance-and-Test.md)** (32 cases + 6 classroom scripts; does not change contracts)
+5. Acceptance / NN-19: **[16-Acceptance-and-Test.md](16-Acceptance-and-Test.md)** (26 cases + 6 classroom scripts; does not change contracts)
 6. Ad-check fixtures: **[17-Ad-Check-Fixtures.md](17-Ad-Check-Fixtures.md)** (demo FX-01 / FX-03 / FX-10 / FX-11 / FX-12)
 7. `12` UI look; architecture/Sprint/AI in `07`–`11`
 
@@ -347,6 +349,8 @@ Sign-in wiring: [15-Data-Auth-and-Gateway.md](15-Data-Auth-and-Gateway.md) §8.4
 
 ## 10. Explicitly forbidden implementations
 
+> Superseded by SCOPE-BASELINE.md: work orders, leads, /dashboard KPIs, payments/bill-of-sale, Image Studio and the buyer site are now IN scope and shipped. The items below remain forbidden only where they do not conflict with SCOPE-BASELINE.md.
+
 - Buyer site / public inventory site / OEM portal  
 - Work orders, lead funnel, test drives, KPI dashboards, CSV import  
 - Service Bus, outbox, DLQ, message queues, second database, vector store  
@@ -395,7 +399,7 @@ Each step can be its own PR. Do not jump to a “full frontend” before prior s
 | JDK 17/21 | **Missing**; local JDK 11; Boot 3 will not compile | All Java repos |
 | MySQL 8.4 locally | **Missing** | `dealer-core` datasource and Flyway |
 | Team A/B/C names | **Missing** | Assignment cards, Review signatures |
-| Azure subscription | **Missing** | Sprint 2 cloud demo (App Service, Static Web Apps, MySQL, Key Vault) |
+| Azure subscription | **Missing** | Sprint 2 cloud demo (App Service, Static Web Apps, MySQL, Key Vault) (historical: SCOPE-BASELINE.md erratum 5 corrects this — the SPA runs on Linux App Service via `pm2 serve`, not Azure Static Web Apps) |
 | Model key | **Missing** | Sprint 2 real AI (`AIMANAGER_API_KEY`) |
 | ai-manager fixed version | **Done** | Vendored as source from `827196a` (09) |
 
