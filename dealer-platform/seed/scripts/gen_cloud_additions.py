@@ -134,7 +134,11 @@ class Writer:
         if (table, row_id) in self.resolved:
             return
         condition = self.key_condition(table, self.data[table][row_id])
-        self.lines.append(f"SET {self.var(table, row_id)} = (SELECT id FROM `{table}` WHERE {condition});")
+        # ORDER BY id LIMIT 1 keeps this a scalar subquery. The created_at part of a natural key is a
+        # one-second window (see key_condition), so rows written less than a second apart match each
+        # other; without the limit the second load of this file aborts with ERROR 1242.
+        self.lines.append(
+            f"SET {self.var(table, row_id)} = (SELECT id FROM `{table}` WHERE {condition} ORDER BY id LIMIT 1);")
         self.resolved.add((table, row_id))
 
     def audit_entity(self, row):
@@ -204,8 +208,10 @@ def main():
 
     data = read_backup(args.backup)
     # A backup of an empty, rebuilt database must not erase what an earlier run saved.
-    saved = re.findall(r"^SET @app_user_\d+ = \(SELECT id FROM `app_user` WHERE `username` <=> '(.+?)'\);$",
-                       OUT.read_text(encoding="utf-8"), re.M) if OUT.exists() else []
+    saved = re.findall(
+        r"^SET @app_user_\d+ = \(SELECT id FROM `app_user` WHERE `username` <=> '(.+?)'"
+        r"(?: ORDER BY id LIMIT 1)?\);$",
+        OUT.read_text(encoding="utf-8"), re.M) if OUT.exists() else []
     current = {u["username"].strip("'") for u in data.get("app_user", {}).values()}
     missing = [name for name in saved if name not in current]
     if missing and not args.allow_removal:
