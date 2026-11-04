@@ -20,12 +20,14 @@ GRANT ALL ON dealer_core.* TO 'dealer'@'localhost';
 
 Core creates the tables itself on first start, so there are no migrations.
 
+
 3. Set environment variables
 
 powershell
 $env:INTERNAL_TOKEN = "dev-internal-token"
 
 These only last for that terminal window, so set them in each terminal for the services that need them.
+
 
 4. Run dealer ops
 After installing everything use the opened powershell and run:
@@ -42,11 +44,13 @@ Sets the same environment variables: JWT_MODE=dev, DEV_JWT_SECRET, INTERNAL_TOKE
 Starts Core, AI Service, Gateway and the React dev server, writing logs to log-sum\ (<name>.log, plus <name>.err.log for errors).
 Waits for the health checks, sending the X-Dealer-Internal header to Core and AI Service but not to the Gateway.
 
+
 Differences from the bash version
 
 MySQL root password: the bash script assumes root has no password, which is the Homebrew default. The Windows MySQL installer makes you set one, so the script asks for it.
 Starting MySQL: instead of brew services, it tries to start a Windows service named MySQL84, MySQL80 or MySQL. If that fails, start it from services.msc or run PowerShell as Administrator once.
 Stopping: it uses taskkill /T so the child processes that dotnet run and npm spawn are stopped too.
+
 
 Notes
 
