@@ -1,14 +1,14 @@
 # Change-request synthesis
 
-Source notes: `requirements/update-cr/analysis/01-change-inventory.md` through `requirements/update-cr/analysis/10-design-and-code-impact.md`.
+Source notes: `requirements/iteration-2/analysis/01-change-inventory.md` through `requirements/iteration-2/analysis/10-design-and-code-impact.md`.
 
-Those notes read `requirements/update-cr/Changes Document.docx` (Jackson Warga, 2026-11-03). This file synthesizes them for a student capstone that must cut scope. It does not add requirements the notes do not support. Where the notes disagree, both readings are kept and named by file. No reading is chosen here.
+Those notes read `requirements/iteration-2/Changes Document.docx` (Jackson Warga, 2026-11-03). This file synthesizes them for a student capstone that must cut scope. It does not add requirements the notes do not support. Where the notes disagree, both readings are kept and named by file. No reading is chosen here.
 
 ## 1. Document identity
 
 | Field | What file 01 records |
 | --- | --- |
-| File | `requirements/update-cr/Changes Document.docx` |
+| File | `requirements/iteration-2/Changes Document.docx` |
 | Author | Jackson Warga, creator and last modifier in the core properties. The body does not name an author. It uses first person ("I"). |
 | Date | Not in the body. Core properties: created 2026-11-03T10:54:00Z, modified 2026-11-03T14:34:00Z. |
 | Title and version | Title is empty. Core property `revision` is 1, a file-revision count, not a document version. Subject, description, keywords, and company are empty. |
@@ -16,7 +16,7 @@ Those notes read `requirements/update-cr/Changes Document.docx` (Jackson Warga, 
 | Structure | Two Heading 1 sections and no Heading 2. Each heading is followed by a subtitle paragraph. No tables. 70 pictures. Screenshots illustrate current screens. They are not separate requirements. |
 | Item count | 68 items, CR-001 through CR-068, assigned by file 01. The document does not number them and does not classify them as new, modified, removed, or clarified. |
 
-**Client Requests** (CR-001–CR-020). Subtitle: the client requested these directly; they are urgent and must be completed first. Order in the body: DMS sold columns; sell-vehicle menu; sales report and dashboard; manager staff actions and a members column; home-page account creation; an optional dealership-admin role and a privilege order; sortable columns by screen.
+**Client Requests** (CR-001–CR-020). Subtitle: the client requested these directly; they are urgent and must be completed first. Order in the body: DMS sold columns; sell-vehicle menu; sales report and dashboard; manager staff actions and a members column; home-page account creation; a dealership-admin role (optional in the document, built on 2026-11-03) and a privilege order; sortable columns by screen.
 
 **Site Fixes and Changes** (CR-021–CR-068). Subtitle: issues found on the site and things the author believes should change. Less urgent than the client requests, and still to be implemented, especially the fixes. Order in the body: full-name uniqueness; missing confirmations; join-request tables; activity-log labels, search, and column order; search-box adjustments; leads, CRM, and DMS behavior; profile and staff-account labels and errors; platform-admin account, audit, dealership, and user actions; home page, shop, and buyer-site changes.
 
@@ -28,16 +28,16 @@ Read file 01 for what the document says, then use files 02–08 to see whether t
 
 | File | Question it answers |
 | --- | --- |
-| `requirements/update-cr/analysis/01-change-inventory.md` | What does the document say, item by item, with no comparison to the product? |
-| `requirements/update-cr/analysis/02-new-capabilities.md` | Which statements are new capabilities, and are they already specified, in conflict, or silent? |
-| `requirements/update-cr/analysis/03-modified-behavior.md` | Which existing behaviors does the document change, in its own words? |
-| `requirements/update-cr/analysis/04-removals-and-deprecations.md` | What is removed, replaced, deferred, or optional? |
-| `requirements/update-cr/analysis/05-data-model.md` | Which stored facts are implied, and which already exist? |
-| `requirements/update-cr/analysis/06-auth-roles-tenancy.md` | Who may do what, against the current roles, tenancy, and auth rules? |
-| `requirements/update-cr/analysis/07-workflows-and-ui.md` | Which existing screens change, and which UI conventions clash? |
-| `requirements/update-cr/analysis/08-api-and-integrations.md` | What HTTP contract, integration, and gateway work follows? |
-| `requirements/update-cr/analysis/09-gaps-risks-ambiguities.md` | What is ambiguous, contradictory, or too large to build before a decision? |
-| `requirements/update-cr/analysis/10-design-and-code-impact.md` | Which design docs and code move, how large is each item, and in what order? |
+| `requirements/iteration-2/analysis/01-change-inventory.md` | What does the document say, item by item, with no comparison to the product? |
+| `requirements/iteration-2/analysis/02-new-capabilities.md` | Which statements are new capabilities, and are they already specified, in conflict, or silent? |
+| `requirements/iteration-2/analysis/03-modified-behavior.md` | Which existing behaviors does the document change, in its own words? |
+| `requirements/iteration-2/analysis/04-removals-and-deprecations.md` | What is removed, replaced, deferred, or optional? |
+| `requirements/iteration-2/analysis/05-data-model.md` | Which stored facts are implied, and which already exist? |
+| `requirements/iteration-2/analysis/06-auth-roles-tenancy.md` | Who may do what, against the current roles, tenancy, and auth rules? |
+| `requirements/iteration-2/analysis/07-workflows-and-ui.md` | Which existing screens change, and which UI conventions clash? |
+| `requirements/iteration-2/analysis/08-api-and-integrations.md` | What HTTP contract, integration, and gateway work follows? |
+| `requirements/iteration-2/analysis/09-gaps-risks-ambiguities.md` | What is ambiguous, contradictory, or too large to build before a decision? |
+| `requirements/iteration-2/analysis/10-design-and-code-impact.md` | Which design docs and code move, how large is each item, and in what order? |
 
 ## 3. Client requests versus author suggestions
 
@@ -57,7 +57,7 @@ Urgent, and named as client requests in file 01:
 | CR-007 | A manager may edit certain employee information. | Fields are not listed. Not specific enough to implement (file 02). |
 | CR-008 | Members section shows when the member joined. | Sort list later says "Date Added (when added)." File 01 does not say those are the same column. |
 | CR-009 | Home-page account creation should become a dealership inquiry. | **Interim scope:** removing the Create account button on the home page will suffice. A different account-creation method still needs a client discussion. Do not design the inquiry in this pass (files 01, 04, 08, 10). |
-| CR-010 | A dealership-specific admin, owner, or regional-manager account, with some admin capabilities limited to one dealership. | **Optional.** The document says discuss it before full implementation. **Do not build this role until the client confirms it** (files 01, 04, 09, 10). Privilege order stated with it, most to least: platform admin; that dealership role; dealership manager; dealership staff; user not logged in. The ladder omits the unbound signed-in account, which exists today (file 06). |
+| CR-010 | A dealership-specific admin, owner, or regional-manager account, with some admin capabilities limited to one dealership. | **Superseded 2026-11-03: built.** The document called it optional and said to discuss it first; it is now implemented as a single Owner tier, a third `membership.dealer_role` value (`OWNER`/`MANAGER`/`SALES`) with the JWT roles unchanged. `admin`, `owner` and `regional manager` all mean that one role, and no cross-dealership regional manager was built. See `requirements/iteration-2/CR-Role-Hierarchy-2026-11-03.md`. Privilege order stated with it, most to least: platform admin; that dealership role; dealership manager; dealership staff; user not logged in. The ladder omits the unbound signed-in account, which exists today (file 06). |
 | CR-011–CR-020 | Named columns are sortable on DMS, Leads, Team Members, Team Activity, Team Join Requests, platform audit, Ad Rules, Pending accounts, platform Members, and manager audit menus. | The client named DMS columns. The author added the other screens and wrote that further sortable columns may be added. That invitation is not a requirement (files 01, 02, 09). Sold by, Sold to, and Date sold are not in the DMS sort list. |
 
 ### Author suggestions (CR-021–CR-068)
@@ -115,7 +115,7 @@ Grouped. Each line cites the design doc the analysis files cite. Silent gaps tha
 ### Roles and binding
 
 - Only the platform admin changes `dealer_role`. A dealer user cannot change a role (`design/15-Data-Auth-and-Gateway.md` §2.5; `design/21-Feature-Extensions.md` AUTH-26; `design/14-Backend-API-Contract.md` §3.7b). Manager promotion (CR-006) conflicts with that. A manager still cannot remove another manager (`design/14-Backend-API-Contract.md` §5.8). The document does not ask for demotion.
-- Membership is only `MANAGER` or `STAFF`, both under JWT role `Dealer.User`. JWT roles are only `Platform.Admin` and `Dealer.User`. Do not invent a third JWT role (`design/13-Frontend-Engineering.md` §3; `design/15-Data-Auth-and-Gateway.md` §2.5). The optional dealership admin / owner / regional manager conflicts with that three-level model if it is added as specified (files 02, 06). "Like the platform admin" would include every dealership, global ad rules, the platform audit log, and pending accounts (`design/14-Backend-API-Contract.md` §3, §3.9, §9.2). Ad rules are global. File 06 says a single-dealership account must not receive that route. The one-dealership limit itself matches current tenancy (one active membership; a client `dealerId` is ignored).
+- Membership is only `MANAGER` or `STAFF`, both under JWT role `Dealer.User`. JWT roles are only `Platform.Admin` and `Dealer.User`. Do not invent a third JWT role (`design/13-Frontend-Engineering.md` §3; `design/15-Data-Auth-and-Gateway.md` §2.5). **Superseded 2026-11-03:** the Owner tier was added as a third `membership.dealer_role` value, not a third JWT role, so that conflict does not arise. The membership values are now `OWNER`, `MANAGER` and `SALES` (`STAFF` renamed). "Like the platform admin" would include every dealership, global ad rules, the platform audit log, and pending accounts (`design/14-Backend-API-Contract.md` §3, §3.9, §9.2). Ad rules are global. File 06 says a single-dealership account must not receive that route. The one-dealership limit itself matches current tenancy (one active membership; a client `dealerId` is ignored).
 - Direct bind is how the platform admin grants access, including bind-without-password of a pending account (`design/14-Backend-API-Contract.md` §3.6 and §3.8; AUTH-20; `design/15-Data-Auth-and-Gateway.md` §8.2). Replacing it with an admin-sent join request conflicts with that. The person who files a join request today is the unbound account (`POST /api/v1/me/join-request`); a manager approves it (AUTH-25).
 - "Any user account" on Team > Members, Activity, and Join Requests conflicts with Team being manager-only (`design/13-Frontend-Engineering.md` §2; AUTH-27). Other sentences in the same document say "any manager account" for join requests, activity, and dealership profile, and those match. Staff may call `GET /api/v1/members` for pickers; that does not open Team. Staff must not gain an audit menu (AUD-17; `design/14-Backend-API-Contract.md` §9.1 and §9.3). File 09 C-03 asks which wording wins. This synthesis does not choose.
 - Changing a pending account's username conflicts with username as the JWT subject, the membership key, and the audit actor (`design/15-Data-Auth-and-Gateway.md` §8.3). Email and phone edits are an extension, not that conflict. Account email and phone uniqueness stays.
@@ -171,7 +171,7 @@ From file 05, these are the stored-fact changes. Deferred items have no fields t
 
 **Not new tables:** day, week, month, and year are filters on `sold_on`. Employee metrics need the seller fact; the document does not name the measures, so it does not by itself add revenue, count, or profit columns (file 05). "Sales employees" is not a new role. Do not add a sales-employee flag. Lead count on a vehicle is a query on `sales_lead.vehicle_id`. The count column is possible, not mandatory. Admin-sent join requests can use the existing `JOIN_REQUEST` row (files 05, 08). File 08 marks that reuse as inferred.
 
-**Deferred, with no fields:** home-page create-account becoming a dealership inquiry, and the dealership admin / owner / regional manager role.
+**Deferred, with no fields:** home-page create-account becoming a dealership inquiry. The dealership admin / owner / regional manager role is no longer deferred: it reuses the existing `membership.dealer_role` column, whose values become `OWNER`, `MANAGER` and `SALES` through the idempotent data patch in `requirements/iteration-2/CR-Role-Hierarchy-2026-11-03.md` §4.
 
 **Contract work from file 08.** The document names no URLs, status codes, or payloads. Paths below are the current contract, not new paths invented as requirements. Inferred shapes stay marked.
 
@@ -186,7 +186,7 @@ From file 05, these are the stored-fact changes. Deferred items have no fields t
 | Manager promotion | New manager-only write. File 08 infers a dealer route mirroring the admin role route, and infers that demotion stays admin-only. Fields a manager may edit are not listed, so file 08 does not list them. |
 | Member join time | Contract change on `GET /api/v1/members`. |
 | Home Create account, interim | No API change. Register, Google, and Firebase stay. Inquiry endpoint is deferred. It is not the buyer inquiry `POST /api/v1/public/dealers/{dealerId}/inquiries`. |
-| Dealership-admin role | Deferred. No contract change in this pass. |
+| Dealership-admin role | **Built 2026-11-03.** `dealerRole` becomes `OWNER`/`MANAGER`/`SALES`; the dealership profile and join-request approval are owner-only; the Team reads admit owner and manager; the admin binds the first owner directly and files a join request after that. |
 | Sort | Inferred server `sort` on paginated lists. Full arrays can sort in the client once the column exists. |
 | Shared full name | Contract change. Stop `409 DISPLAY_NAME_TAKEN` on the named writes. The JSON field stays `displayName`. |
 | Join-request past table | Contract change on the join-request list if that list must return decided rows. Approve and reject paths stay. |
@@ -214,7 +214,7 @@ The gateway stays a proxy. It already allows anonymous login, register, Google, 
 
 ## 7. UI
 
-No new route is required now. File 07: no workflow in the document asks for a new route that is specified well enough to build. The only new-screen candidates are deferred (a dealership inquiry, and the dealership-scoped admin). Bill of sale, ad compliance, the assistant, disclaimer, login fields, and the no-access screen are not given new steps.
+No new route is required now. File 07: no workflow in the document asks for a new route that is specified well enough to build. The one remaining new-screen candidate is deferred (a dealership inquiry); the dealership-scoped admin was built on the existing Team and Admin screens, with no new route. Bill of sale, ad compliance, the assistant, disclaimer, login fields, and the no-access screen are not given new steps.
 
 Existing screens the notes map to the document:
 

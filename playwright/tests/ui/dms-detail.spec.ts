@@ -32,11 +32,11 @@ async function vehicleAudit(api: Api, vehicleId: number) {
  * whose check is BLOCKED (a CASH ad without a price), so no AI call is needed.
  */
 async function seedVehicle(staffApi: Api, staff2Api: Api) {
-  const vin = randomVin();
+  const vin = randomVin(2020);
   const created = await staffApi.createVehicle({
     vin, make: 'Toyota', model: 'Camry', modelYear: 2020, source: 'AUCTION', purchaseCost: 14200,
     addedOn: '2026-09-01', conditionCode: 'AS_IS', repairCost: 800,
-    carfaxUrl: `https://example.invalid/carfax/${vin}`,
+    carfaxUrl: `https://www.carfax.ca/report/${vin}`,
   });
   const customer = await staffApi.createCustomer();
   await expectStatus(await staffApi.put(`/api/v1/customers/${customer.id}/vehicles/${created.id}`), 200);
@@ -98,7 +98,7 @@ async function expectHistory(drawer: Locator, api: Api, vehicleId: number, expec
 
 async function openFromList(page: Page, vehicle: Vehicle) {
   await page.goto('/dms');
-  await page.getByPlaceholder('Search VIN, make or model').fill(vehicle.vin);
+  await page.getByPlaceholder('Search VIN, stock #, make or model').fill(vehicle.vin);
   await page.getByRole('button', { name: 'Search', exact: true }).click();
   const row = page.getByRole('row').filter({ hasText: vehicle.vin });
   await expect(row).toHaveCount(1);
@@ -177,7 +177,10 @@ test('UI-22 / DMS-08 / AUD-06: a sold vehicle opened by link shows the sale, the
 }) => {
   const { vehicle, customer } = await seedVehicle(staffApi, staff2Api);
   const soldOn = today();
-  await staffApi.sellVehicle(vehicle, 18900, soldOn);
+  // CR-D8: a sale names its buyer, and a vehicle already linked in CRM is sold to that customer.
+  await expectStatus(await staffApi.post(`/api/v1/vehicles/${vehicle.id}/sell`, {
+    soldOn, soldPrice: 18900, version: vehicle.version, buyerCustomerId: customer.id,
+  }), 200);
 
   await page.goto(`/dms?vehicleId=${vehicle.id}`);
   const drawer = detailDrawer(page);
@@ -200,4 +203,36 @@ test('UI-22 / DMS-08 / AUD-06: a sold vehicle opened by link shows the sale, the
     ['LINK', env.staff.username],
     ['CREATE', env.staff.username],
   ]);
+});
+
+test('CR-R1 / D-11: the vehicle drawer lists the vehicle\'s leads, each linking to that lead', async ({
+  staffPage: page, staffApi,
+}) => {
+  const vehicle = await staffApi.createVehicle();
+  const customer = await staffApi.createCustomer();
+  const created = await staffApi.post('/api/v1/leads', {
+    customerId: customer.id, vehicleId: vehicle.id, ownerUsername: env.staff.username,
+  });
+  await expectStatus(created, 201);
+  const lead = (await created.json()) as { id: number };
+
+  const drawer = await openFromList(page, vehicle);
+  const link = drawer.getByRole('link', { name: `${customer.name} · New` });
+  await expect(link).toBeVisible();
+  await expect(link).toHaveAttribute('href', `/leads?leadId=${lead.id}`);
+  await expect(drawer.getByText('No leads for this vehicle.')).toHaveCount(0);
+
+  // The list column repeats the count.
+  await page.goto('/dms');
+  await page.getByPlaceholder('Search VIN, stock #, make or model').fill(vehicle.vin);
+  await page.getByRole('button', { name: 'Search', exact: true }).click();
+  const row = page.getByRole('row').filter({ hasText: vehicle.vin });
+  await expect(row).toHaveCount(1);
+  await expect(row.getByRole('cell', { name: '1', exact: true })).toBeVisible();
+});
+
+test('CR-R1: a vehicle with no leads says so in the drawer', async ({ staffPage: page, staffApi }) => {
+  const vehicle = await staffApi.createVehicle();
+  const drawer = await openFromList(page, vehicle);
+  await expect(drawer.getByText('No leads for this vehicle.')).toBeVisible();
 });

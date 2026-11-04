@@ -41,15 +41,15 @@ tags:
   - name: Catalog
     description: Anonymous NHTSA vPIC lookups and the public dealer directory
   - name: JoinRequests
-    description: Dealership managers' approval of join requests and the dealer inbox
+    description: The dealership owner's approval of join requests, and the dealer inbox
   - name: DealerTeam
-    description: Dealership managers' own profile and staff
+    description: The own dealership's profile (owner) and members (owner or manager)
   - name: Release
     description: Gateway release timestamps (anonymous)
   - name: AdminDealers
     description: Platform.Admin dealership CRUD
   - name: AdminMemberships
-    description: Platform.Admin staff membership binding
+    description: Platform.Admin membership binding
   - name: Vehicles
     description: Dealer.User vehicle DMS
   - name: Customers
@@ -339,6 +339,8 @@ paths:
       description: |
         Deactivates the account and its memberships, cancels a pending join request, and frees the email, phone, and Google subject
         for a fresh sign-up. Username and audit history stay. The client must discard its token. Platform.Admin → **403**.
+        A caller who is their dealership's owner while another active member remains → 409 `LAST_OWNER`: the platform
+        admin appoints another owner first. An owner who is the last active member deletes as usual.
         Audited as `APP_USER`/`DELETE` with `{self:true}`.
       responses:
         "204":
@@ -349,6 +351,12 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
+        "409":
+          description: LAST_OWNER
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
 
   /api/v1/me/join-request:
     get:
@@ -409,7 +417,7 @@ paths:
       tags: [JoinRequests]
       operationId: listJoinRequests
       summary: Pending join requests for the caller's dealership
-      description: Dealership manager (design/21 AUTH-27); staff → 403. Active unbound accounts that requested this dealership, newest first. Not paginated.
+      description: Dealership owner only (design/21 AUTH-27); a manager, a sales member or the admin → 403. Active unbound accounts that requested this dealership, newest first. Not paginated.
       responses:
         "200":
           description: Join requests
@@ -430,7 +438,7 @@ paths:
       operationId: approveJoinRequest
       summary: Approve a join request
       description: |
-        Dealership manager only; staff → 403. Creates or reactivates the membership as `STAFF` in the caller's dealership, binds the account, and resolves the
+        Dealership owner only; a manager or a sales member → 403. Creates or reactivates the membership as `SALES` in the caller's dealership, binds the account, and resolves the
         `JOIN_REQUEST` notification as `APPROVED`. Audited as `MEMBERSHIP`/`CREATE` with `source=join_request`.
         No pending request from that username to this dealership → **404**.
       parameters:
@@ -451,7 +459,7 @@ paths:
       operationId: rejectJoinRequest
       summary: Reject a join request
       description: |
-        Dealership manager only; staff → 403. Clears the requested dealership (the account stays, unbound) and resolves the notification as `REJECTED`.
+        Dealership owner only; a manager or a sales member → 403. Clears the requested dealership (the account stays, unbound) and resolves the notification as `REJECTED`.
         Audited as `APP_USER`/`UPDATE`. No pending request → **404**.
       parameters:
         - $ref: "#/components/parameters/Username"
@@ -471,7 +479,7 @@ paths:
       operationId: listNotifications
       summary: Dealer-wide inbox
       description: |
-        Any dealership member. Managers see every row; staff see every kind except `JOIN_REQUEST`.
+        Any dealership member. Only the owner sees `JOIN_REQUEST` rows, because only the owner acts on them; managers and sales members see every other kind.
         A `BUYER_INQUIRY` row (payload `leadId`, `customerName`, `vehicle`) is posted when a buyer-site
         inquiry files a lead and is resolved as `TAKEN` once that lead gets an owner or leaves `NEW`.
         Newest first. Not paginated. Default is unresolved rows only; `includeResolved=true` returns the full history.
@@ -675,11 +683,11 @@ paths:
     post:
       tags: [AdminMemberships]
       operationId: bindMember
-      summary: Bind staff or send a join request
+      summary: Bind the first owner or send a join request
       description: |
         Already an **active** member of this dealership, still active at another dealership, or the username belongs to a Platform.Admin account → **409** `DUP_MEMBER`.
         Re-binding a previously unbound person reactivates them (not 409). An existing account keeps its own password, display name, and contact fields; only a new account takes them from the body.
-        While the dealership has no active manager the login is bound directly as its first `MANAGER` (**201**). Otherwise nothing is bound: the login (created if new) gets a join request for this dealership that a dealership manager approves in Team > Join Requests (**202**, design/21 AUTH-28).
+        While the dealership has no active owner the login is bound directly as its first `OWNER` (**201**); an empty dealership has nobody to approve a join request. Otherwise nothing is bound: the login (created if new) gets a join request for this dealership that the dealership owner approves in Team > Join Requests (**202**, design/21 AUTH-28).
       requestBody:
         required: true
         content:
@@ -688,7 +696,7 @@ paths:
               $ref: "#/components/schemas/MemberBind"
       responses:
         "201":
-          description: Member item (direct bind of the first manager)
+          description: Member item (direct bind of the first owner)
           content:
             application/json:
               schema:
@@ -721,8 +729,11 @@ paths:
     delete:
       tags: [AdminMemberships]
       operationId: unbindMember
-      summary: Unbind staff
-      description: Unbind without deleting the `app_user` account. Unknown binding → 404. Success **204** with no body.
+      summary: Unbind a member
+      description: |
+        Unbind without deleting the `app_user` account. Unknown binding → 404. Success **204** with no body.
+        The dealership's only active owner cannot be unbound while another active member remains → 409
+        `LAST_OWNER`; appoint the next owner first. An owner who is the last active member is unbound as usual.
       parameters:
         - $ref: "#/components/parameters/DealerId"
         - $ref: "#/components/parameters/Username"
@@ -735,6 +746,12 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
+        "409":
+          description: LAST_OWNER
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
     patch:
       tags: [AdminMemberships]
       operationId: updateMemberContact
@@ -786,7 +803,8 @@ paths:
         Same soft delete as `DELETE /api/v1/me`: memberships are unbound, a pending join request is cancelled, the
         account is deactivated and its email, phone and Google link are freed. The username and audit trail stay.
         A Platform.Admin account, including the caller → 403. No membership row of that username at this
-        dealership, or already deleted → 404. Success **204** with no body.
+        dealership, or already deleted → 404. The dealership's only active owner while another active member
+        remains → 409 `LAST_OWNER`. Success **204** with no body.
       parameters:
         - $ref: "#/components/parameters/DealerId"
         - $ref: "#/components/parameters/Username"
@@ -799,12 +817,18 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
+        "409":
+          description: LAST_OWNER
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
 
   /api/v1/admin/dealers/{id}/members/{username}/password:
     put:
       tags: [AdminMemberships]
       operationId: resetMemberPassword
-      summary: Reset a staff password
+      summary: Reset a member's password
       description: |
         Sets a new password for an active member who forgot theirs; the admin tells the person out of band. Success **204** with no body.
         Only `signInMethod=password` accounts qualify. A Google or Firebase account → **400** `VALIDATION` with a `password` field error, because that provider owns the password.
@@ -840,10 +864,14 @@ paths:
     put:
       tags: [AdminMemberships]
       operationId: setMemberDealerRole
-      summary: Promote to manager or demote to staff
+      summary: Set a member's dealership role
       description: |
-        Platform admin only (design/21 AUTH-26); a dealership manager uses `PUT /api/v1/dealer/members/{username}/role` for their own dealership. Setting the current role is a no-op.
+        Platform admin only (design/21 AUTH-26). Accepts `OWNER`, `MANAGER` or `SALES`: this is the only way an owner is appointed after the bootstrap bind or replaced when one leaves. Inside a dealership the owner and its managers use `PUT /api/v1/dealer/members/{username}/role`, which never accepts `OWNER`. Setting the current role is a no-op.
         No active binding of that username at this dealership → 404. Audit `MEMBERSHIP`/`UPDATE` `{username, dealerRole}`.
+        A dealership has exactly one active owner (design/15 §2.5): `OWNER` on another member **transfers** the
+        office, demoting the sitting owner to `MANAGER` and promoting the target in one transaction with an audit
+        row for both memberships. Any other role on the dealership's only active owner → 409 `LAST_OWNER`:
+        appoint the next owner instead, which transfers the office.
       parameters:
         - $ref: "#/components/parameters/DealerId"
         - $ref: "#/components/parameters/Username"
@@ -868,13 +896,19 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
+        "409":
+          description: LAST_OWNER
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
 
   /api/v1/dealer/profile:
     get:
       tags: [DealerTeam]
       operationId: getOwnDealership
-      summary: The manager's own dealership
-      description: Dealership manager only (design/21 AUTH-27); staff → 403.
+      summary: The owner's own dealership
+      description: Dealership owner only (design/21 AUTH-27); a manager, a sales member or the admin → 403.
       responses:
         "200":
           description: Dealership
@@ -891,7 +925,7 @@ paths:
       operationId: patchOwnDealership
       summary: Edit the own dealership's profile
       description: |
-        Dealership manager only; staff → 403. Same rules as the admin edit without `active`, which stays with the admin.
+        Dealership owner only; a manager or a sales member → 403. Same rules as the admin edit without `active`, which stays with the admin.
         Stale `version` → 409 `VERSION_CONFLICT`. Audit `DEALER`/`UPDATE` with the changed keys.
       requestBody:
         required: true
@@ -930,10 +964,10 @@ paths:
   /api/v1/dealer/members/{username}:
     delete:
       tags: [DealerTeam]
-      operationId: removeOwnStaff
-      summary: Remove a staff member from the own dealership
+      operationId: removeOwnMember
+      summary: Remove a member from the own dealership
       description: |
-        Dealership manager only. Soft unbind, as the admin unbind. A manager, the caller included → 403 (only the admin removes managers).
+        Dealership owner or manager. Soft unbind, as the admin unbind. An owner removes a `MANAGER` or a `SALES` member; a manager removes `SALES` members only. The `OWNER`, the caller included, or a `MANAGER` targeted by a manager → 403.
         No active member of that name → 404. Success **204** with no body.
       parameters:
         - $ref: "#/components/parameters/Username"
@@ -951,7 +985,7 @@ paths:
       operationId: updateOwnMember
       summary: Edit a member's full name and phone
       description: |
-        Dealership manager only. A blank or null phone clears it; the phone is stored as `+digits`.
+        Dealership owner or manager. An owner edits any member below owner; a manager edits `SALES` members only. The `OWNER` as target, or a `MANAGER` targeted by a manager → 403. A blank or null phone clears it; the phone is stored as `+digits`.
         No active member of that name in this dealership → 404. Audit `APP_USER`/`UPDATE` with the changed keys.
       parameters:
         - $ref: "#/components/parameters/Username"
@@ -987,9 +1021,9 @@ paths:
     put:
       tags: [DealerTeam]
       operationId: setOwnMemberDealerRole
-      summary: Set another member of the own dealership to manager or staff
+      summary: Set another member of the own dealership to manager or sales
       description: |
-        Dealership manager only. The caller's own username → 403 ("You cannot change your own role.").
+        Dealership owner or manager; `OWNER` is never accepted here (only the platform admin appoints an owner). An owner sets any member below owner to `MANAGER` or `SALES`; a manager may only promote a `SALES` member to `MANAGER`. The `OWNER` as target, a `MANAGER` targeted by a manager, or the caller's own username → 403 ("You cannot change your own role.").
         Setting the current role is a no-op. No active member of that name in this dealership → 404.
         Audit `MEMBERSHIP`/`UPDATE` `{username, dealerRole}`.
       parameters:
@@ -1003,7 +1037,12 @@ paths:
               required: [dealerRole]
               properties:
                 dealerRole:
-                  $ref: "#/components/schemas/DealerRole"
+                  type: string
+                  enum: [MANAGER, SALES]
+                  description: |
+                    Only `MANAGER` or `SALES` from inside the dealership. `OWNER` is a valid
+                    `DealerRole` but is refused here with 403 `FORBIDDEN`: only the platform admin
+                    appoints an owner (`PUT /api/v1/admin/dealers/{id}/members/{username}/role`).
       responses:
         "204":
           description: Role set, no body
@@ -1023,13 +1062,20 @@ paths:
       summary: Accounts waiting for a dealership
       description: |
         Platform.Admin only. Active Dealer.User accounts with no active membership (self sign-ups,
-        unbound former staff), newest first. `q` matches username, display name, email, or phone. Bind one with
+        unbound former members), newest first. `q` matches username or display name. Bind one with
         `POST /api/v1/admin/dealers/{id}/members` without a password (a direct bind or a join request).
       parameters:
         - name: q
           in: query
           required: false
           schema: { type: string }
+        - name: sort
+          in: query
+          required: false
+          schema: { type: string, example: "createdAt,asc" }
+          description: |
+            `createdAt,asc|desc` (direction defaults to asc), applied to the whole queue before paging, with the
+            account id in the same direction breaking ties (CR-018). Omitted → newest first. Other values → 400 VALIDATION.
         - $ref: "#/components/parameters/Page"
         - $ref: "#/components/parameters/Size"
       responses:
@@ -1039,6 +1085,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/PagePendingUser"
+        "400":
+          $ref: "#/components/responses/Validation"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -1113,7 +1161,7 @@ paths:
           in: query
           schema:
             type: string
-          description: Substring of VIN / make / model
+          description: Substring of VIN / make / model / stock number
         - name: make
           in: query
           schema:
@@ -1176,7 +1224,8 @@ paths:
           description: |
             `field,asc|desc` (direction defaults to asc), applied before paging with newest first breaking ties; field is one of
             stockNumber, bodyType, source, conditionCode, purchaseCost, listPrice, addedOn, openWorkOrders, leadCount, status,
-            soldOn, soldBy, soldToName. Omitted → newest first. Other values → 400 VALIDATION.
+            soldOn, soldBy, soldToName. Blank values sort last in both directions. Omitted → newest first.
+            Other values → 400 VALIDATION.
         - $ref: "#/components/parameters/Page"
         - $ref: "#/components/parameters/Size"
       responses:
@@ -1186,6 +1235,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/PageVehicle"
+        "400":
+          $ref: "#/components/responses/Validation"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -1198,6 +1249,7 @@ paths:
         Required: make/model/modelYear/vin/source/purchaseCost/addedOn/conditionCode.
         Ignore `dealerId`, `status`, `soldOn`, `soldPrice`. Server sets `status=IN_STOCK`.
         Duplicate VIN in this dealership → **400** `VIN_DUP`. Audit `VEHICLE`/`CREATE`.
+        CR-047: the VIN is decoded through `/api/v1/catalog/vin/{vin}` and the decoded make, model and model year must agree with the body, else **400** `VALIDATION` with the message under `fieldErrors.make` / `fieldErrors.model` / `fieldErrors.modelYear`. Make and model are compared on letters and digits only, ignoring case, spacing and punctuation; a value the decoder leaves blank is not checked. When the decoder is unreachable, times out or knows no vehicle for the VIN, the save falls back to the VIN model-year character check (D-8) and proceeds, so this operation never returns `CATALOG_UNAVAILABLE`.
       requestBody:
         required: true
         content:
@@ -1226,6 +1278,12 @@ paths:
                   value:
                     code: VIN_DUP
                     message: VIN already exists in this dealership.
+                vinMismatch:
+                  value:
+                    code: VALIDATION
+                    message: 'Make does not match the VIN: the VIN decodes to "Toyota", not "Honda". Correct the make or the VIN.'
+                    fieldErrors:
+                      make: 'Make does not match the VIN: the VIN decodes to "Toyota", not "Honda". Correct the make or the VIN.'
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -1401,6 +1459,7 @@ paths:
         PATCH must not change `status` / `soldOn` / `soldPrice` (use `/sell`). Ignore `dealerId`.
         Changing purchase fields on a sold vehicle → **409** `SOLD_LOCKED`. Changing VIN on an unsold vehicle still has dealership uniqueness → **400** `VIN_DUP`.
         Changing `conditionCode` increments the matching listing `contentVersion++` when a listing exists.
+        CR-047: changing `vin`, `make`, `model` or `modelYear` re-runs the VIN decode match of `createVehicle`, with the same fallback when the decoder is unavailable.
       requestBody:
         required: true
         content:
@@ -1627,7 +1686,7 @@ paths:
       tags: [Payments]
       operationId: getPaymentLedger
       summary: Payments received for a vehicle and the balance due
-      description: Dealership manager only; staff → **403** `FORBIDDEN` (PAY-05).
+      description: Dealership owner or manager; a sales member → **403** `FORBIDDEN` (PAY-05).
       responses:
         "200":
           description: Ledger
@@ -1646,8 +1705,8 @@ paths:
         Records money already received; no card is charged. In-stock vehicle → **400** `VALIDATION`;
         more than the balance due → **400** on `amount`; `paidOn` after today or before the sold date → **400** on `paidOn`.
         Audited as `VEHICLE`/`UPDATE` `{paymentAdded, paymentMethod, paidOn}`.
-        Open to every dealer user (PAY-05): a manager gets the updated `PaymentLedger`; staff get only the recorded
-        `PaymentItem`, because staff may not view the ledger.
+        Open to every dealer user (PAY-05): an owner or a manager gets the updated `PaymentLedger`; a sales member gets only the
+        recorded `PaymentItem`, because a sales member may not view the ledger.
       requestBody:
         required: true
         content:
@@ -1656,7 +1715,7 @@ paths:
               $ref: "#/components/schemas/PaymentCreate"
       responses:
         "201":
-          description: Manager → updated ledger; staff → the recorded payment only
+          description: Owner or manager → updated ledger; sales member → the recorded payment only
           content:
             application/json:
               schema:
@@ -1680,7 +1739,7 @@ paths:
       operationId: deletePayment
       summary: Remove a mistaken payment
       description: |
-        Dealership manager only; staff → **403** `FORBIDDEN` (PAY-05).
+        Dealership owner or manager; a sales member → **403** `FORBIDDEN` (PAY-05).
         Audited as `VEHICLE`/`UPDATE` `{paymentRemoved, paidOn}` with `previous`
         `{amount, paymentMethod, paidOn, hasNote}` of the removed payment (the note body is never audited).
       responses:
@@ -1769,8 +1828,13 @@ paths:
       operationId: createInquiry
       summary: Ask a dealership about a listed vehicle
       description: |
-        Anonymous. Reuses the active customer with the same phone or creates one, then files a NEW lead on the vehicle,
-        due today, with the message as its first note (actor `buyer-site`). Field errors use `contact.name`-style keys.
+        Anonymous. Reuses the most recently updated active customer whose phone AND name both match - phone compared
+        digits only, name trimmed and case-insensitive - or creates one. Phone alone is never enough, so people who
+        share a phone keep separate customer profiles; the email is never part of the match and a different email
+        neither prevents it nor overwrites the stored address. When that customer already has an open lead on the vehicle, the message is
+        added to it as a note and no `BUYER_INQUIRY` notification is posted; otherwise a NEW lead on the vehicle, due
+        today, is filed with the message as its first note and announced to the dealership inbox (actor
+        `buyer-site`). Field errors use `contact.name`-style keys.
         Unlisted vehicle → **404**. Rate-limited per IP → **429** `RATE_LIMITED`.
       security: []
       requestBody:
@@ -2087,11 +2151,23 @@ paths:
       tags: [Customers]
       operationId: deleteCustomer
       summary: Soft delete a customer while retaining sales and audit history
+      description: >
+        A customer linked to a vehicle with `status=SOLD` is the buyer of that sale and
+        cannot be deleted → **409** `SOLD_LOCKED`.
       responses:
         "204": { description: Removed from active CRM lists }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: SOLD_LOCKED (the buyer of a sold vehicle cannot be deleted)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                code: SOLD_LOCKED
+                message: Buyer of a sold vehicle cannot be deleted.
 
   /api/v1/customers/{id}/vehicles/{vehicleId}:
     put:
@@ -2373,6 +2449,14 @@ paths:
           in: query
           description: true = open stage and nextFollowUpOn before today (server date)
           schema: { type: boolean }
+        - name: sort
+          in: query
+          schema: { type: string, example: "customerName,asc" }
+          description: |
+            `field,asc|desc` (direction defaults to asc), applied before paging with newest first breaking ties (CR-012); field is one of
+            customerName, vehicle ("year make model", as the column displays it), stage (pipeline order NEW, CONTACTED, QUALIFIED, WON, LOST), ownerUsername,
+            nextFollowUpOn (won and lost leads sort as blank). Blank values sort last in both directions.
+            Omitted → newest first. Other values → 400 VALIDATION.
         - $ref: "#/components/parameters/Page"
         - $ref: "#/components/parameters/Size"
       responses:
@@ -2382,6 +2466,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/PageLeadListItem"
+        "400":
+          $ref: "#/components/responses/Validation"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -2523,6 +2609,7 @@ paths:
       summary: Reopen a won or lost lead to an open stage (CR L4)
       description: |
         A LOST lead can always be reopened; a WON lead only while its vehicle is not SOLD and linked to the lead's customer → else **409** `LEAD_CLOSED`.
+        A lead that has a vehicle reopens only while that vehicle is still IN_STOCK in this dealership, as a create requires → else **400** `WRONG_DEALER_OR_SOLD`; a lead with no vehicle always reopens.
         An open lead, or a closed target stage → **400** `VALIDATION`. Another open lead for the same customer and vehicle → **409** `LEAD_DUPLICATE`.
         `lostReason` is cleared. Audit `LEAD`/`UPDATE` with `stage` and `reopened: true`.
       requestBody:
@@ -2593,7 +2680,12 @@ paths:
     get:
       tags: [Members]
       operationId: listDealershipMembers
-      summary: Active members of the caller's dealership (owner and assignee pickers)
+      summary: Active members of the caller's dealership (Team page and assignee pickers)
+      description: >-
+        Open to every bound member, because the lead owner and work-order assignee pickers need it,
+        so the caller's dealership role decides the payload. A caller with team access (OWNER or
+        MANAGER) receives the full record; any other member receives the picker fields only
+        (username and displayName), with source, dealerRole, phone and joinedAt omitted.
       responses:
         "200":
           description: Members sorted by username
@@ -2603,16 +2695,25 @@ paths:
                 type: array
                 items:
                   type: object
-                  required: [username, displayName, source, dealerRole, phone, joinedAt]
+                  required: [username, displayName]
                   properties:
                     username: { type: string }
                     displayName: { type: string, description: Falls back to the username }
                     source:
-                      $ref: "#/components/schemas/AccountSource"
+                      allOf:
+                        - $ref: "#/components/schemas/AccountSource"
+                      description: Team access only; omitted for a caller without it, and omitted when the source is unknown
                     dealerRole:
-                      $ref: "#/components/schemas/DealerRole"
-                    phone: { type: string, nullable: true, description: "The account's own phone, +digits" }
-                    joinedAt: { type: string, format: date-time, description: "Membership created_at, UTC" }
+                      allOf:
+                        - $ref: "#/components/schemas/DealerRole"
+                      description: Team access only; omitted for a caller without it
+                    phone:
+                      type: string
+                      description: "Team access only; the account's own phone, +digits. Omitted for a caller without it, and omitted when the account has no phone"
+                    joinedAt:
+                      type: string
+                      format: date-time
+                      description: "Team access only; membership created_at, UTC. Omitted for a caller without it"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -2624,13 +2725,14 @@ paths:
       operationId: listAudit
       summary: Audit
       description: |
-        Dealership manager only (AUD-17); staff and the admin → **403** `FORBIDDEN` for every entity type.
+        Dealership owner or manager (AUD-17); a sales member and the admin → **403** `FORBIDDEN` for every entity type.
         `entityType` and `entityId` are required. This dealership only; entity not in this dealership → 404.
-        Managers may query `VEHICLE`|`CUSTOMER`|`CUSTOMER_VEHICLE`|`LEAD`|`WORK_ORDER`|`VEHICLE_PHOTO`|`LISTING`; `DEALER`/`MEMBERSHIP` → **403**; any other type → **400** `VALIDATION`.
+        An owner or a manager may query `VEHICLE`|`CUSTOMER`|`CUSTOMER_VEHICLE`|`LEAD`|`WORK_ORDER`|`VEHICLE_PHOTO`|`LISTING`; `DEALER`/`MEMBERSHIP` → **403**; any other type → **400** `VALIDATION`.
         `CUSTOMER` history also includes the `CUSTOMER_VEHICLE` link/unlink events of that customer.
         `VEHICLE` history also includes the `CUSTOMER_VEHICLE` link/unlink and `VEHICLE_PHOTO` events of that vehicle.
         `fieldSummary` has no full customer phone/email/home address.
-        Newest first. `dealerId`, `clientIp`, and `clientLocation` are not returned here.
+        Newest first unless `sort` is given; the sort orders the whole history before paging (CR-020).
+        `dealerId`, `clientIp`, and `clientLocation` are not returned here.
       parameters:
         - name: entityType
           in: query
@@ -2643,6 +2745,14 @@ paths:
           schema:
             type: integer
             format: int64
+        - name: sort
+          in: query
+          schema:
+            type: string
+            example: actorUsername,asc
+          description: |
+            `field,asc|desc` (direction defaults to asc); field is one of createdAt, actorUsername, action.
+            Ties and omitted → newest first. Other values → 400 VALIDATION.
         - $ref: "#/components/parameters/Page"
         - $ref: "#/components/parameters/Size"
       responses:
@@ -2707,7 +2817,7 @@ paths:
       operationId: listDealershipAudit
       summary: Dealership audit log
       description: |
-        Dealership manager only (AUD-11); staff and the admin → **403** `FORBIDDEN`. Every audit row of the caller's
+        Dealership owner or manager (AUD-11); a sales member and the admin → **403** `FORBIDDEN`. Every audit row of the caller's
         dealership, newest first. Same filters as `GET /api/v1/admin/audit` except `dealerId`, which is ignored.
         Unknown `entityType` or `action` → **400** `VALIDATION`. Rows carry `dealerId`, `clientIp`, and `clientLocation`.
       parameters:
@@ -2937,7 +3047,8 @@ components:
         example: actorUsername,asc
       description: |
         `field,asc|desc` (direction defaults to asc); field is one of createdAt, actorUsername, action,
-        entityType (then entityId), dealerId, clientIp. Omitted → newest first. Other values → 400 VALIDATION.
+        entityType (then entityId), dealerId, clientIp, clientLocation. Blank values sort last in both directions.
+        Omitted → newest first. Other values → 400 VALIDATION.
     QLegalName:
       name: q
       in: query
@@ -3171,6 +3282,7 @@ components:
         | METHOD_NOT_ALLOWED | 405 | HTTP method not supported on this path |
         | VERSION_CONFLICT | 409 | version mismatch |
         | DUP_MEMBER | 409 | This dealership already has this active member |
+        | LAST_OWNER | 409 | Demote, unbind or delete the dealership's only active owner while it still has another active member |
         | USERNAME_TAKEN | 409 | Sign-up (password, Google, Firebase) or new member with a username already in use |
         | EMAIL_TAKEN | 409 | Sign-up or new member with an email already in use. Customer email is not rejected; a shared customer email is `emailWarning` on the saved detail |
         | PHONE_TAKEN | 409 | Sign-up, new member, or `PATCH /me` with a phone already in use |
@@ -3179,7 +3291,7 @@ components:
         | WORK_ORDER_CLOSED | 409 | Change to a DONE or CANCELLED work order |
         | WORK_ORDERS_OPEN | 409 | Sell while open work orders exist |
         | VEHICLE_ALREADY_LINKED | 409 | Vehicle already linked to a customer |
-        | SOLD_LOCKED | 409 | Sold purchase edit, sell again, or unlink a sold vehicle |
+        | SOLD_LOCKED | 409 | Sold purchase edit, sell again, unlink a sold vehicle, or delete the buyer of a sold vehicle |
         | CHECK_STALE | 409 | Check is stale on Ready/Export |
         | NOT_PASSED | 409 | Check is not Passed on Ready/Export |
         | UNSUPPORTED_MEDIA_TYPE | 415 | Request body is not `application/json`, or an uploaded photo is not JPEG/PNG |
@@ -3197,6 +3309,7 @@ components:
         - METHOD_NOT_ALLOWED
         - VERSION_CONFLICT
         - DUP_MEMBER
+        - LAST_OWNER
         - USERNAME_TAKEN
         - EMAIL_TAKEN
         - PHONE_TAKEN
@@ -3239,8 +3352,8 @@ components:
 
     DealerRole:
       type: string
-      enum: [MANAGER, STAFF]
-      description: Role inside the dealership, stored on the membership (design/15 §2.5). Only the platform admin changes it.
+      enum: [OWNER, MANAGER, SALES]
+      description: Role inside the dealership, stored on the membership (design/15 §2.5). One active `OWNER` per dealership, appointed only by the platform admin; the owner appoints managers and sales members, and a manager may promote a sales member to manager.
 
     VehicleStatus:
       type: string
@@ -3389,7 +3502,7 @@ components:
           allOf:
             - $ref: "#/components/schemas/DealerRole"
           nullable: true
-          description: MANAGER or STAFF in the bound dealership; null for the admin and unbound accounts
+          description: OWNER, MANAGER or SALES in the bound dealership; null for the admin and unbound accounts
 
     MePatch:
       type: object
@@ -3811,7 +3924,7 @@ components:
         vin:
           type: string
           pattern: "^[A-HJ-NPR-Za-hj-npr-z0-9]{17}$"
-          description: 17 characters without I, O, or Q; stored upper-cased. From model year 1980 on, the 10th character (model-year code, 30-year cycle) must match `modelYear`, else 400 VALIDATION on `vin`; PATCH re-checks it only when `vin` or `modelYear` changes.
+          description: 17 characters without I, O, or Q; stored upper-cased. From model year 1980 on, the 10th character (model-year code, 30-year cycle) must match `modelYear`, else 400 VALIDATION on `vin`; PATCH re-checks it only when `vin` or `modelYear` changes. CR-047 also decodes the VIN, and the decoded make, model and model year must agree with `make`, `model` and `modelYear`, else 400 VALIDATION on that field; if the decoder is unavailable only the model-year character is checked.
         source:
           $ref: "#/components/schemas/VehicleSource"
         purchaseCost:
@@ -3882,7 +3995,7 @@ components:
         vin:
           type: string
           pattern: "^[A-HJ-NPR-Za-hj-npr-z0-9]{17}$"
-          description: 17 characters without I, O, or Q; stored upper-cased. From model year 1980 on, the 10th character (model-year code, 30-year cycle) must match `modelYear`, else 400 VALIDATION on `vin`; PATCH re-checks it only when `vin` or `modelYear` changes.
+          description: 17 characters without I, O, or Q; stored upper-cased. From model year 1980 on, the 10th character (model-year code, 30-year cycle) must match `modelYear`, else 400 VALIDATION on `vin`; PATCH re-checks it only when `vin` or `modelYear` changes. CR-047 also decodes the VIN, and the decoded make, model and model year must agree with `make`, `model` and `modelYear`, else 400 VALIDATION on that field; if the decoder is unavailable only the model-year character is checked.
         source:
           $ref: "#/components/schemas/VehicleSource"
         purchaseCost:
@@ -4114,7 +4227,7 @@ components:
 
     CustomerListItem:
       type: object
-      required: [id, name, email, phone, homeAddress, version]
+      required: [id, name, email, phone, homeAddress, linkedVehicleCount, leadCount, version]
       properties:
         id:
           type: integer

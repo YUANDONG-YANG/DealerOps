@@ -22,7 +22,7 @@ public class JoinRequestController : ControllerBase
     [HttpGet]
     public List<JoinRequestResponse> List() => _service.List();
 
-    /// <summary>Approves a pending request; the applicant joins as staff.</summary>
+    /// <summary>Approves a pending request; the applicant joins as a sales member.</summary>
     [HttpPost("{username}/approve")]
     public IActionResult Approve(string username)
     {

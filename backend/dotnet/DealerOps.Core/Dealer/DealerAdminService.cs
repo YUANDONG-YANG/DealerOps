@@ -8,8 +8,8 @@ using DealerOps.Core.Dealer.Dto;
 namespace DealerOps.Core.Dealer;
 
 /// <summary>
-/// Dealership records: the platform admin creates, edits, deactivates and soft-deletes any dealership, and a
-/// manager edits their own dealership's profile (AUTH-27). Every change writes a DEALER audit row.
+/// Dealership records: the platform admin creates, edits, deactivates and soft-deletes any dealership, and the
+/// dealership owner edits their own dealership's profile (AUTH-27). Every change writes a DEALER audit row.
 /// </summary>
 public class DealerAdminService
 {
@@ -86,16 +86,16 @@ public class DealerAdminService
         return ToResponse(dealer);
     }
 
-    /// <summary>The caller's own dealership, for its managers' profile form (AUTH-27).</summary>
-    public DealerResponse GetOwn() => ToResponse(Load(TenantGuard.RequireManager().TenantDealerId!.Value));
+    /// <summary>The caller's own dealership, for its owner's profile form (AUTH-27).</summary>
+    public DealerResponse GetOwn() => ToResponse(Load(TenantGuard.RequireOwner().TenantDealerId!.Value));
 
     /// <summary>
-    /// A manager edits their own dealership's profile (AUTH-27). Active status stays with the admin.
+    /// The owner edits their own dealership's profile (AUTH-27). Active status stays with the admin.
     /// The profile feeds the ad compliance check, the bill of sale and the buyer site.
     /// </summary>
     public DealerResponse PatchOwn(PatchDealerProfileRequest body)
     {
-        var dealer = Load(TenantGuard.RequireManager().TenantDealerId!.Value);
+        var dealer = Load(TenantGuard.RequireOwner().TenantDealerId!.Value);
         ApplyProfile(dealer, body.Version, body.LegalName, body.ContactPhone, body.ContactEmail,
             body.ContactAddress, body.LogoDataUrl, null);
         return ToResponse(dealer);

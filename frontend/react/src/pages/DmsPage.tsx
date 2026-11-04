@@ -21,7 +21,7 @@ import { listingsApi, checkStatusLabel } from '../api/listings';
 import { auditApi } from '../api/audit';
 import { codeOf, collectAllPages, fieldErrorsOf, messageOf, statusOf } from '../api/http';
 import { describeError } from '../api/errors';
-import { useSessionStore } from '../store/session';
+import { isTeamAdmin, useSessionStore } from '../store/session';
 import SearchSuggest, { SUGGEST_LIMIT } from '../components/SearchSuggest';
 import { groupMakes, isCarfaxUrl, modelYearsFor, vinYearError } from '../vehicleRules';
 
@@ -162,8 +162,8 @@ const yearOptions = Array.from({ length: new Date().getFullYear() + 2 - 1900 }, 
 
 /** Dealership inventory: search, add, edit, and sell vehicles, with workshop, photos, and payments. */
 export default function DmsPage() {
-  // Record history is manager only (AUD-17); staff never call the audit API.
-  const isManager = useSessionStore().dealerRole === 'MANAGER';
+  // Record history is for the owner and managers (AUD-17); a sales member never calls the audit API.
+  const canManage = isTeamAdmin(useSessionStore().dealerRole);
   const [searchParams] = useSearchParams();
   const [rows, setRows] = useState<any[]>([]);
   const [total, setTotal] = useState(0);
@@ -183,6 +183,8 @@ export default function DmsPage() {
   const [form, setForm] = useState<VehicleForm>(blankForm());
   const vehicleBaseline = useFormBaseline(form);
   const [formError, setFormError] = useState('');
+  // Success line after a save: in the drawer after an edit, on the page after an add closes it.
+  const [saveNotice, setSaveNotice] = useState('');
   const [validationErrors, setValidationErrors] = useState<Validation>({});
   const [touched, setTouched] = useState<Record<string, boolean>>({});
   const [serverErrors, setServerErrors] = useState<Record<string, string>>({});
@@ -193,6 +195,8 @@ export default function DmsPage() {
   const [audit, setAudit] = useState<any[]>([]);
   const [auditPage, setAuditPage] = useState(0);
   const [auditTotal, setAuditTotal] = useState(0);
+  // Server-side sort of the whole record history (CR-020); null is newest first.
+  const [auditSort, setAuditSort] = useState<SortState | null>(null);
 
   const [formModelOptions, setFormModelOptions] = useState<string[]>([]);
 
@@ -289,6 +293,7 @@ export default function DmsPage() {
     setFormModelOptions([]);
     setVinFacts('');
     setFormError('');
+    setSaveNotice('');
     setValidationErrors({});
     setTouched({});
     setServerErrors({});
@@ -300,6 +305,7 @@ export default function DmsPage() {
   async function openEdit(id: number) {
     const seq = ++detailSeqRef.current;
     setFormError('');
+    setSaveNotice('');
     setValidationErrors({});
     setTouched({});
     setServerErrors({});
@@ -342,10 +348,10 @@ export default function DmsPage() {
     }
   }
 
-  async function loadAudit(id: number, seq: number, page = 0) {
-    if (!isManager) return;
+  async function loadAudit(id: number, seq: number, page = 0, sort = auditSort) {
+    if (!canManage) return;
     try {
-      const r = await auditApi.list({ entityType: 'VEHICLE', entityId: id, page, size: 10 });
+      const r = await auditApi.list({ entityType: 'VEHICLE', entityId: id, page, size: 10, sort: sortParam(sort) });
       if (seq !== detailSeqRef.current) return;
       setAudit(r.data.items || []);
       setAuditPage(r.data.page ?? page);
@@ -359,6 +365,7 @@ export default function DmsPage() {
 
   async function save() {
     setFormError('');
+    setSaveNotice('');
     setServerErrors({});
     const isSold = edit?.status === 'SOLD';
     const errors = validateForm(form, isSold, edit);
@@ -378,12 +385,14 @@ export default function DmsPage() {
         const savedForm = vehicleToForm(saved.data);
         setForm(savedForm);
         vehicleBaseline.reset(savedForm);
+        setSaveNotice('Vehicle saved.');
         loadAdStatus(saved.data.id, seq);
         loadAudit(saved.data.id, seq);
       } else {
         await vehiclesApi.create(payload);
         if (seq !== detailSeqRef.current) { await load(); return; }
         setDrawer(false);
+        setSaveNotice('Vehicle added.');
       }
       await load();
     } catch (e) {
@@ -638,6 +647,7 @@ export default function DmsPage() {
           <button className="btn" onClick={resetFilters}>Reset</button>
         </div>
         {catalogError && <p className="warning-text">{catalogError}</p>}
+        {saveNotice && !drawer && <p className="success-text" role="status">{saveNotice}</p>}
         <PageState loading={loading} error={error} forbidden={forbidden} empty={!loading && !error && !forbidden && !rows.length}
           emptyText="No vehicles match." loadingText="Loading vehicles…" forbiddenText="You do not have access to DMS.">
           <DataTable rows={rows} total={total} page={page} columns={columns} actions={actions}
@@ -829,6 +839,7 @@ export default function DmsPage() {
           )}
 
           {formError && <p className="danger-text">{formError}</p>}
+          {saveNotice && !vehicleBaseline.dirty && <p className="success-text" role="status">{saveNotice}</p>}
           <div style={{ display: 'flex', gap: 8 }}>
             <button type="submit" className="btn btn-primary" disabled={saving}>{saving ? 'Saving…' : 'Save'}</button>
             {edit && edit.status !== 'SOLD' && <button type="button" className="btn danger" style={{ marginLeft: 8 }} onClick={() => void removeVehicle()}>Delete vehicle</button>}
@@ -842,12 +853,14 @@ export default function DmsPage() {
         {edit?.id && <WorkOrderPanel vehicleId={edit.id} sold={isSold} onChanged={refreshAfterWorkOrder} />}
         {edit?.id && <VehicleLeadsPanel key={edit.id} vehicleId={edit.id} />}
         {edit?.id && <PhotoStudioPanel vehicleId={edit.id} onChanged={() => loadAudit(edit.id, detailSeqRef.current)} />}
-        {edit?.id && isManager && (
+        {edit?.id && canManage && (
           <AuditTrail
             rows={audit}
             page={auditPage}
             total={auditTotal}
             onPage={(p) => void loadAudit(edit.id, detailSeqRef.current, p)}
+            sort={auditSort}
+            onSort={(s) => { setAuditSort(s); void loadAudit(edit.id, detailSeqRef.current, 0, s); }}
           />
         )}
       </FormDrawer>

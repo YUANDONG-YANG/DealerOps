@@ -1,6 +1,6 @@
 import type { APIResponse } from '@playwright/test';
 import { test, expect } from '../../support/fixtures';
-import { type Api, authHeaders, expectStatus, vehicleBody } from '../../support/api';
+import { type Api, authHeaders, createDealership, expectStatus, vehicleBody } from '../../support/api';
 import { env } from '../../support/env';
 
 // Cross-cutting API contract: design/14 §1.1 (pagination envelope), §1.2 (error body),
@@ -159,12 +159,63 @@ test.describe('§1.2 / §12 error body', () => {
       await staffApi.patch(`/api/v1/vehicles/${vehicle.id}`, { ...edit, model: 'B' }), 409, 'VERSION_CONFLICT');
   });
 
+  test('CR-054 / §1.5: an invalid member username returns a readable fieldErrors.username', async ({ adminApi }) => {
+    const dealerId = await dealerAId(adminApi);
+    const suffix = Date.now().toString(36);
+    const body = await expectErrorBody(await adminApi.post(`/api/v1/admin/dealers/${dealerId}/members`, {
+      username: 'bad name!',
+      displayName: `E2E Invalid ${suffix}`,
+      email: `e2e.invalid.${suffix}@example.com`,
+      phone: `+1403555${suffix.slice(-4)}`,
+      password: 'e2e-invalid-pass-1',
+    }), 400, 'VALIDATION');
+
+    // The rule itself is unchanged; only the message must be readable (no regular expression).
+    const fieldErrors = body.fieldErrors as Record<string, string>;
+    expect(fieldErrors.username).toBe(
+      'Username must be 3-64 characters: letters, digits, dot, underscore or hyphen, with at least one letter.');
+    expect(fieldErrors.username).not.toMatch(/regular expression|\^|\$|\[A-Z/i);
+  });
+
   test('415: non-JSON body returns {code,message} UNSUPPORTED_MEDIA_TYPE', async ({ request, staffApi }) => {
     const res = await request.post(`${env.gatewayUrl}/api/v1/vehicles`, {
       headers: { ...authHeaders(staffApi.token), 'Content-Type': 'text/plain' },
       data: 'make=Toyota',
     });
     await expectErrorBody(res, 415, 'UNSUPPORTED_MEDIA_TYPE');
+  });
+});
+
+test.describe('CR-021 duplicate full names', () => {
+  test('CR-021: self sign-up and an admin member bind both accept a full name already in use', async ({
+    request, adminApi,
+  }) => {
+    const shared = env.staff.displayName;
+
+    // Home page > create account: the name of a seeded account must not block sign-up.
+    const signUp = Date.now().toString(36);
+    const registered = await request.post(`${env.gatewayUrl}/api/v1/auth/register`, {
+      data: {
+        username: `e2e.dup.${signUp}`,
+        displayName: shared,
+        email: `e2e.dup.${signUp}@example.com`,
+        password: 'e2e-duplicate-pass-1',
+      },
+    });
+    await expectStatus(registered, 201);
+
+    // Platform admin > Dealerships > Staff: the same name again, on the member-create path. A
+    // throwaway dealership keeps the seeded join-request inboxes untouched.
+    const dealer = await createDealership(adminApi, 'E2E Duplicate Name');
+    const bind = Date.now().toString(36);
+    const bound = await adminApi.post(`/api/v1/admin/dealers/${dealer.id}/members`, {
+      username: `e2e.dup.bind.${bind}`,
+      displayName: shared,
+      email: `e2e.dup.bind.${bind}@example.com`,
+      password: 'e2e-duplicate-pass-1',
+    });
+    await expectStatus(bound, 201);
+    expect(((await bound.json()) as { displayName: string }).displayName).toBe(shared);
   });
 });
 
@@ -184,7 +235,7 @@ test.describe('§9 audit query', () => {
       await staffApi.get('/api/v1/audit', { entityType: 'BOGUS', entityId: vehicle.id }), 400, 'VALIDATION');
   });
 
-  test('AUD-08: DEALER and MEMBERSHIP audit are closed to staff (403)', async ({ staffApi, adminApi }) => {
+  test('AUD-08: DEALER and MEMBERSHIP audit are closed to every dealership member (403)', async ({ staffApi, adminApi }) => {
     const dealerId = await dealerAId(adminApi);
     await expectErrorBody(
       await staffApi.get('/api/v1/audit', { entityType: 'DEALER', entityId: dealerId }), 403, 'FORBIDDEN');
@@ -228,6 +279,25 @@ test.describe('§9 audit query', () => {
     const after = await staffApi.get('/api/v1/audit', { entityType: 'VEHICLE', entityId: vehicle.id });
     await expectStatus(after, 200);
     expect(await after.json()).toEqual(history);
+  });
+
+  test('CR-027 / CR-059: the dealership log accepts a free-text change search and a partial actor', async ({
+    staffApi,
+  }) => {
+    // The change columns are JSON, so a substring search over them must not reach MySQL as a
+    // JSON cast: `q=password` has to answer 200 with the password sign-ins, never a 500.
+    const searched = await staffApi.get('/api/v1/dealer/audit', { q: 'password' });
+    await expectStatus(searched, 200);
+    const found = (await searched.json()) as { items: { action: string }[]; totalElements: number };
+    expect(found.totalElements).toBeGreaterThan(0);
+    for (const row of found.items) expect(row.action).toMatch(/LOGIN/);
+
+    const part = env.staff.username.slice(-5);
+    const partial = await staffApi.get('/api/v1/dealer/audit', { actor: part });
+    await expectStatus(partial, 200);
+    const rows = (await partial.json()) as { items: { actorUsername: string }[]; totalElements: number };
+    expect(rows.totalElements).toBeGreaterThan(0);
+    for (const row of rows.items) expect(row.actorUsername).toContain(part);
   });
 
   test('AUD-05: write methods on the audit collection return 405 METHOD_NOT_ALLOWED', async ({ staffApi }) => {

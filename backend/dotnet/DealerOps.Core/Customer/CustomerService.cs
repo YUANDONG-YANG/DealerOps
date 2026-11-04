@@ -254,6 +254,22 @@ public class CustomerService
     {
         var tenant = TenantGuard.RequireTenantId();
         var customer = LoadThisDealer(id);
+        // The buyer of a sold vehicle is locked like the link itself (C1): the DMS "Sold to" column
+        // reads the linked customer's name, so a deleted buyer would blank out the sale.
+        var buyerOfSold = (from cv in _db.CustomerVehicles
+                           join v in _db.Vehicles on cv.VehicleId equals v.Id
+                           where cv.CustomerId == customer.Id
+                                 && v.DealerId == tenant
+                                 && v.Status == VehicleStatus.Sold
+                           select v.Id).Any();
+        if (buyerOfSold)
+        {
+            _logger.LogWarning(
+                "Customer delete rejected customerId={CustomerId} dealerId={DealerId} code={Code} by {Actor}",
+                customer.Id, tenant, ErrorCode.SoldLocked, TenantContext.ActorUsername());
+            throw new ApiException(ErrorCode.SoldLocked, "Buyer of a sold vehicle cannot be deleted.");
+        }
+
         customer.DeletedAt = DateTime.UtcNow;
         _audit.Record("CUSTOMER", customer.Id, "DELETE", tenant, TenantContext.ActorUsername(),
             new Dictionary<string, object> { ["deleted"] = true },

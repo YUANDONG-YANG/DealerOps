@@ -14,7 +14,7 @@ const ACTIONS = ['CREATE', 'UPDATE', 'DELETE', 'SELL', 'LINK', 'UNLINK', 'NOTE',
 
 /**
  * Filterable audit log, newest first (AUD-10, AUD-11). The admin page passes the platform log
- * and shows the dealership column; the Team page passes the manager's own dealership log.
+ * and shows the dealership column; the Team page passes the caller's own dealership log.
  */
 export default function AuditLogPanel({ load, showDealer = false, suggestActors }: {
   load: (filter: AuditLogFilter, page: number) => Promise<{ items: AuditLogRow[]; totalElements: number }>;

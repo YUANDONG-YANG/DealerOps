@@ -28,7 +28,7 @@ function isBlank(v: unknown) {
 }
 
 /** A sorted copy of the rows; `valueOf` reads the compared value of a row for the sort key. */
-export function sortRows<T>(rows: T[], sort: SortState | null | undefined, valueOf: (row: T, key: string) => unknown): T[] {
+function sortRows<T>(rows: T[], sort: SortState | null | undefined, valueOf: (row: T, key: string) => unknown): T[] {
   if (!sort) return rows;
   const sign = sort.dir === 'asc' ? 1 : -1;
   return [...rows].sort((x, y) => {

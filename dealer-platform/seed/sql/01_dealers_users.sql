@@ -225,7 +225,7 @@ SELECT 'wei.morrison', '$2a$10$3HJsO33X6V2tItq6H05zG.JPypocvryhII3YPyYNHU1mOKrUJ
        'wei.morrison@lakeshoreautosales.ca', '+14165550134', 'Wei', 'Morrison', 'https://randomuser.me/api/portraits/men/11.jpg', 'en-CA'
 FROM DUAL WHERE @d01 IS NOT NULL AND NOT EXISTS (SELECT 1 FROM app_user WHERE username = 'wei.morrison' OR email = 'wei.morrison@lakeshoreautosales.ca' OR display_name = 'Wei Morrison' OR phone = '+14165550134');
 INSERT INTO membership (dealer_id, username, active, dealer_role, created_by, created_at)
-SELECT @d01, 'wei.morrison', 1, 'staff', 'admin', '2025-09-03 16:00:00'
+SELECT @d01, 'wei.morrison', 1, 'OWNER', 'admin', '2025-09-03 16:00:00'
 FROM DUAL WHERE EXISTS (SELECT 1 FROM app_user WHERE username = 'wei.morrison' AND dealer_id = @d01)
   AND NOT EXISTS (SELECT 1 FROM membership WHERE dealer_id = @d01 AND username = 'wei.morrison');
 -- Emma Patel (Sales Consultant)
@@ -234,7 +234,7 @@ SELECT 'emma.patel', '$2a$10$3HJsO33X6V2tItq6H05zG.JPypocvryhII3YPyYNHU1mOKrUJY0
        'emma.patel@lakeshoreautosales.ca', '+14165550193', 'Emma', 'Patel', 'https://randomuser.me/api/portraits/women/23.jpg', 'en-CA'
 FROM DUAL WHERE @d01 IS NOT NULL AND NOT EXISTS (SELECT 1 FROM app_user WHERE username = 'emma.patel' OR email = 'emma.patel@lakeshoreautosales.ca' OR display_name = 'Emma Patel' OR phone = '+14165550193');
 INSERT INTO membership (dealer_id, username, active, dealer_role, created_by, created_at)
-SELECT @d01, 'emma.patel', 1, 'staff', 'admin', '2025-09-07 18:30:00'
+SELECT @d01, 'emma.patel', 1, 'SALES', 'admin', '2025-09-07 18:30:00'
 FROM DUAL WHERE EXISTS (SELECT 1 FROM app_user WHERE username = 'emma.patel' AND dealer_id = @d01)
   AND NOT EXISTS (SELECT 1 FROM membership WHERE dealer_id = @d01 AND username = 'emma.patel');
 -- Jasmine Martin (Sales Manager)
@@ -243,7 +243,7 @@ SELECT 'jasmine.martin', '$2a$10$3HJsO33X6V2tItq6H05zG.JPypocvryhII3YPyYNHU1mOKr
        'jasmine.martin@northgatemotors.ca', '+19055550155', 'Jasmine', 'Martin', 'https://randomuser.me/api/portraits/women/60.jpg', 'en-CA'
 FROM DUAL WHERE @d02 IS NOT NULL AND NOT EXISTS (SELECT 1 FROM app_user WHERE username = 'jasmine.martin' OR email = 'jasmine.martin@northgatemotors.ca' OR display_name = 'Jasmine Martin' OR phone = '+19055550155');
 INSERT INTO membership (dealer_id, username, active, dealer_role, created_by, created_at)
-SELECT @d02, 'jasmine.martin', 1, 'staff', 'admin', '2025-09-11 21:17:00'
+SELECT @d02, 'jasmine.martin', 1, 'OWNER', 'admin', '2025-09-11 21:17:00'
 FROM DUAL WHERE EXISTS (SELECT 1 FROM app_user WHERE username = 'jasmine.martin' AND dealer_id = @d02)
   AND NOT EXISTS (SELECT 1 FROM membership WHERE dealer_id = @d02 AND username = 'jasmine.martin');
 -- Hiroshi O'Brien (Sales Consultant)
@@ -252,7 +252,7 @@ SELECT 'hiroshi.obrien', '$2a$10$3HJsO33X6V2tItq6H05zG.JPypocvryhII3YPyYNHU1mOKr
        'hiroshi.obrien@northgatemotors.ca', '+19055550144', 'Hiroshi', 'O''Brien', 'https://randomuser.me/api/portraits/men/48.jpg', 'en-CA'
 FROM DUAL WHERE @d02 IS NOT NULL AND NOT EXISTS (SELECT 1 FROM app_user WHERE username = 'hiroshi.obrien' OR email = 'hiroshi.obrien@northgatemotors.ca' OR display_name = 'Hiroshi O''Brien' OR phone = '+19055550144');
 INSERT INTO membership (dealer_id, username, active, dealer_role, created_by, created_at)
-SELECT @d02, 'hiroshi.obrien', 1, 'staff', 'admin', '2025-09-17 23:47:00'
+SELECT @d02, 'hiroshi.obrien', 1, 'SALES', 'admin', '2025-09-17 23:47:00'
 FROM DUAL WHERE EXISTS (SELECT 1 FROM app_user WHERE username = 'hiroshi.obrien' AND dealer_id = @d02)
   AND NOT EXISTS (SELECT 1 FROM membership WHERE dealer_id = @d02 AND username = 'hiroshi.obrien');
 -- Andrei Martin (Sales Consultant)
@@ -261,7 +261,7 @@ SELECT 'andrei.martin', '$2a$10$3HJsO33X6V2tItq6H05zG.JPypocvryhII3YPyYNHU1mOKrU
        'andrei.martin@northgatemotors.ca', '+19055550196', 'Andrei', 'Martin', 'https://randomuser.me/api/portraits/men/85.jpg', 'en-CA'
 FROM DUAL WHERE @d02 IS NOT NULL AND NOT EXISTS (SELECT 1 FROM app_user WHERE username = 'andrei.martin' OR email = 'andrei.martin@northgatemotors.ca' OR display_name = 'Andrei Martin' OR phone = '+19055550196');
 INSERT INTO membership (dealer_id, username, active, dealer_role, created_by, created_at)
-SELECT @d02, 'andrei.martin', 1, 'staff', 'admin', '2025-11-08 01:47:00'
+SELECT @d02, 'andrei.martin', 1, 'SALES', 'admin', '2025-11-08 01:47:00'
 FROM DUAL WHERE EXISTS (SELECT 1 FROM app_user WHERE username = 'andrei.martin' AND dealer_id = @d02)
   AND NOT EXISTS (SELECT 1 FROM membership WHERE dealer_id = @d02 AND username = 'andrei.martin');
 -- Mateo Baker (Sales Manager)
@@ -270,7 +270,7 @@ SELECT 'mateo.baker', '$2a$10$3HJsO33X6V2tItq6H05zG.JPypocvryhII3YPyYNHU1mOKrUJY
        'mateo.baker@mapleleafpreowned.ca', '+19055550166', 'Mateo', 'Baker', 'https://randomuser.me/api/portraits/men/22.jpg', 'en-CA'
 FROM DUAL WHERE @d03 IS NOT NULL AND NOT EXISTS (SELECT 1 FROM app_user WHERE username = 'mateo.baker' OR email = 'mateo.baker@mapleleafpreowned.ca' OR display_name = 'Mateo Baker' OR phone = '+19055550166');
 INSERT INTO membership (dealer_id, username, active, dealer_role, created_by, created_at)
-SELECT @d03, 'mateo.baker', 1, 'staff', 'admin', '2025-09-19 18:34:00'
+SELECT @d03, 'mateo.baker', 1, 'OWNER', 'admin', '2025-09-19 18:34:00'
 FROM DUAL WHERE EXISTS (SELECT 1 FROM app_user WHERE username = 'mateo.baker' AND dealer_id = @d03)
   AND NOT EXISTS (SELECT 1 FROM membership WHERE dealer_id = @d03 AND username = 'mateo.baker');
 -- Marcus Gagnon (Sales Consultant)
@@ -279,7 +279,7 @@ SELECT 'marcus.gagnon', '$2a$10$3HJsO33X6V2tItq6H05zG.JPypocvryhII3YPyYNHU1mOKrU
        'marcus.gagnon@mapleleafpreowned.ca', '+19055550111', 'Marcus', 'Gagnon', 'https://randomuser.me/api/portraits/men/59.jpg', 'en-CA'
 FROM DUAL WHERE @d03 IS NOT NULL AND NOT EXISTS (SELECT 1 FROM app_user WHERE username = 'marcus.gagnon' OR email = 'marcus.gagnon@mapleleafpreowned.ca' OR display_name = 'Marcus Gagnon' OR phone = '+19055550111');
 INSERT INTO membership (dealer_id, username, active, dealer_role, created_by, created_at)
-SELECT @d03, 'marcus.gagnon', 1, 'staff', 'admin', '2025-09-27 21:04:00'
+SELECT @d03, 'marcus.gagnon', 1, 'SALES', 'admin', '2025-09-27 21:04:00'
 FROM DUAL WHERE EXISTS (SELECT 1 FROM app_user WHERE username = 'marcus.gagnon' AND dealer_id = @d03)
   AND NOT EXISTS (SELECT 1 FROM membership WHERE dealer_id = @d03 AND username = 'marcus.gagnon');
 -- Aisha Garcia (Sales Consultant)
@@ -288,7 +288,7 @@ SELECT 'aisha.garcia', '$2a$10$3HJsO33X6V2tItq6H05zG.JPypocvryhII3YPyYNHU1mOKrUJ
        'aisha.garcia@mapleleafpreowned.ca', '+19055550165', 'Aisha', 'Garcia', 'https://randomuser.me/api/portraits/men/96.jpg', 'en-CA'
 FROM DUAL WHERE @d03 IS NOT NULL AND NOT EXISTS (SELECT 1 FROM app_user WHERE username = 'aisha.garcia' OR email = 'aisha.garcia@mapleleafpreowned.ca' OR display_name = 'Aisha Garcia' OR phone = '+19055550165');
 INSERT INTO membership (dealer_id, username, active, dealer_role, created_by, created_at)
-SELECT @d03, 'aisha.garcia', 1, 'staff', 'admin', '2025-11-28 23:04:00'
+SELECT @d03, 'aisha.garcia', 1, 'SALES', 'admin', '2025-11-28 23:04:00'
 FROM DUAL WHERE EXISTS (SELECT 1 FROM app_user WHERE username = 'aisha.garcia' AND dealer_id = @d03)
   AND NOT EXISTS (SELECT 1 FROM membership WHERE dealer_id = @d03 AND username = 'aisha.garcia');
 -- Hiroshi Martin (Sales Manager)
@@ -297,7 +297,7 @@ SELECT 'hiroshi.martin', '$2a$10$3HJsO33X6V2tItq6H05zG.JPypocvryhII3YPyYNHU1mOKr
        'hiroshi.martin@trilliumcarcentre.ca', '+19055550159', 'Hiroshi', 'Martin', 'https://randomuser.me/api/portraits/men/33.jpg', 'en-CA'
 FROM DUAL WHERE @d04 IS NOT NULL AND NOT EXISTS (SELECT 1 FROM app_user WHERE username = 'hiroshi.martin' OR email = 'hiroshi.martin@trilliumcarcentre.ca' OR display_name = 'Hiroshi Martin' OR phone = '+19055550159');
 INSERT INTO membership (dealer_id, username, active, dealer_role, created_by, created_at)
-SELECT @d04, 'hiroshi.martin', 1, 'staff', 'admin', '2025-09-25 23:51:00'
+SELECT @d04, 'hiroshi.martin', 1, 'OWNER', 'admin', '2025-09-25 23:51:00'
 FROM DUAL WHERE EXISTS (SELECT 1 FROM app_user WHERE username = 'hiroshi.martin' AND dealer_id = @d04)
   AND NOT EXISTS (SELECT 1 FROM membership WHERE dealer_id = @d04 AND username = 'hiroshi.martin');
 -- Daniel Tanaka (Sales Consultant)
@@ -306,7 +306,7 @@ SELECT 'daniel.tanaka', '$2a$10$3HJsO33X6V2tItq6H05zG.JPypocvryhII3YPyYNHU1mOKrU
        'daniel.tanaka@trilliumcarcentre.ca', '+19055550177', 'Daniel', 'Tanaka', 'https://randomuser.me/api/portraits/men/70.jpg', 'en-CA'
 FROM DUAL WHERE @d04 IS NOT NULL AND NOT EXISTS (SELECT 1 FROM app_user WHERE username = 'daniel.tanaka' OR email = 'daniel.tanaka@trilliumcarcentre.ca' OR display_name = 'Daniel Tanaka' OR phone = '+19055550177');
 INSERT INTO membership (dealer_id, username, active, dealer_role, created_by, created_at)
-SELECT @d04, 'daniel.tanaka', 1, 'staff', 'admin', '2025-09-30 02:21:00'
+SELECT @d04, 'daniel.tanaka', 1, 'SALES', 'admin', '2025-09-30 02:21:00'
 FROM DUAL WHERE EXISTS (SELECT 1 FROM app_user WHERE username = 'daniel.tanaka' AND dealer_id = @d04)
   AND NOT EXISTS (SELECT 1 FROM membership WHERE dealer_id = @d04 AND username = 'daniel.tanaka');
 -- Diego Campbell (Sales Consultant)
@@ -315,7 +315,7 @@ SELECT 'diego.campbell', '$2a$10$3HJsO33X6V2tItq6H05zG.JPypocvryhII3YPyYNHU1mOKr
        'diego.campbell@trilliumcarcentre.ca', '+19055550190', 'Diego', 'Campbell', 'https://randomuser.me/api/portraits/men/7.jpg', 'en-CA'
 FROM DUAL WHERE @d04 IS NOT NULL AND NOT EXISTS (SELECT 1 FROM app_user WHERE username = 'diego.campbell' OR email = 'diego.campbell@trilliumcarcentre.ca' OR display_name = 'Diego Campbell' OR phone = '+19055550190');
 INSERT INTO membership (dealer_id, username, active, dealer_role, created_by, created_at)
-SELECT @d04, 'diego.campbell', 1, 'staff', 'admin', '2025-11-12 04:21:00'
+SELECT @d04, 'diego.campbell', 1, 'SALES', 'admin', '2025-11-12 04:21:00'
 FROM DUAL WHERE EXISTS (SELECT 1 FROM app_user WHERE username = 'diego.campbell' AND dealer_id = @d04)
   AND NOT EXISTS (SELECT 1 FROM membership WHERE dealer_id = @d04 AND username = 'diego.campbell');
 -- Gurpreet Roy (Sales Manager)
@@ -324,7 +324,7 @@ SELECT 'gurpreet.roy', '$2a$10$3HJsO33X6V2tItq6H05zG.JPypocvryhII3YPyYNHU1mOKrUJ
        'gurpreet.roy@huronvalleyauto.ca', '+16135550152', 'Gurpreet', 'Roy', 'https://randomuser.me/api/portraits/men/44.jpg', 'en-CA'
 FROM DUAL WHERE @d05 IS NOT NULL AND NOT EXISTS (SELECT 1 FROM app_user WHERE username = 'gurpreet.roy' OR email = 'gurpreet.roy@huronvalleyauto.ca' OR display_name = 'Gurpreet Roy' OR phone = '+16135550152');
 INSERT INTO membership (dealer_id, username, active, dealer_role, created_by, created_at)
-SELECT @d05, 'gurpreet.roy', 1, 'staff', 'admin', '2025-10-03 20:08:00'
+SELECT @d05, 'gurpreet.roy', 1, 'OWNER', 'admin', '2025-10-03 20:08:00'
 FROM DUAL WHERE EXISTS (SELECT 1 FROM app_user WHERE username = 'gurpreet.roy' AND dealer_id = @d05)
   AND NOT EXISTS (SELECT 1 FROM membership WHERE dealer_id = @d05 AND username = 'gurpreet.roy');
 -- Victoria Bouchard (Sales Consultant)
@@ -333,7 +333,7 @@ SELECT 'victoria.bouchard', '$2a$10$3HJsO33X6V2tItq6H05zG.JPypocvryhII3YPyYNHU1m
        'victoria.bouchard@huronvalleyauto.ca', '+16135550114', 'Victoria', 'Bouchard', 'https://randomuser.me/api/portraits/women/97.jpg', 'en-CA'
 FROM DUAL WHERE @d05 IS NOT NULL AND NOT EXISTS (SELECT 1 FROM app_user WHERE username = 'victoria.bouchard' OR email = 'victoria.bouchard@huronvalleyauto.ca' OR display_name = 'Victoria Bouchard' OR phone = '+16135550114');
 INSERT INTO membership (dealer_id, username, active, dealer_role, created_by, created_at)
-SELECT @d05, 'victoria.bouchard', 1, 'staff', 'admin', '2025-10-09 22:38:00'
+SELECT @d05, 'victoria.bouchard', 1, 'SALES', 'admin', '2025-10-09 22:38:00'
 FROM DUAL WHERE EXISTS (SELECT 1 FROM app_user WHERE username = 'victoria.bouchard' AND dealer_id = @d05)
   AND NOT EXISTS (SELECT 1 FROM membership WHERE dealer_id = @d05 AND username = 'victoria.bouchard');
 -- Zofia Tanaka (Sales Manager)
@@ -342,7 +342,7 @@ SELECT 'zofia.tanaka', '$2a$10$3HJsO33X6V2tItq6H05zG.JPypocvryhII3YPyYNHU1mOKrUJ
        'zofia.tanaka@carlingavenuemotors.ca', '+15195550156', 'Zofia', 'Tanaka', 'https://randomuser.me/api/portraits/women/34.jpg', 'en-CA'
 FROM DUAL WHERE @d06 IS NOT NULL AND NOT EXISTS (SELECT 1 FROM app_user WHERE username = 'zofia.tanaka' OR email = 'zofia.tanaka@carlingavenuemotors.ca' OR display_name = 'Zofia Tanaka' OR phone = '+15195550156');
 INSERT INTO membership (dealer_id, username, active, dealer_role, created_by, created_at)
-SELECT @d06, 'zofia.tanaka', 1, 'staff', 'admin', '2025-10-11 17:25:00'
+SELECT @d06, 'zofia.tanaka', 1, 'OWNER', 'admin', '2025-10-11 17:25:00'
 FROM DUAL WHERE EXISTS (SELECT 1 FROM app_user WHERE username = 'zofia.tanaka' AND dealer_id = @d06)
   AND NOT EXISTS (SELECT 1 FROM membership WHERE dealer_id = @d06 AND username = 'zofia.tanaka');
 -- Connor Garcia (Sales Consultant)
@@ -351,7 +351,7 @@ SELECT 'connor.garcia', '$2a$10$3HJsO33X6V2tItq6H05zG.JPypocvryhII3YPyYNHU1mOKrU
        'connor.garcia@carlingavenuemotors.ca', '+15195550126', 'Connor', 'Garcia', 'https://randomuser.me/api/portraits/men/81.jpg', 'en-CA'
 FROM DUAL WHERE @d06 IS NOT NULL AND NOT EXISTS (SELECT 1 FROM app_user WHERE username = 'connor.garcia' OR email = 'connor.garcia@carlingavenuemotors.ca' OR display_name = 'Connor Garcia' OR phone = '+15195550126');
 INSERT INTO membership (dealer_id, username, active, dealer_role, created_by, created_at)
-SELECT @d06, 'connor.garcia', 1, 'staff', 'admin', '2025-10-19 19:55:00'
+SELECT @d06, 'connor.garcia', 1, 'SALES', 'admin', '2025-10-19 19:55:00'
 FROM DUAL WHERE EXISTS (SELECT 1 FROM app_user WHERE username = 'connor.garcia' AND dealer_id = @d06)
   AND NOT EXISTS (SELECT 1 FROM membership WHERE dealer_id = @d06 AND username = 'connor.garcia');
 -- Ryan Cohen (Sales Manager)
@@ -360,7 +360,7 @@ SELECT 'ryan.cohen', '$2a$10$3HJsO33X6V2tItq6H05zG.JPypocvryhII3YPyYNHU1mOKrUJY0
        'ryan.cohen@riversideautogroup.ca', '+15195550151', 'Ryan', 'Cohen', 'https://randomuser.me/api/portraits/men/18.jpg', 'en-CA'
 FROM DUAL WHERE @d07 IS NOT NULL AND NOT EXISTS (SELECT 1 FROM app_user WHERE username = 'ryan.cohen' OR email = 'ryan.cohen@riversideautogroup.ca' OR display_name = 'Ryan Cohen' OR phone = '+15195550151');
 INSERT INTO membership (dealer_id, username, active, dealer_role, created_by, created_at)
-SELECT @d07, 'ryan.cohen', 1, 'staff', 'admin', '2025-10-16 22:42:00'
+SELECT @d07, 'ryan.cohen', 1, 'OWNER', 'admin', '2025-10-16 22:42:00'
 FROM DUAL WHERE EXISTS (SELECT 1 FROM app_user WHERE username = 'ryan.cohen' AND dealer_id = @d07)
   AND NOT EXISTS (SELECT 1 FROM membership WHERE dealer_id = @d07 AND username = 'ryan.cohen');
 -- Fatima Stewart (Sales Consultant)
@@ -369,7 +369,7 @@ SELECT 'fatima.stewart', '$2a$10$3HJsO33X6V2tItq6H05zG.JPypocvryhII3YPyYNHU1mOKr
        'fatima.stewart@riversideautogroup.ca', '+15195550182', 'Fatima', 'Stewart', 'https://randomuser.me/api/portraits/women/71.jpg', 'en-CA'
 FROM DUAL WHERE @d07 IS NOT NULL AND NOT EXISTS (SELECT 1 FROM app_user WHERE username = 'fatima.stewart' OR email = 'fatima.stewart@riversideautogroup.ca' OR display_name = 'Fatima Stewart' OR phone = '+15195550182');
 INSERT INTO membership (dealer_id, username, active, dealer_role, created_by, created_at)
-SELECT @d07, 'fatima.stewart', 1, 'staff', 'admin', '2025-10-21 01:12:00'
+SELECT @d07, 'fatima.stewart', 1, 'SALES', 'admin', '2025-10-21 01:12:00'
 FROM DUAL WHERE EXISTS (SELECT 1 FROM app_user WHERE username = 'fatima.stewart' AND dealer_id = @d07)
   AND NOT EXISTS (SELECT 1 FROM membership WHERE dealer_id = @d07 AND username = 'fatima.stewart');
 -- Benjamin Haddad (Sales Consultant)
@@ -378,7 +378,7 @@ SELECT 'benjamin.haddad', '$2a$10$3HJsO33X6V2tItq6H05zG.JPypocvryhII3YPyYNHU1mOK
        'benjamin.haddad@riversideautogroup.ca', '+15195550100', 'Benjamin', 'Haddad', 'https://randomuser.me/api/portraits/men/55.jpg', 'en-CA'
 FROM DUAL WHERE @d07 IS NOT NULL AND NOT EXISTS (SELECT 1 FROM app_user WHERE username = 'benjamin.haddad' OR email = 'benjamin.haddad@riversideautogroup.ca' OR display_name = 'Benjamin Haddad' OR phone = '+15195550100');
 INSERT INTO membership (dealer_id, username, active, dealer_role, created_by, created_at)
-SELECT @d07, 'benjamin.haddad', 1, 'staff', 'admin', '2025-12-06 03:12:00'
+SELECT @d07, 'benjamin.haddad', 1, 'SALES', 'admin', '2025-12-06 03:12:00'
 FROM DUAL WHERE EXISTS (SELECT 1 FROM app_user WHERE username = 'benjamin.haddad' AND dealer_id = @d07)
   AND NOT EXISTS (SELECT 1 FROM membership WHERE dealer_id = @d07 AND username = 'benjamin.haddad');
 -- Owen Singh (Finance Manager)
@@ -387,7 +387,7 @@ SELECT 'owen.singh', '$2a$10$3HJsO33X6V2tItq6H05zG.JPypocvryhII3YPyYNHU1mOKrUJY0
        'owen.singh@riversideautogroup.ca', '+15195550110', 'Owen', 'Singh', 'https://randomuser.me/api/portraits/men/92.jpg', 'en-CA'
 FROM DUAL WHERE @d07 IS NOT NULL AND NOT EXISTS (SELECT 1 FROM app_user WHERE username = 'owen.singh' OR email = 'owen.singh@riversideautogroup.ca' OR display_name = 'Owen Singh' OR phone = '+15195550110');
 INSERT INTO membership (dealer_id, username, active, dealer_role, created_by, created_at)
-SELECT @d07, 'owen.singh', 1, 'staff', 'admin', '2026-01-15 04:12:00'
+SELECT @d07, 'owen.singh', 1, 'SALES', 'admin', '2026-01-15 04:12:00'
 FROM DUAL WHERE EXISTS (SELECT 1 FROM app_user WHERE username = 'owen.singh' AND dealer_id = @d07)
   AND NOT EXISTS (SELECT 1 FROM membership WHERE dealer_id = @d07 AND username = 'owen.singh');
 -- Gurpreet Kowalski (Service Advisor)
@@ -396,7 +396,7 @@ SELECT 'gurpreet.kowalski', '$2a$10$3HJsO33X6V2tItq6H05zG.JPypocvryhII3YPyYNHU1m
        'gurpreet.kowalski@riversideautogroup.ca', '+15195550141', 'Gurpreet', 'Kowalski', 'https://randomuser.me/api/portraits/men/29.jpg', 'en-CA'
 FROM DUAL WHERE @d07 IS NOT NULL AND NOT EXISTS (SELECT 1 FROM app_user WHERE username = 'gurpreet.kowalski' OR email = 'gurpreet.kowalski@riversideautogroup.ca' OR display_name = 'Gurpreet Kowalski' OR phone = '+15195550141');
 INSERT INTO membership (dealer_id, username, active, dealer_role, created_by, created_at)
-SELECT @d07, 'gurpreet.kowalski', 1, 'staff', 'admin', '2026-02-24 05:12:00'
+SELECT @d07, 'gurpreet.kowalski', 1, 'SALES', 'admin', '2026-02-24 05:12:00'
 FROM DUAL WHERE EXISTS (SELECT 1 FROM app_user WHERE username = 'gurpreet.kowalski' AND dealer_id = @d07)
   AND NOT EXISTS (SELECT 1 FROM membership WHERE dealer_id = @d07 AND username = 'gurpreet.kowalski');
 -- Emma Wang (Sales Manager)
@@ -405,7 +405,7 @@ SELECT 'emma.wang', '$2a$10$3HJsO33X6V2tItq6H05zG.JPypocvryhII3YPyYNHU1mOKrUJY0z
        'emma.wang@baystreetautos.ca', '+15195550188', 'Emma', 'Wang', 'https://randomuser.me/api/portraits/women/8.jpg', 'en-CA'
 FROM DUAL WHERE @d08 IS NOT NULL AND NOT EXISTS (SELECT 1 FROM app_user WHERE username = 'emma.wang' OR email = 'emma.wang@baystreetautos.ca' OR display_name = 'Emma Wang' OR phone = '+15195550188');
 INSERT INTO membership (dealer_id, username, active, dealer_role, created_by, created_at)
-SELECT @d08, 'emma.wang', 1, 'staff', 'admin', '2025-10-25 19:59:00'
+SELECT @d08, 'emma.wang', 1, 'OWNER', 'admin', '2025-10-25 19:59:00'
 FROM DUAL WHERE EXISTS (SELECT 1 FROM app_user WHERE username = 'emma.wang' AND dealer_id = @d08)
   AND NOT EXISTS (SELECT 1 FROM membership WHERE dealer_id = @d08 AND username = 'emma.wang');
 -- Mei Osei (Sales Consultant)
@@ -414,7 +414,7 @@ SELECT 'mei.osei', '$2a$10$3HJsO33X6V2tItq6H05zG.JPypocvryhII3YPyYNHU1mOKrUJY0z.
        'mei.osei@baystreetautos.ca', '+15195550105', 'Mei', 'Osei', 'https://randomuser.me/api/portraits/women/45.jpg', 'en-CA'
 FROM DUAL WHERE @d08 IS NOT NULL AND NOT EXISTS (SELECT 1 FROM app_user WHERE username = 'mei.osei' OR email = 'mei.osei@baystreetautos.ca' OR display_name = 'Mei Osei' OR phone = '+15195550105');
 INSERT INTO membership (dealer_id, username, active, dealer_role, created_by, created_at)
-SELECT @d08, 'mei.osei', 1, 'staff', 'admin', '2025-10-31 22:29:00'
+SELECT @d08, 'mei.osei', 1, 'SALES', 'admin', '2025-10-31 22:29:00'
 FROM DUAL WHERE EXISTS (SELECT 1 FROM app_user WHERE username = 'mei.osei' AND dealer_id = @d08)
   AND NOT EXISTS (SELECT 1 FROM membership WHERE dealer_id = @d08 AND username = 'mei.osei');
 -- Hannah Leblanc (Sales Consultant)
@@ -423,7 +423,7 @@ SELECT 'hannah.leblanc', '$2a$10$3HJsO33X6V2tItq6H05zG.JPypocvryhII3YPyYNHU1mOKr
        'hannah.leblanc@baystreetautos.ca', '+15195550146', 'Hannah', 'Leblanc', 'https://randomuser.me/api/portraits/men/66.jpg', 'en-CA'
 FROM DUAL WHERE @d08 IS NOT NULL AND NOT EXISTS (SELECT 1 FROM app_user WHERE username = 'hannah.leblanc' OR email = 'hannah.leblanc@baystreetautos.ca' OR display_name = 'Hannah Leblanc' OR phone = '+15195550146');
 INSERT INTO membership (dealer_id, username, active, dealer_role, created_by, created_at)
-SELECT @d08, 'hannah.leblanc', 1, 'staff', 'admin', '2025-12-28 00:29:00'
+SELECT @d08, 'hannah.leblanc', 1, 'SALES', 'admin', '2025-12-28 00:29:00'
 FROM DUAL WHERE EXISTS (SELECT 1 FROM app_user WHERE username = 'hannah.leblanc' AND dealer_id = @d08)
   AND NOT EXISTS (SELECT 1 FROM membership WHERE dealer_id = @d08 AND username = 'hannah.leblanc');
 -- Liam Haddad (Sales Manager)
@@ -432,7 +432,7 @@ SELECT 'liam.haddad', '$2a$10$3HJsO33X6V2tItq6H05zG.JPypocvryhII3YPyYNHU1mOKrUJY
        'liam.haddad@kingswaycarcompany.ca', '+17055550132', 'Liam', 'Haddad', 'https://randomuser.me/api/portraits/men/3.jpg', 'en-CA'
 FROM DUAL WHERE @d09 IS NOT NULL AND NOT EXISTS (SELECT 1 FROM app_user WHERE username = 'liam.haddad' OR email = 'liam.haddad@kingswaycarcompany.ca' OR display_name = 'Liam Haddad' OR phone = '+17055550132');
 INSERT INTO membership (dealer_id, username, active, dealer_role, created_by, created_at)
-SELECT @d09, 'liam.haddad', 1, 'staff', 'admin', '2025-11-02 16:16:00'
+SELECT @d09, 'liam.haddad', 1, 'OWNER', 'admin', '2025-11-02 16:16:00'
 FROM DUAL WHERE EXISTS (SELECT 1 FROM app_user WHERE username = 'liam.haddad' AND dealer_id = @d09)
   AND NOT EXISTS (SELECT 1 FROM membership WHERE dealer_id = @d09 AND username = 'liam.haddad');
 -- Kwame Singh (Sales Consultant)
@@ -441,7 +441,7 @@ SELECT 'kwame.singh', '$2a$10$3HJsO33X6V2tItq6H05zG.JPypocvryhII3YPyYNHU1mOKrUJY
        'kwame.singh@kingswaycarcompany.ca', '+17055550190', 'Kwame', 'Singh', 'https://randomuser.me/api/portraits/men/40.jpg', 'en-CA'
 FROM DUAL WHERE @d09 IS NOT NULL AND NOT EXISTS (SELECT 1 FROM app_user WHERE username = 'kwame.singh' OR email = 'kwame.singh@kingswaycarcompany.ca' OR display_name = 'Kwame Singh' OR phone = '+17055550190');
 INSERT INTO membership (dealer_id, username, active, dealer_role, created_by, created_at)
-SELECT @d09, 'kwame.singh', 1, 'staff', 'admin', '2025-11-10 18:46:00'
+SELECT @d09, 'kwame.singh', 1, 'SALES', 'admin', '2025-11-10 18:46:00'
 FROM DUAL WHERE EXISTS (SELECT 1 FROM app_user WHERE username = 'kwame.singh' AND dealer_id = @d09)
   AND NOT EXISTS (SELECT 1 FROM membership WHERE dealer_id = @d09 AND username = 'kwame.singh');
 -- Victoria Murphy (Sales Manager)
@@ -450,7 +450,7 @@ SELECT 'victoria.murphy', '$2a$10$3HJsO33X6V2tItq6H05zG.JPypocvryhII3YPyYNHU1mOK
        'victoria.murphy@limestonecitymotors.ca', '+19055550170', 'Victoria', 'Murphy', 'https://randomuser.me/api/portraits/women/82.jpg', 'en-CA'
 FROM DUAL WHERE @d10 IS NOT NULL AND NOT EXISTS (SELECT 1 FROM app_user WHERE username = 'victoria.murphy' OR email = 'victoria.murphy@limestonecitymotors.ca' OR display_name = 'Victoria Murphy' OR phone = '+19055550170');
 INSERT INTO membership (dealer_id, username, active, dealer_role, created_by, created_at)
-SELECT @d10, 'victoria.murphy', 1, 'staff', 'admin', '2025-11-07 21:33:00'
+SELECT @d10, 'victoria.murphy', 1, 'OWNER', 'admin', '2025-11-07 21:33:00'
 FROM DUAL WHERE EXISTS (SELECT 1 FROM app_user WHERE username = 'victoria.murphy' AND dealer_id = @d10)
   AND NOT EXISTS (SELECT 1 FROM membership WHERE dealer_id = @d10 AND username = 'victoria.murphy');
 -- Arjun Rahman (Sales Consultant)
@@ -459,7 +459,7 @@ SELECT 'arjun.rahman', '$2a$10$3HJsO33X6V2tItq6H05zG.JPypocvryhII3YPyYNHU1mOKrUJ
        'arjun.rahman@limestonecitymotors.ca', '+19055550150', 'Arjun', 'Rahman', 'https://randomuser.me/api/portraits/men/77.jpg', 'en-CA'
 FROM DUAL WHERE @d10 IS NOT NULL AND NOT EXISTS (SELECT 1 FROM app_user WHERE username = 'arjun.rahman' OR email = 'arjun.rahman@limestonecitymotors.ca' OR display_name = 'Arjun Rahman' OR phone = '+19055550150');
 INSERT INTO membership (dealer_id, username, active, dealer_role, created_by, created_at)
-SELECT @d10, 'arjun.rahman', 1, 'staff', 'admin', '2025-11-12 00:03:00'
+SELECT @d10, 'arjun.rahman', 1, 'SALES', 'admin', '2025-11-12 00:03:00'
 FROM DUAL WHERE EXISTS (SELECT 1 FROM app_user WHERE username = 'arjun.rahman' AND dealer_id = @d10)
   AND NOT EXISTS (SELECT 1 FROM membership WHERE dealer_id = @d10 AND username = 'arjun.rahman');
 -- Diego Singh (Sales Consultant)
@@ -468,7 +468,7 @@ SELECT 'diego.singh', '$2a$10$3HJsO33X6V2tItq6H05zG.JPypocvryhII3YPyYNHU1mOKrUJY
        'diego.singh@limestonecitymotors.ca', '+19055550153', 'Diego', 'Singh', 'https://randomuser.me/api/portraits/men/14.jpg', 'en-CA'
 FROM DUAL WHERE @d10 IS NOT NULL AND NOT EXISTS (SELECT 1 FROM app_user WHERE username = 'diego.singh' OR email = 'diego.singh@limestonecitymotors.ca' OR display_name = 'Diego Singh' OR phone = '+19055550153');
 INSERT INTO membership (dealer_id, username, active, dealer_role, created_by, created_at)
-SELECT @d10, 'diego.singh', 1, 'staff', 'admin', '2025-12-31 02:03:00'
+SELECT @d10, 'diego.singh', 1, 'SALES', 'admin', '2025-12-31 02:03:00'
 FROM DUAL WHERE EXISTS (SELECT 1 FROM app_user WHERE username = 'diego.singh' AND dealer_id = @d10)
   AND NOT EXISTS (SELECT 1 FROM membership WHERE dealer_id = @d10 AND username = 'diego.singh');
 -- Hassan Brown (Finance Manager)
@@ -477,7 +477,7 @@ SELECT 'hassan.brown', '$2a$10$3HJsO33X6V2tItq6H05zG.JPypocvryhII3YPyYNHU1mOKrUJ
        'hassan.brown@limestonecitymotors.ca', '+19055550120', 'Hassan', 'Brown', 'https://randomuser.me/api/portraits/men/51.jpg', 'en-CA'
 FROM DUAL WHERE @d10 IS NOT NULL AND NOT EXISTS (SELECT 1 FROM app_user WHERE username = 'hassan.brown' OR email = 'hassan.brown@limestonecitymotors.ca' OR display_name = 'Hassan Brown' OR phone = '+19055550120');
 INSERT INTO membership (dealer_id, username, active, dealer_role, created_by, created_at)
-SELECT @d10, 'hassan.brown', 1, 'staff', 'admin', '2026-02-09 03:03:00'
+SELECT @d10, 'hassan.brown', 1, 'SALES', 'admin', '2026-02-09 03:03:00'
 FROM DUAL WHERE EXISTS (SELECT 1 FROM app_user WHERE username = 'hassan.brown' AND dealer_id = @d10)
   AND NOT EXISTS (SELECT 1 FROM membership WHERE dealer_id = @d10 AND username = 'hassan.brown');
 -- Minh Kowalski (Sales Manager)
@@ -486,7 +486,7 @@ SELECT 'minh.kowalski', '$2a$10$3HJsO33X6V2tItq6H05zG.JPypocvryhII3YPyYNHU1mOKrU
        'minh.kowalski@goldenhorseshoeauto.ca', '+17055550156', 'Minh', 'Kowalski', 'https://randomuser.me/api/portraits/men/88.jpg', 'en-CA'
 FROM DUAL WHERE @d11 IS NOT NULL AND NOT EXISTS (SELECT 1 FROM app_user WHERE username = 'minh.kowalski' OR email = 'minh.kowalski@goldenhorseshoeauto.ca' OR display_name = 'Minh Kowalski' OR phone = '+17055550156');
 INSERT INTO membership (dealer_id, username, active, dealer_role, created_by, created_at)
-SELECT @d11, 'minh.kowalski', 1, 'staff', 'admin', '2025-11-15 18:50:00'
+SELECT @d11, 'minh.kowalski', 1, 'OWNER', 'admin', '2025-11-15 18:50:00'
 FROM DUAL WHERE EXISTS (SELECT 1 FROM app_user WHERE username = 'minh.kowalski' AND dealer_id = @d11)
   AND NOT EXISTS (SELECT 1 FROM membership WHERE dealer_id = @d11 AND username = 'minh.kowalski');
 -- Hiroshi Mensah (Sales Consultant)
@@ -495,7 +495,7 @@ SELECT 'hiroshi.mensah', '$2a$10$3HJsO33X6V2tItq6H05zG.JPypocvryhII3YPyYNHU1mOKr
        'hiroshi.mensah@goldenhorseshoeauto.ca', '+17055550142', 'Hiroshi', 'Mensah', 'https://randomuser.me/api/portraits/men/25.jpg', 'en-CA'
 FROM DUAL WHERE @d11 IS NOT NULL AND NOT EXISTS (SELECT 1 FROM app_user WHERE username = 'hiroshi.mensah' OR email = 'hiroshi.mensah@goldenhorseshoeauto.ca' OR display_name = 'Hiroshi Mensah' OR phone = '+17055550142');
 INSERT INTO membership (dealer_id, username, active, dealer_role, created_by, created_at)
-SELECT @d11, 'hiroshi.mensah', 1, 'staff', 'admin', '2025-11-21 21:20:00'
+SELECT @d11, 'hiroshi.mensah', 1, 'SALES', 'admin', '2025-11-21 21:20:00'
 FROM DUAL WHERE EXISTS (SELECT 1 FROM app_user WHERE username = 'hiroshi.mensah' AND dealer_id = @d11)
   AND NOT EXISTS (SELECT 1 FROM membership WHERE dealer_id = @d11 AND username = 'hiroshi.mensah');
 -- Simran Baker (Sales Consultant)
@@ -504,7 +504,7 @@ SELECT 'simran.baker', '$2a$10$3HJsO33X6V2tItq6H05zG.JPypocvryhII3YPyYNHU1mOKrUJ
        'simran.baker@goldenhorseshoeauto.ca', '+17055550186', 'Simran', 'Baker', 'https://randomuser.me/api/portraits/women/19.jpg', 'en-CA'
 FROM DUAL WHERE @d11 IS NOT NULL AND NOT EXISTS (SELECT 1 FROM app_user WHERE username = 'simran.baker' OR email = 'simran.baker@goldenhorseshoeauto.ca' OR display_name = 'Simran Baker' OR phone = '+17055550186');
 INSERT INTO membership (dealer_id, username, active, dealer_role, created_by, created_at)
-SELECT @d11, 'simran.baker', 1, 'staff', 'admin', '2026-01-20 23:20:00'
+SELECT @d11, 'simran.baker', 1, 'SALES', 'admin', '2026-01-20 23:20:00'
 FROM DUAL WHERE EXISTS (SELECT 1 FROM app_user WHERE username = 'simran.baker' AND dealer_id = @d11)
   AND NOT EXISTS (SELECT 1 FROM membership WHERE dealer_id = @d11 AND username = 'simran.baker');
 -- Olivia Novak (Sales Manager)
@@ -513,7 +513,7 @@ SELECT 'olivia.novak', '$2a$10$3HJsO33X6V2tItq6H05zG.JPypocvryhII3YPyYNHU1mOKrUJ
        'olivia.novak@royaloakautosales.ca', '+16135550169', 'Olivia', 'Novak', 'https://randomuser.me/api/portraits/women/56.jpg', 'en-CA'
 FROM DUAL WHERE @d12 IS NOT NULL AND NOT EXISTS (SELECT 1 FROM app_user WHERE username = 'olivia.novak' OR email = 'olivia.novak@royaloakautosales.ca' OR display_name = 'Olivia Novak' OR phone = '+16135550169');
 INSERT INTO membership (dealer_id, username, active, dealer_role, created_by, created_at)
-SELECT @d12, 'olivia.novak', 1, 'staff', 'admin', '2025-11-24 23:07:00'
+SELECT @d12, 'olivia.novak', 1, 'OWNER', 'admin', '2025-11-24 23:07:00'
 FROM DUAL WHERE EXISTS (SELECT 1 FROM app_user WHERE username = 'olivia.novak' AND dealer_id = @d12)
   AND NOT EXISTS (SELECT 1 FROM membership WHERE dealer_id = @d12 AND username = 'olivia.novak');
 -- Natalie Silva (Sales Consultant)
@@ -522,7 +522,7 @@ SELECT 'natalie.silva', '$2a$10$3HJsO33X6V2tItq6H05zG.JPypocvryhII3YPyYNHU1mOKrU
        'natalie.silva@royaloakautosales.ca', '+16135550163', 'Natalie', 'Silva', 'https://randomuser.me/api/portraits/women/93.jpg', 'en-CA'
 FROM DUAL WHERE @d12 IS NOT NULL AND NOT EXISTS (SELECT 1 FROM app_user WHERE username = 'natalie.silva' OR email = 'natalie.silva@royaloakautosales.ca' OR display_name = 'Natalie Silva' OR phone = '+16135550163');
 INSERT INTO membership (dealer_id, username, active, dealer_role, created_by, created_at)
-SELECT @d12, 'natalie.silva', 1, 'staff', 'admin', '2025-12-03 01:37:00'
+SELECT @d12, 'natalie.silva', 1, 'SALES', 'admin', '2025-12-03 01:37:00'
 FROM DUAL WHERE EXISTS (SELECT 1 FROM app_user WHERE username = 'natalie.silva' AND dealer_id = @d12)
   AND NOT EXISTS (SELECT 1 FROM membership WHERE dealer_id = @d12 AND username = 'natalie.silva');
 -- Ava Gagnon (Sales Consultant)
@@ -531,7 +531,7 @@ SELECT 'ava.gagnon', '$2a$10$3HJsO33X6V2tItq6H05zG.JPypocvryhII3YPyYNHU1mOKrUJY0
        'ava.gagnon@royaloakautosales.ca', '+16135550188', 'Ava', 'Gagnon', 'https://randomuser.me/api/portraits/men/62.jpg', 'en-CA'
 FROM DUAL WHERE @d12 IS NOT NULL AND NOT EXISTS (SELECT 1 FROM app_user WHERE username = 'ava.gagnon' OR email = 'ava.gagnon@royaloakautosales.ca' OR display_name = 'Ava Gagnon' OR phone = '+16135550188');
 INSERT INTO membership (dealer_id, username, active, dealer_role, created_by, created_at)
-SELECT @d12, 'ava.gagnon', 1, 'staff', 'admin', '2026-01-13 03:37:00'
+SELECT @d12, 'ava.gagnon', 1, 'SALES', 'admin', '2026-01-13 03:37:00'
 FROM DUAL WHERE EXISTS (SELECT 1 FROM app_user WHERE username = 'ava.gagnon' AND dealer_id = @d12)
   AND NOT EXISTS (SELECT 1 FROM membership WHERE dealer_id = @d12 AND username = 'ava.gagnon');
 -- Raj Smith (Finance Manager)
@@ -540,7 +540,7 @@ SELECT 'raj.smith', '$2a$10$3HJsO33X6V2tItq6H05zG.JPypocvryhII3YPyYNHU1mOKrUJY0z
        'raj.smith@royaloakautosales.ca', '+16135550137', 'Raj', 'Smith', 'https://randomuser.me/api/portraits/men/99.jpg', 'en-CA'
 FROM DUAL WHERE @d12 IS NOT NULL AND NOT EXISTS (SELECT 1 FROM app_user WHERE username = 'raj.smith' OR email = 'raj.smith@royaloakautosales.ca' OR display_name = 'Raj Smith' OR phone = '+16135550137');
 INSERT INTO membership (dealer_id, username, active, dealer_role, created_by, created_at)
-SELECT @d12, 'raj.smith', 1, 'staff', 'admin', '2026-02-22 04:37:00'
+SELECT @d12, 'raj.smith', 1, 'SALES', 'admin', '2026-02-22 04:37:00'
 FROM DUAL WHERE EXISTS (SELECT 1 FROM app_user WHERE username = 'raj.smith' AND dealer_id = @d12)
   AND NOT EXISTS (SELECT 1 FROM membership WHERE dealer_id = @d12 AND username = 'raj.smith');
 -- Emily Baker (Service Advisor)
@@ -549,7 +549,7 @@ SELECT 'emily.baker', '$2a$10$3HJsO33X6V2tItq6H05zG.JPypocvryhII3YPyYNHU1mOKrUJY
        'emily.baker@royaloakautosales.ca', '+16135550162', 'Emily', 'Baker', 'https://randomuser.me/api/portraits/men/36.jpg', 'en-CA'
 FROM DUAL WHERE @d12 IS NOT NULL AND NOT EXISTS (SELECT 1 FROM app_user WHERE username = 'emily.baker' OR email = 'emily.baker@royaloakautosales.ca' OR display_name = 'Emily Baker' OR phone = '+16135550162');
 INSERT INTO membership (dealer_id, username, active, dealer_role, created_by, created_at)
-SELECT @d12, 'emily.baker', 1, 'staff', 'admin', '2026-04-03 05:37:00'
+SELECT @d12, 'emily.baker', 1, 'SALES', 'admin', '2026-04-03 05:37:00'
 FROM DUAL WHERE EXISTS (SELECT 1 FROM app_user WHERE username = 'emily.baker' AND dealer_id = @d12)
   AND NOT EXISTS (SELECT 1 FROM membership WHERE dealer_id = @d12 AND username = 'emily.baker');
 -- Noah Patel (Sales Manager)
@@ -558,7 +558,7 @@ SELECT 'noah.patel', '$2a$10$3HJsO33X6V2tItq6H05zG.JPypocvryhII3YPyYNHU1mOKrUJY0
        'noah.patel@escarpmentmotors.ca', '+15195550149', 'Noah', 'Patel', 'https://randomuser.me/api/portraits/men/73.jpg', 'en-CA'
 FROM DUAL WHERE @d13 IS NOT NULL AND NOT EXISTS (SELECT 1 FROM app_user WHERE username = 'noah.patel' OR email = 'noah.patel@escarpmentmotors.ca' OR display_name = 'Noah Patel' OR phone = '+15195550149');
 INSERT INTO membership (dealer_id, username, active, dealer_role, created_by, created_at)
-SELECT @d13, 'noah.patel', 1, 'staff', 'admin', '2025-11-29 20:24:00'
+SELECT @d13, 'noah.patel', 1, 'OWNER', 'admin', '2025-11-29 20:24:00'
 FROM DUAL WHERE EXISTS (SELECT 1 FROM app_user WHERE username = 'noah.patel' AND dealer_id = @d13)
   AND NOT EXISTS (SELECT 1 FROM membership WHERE dealer_id = @d13 AND username = 'noah.patel');
 -- Lucas Smith (Sales Consultant)
@@ -567,7 +567,7 @@ SELECT 'lucas.smith', '$2a$10$3HJsO33X6V2tItq6H05zG.JPypocvryhII3YPyYNHU1mOKrUJY
        'lucas.smith@escarpmentmotors.ca', '+15195550183', 'Lucas', 'Smith', 'https://randomuser.me/api/portraits/men/10.jpg', 'en-CA'
 FROM DUAL WHERE @d13 IS NOT NULL AND NOT EXISTS (SELECT 1 FROM app_user WHERE username = 'lucas.smith' OR email = 'lucas.smith@escarpmentmotors.ca' OR display_name = 'Lucas Smith' OR phone = '+15195550183');
 INSERT INTO membership (dealer_id, username, active, dealer_role, created_by, created_at)
-SELECT @d13, 'lucas.smith', 1, 'staff', 'admin', '2025-12-03 22:54:00'
+SELECT @d13, 'lucas.smith', 1, 'SALES', 'admin', '2025-12-03 22:54:00'
 FROM DUAL WHERE EXISTS (SELECT 1 FROM app_user WHERE username = 'lucas.smith' AND dealer_id = @d13)
   AND NOT EXISTS (SELECT 1 FROM membership WHERE dealer_id = @d13 AND username = 'lucas.smith');
 -- Daniel Roy (Sales Consultant)
@@ -576,7 +576,7 @@ SELECT 'daniel.roy', '$2a$10$3HJsO33X6V2tItq6H05zG.JPypocvryhII3YPyYNHU1mOKrUJY0
        'daniel.roy@escarpmentmotors.ca', '+15195550115', 'Daniel', 'Roy', 'https://randomuser.me/api/portraits/men/47.jpg', 'en-CA'
 FROM DUAL WHERE @d13 IS NOT NULL AND NOT EXISTS (SELECT 1 FROM app_user WHERE username = 'daniel.roy' OR email = 'daniel.roy@escarpmentmotors.ca' OR display_name = 'Daniel Roy' OR phone = '+15195550115');
 INSERT INTO membership (dealer_id, username, active, dealer_role, created_by, created_at)
-SELECT @d13, 'daniel.roy', 1, 'staff', 'admin', '2026-01-25 00:54:00'
+SELECT @d13, 'daniel.roy', 1, 'SALES', 'admin', '2026-01-25 00:54:00'
 FROM DUAL WHERE EXISTS (SELECT 1 FROM app_user WHERE username = 'daniel.roy' AND dealer_id = @d13)
   AND NOT EXISTS (SELECT 1 FROM membership WHERE dealer_id = @d13 AND username = 'daniel.roy');
 -- Hassan Singh (Finance Manager)
@@ -585,7 +585,7 @@ SELECT 'hassan.singh', '$2a$10$3HJsO33X6V2tItq6H05zG.JPypocvryhII3YPyYNHU1mOKrUJ
        'hassan.singh@escarpmentmotors.ca', '+15195550162', 'Hassan', 'Singh', 'https://randomuser.me/api/portraits/men/84.jpg', 'en-CA'
 FROM DUAL WHERE @d13 IS NOT NULL AND NOT EXISTS (SELECT 1 FROM app_user WHERE username = 'hassan.singh' OR email = 'hassan.singh@escarpmentmotors.ca' OR display_name = 'Hassan Singh' OR phone = '+15195550162');
 INSERT INTO membership (dealer_id, username, active, dealer_role, created_by, created_at)
-SELECT @d13, 'hassan.singh', 1, 'staff', 'admin', '2026-03-06 01:54:00'
+SELECT @d13, 'hassan.singh', 1, 'SALES', 'admin', '2026-03-06 01:54:00'
 FROM DUAL WHERE EXISTS (SELECT 1 FROM app_user WHERE username = 'hassan.singh' AND dealer_id = @d13)
   AND NOT EXISTS (SELECT 1 FROM membership WHERE dealer_id = @d13 AND username = 'hassan.singh');
 -- Omar Gagnon (Service Advisor)
@@ -594,7 +594,7 @@ SELECT 'omar.gagnon', '$2a$10$3HJsO33X6V2tItq6H05zG.JPypocvryhII3YPyYNHU1mOKrUJY
        'omar.gagnon@escarpmentmotors.ca', '+15195550119', 'Omar', 'Gagnon', 'https://randomuser.me/api/portraits/men/21.jpg', 'en-CA'
 FROM DUAL WHERE @d13 IS NOT NULL AND NOT EXISTS (SELECT 1 FROM app_user WHERE username = 'omar.gagnon' OR email = 'omar.gagnon@escarpmentmotors.ca' OR display_name = 'Omar Gagnon' OR phone = '+15195550119');
 INSERT INTO membership (dealer_id, username, active, dealer_role, created_by, created_at)
-SELECT @d13, 'omar.gagnon', 1, 'staff', 'admin', '2026-04-15 02:54:00'
+SELECT @d13, 'omar.gagnon', 1, 'SALES', 'admin', '2026-04-15 02:54:00'
 FROM DUAL WHERE EXISTS (SELECT 1 FROM app_user WHERE username = 'omar.gagnon' AND dealer_id = @d13)
   AND NOT EXISTS (SELECT 1 FROM membership WHERE dealer_id = @d13 AND username = 'omar.gagnon');
 -- Tomasz O'Brien (Sales Manager)
@@ -603,7 +603,7 @@ SELECT 'tomasz.obrien', '$2a$10$3HJsO33X6V2tItq6H05zG.JPypocvryhII3YPyYNHU1mOKrU
        'tomasz.obrien@pinecrestautosales.ca', '+19055550132', 'Tomasz', 'O''Brien', 'https://randomuser.me/api/portraits/men/58.jpg', 'en-CA'
 FROM DUAL WHERE @d14 IS NOT NULL AND NOT EXISTS (SELECT 1 FROM app_user WHERE username = 'tomasz.obrien' OR email = 'tomasz.obrien@pinecrestautosales.ca' OR display_name = 'Tomasz O''Brien' OR phone = '+19055550132');
 INSERT INTO membership (dealer_id, username, active, dealer_role, created_by, created_at)
-SELECT @d14, 'tomasz.obrien', 1, 'staff', 'admin', '2025-12-07 17:41:00'
+SELECT @d14, 'tomasz.obrien', 1, 'OWNER', 'admin', '2025-12-07 17:41:00'
 FROM DUAL WHERE EXISTS (SELECT 1 FROM app_user WHERE username = 'tomasz.obrien' AND dealer_id = @d14)
   AND NOT EXISTS (SELECT 1 FROM membership WHERE dealer_id = @d14 AND username = 'tomasz.obrien');
 -- Arjun Silva (Sales Consultant)
@@ -612,7 +612,7 @@ SELECT 'arjun.silva', '$2a$10$3HJsO33X6V2tItq6H05zG.JPypocvryhII3YPyYNHU1mOKrUJY
        'arjun.silva@pinecrestautosales.ca', '+19055550140', 'Arjun', 'Silva', 'https://randomuser.me/api/portraits/men/95.jpg', 'en-CA'
 FROM DUAL WHERE @d14 IS NOT NULL AND NOT EXISTS (SELECT 1 FROM app_user WHERE username = 'arjun.silva' OR email = 'arjun.silva@pinecrestautosales.ca' OR display_name = 'Arjun Silva' OR phone = '+19055550140');
 INSERT INTO membership (dealer_id, username, active, dealer_role, created_by, created_at)
-SELECT @d14, 'arjun.silva', 1, 'staff', 'admin', '2025-12-13 20:11:00'
+SELECT @d14, 'arjun.silva', 1, 'SALES', 'admin', '2025-12-13 20:11:00'
 FROM DUAL WHERE EXISTS (SELECT 1 FROM app_user WHERE username = 'arjun.silva' AND dealer_id = @d14)
   AND NOT EXISTS (SELECT 1 FROM membership WHERE dealer_id = @d14 AND username = 'arjun.silva');
 -- Connor Ivanov (Sales Manager)
@@ -621,7 +621,7 @@ SELECT 'connor.ivanov', '$2a$10$3HJsO33X6V2tItq6H05zG.JPypocvryhII3YPyYNHU1mOKrU
        'connor.ivanov@thamesvalleymotors.ca', '+17055550105', 'Connor', 'Ivanov', 'https://randomuser.me/api/portraits/men/32.jpg', 'en-CA'
 FROM DUAL WHERE @d15 IS NOT NULL AND NOT EXISTS (SELECT 1 FROM app_user WHERE username = 'connor.ivanov' OR email = 'connor.ivanov@thamesvalleymotors.ca' OR display_name = 'Connor Ivanov' OR phone = '+17055550105');
 INSERT INTO membership (dealer_id, username, active, dealer_role, created_by, created_at)
-SELECT @d15, 'connor.ivanov', 1, 'staff', 'admin', '2025-12-15 22:58:00'
+SELECT @d15, 'connor.ivanov', 1, 'OWNER', 'admin', '2025-12-15 22:58:00'
 FROM DUAL WHERE EXISTS (SELECT 1 FROM app_user WHERE username = 'connor.ivanov' AND dealer_id = @d15)
   AND NOT EXISTS (SELECT 1 FROM membership WHERE dealer_id = @d15 AND username = 'connor.ivanov');
 -- Lucas Ivanov (Sales Consultant)
@@ -630,7 +630,7 @@ SELECT 'lucas.ivanov', '$2a$10$3HJsO33X6V2tItq6H05zG.JPypocvryhII3YPyYNHU1mOKrUJ
        'lucas.ivanov@thamesvalleymotors.ca', '+17055550106', 'Lucas', 'Ivanov', 'https://randomuser.me/api/portraits/men/69.jpg', 'en-CA'
 FROM DUAL WHERE @d15 IS NOT NULL AND NOT EXISTS (SELECT 1 FROM app_user WHERE username = 'lucas.ivanov' OR email = 'lucas.ivanov@thamesvalleymotors.ca' OR display_name = 'Lucas Ivanov' OR phone = '+17055550106');
 INSERT INTO membership (dealer_id, username, active, dealer_role, created_by, created_at)
-SELECT @d15, 'lucas.ivanov', 1, 'staff', 'admin', '2025-12-24 01:28:00'
+SELECT @d15, 'lucas.ivanov', 1, 'SALES', 'admin', '2025-12-24 01:28:00'
 FROM DUAL WHERE EXISTS (SELECT 1 FROM app_user WHERE username = 'lucas.ivanov' AND dealer_id = @d15)
   AND NOT EXISTS (SELECT 1 FROM membership WHERE dealer_id = @d15 AND username = 'lucas.ivanov');
 -- Ryan Gagnon (Sales Manager)
@@ -639,7 +639,7 @@ SELECT 'ryan.gagnon', '$2a$10$3HJsO33X6V2tItq6H05zG.JPypocvryhII3YPyYNHU1mOKrUJY
        'ryan.gagnon@grandriverauto.ca', '+14165550196', 'Ryan', 'Gagnon', 'https://randomuser.me/api/portraits/men/6.jpg', 'en-CA'
 FROM DUAL WHERE @d16 IS NOT NULL AND NOT EXISTS (SELECT 1 FROM app_user WHERE username = 'ryan.gagnon' OR email = 'ryan.gagnon@grandriverauto.ca' OR display_name = 'Ryan Gagnon' OR phone = '+14165550196');
 INSERT INTO membership (dealer_id, username, active, dealer_role, created_by, created_at)
-SELECT @d16, 'ryan.gagnon', 1, 'staff', 'admin', '2025-12-21 19:15:00'
+SELECT @d16, 'ryan.gagnon', 1, 'OWNER', 'admin', '2025-12-21 19:15:00'
 FROM DUAL WHERE EXISTS (SELECT 1 FROM app_user WHERE username = 'ryan.gagnon' AND dealer_id = @d16)
   AND NOT EXISTS (SELECT 1 FROM membership WHERE dealer_id = @d16 AND username = 'ryan.gagnon');
 -- Chloé Roy (Sales Consultant)
@@ -648,7 +648,7 @@ SELECT 'chloe.roy', '$2a$10$3HJsO33X6V2tItq6H05zG.JPypocvryhII3YPyYNHU1mOKrUJY0z
        'chloe.roy@grandriverauto.ca', '+14165550183', 'Chloé', 'Roy', 'https://randomuser.me/api/portraits/women/30.jpg', 'en-CA'
 FROM DUAL WHERE @d16 IS NOT NULL AND NOT EXISTS (SELECT 1 FROM app_user WHERE username = 'chloe.roy' OR email = 'chloe.roy@grandriverauto.ca' OR display_name = 'Chloé Roy' OR phone = '+14165550183');
 INSERT INTO membership (dealer_id, username, active, dealer_role, created_by, created_at)
-SELECT @d16, 'chloe.roy', 1, 'staff', 'admin', '2025-12-25 21:45:00'
+SELECT @d16, 'chloe.roy', 1, 'SALES', 'admin', '2025-12-25 21:45:00'
 FROM DUAL WHERE EXISTS (SELECT 1 FROM app_user WHERE username = 'chloe.roy' AND dealer_id = @d16)
   AND NOT EXISTS (SELECT 1 FROM membership WHERE dealer_id = @d16 AND username = 'chloe.roy');
 -- Ethan Singh (Sales Consultant)
@@ -657,7 +657,7 @@ SELECT 'ethan.singh', '$2a$10$3HJsO33X6V2tItq6H05zG.JPypocvryhII3YPyYNHU1mOKrUJY
        'ethan.singh@grandriverauto.ca', '+14165550157', 'Ethan', 'Singh', 'https://randomuser.me/api/portraits/men/43.jpg', 'en-CA'
 FROM DUAL WHERE @d16 IS NOT NULL AND NOT EXISTS (SELECT 1 FROM app_user WHERE username = 'ethan.singh' OR email = 'ethan.singh@grandriverauto.ca' OR display_name = 'Ethan Singh' OR phone = '+14165550157');
 INSERT INTO membership (dealer_id, username, active, dealer_role, created_by, created_at)
-SELECT @d16, 'ethan.singh', 1, 'staff', 'admin', '2026-02-18 23:45:00'
+SELECT @d16, 'ethan.singh', 1, 'SALES', 'admin', '2026-02-18 23:45:00'
 FROM DUAL WHERE EXISTS (SELECT 1 FROM app_user WHERE username = 'ethan.singh' AND dealer_id = @d16)
   AND NOT EXISTS (SELECT 1 FROM membership WHERE dealer_id = @d16 AND username = 'ethan.singh');
 -- Harleen Garcia (Sales Manager)
@@ -666,7 +666,7 @@ SELECT 'harleen.garcia', '$2a$10$3HJsO33X6V2tItq6H05zG.JPypocvryhII3YPyYNHU1mOKr
        'harleen.garcia@ambassadorautosales.ca', '+19055550167', 'Harleen', 'Garcia', 'https://randomuser.me/api/portraits/women/67.jpg', 'en-CA'
 FROM DUAL WHERE @d17 IS NOT NULL AND NOT EXISTS (SELECT 1 FROM app_user WHERE username = 'harleen.garcia' OR email = 'harleen.garcia@ambassadorautosales.ca' OR display_name = 'Harleen Garcia' OR phone = '+19055550167');
 INSERT INTO membership (dealer_id, username, active, dealer_role, created_by, created_at)
-SELECT @d17, 'harleen.garcia', 1, 'staff', 'admin', '2025-12-29 16:32:00'
+SELECT @d17, 'harleen.garcia', 1, 'OWNER', 'admin', '2025-12-29 16:32:00'
 FROM DUAL WHERE EXISTS (SELECT 1 FROM app_user WHERE username = 'harleen.garcia' AND dealer_id = @d17)
   AND NOT EXISTS (SELECT 1 FROM membership WHERE dealer_id = @d17 AND username = 'harleen.garcia');
 -- Patrick Morrison (Sales Consultant)
@@ -675,7 +675,7 @@ SELECT 'patrick.morrison', '$2a$10$3HJsO33X6V2tItq6H05zG.JPypocvryhII3YPyYNHU1mO
        'patrick.morrison@ambassadorautosales.ca', '+19055550118', 'Patrick', 'Morrison', 'https://randomuser.me/api/portraits/men/80.jpg', 'en-CA'
 FROM DUAL WHERE @d17 IS NOT NULL AND NOT EXISTS (SELECT 1 FROM app_user WHERE username = 'patrick.morrison' OR email = 'patrick.morrison@ambassadorautosales.ca' OR display_name = 'Patrick Morrison' OR phone = '+19055550118');
 INSERT INTO membership (dealer_id, username, active, dealer_role, created_by, created_at)
-SELECT @d17, 'patrick.morrison', 1, 'staff', 'admin', '2026-01-04 19:02:00'
+SELECT @d17, 'patrick.morrison', 1, 'SALES', 'admin', '2026-01-04 19:02:00'
 FROM DUAL WHERE EXISTS (SELECT 1 FROM app_user WHERE username = 'patrick.morrison' AND dealer_id = @d17)
   AND NOT EXISTS (SELECT 1 FROM membership WHERE dealer_id = @d17 AND username = 'patrick.morrison');
 -- Tyler MacDonald (Sales Consultant)
@@ -684,7 +684,7 @@ SELECT 'tyler.macdonald', '$2a$10$3HJsO33X6V2tItq6H05zG.JPypocvryhII3YPyYNHU1mOK
        'tyler.macdonald@ambassadorautosales.ca', '+19055550103', 'Tyler', 'MacDonald', 'https://randomuser.me/api/portraits/men/17.jpg', 'en-CA'
 FROM DUAL WHERE @d17 IS NOT NULL AND NOT EXISTS (SELECT 1 FROM app_user WHERE username = 'tyler.macdonald' OR email = 'tyler.macdonald@ambassadorautosales.ca' OR display_name = 'Tyler MacDonald' OR phone = '+19055550103');
 INSERT INTO membership (dealer_id, username, active, dealer_role, created_by, created_at)
-SELECT @d17, 'tyler.macdonald', 1, 'staff', 'admin', '2026-03-11 21:02:00'
+SELECT @d17, 'tyler.macdonald', 1, 'SALES', 'admin', '2026-03-11 21:02:00'
 FROM DUAL WHERE EXISTS (SELECT 1 FROM app_user WHERE username = 'tyler.macdonald' AND dealer_id = @d17)
   AND NOT EXISTS (SELECT 1 FROM membership WHERE dealer_id = @d17 AND username = 'tyler.macdonald');
 -- Samuel Smith (Finance Manager)
@@ -693,7 +693,7 @@ SELECT 'samuel.smith', '$2a$10$3HJsO33X6V2tItq6H05zG.JPypocvryhII3YPyYNHU1mOKrUJ
        'samuel.smith@ambassadorautosales.ca', '+19055550127', 'Samuel', 'Smith', 'https://randomuser.me/api/portraits/men/54.jpg', 'en-CA'
 FROM DUAL WHERE @d17 IS NOT NULL AND NOT EXISTS (SELECT 1 FROM app_user WHERE username = 'samuel.smith' OR email = 'samuel.smith@ambassadorautosales.ca' OR display_name = 'Samuel Smith' OR phone = '+19055550127');
 INSERT INTO membership (dealer_id, username, active, dealer_role, created_by, created_at)
-SELECT @d17, 'samuel.smith', 1, 'staff', 'admin', '2026-04-20 22:02:00'
+SELECT @d17, 'samuel.smith', 1, 'SALES', 'admin', '2026-04-20 22:02:00'
 FROM DUAL WHERE EXISTS (SELECT 1 FROM app_user WHERE username = 'samuel.smith' AND dealer_id = @d17)
   AND NOT EXISTS (SELECT 1 FROM membership WHERE dealer_id = @d17 AND username = 'samuel.smith');
 -- Zofia Ahmed (Sales Manager)
@@ -702,7 +702,7 @@ SELECT 'zofia.ahmed', '$2a$10$3HJsO33X6V2tItq6H05zG.JPypocvryhII3YPyYNHU1mOKrUJY
        'zofia.ahmed@simcoecountymotors.ca', '+19055550161', 'Zofia', 'Ahmed', 'https://randomuser.me/api/portraits/women/4.jpg', 'en-CA'
 FROM DUAL WHERE @d18 IS NOT NULL AND NOT EXISTS (SELECT 1 FROM app_user WHERE username = 'zofia.ahmed' OR email = 'zofia.ahmed@simcoecountymotors.ca' OR display_name = 'Zofia Ahmed' OR phone = '+19055550161');
 INSERT INTO membership (dealer_id, username, active, dealer_role, created_by, created_at)
-SELECT @d18, 'zofia.ahmed', 1, 'staff', 'admin', '2026-01-06 21:49:00'
+SELECT @d18, 'zofia.ahmed', 1, 'OWNER', 'admin', '2026-01-06 21:49:00'
 FROM DUAL WHERE EXISTS (SELECT 1 FROM app_user WHERE username = 'zofia.ahmed' AND dealer_id = @d18)
   AND NOT EXISTS (SELECT 1 FROM membership WHERE dealer_id = @d18 AND username = 'zofia.ahmed');
 -- Daniel Ali (Sales Consultant)
@@ -711,7 +711,7 @@ SELECT 'daniel.ali', '$2a$10$3HJsO33X6V2tItq6H05zG.JPypocvryhII3YPyYNHU1mOKrUJY0
        'daniel.ali@simcoecountymotors.ca', '+19055550149', 'Daniel', 'Ali', 'https://randomuser.me/api/portraits/men/91.jpg', 'en-CA'
 FROM DUAL WHERE @d18 IS NOT NULL AND NOT EXISTS (SELECT 1 FROM app_user WHERE username = 'daniel.ali' OR email = 'daniel.ali@simcoecountymotors.ca' OR display_name = 'Daniel Ali' OR phone = '+19055550149');
 INSERT INTO membership (dealer_id, username, active, dealer_role, created_by, created_at)
-SELECT @d18, 'daniel.ali', 1, 'staff', 'admin', '2026-01-15 00:19:00'
+SELECT @d18, 'daniel.ali', 1, 'SALES', 'admin', '2026-01-15 00:19:00'
 FROM DUAL WHERE EXISTS (SELECT 1 FROM app_user WHERE username = 'daniel.ali' AND dealer_id = @d18)
   AND NOT EXISTS (SELECT 1 FROM membership WHERE dealer_id = @d18 AND username = 'daniel.ali');
 -- Andrei Fraser (Sales Manager)
@@ -720,7 +720,7 @@ SELECT 'andrei.fraser', '$2a$10$3HJsO33X6V2tItq6H05zG.JPypocvryhII3YPyYNHU1mOKrU
        'andrei.fraser@lakeviewpreowned.ca', '+19055550119', 'Andrei', 'Fraser', 'https://randomuser.me/api/portraits/men/28.jpg', 'en-CA'
 FROM DUAL WHERE @d19 IS NOT NULL AND NOT EXISTS (SELECT 1 FROM app_user WHERE username = 'andrei.fraser' OR email = 'andrei.fraser@lakeviewpreowned.ca' OR display_name = 'Andrei Fraser' OR phone = '+19055550119');
 INSERT INTO membership (dealer_id, username, active, dealer_role, created_by, created_at)
-SELECT @d19, 'andrei.fraser', 1, 'staff', 'admin', '2026-01-11 18:06:00'
+SELECT @d19, 'andrei.fraser', 1, 'OWNER', 'admin', '2026-01-11 18:06:00'
 FROM DUAL WHERE EXISTS (SELECT 1 FROM app_user WHERE username = 'andrei.fraser' AND dealer_id = @d19)
   AND NOT EXISTS (SELECT 1 FROM membership WHERE dealer_id = @d19 AND username = 'andrei.fraser');
 -- Emma Morrison (Sales Consultant)
@@ -729,7 +729,7 @@ SELECT 'emma.morrison', '$2a$10$3HJsO33X6V2tItq6H05zG.JPypocvryhII3YPyYNHU1mOKrU
        'emma.morrison@lakeviewpreowned.ca', '+19055550169', 'Emma', 'Morrison', 'https://randomuser.me/api/portraits/women/41.jpg', 'en-CA'
 FROM DUAL WHERE @d19 IS NOT NULL AND NOT EXISTS (SELECT 1 FROM app_user WHERE username = 'emma.morrison' OR email = 'emma.morrison@lakeviewpreowned.ca' OR display_name = 'Emma Morrison' OR phone = '+19055550169');
 INSERT INTO membership (dealer_id, username, active, dealer_role, created_by, created_at)
-SELECT @d19, 'emma.morrison', 1, 'staff', 'admin', '2026-01-15 20:36:00'
+SELECT @d19, 'emma.morrison', 1, 'SALES', 'admin', '2026-01-15 20:36:00'
 FROM DUAL WHERE EXISTS (SELECT 1 FROM app_user WHERE username = 'emma.morrison' AND dealer_id = @d19)
   AND NOT EXISTS (SELECT 1 FROM membership WHERE dealer_id = @d19 AND username = 'emma.morrison');
 -- Sophia Bouchard (Sales Consultant)
@@ -738,7 +738,7 @@ SELECT 'sophia.bouchard', '$2a$10$3HJsO33X6V2tItq6H05zG.JPypocvryhII3YPyYNHU1mOK
        'sophia.bouchard@lakeviewpreowned.ca', '+19055550129', 'Sophia', 'Bouchard', 'https://randomuser.me/api/portraits/men/65.jpg', 'en-CA'
 FROM DUAL WHERE @d19 IS NOT NULL AND NOT EXISTS (SELECT 1 FROM app_user WHERE username = 'sophia.bouchard' OR email = 'sophia.bouchard@lakeviewpreowned.ca' OR display_name = 'Sophia Bouchard' OR phone = '+19055550129');
 INSERT INTO membership (dealer_id, username, active, dealer_role, created_by, created_at)
-SELECT @d19, 'sophia.bouchard', 1, 'staff', 'admin', '2026-03-14 22:36:00'
+SELECT @d19, 'sophia.bouchard', 1, 'SALES', 'admin', '2026-03-14 22:36:00'
 FROM DUAL WHERE EXISTS (SELECT 1 FROM app_user WHERE username = 'sophia.bouchard' AND dealer_id = @d19)
   AND NOT EXISTS (SELECT 1 FROM membership WHERE dealer_id = @d19 AND username = 'sophia.bouchard');
 -- Isabella Baker (Sales Manager)
@@ -747,7 +747,7 @@ SELECT 'isabella.baker', '$2a$10$3HJsO33X6V2tItq6H05zG.JPypocvryhII3YPyYNHU1mOKr
        'isabella.baker@canalstreetauto.ca', '+16135550186', 'Isabella', 'Baker', 'https://randomuser.me/api/portraits/women/78.jpg', 'en-CA'
 FROM DUAL WHERE @d20 IS NOT NULL AND NOT EXISTS (SELECT 1 FROM app_user WHERE username = 'isabella.baker' OR email = 'isabella.baker@canalstreetauto.ca' OR display_name = 'Isabella Baker' OR phone = '+16135550186');
 INSERT INTO membership (dealer_id, username, active, dealer_role, created_by, created_at)
-SELECT @d20, 'isabella.baker', 1, 'staff', 'admin', '2026-01-20 23:23:00'
+SELECT @d20, 'isabella.baker', 1, 'OWNER', 'admin', '2026-01-20 23:23:00'
 FROM DUAL WHERE EXISTS (SELECT 1 FROM app_user WHERE username = 'isabella.baker' AND dealer_id = @d20)
   AND NOT EXISTS (SELECT 1 FROM membership WHERE dealer_id = @d20 AND username = 'isabella.baker');
 -- Chloé Stewart (Sales Consultant)
@@ -756,7 +756,7 @@ SELECT 'chloe.stewart', '$2a$10$3HJsO33X6V2tItq6H05zG.JPypocvryhII3YPyYNHU1mOKrU
        'chloe.stewart@canalstreetauto.ca', '+16135550121', 'Chloé', 'Stewart', 'https://randomuser.me/api/portraits/women/15.jpg', 'en-CA'
 FROM DUAL WHERE @d20 IS NOT NULL AND NOT EXISTS (SELECT 1 FROM app_user WHERE username = 'chloe.stewart' OR email = 'chloe.stewart@canalstreetauto.ca' OR display_name = 'Chloé Stewart' OR phone = '+16135550121');
 INSERT INTO membership (dealer_id, username, active, dealer_role, created_by, created_at)
-SELECT @d20, 'chloe.stewart', 1, 'staff', 'admin', '2026-01-27 01:53:00'
+SELECT @d20, 'chloe.stewart', 1, 'SALES', 'admin', '2026-01-27 01:53:00'
 FROM DUAL WHERE EXISTS (SELECT 1 FROM app_user WHERE username = 'chloe.stewart' AND dealer_id = @d20)
   AND NOT EXISTS (SELECT 1 FROM membership WHERE dealer_id = @d20 AND username = 'chloe.stewart');
 -- Emily Kowalski (Sales Consultant)
@@ -765,7 +765,7 @@ SELECT 'emily.kowalski', '$2a$10$3HJsO33X6V2tItq6H05zG.JPypocvryhII3YPyYNHU1mOKr
        'emily.kowalski@canalstreetauto.ca', '+16135550156', 'Emily', 'Kowalski', 'https://randomuser.me/api/portraits/men/2.jpg', 'en-CA'
 FROM DUAL WHERE @d20 IS NOT NULL AND NOT EXISTS (SELECT 1 FROM app_user WHERE username = 'emily.kowalski' OR email = 'emily.kowalski@canalstreetauto.ca' OR display_name = 'Emily Kowalski' OR phone = '+16135550156');
 INSERT INTO membership (dealer_id, username, active, dealer_role, created_by, created_at)
-SELECT @d20, 'emily.kowalski', 1, 'staff', 'admin', '2026-04-06 03:53:00'
+SELECT @d20, 'emily.kowalski', 1, 'SALES', 'admin', '2026-04-06 03:53:00'
 FROM DUAL WHERE EXISTS (SELECT 1 FROM app_user WHERE username = 'emily.kowalski' AND dealer_id = @d20)
   AND NOT EXISTS (SELECT 1 FROM membership WHERE dealer_id = @d20 AND username = 'emily.kowalski');
 -- Liam Kelly (Sales Manager)
@@ -774,7 +774,7 @@ SELECT 'liam.kelly', '$2a$10$3HJsO33X6V2tItq6H05zG.JPypocvryhII3YPyYNHU1mOKrUJY0
        'liam.kelly@northernlightsmotors.ca', '+15195550154', 'Liam', 'Kelly', 'https://randomuser.me/api/portraits/men/39.jpg', 'en-CA'
 FROM DUAL WHERE @d21 IS NOT NULL AND NOT EXISTS (SELECT 1 FROM app_user WHERE username = 'liam.kelly' OR email = 'liam.kelly@northernlightsmotors.ca' OR display_name = 'Liam Kelly' OR phone = '+15195550154');
 INSERT INTO membership (dealer_id, username, active, dealer_role, created_by, created_at)
-SELECT @d21, 'liam.kelly', 1, 'staff', 'admin', '2026-01-28 20:40:00'
+SELECT @d21, 'liam.kelly', 1, 'OWNER', 'admin', '2026-01-28 20:40:00'
 FROM DUAL WHERE EXISTS (SELECT 1 FROM app_user WHERE username = 'liam.kelly' AND dealer_id = @d21)
   AND NOT EXISTS (SELECT 1 FROM membership WHERE dealer_id = @d21 AND username = 'liam.kelly');
 -- Noah O'Brien (Sales Consultant)
@@ -783,7 +783,7 @@ SELECT 'noah.obrien', '$2a$10$3HJsO33X6V2tItq6H05zG.JPypocvryhII3YPyYNHU1mOKrUJY
        'noah.obrien@northernlightsmotors.ca', '+15195550116', 'Noah', 'O''Brien', 'https://randomuser.me/api/portraits/men/76.jpg', 'en-CA'
 FROM DUAL WHERE @d21 IS NOT NULL AND NOT EXISTS (SELECT 1 FROM app_user WHERE username = 'noah.obrien' OR email = 'noah.obrien@northernlightsmotors.ca' OR display_name = 'Noah O''Brien' OR phone = '+15195550116');
 INSERT INTO membership (dealer_id, username, active, dealer_role, created_by, created_at)
-SELECT @d21, 'noah.obrien', 1, 'staff', 'admin', '2026-02-05 23:10:00'
+SELECT @d21, 'noah.obrien', 1, 'SALES', 'admin', '2026-02-05 23:10:00'
 FROM DUAL WHERE EXISTS (SELECT 1 FROM app_user WHERE username = 'noah.obrien' AND dealer_id = @d21)
   AND NOT EXISTS (SELECT 1 FROM membership WHERE dealer_id = @d21 AND username = 'noah.obrien');
 -- Grace O'Brien (Sales Consultant)
@@ -792,7 +792,7 @@ SELECT 'grace.obrien', '$2a$10$3HJsO33X6V2tItq6H05zG.JPypocvryhII3YPyYNHU1mOKrUJ
        'grace.obrien@northernlightsmotors.ca', '+15195550175', 'Grace', 'O''Brien', 'https://randomuser.me/api/portraits/women/52.jpg', 'en-CA'
 FROM DUAL WHERE @d21 IS NOT NULL AND NOT EXISTS (SELECT 1 FROM app_user WHERE username = 'grace.obrien' OR email = 'grace.obrien@northernlightsmotors.ca' OR display_name = 'Grace O''Brien' OR phone = '+15195550175');
 INSERT INTO membership (dealer_id, username, active, dealer_role, created_by, created_at)
-SELECT @d21, 'grace.obrien', 1, 'staff', 'admin', '2026-03-28 01:10:00'
+SELECT @d21, 'grace.obrien', 1, 'SALES', 'admin', '2026-03-28 01:10:00'
 FROM DUAL WHERE EXISTS (SELECT 1 FROM app_user WHERE username = 'grace.obrien' AND dealer_id = @d21)
   AND NOT EXISTS (SELECT 1 FROM membership WHERE dealer_id = @d21 AND username = 'grace.obrien');
 -- Chloé Dhillon (Finance Manager)
@@ -801,7 +801,7 @@ SELECT 'chloe.dhillon', '$2a$10$3HJsO33X6V2tItq6H05zG.JPypocvryhII3YPyYNHU1mOKrU
        'chloe.dhillon@northernlightsmotors.ca', '+15195550169', 'Chloé', 'Dhillon', 'https://randomuser.me/api/portraits/women/89.jpg', 'en-CA'
 FROM DUAL WHERE @d21 IS NOT NULL AND NOT EXISTS (SELECT 1 FROM app_user WHERE username = 'chloe.dhillon' OR email = 'chloe.dhillon@northernlightsmotors.ca' OR display_name = 'Chloé Dhillon' OR phone = '+15195550169');
 INSERT INTO membership (dealer_id, username, active, dealer_role, created_by, created_at)
-SELECT @d21, 'chloe.dhillon', 1, 'staff', 'admin', '2026-05-07 02:10:00'
+SELECT @d21, 'chloe.dhillon', 1, 'SALES', 'admin', '2026-05-07 02:10:00'
 FROM DUAL WHERE EXISTS (SELECT 1 FROM app_user WHERE username = 'chloe.dhillon' AND dealer_id = @d21)
   AND NOT EXISTS (SELECT 1 FROM membership WHERE dealer_id = @d21 AND username = 'chloe.dhillon');
 -- Priya Gill (Sales Manager)
@@ -810,7 +810,7 @@ SELECT 'priya.gill', '$2a$10$3HJsO33X6V2tItq6H05zG.JPypocvryhII3YPyYNHU1mOKrUJY0
        'priya.gill@rideauautocentre.ca', '+15195550130', 'Priya', 'Gill', 'https://randomuser.me/api/portraits/women/26.jpg', 'en-CA'
 FROM DUAL WHERE @d22 IS NOT NULL AND NOT EXISTS (SELECT 1 FROM app_user WHERE username = 'priya.gill' OR email = 'priya.gill@rideauautocentre.ca' OR display_name = 'Priya Gill' OR phone = '+15195550130');
 INSERT INTO membership (dealer_id, username, active, dealer_role, created_by, created_at)
-SELECT @d22, 'priya.gill', 1, 'staff', 'admin', '2026-02-02 17:57:00'
+SELECT @d22, 'priya.gill', 1, 'OWNER', 'admin', '2026-02-02 17:57:00'
 FROM DUAL WHERE EXISTS (SELECT 1 FROM app_user WHERE username = 'priya.gill' AND dealer_id = @d22)
   AND NOT EXISTS (SELECT 1 FROM membership WHERE dealer_id = @d22 AND username = 'priya.gill');
 -- Fatima Kim (Sales Consultant)
@@ -819,7 +819,7 @@ SELECT 'fatima.kim', '$2a$10$3HJsO33X6V2tItq6H05zG.JPypocvryhII3YPyYNHU1mOKrUJY0
        'fatima.kim@rideauautocentre.ca', '+15195550180', 'Fatima', 'Kim', 'https://randomuser.me/api/portraits/women/63.jpg', 'en-CA'
 FROM DUAL WHERE @d22 IS NOT NULL AND NOT EXISTS (SELECT 1 FROM app_user WHERE username = 'fatima.kim' OR email = 'fatima.kim@rideauautocentre.ca' OR display_name = 'Fatima Kim' OR phone = '+15195550180');
 INSERT INTO membership (dealer_id, username, active, dealer_role, created_by, created_at)
-SELECT @d22, 'fatima.kim', 1, 'staff', 'admin', '2026-02-06 20:27:00'
+SELECT @d22, 'fatima.kim', 1, 'SALES', 'admin', '2026-02-06 20:27:00'
 FROM DUAL WHERE EXISTS (SELECT 1 FROM app_user WHERE username = 'fatima.kim' AND dealer_id = @d22)
   AND NOT EXISTS (SELECT 1 FROM membership WHERE dealer_id = @d22 AND username = 'fatima.kim');
 -- Wei Gagnon (Sales Consultant)
@@ -828,7 +828,7 @@ SELECT 'wei.gagnon', '$2a$10$3HJsO33X6V2tItq6H05zG.JPypocvryhII3YPyYNHU1mOKrUJY0
        'wei.gagnon@rideauautocentre.ca', '+15195550174', 'Wei', 'Gagnon', 'https://randomuser.me/api/portraits/men/13.jpg', 'en-CA'
 FROM DUAL WHERE @d22 IS NOT NULL AND NOT EXISTS (SELECT 1 FROM app_user WHERE username = 'wei.gagnon' OR email = 'wei.gagnon@rideauautocentre.ca' OR display_name = 'Wei Gagnon' OR phone = '+15195550174');
 INSERT INTO membership (dealer_id, username, active, dealer_role, created_by, created_at)
-SELECT @d22, 'wei.gagnon', 1, 'staff', 'admin', '2026-04-08 22:27:00'
+SELECT @d22, 'wei.gagnon', 1, 'SALES', 'admin', '2026-04-08 22:27:00'
 FROM DUAL WHERE EXISTS (SELECT 1 FROM app_user WHERE username = 'wei.gagnon' AND dealer_id = @d22)
   AND NOT EXISTS (SELECT 1 FROM membership WHERE dealer_id = @d22 AND username = 'wei.gagnon');
 -- Emma Wilson (Sales Manager)
@@ -837,7 +837,7 @@ SELECT 'emma.wilson', '$2a$10$3HJsO33X6V2tItq6H05zG.JPypocvryhII3YPyYNHU1mOKrUJY
        'emma.wilson@crossroadscarsales.ca', '+15195550120', 'Emma', 'Wilson', 'https://randomuser.me/api/portraits/women/0.jpg', 'en-CA'
 FROM DUAL WHERE @d23 IS NOT NULL AND NOT EXISTS (SELECT 1 FROM app_user WHERE username = 'emma.wilson' OR email = 'emma.wilson@crossroadscarsales.ca' OR display_name = 'Emma Wilson' OR phone = '+15195550120');
 INSERT INTO membership (dealer_id, username, active, dealer_role, created_by, created_at)
-SELECT @d23, 'emma.wilson', 1, 'staff', 'admin', '2026-02-10 22:14:00'
+SELECT @d23, 'emma.wilson', 1, 'OWNER', 'admin', '2026-02-10 22:14:00'
 FROM DUAL WHERE EXISTS (SELECT 1 FROM app_user WHERE username = 'emma.wilson' AND dealer_id = @d23)
   AND NOT EXISTS (SELECT 1 FROM membership WHERE dealer_id = @d23 AND username = 'emma.wilson');
 -- Isabella Sandhu (Sales Consultant)
@@ -846,7 +846,7 @@ SELECT 'isabella.sandhu', '$2a$10$3HJsO33X6V2tItq6H05zG.JPypocvryhII3YPyYNHU1mOK
        'isabella.sandhu@crossroadscarsales.ca', '+15195550148', 'Isabella', 'Sandhu', 'https://randomuser.me/api/portraits/women/37.jpg', 'en-CA'
 FROM DUAL WHERE @d23 IS NOT NULL AND NOT EXISTS (SELECT 1 FROM app_user WHERE username = 'isabella.sandhu' OR email = 'isabella.sandhu@crossroadscarsales.ca' OR display_name = 'Isabella Sandhu' OR phone = '+15195550148');
 INSERT INTO membership (dealer_id, username, active, dealer_role, created_by, created_at)
-SELECT @d23, 'isabella.sandhu', 1, 'staff', 'admin', '2026-02-17 00:44:00'
+SELECT @d23, 'isabella.sandhu', 1, 'SALES', 'admin', '2026-02-17 00:44:00'
 FROM DUAL WHERE EXISTS (SELECT 1 FROM app_user WHERE username = 'isabella.sandhu' AND dealer_id = @d23)
   AND NOT EXISTS (SELECT 1 FROM membership WHERE dealer_id = @d23 AND username = 'isabella.sandhu');
 -- Kevin Sandhu (Sales Consultant)
@@ -855,7 +855,7 @@ SELECT 'kevin.sandhu', '$2a$10$3HJsO33X6V2tItq6H05zG.JPypocvryhII3YPyYNHU1mOKrUJ
        'kevin.sandhu@crossroadscarsales.ca', '+15195550197', 'Kevin', 'Sandhu', 'https://randomuser.me/api/portraits/men/50.jpg', 'en-CA'
 FROM DUAL WHERE @d23 IS NOT NULL AND NOT EXISTS (SELECT 1 FROM app_user WHERE username = 'kevin.sandhu' OR email = 'kevin.sandhu@crossroadscarsales.ca' OR display_name = 'Kevin Sandhu' OR phone = '+15195550197');
 INSERT INTO membership (dealer_id, username, active, dealer_role, created_by, created_at)
-SELECT @d23, 'kevin.sandhu', 1, 'staff', 'admin', '2026-03-31 02:44:00'
+SELECT @d23, 'kevin.sandhu', 1, 'SALES', 'admin', '2026-03-31 02:44:00'
 FROM DUAL WHERE EXISTS (SELECT 1 FROM app_user WHERE username = 'kevin.sandhu' AND dealer_id = @d23)
   AND NOT EXISTS (SELECT 1 FROM membership WHERE dealer_id = @d23 AND username = 'kevin.sandhu');
 -- Grace Roy (Sales Manager)
@@ -864,7 +864,7 @@ SELECT 'grace.roy', '$2a$10$3HJsO33X6V2tItq6H05zG.JPypocvryhII3YPyYNHU1mOKrUJY0z
        'grace.roy@eastgateautomart.ca', '+17055550144', 'Grace', 'Roy', 'https://randomuser.me/api/portraits/women/74.jpg', 'en-CA'
 FROM DUAL WHERE @d24 IS NOT NULL AND NOT EXISTS (SELECT 1 FROM app_user WHERE username = 'grace.roy' OR email = 'grace.roy@eastgateautomart.ca' OR display_name = 'Grace Roy' OR phone = '+17055550144');
 INSERT INTO membership (dealer_id, username, active, dealer_role, created_by, created_at)
-SELECT @d24, 'grace.roy', 1, 'staff', 'admin', '2026-02-19 19:31:00'
+SELECT @d24, 'grace.roy', 1, 'OWNER', 'admin', '2026-02-19 19:31:00'
 FROM DUAL WHERE EXISTS (SELECT 1 FROM app_user WHERE username = 'grace.roy' AND dealer_id = @d24)
   AND NOT EXISTS (SELECT 1 FROM membership WHERE dealer_id = @d24 AND username = 'grace.roy');
 -- Patrick Mensah (Sales Consultant)
@@ -873,7 +873,7 @@ SELECT 'patrick.mensah', '$2a$10$3HJsO33X6V2tItq6H05zG.JPypocvryhII3YPyYNHU1mOKr
        'patrick.mensah@eastgateautomart.ca', '+17055550158', 'Patrick', 'Mensah', 'https://randomuser.me/api/portraits/men/87.jpg', 'en-CA'
 FROM DUAL WHERE @d24 IS NOT NULL AND NOT EXISTS (SELECT 1 FROM app_user WHERE username = 'patrick.mensah' OR email = 'patrick.mensah@eastgateautomart.ca' OR display_name = 'Patrick Mensah' OR phone = '+17055550158');
 INSERT INTO membership (dealer_id, username, active, dealer_role, created_by, created_at)
-SELECT @d24, 'patrick.mensah', 1, 'staff', 'admin', '2026-02-27 22:01:00'
+SELECT @d24, 'patrick.mensah', 1, 'SALES', 'admin', '2026-02-27 22:01:00'
 FROM DUAL WHERE EXISTS (SELECT 1 FROM app_user WHERE username = 'patrick.mensah' AND dealer_id = @d24)
   AND NOT EXISTS (SELECT 1 FROM membership WHERE dealer_id = @d24 AND username = 'patrick.mensah');
 -- Hiroshi Osei (Sales Manager)
@@ -882,7 +882,7 @@ SELECT 'hiroshi.osei', '$2a$10$3HJsO33X6V2tItq6H05zG.JPypocvryhII3YPyYNHU1mOKrUJ
        'hiroshi.osei@westsidemotorco.ca', '+19055550125', 'Hiroshi', 'Osei', 'https://randomuser.me/api/portraits/men/24.jpg', 'en-CA'
 FROM DUAL WHERE @d25 IS NOT NULL AND NOT EXISTS (SELECT 1 FROM app_user WHERE username = 'hiroshi.osei' OR email = 'hiroshi.osei@westsidemotorco.ca' OR display_name = 'Hiroshi Osei' OR phone = '+19055550125');
 INSERT INTO membership (dealer_id, username, active, dealer_role, created_by, created_at)
-SELECT @d25, 'hiroshi.osei', 1, 'staff', 'admin', '2026-02-24 16:48:00'
+SELECT @d25, 'hiroshi.osei', 1, 'OWNER', 'admin', '2026-02-24 16:48:00'
 FROM DUAL WHERE EXISTS (SELECT 1 FROM app_user WHERE username = 'hiroshi.osei' AND dealer_id = @d25)
   AND NOT EXISTS (SELECT 1 FROM membership WHERE dealer_id = @d25 AND username = 'hiroshi.osei');
 -- Jasmine Tran (Sales Consultant)
@@ -891,7 +891,7 @@ SELECT 'jasmine.tran', '$2a$10$3HJsO33X6V2tItq6H05zG.JPypocvryhII3YPyYNHU1mOKrUJ
        'jasmine.tran@westsidemotorco.ca', '+19055550164', 'Jasmine', 'Tran', 'https://randomuser.me/api/portraits/women/11.jpg', 'en-CA'
 FROM DUAL WHERE @d25 IS NOT NULL AND NOT EXISTS (SELECT 1 FROM app_user WHERE username = 'jasmine.tran' OR email = 'jasmine.tran@westsidemotorco.ca' OR display_name = 'Jasmine Tran' OR phone = '+19055550164');
 INSERT INTO membership (dealer_id, username, active, dealer_role, created_by, created_at)
-SELECT @d25, 'jasmine.tran', 1, 'staff', 'admin', '2026-02-28 19:18:00'
+SELECT @d25, 'jasmine.tran', 1, 'SALES', 'admin', '2026-02-28 19:18:00'
 FROM DUAL WHERE EXISTS (SELECT 1 FROM app_user WHERE username = 'jasmine.tran' AND dealer_id = @d25)
   AND NOT EXISTS (SELECT 1 FROM membership WHERE dealer_id = @d25 AND username = 'jasmine.tran');
 -- Emma Brown (Sales Consultant)
@@ -900,7 +900,7 @@ SELECT 'emma.brown', '$2a$10$3HJsO33X6V2tItq6H05zG.JPypocvryhII3YPyYNHU1mOKrUJY0
        'emma.brown@westsidemotorco.ca', '+19055550173', 'Emma', 'Brown', 'https://randomuser.me/api/portraits/women/48.jpg', 'en-CA'
 FROM DUAL WHERE @d25 IS NOT NULL AND NOT EXISTS (SELECT 1 FROM app_user WHERE username = 'emma.brown' OR email = 'emma.brown@westsidemotorco.ca' OR display_name = 'Emma Brown' OR phone = '+19055550173');
 INSERT INTO membership (dealer_id, username, active, dealer_role, created_by, created_at)
-SELECT @d25, 'emma.brown', 1, 'staff', 'admin', '2026-05-03 21:18:00'
+SELECT @d25, 'emma.brown', 1, 'SALES', 'admin', '2026-05-03 21:18:00'
 FROM DUAL WHERE EXISTS (SELECT 1 FROM app_user WHERE username = 'emma.brown' AND dealer_id = @d25)
   AND NOT EXISTS (SELECT 1 FROM membership WHERE dealer_id = @d25 AND username = 'emma.brown');
 -- Arjun Thompson (Finance Manager)
@@ -909,7 +909,7 @@ SELECT 'arjun.thompson', '$2a$10$3HJsO33X6V2tItq6H05zG.JPypocvryhII3YPyYNHU1mOKr
        'arjun.thompson@westsidemotorco.ca', '+19055550198', 'Arjun', 'Thompson', 'https://randomuser.me/api/portraits/men/61.jpg', 'en-CA'
 FROM DUAL WHERE @d25 IS NOT NULL AND NOT EXISTS (SELECT 1 FROM app_user WHERE username = 'arjun.thompson' OR email = 'arjun.thompson@westsidemotorco.ca' OR display_name = 'Arjun Thompson' OR phone = '+19055550198');
 INSERT INTO membership (dealer_id, username, active, dealer_role, created_by, created_at)
-SELECT @d25, 'arjun.thompson', 1, 'staff', 'admin', '2026-06-12 22:18:00'
+SELECT @d25, 'arjun.thompson', 1, 'SALES', 'admin', '2026-06-12 22:18:00'
 FROM DUAL WHERE EXISTS (SELECT 1 FROM app_user WHERE username = 'arjun.thompson' AND dealer_id = @d25)
   AND NOT EXISTS (SELECT 1 FROM membership WHERE dealer_id = @d25 AND username = 'arjun.thompson');
 -- Daniel Morrison (Service Advisor)
@@ -918,7 +918,7 @@ SELECT 'daniel.morrison', '$2a$10$3HJsO33X6V2tItq6H05zG.JPypocvryhII3YPyYNHU1mOK
        'daniel.morrison@westsidemotorco.ca', '+19055550116', 'Daniel', 'Morrison', 'https://randomuser.me/api/portraits/men/98.jpg', 'en-CA'
 FROM DUAL WHERE @d25 IS NOT NULL AND NOT EXISTS (SELECT 1 FROM app_user WHERE username = 'daniel.morrison' OR email = 'daniel.morrison@westsidemotorco.ca' OR display_name = 'Daniel Morrison' OR phone = '+19055550116');
 INSERT INTO membership (dealer_id, username, active, dealer_role, created_by, created_at)
-SELECT @d25, 'daniel.morrison', 1, 'staff', 'admin', '2026-07-22 23:18:00'
+SELECT @d25, 'daniel.morrison', 1, 'SALES', 'admin', '2026-07-22 23:18:00'
 FROM DUAL WHERE EXISTS (SELECT 1 FROM app_user WHERE username = 'daniel.morrison' AND dealer_id = @d25)
   AND NOT EXISTS (SELECT 1 FROM membership WHERE dealer_id = @d25 AND username = 'daniel.morrison');
 -- Liam Tremblay (Sales Manager)
@@ -927,7 +927,7 @@ SELECT 'liam.tremblay', '$2a$10$3HJsO33X6V2tItq6H05zG.JPypocvryhII3YPyYNHU1mOKrU
        'liam.tremblay@highlandautosales.ca', '+17055550145', 'Liam', 'Tremblay', 'https://randomuser.me/api/portraits/men/35.jpg', 'en-CA'
 FROM DUAL WHERE @d26 IS NOT NULL AND NOT EXISTS (SELECT 1 FROM app_user WHERE username = 'liam.tremblay' OR email = 'liam.tremblay@highlandautosales.ca' OR display_name = 'Liam Tremblay' OR phone = '+17055550145');
 INSERT INTO membership (dealer_id, username, active, dealer_role, created_by, created_at)
-SELECT @d26, 'liam.tremblay', 1, 'staff', 'admin', '2026-03-04 21:05:00'
+SELECT @d26, 'liam.tremblay', 1, 'OWNER', 'admin', '2026-03-04 21:05:00'
 FROM DUAL WHERE EXISTS (SELECT 1 FROM app_user WHERE username = 'liam.tremblay' AND dealer_id = @d26)
   AND NOT EXISTS (SELECT 1 FROM membership WHERE dealer_id = @d26 AND username = 'liam.tremblay');
 -- Minh Sato (Sales Consultant)
@@ -936,7 +936,7 @@ SELECT 'minh.sato', '$2a$10$3HJsO33X6V2tItq6H05zG.JPypocvryhII3YPyYNHU1mOKrUJY0z
        'minh.sato@highlandautosales.ca', '+17055550111', 'Minh', 'Sato', 'https://randomuser.me/api/portraits/men/72.jpg', 'en-CA'
 FROM DUAL WHERE @d26 IS NOT NULL AND NOT EXISTS (SELECT 1 FROM app_user WHERE username = 'minh.sato' OR email = 'minh.sato@highlandautosales.ca' OR display_name = 'Minh Sato' OR phone = '+17055550111');
 INSERT INTO membership (dealer_id, username, active, dealer_role, created_by, created_at)
-SELECT @d26, 'minh.sato', 1, 'staff', 'admin', '2026-03-10 23:35:00'
+SELECT @d26, 'minh.sato', 1, 'SALES', 'admin', '2026-03-10 23:35:00'
 FROM DUAL WHERE EXISTS (SELECT 1 FROM app_user WHERE username = 'minh.sato' AND dealer_id = @d26)
   AND NOT EXISTS (SELECT 1 FROM membership WHERE dealer_id = @d26 AND username = 'minh.sato');
 -- Megan Stewart (Sales Consultant)
@@ -945,7 +945,7 @@ SELECT 'megan.stewart', '$2a$10$3HJsO33X6V2tItq6H05zG.JPypocvryhII3YPyYNHU1mOKrU
        'megan.stewart@highlandautosales.ca', '+17055550157', 'Megan', 'Stewart', 'https://randomuser.me/api/portraits/men/9.jpg', 'en-CA'
 FROM DUAL WHERE @d26 IS NOT NULL AND NOT EXISTS (SELECT 1 FROM app_user WHERE username = 'megan.stewart' OR email = 'megan.stewart@highlandautosales.ca' OR display_name = 'Megan Stewart' OR phone = '+17055550157');
 INSERT INTO membership (dealer_id, username, active, dealer_role, created_by, created_at)
-SELECT @d26, 'megan.stewart', 1, 'staff', 'admin', '2026-04-25 01:35:00'
+SELECT @d26, 'megan.stewart', 1, 'SALES', 'admin', '2026-04-25 01:35:00'
 FROM DUAL WHERE EXISTS (SELECT 1 FROM app_user WHERE username = 'megan.stewart' AND dealer_id = @d26)
   AND NOT EXISTS (SELECT 1 FROM membership WHERE dealer_id = @d26 AND username = 'megan.stewart');
 -- Mei Cohen (Sales Manager)
@@ -954,7 +954,7 @@ SELECT 'mei.cohen', '$2a$10$3HJsO33X6V2tItq6H05zG.JPypocvryhII3YPyYNHU1mOKrUJY0z
        'mei.cohen@brockstreetmotors.ca', '+16135550132', 'Mei', 'Cohen', 'https://randomuser.me/api/portraits/women/85.jpg', 'en-CA'
 FROM DUAL WHERE @d27 IS NOT NULL AND NOT EXISTS (SELECT 1 FROM app_user WHERE username = 'mei.cohen' OR email = 'mei.cohen@brockstreetmotors.ca' OR display_name = 'Mei Cohen' OR phone = '+16135550132');
 INSERT INTO membership (dealer_id, username, active, dealer_role, created_by, created_at)
-SELECT @d27, 'mei.cohen', 1, 'staff', 'admin', '2026-03-12 18:22:00'
+SELECT @d27, 'mei.cohen', 1, 'OWNER', 'admin', '2026-03-12 18:22:00'
 FROM DUAL WHERE EXISTS (SELECT 1 FROM app_user WHERE username = 'mei.cohen' AND dealer_id = @d27)
   AND NOT EXISTS (SELECT 1 FROM membership WHERE dealer_id = @d27 AND username = 'mei.cohen');
 -- Owen Roy (Sales Consultant)
@@ -963,7 +963,7 @@ SELECT 'owen.roy', '$2a$10$3HJsO33X6V2tItq6H05zG.JPypocvryhII3YPyYNHU1mOKrUJY0z.
        'owen.roy@brockstreetmotors.ca', '+16135550146', 'Owen', 'Roy', 'https://randomuser.me/api/portraits/men/46.jpg', 'en-CA'
 FROM DUAL WHERE @d27 IS NOT NULL AND NOT EXISTS (SELECT 1 FROM app_user WHERE username = 'owen.roy' OR email = 'owen.roy@brockstreetmotors.ca' OR display_name = 'Owen Roy' OR phone = '+16135550146');
 INSERT INTO membership (dealer_id, username, active, dealer_role, created_by, created_at)
-SELECT @d27, 'owen.roy', 1, 'staff', 'admin', '2026-03-20 20:52:00'
+SELECT @d27, 'owen.roy', 1, 'SALES', 'admin', '2026-03-20 20:52:00'
 FROM DUAL WHERE EXISTS (SELECT 1 FROM app_user WHERE username = 'owen.roy' AND dealer_id = @d27)
   AND NOT EXISTS (SELECT 1 FROM membership WHERE dealer_id = @d27 AND username = 'owen.roy');
 -- Kevin Bouchard (Sales Consultant)
@@ -972,7 +972,7 @@ SELECT 'kevin.bouchard', '$2a$10$3HJsO33X6V2tItq6H05zG.JPypocvryhII3YPyYNHU1mOKr
        'kevin.bouchard@brockstreetmotors.ca', '+16135550136', 'Kevin', 'Bouchard', 'https://randomuser.me/api/portraits/men/83.jpg', 'en-CA'
 FROM DUAL WHERE @d27 IS NOT NULL AND NOT EXISTS (SELECT 1 FROM app_user WHERE username = 'kevin.bouchard' OR email = 'kevin.bouchard@brockstreetmotors.ca' OR display_name = 'Kevin Bouchard' OR phone = '+16135550136');
 INSERT INTO membership (dealer_id, username, active, dealer_role, created_by, created_at)
-SELECT @d27, 'kevin.bouchard', 1, 'staff', 'admin', '2026-05-15 22:52:00'
+SELECT @d27, 'kevin.bouchard', 1, 'SALES', 'admin', '2026-05-15 22:52:00'
 FROM DUAL WHERE EXISTS (SELECT 1 FROM app_user WHERE username = 'kevin.bouchard' AND dealer_id = @d27)
   AND NOT EXISTS (SELECT 1 FROM membership WHERE dealer_id = @d27 AND username = 'kevin.bouchard');
 -- Rachel Sato (Sales Manager)
@@ -981,7 +981,7 @@ SELECT 'rachel.sato', '$2a$10$3HJsO33X6V2tItq6H05zG.JPypocvryhII3YPyYNHU1mOKrUJY
        'rachel.sato@heritageautosales.ca', '+15195550155', 'Rachel', 'Sato', 'https://randomuser.me/api/portraits/women/22.jpg', 'en-CA'
 FROM DUAL WHERE @d28 IS NOT NULL AND NOT EXISTS (SELECT 1 FROM app_user WHERE username = 'rachel.sato' OR email = 'rachel.sato@heritageautosales.ca' OR display_name = 'Rachel Sato' OR phone = '+15195550155');
 INSERT INTO membership (dealer_id, username, active, dealer_role, created_by, created_at)
-SELECT @d28, 'rachel.sato', 1, 'staff', 'admin', '2026-03-18 23:39:00'
+SELECT @d28, 'rachel.sato', 1, 'OWNER', 'admin', '2026-03-18 23:39:00'
 FROM DUAL WHERE EXISTS (SELECT 1 FROM app_user WHERE username = 'rachel.sato' AND dealer_id = @d28)
   AND NOT EXISTS (SELECT 1 FROM membership WHERE dealer_id = @d28 AND username = 'rachel.sato');
 -- Priya Tanaka (Sales Consultant)
@@ -990,7 +990,7 @@ SELECT 'priya.tanaka', '$2a$10$3HJsO33X6V2tItq6H05zG.JPypocvryhII3YPyYNHU1mOKrUJ
        'priya.tanaka@heritageautosales.ca', '+15195550138', 'Priya', 'Tanaka', 'https://randomuser.me/api/portraits/women/59.jpg', 'en-CA'
 FROM DUAL WHERE @d28 IS NOT NULL AND NOT EXISTS (SELECT 1 FROM app_user WHERE username = 'priya.tanaka' OR email = 'priya.tanaka@heritageautosales.ca' OR display_name = 'Priya Tanaka' OR phone = '+15195550138');
 INSERT INTO membership (dealer_id, username, active, dealer_role, created_by, created_at)
-SELECT @d28, 'priya.tanaka', 1, 'staff', 'admin', '2026-03-23 02:09:00'
+SELECT @d28, 'priya.tanaka', 1, 'SALES', 'admin', '2026-03-23 02:09:00'
 FROM DUAL WHERE EXISTS (SELECT 1 FROM app_user WHERE username = 'priya.tanaka' AND dealer_id = @d28)
   AND NOT EXISTS (SELECT 1 FROM membership WHERE dealer_id = @d28 AND username = 'priya.tanaka');
 -- Olivia Mensah (Sales Consultant)
@@ -999,7 +999,7 @@ SELECT 'olivia.mensah', '$2a$10$3HJsO33X6V2tItq6H05zG.JPypocvryhII3YPyYNHU1mOKrU
        'olivia.mensah@heritageautosales.ca', '+15195550166', 'Olivia', 'Mensah', 'https://randomuser.me/api/portraits/women/96.jpg', 'en-CA'
 FROM DUAL WHERE @d28 IS NOT NULL AND NOT EXISTS (SELECT 1 FROM app_user WHERE username = 'olivia.mensah' OR email = 'olivia.mensah@heritageautosales.ca' OR display_name = 'Olivia Mensah' OR phone = '+15195550166');
 INSERT INTO membership (dealer_id, username, active, dealer_role, created_by, created_at)
-SELECT @d28, 'olivia.mensah', 1, 'staff', 'admin', '2026-05-29 04:09:00'
+SELECT @d28, 'olivia.mensah', 1, 'SALES', 'admin', '2026-05-29 04:09:00'
 FROM DUAL WHERE EXISTS (SELECT 1 FROM app_user WHERE username = 'olivia.mensah' AND dealer_id = @d28)
   AND NOT EXISTS (SELECT 1 FROM membership WHERE dealer_id = @d28 AND username = 'olivia.mensah');
 -- Simran Tran (Sales Manager)
@@ -1008,7 +1008,7 @@ SELECT 'simran.tran', '$2a$10$3HJsO33X6V2tItq6H05zG.JPypocvryhII3YPyYNHU1mOKrUJY
        'simran.tran@summitautogroup.ca', '+19055550172', 'Simran', 'Tran', 'https://randomuser.me/api/portraits/women/33.jpg', 'en-CA'
 FROM DUAL WHERE @d29 IS NOT NULL AND NOT EXISTS (SELECT 1 FROM app_user WHERE username = 'simran.tran' OR email = 'simran.tran@summitautogroup.ca' OR display_name = 'Simran Tran' OR phone = '+19055550172');
 INSERT INTO membership (dealer_id, username, active, dealer_role, created_by, created_at)
-SELECT @d29, 'simran.tran', 1, 'staff', 'admin', '2026-03-26 20:56:00'
+SELECT @d29, 'simran.tran', 1, 'SALES', 'admin', '2026-03-26 20:56:00'
 FROM DUAL WHERE EXISTS (SELECT 1 FROM app_user WHERE username = 'simran.tran' AND dealer_id = @d29)
   AND NOT EXISTS (SELECT 1 FROM membership WHERE dealer_id = @d29 AND username = 'simran.tran');
 -- Connor Kelly (Sales Consultant)
@@ -1017,7 +1017,7 @@ SELECT 'connor.kelly', '$2a$10$3HJsO33X6V2tItq6H05zG.JPypocvryhII3YPyYNHU1mOKrUJ
        'connor.kelly@summitautogroup.ca', '+19055550112', 'Connor', 'Kelly', 'https://randomuser.me/api/portraits/men/20.jpg', 'en-CA'
 FROM DUAL WHERE @d29 IS NOT NULL AND NOT EXISTS (SELECT 1 FROM app_user WHERE username = 'connor.kelly' OR email = 'connor.kelly@summitautogroup.ca' OR display_name = 'Connor Kelly' OR phone = '+19055550112');
 INSERT INTO membership (dealer_id, username, active, dealer_role, created_by, created_at)
-SELECT @d29, 'connor.kelly', 1, 'staff', 'admin', '2026-04-01 23:26:00'
+SELECT @d29, 'connor.kelly', 1, 'SALES', 'admin', '2026-04-01 23:26:00'
 FROM DUAL WHERE EXISTS (SELECT 1 FROM app_user WHERE username = 'connor.kelly' AND dealer_id = @d29)
   AND NOT EXISTS (SELECT 1 FROM membership WHERE dealer_id = @d29 AND username = 'connor.kelly');
 -- Jean-Luc Silva (Sales Consultant)
@@ -1026,7 +1026,7 @@ SELECT 'jeanluc.silva', '$2a$10$3HJsO33X6V2tItq6H05zG.JPypocvryhII3YPyYNHU1mOKrU
        'jeanluc.silva@summitautogroup.ca', '+19055550124', 'Jean-Luc', 'Silva', 'https://randomuser.me/api/portraits/men/57.jpg', 'en-CA'
 FROM DUAL WHERE @d29 IS NOT NULL AND NOT EXISTS (SELECT 1 FROM app_user WHERE username = 'jeanluc.silva' OR email = 'jeanluc.silva@summitautogroup.ca' OR display_name = 'Jean-Luc Silva' OR phone = '+19055550124');
 INSERT INTO membership (dealer_id, username, active, dealer_role, created_by, created_at)
-SELECT @d29, 'jeanluc.silva', 1, 'staff', 'admin', '2026-05-20 01:26:00'
+SELECT @d29, 'jeanluc.silva', 1, 'SALES', 'admin', '2026-05-20 01:26:00'
 FROM DUAL WHERE EXISTS (SELECT 1 FROM app_user WHERE username = 'jeanluc.silva' AND dealer_id = @d29)
   AND NOT EXISTS (SELECT 1 FROM membership WHERE dealer_id = @d29 AND username = 'jeanluc.silva');
 -- Olivia Tran (Sales Manager)
@@ -1035,7 +1035,7 @@ SELECT 'olivia.tran', '$2a$10$3HJsO33X6V2tItq6H05zG.JPypocvryhII3YPyYNHU1mOKrUJY
        'olivia.tran@parkwaymotors.ca', '+17055550195', 'Olivia', 'Tran', 'https://randomuser.me/api/portraits/women/70.jpg', 'en-CA'
 FROM DUAL WHERE @d30 IS NOT NULL AND NOT EXISTS (SELECT 1 FROM app_user WHERE username = 'olivia.tran' OR email = 'olivia.tran@parkwaymotors.ca' OR display_name = 'Olivia Tran' OR phone = '+17055550195');
 INSERT INTO membership (dealer_id, username, active, dealer_role, created_by, created_at)
-SELECT @d30, 'olivia.tran', 1, 'staff', 'admin', '2026-04-03 17:13:00'
+SELECT @d30, 'olivia.tran', 1, 'OWNER', 'admin', '2026-04-03 17:13:00'
 FROM DUAL WHERE EXISTS (SELECT 1 FROM app_user WHERE username = 'olivia.tran' AND dealer_id = @d30)
   AND NOT EXISTS (SELECT 1 FROM membership WHERE dealer_id = @d30 AND username = 'olivia.tran');
 -- Tomasz Tran (Sales Consultant)
@@ -1044,7 +1044,7 @@ SELECT 'tomasz.tran', '$2a$10$3HJsO33X6V2tItq6H05zG.JPypocvryhII3YPyYNHU1mOKrUJY
        'tomasz.tran@parkwaymotors.ca', '+17055550138', 'Tomasz', 'Tran', 'https://randomuser.me/api/portraits/men/94.jpg', 'en-CA'
 FROM DUAL WHERE @d30 IS NOT NULL AND NOT EXISTS (SELECT 1 FROM app_user WHERE username = 'tomasz.tran' OR email = 'tomasz.tran@parkwaymotors.ca' OR display_name = 'Tomasz Tran' OR phone = '+17055550138');
 INSERT INTO membership (dealer_id, username, active, dealer_role, created_by, created_at)
-SELECT @d30, 'tomasz.tran', 1, 'staff', 'admin', '2026-04-11 19:43:00'
+SELECT @d30, 'tomasz.tran', 1, 'SALES', 'admin', '2026-04-11 19:43:00'
 FROM DUAL WHERE EXISTS (SELECT 1 FROM app_user WHERE username = 'tomasz.tran' AND dealer_id = @d30)
   AND NOT EXISTS (SELECT 1 FROM membership WHERE dealer_id = @d30 AND username = 'tomasz.tran');
 -- Sophia Martin (Sales Consultant)
@@ -1053,6 +1053,6 @@ SELECT 'sophia.martin', '$2a$10$3HJsO33X6V2tItq6H05zG.JPypocvryhII3YPyYNHU1mOKrU
        'sophia.martin@parkwaymotors.ca', '+17055550155', 'Sophia', 'Martin', 'https://randomuser.me/api/portraits/men/31.jpg', 'en-CA'
 FROM DUAL WHERE @d30 IS NOT NULL AND NOT EXISTS (SELECT 1 FROM app_user WHERE username = 'sophia.martin' OR email = 'sophia.martin@parkwaymotors.ca' OR display_name = 'Sophia Martin' OR phone = '+17055550155');
 INSERT INTO membership (dealer_id, username, active, dealer_role, created_by, created_at)
-SELECT @d30, 'sophia.martin', 1, 'staff', 'admin', '2026-06-09 21:43:00'
+SELECT @d30, 'sophia.martin', 1, 'SALES', 'admin', '2026-06-09 21:43:00'
 FROM DUAL WHERE EXISTS (SELECT 1 FROM app_user WHERE username = 'sophia.martin' AND dealer_id = @d30)
   AND NOT EXISTS (SELECT 1 FROM membership WHERE dealer_id = @d30 AND username = 'sophia.martin');

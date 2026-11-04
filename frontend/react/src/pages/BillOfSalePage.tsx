@@ -5,7 +5,7 @@ import { vehiclesApi } from '../api/vehicles';
 import { customersApi } from '../api/customers';
 import { paymentsApi, type PaymentLedger } from '../api/payments';
 import { describeError } from '../api/errors';
-import { useSessionStore } from '../store/session';
+import { isTeamAdmin, useSessionStore } from '../store/session';
 import { cad, enumLabel, km } from '../format';
 
 function Row({ label, value }: { label: string; value: unknown }) {
@@ -17,12 +17,12 @@ function Row({ label, value }: { label: string; value: unknown }) {
 /**
  * Printable bill of sale for a sold vehicle, filled from the DMS record, the linked CRM buyer,
  * and the payment ledger. It is a template, not a reviewed contract (see /disclaimer).
- * Staff cannot read the payment ledger (PAY-05), so their copy shows the sale price only.
+ * A sales member cannot read the payment ledger (PAY-05), so their copy shows the sale price only.
  */
 export default function BillOfSalePage() {
   const { vehicleId } = useParams();
   const dealer = useSessionStore();
-  const isManager = dealer.dealerRole === 'MANAGER';
+  const canManage = isTeamAdmin(dealer.dealerRole);
   const [vehicle, setVehicle] = useState<any>(null);
   const [buyer, setBuyer] = useState<any>(null);
   const [ledger, setLedger] = useState<PaymentLedger | null>(null);
@@ -38,7 +38,7 @@ export default function BillOfSalePage() {
         if (v.status !== 'SOLD') throw new Error('Only a sold vehicle has a bill of sale.');
         const [c, p] = await Promise.all([
           v.linkedCustomer ? customersApi.get(v.linkedCustomer.id).then(r => r.data) : Promise.resolve(null),
-          isManager ? paymentsApi.ledger(id).then(r => r.data) : Promise.resolve(null),
+          canManage ? paymentsApi.ledger(id).then(r => r.data) : Promise.resolve(null),
         ]);
         if (!active) return;
         setVehicle(v);
@@ -51,7 +51,7 @@ export default function BillOfSalePage() {
       }
     })();
     return () => { active = false; };
-  }, [vehicleId, isManager]);
+  }, [vehicleId, canManage]);
 
   return (
     <div className="page bill-of-sale" style={{ maxWidth: 820, margin: '0 auto' }}>

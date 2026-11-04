@@ -1,6 +1,6 @@
 import type { Locator, Page } from '@playwright/test';
 import { test, expect } from '../../support/fixtures';
-import { randomDigits, randomVin } from '../../support/api';
+import { expectStatus, randomDigits, randomVin, type Vehicle } from '../../support/api';
 import { env } from '../../support/env';
 
 // DMS listing details in the add/edit drawer (design/21 DMS-18), the payment panel of a sold
@@ -29,20 +29,39 @@ function control(drawer: Locator, label: string) {
   return field(drawer, label).locator('input, select').first();
 }
 
-async function chooseMakeModel(drawer: Locator, make: string, model: string) {
-  const makeControl = control(drawer, 'Make');
-  if ((await makeControl.evaluate((el) => el.tagName)) === 'SELECT') {
-    await makeControl.selectOption(make.toUpperCase());
-    await control(drawer, 'Model').selectOption(model);
-  } else {
-    await makeControl.fill(make);
-    await control(drawer, 'Model').fill(model);
+/**
+ * Sets one catalog box. Make and Model are a `select` once the catalog answers and a text input
+ * while it has not, and the Model box swaps from one to the other right after a make is chosen, so
+ * the element kind is read again on each attempt.
+ */
+async function setCatalogValue(box: Locator, typed: string, option = typed) {
+  await expect(box).toBeVisible();
+  // Short per-attempt timeouts: a box that swapped kind, or a catalog option that has not arrived
+  // yet, is retried instead of holding the whole attempt open.
+  for (let attempt = 5; ; attempt--) {
+    const act = { timeout: attempt === 0 ? 20_000 : 5_000 };
+    try {
+      if ((await box.evaluate((el) => el.tagName)) === 'SELECT') await box.selectOption(option, act);
+      else await box.fill(typed, act);
+      return;
+    } catch (err) {
+      if (attempt === 0) throw err;
+      await box.page().waitForTimeout(250);
+    }
   }
 }
 
+async function chooseMakeModel(drawer: Locator, make: string, model: string) {
+  await setCatalogValue(control(drawer, 'Make'), make, make.toUpperCase());
+  await setCatalogValue(control(drawer, 'Model'), model);
+}
+
+/** The model year `fillRequired` picks; the VIN's 10th character must match it (D-8). */
+const FORM_YEAR = 2022;
+
 async function fillRequired(drawer: Locator, vin: string) {
   await chooseMakeModel(drawer, 'Honda', 'Civic');
-  await control(drawer, 'Model year').selectOption('2022');
+  await control(drawer, 'Model year').selectOption(String(FORM_YEAR));
   await control(drawer, 'VIN').fill(vin);
   await control(drawer, 'Purchase cost').fill('15000');
   await control(drawer, 'Added on').fill('2026-10-02');
@@ -60,7 +79,13 @@ async function openAddDrawer(page: Page) {
 
 async function findRow(page: Page, text: string, vin: string) {
   await page.goto('/dms');
-  await page.getByPlaceholder('Search VIN, make or model').fill(text);
+  const box = page.getByPlaceholder('Search VIN, stock #, make or model');
+  await box.fill(text);
+  // The type-ahead listbox opens over the Search button, so close it before clicking. Leaving the
+  // box also keeps a late suggestion response from reopening it.
+  await box.press('Escape');
+  await box.blur();
+  await expect(page.locator('.suggest-list')).toHaveCount(0);
   await page.getByRole('button', { name: 'Search' }).click();
   const row = page.getByRole('row').filter({ has: page.getByRole('cell', { name: vin, exact: true }) });
   await expect(row).toHaveCount(1, LOAD);
@@ -68,7 +93,7 @@ async function findRow(page: Page, text: string, vin: string) {
 }
 
 test('DMS-18: add a vehicle with listing details, see them in the list and the edit drawer', async ({ staffPage: page }) => {
-  const vin = randomVin();
+  const vin = randomVin(FORM_YEAR);
   const stock = `UI${randomDigits(8)}`;
   const drawer = await openAddDrawer(page);
   await fillRequired(drawer, vin);
@@ -103,7 +128,7 @@ test('DMS-18: a duplicate stock number shows the server error under the field', 
   const stock = `UI${randomDigits(8)}`;
   await staffApi.createVehicle({ stockNumber: stock });
   const drawer = await openAddDrawer(page);
-  await fillRequired(drawer, randomVin());
+  await fillRequired(drawer, randomVin(FORM_YEAR));
   await control(drawer, 'Stock number').fill(stock);
   await drawer.getByRole('button', { name: 'Save' }).click();
   await expect(field(drawer, 'Stock number').locator('.form-error')).toHaveText('Stock number is already used by another vehicle.');
@@ -116,7 +141,13 @@ test('PAY-01 to PAY-04 / SALE-01: record and remove payments on a sold vehicle, 
   const customer = await staffApi.createCustomer();
   const created = await staffApi.createVehicle({ mileageKm: 38200, exteriorColor: 'Red' });
   await staffApi.put(`/api/v1/customers/${customer.id}/vehicles/${created.id}`);
-  const v = await staffApi.sellVehicle(await staffApi.getVehicle(created.id), 21000, SOLD_ON);
+  // CR-D8: the sale names its buyer, and a vehicle already linked in CRM is sold to that customer.
+  const current = await staffApi.getVehicle(created.id);
+  const sale = await staffApi.post(`/api/v1/vehicles/${created.id}/sell`, {
+    soldOn: SOLD_ON, soldPrice: 21000, version: current.version, buyerCustomerId: customer.id,
+  });
+  await expectStatus(sale, 200);
+  const v = (await sale.json()) as Vehicle;
 
   const row = await findRow(page, v.vin, v.vin);
   await row.getByRole('button', { name: 'Edit' }).click();

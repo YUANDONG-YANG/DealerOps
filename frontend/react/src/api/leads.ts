@@ -58,8 +58,10 @@ const blankToUndefined = (value?: string) => (value && value.trim() ? value.trim
 
 /** Sales leads for the signed-in dealership. Blank optional strings are omitted so the server keeps its defaults. */
 export const leadsApi = {
-  list(p: LeadFilters & { page?: number; size?: number } = {}) {
+  /** `sort` is `field,asc|desc` (customerName, vehicle, stage, ownerUsername, nextFollowUpOn); omitted is newest first. */
+  list(p: LeadFilters & { sort?: string; page?: number; size?: number } = {}) {
     const params: Record<string, unknown> = { page: p.page ?? 0, size: p.size ?? 10 };
+    if (p.sort) params.sort = p.sort;
     if (p.q) params.q = p.q;
     if (p.vehicle) params.vehicle = p.vehicle;
     if (p.stage) params.stage = p.stage;

@@ -111,7 +111,7 @@ Admin operations may write `audit_event`: `entityType=MEMBERSHIP`, `dealerId` ma
 | JWT mapped role | active membership | Result |
 |---|---|---|
 | none / cannot map | — | Gateway 401; never reaches core business |
-| `Platform.Admin` | present or absent, ignored | `/me` and the `/admin/**` routes only. Every business URL (vehicles, customers, listings, checks, audit, assistant, vehicle catalog), read or write, returns **403** `FORBIDDEN` with no business fields |
+| `Platform.Admin` | present or absent, ignored | `/me`, `/auth/**` and the `/admin/**` routes only (the Gateway's admin gate admits exactly these three prefixes). Every business URL (vehicles, customers, listings, checks, audit, assistant, vehicle catalog), read or write, returns **403** `FORBIDDEN` with no business fields |
 | `Platform.Admin` and `Dealer.User` both present | — | **Admin wins** (when a staff token is accidentally elevated, trust Admin in the token) |
 | `Dealer.User` | exactly 1 active | business allowed; tenant = that row's `dealer_id` |
 | `Dealer.User` | 0 | **403** `FORBIDDEN`, no dealership (same wording as 14) |
@@ -119,17 +119,70 @@ Admin operations may write `audit_event`: `entityType=MEMBERSHIP`, `dealerId` ma
 
 `app_user.role`: written back from the JWT at sign-in or bind; **authorization compares the current JWT**. An expired role in the database cannot elevate privileges.
 
-### 2.5 Dealership role on the membership (manager / staff)
+### 2.5 Dealership role on the membership (owner / manager / sales)
 
-The organisation has three levels: the platform admin (`Platform.Admin`), a dealership's managers, and its staff. The last two are both `Dealer.User` in the JWT; the difference lives on the active membership row as `membership.dealer_role` (`manager` / `staff`, `VARCHAR(16) NOT NULL DEFAULT 'staff'`, wire `MANAGER` / `STAFF`). It is read per request with the tenant, so a promotion or demotion applies on the next request without a new token.
+Decided 2026-11-03 (`requirements/iteration-2/CR-Role-Hierarchy-2026-11-03.md`, design/21 AUTH-27). The platform admin (`Platform.Admin`) sits outside the dealership; inside a dealership there are exactly three tiers, **Owner**, **Manager** and **Sales**. All three are `Dealer.User` in the JWT: the JWT role list stays `Platform.Admin` and `Dealer.User`, and every in-dealership difference lives on the active membership row as `membership.dealer_role` (`VARCHAR(16) NOT NULL DEFAULT 'SALES'`, stored and on the wire as `OWNER` / `MANAGER` / `SALES` through `EnumSnakeCaseConverter`). It is read per request with the tenant, so an appointment applies on the next request without a new token.
 
-| Who | Can |
-|---|---|
-| `Platform.Admin` | Create dealerships; create accounts; bind an account directly only while the dealership has no active manager (it becomes the first manager), otherwise file a join request that a manager approves (14 §3.6); edit or delete pending accounts (14 §3.8a, §3.8b); unbind members, reset passwords, and promote staff to manager or demote a manager in any dealership (14 §3.7b) |
-| Manager | Everything staff can, plus: the Team page, the join-request inbox, approving or rejecting join requests, removing staff, editing the dealership profile, setting another member of the same dealership to Manager or Staff (never themselves), and editing another member's full name and phone (14 §5.7, §5.8); each record's audit history (`GET /audit`, AUD-17) and the dealership audit log (`GET /dealer/audit`, Team › Activity); the payment ledger of a sold vehicle (`GET /vehicles/{id}/payments`) and removing a payment (`DELETE …/payments/{paymentId}`) |
-| Staff | All business data of the dealership (DMS, CRM, leads, ads, reports, work orders); may record a payment (`POST /vehicles/{id}/payments`, 201 with only the recorded payment item, PAY-05) but cannot read the ledger or remove a payment; no audit history or audit log, no Team page, no inbox. Every manager-only endpoint returns **403** `FORBIDDEN` to staff |
+`admin`, `owner` and `regional manager` in the change document all mean this single Owner role. There is no separate dealership-admin role and no cross-dealership regional manager.
 
-Since 2026-11-03 (design/21 AUTH-28) the admin binds directly only to bootstrap a dealership's first manager: a direct bind or reactivation while the dealership has no active manager starts as `manager`. Once a manager exists, the admin's create-staff and bind actions file a join request instead, so the dealership itself controls who joins, and an approved join request starts as `staff`. Existing members became `staff` when the column was added; a manager can promote or demote other members. A manager cannot change their own role, so the last manager cannot demote themselves. A manager removes only staff: another manager must be demoted to staff first, and a manager never removes themselves.
+**One active owner per dealership.** Nobody inside the dealership can create a second one; only the platform admin appoints or replaces an owner. The rule is enforced in code, not only by convention:
+
+- **Transfer, not a second owner.** `PUT /admin/dealers/{id}/members/{username}/role` with `OWNER` demotes the dealership's sitting owner to `MANAGER` and promotes the target in the **same transaction**, auditing `MEMBERSHIP`/`UPDATE` on both rows with their previous role (14 §3.7b). The target already being the owner is a no-op.
+- **Last-owner protection.** Demoting, unbinding or deleting the only active owner is refused with **409** `LAST_OWNER`, so the admin appoints the next owner (which transfers the office) first. This covers `PUT …/members/{username}/role`, `DELETE /admin/dealers/{id}/members/{username}` (14 §3.7), `DELETE …/members/{username}/account` (14 §3.7d) and the owner's own `DELETE /me` (14 §2.2).
+- **The last member may leave.** An owner who is the dealership's last active member is unbound or deleted as usual. The dealership is then empty, so the next admin bind bootstraps its owner directly again. A **demotion** has no such exception: it keeps the member active, which would leave the remaining members with no owner.
+- **The bootstrap bind is serialized.** The "has an active owner" test in the admin bind runs inside the bind's transaction after `SELECT id FROM dealer WHERE id = ? FOR UPDATE`, the same locking pattern as the payment ledger, so two concurrent admin binds cannot both become the first owner.
+
+| Level | Role | Wire value | Appointed by |
+|---|---|---|---|
+| Outside the dealership | Platform admin | `Platform.Admin` (JWT) | Existing seeding |
+| Highest in the dealership | Owner | `OWNER` | The platform admin, first one only |
+| Middle | Manager | `MANAGER` | The owner, or a manager promoting a sales member |
+| Business | Sales | `SALES` | The role a member joins with; only the owner sets a manager back to `SALES` |
+
+**Appointment rules.**
+
+- The platform admin creates and **binds the first owner directly**. An empty dealership has nobody to approve a join request, so this bootstrap cannot become a join request.
+- Once the dealership has an active owner, the platform admin only **files a join request**; the owner approves it, and the approved member joins as `SALES`.
+- The platform admin keeps `PUT /admin/dealers/{id}/members/{username}/role` for any role including `OWNER` (14 §3.7b), which is how an owner is replaced when one leaves.
+- The owner appoints managers and sales members, and may demote a manager to sales.
+- A manager acts on **sales members only**: promote a sales member to manager, and edit that member's full name and phone. A manager cannot touch the owner, cannot promote anyone to owner, and cannot demote another manager.
+- Nobody changes their own role.
+
+**Permissions.** Every capability a tier does not have returns **403** `FORBIDDEN`.
+
+| Capability | Owner | Manager | Sales |
+|---|---|---|---|
+| DMS, CRM, leads, ads, reports, work orders, sell a vehicle | yes | yes | yes |
+| Open the Team page (`/team` with its Members tab and the header inbox) | yes | yes | no |
+| Dealership profile (`GET`/`PATCH /dealer/profile`) | yes | no | no |
+| Approve or reject join requests (`/dealer/join-requests/**`) | yes | no | no |
+| Dealership audit log (`GET /dealer/audit`) and a record's audit history (`GET /audit`, AUD-17) | yes | yes | no |
+| Payment ledger of a sold vehicle (`GET /vehicles/{id}/payments`, `DELETE …/payments/{paymentId}`, PAY-05) | yes | yes | no |
+| Set a sales member to manager | yes | yes | no |
+| Set a manager to sales | yes | no | no |
+| Edit a member's full name and phone | any member below owner | sales only | no |
+| Remove a member | manager and sales | sales only | no |
+| Change the owner | no (platform admin only) | no | no |
+
+The owner and the manager must differ, or the two tiers collapse back into the single `MANAGER` of the previous design. The dividing powers are the **dealership profile**, **join requests** and **acting on managers**.
+
+A sales member keeps all business data of the dealership and may record a payment (`POST /vehicles/{id}/payments`, 201 with only the recorded payment item, PAY-05) but cannot read the ledger or remove a payment, and has no Team page, inbox, audit history or audit log. The member list itself (`GET /api/v1/members`) stays open to every member, sales included, because the lead-owner and work-order assignee pickers need it (14 §5.6), but a sales caller receives only the picker fields `username` and `displayName`: another member's role, phone and joined date go to a caller with team access alone. Only the Team page and its actions are restricted.
+
+`Platform.Admin` itself: create dealerships; create accounts; bind the first owner directly, otherwise file a join request the owner approves (14 §3.6); edit or delete pending accounts (14 §3.8a, §3.8b); unbind members, reset passwords, and set any `dealer_role` including `OWNER` in any dealership (14 §3.7b).
+
+**Role names.** Sales is a role name only. The sales report counts every member who sold a vehicle and is not filtered by role; `sold_by` is not restricted to the Sales role, so an owner or a manager who sells a vehicle appears in the report. Business data access is identical for the three tiers — only team administration differs — and a member still belongs to one dealership.
+
+**Existing data.** `EnsureCreated` plus the idempotent DDL patch list in `backend/dotnet/DealerOps.Core/Program.cs` owns the schema, so the rename is a data patch there. Five statements run in this order:
+
+1. `UPDATE membership SET dealer_role = UPPER(dealer_role)` canonicalises the stored spelling. Rows written by the application are upper case, and the committed seed files hold upper case, but rows written by an earlier build or loaded from an older seed revision or dump may be lower case (`staff`, `manager`).
+2. `UPDATE membership SET dealer_role = 'SALES' WHERE UPPER(dealer_role) NOT IN ('OWNER','MANAGER','SALES')` lands any legacy spelling, the old `staff` and `STAFF` included, on `SALES`. The `UPPER()` guard is part of the statement, not decoration: without it a lower-case `manager` would be flattened to `SALES` under a `_cs` or `_bin` collation.
+3. Per dealership that has no active owner, the **earliest** active `MANAGER` membership (lowest `created_at`, then lowest `id`) becomes `OWNER` while later managers stay `MANAGER`. A dealership that already has an active owner is skipped.
+4. Per dealership that has active members but neither an active owner nor an active manager, the **earliest** active membership (same ordering) becomes `OWNER`. A dealership whose members were all sales members would otherwise have nobody who can open Team, approve a join request or edit the profile once every row reads `SALES`, leaving only the platform admin able to rescue it. This runs after step 3, so a dealership that has just gained an owner is already excluded, and a dealership with no active member at all gets nobody.
+5. `vehicle.sold_by` is backfilled from the audit log, because the column was added on 2026-11-03 and every earlier sale has it NULL. For each `SOLD` vehicle whose `sold_by` is still NULL, the value becomes the `actor_username` of the most recent `VEHICLE`/`SELL` audit row for that vehicle (latest `created_at`, then highest `id`; blank actors are ignored) — the same value `POST .../sell` now stores. A sold vehicle with no `SELL` audit row keeps NULL and stays out of the per-salesperson breakdown of the sales report.
+
+The DDL list also carries `ALTER TABLE membership ALTER COLUMN dealer_role SET DEFAULT 'SALES'`, because `ADD COLUMN` cannot change the default a pre-existing database already has.
+
+The patch **runs once**, not on every start: the promotions override whatever role a row holds, so a re-run would undo an administrator who unbound an owner to bind a replacement. A marker table `schema_patch (patch_id VARCHAR(64) PRIMARY KEY, applied_at DATETIME(6) NOT NULL)` records the applied patch id (`dealer_role_hierarchy_2026_11_03`); the marker is claimed with `INSERT IGNORE` and all five statements run in that same explicit transaction, so a transient MySQL failure rolls the marker back instead of leaving the data half migrated. The seed files under `dealer-platform/seed/sql/` carry the migrated role values, so an Azure restore does not reintroduce the old text. Take a fresh Azure backup before the first start that applies the patch: the rename is lossy in reverse.
 
 **V2 is not recommended.** If a later change must enforce one person / one dealership in the database, use a generated-column unique index on active rows only; Sprint 1 is not blocked — the application layer is enough.
 
@@ -170,6 +223,10 @@ Invariants (checked on every write path):
 - Only one filled → `SOLD_PAIR_REQUIRED`
 - Price must be `> 0` (spec is a sale price; 0/negative is 400)
 
+The sale also records who sold the vehicle and to whom, through two columns Core adds in its startup patch list: `vehicle.sold_by VARCHAR(64) NULL` (the selling member's username, written from the actor on `POST .../sell`; it feeds the per-salesperson sales report) and `vehicle.sold_to_name VARCHAR(120) NULL` (the typed buyer name, kept only while no customer is linked, because a linked customer's name is read through `customer_vehicle`). Both stay NULL while the vehicle is `IN_STOCK`.
+
+`sold_by` was added on 2026-11-03, so sales recorded before that date have it NULL and their per-salesperson report rows would not add up to the headline totals. The same one-shot startup patch as §2.5 (marker `dealer_role_hierarchy_2026_11_03`) therefore **backfills it once from the audit log**: for each `SOLD` vehicle whose `sold_by` is still NULL, the value becomes the `actor_username` of the most recent `VEHICLE`/`SELL` audit row for that vehicle (latest `created_at`, then highest `id`; blank actors are ignored), which is the same actor `POST .../sell` now writes. A sold vehicle with no `SELL` audit row keeps NULL. `sold_to_name` is not backfilled.
+
 **V2 CHECK is not recommended** (optional, not a start blocker). Entity enum + validation is enough.
 
 ---
@@ -185,6 +242,7 @@ Invariants (checked on every write path):
 | One customer, many vehicles | allowed |
 | Sale (sell) | **do not delete** `customer_vehicle`; CRM still shows that vehicle |
 | UNLINK (DELETE) after sold | reject **409** `SOLD_LOCKED` (sale record must not be erased; 14 DELETE must return this code) |
+| Customer DELETE (CRM-14) while linked to a sold vehicle | reject **409** `SOLD_LOCKED` (the buyer name is read through the link, so the sale must keep an active customer) |
 | UNLINK while in stock | allowed; delete the row or hard-delete per your entity choice (V1 has no soft-delete column); audit `UNLINK` |
 | Link a sold vehicle that has no customer yet | allowed once; a second link → 409 `VEHICLE_ALREADY_LINKED` |
 
@@ -440,7 +498,7 @@ Swagger UI and its OpenAPI JSON may be anonymous in the local `JWT_MODE=dev` cla
 |---|---|
 | Login routes | `/login` accepts the account's email, username, or phone and the password. `/register` accepts a username, a display name, an email and/or phone (at least one), and a password. Contract: [14](14-Backend-API-Contract.md) §1.4–1.5; design: [21](21-Feature-Extensions.md) §5. |
 | Identity | `dealer-core` verifies local passwords and issues the application's existing HS256 JWT. |
-| Roles (`roles[]` in the JWT) | Exactly `Platform.Admin` and `Dealer.User`, same as before. Manager versus staff is the membership's `dealer_role`, not a JWT role (§2.5). |
+| Roles (`roles[]` in the JWT) | Exactly `Platform.Admin` and `Dealer.User`, same as before. Owner versus manager versus sales is the membership's `dealer_role`, not a JWT role (§2.5). |
 | Issuing access | The platform admin alone grants dealership access. Self-registered accounts begin as unbound `Dealer.User` identities; `/admin` lists pending accounts and binds an existing account without replacing its credential. Admin-created accounts also need an email and/or phone (at least one); their username works for sign-in as well. |
 | Revoking access | **Unbind** = soft deactivate: `membership.active=0`, `app_user.dealer_id=NULL`; keep the `app_user` row and its password hash (see §2.3), consistent with "do not delete the account." |
 | Post-sign-in landings | **`Platform.Admin` → `/admin`**; **`Dealer.User` with `dealerId` set → `/dms`**; **signed-in but unbound → `/no-access`** ("waiting for a dealership" with the username). |
@@ -511,14 +569,14 @@ Verification rules enforced server-side, never in the browser: RS256 only, issue
 
 ### 8.6 Data retention: nothing is deleted (NFR-07)
 
-Dealer Ops keeps financial and sales records, so no business data is destroyed or overwritten. Every delete is a soft delete: the row stays and `deleted_at` hides it from active lists. This applies to customers (CRM-14), vehicles (DMS-17), customer-vehicle links (unlink), vehicle photos (both variants), payments (PAY-03) and dealerships (`DELETE /admin/dealers/{id}`, which also sets `active = false` and unbinds every member). Removed staff memberships keep their row with `active = false`.
+Dealer Ops keeps financial and sales records, so no business data is destroyed or overwritten. Every delete is a soft delete: the row stays and `deleted_at` hides it from active lists. This applies to customers (CRM-14), vehicles (DMS-17), customer-vehicle links (unlink), vehicle photos (both variants), payments (PAY-03) and dealerships (`DELETE /admin/dealers/{id}`, which also sets `active = false` and unbinds every member). Removed memberships keep their row with `active = false`. The soft-delete column is `deleted_at DATETIME(6) NULL` on every table that takes part, `dealer.deleted_at DATETIME(6) NULL` included; Core adds the missing ones in its startup patch list.
 
 | Data category | Retention |
 |---|---|
 | Active customer (name, email, phone, home address) | While the dealership keeps the record |
-| Soft-deleted customer (CRM-14) | Row and personal fields kept unchanged for lead, link and audit history; never anonymized |
+| Soft-deleted customer (CRM-14) | Row and personal fields kept unchanged for lead, link and audit history; never anonymized. The buyer of a sold vehicle cannot be soft-deleted (§4 link rules) |
 | Unlinked customer-vehicle link, deleted photo, deleted payment | Row kept with `deleted_at`; hidden from lists, the ledger and the buyer site |
-| Audit events | Kept for the life of the database, append-only (AUD-05); they hold contact values, new and replaced, so every version is traceable (AUD-04). Readable only by managers and the admin |
+| Audit events | Kept for the life of the database, append-only (AUD-05); they hold contact values, new and replaced, so every version is traceable (AUD-04). Readable only by the dealership owner, its managers and the platform admin (§2.5, 14 §9.1 and §9.3) |
 | Staff accounts (`app_user`) | Until the user deletes the account (`DELETE /api/v1/me`) or the admin deletes it (`DELETE /admin/dealers/{id}/members/{username}/account` or the pending-account delete); both are the same soft delete: `active = false`, email, phone and Google link suffixed `:deleted:<id>`, username and audit kept |
 | Deleted dealership | Row kept with `deleted_at` and `active = false`; its vehicles, customers, sales and audit rows stay; hidden from admin lists, the public shop and sign-in |
 | Database backups | 7 days (NFR-04) |

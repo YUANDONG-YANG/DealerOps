@@ -5,7 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace DealerOps.Core.Dealer;
 
-/// <summary>Platform admin management of one dealership's staff.</summary>
+/// <summary>Platform admin management of one dealership's members.</summary>
 [ApiController]
 [Route("api/v1/admin/dealers/{id}/members")]
 [Authorize]
@@ -28,8 +28,8 @@ public class AdminMemberController : ControllerBase
         _membershipService.List(id, q, page, size);
 
     /// <summary>
-    /// Binds an existing or new login directly while the dealership has no active manager (201,
-    /// the member); otherwise files a join request for a manager to approve (202).
+    /// Binds an existing or new login directly as the dealership's first owner while it has no
+    /// active owner (201, the member); otherwise files a join request for the owner to approve (202).
     /// </summary>
     [HttpPost]
     [ProducesResponseType(typeof(MemberResponse), 201)]
@@ -48,7 +48,7 @@ public class AdminMemberController : ControllerBase
         return NoContent();
     }
 
-    /// <summary>Promotes staff to manager or demotes a manager.</summary>
+    /// <summary>Sets a member to OWNER, MANAGER or SALES; the platform admin is the only caller that can set OWNER.</summary>
     [HttpPut("{username}/role")]
     public IActionResult SetRole(long id, string username, [FromBody] SetDealerRoleRequest body)
     {

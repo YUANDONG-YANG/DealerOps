@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { useSessionStore } from '../store/session';
+import { isTeamAdmin, useSessionStore } from '../store/session';
 import AppLayout from '../layouts/AppLayout';
 import DataTable from '../components/DataTable';
 import PageState from '../components/PageState';
@@ -8,6 +8,7 @@ import AdWorkspace from '../components/AdWorkspace';
 import PhotoStudioPanel from '../components/PhotoStudioPanel';
 import StatusTag from '../components/StatusTag';
 import AuditTrail, { type AuditRow } from '../components/AuditTrail';
+import { sortParam, type SortState } from '../components/TableSort';
 import { auditApi } from '../api/audit';
 import { vehiclesApi } from '../api/vehicles';
 import { buyerSiteApi } from '../api/buyerSite';
@@ -80,8 +81,8 @@ export default function AdsPage() {
   const [readyBusy, setReadyBusy] = useState(false);
   const [exportBusy, setExportBusy] = useState(false);
   const dealerId = useSessionStore((st) => st.dealerId);
-  // Record history is manager only (AUD-17); staff never call the audit API.
-  const isManager = useSessionStore((st) => st.dealerRole === 'MANAGER');
+  // Record history is for the owner and managers (AUD-17); sales members never call the audit API.
+  const canManage = useSessionStore((st) => isTeamAdmin(st.dealerRole));
   const [publishPlatform, setPublishPlatform] = useState('Kijiji');
   const [demoPublish, setDemoPublish] = useState<{ platform: string; reference: string; publishedAt: string } | null>(null);
   const [savedContent, setSavedContent] = useState(contentKey(emptyListing()));
@@ -91,6 +92,8 @@ export default function AdsPage() {
   const [audit, setAudit] = useState<AuditRow[]>([]);
   const [auditPage, setAuditPage] = useState(0);
   const [auditTotal, setAuditTotal] = useState(0);
+  // Server-side sort of the whole record history (CR-020); null is newest first.
+  const [auditSort, setAuditSort] = useState<SortState | null>(null);
 
   const unsaved = contentKey(listing) !== savedContent;
   const sold = selected?.status === 'SOLD';
@@ -158,11 +161,11 @@ export default function AdsPage() {
     return () => { active = false; };
   }, [dealerId, summaries]);
 
-  // The saved ad's LISTING history (managers only); a reply for an ad that is no longer open is ignored.
-  async function loadAudit(listingId: number, seq: number, page = 0) {
-    if (!isManager) return;
+  // The saved ad's LISTING history (owner and managers); a reply for an ad that is no longer open is ignored.
+  async function loadAudit(listingId: number, seq: number, page = 0, sort = auditSort) {
+    if (!canManage) return;
     try {
-      const r = await auditApi.list({ entityType: 'LISTING', entityId: listingId, page, size: 10 });
+      const r = await auditApi.list({ entityType: 'LISTING', entityId: listingId, page, size: 10, sort: sortParam(sort) });
       if (seq !== listingLoadSeq.current) return;
       setAudit(r.data.items || []);
       setAuditPage(r.data.page ?? page);
@@ -470,12 +473,14 @@ export default function AdsPage() {
                   <PhotoStudioPanel key={selected.id} vehicleId={selected.id} />
                 </section>
               )}
-              {isManager && listing.id && (
+              {canManage && listing.id && (
                 <AuditTrail
                   rows={audit}
                   page={auditPage}
                   total={auditTotal}
                   onPage={(p) => { if (listing.id) void loadAudit(listing.id, listingLoadSeq.current, p); }}
+                  sort={auditSort}
+                  onSort={(s) => { setAuditSort(s); if (listing.id) void loadAudit(listing.id, listingLoadSeq.current, 0, s); }}
                 />
               )}
             </>

@@ -9,8 +9,8 @@ namespace DealerOps.Core.Dealer;
 
 /// <summary>
 /// Google join-request workflow (self-service onboarding). A Google user who has never been
-/// bound to a dealership picks one on the sign-in screen; the request lands here and a manager
-/// of that dealership approves or rejects it (AUTH-27); the new member joins as staff. Approval creates the membership
+/// bound to a dealership picks one on the sign-in screen; the request lands here and the owner
+/// of that dealership approves or rejects it (AUTH-27); the new member joins as sales. Approval creates the membership
 /// and clears <see cref="AppUserEntity.RequestedDealerId"/>; rejection just clears the field.
 /// Scoped to the caller's tenant throughout, so one dealership's queue is never visible to
 /// another.
@@ -32,11 +32,11 @@ public class JoinRequestService
     }
 
     /// <summary>
-    /// Pending join requests for the caller's dealership (manager only), newest first.
+    /// Pending join requests for the caller's dealership (owner only), newest first.
     /// </summary>
     public List<JoinRequestResponse> List()
     {
-        var tenant = TenantGuard.RequireManager().TenantDealerId!.Value;
+        var tenant = TenantGuard.RequireOwner().TenantDealerId!.Value;
         var users = _db.AppUsers
             .Where(u => u.RequestedDealerId == tenant && u.DealerId == null && u.Active && u.Role == AppRole.DealerUser)
             .OrderByDescending(u => u.CreatedAt).ThenByDescending(u => u.Id)
@@ -49,13 +49,13 @@ public class JoinRequestService
     }
 
     /// <summary>
-    /// Approves a pending request (manager only): the applicant becomes active staff of the
-    /// caller's dealership. Audits the membership and the account binding with its old values,
+    /// Approves a pending request (owner only): the applicant becomes an active sales member of
+    /// the caller's dealership. Audits the membership and the account binding with its old values,
     /// and resolves the matching inbox notification, all in one transaction.
     /// </summary>
     public void Approve(string username)
     {
-        var tenant = TenantGuard.RequireManager().TenantDealerId!.Value;
+        var tenant = TenantGuard.RequireOwner().TenantDealerId!.Value;
         var user = LoadRequest(tenant, username);
 
         // Same rule as the admin bind (AUTH-03): one login, one active dealership. The other
@@ -71,7 +71,7 @@ public class JoinRequestService
         membership.DealerId = tenant;
         membership.Username = username;
         membership.Active = true;
-        membership.DealerRole = DealerRole.Staff;
+        membership.DealerRole = DealerRole.Sales;
         membership.CreatedBy = TenantContext.ActorUsername();
 
         // One transaction from the membership through its audit entry (AUD-07): the flush only
@@ -100,12 +100,12 @@ public class JoinRequestService
     }
 
     /// <summary>
-    /// Rejects a pending request (manager only) by clearing the applicant's requested
+    /// Rejects a pending request (owner only) by clearing the applicant's requested
     /// dealership; the audit row keeps the dealership it replaced.
     /// </summary>
     public void Reject(string username)
     {
-        var tenant = TenantGuard.RequireManager().TenantDealerId!.Value;
+        var tenant = TenantGuard.RequireOwner().TenantDealerId!.Value;
         var user = LoadRequest(tenant, username);
 
         user.RequestedDealerId = null;
@@ -155,8 +155,8 @@ public class JoinRequestService
     /// <summary>
     /// Files a join request to <paramref name="dealerId"/> for an unbound account, replacing any
     /// request it had pending at another dealership (whose inbox entry is cancelled). Used by the
-    /// applicant (<see cref="File"/>) and by the platform admin's create-staff and bind actions
-    /// once the dealership has a manager (AUTH-25). The row carries the requested dealership so it
+    /// applicant (<see cref="File"/>) and by the platform admin's create-member and bind actions
+    /// once the dealership has an owner (AUTH-25). The row carries the requested dealership so it
     /// shows in that dealership's audit log.
     /// </summary>
     internal void SetRequested(AppUserEntity user, long dealerId, string actor)
@@ -178,7 +178,7 @@ public class JoinRequestService
 
     /// <summary>
     /// Replaces the inbox entry of a pending request after the admin edits the applicant's
-    /// username or contact details, so the manager sees, and approves by, the current values.
+    /// username or contact details, so the owner sees, and approves by, the current values.
     /// </summary>
     internal void RefreshNotification(AppUserEntity user, string previousUsername, string actor)
     {

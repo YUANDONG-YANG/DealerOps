@@ -1,6 +1,7 @@
 import type { Page } from '@playwright/test';
 import { test, expect } from '../../support/fixtures';
-import { uniqueSuffix, type Api, type Vehicle } from '../../support/api';
+import { expectStatus, today, uniqueSuffix, type Api, type Vehicle } from '../../support/api';
+import { env } from '../../support/env';
 
 // Make and model values unique to one test, so filtering by them yields only this test's rows
 // even though other tests write to the same dealer in parallel.
@@ -9,7 +10,7 @@ function uniqueName(prefix: string) {
 }
 
 function searchBox(page: Page) {
-  return page.getByPlaceholder('Search VIN, make or model');
+  return page.getByPlaceholder('Search VIN, stock #, make or model');
 }
 
 function statusFilter(page: Page) {
@@ -56,6 +57,13 @@ async function rowByHeader(page: Page, rowText: string) {
   return Object.fromEntries(headers.map((h, i) => [h.trim(), (cells[i] ?? '').trim()]));
 }
 
+/** Sells a vehicle to the "Other" buyer every sale now needs (CR-D8). */
+async function sellForTest(api: Api, v: Vehicle) {
+  await expectStatus(await api.post(`/api/v1/vehicles/${v.id}/sell`, {
+    soldOn: today(), soldPrice: 18900, version: v.version, buyerName: 'E2E Walk-in Buyer',
+  }), 200);
+}
+
 async function seedSequentially(api: Api, count: number, overrides: (i: number) => Record<string, unknown>) {
   const created: Vehicle[] = [];
   // Sequential on purpose: the list is ordered newest first, so creation order is asserted later.
@@ -73,8 +81,10 @@ test('UI-20 / NFR-02: list shows year make model, VIN, source, condition, CAD co
 
   await openDms(page);
   const headers = page.locator('table.table thead th');
-  for (const label of ['Year Make Model', 'VIN', 'Source', 'Condition', 'Cost', 'Date added', 'Status']) {
-    await expect(headers.filter({ hasText: new RegExp(`^${label}$`) })).toHaveCount(1);
+  // CR-C1 and CR-R1 added Sold by, Sold to, Date sold and Leads to the original columns.
+  for (const label of ['Year Make Model', 'VIN', 'Stock #', 'Body', 'Source', 'Condition', 'Cost', 'List price',
+    'Date added', 'Open WOs', 'Leads', 'Sold by', 'Sold to', 'Date sold', 'Status']) {
+    await expect(headers.filter({ hasText: new RegExp(`^${label}$`) }), label).toHaveCount(1);
   }
 
   await search(page, make);
@@ -98,7 +108,7 @@ test('DMS-07 / UI-20: keyword search matches VIN, make and model', async ({ staf
   const soldModel = uniqueName('Sold');
   const certified = await staffApi.createVehicle({ make, model: certifiedModel, conditionCode: 'CERTIFIED' });
   const asIs = await staffApi.createVehicle({ make, model: soldModel, conditionCode: 'AS_IS' });
-  await staffApi.sellVehicle(asIs);
+  await sellForTest(staffApi, asIs);
 
   await openDms(page);
 
@@ -124,7 +134,7 @@ test('DMS-07 / UI-20: status filter (In stock / Sold) and condition filter narro
   const soldModel = uniqueName('Sold');
   const certified = await staffApi.createVehicle({ make, model: certifiedModel, conditionCode: 'CERTIFIED' });
   const asIs = await staffApi.createVehicle({ make, model: soldModel, conditionCode: 'AS_IS' });
-  await staffApi.sellVehicle(asIs);
+  await sellForTest(staffApi, asIs);
 
   await openDms(page);
 
@@ -158,7 +168,7 @@ test('UI-20: Reset clears the keyword, status and condition filters and reloads 
   const soldModel = uniqueName('Sold');
   const certified = await staffApi.createVehicle({ make, model: certifiedModel, conditionCode: 'CERTIFIED' });
   const asIs = await staffApi.createVehicle({ make, model: soldModel, conditionCode: 'AS_IS' });
-  await staffApi.sellVehicle(asIs);
+  await sellForTest(staffApi, asIs);
 
   await openDms(page);
 
@@ -232,8 +242,120 @@ test('DMS-06 / NFR-01 / UI-20: list pages 10 per page, newest first, and the nex
   // A filter change goes back to page 1 rather than staying on an offset that may not exist.
   await pagination.getByRole('button', { name: '2', exact: true }).click();
   await expect(bodyRows(page)).toHaveCount(1);
-  // Year filter (all seeded rows are 2020), kept independent of the enum filters.
-  await page.locator('.filters select').filter({ has: page.locator('option', { hasText: /^Year$/ }) }).selectOption('2020');
+  // Year filter (all seeded rows are 2020), kept independent of the enum filters. D-2 made it a
+  // typed box, so the search has to be applied.
+  await page.locator('.filters').getByLabel('Year', { exact: true }).fill('2020');
+  await page.locator('.filters').getByRole('button', { name: 'Search' }).click();
   await expect(bodyRows(page)).toHaveCount(10);
   await expect(pagination.getByRole('button', { name: '1', exact: true })).toHaveClass(/active/);
+});
+
+test('CR-C1 / UI-20: a sold row shows who sold it, the buyer and the date sold; an in-stock row shows none', async ({
+  staffPage: page, staffApi,
+}) => {
+  const make = uniqueName('Sld');
+  const buyer = await staffApi.createCustomer();
+  const inStock = await staffApi.createVehicle({ make, model: uniqueName('Stk') });
+  const sold = await staffApi.createVehicle({ make, model: uniqueName('Don') });
+  const soldOn = today();
+  await expectStatus(await staffApi.post(`/api/v1/vehicles/${sold.id}/sell`, {
+    soldOn, soldPrice: 19500, version: sold.version, buyerCustomerId: buyer.id,
+  }), 200);
+
+  await openDms(page);
+  await search(page, make);
+  await expect(bodyRows(page)).toHaveCount(2);
+
+  const soldRow = await rowByHeader(page, sold.vin);
+  expect(soldRow['Sold by']).toBe(env.staff.username);
+  expect(soldRow['Sold to']).toBe(buyer.name);
+  expect(soldRow['Date sold']).toBe(soldOn);
+  expect(soldRow['Status']).toBe('Sold');
+
+  const stockRow = await rowByHeader(page, inStock.vin);
+  for (const column of ['Sold by', 'Sold to', 'Date sold']) {
+    expect(stockRow[column], `${column} of an in-stock vehicle`).toBe('—');
+  }
+  expect(stockRow['Leads']).toBe('0');
+});
+
+test('CR-C7 / UI-20: clicking a column header sorts the list through the API and flips direction', async ({
+  staffPage: page, staffApi,
+}) => {
+  const make = uniqueName('Hdr');
+  for (const listPrice of [300, 100, 200]) await staffApi.createVehicle({ make, listPrice });
+
+  await openDms(page);
+  await search(page, make);
+  await expect(bodyRows(page)).toHaveCount(3);
+
+  const header = page.locator('table.table thead th').filter({ hasText: /^List price$/ });
+  const sorted = (dir: 'asc' | 'desc') => page.waitForResponse((r) =>
+    isVehicleList(r.url()) && r.request().method() === 'GET'
+    && new URL(r.url()).searchParams.get('sort') === `listPrice,${dir}`
+    && new URL(r.url()).searchParams.get('page') === '0');
+
+  const ascending = sorted('asc');
+  await header.getByRole('button', { name: 'List price' }).click();
+  expect((await ascending).status()).toBe(200);
+  await expect(header).toHaveAttribute('aria-sort', 'ascending');
+  await expect(bodyRows(page).nth(0)).toContainText('$100.00');
+  await expect(bodyRows(page).nth(2)).toContainText('$300.00');
+
+  const descending = sorted('desc');
+  await header.getByRole('button', { name: 'List price' }).click();
+  expect((await descending).status()).toBe(200);
+  await expect(header).toHaveAttribute('aria-sort', 'descending');
+  await expect(bodyRows(page).nth(0)).toContainText('$300.00');
+});
+
+test('CR-D1 / D-2 / D-4 / UI-20: the filter bar drops Make and Model, types the year and filters open work orders', async ({
+  staffPage: page, staffApi,
+}) => {
+  const make = uniqueName('Fil');
+  const busy = await staffApi.createVehicle({ make, modelYear: 2019 });
+  const quiet = await staffApi.createVehicle({ make, modelYear: 2021 });
+  await expectStatus(await staffApi.post(`/api/v1/vehicles/${busy.id}/work-orders`, { task: 'Brake job' }), 201);
+
+  await openDms(page);
+  // D-1: the Make and Model filters are gone; the keyword box already matches both. Exact
+  // labels, because the keyword box's own label names make and model.
+  const filters = page.locator('.filters');
+  await expect(filters.getByLabel('Make', { exact: true })).toHaveCount(0);
+  await expect(filters.getByLabel('Model', { exact: true })).toHaveCount(0);
+
+  // D-2: Year is a typed number box, not a drop-down of years.
+  const year = filters.getByLabel('Year', { exact: true });
+  await expect(year).toHaveAttribute('type', 'number');
+  await search(page, make);
+  await expect(bodyRows(page)).toHaveCount(2);
+
+  const listedWith = (param: string, value: string) => page.waitForResponse((r) =>
+    isVehicleList(r.url()) && r.request().method() === 'GET'
+    && new URL(r.url()).searchParams.get(param) === value);
+
+  const byYear = listedWith('modelYear', '2019');
+  await year.fill('2019');
+  await filters.getByRole('button', { name: 'Search' }).click();
+  expect((await byYear).status()).toBe(200);
+  await expect(bodyRows(page)).toHaveCount(1);
+  await expect(bodyRows(page).first()).toContainText(busy.vin);
+
+  // D-4: the open-work-orders filter keeps only the vehicle whose work order is still open.
+  await year.fill('');
+  const cleared = listedWith('q', make);
+  await filters.getByRole('button', { name: 'Search' }).click();
+  expect((await cleared).status()).toBe(200);
+  await expect(bodyRows(page)).toHaveCount(2);
+
+  const openOnly = listedWith('openWorkOrdersOnly', 'true');
+  await page.getByLabel('Open work orders only').check();
+  expect((await openOnly).status()).toBe(200);
+  await expect(bodyRows(page)).toHaveCount(1);
+  const row = await rowByHeader(page, busy.vin);
+  expect(row['Open WOs']).toBe('1');
+
+  await page.getByLabel('Open work orders only').uncheck();
+  await expect(bodyRows(page)).toHaveCount(2);
+  await expect(bodyRows(page).filter({ hasText: quiet.vin })).toHaveCount(1);
 });

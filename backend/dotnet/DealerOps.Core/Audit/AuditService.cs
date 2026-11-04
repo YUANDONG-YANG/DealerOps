@@ -9,9 +9,9 @@ using Microsoft.EntityFrameworkCore;
 namespace DealerOps.Core.Audit;
 
 /// <summary>
-/// Writes and reads the append-only audit trail (AUD-01 to AUD-09). Staff read no audit (AUD-17).
-/// A manager reads one record's history and the whole dealership's log; the platform admin reads
-/// every row. All reads are newest first (AUD-10, AUD-11).
+/// Writes and reads the append-only audit trail (AUD-01 to AUD-09). Sales members read no audit
+/// (AUD-17). The owner and managers read one record's history and the whole dealership's log; the
+/// platform admin reads every row. All reads are newest first (AUD-10, AUD-11).
 /// </summary>
 public class AuditService : IAuditService
 {
@@ -21,7 +21,7 @@ public class AuditService : IAuditService
     private static readonly Dictionary<string, AuditAction> ActionMap =
         Enum.GetValues<AuditAction>().ToDictionary(a => EnumWireName.Of(a), StringComparer.OrdinalIgnoreCase);
 
-    private static readonly HashSet<string> AllowedStaffTypes = new(StringComparer.OrdinalIgnoreCase)
+    private static readonly HashSet<string> AllowedEntityTypes = new(StringComparer.OrdinalIgnoreCase)
     {
         "VEHICLE", "CUSTOMER", "CUSTOMER_VEHICLE", "LEAD", "WORK_ORDER", "VEHICLE_PHOTO", "LISTING"
     };
@@ -85,10 +85,10 @@ public class AuditService : IAuditService
         return PageOfLog(Sorted(query, filter.Sort), page, size, ToItem);
     }
 
-    /// <summary>The manager's own dealership log: every row of the tenant, newest first (AUD-11).</summary>
+    /// <summary>The owner's and managers' own dealership log: every row of the tenant, newest first (AUD-11).</summary>
     public PageResponse<AuditItem> ListDealership(AuditLogFilter filter, int page, int size)
     {
-        var tenant = TenantGuard.RequireManager().TenantDealerId!.Value;
+        var tenant = TenantGuard.RequireTeamAccess().TenantDealerId!.Value;
         return PageOfLog(Sorted(Filtered(_db.AuditEvents.Where(e => e.DealerId == tenant), filter), filter.Sort),
             page, size, ToItem);
     }
@@ -125,10 +125,14 @@ public class AuditService : IAuditService
             var types = EntityTypeMap.Where(kv => kv.Key.Contains(wireText, StringComparison.OrdinalIgnoreCase))
                 .Select(kv => kv.Value).ToList();
             // EF.Constant inlines the short enum lists as an IN list of converted wire names.
+            // The two change columns are JSON, and string.Contains becomes LIKE, whose pattern
+            // inherits the column's JSON type mapping: MySQL then rejects `%text%` as invalid JSON.
+            // IndexOf translates to LOCATE, which takes the search text as plain text, so the
+            // match stays a substring search on the lower-cased column.
             query = query.Where(e => EF.Constant(actions).Contains(e.Action)
                 || EF.Constant(types).Contains(e.EntityType)
-                || (e.FieldSummary != null && e.FieldSummary.ToLower().Contains(text))
-                || (e.PreviousValues != null && e.PreviousValues.ToLower().Contains(text)));
+                || (e.FieldSummary != null && e.FieldSummary.ToLower().IndexOf(text) >= 0)
+                || (e.PreviousValues != null && e.PreviousValues.ToLower().IndexOf(text) >= 0));
         }
         // Rows are stored in UTC; the caller sends instants so a "day" follows the viewer's time zone.
         if (filter.From != null)
@@ -147,10 +151,14 @@ public class AuditService : IAuditService
     /// <summary>Fields the admin and dealership logs sort by (C7); the wire names of the AuditItem fields.</summary>
     private static readonly string[] SortFields = ["createdAt", "actorUsername", "action", "entityType", "dealerId", "clientIp", "clientLocation"];
 
+    /// <summary>Fields one record's history sorts by: the columns of the record audit table.</summary>
+    private static readonly string[] RecordSortFields = ["createdAt", "actorUsername", "action"];
+
     // The requested order, then newest first; "entityType" orders by record type and then record id.
-    private static IOrderedQueryable<AuditEventEntity> Sorted(IQueryable<AuditEventEntity> query, string? sort)
+    private static IOrderedQueryable<AuditEventEntity> Sorted(IQueryable<AuditEventEntity> query, string? sort,
+        IReadOnlyCollection<string>? fields = null)
     {
-        var parsed = Paging.ParseSort(sort, SortFields);
+        var parsed = Paging.ParseSort(sort, fields ?? SortFields);
         if (parsed == null)
             return query.OrderByDescending(e => e.CreatedAt).ThenByDescending(e => e.Id);
         var (field, desc) = parsed.Value;
@@ -160,9 +168,9 @@ public class AuditService : IAuditService
             "actorUsername" => query.OrderByDirection(e => e.ActorUsername, desc),
             "action" => query.OrderByDirection(e => e.Action, desc),
             "entityType" => query.OrderByDirection(e => e.EntityType, desc).ThenBy(e => e.EntityId),
-            "dealerId" => query.OrderByDirection(e => e.DealerId, desc),
-            "clientLocation" => query.OrderByDirection(e => e.ClientLocation, desc),
-            _ => query.OrderByDirection(e => e.ClientIp, desc),
+            "dealerId" => query.OrderByDirectionBlanksLast(e => e.DealerId, desc),
+            "clientLocation" => query.OrderByDirectionBlanksLast(e => e.ClientLocation, desc),
+            _ => query.OrderByDirectionBlanksLast(e => e.ClientIp, desc),
         };
         return ordered.ThenByDescending(e => e.CreatedAt).ThenByDescending(e => e.Id);
     }
@@ -218,8 +226,12 @@ public class AuditService : IAuditService
         }
     }
 
-    /// <summary>One record's history, newest first (AUD-06). Manager only: staff see no audit (AUD-17).</summary>
-    public PageResponse<AuditItem> List(string entityType, long entityId, int page, int size)
+    /// <summary>
+    /// One record's history (AUD-06), newest first unless <paramref name="sort"/> names createdAt,
+    /// actorUsername or action. The order applies to the whole history before paging. Owner and
+    /// manager only: sales members see no audit (AUD-17).
+    /// </summary>
+    public PageResponse<AuditItem> List(string entityType, long entityId, int page, int size, string? sort = null)
     {
         // Another dealership's record stays 404 for every caller; only then is the role checked.
         var tenant = TenantGuard.RequireTenantId();
@@ -229,24 +241,24 @@ public class AuditService : IAuditService
         var type = entityType.Trim().ToUpperInvariant();
         if (type is "DEALER" or "MEMBERSHIP")
             throw new ApiException(ErrorCode.Forbidden, "Forbidden");
-        if (!AllowedStaffTypes.Contains(type))
+        if (!AllowedEntityTypes.Contains(type))
             throw new ApiException(ErrorCode.Validation, "Request is invalid.");
 
         AssertEntityInDealer(type, entityId, tenant);
-        TenantGuard.RequireManager();
+        TenantGuard.RequireTeamAccess();
 
         if (type == "CUSTOMER")
-            return CustomerHistory(tenant, entityId, page, size);
+            return CustomerHistory(tenant, entityId, page, size, sort);
         if (type == "VEHICLE")
-            return VehicleHistory(tenant, entityId, page, size);
+            return VehicleHistory(tenant, entityId, page, size, sort);
 
         var p = Paging.ClampPage(page);
         var s = Paging.ClampSize(size);
 
         var parsedType = EntityTypeMap[type];
-        var query = _db.AuditEvents
-            .Where(e => e.DealerId == tenant && e.EntityType == parsedType && e.EntityId == entityId)
-            .OrderByDescending(e => e.CreatedAt).ThenByDescending(e => e.Id);
+        var query = Sorted(_db.AuditEvents
+            .Where(e => e.DealerId == tenant && e.EntityType == parsedType && e.EntityId == entityId),
+            sort, RecordSortFields);
 
         var total = query.Count();
         var items = query.Skip(p * s).Take(s)
@@ -256,14 +268,14 @@ public class AuditService : IAuditService
         return new PageResponse<AuditItem>(items, p, s, total);
     }
 
-    private PageResponse<AuditItem> CustomerHistory(long tenant, long customerId, int page, int size)
+    private PageResponse<AuditItem> CustomerHistory(long tenant, long customerId, int page, int size, string? sort)
     {
-        // Link rows carry the customer id only inside the JSON summary, so those are matched in memory.
-        var source = _db.AuditEvents
+        // Link rows carry the customer id only inside the JSON summary, so those are matched in memory;
+        // the database order is kept, so the sort covers the whole history before paging.
+        var source = Sorted(_db.AuditEvents
             .Where(e => e.DealerId == tenant
                 && ((e.EntityType == EntityType.Customer && e.EntityId == customerId)
-                    || e.EntityType == EntityType.CustomerVehicle))
-            .OrderByDescending(e => e.CreatedAt).ThenByDescending(e => e.Id)
+                    || e.EntityType == EntityType.CustomerVehicle)), sort, RecordSortFields)
             .ToList();
 
         var events = source
@@ -305,7 +317,7 @@ public class AuditService : IAuditService
         return false;
     }
 
-    private PageResponse<AuditItem> VehicleHistory(long tenant, long vehicleId, int page, int size)
+    private PageResponse<AuditItem> VehicleHistory(long tenant, long vehicleId, int page, int size, string? sort)
     {
         // Photo rows stay in the vehicle history after the photo itself is deleted (IMG-04);
         // customer link/unlink rows appear here as well as in the customer history (AUD-06).
@@ -314,13 +326,12 @@ public class AuditService : IAuditService
             .Where(w => w.DealerId == tenant && w.VehicleId == vehicleId)
             .Select(w => w.Id)
             .ToList();
-        var source = _db.AuditEvents
+        var source = Sorted(_db.AuditEvents
             .Where(e => e.DealerId == tenant
                 && ((e.EntityType == EntityType.Vehicle && e.EntityId == vehicleId)
                     || (e.EntityType == EntityType.WorkOrder && workOrderIds.Contains(e.EntityId))
                     || e.EntityType == EntityType.VehiclePhoto
-                    || e.EntityType == EntityType.CustomerVehicle))
-            .OrderByDescending(e => e.CreatedAt).ThenByDescending(e => e.Id)
+                    || e.EntityType == EntityType.CustomerVehicle)), sort, RecordSortFields)
             .ToList();
 
         var events = source

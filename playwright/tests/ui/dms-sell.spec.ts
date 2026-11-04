@@ -21,7 +21,7 @@ const LOAD = { timeout: 30_000 };
 
 async function openDmsRow(page: Page, vin: string): Promise<Locator> {
   await page.goto('/dms');
-  await page.getByPlaceholder('Search VIN, make or model').fill(vin);
+  await page.getByPlaceholder('Search VIN, stock #, make or model').fill(vin);
   const row = page.getByRole('row').filter({ has: page.getByRole('cell', { name: vin, exact: true }) });
   await expect(row).toHaveCount(1, LOAD);
   return row;
@@ -41,8 +41,23 @@ async function fillSale(dialog: Locator, soldOn: string, soldPrice: string) {
   await field(dialog, 'Sold price').locator('input').fill(soldPrice);
 }
 
+/** A sale needs a buyer (CR D8): "Other (not in CRM)" plus a typed name is the smallest choice. */
+async function chooseOtherBuyer(dialog: Locator, name = 'Walk-in Buyer') {
+  await dialog.getByLabel('Buyer', { exact: true }).selectOption('OTHER');
+  await dialog.getByLabel('Buyer name').fill(name);
+}
+
 function isSellRequest(url: string, method: string, id: number) {
   return method === 'POST' && url.includes(`/api/v1/vehicles/${id}/sell`);
+}
+
+/** Sells a vehicle through the API, naming the "Other" buyer every sale now needs (CR-D8). */
+async function sellForTest(api: Api, v: Vehicle, soldPrice: number, soldOn = SOLD_ON) {
+  const res = await api.post(`/api/v1/vehicles/${v.id}/sell`, {
+    soldOn, soldPrice, version: v.version, buyerName: 'E2E Walk-in Buyer',
+  });
+  await expectStatus(res, 200);
+  return (await res.json()) as Vehicle;
 }
 
 async function expectInStock(api: Api, id: number) {
@@ -87,13 +102,16 @@ test('UI-23 DMS-10: Sell from the list needs both date and price before it sells
   await expectInStock(staffApi, v.id);
   await expect(row.getByRole('status')).toHaveText('In stock', LOAD);
 
-  // Both values: the sale goes through.
+  // Both values and a buyer: the sale goes through.
   await fillSale(dialog, SOLD_ON, '18900');
+  await chooseOtherBuyer(dialog);
   const sold = page.waitForResponse((r) => isSellRequest(r.url(), r.request().method(), v.id));
   await confirm.click();
   const res = await sold;
   expect(res.status(), await res.text()).toBe(200);
-  expect(res.request().postDataJSON()).toMatchObject({ soldOn: SOLD_ON, soldPrice: 18900, version: v.version });
+  expect(res.request().postDataJSON()).toMatchObject({
+    soldOn: SOLD_ON, soldPrice: 18900, version: v.version, buyerCustomerId: null, buyerName: 'Walk-in Buyer',
+  });
 
   await expect(dialog).toBeHidden();
   await expect(row.getByRole('status')).toHaveText('Sold', LOAD);
@@ -131,6 +149,7 @@ test('UI-23: "Mark as sold" in the edit drawer opens the confirm dialog and sell
   await expectInStock(staffApi, v.id);
 
   await fillSale(dialog, SOLD_ON, '21000.50');
+  await chooseOtherBuyer(dialog);
   const sold = page.waitForResponse((r) => isSellRequest(r.url(), r.request().method(), v.id));
   await dialog.getByRole('button', { name: 'Confirm sale' }).click();
   expect((await sold).status()).toBe(200);
@@ -146,7 +165,7 @@ test('UI-23: "Mark as sold" in the edit drawer opens the confirm dialog and sell
 test('UI-24 DMS-11 DMS-12 DMS-16: a sold vehicle opens read-only with sale facts and profit', async ({ staffPage: page, staffApi }) => {
   // Profit = 18900 - 14200 - 800 = 3900.
   const created = await staffApi.createVehicle({ purchaseCost: 14200, repairCost: 800 });
-  const v = await staffApi.sellVehicle(created, 18900, SOLD_ON);
+  const v = await sellForTest(staffApi, created, 18900);
 
   const row = await openDmsRow(page, v.vin);
   await expect(row.getByRole('status')).toHaveText('Sold', LOAD);
@@ -186,9 +205,10 @@ test('DMS-12: confirming a sale that another session already made shows SOLD_LOC
   await expect(dialog).toBeVisible();
 
   // A colleague sells it while the dialog is open; the stale dialog must not sell it twice.
-  await staff2Api.sellVehicle(v, 17000, SOLD_ON);
+  await sellForTest(staff2Api, v, 17000);
 
   await fillSale(dialog, SOLD_ON, '19999');
+  await chooseOtherBuyer(dialog);
   const attempt = page.waitForResponse((r) => isSellRequest(r.url(), r.request().method(), v.id));
   await dialog.getByRole('button', { name: 'Confirm sale' }).click();
   const res = await attempt;
@@ -214,6 +234,7 @@ test('WO-05: a vehicle with an open work order cannot be sold and the user is to
   await row.getByRole('button', { name: 'Sell', exact: true }).click();
   const dialog = sellDialog(page, v);
   await fillSale(dialog, SOLD_ON, '18900');
+  await chooseOtherBuyer(dialog);
   const attempt = page.waitForResponse((r) => isSellRequest(r.url(), r.request().method(), v.id));
   await dialog.getByRole('button', { name: 'Confirm sale' }).click();
   const res = await attempt;
@@ -241,35 +262,94 @@ test('DMS-10 / CRM-05: the sale can name its buyer, which links the vehicle to t
   await row.getByRole('button', { name: 'Sell', exact: true }).click();
   const dialog = sellDialog(page, v);
   await fillSale(dialog, SOLD_ON, '19500');
-  const buyerSelect = dialog.getByLabel('Buyer');
+  const buyerSelect = dialog.getByLabel('Buyer', { exact: true });
   await expect(buyerSelect).toHaveValue('');
   await buyerSelect.selectOption(String(buyer.id));
 
-  const linked = page.waitForResponse((r) =>
-    r.request().method() === 'PUT' && r.url().includes(`/api/v1/customers/${buyer.id}/vehicles/${v.id}`));
+  // CR-D8: the sale itself links the CRM buyer, so no separate link request is sent.
+  let linkCalls = 0;
+  page.on('request', (r) => { if (r.method() === 'PUT' && r.url().includes('/api/v1/customers/')) linkCalls++; });
+  const sell = page.waitForResponse((r) => isSellRequest(r.url(), r.request().method(), v.id));
   await dialog.getByRole('button', { name: 'Confirm sale' }).click();
-  expect((await linked).ok()).toBe(true);
+  const res = await sell;
+  expect(res.status(), await res.text()).toBe(200);
+  expect(res.request().postDataJSON()).toMatchObject({ buyerCustomerId: buyer.id, buyerName: null });
   await expect(dialog).toBeHidden();
+  expect(linkCalls, 'the sale links the buyer; the UI does not call the link endpoint').toBe(0);
 
   const sold = await staffApi.getVehicle(v.id);
   expect(sold.status).toBe('SOLD');
   expect(sold.linkedCustomer?.id).toBe(buyer.id);
 });
 
-test('DMS-10: a sale without a buyer still sells and leaves the vehicle unlinked', async ({ staffPage: page, staffApi }) => {
+test('CR-D8 / DMS-10: a sale without a buyer is refused; Other with a typed name sells it unlinked', async ({
+  staffPage: page, staffApi,
+}) => {
   const v = await staffApi.createVehicle();
   const row = await openDmsRow(page, v.vin);
 
-  let linkCalls = 0;
-  page.on('request', (r) => { if (r.method() === 'PUT' && r.url().includes(`/vehicles/${v.id}`)) linkCalls++; });
+  const sellCalls: string[] = [];
+  page.on('request', (r) => { if (isSellRequest(r.url(), r.method(), v.id)) sellCalls.push(r.url()); });
+
   await row.getByRole('button', { name: 'Sell', exact: true }).click();
   const dialog = sellDialog(page, v);
   await fillSale(dialog, SOLD_ON, '19500');
+
+  // No buyer chosen at all.
   await dialog.getByRole('button', { name: 'Confirm sale' }).click();
+  await expect(dialog.getByText('Choose the buyer: a CRM customer or Other')).toBeVisible();
+
+  // "Other" chosen but the name left blank.
+  await dialog.getByLabel('Buyer', { exact: true }).selectOption('OTHER');
+  await dialog.getByRole('button', { name: 'Confirm sale' }).click();
+  await expect(dialog.getByText('Enter the buyer name')).toBeVisible();
+  expect(sellCalls, 'no sale is sent while the buyer is missing').toEqual([]);
+  await expectInStock(staffApi, v.id);
+
+  await dialog.getByLabel('Buyer name').fill('Walk-in Buyer');
+  const sell = page.waitForResponse((r) => isSellRequest(r.url(), r.request().method(), v.id));
+  await dialog.getByRole('button', { name: 'Confirm sale' }).click();
+  expect((await sell).status()).toBe(200);
   await expect(dialog).toBeHidden();
 
   const sold = await staffApi.getVehicle(v.id);
   expect(sold.status).toBe('SOLD');
   expect(sold.linkedCustomer ?? null).toBeNull();
-  expect(linkCalls).toBe(0);
+  expect((sold as typeof sold & { soldToName: string | null }).soldToName).toBe('Walk-in Buyer');
+
+  // CR-C1: the list repeats the buyer and the salesperson on the sold row.
+  await expect(row).toContainText('Walk-in Buyer', LOAD);
+});
+
+test('CR-C2 / UI-23: the sell dialog shows the cost, the work-order spend and the list price', async ({
+  staffPage: page, staffApi,
+}) => {
+  const v = await staffApi.createVehicle({ purchaseCost: 14200, repairCost: 0, listPrice: 21995 });
+  // A completed work order adds its cost to the vehicle's work-order spend (WO-04).
+  const created = await staffApi.post(`/api/v1/vehicles/${v.id}/work-orders`, { task: 'Detail and polish' });
+  await expectStatus(created, 201);
+  const wo = (await created.json()) as { id: number; task: string; version: number };
+  await expectStatus(await staffApi.patch(`/api/v1/work-orders/${wo.id}`, {
+    status: 'DONE', task: wo.task, assigneeUsername: null, dueOn: null, cost: 450.25,
+    completionNote: 'Polished', version: wo.version,
+  }), 200);
+
+  const row = await openDmsRow(page, v.vin);
+  await row.getByRole('button', { name: 'Sell', exact: true }).click();
+  const dialog = sellDialog(page, v);
+  await expect(dialog).toBeVisible();
+  await expect(field(dialog, 'Cost')).toContainText('$14,200.00');
+  await expect(field(dialog, 'Work-order spend')).toContainText('$450.25');
+  await expect(field(dialog, 'List price')).toContainText('$21,995.00');
+});
+
+test('CR-C2 / UI-23: the sell dialog shows "Not set" when the vehicle has no list price', async ({
+  staffPage: page, staffApi,
+}) => {
+  const v = await staffApi.createVehicle({ purchaseCost: 9000, repairCost: null, listPrice: null });
+  const row = await openDmsRow(page, v.vin);
+  await row.getByRole('button', { name: 'Sell', exact: true }).click();
+  const dialog = sellDialog(page, v);
+  await expect(field(dialog, 'List price')).toContainText('Not set');
+  await expect(field(dialog, 'Work-order spend')).toContainText('$0.00');
 });

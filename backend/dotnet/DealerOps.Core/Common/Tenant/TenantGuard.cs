@@ -26,14 +26,32 @@ public static class TenantGuard
         return user;
     }
 
-    /// <summary>Team and dealership-profile management: a bound dealer user whose membership is MANAGER.</summary>
-    /// <returns>The signed-in manager.</returns>
-    /// <exception cref="ApiException">Forbidden when the caller is not a bound dealership manager.</exception>
-    public static CurrentUser RequireManager()
+    /// <summary>
+    /// The owner-only powers of a dealership: its profile and its join requests. A bound dealer
+    /// user whose membership is OWNER.
+    /// </summary>
+    /// <returns>The signed-in dealership owner.</returns>
+    /// <exception cref="ApiException">Forbidden when the caller is not the bound dealership owner.</exception>
+    public static CurrentUser RequireOwner()
     {
         var user = RequireDealerUser();
-        if (user.DealerRole != DealerRole.Manager)
-            throw Deny("not_manager", "Only a dealership manager can do this.", user.Username, user.TenantDealerId);
+        if (user.DealerRole != DealerRole.Owner)
+            throw Deny("not_owner", "Only the dealership owner can do this.", user.Username, user.TenantDealerId);
+        return user;
+    }
+
+    /// <summary>
+    /// Team administration and the dealership audit log: a bound dealer user whose membership is
+    /// OWNER or MANAGER. Which members the caller may act on is decided by the calling service.
+    /// </summary>
+    /// <returns>The signed-in owner or manager.</returns>
+    /// <exception cref="ApiException">Forbidden when the caller is not a bound dealership owner or manager.</exception>
+    public static CurrentUser RequireTeamAccess()
+    {
+        var user = RequireDealerUser();
+        if (user.DealerRole is not (DealerRole.Owner or DealerRole.Manager))
+            throw Deny("not_team_admin", "Only a dealership owner or manager can do this.",
+                user.Username, user.TenantDealerId);
         return user;
     }
 

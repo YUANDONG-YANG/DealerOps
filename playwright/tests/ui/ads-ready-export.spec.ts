@@ -73,6 +73,9 @@ test.describe('with the real AI', () => {
     test.skip(!(await aiAvailable(request)), 'AI service is not UP');
     // An AI outage surfaces as a 502 from the check endpoint; it is handled below as a skip.
     allowBrowserErrors(/HTTP 502: POST .*\/api\/v1\/listings\/\d+\/checks/);
+    // The current client logs a failed call as "api failure route=... status=... code=..."
+    // (frontend/react/src/api/apiFailure.ts); the line above is the older wording.
+    allowBrowserErrors(/api failure route=POST .*\/api\/v1\/listings\/\d+\/checks status=502/);
     allowBrowserErrors(/status code 502|502 \(Bad Gateway\)/i);
 
     const v = await staffApi.createVehicle({ purchaseCost: 13579 });

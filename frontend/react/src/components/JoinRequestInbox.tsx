@@ -12,7 +12,7 @@ const PAGE_SIZE = 10;
 
 /**
  * In-app inbox in the header. Every member sees buyer-site inquiries until someone takes the
- * lead; managers also see join requests, so they never have to open the Team page to find them. One bell button, a
+ * lead; the owner also sees join requests, so they never have to open the Team page to find them. One bell button, a
  * count badge, and a popover that lists each request with Approve / Reject right there — any
  * action refreshes the list so the badge stays truthful.
  *
@@ -20,7 +20,7 @@ const PAGE_SIZE = 10;
  * a page refresh. Silent on failure: an inbox that cannot load is an annoyance, not a reason
  * to shout at the user mid-work.
  */
-export default function JoinRequestInbox({ isManager }: { isManager: boolean }) {
+export default function JoinRequestInbox({ isOwner, canOpenTeam }: { isOwner: boolean; canOpenTeam: boolean }) {
   const navigate = useNavigate();
   const [rows, setRows] = useState<JoinRequest[]>([]);
   const [inquiries, setInquiries] = useState<(BuyerInquiryPayload & { id: number; createdAt: string })[]>([]);
@@ -33,7 +33,7 @@ export default function JoinRequestInbox({ isManager }: { isManager: boolean }) 
   async function load() {
     try {
       const [requests, notes] = await Promise.all([
-        isManager ? joinRequestsApi.list() : Promise.resolve([]),
+        isOwner ? joinRequestsApi.list() : Promise.resolve([]),
         notificationsApi.list(),
       ]);
       setRows(requests);
@@ -52,7 +52,7 @@ export default function JoinRequestInbox({ isManager }: { isManager: boolean }) 
       window.clearInterval(timer);
       window.removeEventListener(JOIN_REQUESTS_CHANGED, onChanged);
     };
-  }, [isManager]);
+  }, [isOwner]);
 
   // Close the popover when the next click lands outside it, so it doesn't trap focus.
   useEffect(() => {
@@ -72,7 +72,7 @@ export default function JoinRequestInbox({ isManager }: { isManager: boolean }) 
       if (verb === 'approve') await joinRequestsApi.approve(username);
       else await joinRequestsApi.reject(username);
     } catch (err) {
-      // The request is already resolved (by another manager or in the Team page): drop it from
+      // The request is already resolved (in the Team page or another tab): drop it from
       // the list silently instead of surfacing an error for an action that no longer applies.
       const gone = statusOf(err) === 404 || codeOf(err) === 'NOT_FOUND';
       if (!gone) setError(describeError(err, `${verb} the request`));
@@ -117,7 +117,7 @@ export default function JoinRequestInbox({ isManager }: { isManager: boolean }) 
               <strong>Inbox</strong>
               {count > 0 && <span className="inbox-count">{count}</span>}
             </div>
-            {isManager && (
+            {canOpenTeam && (
               <button type="button" className="btn-link inbox-team-link" onClick={() => { setOpen(false); navigate('/team'); }}>
                 Open Team →
               </button>

@@ -1,5 +1,5 @@
 import { dateTimeLocal } from '../format';
-import { SortableTh, useSort } from './TableSort';
+import { SortableTh, nextSort, type SortState } from './TableSort';
 
 export type AuditRow = {
   entityType?: string;
@@ -48,24 +48,25 @@ export function summaryText(raw: unknown, previous?: Record<string, unknown> | n
   return items.length ? items.join(', ') : 'No field changes';
 }
 
-function trailSortValue(row: AuditRow, key: string) {
-  return key === 'action' ? actionText(row) : key === 'actorUsername' ? row.actorUsername : row.createdAt;
-}
-
-/** A record's audit history, newest first as the API returns it, with optional paging. */
+/**
+ * A record's audit history, in the order the API returns it, with paging. A header click asks the
+ * owner to reload with the next sort (CR-020): the API orders the whole history, not only this page.
+ */
 export default function AuditTrail({
-  rows, page = 0, total, onPage,
+  rows, page = 0, total, onPage, sort, onSort,
 }: {
   rows: AuditRow[];
   page?: number;
   total?: number;
   onPage?: (page: number) => void;
+  /** The sort of the loaded history; null is newest first. */
+  sort: SortState | null;
+  onSort: (sort: SortState) => void;
 }) {
   const count = total ?? rows.length;
   const pageSize = 10;
   const pageCount = Math.max(1, Math.ceil(count / pageSize));
-  // Sorts the loaded page; the API's order is newest first.
-  const rowSort = useSort(rows, trailSortValue);
+  const toggle = (key: string) => onSort(nextSort(sort, key));
   if (!rows.length && count === 0) return null;
   return (
     <div className="detail-audit">
@@ -73,14 +74,14 @@ export default function AuditTrail({
       <table className="table" style={{ marginTop: 8 }}>
         <thead>
           <tr>
-            <SortableTh label="Action" sortKey="action" sort={rowSort.sort} onSort={rowSort.toggle} style={{ width: 170 }} />
-            <SortableTh label="Actor" sortKey="actorUsername" sort={rowSort.sort} onSort={rowSort.toggle} />
-            <SortableTh label="When" sortKey="createdAt" sort={rowSort.sort} onSort={rowSort.toggle} />
+            <SortableTh label="Action" sortKey="action" sort={sort} onSort={toggle} style={{ width: 170 }} />
+            <SortableTh label="Actor" sortKey="actorUsername" sort={sort} onSort={toggle} />
+            <SortableTh label="When" sortKey="createdAt" sort={sort} onSort={toggle} />
             <th>Summary</th>
           </tr>
         </thead>
         <tbody>
-          {rowSort.sorted.map((row, i) => (
+          {rows.map((row, i) => (
             <tr key={i}>
               <td>{actionText(row)}</td>
               <td>{row.actorUsername}</td>

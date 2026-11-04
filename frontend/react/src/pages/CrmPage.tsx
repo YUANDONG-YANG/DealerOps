@@ -7,6 +7,7 @@ import { useFormBaseline } from '../components/unsavedChanges';
 import PageState from '../components/PageState';
 import ConfirmDialog from '../components/ConfirmDialog';
 import AuditTrail from '../components/AuditTrail';
+import { sortParam, type SortState } from '../components/TableSort';
 import { customersApi, duplicateCustomerMessage } from '../api/customers';
 import { vehiclesApi } from '../api/vehicles';
 import { auditApi } from '../api/audit';
@@ -14,7 +15,7 @@ import { isClosedStage, leadsApi, stageLabel } from '../api/leads';
 import { codeOf, collectAllPages, fieldErrorsOf, messageOf, statusOf } from '../api/http';
 import { describeError } from '../api/errors';
 import { enumLabel } from '../format';
-import { useSessionStore } from '../store/session';
+import { isTeamAdmin, useSessionStore } from '../store/session';
 import SearchSuggest, { SUGGEST_LIMIT } from '../components/SearchSuggest';
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+$/;
@@ -87,6 +88,14 @@ function mapCustomerWrite(e: unknown) {
   return describeError(e, 'save customer');
 }
 
+function mapCustomerDelete(e: unknown) {
+  const code = codeOf(e);
+  const status = statusOf(e);
+  if (code === 'SOLD_LOCKED') return 'This customer bought a sold vehicle and cannot be deleted: the sale record keeps its buyer.';
+  if (status === 404 || code === 'NOT_FOUND') return 'Customer not found. It may already have been deleted; refresh the list.';
+  return describeError(e, 'delete customer');
+}
+
 function mapLink(e: unknown) {
   const code = codeOf(e);
   const status = statusOf(e);
@@ -114,8 +123,8 @@ const CUSTOMER_FIELDS: { key: keyof CustomerForm; label: string }[] = [
 export default function CrmPage() {
   const [searchParams] = useSearchParams();
   const session = useSessionStore();
-  // Record history is manager only (AUD-17); staff never call the audit API.
-  const isManager = session.dealerRole === 'MANAGER';
+  // Record history is for the owner and managers (AUD-17); a sales member never calls the audit API.
+  const canManage = isTeamAdmin(session.dealerRole);
   const [rows, setRows] = useState<any[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(0);
@@ -131,6 +140,8 @@ export default function CrmPage() {
   const [form, setForm] = useState<CustomerForm>(blankForm());
   const customerBaseline = useFormBaseline(form);
   const [formError, setFormError] = useState('');
+  // Success line after a save: in the drawer while it stays open, on the page once it closes.
+  const [saveNotice, setSaveNotice] = useState('');
   const [validationErrors, setValidationErrors] = useState<Validation>({});
   const [serverErrors, setServerErrors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
@@ -143,6 +154,8 @@ export default function CrmPage() {
   const [audit, setAudit] = useState<any[]>([]);
   const [auditPage, setAuditPage] = useState(0);
   const [auditTotal, setAuditTotal] = useState(0);
+  // Server-side sort of the whole record history (CR-020); null is newest first.
+  const [auditSort, setAuditSort] = useState<SortState | null>(null);
   const [emailWarning, setEmailWarning] = useState('');
   const [leadPage, setLeadPage] = useState(0);
   const [leadTotal, setLeadTotal] = useState(0);
@@ -223,9 +236,9 @@ export default function CrmPage() {
     }
   }
 
-  async function loadAudit(id: number, seq: number, page = 0) {
+  async function loadAudit(id: number, seq: number, page = 0, sort = auditSort) {
     try {
-      const r = await auditApi.list({ entityType: 'CUSTOMER', entityId: id, page, size: 10 });
+      const r = await auditApi.list({ entityType: 'CUSTOMER', entityId: id, page, size: 10, sort: sortParam(sort) });
       if (seq !== editSeqRef.current) return;
       setAudit(r.data.items || []);
       setAuditPage(r.data.page ?? page);
@@ -244,6 +257,7 @@ export default function CrmPage() {
     setForm(blank);
     customerBaseline.reset(blank);
     setFormError('');
+    setSaveNotice('');
     setValidationErrors({});
     setServerErrors({});
     setLinkError('');
@@ -260,6 +274,7 @@ export default function CrmPage() {
   async function openEdit(id: number) {
     const seq = ++editSeqRef.current;
     setFormError('');
+    setSaveNotice('');
     setValidationErrors({});
     setServerErrors({});
     setLinkError('');
@@ -278,7 +293,7 @@ export default function CrmPage() {
       setDrawer(true);
       loadLinkOptions(seq);
       loadCustomerLeads(id, seq);
-      if (isManager) loadAudit(id, seq);
+      if (canManage) loadAudit(id, seq);
     } catch (e) {
       if (seq !== editSeqRef.current) return;
       setSelected(null);
@@ -293,6 +308,7 @@ export default function CrmPage() {
   // the user to confirm before the save goes ahead.
   async function save() {
     setFormError('');
+    setSaveNotice('');
     setServerErrors({});
     const payload = trimForm(form);
     const errors = validateCustomer(payload);
@@ -333,6 +349,7 @@ export default function CrmPage() {
         await openEdit(selected.id);
         // openEdit clears the form state, so the CRM-13 warning is set after it.
         setEmailWarning(saved.data.emailWarning || '');
+        setSaveNotice('Customer saved.');
       } else {
         const created = await customersApi.create(payload);
         if (linkId !== undefined) {
@@ -354,6 +371,7 @@ export default function CrmPage() {
         } else {
           setDrawer(false);
         }
+        setSaveNotice('Customer added.');
       }
     } catch (e) {
       // VALIDATION carries fieldErrors; show them inline on the field.
@@ -408,7 +426,7 @@ export default function CrmPage() {
       setSelected(null);
       await reload();
     } catch (e) {
-      setFormError(describeError(e, 'delete customer'));
+      setFormError(mapCustomerDelete(e));
     }
   }
 
@@ -472,6 +490,7 @@ export default function CrmPage() {
           <button className="btn" onClick={() => { setPage(0); setApplied({ q: filters.q.trim(), linked: filters.linked }); }}>Search</button>
           <button className="btn" onClick={() => { setFilters({ q: '', linked: '' }); setPage(0); }}>Reset</button>
         </div>
+        {saveNotice && !drawer && <p className="success-text" role="status">{saveNotice}</p>}
         <PageState loading={loading} error={error} forbidden={forbidden} empty={!loading && !error && !forbidden && !rows.length}
           emptyText="No customers match." loadingText="Loading customers…" forbiddenText="You do not have access to CRM.">
           <DataTable rows={rows} total={total} page={page} columns={columns} actions={actions}
@@ -515,6 +534,7 @@ export default function CrmPage() {
           </div>}
           {emailWarning && <div className="alert">{emailWarning}</div>}
           {formError && <p className="danger-text">{formError}</p>}
+          {saveNotice && !customerBaseline.dirty && <p className="success-text" role="status">{saveNotice}</p>}
           <button type="submit" className="btn btn-primary" disabled={saving}>{saving ? 'Saving…' : 'Save'}</button>
           {selected && <button type="button" className="btn danger" style={{ marginLeft: 8 }} onClick={() => void removeCustomer()}>Delete customer</button>}
         </form>
@@ -596,12 +616,14 @@ export default function CrmPage() {
               </div>
             )}
 
-            {isManager && (
+            {canManage && (
               <AuditTrail
                 rows={audit}
                 page={auditPage}
                 total={auditTotal}
                 onPage={(p) => selected && void loadAudit(selected.id, editSeqRef.current, p)}
+                sort={auditSort}
+                onSort={(s) => { setAuditSort(s); if (selected) void loadAudit(selected.id, editSeqRef.current, 0, s); }}
               />
             )}
           </>

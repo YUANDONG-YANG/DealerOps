@@ -15,8 +15,9 @@ import { LEAD_STAGES, isClosedStage, leadsApi, stageLabel, type LeadStage } from
 import { memberLabel, membersApi, type MemberOption } from '../api/members';
 import { describeError } from '../api/errors';
 import { dateTimeLocal } from '../format';
-import { useSessionStore } from '../store/session';
+import { isTeamAdmin, useSessionStore } from '../store/session';
 import SearchSuggest, { SUGGEST_LIMIT, uniqueSuggestions } from '../components/SearchSuggest';
+import { sortParam, type SortState } from '../components/TableSort';
 
 function vehicleLabel(v: Record<string, unknown> | null | undefined) {
   if (!v) return 'None';
@@ -26,7 +27,8 @@ function vehicleLabel(v: Record<string, unknown> | null | undefined) {
 function mapWrite(e: unknown, fallback: string) {
   const code = codeOf(e);
   if (code === 'VALIDATION') return messageOf(e, 'Check required fields: some fields are missing or invalid.');
-  if (code === 'WRONG_DEALER_OR_SOLD') return 'Vehicle must be in stock at this dealership. Pick a vehicle that is not sold.';
+  // Reopen sends its own wording for a vehicle that has since been sold, so the server message wins.
+  if (code === 'WRONG_DEALER_OR_SOLD') return messageOf(e, 'Vehicle must be in stock at this dealership. Pick a vehicle that is not sold.');
   if (code === 'VERSION_CONFLICT') return 'Refresh and retry: someone else changed this record after you opened it. Reopen it to load the latest version, then make your change again.';
   if (code === 'LEAD_CLOSED') return messageOf(e, 'Won and lost leads cannot be changed. Reopen the lead first.');
   if (code === 'LEAD_DUPLICATE') return 'This customer already has an open lead for this vehicle. Open that lead instead of adding another.';
@@ -49,13 +51,15 @@ const suggestVehicles = async (q: string) =>
 
 /** Sales leads: filter the list, create a lead, and update its stage, owner, vehicle, and notes. */
 export default function LeadsPage() {
-  // Record history is manager-only (AUD-17); staff never call the audit API.
+  // Record history is for the owner and managers (AUD-17); a sales member never calls the audit API.
   const session = useSessionStore();
-  const isManager = session.dealerRole === 'MANAGER';
+  const canManage = isTeamAdmin(session.dealerRole);
   const [searchParams] = useSearchParams();
   const [rows, setRows] = useState<any[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(0);
+  // Server-side sort across all pages (CR-012); null is newest first.
+  const [sort, setSort] = useState<SortState | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [forbidden, setForbidden] = useState(false);
@@ -99,17 +103,23 @@ export default function LeadsPage() {
   const [reopenStage, setReopenStage] = useState<LeadStage>('CONTACTED');
   const [saving, setSaving] = useState(false);
   const [editError, setEditError] = useState('');
+  // Success line after a save: in the Lead drawer after an edit, on the page after an add closes its drawer.
+  const [saveNotice, setSaveNotice] = useState('');
   const [noteText, setNoteText] = useState('');
   const [noteError, setNoteError] = useState('');
   const [addingNote, setAddingNote] = useState(false);
   const [audit, setAudit] = useState<any[]>([]);
+  const [auditPage, setAuditPage] = useState(0);
+  const [auditTotal, setAuditTotal] = useState(0);
+  // Server-side sort of the whole record history (CR-020); null is newest first.
+  const [auditSort, setAuditSort] = useState<SortState | null>(null);
 
   const load = useCallback(async (p = page, f = filters) => {
     const seq = ++listSeq.current;
     loadedFilters.current = JSON.stringify(f);
     setLoading(true); setError(''); setForbidden(false);
     try {
-      const r = await leadsApi.list({ ...f, page: p, size: 10 });
+      const r = await leadsApi.list({ ...f, sort: sortParam(sort), page: p, size: 10 });
       if (seq !== listSeq.current) return;
       setRows(r.data.items || []); setTotal(r.data.totalElements || 0);
     } catch (e) {
@@ -120,9 +130,9 @@ export default function LeadsPage() {
     } finally {
       if (seq === listSeq.current) setLoading(false);
     }
-  }, [page, filters]);
+  }, [page, filters, sort]);
 
-  useEffect(() => { void load(); }, [page]);
+  useEffect(() => { void load(); }, [page, sort]);
   useEffect(() => {
     const timer = setTimeout(() => {
       if (JSON.stringify(filters) === loadedFilters.current) return;
@@ -146,7 +156,7 @@ export default function LeadsPage() {
     setCreateForm(blank);
     setCustomerMode('existing');
     createBaseline.reset({ ...blank, customerMode: 'existing' });
-    setCreateError(''); setCreateFieldErrors({}); setCreateOpen(true);
+    setCreateError(''); setCreateFieldErrors({}); setSaveNotice(''); setCreateOpen(true);
     setCustomerText(customer?.name ?? ''); setVehicleText('');
   };
 
@@ -184,19 +194,26 @@ export default function LeadsPage() {
         newCustomer: customerMode === 'new' ? { name: f.name.trim(), email: f.email.trim(), phone: f.phone.trim(), homeAddress: f.homeAddress.trim() } : undefined,
         vehicleId: f.vehicleId, ownerUsername: f.ownerUsername, nextFollowUpOn: f.nextFollowUpOn, note: f.note,
       });
-      setCreateOpen(false); await load();
+      setCreateOpen(false); setSaveNotice('Lead added.'); await load();
     } catch (e) {
       setCreateFieldErrors(fieldErrorsOf(e));
       setCreateError(mapWrite(e, 'save lead'));
     } finally { setCreating(false); }
   };
 
-  const loadAudit = async (id: number, seq: number) => {
-    if (!isManager) return;
+  const loadAudit = async (id: number, seq: number, page = 0, sort = auditSort) => {
+    if (!canManage) return;
     try {
-      const r = await auditApi.list({ entityType: 'LEAD', entityId: id });
-      if (seq === detailSeq.current) setAudit(r.data.items || []);
-    } catch { if (seq === detailSeq.current) setAudit([]); }
+      const r = await auditApi.list({ entityType: 'LEAD', entityId: id, page, size: 10, sort: sortParam(sort) });
+      if (seq !== detailSeq.current) return;
+      setAudit(r.data.items || []);
+      setAuditPage(r.data.page ?? page);
+      setAuditTotal(r.data.totalElements ?? 0);
+    } catch {
+      if (seq !== detailSeq.current) return;
+      setAudit([]);
+      setAuditTotal(0);
+    }
   };
 
   const fillEdit = (lead: any) => {
@@ -214,7 +231,7 @@ export default function LeadsPage() {
 
   const openDetail = async (id: number) => {
     const seq = ++detailSeq.current;
-    setEditError(''); setNoteError(''); setNoteText(''); setAudit([]);
+    setEditError(''); setSaveNotice(''); setNoteError(''); setNoteText(''); setAudit([]); setAuditTotal(0);
     try {
       const r = await leadsApi.get(id);
       if (seq !== detailSeq.current) return;
@@ -230,7 +247,7 @@ export default function LeadsPage() {
 
   const saveDetail = async () => {
     if (!selected || saving) return;
-    setEditError('');
+    setEditError(''); setSaveNotice('');
     if (edit.stage === 'LOST' && !edit.lostReason.trim()) { setEditError('A lost lead needs a reason'); return; }
     if (isClosedStage(edit.stage) && !confirmClose) { setConfirmClose(true); return; }
     setConfirmClose(false);
@@ -241,7 +258,7 @@ export default function LeadsPage() {
         nextFollowUpOn: edit.nextFollowUpOn || null, vehicleId: edit.vehicleId ?? null,
         lostReason: edit.stage === 'LOST' ? edit.lostReason.trim() : null, version: selected.version,
       });
-      fillEdit(r.data); await load(); await loadAudit(r.data.id, detailSeq.current);
+      fillEdit(r.data); setSaveNotice('Lead saved.'); await load(); await loadAudit(r.data.id, detailSeq.current);
     } catch (err) { setEditError(mapWrite(err, 'save lead')); }
     finally { setSaving(false); }
   };
@@ -334,18 +351,20 @@ export default function LeadsPage() {
           <button className="btn" onClick={() => { setFilters(BLANK_FILTERS); setPage(0); load(0, BLANK_FILTERS); }}>Reset</button>
         </div>
         {ownersError && <p className="warning-text">{ownersError}</p>}
+        {saveNotice && !createOpen && !detailOpen && <p className="success-text" role="status">{saveNotice}</p>}
         <PageState loading={loading} error={error} forbidden={forbidden}
           empty={!loading && !error && !forbidden && !rows.length}
           emptyText="No leads match." loadingText="Loading leads…"
           forbiddenText="You do not have access to leads.">
           <DataTable rows={rows} total={total} page={page} onPage={(p) => { setPage(p); }}
+            sort={sort} onSort={(key, dir) => { setSort({ key, dir }); setPage(0); }}
             columns={[
               { key: 'customerName', label: 'Customer', sortable: true, render: (r: any) => r.customerName },
-              { key: 'vehicle', label: 'Vehicle of interest', sortable: true, sortValue: (r: any) => r.vehicle ? `${r.vehicle.make} ${r.vehicle.model} ${r.vehicle.modelYear}` : null, render: (r: any) => vehicleLabel(r.vehicle) },
-              { key: 'stage', label: 'Stage', width: '120px', sortable: true, sortValue: (r: any) => LEAD_STAGES.findIndex((s) => s.value === r.stage), render: (r: any) => <span className={`tag ${stageColor(r.stage)}`}>{stageLabel(r.stage)}</span> },
+              { key: 'vehicle', label: 'Vehicle of interest', sortable: true, render: (r: any) => vehicleLabel(r.vehicle) },
+              { key: 'stage', label: 'Stage', width: '120px', sortable: true, render: (r: any) => <span className={`tag ${stageColor(r.stage)}`}>{stageLabel(r.stage)}</span> },
               { key: 'ownerUsername', label: 'Owner', width: '140px', sortable: true, render: (r: any) => r.ownerUsername || <span className="muted">Unassigned</span> },
               // A won or lost lead is final and never overdue (LEAD-03, LEAD-06), so its stored date is not shown.
-              { key: 'nextFollowUpOn', label: 'Next follow-up', width: '150px', sortable: true, sortValue: (r: any) => isClosedStage(r.stage) ? null : r.nextFollowUpOn, render: (r: any) => isClosedStage(r.stage)
+              { key: 'nextFollowUpOn', label: 'Next follow-up', width: '150px', sortable: true, render: (r: any) => isClosedStage(r.stage)
                 ? <span className="muted">Not needed</span>
                 : !r.nextFollowUpOn ? <span className="muted">Not scheduled</span>
                 : <><span className={r.overdue ? 'danger-text' : ''}>{r.nextFollowUpOn}</span>
@@ -475,6 +494,7 @@ export default function LeadsPage() {
               </>
             )}
             {editError && <p className="danger-text">{editError}</p>}
+            {saveNotice && !editBaseline.dirty && <p className="success-text" role="status">{saveNotice}</p>}
             {!isClosedStage(selected.stage) && (
               <button className="btn btn-primary" disabled={saving} onClick={saveDetail}>{saving ? 'Saving…' : 'Save'}</button>
             )}
@@ -495,7 +515,16 @@ export default function LeadsPage() {
               </div>
             ))}
 
-            {isManager && <AuditTrail rows={audit} />}
+            {canManage && (
+              <AuditTrail
+                rows={audit}
+                page={auditPage}
+                total={auditTotal}
+                onPage={(p) => selected && void loadAudit(selected.id, detailSeq.current, p)}
+                sort={auditSort}
+                onSort={(s) => { setAuditSort(s); if (selected) void loadAudit(selected.id, detailSeq.current, 0, s); }}
+              />
+            )}
           </>
         )}
       </FormDrawer>

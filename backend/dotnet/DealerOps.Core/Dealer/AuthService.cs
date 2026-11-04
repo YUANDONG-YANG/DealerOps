@@ -177,7 +177,7 @@ public class AuthService
 
     /// <summary>
     /// Creates an unbound password account and signs it in. The new account has no dealership
-    /// until an admin binds it or a manager approves its join request (AUTH-13, AUTH-25).
+    /// until an admin binds it or the dealership's owner approves its join request (AUTH-13, AUTH-25).
     /// </summary>
     /// <param name="request">Username, display name, password and email or phone. The password is hashed and never logged.</param>
     /// <returns>The application access token, platform role and display name.</returns>
@@ -331,7 +331,7 @@ public class AuthService
     private void SetRequestedDealer(AppUserEntity user, long requestedDealerId)
     {
         user.RequestedDealerId = requestedDealerId;
-        // Filed against the requested dealership so its manager's log shows the request.
+        // Filed against the requested dealership so its dealership log shows the request.
         _audit.Record("APP_USER", user.Id, "UPDATE", requestedDealerId, user.Username,
             new Dictionary<string, object> { ["requestedDealerId"] = requestedDealerId },
             new Dictionary<string, object?> { ["requestedDealerId"] = null });
@@ -382,7 +382,8 @@ public class AuthService
     }
 
     // Commits a LOGIN row on the account. dealerId is the active membership's dealership, so a
-    // manager's dealership log shows when staff sign in; it is null for the admin and unbound users.
+    // dealership log, readable by the owner and the managers, shows when sales members sign in; it
+    // is null for the admin and unbound users.
     private void RecordLogin(AppUserEntity user, string method)
     {
         var dealerId = ActiveDealerId(user.Username);

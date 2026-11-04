@@ -39,6 +39,7 @@ Override with `E2E_CORE_PORT`, `E2E_GATEWAY_PORT`, `E2E_WEB_PORT`, `E2E_DB_NAME`
 | `npm test` | Rebuild and (re)start the private stack, then run the full suite |
 | `npm run test:only -- tests/crm.spec.ts` | Run specs against the already running stack |
 | `npm run test:roles` | Start the private stack and walk every page as the admin and the dealer user (desktop and phone) |
+| `npm run test:role-migration` | Run the one-shot dealership role migration against legacy data (own database, no browser) |
 | `npm run stack:start` / `npm run stack:stop` | Start or stop the private stack |
 | `npm run test:ui` | Interactive UI mode with time-travel debugging |
 | `npm run report` | Open the last HTML report |
@@ -56,6 +57,7 @@ Open a trace with `npx playwright show-trace <path>/trace.zip`.
 | `tests/api/` | Gateway API acceptance tests: tenancy, dealership roles, vehicles, vehicle details and payments, customers, ads, assistant, leads, work orders, reports, buyer site, catalog/photos, contract |
 | `tests/ui/` | Browser tests per page: DMS (including payments and bill of sale), CRM, ads, admin, assistant, leads, dashboard and sales report, buyer site and disclaimer, team roles, team/profile, register/landing, cross-cutting |
 | `tests/*.spec.ts` | Login, route guards and navigation smoke tests |
+| `tests-migration/` | The dealership role migration test; outside `tests/` so the browser suite never picks it up |
 
 Test titles start with the requirement IDs they cover (for example `AT-12 / AD-R07`), taken from
 `requirements/DealerOps-Requirements.md` and `requirements/analysis/06-Pages-and-Acceptance.md`.
@@ -66,10 +68,44 @@ AI-dependent cases skip when the gateway reports the AI service as down. When se
 at the same time, give each run its own `--output` directory so they do not clear each other's
 `test-results/`.
 
+## Role migration test
+
+`npm run test:role-migration` covers the one-shot dealership role migration
+(`requirements/iteration-2/CR-Role-Hierarchy-2026-11-03.md` §4, runbook
+`deploy/ROLE-MIGRATION-2026-11-03.md`). It uses `playwright-migration.config.ts`,
+`tests-migration/role-migration.spec.ts` and `scripts/role-migration.sh`, and needs no browser,
+gateway, Vite or seed, so it is not part of `npm test`.
+
+The patch only runs inside `dealer-core`'s startup, once per database, behind a marker row in
+`schema_patch`. The browser suite cannot exercise it: `e2e-stack.sh` recreates `dealer_core_e2e`
+on every start, so `EnsureCreated` builds an empty schema and the patch runs over zero rows, and
+the seed is loaded only after core is already up. The migration test therefore drives its own
+core:
+
+1. `scripts/role-migration.sh prepare` recreates its database (`dealer_core_role_migration`,
+   override with `ROLE_MIGRATION_DB_NAME`), builds core into `.stack/role-migration/build`, starts
+   it once on port `18581` (`ROLE_MIGRATION_CORE_PORT`) so `EnsureCreated` builds the schema,
+   stops it, deletes the patch marker — the runbook's own revert step, §5.2 — and loads
+   `scripts/role-migration-fixture.sql` (mixed-case `staff`/`manager`, an all-staff dealership,
+   a dealership with several managers, one that already has an owner, an inactive-only one, one
+   with no members, and sold vehicles with and without a `VEHICLE`/`SELL` audit row).
+2. The first `run` starts core against those rows, so the patch migrates them.
+3. The second `run` starts core again; the marker is claimed, so nothing may change.
+
+The script refuses `dealer_core` and `dealer_core_e2e` and the shared and browser-stack ports, and
+it never starts or stops either of those stacks, so it is safe to run while they are up.
+Assertions read MySQL directly, because the point is the stored rows, not an API projection.
+Logs are in `.stack/role-migration/logs/`.
+
 ## Test data
 
 `tests/global.setup.ts` runs first and idempotently creates two dealerships (`E2E Motors` with
-`e2e.staff` and `e2e.staff2`, `E2E Rival Autos` with `e2e.rival`) through the admin API. Specs
+`e2e.staff` and `e2e.staff2`, `E2E Rival Autos` with `e2e.rival`) through the admin API. Each
+dealership gets one owner, listed first in `support/env.ts`, because the platform admin binds the
+first owner directly and only files a join request after that; the seed approves those requests as
+the owner. The seeded tiers are `e2e.staff` = OWNER, `lafe` = MANAGER, `e2e.staff2` = SALES and
+`e2e.rival` = OWNER of the rival dealership. Specs that need their own hierarchy use
+`createDealership`, `bindOwner` and `addMember` from `support/api.ts`. Specs
 that change accounts create their own throwaway dealership and staff instead. Specs sign in by calling the login API and
 injecting the token into `sessionStorage`, so only `auth.spec.ts` exercises the login form.
 

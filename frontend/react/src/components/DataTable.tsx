@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { SortableTh, nextSort, useSort, type SortDir, type SortState } from './TableSort';
+import { SortableTh, nextSort, type SortDir, type SortState } from './TableSort';
 
 export interface Column<T = Record<string, unknown>> {
   key?: string;
@@ -8,40 +8,44 @@ export interface Column<T = Record<string, unknown>> {
   render?: (row: T) => ReactNode;
   /** The header sorts by this column's key; needs `key`. */
   sortable?: boolean;
-  /** The compared value for a client-side sort; defaults to `row[key]`. */
-  sortValue?: (row: T) => unknown;
 }
 
-interface Props<T = Record<string, unknown>> {
-  columns: Column<T>[];
+/** A column of a table without sorting: the header is plain text. */
+type PlainColumn<T> = Omit<Column<T>, 'sortable'> & { sortable?: never };
+
+interface BaseProps<T> {
   rows: T[];
   total: number;
   page: number;
   onPage: (page: number) => void;
   actions?: (row: T) => ReactNode;
   rowClassName?: (row: T) => string;
-  /**
-   * Server-sorted tables pass the current sort and a handler that reloads the rows; without
-   * `onSort` the table sorts the given rows itself.
-   */
-  sort?: SortState | null;
-  onSort?: (key: string, dir: SortDir) => void;
 }
+
+/** Sorting is always done by the caller, which reloads the rows for the new sort. */
+interface SortedProps<T> extends BaseProps<T> {
+  columns: Column<T>[];
+  sort: SortState | null;
+  onSort: (key: string, dir: SortDir) => void;
+}
+
+/** Without `onSort` no column may be sortable, so the rows keep the order they were given in. */
+interface UnsortedProps<T> extends BaseProps<T> {
+  columns: PlainColumn<T>[];
+  sort?: never;
+  onSort?: never;
+}
+
+type Props<T = Record<string, unknown>> = SortedProps<T> | UnsortedProps<T>;
 
 /** Paged table of records with optional per-row actions and sortable columns. */
 export default function DataTable<T extends Record<string, unknown>>({
   columns, rows, total, page, onPage, actions, rowClassName, sort, onSort,
 }: Props<T>) {
-  const local = useSort(rows, (row, key) => {
-    const col = columns.find((c) => c.key === key);
-    return col?.sortValue ? col.sortValue(row) : (row as Record<string, unknown>)[key];
-  });
-  const activeSort = onSort ? sort : local.sort;
-  const shownRows = onSort ? rows : local.sorted;
+  const cols: Column<T>[] = columns;
   function toggleSort(key: string) {
-    if (!onSort) { local.toggle(key); return; }
     const next = nextSort(sort, key);
-    onSort(next.key, next.dir);
+    onSort?.(next.key, next.dir);
   }
   const pageSize = 10;
   const pageCount = Math.max(1, Math.ceil(total / pageSize));
@@ -64,8 +68,8 @@ export default function DataTable<T extends Record<string, unknown>>({
       <table className="table">
         <thead>
           <tr>
-            {columns.map((col, ci) => col.sortable && col.key
-              ? <SortableTh key={col.key} label={col.label} sortKey={col.key} sort={activeSort} onSort={toggleSort}
+            {cols.map((col, ci) => col.sortable && col.key
+              ? <SortableTh key={col.key} label={col.label} sortKey={col.key} sort={sort} onSort={toggleSort}
                   style={col.width ? { width: col.width } : undefined} />
               : <th key={col.key ?? ci} style={col.width ? { width: col.width } : undefined}>{col.label}</th>
             )}
@@ -73,9 +77,9 @@ export default function DataTable<T extends Record<string, unknown>>({
           </tr>
         </thead>
         <tbody>
-          {shownRows.map((row, i) => (
+          {rows.map((row, i) => (
             <tr key={(row as Record<string, unknown>).id as string ?? i} className={rowClassName?.(row) || ''}>
-              {columns.map((col, ci) => (
+              {cols.map((col, ci) => (
                 <td key={col.key ?? ci}>
                   {col.render ? col.render(row) : col.key ? String((row as Record<string, unknown>)[col.key] ?? '') : ''}
                 </td>
@@ -84,7 +88,7 @@ export default function DataTable<T extends Record<string, unknown>>({
             </tr>
           ))}
           {rows.length === 0 && (
-            <tr><td colSpan={columns.length + (actions ? 1 : 0)} className="state">No records</td></tr>
+            <tr><td colSpan={cols.length + (actions ? 1 : 0)} className="state">No records</td></tr>
           )}
         </tbody>
       </table>

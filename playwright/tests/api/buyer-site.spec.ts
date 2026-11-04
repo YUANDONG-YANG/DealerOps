@@ -49,6 +49,16 @@ async function listVehicle(api: Api, v: Vehicle) {
   test.skip((await publishAd(api, v)) === 502, 'AI provider unavailable during check');
 }
 
+type InboxMessage = { id: number; kind: string; payload: { leadId?: string }; resolvedAt: string | null };
+
+/** The dealership's unresolved inbox messages about one lead. */
+async function inquiryMessages(api: Api, leadId: number) {
+  const res = await api.get('/api/v1/dealer/notifications');
+  await expectStatus(res, 200);
+  return ((await res.json()) as InboxMessage[])
+    .filter((n) => n.kind === 'BUYER_INQUIRY' && n.payload.leadId === String(leadId));
+}
+
 test('SHOP-01: the inventory is public, names the dealership and 404s for an unknown dealer', async ({ request, staffApi }) => {
   const dealerId = await dealerIdOf(staffApi);
   const inv = await inventory(request, dealerId);
@@ -117,7 +127,7 @@ test.describe('with the real AI', () => {
     expect((await inventory(request, dealerId)).vehicles.map((x) => x.vehicleId)).not.toContain(sold.id);
   });
 
-  test('SHOP-04: an inquiry creates a NEW lead with the message; a repeat phone reuses the customer', async ({
+  test('SHOP-04 / CR-051: an inquiry creates a NEW lead with the message; a repeat on the same vehicle becomes a note on that lead', async ({
     request, staffApi,
   }) => {
     test.skip(!(await aiAvailable(request)), 'AI service is not UP');
@@ -146,11 +156,95 @@ test.describe('with the real AI', () => {
     expect(created.actorUsername).toBe('buyer-site');
     expect(created.fieldSummary.email).toBe(first.contact.email.toLowerCase());
 
+    // CR-051: the same buyer asking again about the same vehicle must not fail and must not open a
+    // second lead; the question is added as a note on the lead that is already open.
     const repeat = inquiry(v.id, { message: 'Second question' });
     repeat.contact.phone = first.contact.phone;
+    repeat.contact.email = first.contact.email;
     await expectStatus(await request.post(publicUrl(dealerId, 'inquiries'), { data: repeat }), 204);
-    const again = (await (await staffApi.get('/api/v1/leads', { q: first.contact.name })).json()) as { items: { customerId: number }[] };
-    expect(again.items).toHaveLength(2);
-    expect(new Set(again.items.map((l) => l.customerId)).size).toBe(1);
+    const again = (await (await staffApi.get('/api/v1/leads', { q: first.contact.name })).json()) as {
+      items: { id: number; customerId: number }[];
+    };
+    expect(again.items).toHaveLength(1);
+    expect(again.items[0].id).toBe(page.items[0].id);
+    expect(again.items[0].customerId).toBe(page.items[0].customerId);
+
+    const reread = (await (await staffApi.get(`/api/v1/leads/${page.items[0].id}`)).json()) as {
+      notes: { body: string }[];
+    };
+    expect(reread.notes).toHaveLength(2);
+    const bodies = reread.notes.map((n) => n.body).join('\n');
+    expect(bodies).toContain('Is it still available?');
+    expect(bodies).toContain('Second question');
+
+    // A different vehicle is still a separate lead for the same buyer.
+    const other = await staffApi.createVehicle();
+    await listVehicle(staffApi, other);
+    const onOther = inquiry(other.id, { message: 'Third question' });
+    onOther.contact.phone = first.contact.phone;
+    onOther.contact.email = first.contact.email;
+    await expectStatus(await request.post(publicUrl(dealerId, 'inquiries'), { data: onOther }), 204);
+    const both = (await (await staffApi.get('/api/v1/leads', { q: first.contact.name })).json()) as {
+      items: { id: number; customerId: number }[];
+    };
+    expect(both.items).toHaveLength(2);
+    expect(new Set(both.items.map((l) => l.customerId)).size).toBe(1);
+  });
+  test('CR-051 / D1: a returning shopper with a new email keeps one lead, one customer and one inbox message', async ({
+    request, staffApi,
+  }) => {
+    test.skip(!(await aiAvailable(request)), 'AI service is not UP');
+    const dealerId = await dealerIdOf(staffApi);
+    const v = await staffApi.createVehicle();
+    await listVehicle(staffApi, v);
+
+    const first = inquiry(v.id);
+    await expectStatus(await request.post(publicUrl(dealerId, 'inquiries'), { data: first }), 204);
+    const opened = (await (await staffApi.get('/api/v1/leads', { q: first.contact.name })).json()) as {
+      items: { id: number; customerId: number; stage: string }[];
+    };
+    expect(opened.items).toHaveLength(1);
+    const lead = opened.items[0];
+    expect(lead.stage).toBe('NEW');
+    // A created lead is announced once in the dealership inbox, where taking the lead resolves it.
+    expect(await inquiryMessages(staffApi, lead.id)).toHaveLength(1);
+
+    // D1: the buyer is matched on phone AND name, never on the email, so a shopper who types a
+    // different address the second time is still the same customer on the same open lead.
+    const repeat = inquiry(v.id, { message: 'Do you still have it?' });
+    repeat.contact.name = first.contact.name;
+    repeat.contact.phone = first.contact.phone;
+    expect(repeat.contact.email).not.toBe(first.contact.email);
+    await expectStatus(await request.post(publicUrl(dealerId, 'inquiries'), { data: repeat }), 204);
+
+    const after = (await (await staffApi.get('/api/v1/leads', { q: first.contact.name })).json()) as {
+      items: { id: number; customerId: number }[];
+    };
+    expect(after.items.map((l) => l.id)).toEqual([lead.id]);
+
+    const reread = (await (await staffApi.get(`/api/v1/leads/${lead.id}`)).json()) as { notes: { body: string }[] };
+    expect(reread.notes).toHaveLength(2);
+    expect(reread.notes.map((n) => n.body).join('\n')).toContain('Do you still have it?');
+
+    // The newly typed address does not overwrite the customer the dealership already has.
+    const customer = (await (await staffApi.get(`/api/v1/customers/${lead.customerId}`)).json()) as { email: string };
+    expect(customer.email).toBe(first.contact.email.toLowerCase());
+
+    // The note joins the message already in the inbox: a second BUYER_INQUIRY on a lead that is
+    // already taken would never be resolved and would sit in the inbox for good.
+    expect(await inquiryMessages(staffApi, lead.id)).toHaveLength(1);
+
+    // D1 the other way round: households share a phone, so the same number under another name is
+    // a separate customer with its own lead and its own inbox message.
+    const partner = inquiry(v.id, { message: 'My partner asked about this one too.' });
+    partner.contact.phone = first.contact.phone;
+    await expectStatus(await request.post(publicUrl(dealerId, 'inquiries'), { data: partner }), 204);
+    const partnerLeads = (await (await staffApi.get('/api/v1/leads', { q: partner.contact.name })).json()) as {
+      items: { id: number; customerId: number }[];
+    };
+    expect(partnerLeads.items).toHaveLength(1);
+    expect(partnerLeads.items[0].id).not.toBe(lead.id);
+    expect(partnerLeads.items[0].customerId).not.toBe(lead.customerId);
+    expect(await inquiryMessages(staffApi, partnerLeads.items[0].id)).toHaveLength(1);
   });
 });

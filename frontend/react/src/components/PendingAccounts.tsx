@@ -4,21 +4,24 @@ import { apiError, codeOf, collectAllPages, fieldErrorsOf } from '../api/http';
 import ConfirmDialog from './ConfirmDialog';
 import { dateTimeLocal } from '../format';
 import { describeError } from '../api/errors';
-import { SortableTh, useSort } from './TableSort';
+import DataTable, { type Column } from './DataTable';
+import { sortParam, type SortState } from './TableSort';
 
 interface Props {
   /** When set, a pending account binds straight to this dealership and no picker is shown. */
   dealerId?: number;
   onBound?: () => void;
+  /** Bumped by the parent to refetch the queue after a change made elsewhere; the page and sort are kept. */
+  refresh?: number;
 }
 
 /**
  * Self-registered accounts waiting for a dealership. Binding keeps the password they chose; once
- * the dealership has a manager, binding sends a join request instead (AUTH-28). The admin can
+ * the dealership has an owner, binding sends a join request instead (AUTH-28). The admin can
  * also edit a pending account's username, email and phone, or delete it.
  * Used on the Admin tab (with a dealership picker) and in the staff drawer (fixed dealership).
  */
-export default function PendingAccounts({ dealerId, onBound }: Props) {
+export default function PendingAccounts({ dealerId, onBound, refresh }: Props) {
   const [pending, setPending] = useState<PendingUser[]>([]);
   const [dealers, setDealers] = useState<Dealer[]>([]);
   const [selectedDealer, setSelectedDealer] = useState<Record<string, number>>({});
@@ -31,21 +34,31 @@ export default function PendingAccounts({ dealerId, onBound }: Props) {
   const [editError, setEditError] = useState('');
   const [deleting, setDeleting] = useState<PendingUser | null>(null);
   const [deleteError, setDeleteError] = useState('');
+  // The server pages and sorts the whole queue, so the Registered sort covers every account (CR-018).
+  const [page, setPage] = useState(0);
+  const [sort, setSort] = useState<SortState | null>(null);
+  const [total, setTotal] = useState(0);
+  const [reload, setReload] = useState(0);
 
   useEffect(() => {
-    const loadPending = async () => {
-      try {
-        const r = await adminApi.pendingUsers();
-        setPending(r.data.items || []);
-      } catch { setPending([]); }
-    };
-    const loadDealers = async () => {
-      try {
-        setDealers(await collectAllPages<Dealer>((p) => adminApi.dealers({ page: p, size: 10 })));
-      } catch { setDealers([]); }
-    };
-    void loadPending();
-    if (dealerId == null) void loadDealers();
+    let live = true;
+    adminApi.pendingUsers({ page, sort: sortParam(sort) })
+      .then((r) => {
+        if (!live) return;
+        const items = r.data.items || [];
+        // A bind or delete can empty the last page; drop the stale rows and step back a page.
+        if (items.length === 0 && page > 0) { setPending([]); setPage(page - 1); return; }
+        setPending(items); setTotal(r.data.totalElements);
+      })
+      .catch(() => { if (live) { setPending([]); setTotal(0); } });
+    return () => { live = false; };
+  }, [page, sort, reload, refresh]);
+
+  useEffect(() => {
+    if (dealerId != null) return;
+    collectAllPages<Dealer>((p) => adminApi.dealers({ page: p, size: 10 }))
+      .then(setDealers)
+      .catch(() => setDealers([]));
   }, [dealerId]);
 
   const bindPending = async (user: PendingUser) => {
@@ -55,14 +68,14 @@ export default function PendingAccounts({ dealerId, onBound }: Props) {
     try {
       const r = await adminApi.bind(target, { username: user.username });
       if (isJoinRequestSent(r.data)) {
-        // Still pending until a manager approves, so the row stays and shows the request.
+        // Still pending until the dealership owner approves, so the row stays and shows the request.
         const dealerName = dealers.find((d) => d.id === target)?.legalName ?? null;
         setPending((list) => list.map((u) => (u.username === user.username
           ? { ...u, requestedDealerId: target, requestedDealerName: dealerName ?? u.requestedDealerName } : u)));
         setNotice(`${user.username}: ${r.data.message}`);
       } else {
-        setPending((list) => list.filter((u) => u.username !== user.username));
-        setNotice(`${user.username} is bound as the dealership's first manager.`);
+        setReload((n) => n + 1);
+        setNotice(`${user.username} is bound as the dealership's owner.`);
       }
       onBound?.();
     } catch (e) {
@@ -104,7 +117,7 @@ export default function PendingAccounts({ dealerId, onBound }: Props) {
     setBusy(deleting.username); setDeleteError('');
     try {
       await adminApi.deletePending(deleting.username);
-      setPending((list) => list.filter((u) => u.username !== deleting.username));
+      setReload((n) => n + 1);
       setNotice(`${deleting.username} deleted.`);
       setDeleting(null);
     } catch (e) {
@@ -126,7 +139,37 @@ export default function PendingAccounts({ dealerId, onBound }: Props) {
   const requestLabel = (u: PendingUser) => (u.requestedDealerId == null ? null
     : `Join request sent to ${u.requestedDealerName ?? 'a dealership'}`);
 
-  const pendingSort = useSort(pending);
+  // The staff drawer is narrow, so contact details sit under the name instead of in columns.
+  const drawerColumns: Column<PendingUser>[] = [
+    { label: 'Account', render: (u) => (
+      <>
+        <div>{u.displayName} <span className="muted">({u.username})</span></div>
+        <div className="muted">{[u.email, u.phone].filter(Boolean).join(' · ') || 'No contact provided'}</div>
+        <div className="muted">Registered {dateTimeLocal(u.createdAt)}</div>
+        {requestLabel(u) && <div className="muted">{requestLabel(u)}</div>}
+      </>
+    ) },
+  ];
+
+  const adminColumns: Column<PendingUser>[] = [
+    { key: 'username', label: 'Username' },
+    { key: 'displayName', label: 'Name' },
+    { key: 'email', label: 'Login email', render: (u) => u.email || 'Not provided' },
+    { key: 'phone', label: 'Login phone', render: (u) => u.phone || 'Not provided' },
+    { key: 'createdAt', label: 'Registered', sortable: true, render: (u) => (
+      <>
+        {dateTimeLocal(u.createdAt)}
+        {requestLabel(u) && <div className="muted">{requestLabel(u)}</div>}
+      </>
+    ) },
+    { key: 'dealership', label: 'Dealership', render: (u) => (
+      <select className="select" value={selectedDealer[u.username] ?? ''}
+        onChange={(e) => setSelectedDealer((s) => ({ ...s, [u.username]: Number(e.target.value) }))}>
+        <option value="">Select dealership</option>
+        {dealers.map((d) => <option key={d.id} value={d.id}>{d.legalName}</option>)}
+      </select>
+    ) },
+  ];
 
   return (
     <div style={{ marginTop: 24 }}>
@@ -137,62 +180,10 @@ export default function PendingAccounts({ dealerId, onBound }: Props) {
       {notice && <p className="success-text">{notice}</p>}
       {pending.length === 0 ? (
         <p className="muted">No accounts are waiting to be bound.</p>
-      ) : dealerId != null ? (
-        // The staff drawer is narrow, so contact details sit under the name instead of in columns.
-        <table className="table">
-          <thead><tr><th>Account</th><th>Actions</th></tr></thead>
-          <tbody>
-            {pending.map((u) => (
-              <tr key={u.username}>
-                <td>
-                  <div>{u.displayName} <span className="muted">({u.username})</span></div>
-                  <div className="muted">{[u.email, u.phone].filter(Boolean).join(' · ') || 'No contact provided'}</div>
-                  <div className="muted">Registered {dateTimeLocal(u.createdAt)}</div>
-                  {requestLabel(u) && <div className="muted">{requestLabel(u)}</div>}
-                </td>
-                <td>{rowActions(u)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
       ) : (
-        <table className="table">
-          <thead>
-            <tr>
-              <th>Username</th>
-              <th>Name</th>
-              <th>Login email</th>
-              <th>Login phone</th>
-              <SortableTh label="Registered" sortKey="createdAt" sort={pendingSort.sort} onSort={pendingSort.toggle} />
-              {dealerId == null && <th>Dealership</th>}
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {pendingSort.sorted.map((u) => (
-              <tr key={u.username}>
-                <td>{u.username}</td>
-                <td>{u.displayName}</td>
-                <td>{u.email || 'Not provided'}</td>
-                <td>{u.phone || 'Not provided'}</td>
-                <td>
-                  {dateTimeLocal(u.createdAt)}
-                  {requestLabel(u) && <div className="muted">{requestLabel(u)}</div>}
-                </td>
-                {dealerId == null && (
-                  <td>
-                    <select className="select" value={selectedDealer[u.username] ?? ''}
-                      onChange={(e) => setSelectedDealer((s) => ({ ...s, [u.username]: Number(e.target.value) }))}>
-                      <option value="">Select dealership</option>
-                      {dealers.map((d) => <option key={d.id} value={d.id}>{d.legalName}</option>)}
-                    </select>
-                  </td>
-                )}
-                <td>{rowActions(u)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <DataTable rows={pending} total={total} page={page} onPage={setPage}
+          columns={dealerId != null ? drawerColumns : adminColumns} actions={rowActions}
+          sort={sort} onSort={(key, dir) => { setSort({ key, dir }); setPage(0); }} />
       )}
 
       <ConfirmDialog open={editing != null} title={`Edit pending account ${editing?.username ?? ''}`}

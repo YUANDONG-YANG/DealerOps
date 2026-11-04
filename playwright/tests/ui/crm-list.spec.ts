@@ -1,10 +1,21 @@
 import type { Locator, Page } from '@playwright/test';
 import { test, expect } from '../../support/fixtures';
-import { customerBody, expectStatus, randomDigits, uniqueSuffix, type Api, type Customer, type Vehicle } from '../../support/api';
+import { customerBody, expectStatus, uniqueSuffix, type Api, type Customer, type Vehicle } from '../../support/api';
 
 // UI-30 / UI-31 / CRM-01..03 / AT-26 / AT-29: the CRM customer list and the create/edit drawer.
+// The 2026-11-03 change request adds R1 (a Leads column in place of Vehicles purchased),
+// R2 (New lead from the customer drawer), R3 (customer notes) and R4 (nothing about a customer
+// is unique: a match on name, email, phone or address only asks for confirmation).
 
 const SEARCH = 'Name / Email / Phone';
+
+/**
+ * Customer data with a home address nobody else uses. The default address is shared by every
+ * seeded customer, and the drawer's duplicate check (R4) would stop on it.
+ */
+function freshCustomer(overrides: Record<string, unknown> = {}) {
+  return customerBody({ homeAddress: `${uniqueSuffix()} Birch Lane, Calgary, AB`, ...overrides });
+}
 
 // The shared dealer holds hundreds of vehicles and other workers create data concurrently,
 // so drawer loads (the purchase picker pages through every vehicle) can be slow.
@@ -57,16 +68,19 @@ function waitForCustomerWrite(page: Page, method: string) {
 }
 
 test.describe('CRM list', () => {
-  test('UI-30 / CRM-03: list shows name, email, phone, home address and vehicles purchased count', async ({ staffPage: page, staffApi }) => {
+  test('UI-30 / CRM-03 / R1: list shows name, email, phone, home address, linked vehicles and the lead count', async ({ staffPage: page, staffApi }) => {
     const customer = await staffApi.createCustomer();
     const vehicle = await staffApi.createVehicle({ make: 'Honda', model: 'Civic', modelYear: 2019 });
     await linkVehicle(staffApi, customer, vehicle);
+    await expectStatus(await staffApi.post('/api/v1/leads', { customerId: customer.id }), 201);
 
     await page.goto('/crm');
     await expect(page.getByRole('columnheader', { name: 'Name' })).toBeVisible();
-    for (const header of ['Email', 'Phone', 'Home address', 'Linked vehicles', 'Vehicles purchased']) {
+    for (const header of ['Email', 'Phone', 'Home address', 'Linked vehicles', 'Leads']) {
       await expect(page.getByRole('columnheader', { name: header })).toBeVisible();
     }
+    // R1: the Leads count replaced the Vehicles purchased column.
+    await expect(page.getByRole('columnheader', { name: 'Vehicles purchased' })).toHaveCount(0);
 
     await search(page, customer.email);
     const row = rowOf(page, customer.email);
@@ -201,7 +215,7 @@ test.describe('CRM create and edit', () => {
 
   test('AT-29 / CRM-01: create with a purchased car selected links that car', async ({ staffPage: page, staffApi }) => {
     const vehicle = await staffApi.createVehicle({ make: 'Mazda', model: 'CX-5', modelYear: 2021 });
-    const c = customerBody();
+    const c = freshCustomer();
 
     await page.goto('/crm');
     await page.getByRole('button', { name: 'Add customer' }).click();
@@ -225,7 +239,8 @@ test.describe('CRM create and edit', () => {
     await search(page, c.email);
     const row = rowOf(page, c.email);
     await expect(row.getByRole('cell').nth(4)).toHaveText('2021 Mazda CX-5');
-    await expect(row.getByRole('cell').nth(5)).toHaveText('1');
+    // R1: the last column counts leads, and a brand-new customer has none.
+    await expect(row.getByRole('cell').nth(5)).toHaveText('0');
 
     await row.getByRole('button', { name: 'Edit' }).click();
     await expect(drawer.getByRole('link', { name: '2021 Mazda CX-5' })).toBeVisible();
@@ -240,7 +255,7 @@ test.describe('CRM create and edit', () => {
   });
 
   test('AT-29 / CRM-01: create without a car saves an unlinked customer', async ({ staffPage: page, staffApi }) => {
-    const c = customerBody();
+    const c = freshCustomer();
 
     await page.goto('/crm');
     await page.getByRole('button', { name: 'Add customer' }).click();
@@ -282,6 +297,8 @@ test.describe('CRM create and edit', () => {
     const saved = waitForCustomerWrite(page, 'PATCH');
     await drawer.getByRole('button', { name: 'Save' }).click();
     expect((await saved).status()).toBe(200);
+    // The save reloads the drawer from the server; wait for it before closing.
+    await expect(drawer.getByText('Customer saved.')).toBeVisible();
 
     // Close, load the list fresh (without the deep link), and reopen from the list.
     await drawer.getByRole('button', { name: 'Close' }).click();
@@ -301,17 +318,21 @@ test.describe('CRM create and edit', () => {
     await expect(page.getByText('No customers match.')).toBeVisible();
   });
 
-  test('CRM-13: duplicate email is saved and the drawer shows the warning', async ({ staffPage: page, staffApi }) => {
+  test('CRM-13 / R4: a duplicate email is confirmed, then saved with the warning', async ({ staffPage: page, staffApi }) => {
     const existing = await staffApi.createCustomer();
-    const c = customerBody({ email: existing.email });
+    const c = freshCustomer({ email: existing.email });
 
     await page.goto('/crm');
     await page.getByRole('button', { name: 'Add customer' }).click();
     const drawer = drawerOf(page);
     await fillCustomer(drawer, c);
 
+    // R4: the matching email is only a warning the user confirms.
     const created = waitForCustomerWrite(page, 'POST');
     await drawer.getByRole('button', { name: 'Save' }).click();
+    const confirm = page.locator('.dialog', { hasText: 'Possible duplicate customer' });
+    await expect(confirm).toContainText('A customer with this email already exists. Create anyway?');
+    await confirm.getByRole('button', { name: 'Create anyway' }).click();
     const res = await created;
     expect(res.status()).toBe(201);
     const saved = await res.json();
@@ -326,31 +347,132 @@ test.describe('CRM create and edit', () => {
     expect(((await reread.json()) as Customer).email).toBe(existing.email);
   });
 
-  test('CRM-01: duplicate phone shows the server field error', async ({ staffPage: page, staffApi, allowBrowserErrors }) => {
-    allowBrowserErrors(/409|Conflict/);
-    const existing = await staffApi.createCustomer({ phone: `+1587${randomDigits(7)}` });
-    const c = customerBody({ phone: existing.phone });
+  test('R4: a shared phone is confirmed and then saved; cancelling sends nothing', async ({ staffPage: page, staffApi }) => {
+    // A household shares a phone, so the phone is no longer unique (decision D1).
+    const existing = await staffApi.createCustomer();
+    const c = freshCustomer({ phone: existing.phone });
 
     await page.goto('/crm');
     await page.getByRole('button', { name: 'Add customer' }).click();
     const drawer = drawerOf(page);
     await fillCustomer(drawer, c);
 
+    let posts = 0;
+    page.on('request', (r) => {
+      if (r.method() === 'POST' && new URL(r.url()).pathname.endsWith('/api/v1/customers')) posts++;
+    });
+
+    const confirm = page.locator('.dialog', { hasText: 'Possible duplicate customer' });
+    await drawer.getByRole('button', { name: 'Save' }).click();
+    await expect(confirm).toContainText('A customer with this phone already exists. Create anyway?');
+    await confirm.getByRole('button', { name: 'Cancel' }).click();
+    await expect(confirm).toBeHidden();
+    expect(posts, 'nothing is created while the confirm is open').toBe(0);
+    await expect(fieldItem(drawer, 'Phone').locator('.form-error')).toHaveCount(0);
+
     const created = waitForCustomerWrite(page, 'POST');
     await drawer.getByRole('button', { name: 'Save' }).click();
+    await confirm.getByRole('button', { name: 'Create anyway' }).click();
     const res = await created;
-    expect(res.status()).toBe(409);
-    expect((await res.json()).code).toBe('PHONE_TAKEN');
+    expect(res.status()).toBe(201);
+    expect((await res.json()).phone).toBe(existing.phone);
+    await expect(drawer).toBeHidden();
 
-    await expect(drawer).toBeVisible();
-    await expect(fieldItem(drawer, 'Phone').locator('.form-error')).toBeVisible();
-    await expect(fieldItem(drawer, 'Email').locator('.form-error')).toHaveCount(0);
-    await expect(drawer.locator('.danger-text')).toBeVisible();
+    // Both customers keep the shared phone, so a search on it finds the two of them.
+    await search(page, existing.phone);
+    await expect(page.locator('table.table tbody tr')).toHaveCount(2);
   });
 
-  test('CRM-13: editing to another customer\'s email saves and shows the warning', async ({ staffPage: page, staffApi }) => {
-    const first = await staffApi.createCustomer();
-    const second = await staffApi.createCustomer();
+  test('R3: customer notes are saved and reloaded with the customer', async ({ staffPage: page, staffApi }) => {
+    // Its own address, so saving from the drawer does not stop on the duplicate confirm (R4).
+    const customer = await staffApi.createCustomer(freshCustomer());
+    const note = `Prefers evening calls ${uniqueSuffix()}`;
+
+    await page.goto(`/crm?customerId=${customer.id}`);
+    const drawer = drawerOf(page);
+    const notes = drawer.getByLabel('Notes', { exact: true });
+    await expect(notes).toHaveValue('');
+    await notes.fill(note);
+
+    const saved = waitForCustomerWrite(page, 'PATCH');
+    await drawer.getByRole('button', { name: 'Save' }).click();
+    expect((await saved).status()).toBe(200);
+    await expect(drawer.getByText('Customer saved.')).toBeVisible();
+
+    // Reopen from the list: the note came back from the server.
+    await drawer.getByRole('button', { name: 'Close' }).click();
+    await page.goto('/crm');
+    await search(page, customer.email);
+    await rowOf(page, customer.email).getByRole('button', { name: 'Edit' }).click();
+    await expect(drawer.getByLabel('Notes', { exact: true })).toHaveValue(note);
+    expect((await (await staffApi.get(`/api/v1/customers/${customer.id}`)).json()).notes).toBe(note);
+  });
+
+  test('CR-022: the customer drawer asks before it discards unsaved changes', async ({ staffPage: page, staffApi }) => {
+    const customer = await staffApi.createCustomer(freshCustomer());
+
+    await page.goto(`/crm?customerId=${customer.id}`);
+    const drawer = drawerOf(page);
+    await expect(drawer.getByLabel('Name', { exact: true })).toHaveValue(customer.name);
+
+    let writes = 0;
+    page.on('request', (r) => { if (r.method() === 'PATCH' && r.url().includes('/api/v1/customers/')) writes++; });
+
+    // An untouched drawer closes straight away.
+    await drawer.getByRole('button', { name: 'Close' }).click();
+    await expect(drawer).toBeHidden();
+
+    await page.goto(`/crm?customerId=${customer.id}`);
+    await drawer.getByLabel('Notes', { exact: true }).fill(`Draft ${uniqueSuffix()}`);
+    const discard = page.locator('.dialog', { hasText: 'Discard unsaved changes?' });
+
+    // Cancelling keeps the drawer and the typed text.
+    await drawer.getByRole('button', { name: 'Close' }).click();
+    await expect(discard).toBeVisible();
+    await discard.getByRole('button', { name: 'Cancel' }).click();
+    await expect(discard).toBeHidden();
+    await expect(drawer).toBeVisible();
+
+    await drawer.getByRole('button', { name: 'Close' }).click();
+    await discard.getByRole('button', { name: 'Discard' }).click();
+    await expect(drawer).toBeHidden();
+    // Nothing was saved: the discarded note never reached the server.
+    expect(writes, 'a discard saves nothing').toBe(0);
+    expect((await (await staffApi.get(`/api/v1/customers/${customer.id}`)).json()).notes ?? null).toBeNull();
+  });
+
+  test('R2: New lead in the customer drawer opens Add lead for that customer', async ({ staffPage: page, staffApi }) => {
+    const customer = await staffApi.createCustomer();
+
+    await page.goto(`/crm?customerId=${customer.id}`);
+    const drawer = drawerOf(page);
+    await expect(drawer.getByText('No leads for this customer.')).toBeVisible();
+    await drawer.getByRole('link', { name: 'New lead' }).click();
+
+    await expect(page).toHaveURL(new RegExp(`/leads\\?newLeadFor=${customer.id}$`));
+    const addLead = page.getByRole('dialog', { name: 'Add lead' });
+    await expect(addLead).toBeVisible();
+    // The customer is preselected, so the lead only needs saving.
+    await expect(addLead.getByRole('combobox', { name: 'Customer', exact: true })).toHaveValue(customer.name);
+
+    const created = page.waitForResponse((r) => r.url().endsWith('/api/v1/leads') && r.request().method() === 'POST');
+    await addLead.getByRole('button', { name: 'Save' }).click();
+    const res = await created;
+    expect(res.status()).toBe(201);
+    expect((await res.json()).customerId).toBe(customer.id);
+
+    // The lead now shows on the customer and the list counts it.
+    await page.goto(`/crm?customerId=${customer.id}`);
+    await expect(drawer.getByRole('link', { name: /^New · No vehicle$/ })).toBeVisible();
+    await drawer.getByRole('button', { name: 'Close' }).click();
+    await search(page, customer.email);
+    await expect(rowOf(page, customer.email).getByRole('cell').nth(5)).toHaveText('1');
+  });
+
+  test('CRM-13 / R4: editing to another customer\'s email is confirmed, then saved with the warning', async ({ staffPage: page, staffApi }) => {
+    // Addresses of their own, so only the email matches and the confirm names just that field.
+    const first = await staffApi.createCustomer(freshCustomer());
+    const second = await staffApi.createCustomer(freshCustomer());
 
     await page.goto(`/crm?customerId=${second.id}`);
     const drawer = drawerOf(page);
@@ -359,6 +481,9 @@ test.describe('CRM create and edit', () => {
 
     const saved = waitForCustomerWrite(page, 'PATCH');
     await drawer.getByRole('button', { name: 'Save' }).click();
+    const confirm = page.locator('.dialog', { hasText: 'Possible duplicate customer' });
+    await expect(confirm).toContainText('A customer with this email already exists. Save anyway?');
+    await confirm.getByRole('button', { name: 'Save anyway' }).click();
     const res = await saved;
     expect(res.status()).toBe(200);
     const body = await res.json();

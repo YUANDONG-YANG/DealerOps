@@ -1,6 +1,6 @@
 # Changes to existing behavior
 
-Source: `requirements/update-cr/Changes Document.docx`.
+Source: `requirements/iteration-2/Changes Document.docx`.
 
 This note covers only changes to behavior the document treats as already present. It uses the document’s own wording. It does not check the running application. Embedded screenshots are not transcribed. Where the document never describes the previous behavior, the entry says **old behavior not stated**.
 
@@ -106,7 +106,7 @@ The author says the full-name places may be more than the three found, that the 
 - **Old behavior:** old behavior not stated.
 - **New behavior:** Manager accounts may promote other staff to managers, and may edit certain employee information.
 - **Who:** Dealership manager accounts, and the staff they promote or edit.
-- **Conditions / exceptions:** “Certain employee information” is not listed. A dealership admin / owner / regional manager tier is optional and is not this change (pointer list).
+- **Conditions / exceptions:** “Certain employee information” is not listed. A dealership admin / owner / regional manager tier is optional and is not this change (pointer list). **Settled 2026-11-03:** that tier was built as the Owner role, the editable fields are full name and phone, and a manager may promote or edit **sales** members only (`requirements/iteration-2/CR-Role-Hierarchy-2026-11-03.md`).
 
 ### Members column for when the member joined
 
@@ -422,7 +422,7 @@ The author says the full-name places may be more than the three found, that the 
 These are additions. This note does not treat them as changes to a stated current behavior.
 
 - The client requested that home-page create account become a way for dealerships to inquire about using the service. Only a different account-creation method needs more client discussion. The interim change is removing the button, covered above.
-- Optional dealership admin / owner / regional manager, with some platform-admin capabilities limited to one dealership. Discuss with the client before full implementation. The document’s privilege order, most to least, is platform admin, that dealership role, dealership manager, dealership staff, and user not logged in.
+- Optional dealership admin / owner / regional manager, with some platform-admin capabilities limited to one dealership. Discuss with the client before full implementation. The document’s privilege order, most to least, is platform admin, that dealership role, dealership manager, dealership staff, and user not logged in. **Decided 2026-11-03:** implemented as one Owner tier, giving Platform admin, Owner, Manager, Sales (`requirements/iteration-2/CR-Role-Hierarchy-2026-11-03.md`).
 - DMS search by Stock #.
 - DMS search for vehicles with open work orders.
 - Leads search by vehicle name.

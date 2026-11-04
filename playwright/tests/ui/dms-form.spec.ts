@@ -50,6 +50,9 @@ async function chooseMakeModel(drawer: Locator, make: string, model: string) {
   }
 }
 
+/** The model year `fillValidVehicle` picks; the VIN's 10th character must match it (D-8). */
+const FORM_YEAR = 2020;
+
 async function fillValidVehicle(drawer: Locator, vin: string) {
   await chooseMakeModel(drawer, 'Toyota', 'Camry');
   await control(drawer, 'Model year').selectOption('2020');
@@ -68,7 +71,7 @@ function vehicleWrite(page: Page, method: 'POST' | 'PATCH' | 'PUT') {
 }
 
 async function searchList(page: Page, text: string) {
-  await page.getByPlaceholder('Search VIN, make or model').fill(text);
+  await page.getByPlaceholder('Search VIN, stock #, make or model').fill(text);
   await page.getByRole('button', { name: 'Search' }).click();
 }
 
@@ -101,6 +104,15 @@ test('UI-21 / DMS-01 / DMS-05: Add vehicle drawer marks required fields and offe
     os.map((o) => (o as HTMLOptionElement).value).filter(Boolean),
   );
   expect(conditionValues.sort()).toEqual(['AS_IS', 'CERTIFIED', 'IRREPARABLE', 'UNFIT']);
+});
+
+test('CR-D7 / UI-21: VIN is the first field of the Add vehicle form, above make, model and year', async ({
+  staffPage: page,
+}) => {
+  const drawer = await openAddDrawer(page);
+  const labels = await drawer.locator('label.form-label').allTextContents();
+  // Decoding the VIN fills make, model and year below it, so the VIN leads the form (D-7).
+  expect(labels.map((l) => l.trim()).slice(0, 4)).toEqual(['VIN', 'Make', 'Model', 'Model year']);
 });
 
 test('UI-21 / DMS-01: an empty submit shows an error per required field and sends no request', async ({
@@ -186,7 +198,15 @@ test('UI-21: model year can only be picked from 1900 to next year, and invalid a
   await expect(fieldError(drawer, 'Repair cost')).toBeVisible();
   await control(drawer, 'Carfax URL').fill('carfax.ca/report');
   await control(drawer, 'Carfax URL').blur();
-  await expect(fieldError(drawer, 'Carfax URL')).toHaveText('Must be an http(s) URL of at most 500 characters');
+  // D-9: only an https carfax.com / carfax.ca link is accepted.
+  await expect(fieldError(drawer, 'Carfax URL'))
+    .toHaveText('Must be an https link on carfax.com or carfax.ca, at most 500 characters');
+  await control(drawer, 'Carfax URL').fill('https://example.com/report');
+  await control(drawer, 'Carfax URL').blur();
+  await expect(fieldError(drawer, 'Carfax URL')).toBeVisible();
+  await control(drawer, 'Carfax URL').fill('https://www.carfax.ca/report/e2e');
+  await control(drawer, 'Carfax URL').blur();
+  await expect(fieldError(drawer, 'Carfax URL')).toHaveCount(0);
 
   // Future "Added on" date is rejected.
   const tomorrow = new Date(Date.now() + 2 * 86_400_000).toISOString().slice(0, 10);
@@ -198,7 +218,7 @@ test('DMS-01 / DMS-04: staff adds a vehicle through the drawer and finds it in t
   staffPage: page,
   staffApi,
 }) => {
-  const vin = randomVin();
+  const vin = randomVin(FORM_YEAR);
   const drawer = await openAddDrawer(page);
   await fillValidVehicle(drawer, vin.toLowerCase());
 
@@ -254,7 +274,7 @@ test('DMS-09: staff edits every non-sold field of an in-stock vehicle through th
   staffApi,
 }) => {
   const vehicle = await staffApi.createVehicle({ make: 'Honda', model: 'Civic', modelYear: 2018 });
-  const newVin = randomVin();
+  const newVin = randomVin(2021);
 
   await page.goto('/dms');
   await searchList(page, vehicle.vin);
@@ -340,4 +360,31 @@ test('DMS-02: a stored Carfax URL is shown as a link that opens the report in a 
   // An invalid URL shows no link, only the validation error.
   await control(drawer, 'Carfax URL').fill('not a url');
   await expect(link).toHaveCount(0);
+});
+
+test('CR-D8 / UI-21: the VIN must carry the chosen model year in character 10', async ({ staffPage: page }) => {
+  const drawer = await openAddDrawer(page);
+  const vin = control(drawer, 'VIN');
+  const vinError = fieldError(drawer, 'VIN');
+
+  // A VIN whose 10th character encodes 2013 against a 2020 model year.
+  await control(drawer, 'Model year').selectOption('2020');
+  await vin.fill(randomVin(2013));
+  await vin.blur();
+  await expect(vinError).toHaveText(/character 10 '\w' means 1983 or 2013, not 2020/);
+
+  // Keeping the VIN and choosing its own year clears the error.
+  await control(drawer, 'Model year').selectOption('2013');
+  await expect(vinError).toHaveCount(0);
+
+  // A character that is no model-year code at all is named as such.
+  await control(drawer, 'Model year').selectOption('2020');
+  const codeless = `${randomVin(2020).slice(0, 9)}U${randomVin(2020).slice(10)}`;
+  await vin.fill(codeless);
+  await vin.blur();
+  await expect(vinError).toHaveText("VIN character 10 'U' is not a model-year code. Check the VIN.");
+
+  await vin.fill(randomVin(2020));
+  await vin.blur();
+  await expect(vinError).toHaveCount(0);
 });

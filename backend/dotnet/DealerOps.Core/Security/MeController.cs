@@ -150,6 +150,20 @@ public class MeController : ControllerBase
             throw new ApiException(ErrorCode.Forbidden, "Platform admin accounts cannot delete themselves.");
         }
 
+        // A dealership that still has staff keeps its owner (design/15 §2.5), so an owner hands
+        // the office over first. An owner who is the last active member still leaves.
+        var owned = _db.Memberships.FirstOrDefault(m => m.Username == username && m.Active
+            && m.DealerRole == DealerRole.Owner);
+        if (owned != null
+            && _db.Memberships.Any(m => m.DealerId == owned.DealerId && m.Active && m.Id != owned.Id))
+        {
+            _logger.LogWarning("Self-deletion refused for dealership owner username={Username} dealerId={DealerId}",
+                username, owned.DealerId);
+            throw new ApiException(ErrorCode.LastOwner,
+                "You are this dealership's only owner. Ask the platform admin to appoint another owner "
+                + "before deleting your account.");
+        }
+
         using var tx = _db.Database.BeginTransaction();
 
         foreach (var m in _db.Memberships.Where(m => m.Username == username && m.Active).ToList())
@@ -179,7 +193,7 @@ public class MeController : ControllerBase
         if (user.Phone != null) user.Phone = user.Phone + marker;
         if (user.GoogleSub != null) user.GoogleSub = user.GoogleSub + marker;
 
-        // Recorded under the dealership the user left, so its manager's log shows the departure.
+        // Recorded under the dealership the user left, so its dealership log shows the departure.
         _audit.Record("APP_USER", user.Id, "DELETE", current.TenantDealerId, username,
             new Dictionary<string, object> { ["self"] = true, ["active"] = false },
             new Dictionary<string, object?> { ["active"] = true });

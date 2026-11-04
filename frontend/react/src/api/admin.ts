@@ -34,7 +34,7 @@ export type MemberContactBody = { email: string | null; phone: string | null };
 
 export type UpdatePendingUserBody ={ username: string; email: string | null; phone: string | null };
 
-/** 202 body of `bind` when the dealership already has a manager: a join request was filed instead. */
+/** 202 body of `bind` when the dealership already has an owner: a join request was filed instead. */
 export type JoinRequestSent = { username: string; dealerId: number; joinRequested: true; message: string };
 
 /** Platform-admin endpoints; every list is paged through the gateway. */
@@ -45,10 +45,11 @@ export const adminApi = {
   patchDealer: (id: number, body: PatchDealerBody) => http.patch<Dealer>(`/api/v1/admin/dealers/${id}`, body),
   members: (id: number, p: { q?: string; page?: number; size?: number } = {}) =>
     http.get<Page<Member>>(`/api/v1/admin/dealers/${id}/members`, { params: { ...p, size: p.size ?? 10 } }),
-  /** 201 with the member while the dealership has no manager (first manager); otherwise 202 with a join request. */
+  /** 201 with the member while the dealership has no owner (first owner); otherwise 202 with a join request. */
   bind: (id: number, body: BindMemberBody) =>
     http.post<Member | JoinRequestSent>(`/api/v1/admin/dealers/${id}/members`, body),
-  pendingUsers: (p: { q?: string; page?: number } = {}) =>
+  /** `sort` is `createdAt,asc|desc`; omitted is newest first. */
+  pendingUsers: (p: { q?: string; page?: number; sort?: string } = {}) =>
     http.get<Page<PendingUser>>('/api/v1/admin/pending-users', { params: { ...p, size: 10 } }),
   updatePending: (username: string, body: UpdatePendingUserBody) =>
     http.patch<PendingUser>(`/api/v1/admin/pending-users/${encodeURIComponent(username)}`, body),
@@ -57,6 +58,7 @@ export const adminApi = {
   /** Sets a temporary password. The password is sent to the gateway and is not written to the client log. */
   resetPassword: (id: number, username: string, password: string) =>
     http.put(`/api/v1/admin/dealers/${id}/members/${encodeURIComponent(username)}/password`, { password }),
+  /** The platform admin may set any dealership role, including OWNER, which is how an owner is replaced. */
   setRole: (id: number, username: string, dealerRole: DealerRole) =>
     http.put(`/api/v1/admin/dealers/${id}/members/${encodeURIComponent(username)}/role`, { dealerRole }),
   unbind: (id: number, username: string) =>

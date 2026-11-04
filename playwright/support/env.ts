@@ -8,8 +8,11 @@ function isLocalUrl(url: string) {
   return /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(url);
 }
 
-/** `manager`: the seed promotes the account to its dealership's MANAGER role (design/21 AUTH-26). */
-export type Account = { username: string; displayName: string; email: string; password: string; manager?: boolean };
+/** The three dealership tiers; the wire values of `membership.dealer_role` (design/15 §2.5). */
+export type DealerRole = 'OWNER' | 'MANAGER' | 'SALES';
+
+/** `dealerRole`: the tier the seed puts the account on; `SALES` when omitted (design/21 AUTH-26). */
+export type Account = { username: string; displayName: string; email: string; password: string; dealerRole?: DealerRole };
 
 export type SeedDealer = {
   legalName: string;
@@ -33,17 +36,24 @@ const dealerUser: Account = {
   displayName: 'Lafe',
   email: 'lafe@example.com',
   password: process.env.E2E_DEALER_PASSWORD ?? 'admin1234',
-  manager: true,
+  dealerRole: 'MANAGER',
 };
 
 // Dealer A has two staff (shared-data checks, AUTH-06); dealer B exists for isolation checks.
-// The first staff account and the dealer user are managers; e2e.staff2 stays staff.
+// Each dealership needs exactly one owner, and the owner must be listed FIRST: the platform admin
+// binds the first owner directly and only files a join request after that (CR role hierarchy §2).
+// Dealer A covers all three tiers: e2e.staff is the owner, the dealer user is a manager and
+// e2e.staff2 is a sales member.
 const dealerA: SeedDealer = {
   legalName: process.env.E2E_DEALER_NAME ?? 'E2E Motors',
   contactPhone: '403-555-0199',
   contactEmail: 'e2e.dealer@example.com',
   contactAddress: '1 Test Street, Calgary, AB',
-  staff: [{ ...staff(process.env.E2E_STAFF_USER ?? 'e2e.staff', 'E2E Staff'), manager: true }, staff('e2e.staff2', 'E2E Staff Two'), dealerUser],
+  staff: [
+    { ...staff(process.env.E2E_STAFF_USER ?? 'e2e.staff', 'E2E Staff'), dealerRole: 'OWNER' },
+    staff('e2e.staff2', 'E2E Staff Two'),
+    dealerUser,
+  ],
 };
 
 const dealerB: SeedDealer = {
@@ -51,7 +61,7 @@ const dealerB: SeedDealer = {
   contactPhone: '403-555-0288',
   contactEmail: 'e2e.rival@example.com',
   contactAddress: '2 Other Road, Calgary, AB',
-  staff: [staff('e2e.rival', 'E2E Rival Staff')],
+  staff: [{ ...staff('e2e.rival', 'E2E Rival Staff'), dealerRole: 'OWNER' }],
 };
 
 export const env = {
@@ -69,8 +79,15 @@ export const env = {
   dealerA,
   dealerB,
   dealerName: dealerA.legalName,
+  /** Dealer A's owner (`e2e.staff`): the dealership profile and its join requests. */
   staff: dealerA.staff[0],
+  /** Dealer A's sales member (`e2e.staff2`): business data only, no Team page. */
   staff2: dealerA.staff[1],
+  /** Dealer B's owner (`e2e.rival`), for tenancy isolation. */
   rival: dealerB.staff[0],
+  /** Dealer A's manager (`lafe`): Team and the dealership audit log, no profile or join requests. */
   dealerUser,
+  owner: dealerA.staff[0],
+  manager: dealerUser,
+  sales: dealerA.staff[1],
 };

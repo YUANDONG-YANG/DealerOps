@@ -50,6 +50,7 @@ export default function SearchSuggest({ value, onChange, suggest, onPick, onEnte
   // Only typing asks for suggestions; a pick or an outside change of `value` does not reopen the list.
   const typed = useRef(false);
   const seq = useRef(0);
+  const inputRef = useRef<HTMLInputElement>(null);
   const suggestRef = useRef(suggest);
   suggestRef.current = suggest;
 
@@ -67,7 +68,9 @@ export default function SearchSuggest({ value, onChange, suggest, onPick, onEnte
           const rest = all.filter(s => s.value.toLowerCase() !== q.toLowerCase());
           setItems(rest);
           setActive(-1);
-          setOpen(rest.length > 0 || all.length === 0);
+          // The box may have lost focus while the matches loaded (the user moved to another
+          // filter); the list must not pop open over the page it no longer belongs to.
+          setOpen(document.activeElement === inputRef.current && (rest.length > 0 || all.length === 0));
         })
         .catch(() => { if (mine === seq.current) { setItems([]); setOpen(false); } })
         .finally(() => { if (mine === seq.current) setLoading(false); });
@@ -106,7 +109,7 @@ export default function SearchSuggest({ value, onChange, suggest, onPick, onEnte
 
   return (
     <div className="suggest">
-      <input className="input" value={value} placeholder={placeholder} aria-label={ariaLabel}
+      <input ref={inputRef} className="input" value={value} placeholder={placeholder} aria-label={ariaLabel}
         role="combobox" aria-expanded={open} aria-autocomplete="list" autoComplete="off"
         onChange={e => { typed.current = true; onChange(e.target.value); }}
         onKeyDown={onKeyDown}

@@ -35,10 +35,46 @@ public class LeadService
         _logger = logger;
     }
 
-    /// <summary>Filtered page of the dealership's leads, newest first.</summary>
+    /// <summary>Fields the Leads list sorts by (CR-012): the LeadListItem wire names of its columns.</summary>
+    private static readonly string[] SortFields = ["customerName", "vehicle", "stage", "ownerUsername", "nextFollowUpOn"];
+
+    // The requested order across all pages, then newest first so equal keys keep a stable page order.
+    private IOrderedQueryable<LeadEntity> Sorted(IQueryable<LeadEntity> query, string? sort)
+    {
+        var parsed = Paging.ParseSort(sort, SortFields);
+        if (parsed == null)
+            return query.OrderByDescending(l => l.CreatedAt).ThenByDescending(l => l.Id);
+        var (field, desc) = parsed.Value;
+        // Customers and vehicles are looked up past their soft delete, as the list shows them.
+        var customers = _db.Customers.IgnoreQueryFilters();
+        var vehicles = _db.Vehicles.IgnoreQueryFilters();
+        var ordered = field switch
+        {
+            "customerName" => query.OrderByDirectionBlanksLast(l => customers
+                .Where(c => c.Id == l.CustomerId && c.DealerId == l.DealerId)
+                .Select(c => c.Name).FirstOrDefault(), desc),
+            // "year make model", the order the Vehicle of interest column displays.
+            "vehicle" => query.OrderByDirectionBlanksLast(l => vehicles
+                .Where(v => v.Id == l.VehicleId && v.DealerId == l.DealerId)
+                .Select(v => v.ModelYear.ToString() + " " + v.Make + " " + v.Model).FirstOrDefault(), desc),
+            // Pipeline order, not the stored text.
+            "stage" => query.OrderByDirection(l =>
+                l.Stage == LeadStage.New ? 0 :
+                l.Stage == LeadStage.Contacted ? 1 :
+                l.Stage == LeadStage.Qualified ? 2 :
+                l.Stage == LeadStage.Won ? 3 : 4, desc),
+            "ownerUsername" => query.OrderByDirectionBlanksLast(l => l.OwnerUsername, desc),
+            // A won or lost lead shows no follow-up date, so it sorts as blank.
+            _ => query.OrderByDirectionBlanksLast(l =>
+                l.Stage == LeadStage.Won || l.Stage == LeadStage.Lost ? null : l.NextFollowUpOn, desc),
+        };
+        return ordered.ThenByDescending(l => l.CreatedAt).ThenByDescending(l => l.Id);
+    }
+
+    /// <summary>Filtered page of the dealership's leads, newest first unless <paramref name="sort"/> names a column.</summary>
     public PageResponse<LeadListItem> List(
         string? q, string? vehicle, LeadStage? stage, string? owner, long? customerId, long? vehicleId,
-        bool? overdue, int page, int size)
+        bool? overdue, string? sort, int page, int size)
     {
         var tenant = TenantGuard.RequireTenantId();
         var p = Paging.ClampPage(page);
@@ -86,7 +122,7 @@ public class LeadService
         }
 
         var total = query.Count();
-        var items = query.OrderByDescending(l => l.CreatedAt).ThenByDescending(l => l.Id)
+        var items = Sorted(query, sort)
             .Skip(p * s).Take(s)
             // Materialised before projecting: the projection below queries the database
             // per row, which cannot share the connection with a still-open result set.
@@ -339,7 +375,8 @@ public class LeadService
 
     /// <summary>
     /// Reopens a won or lost lead to an open stage (L4, decision D7). A lost lead can always be
-    /// reopened; a won lead only while its vehicle was not sold to the lead's customer. The audit
+    /// reopened; a won lead only while its vehicle was not sold to the lead's customer. A lead with a
+    /// vehicle reopens only while that vehicle is still in stock, as a create requires. The audit
     /// row is an UPDATE with the new stage, so the funnel history counts the reopened stage.
     /// </summary>
     public LeadDetail Reopen(long id, ReopenLeadRequest body)
@@ -369,6 +406,9 @@ public class LeadService
             throw new ApiException(ErrorCode.LeadClosed,
                 "This lead's vehicle was sold to this customer, so the won lead cannot be reopened.");
         }
+        // An open lead on a sold vehicle is a state create forbids, so reopen requires stock too (D7).
+        RequireInStockVehicle(tenant, lead.VehicleId,
+            "This lead's vehicle is no longer in stock, so the lead cannot be reopened.");
         RequireNoOpenDuplicate(tenant, lead.CustomerId, lead.VehicleId, lead.Id);
 
         var changed = new Dictionary<string, object>
@@ -506,7 +546,7 @@ public class LeadService
         }
     }
 
-    private void RequireInStockVehicle(long tenant, long? vehicleId)
+    private void RequireInStockVehicle(long tenant, long? vehicleId, string? message = null)
     {
         if (vehicleId == null) return;
         var ok = _db.Vehicles.Any(
@@ -516,7 +556,8 @@ public class LeadService
             _logger.LogWarning(
                 "Lead vehicle rejected vehicleId={VehicleId} dealerId={DealerId} code={Code} by {Actor}",
                 vehicleId, tenant, ErrorCode.WrongDealerOrSold, TenantContext.ActorUsername());
-            throw new ApiException(ErrorCode.WrongDealerOrSold, "Vehicle must be in stock at this dealership.");
+            throw new ApiException(ErrorCode.WrongDealerOrSold,
+                message ?? "Vehicle must be in stock at this dealership.");
         }
     }
 

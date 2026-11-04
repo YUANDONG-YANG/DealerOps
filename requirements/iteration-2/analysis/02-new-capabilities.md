@@ -1,6 +1,6 @@
 # New capabilities in the change document
 
-Source: `requirements/update-cr/Changes Document.docx` (section **Client Requests**, then **Site Fixes and Changes**). This note lists only behavior the document introduces as new, or that reads as net-new. Each item is labeled against current design and requirements:
+Source: `requirements/iteration-2/Changes Document.docx` (section **Client Requests**, then **Site Fixes and Changes**). This note lists only behavior the document introduces as new, or that reads as net-new. Each item is labeled against current design and requirements:
 
 - **already-covered** — the behavior is already specified.
 - **conflicts** — the document asks for something the current design forbids or decides the other way.
@@ -19,7 +19,7 @@ Fixes, labels, column order, control layout, and copy changes are not capabiliti
 - **Who:** A signed-in dealership user on the DMS page. The document does not distinguish manager from staff.
 - **Trigger:** The user opens the DMS list.
 - **Expected outcome:** Three added columns. **Sold by** lists who sold the vehicle. **Sold to** lists the customer who bought it. **Date sold** lists the day it was sold.
-- **Inputs / outputs:** No new input. Output is three list columns. The document has a heading “Where columns should go” and does not state the position in text.
+- **Inputs / outputs:** No new input. Output is three list columns. The document has a caption (not a heading) “Where columns should go” under an unmarked screenshot, and does not state the position in text or in the picture.
 - **Acceptance hint:** None beyond those three sentences.
 - **Coverage:**
   - **Sold by — silent.** Sell stores a date and a price only (`design/14-Backend-API-Contract.md` §4.5). No seller field is defined. The sell audit actor is not specified as a column.
@@ -66,7 +66,7 @@ Fixes, labels, column order, control layout, and copy changes are not capabiliti
 - **Expected outcome:** Leads tied to that sale are closed automatically, and “the appropriate label” is applied to the customers tied to the lead.
 - **Inputs / outputs:** Input is the sale (and, by item 1.3, a customer). Output is closed leads plus a label. The label text, which leads match (same vehicle, same customer, or both), and whether the label is a lead stage or a customer flag are not stated.
 - **Acceptance hint:** “This will increase integration between the systems of the site.” No example label is given.
-- **Coverage:** **Conflicts** with the decision that a won lead does not sell the vehicle and the sale does not set the lead stage (`design/21-Feature-Extensions.md` §3; `design/14-Backend-API-Contract.md` §5.5: “`WON` does not sell the vehicle or link it”). Closed leads reject further stage changes with `409 LEAD_CLOSED`. Auto-close itself is **silent**.
+- **Coverage:** **Silent.** The cited rules cover only the other direction: a won lead does not sell the vehicle (`design/21-Feature-Extensions.md` §3; `design/14-Backend-API-Contract.md` §5.5: “`WON` does not sell the vehicle or link it”). No rule forbids a sale from closing leads. Closed leads reject further stage changes with `409 LEAD_CLOSED`, which only matters for leads already closed.
 - **Ambiguous:** “Label applied to the customers” may mean a lead stage (`WON` / `LOST`) or something stored on the customer. The document does not choose.
 
 ---
@@ -80,7 +80,7 @@ Fixes, labels, column order, control layout, and copy changes are not capabiliti
 - **Expected outcome:** Sales information can be viewed for the current day, week, month, and year. Each period is an option, on the sales report and in the dashboard sales section.
 - **Inputs / outputs:** Input is one of those four period options. Output is “sales information” for that period. Measures are not listed.
 - **Acceptance hint:** None beyond that request. It is under **Client Requests** and is marked urgent.
-- **Coverage:** **Silent** for a day / week / month / year control. Nearby figures that already exist are not those four options: the dashboard shows sales this month and total sales (`design/21-Feature-Extensions.md` DASH-01); the vehicle sales report returns overall totals plus the twelve most recent months that had a sale (`design/14-Backend-API-Contract.md` vehicle sales report; `requirements/DealerOps-Requirements.md` CRM-15). Neither endpoint takes a period parameter.
+- **Coverage:** **Silent** for a day / week / month / year control. Nearby figures that already exist are not those four options: the dashboard shows sales this month and total sales (`design/21-Feature-Extensions.md` DASH-01); the vehicle sales report returns overall totals plus the twelve most recent months that had a sale (`design/14-Backend-API-Contract.md` §4.3b; `requirements/DealerOps-Requirements.md` CRM-15). Neither endpoint takes a period parameter.
 - **Ambiguous:** “More information” on an existing sales report could mean new filters on the current month buckets. Day, week, and year are not in that report.
 
 ### 2.2 A list of sales employees and their sales metrics
@@ -90,7 +90,7 @@ Fixes, labels, column order, control layout, and copy changes are not capabiliti
 - **Expected outcome:** A list of all sales employees and their sales metrics.
 - **Inputs / outputs:** No filter is described. Output is one row per sales employee with unspecified metrics.
 - **Acceptance hint:** None. “Sales employees” is not defined.
-- **Coverage:** **Silent.** Membership roles are manager and staff, not a sales role (`design/15-Data-Auth-and-Gateway.md` §2.5; `design/21-Feature-Extensions.md` AUTH-26). The sales report is dealership-wide and has no employee breakdown. Work-order settlement has per-assignee counts (`design/21-Feature-Extensions.md` WO-08); that is workshop work, not vehicle sales.
+- **Coverage:** **Silent.** Membership roles are manager and staff, not a sales role (`design/15-Data-Auth-and-Gateway.md` §2.5; `design/21-Feature-Extensions.md` AUTH-26). A `SALES` membership role now exists (`requirements/iteration-2/CR-Role-Hierarchy-2026-11-03.md`), but it does not define this list: the report stays unfiltered by role, and an owner or manager who sells a vehicle still appears (§5 of that spec). The sales report is dealership-wide and has no employee breakdown. Work-order settlement has per-assignee counts (`design/21-Feature-Extensions.md` WO-08); that is workshop work, not vehicle sales.
 - **Ambiguous:** The document does not say whether every staff member is a sales employee, or only people who have sold a vehicle. It also does not say which metrics (units, revenue, profit, or something else).
 
 ---
@@ -105,6 +105,7 @@ Fixes, labels, column order, control layout, and copy changes are not capabiliti
 - **Inputs / outputs:** Input is the staff member to promote. Output is that person becoming a manager. Demotion, confirmation, and whether a manager can promote another manager are not stated.
 - **Acceptance hint:** None. This is a client request and is marked urgent.
 - **Coverage:** **Conflicts.** Only the platform admin changes a dealership role (`design/21-Feature-Extensions.md` AUTH-26; `design/14-Backend-API-Contract.md` §3.7b: “no dealer user can change a role”; `design/15-Data-Auth-and-Gateway.md` §2.5; `requirements/DealerOps-Requirements.md` roles paragraph).
+- **Resolution (2026-11-03):** granted, but narrowed — a manager may promote a **sales** member to manager only, and cannot act on the owner or another manager (`requirements/iteration-2/CR-Role-Hierarchy-2026-11-03.md` §2).
 - **Ambiguous:** No. The sentence is a new permission. The screen and the exact action are not named.
 
 ### 3.2 A manager edits certain employee information
@@ -114,7 +115,8 @@ Fixes, labels, column order, control layout, and copy changes are not capabiliti
 - **Expected outcome:** The manager can edit “certain employee information”.
 - **Inputs / outputs:** The document does not list the fields.
 - **Acceptance hint:** None.
-- **Coverage:** **Silent** for a manager editing another person’s account. A manager can remove a staff member and edit the dealership profile (`design/14-Backend-API-Contract.md` §5.8). Account contact edits that exist are self-service (`displayName` and `phone` on `PATCH /me`, `design/14-Backend-API-Contract.md` §2.1) or admin password reset (`design/14-Backend-API-Contract.md` §3.7a). Binding an existing account does not change its contact fields (`design/14-Backend-API-Contract.md` §3.6).
+- **Coverage:** **Silent** for a manager editing another person’s account. A manager can remove a staff member and edit the dealership profile (`design/14-Backend-API-Contract.md` §5.8). Account contact edits that exist are self-service (`displayName` and `phone` on `PATCH /me`, `design/14-Backend-API-Contract.md` §2.1) or admin password reset (`design/14-Backend-API-Contract.md` §3.7a). Changing a member’s dealership role is admin-only (`design/14-Backend-API-Contract.md` §3.7b). Binding an existing account does not change its contact fields (`design/14-Backend-API-Contract.md` §3.6).
+- **Resolution (2026-11-03):** the editable fields are full name and phone. A manager may edit them for a **sales** member only; the owner may edit them for any member below owner. Sign-in email, account deletion and pending accounts stay with the platform admin (`requirements/iteration-2/CR-Role-Hierarchy-2026-11-03.md` §3 and §5a).
 - **Ambiguous:** “Certain” is undefined. If the intended edit is the role, it is item 3.1 and **conflicts** with AUTH-26. This item is not specific enough to implement.
 
 ### 3.3 Members column for when the member joined
@@ -145,6 +147,7 @@ Fixes, labels, column order, control layout, and copy changes are not capabiliti
 - **Inputs / outputs:** None. The capabilities are not listed.
 - **Acceptance hint:** “This functionality is optional and should likely be discussed further with the client before full implementation occurs.”
 - **Coverage:** **Silent** as a role, and **conflicts** with the current three-level model if it is added as specified. Dealership membership is only `MANAGER` or `STAFF`, both are `Dealer.User`, and only the platform admin changes a role (`design/15-Data-Auth-and-Gateway.md` §2.5; `design/21-Feature-Extensions.md` AUTH-26). Platform admin is refused on dealer business APIs (`design/14-Backend-API-Contract.md` §4 and the contract overview). The same change document later says a platform admin must not be able to open a dealership’s customer and vehicle data.
+- **Resolution (2026-11-03):** the three names mean one role, built as the dealership **Owner**: a third `dealer_role` value, not a third JWT role, with no cross-dealership reach. Its powers are the dealership profile, join-request approval, appointing and removing managers and sales, editing a below-owner member's full name and phone, and the dealership audit log; one active owner per dealership, bound by the platform admin. See `requirements/iteration-2/CR-Role-Hierarchy-2026-11-03.md`.
 - **Ambiguous:** Optional and explicitly not ready to implement. “Like the platform admin” clashes with an owner who would work inside one dealership’s data. The document does not say which admin actions this role gets. The privilege list is more definite than the “discuss first” sentence.
 
 ---
@@ -234,7 +237,7 @@ Fixes, labels, column order, control layout, and copy changes are not capabiliti
   - Platform admin Members: Dealership, Role, Sign-in, Status.
   - Manager audit menus: Action, Actor, When.
 - **Inputs / outputs:** Input is the chosen column and, though not stated, a direction. Output is the same table reordered. Record format is “type followed by number”.
-- **Acceptance hint:** The client named the DMS columns; the author added the others from screenshots and wrote that further sortable columns may be added if they seem useful. That invitation is not a requirement.
+- **Acceptance hint:** The client mentioned DMS columns; the author added other places from screenshots and wrote that further sortable columns may be added if they seem useful. That invitation is not a requirement. The document does not say which listed columns, on DMS or elsewhere, came from the client and which from the author (see CR-011 in `requirements/iteration-2/analysis/01-change-inventory.md`).
 - **Coverage:** **Silent.** List order is fixed: vehicles default to `createdAt` descending with no `sort` parameter (`design/14-Backend-API-Contract.md` §4.1); leads are newest first (§5.5); members are sorted by username (§5.6); audit reads are newest first (§9). `design/12-Frontend-UI-Conventions.md` does not specify column sorting.
 - **Ambiguous:** Sorting is new interaction on existing tables, not a new business record. “Any user account” on Team **conflicts** with Team being manager-only (`design/15-Data-Auth-and-Gateway.md` §2.5). Staff have no audit menu (`design/14-Backend-API-Contract.md` §9.1, AUD-17). Date Added on Members depends on item 3.3, which is silent.
 
@@ -245,8 +248,8 @@ Fixes, labels, column order, control layout, and copy changes are not capabiliti
 - **Expected outcome:** Matching rows are returned. The example says searching “password” finds all login requests made with passwords. Admin audit search options and columns should also share one order, and partial searches should return results. Column order and unlabeled day pickers are layout fixes, not separate capabilities.
 - **Inputs / outputs:** Input is search text, illustrated by “password”. Output is the matching audit rows. Fields searched, match type, and empty results are not specified, except that partial admin-audit searches should hit.
 - **Acceptance hint:** The “password” example is the only concrete check in the document.
-- **Coverage:** **Silent** for text search of the change. Dealership and admin audit filters are `entityType`, `entityId`, `action`, `actor` (exact username), optional `dealerId` on the admin log, and `from` / `to` (`design/14-Backend-API-Contract.md` §9.2, §9.3). There is no query over `fieldSummary`. `LOGIN` and `LOGIN_FAILED` exist as actions (§9). The example **conflicts** with the rule that a password is never logged or returned (`design/14-Backend-API-Contract.md` §3.7a).
-- **Ambiguous:** Partial match on the existing actor filter is a change to current search behavior (the document says partial user searches on Team activity return nothing). Text search of the change itself is the new capability. The password example cannot be satisfied from audit content as the design stands.
+- **Coverage:** **Silent** for text search of the change. Dealership and admin audit filters are `entityType`, `entityId`, `action`, `actor` (exact username), optional `dealerId` on the admin log, and `from` / `to` (`design/14-Backend-API-Contract.md` §9.2, §9.3). There is no query over `fieldSummary`. `LOGIN` and `LOGIN_FAILED` exist as actions (§9), and each sign-in row records the sign-in method (`design/14-Backend-API-Contract.md` §1.4), stored as `{"method":"password"}` for a password sign-in (`backend/dotnet/DealerOps.Core/Dealer/AuthService.cs`). The example is therefore feasible: it matches the method word, not a password value, so it does not touch the rule that a password is never logged (§3.7a).
+- **Ambiguous:** Partial match on the existing actor filter is a change to current search behavior (the document says partial user searches on Team activity return nothing). Text search of the change itself is the new capability.
 
 ### 5.3 A stock-number search box on DMS
 
@@ -285,8 +288,8 @@ Fixes, labels, column order, control layout, and copy changes are not capabiliti
 - **Expected outcome:** One table of current requests that still need approval or rejection, and a second table of past requests that were approved or rejected.
 - **Inputs / outputs:** No new decision action. Output is the same requests split by whether they are still open. Columns are not restated here; the sort list names Requested, Status, and Resolved.
 - **Acceptance hint:** None beyond the two-table split.
-- **Coverage:** The pending list is **already-covered** (`GET /api/v1/dealer/join-requests` returns unbound accounts that requested this dealership, `design/14-Backend-API-Contract.md` §5.7). A history of resolved join notifications is **already-covered** on the notification feed (`includeResolved=true`, `resolvedAction` of `APPROVED`, `REJECTED`, or `CANCELLED`, same section), not as a second table on Team > Join requests. That second table is **silent**.
-- **Ambiguous:** The document presents this as a split of a list that “lists every single request”, which is a layout change if past rows are already on that page. The design’s join-request collection itself does not include resolved rows, so a past table would be new on that page.
+- **Coverage:** Pending and past requests on that page are **already-covered**. Team > Join requests shows the join-request history from `GET /api/v1/dealer/notifications?includeResolved=true`, with resolved rows showing the outcome, who settled it, and when (`design/13-Frontend-Engineering.md` `/team` route row; `frontend/react/src/pages/TeamPage.tsx`; `resolvedAction` of `APPROVED`, `REJECTED`, or `CANCELLED` in `design/14-Backend-API-Contract.md` §5.7). Showing them as two stacked tables **conflicts** with “one table per page, tab, or drawer view … never stack two tables on one screen” (`design/12-Frontend-UI-Conventions.md` §1). The rule’s own remedy is a second tab, so a waiting / past tab split satisfies the request.
+- **Ambiguous:** No new data. This is a layout change: the document’s “lists every single request” matches the current combined history.
 
 ---
 
@@ -299,7 +302,7 @@ Fixes, labels, column order, control layout, and copy changes are not capabiliti
 - **Expected outcome:** The admin cannot bind an account directly. The admin can only send a join request to the dealership. The stated reason is that a direct bind would let the admin create an account and then open that dealership’s customer and vehicle data, which the client does not want.
 - **Inputs / outputs:** Input is the account and the target dealership. Output is a join request the dealership must handle. Who approves it is not restated; existing join requests are approved by a manager.
 - **Acceptance hint:** The security sentence is the rationale, not a test script.
-- **Coverage:** **Conflicts** with the admin bind. Pending accounts are added with `POST /api/v1/admin/dealers/{id}/members` without a password (`design/14-Backend-API-Contract.md` §3.6 and §3.8; `design/15-Data-Auth-and-Gateway.md` §2.5 and the “Issuing access” row). An applicant’s own join request is **already-covered** (`POST /api/v1/me/join-request`, `design/14-Backend-API-Contract.md` §5.7). An admin action that sends that request is **silent**. Admin calls to vehicle and customer APIs are already refused (`design/14-Backend-API-Contract.md` §4).
+- **Coverage:** **Conflicts** with the admin bind. Pending accounts are added with `POST /api/v1/admin/dealers/{id}/members` without a password (`design/14-Backend-API-Contract.md` §3.6 and §3.8; `design/15-Data-Auth-and-Gateway.md` §2.5 and the “Issuing access” row in §8.2). An applicant’s own join request is **already-covered** (`POST /api/v1/me/join-request`, `design/14-Backend-API-Contract.md` §5.7). An admin action that sends that request is **silent**. Admin calls to vehicle and customer APIs are already refused (`design/14-Backend-API-Contract.md` §4).
 - **Ambiguous:** The document forbids direct bind and also says the admin must not reach customer and vehicle data. The design already blocks the admin on those APIs, so the new part is replacing bind with a join request. It does not say whether admin-created staff accounts inside a dealership also stop.
 
 ### 6.2 Remove a pending account
@@ -377,7 +380,7 @@ Fixes, labels, column order, control layout, and copy changes are not capabiliti
 - **Expected outcome:** The visitor can search for dealerships. Each dealership on that page lists its address and some contact information.
 - **Inputs / outputs:** The search input is not defined (name, city, or something else). Output is a filtered directory, plus address and contact on each card. Which contact fields are “some” is not stated.
 - **Acceptance hint:** None.
-- **Coverage:** Directory search is **silent**. `GET` of active dealerships for the buyer-site directory returns id, legal name, slug, logo flag, and in-stock and sold counts, sorted by legal name, with no search parameter (`design/14-Backend-API-Contract.md` public dealer list near §4.6; `design/21-Feature-Extensions.md` SHOP-01). Address and contact on the directory cards are **silent**. The dealership’s own shop page already shows contact details (`design/21-Feature-Extensions.md` SHOP-01; inventory payload includes `contactPhone`, `contactEmail`, and `contactAddress` in `design/14-Backend-API-Contract.md` public inventory).
+- **Coverage:** Directory search is **silent**. `GET` of active dealerships for the buyer-site directory returns id, legal name, slug, logo flag, and in-stock and sold counts, sorted by legal name, with no search parameter (`design/14-Backend-API-Contract.md` §4.6.2, `GET /api/v1/catalog/dealers`; `design/21-Feature-Extensions.md` SHOP-01). Address and contact on the directory cards are **silent**. The dealership’s own shop page already shows contact details (`design/21-Feature-Extensions.md` SHOP-01; inventory payload includes `contactPhone`, `contactEmail`, and `contactAddress` in `design/14-Backend-API-Contract.md` public inventory).
 - **Ambiguous:** “Some contact information” does not choose phone, email, or both. Search fields are unnamed.
 
 ### 8.2 Search one dealership’s inventory
@@ -394,4 +397,4 @@ Fixes, labels, column order, control layout, and copy changes are not capabiliti
 
 ## Not counted as new capabilities
 
-The rest of the document is a fix or a change to an existing control. It is outside this note, including: unique full-name blocking account create; unsaved-change and lead-close confirmation; unlabeled day pickers; search-control order; removing DMS Make and Model boxes; a typeable Year; splitting the make list into major brands and all brands; limiting model years to the selected vehicle; moving the VIN box; restyling Customer and Vehicle of interest; partial member-name search; prefilling the lead owner; renaming display name to full name; a clearer username error; sample ads linking to sign-up; a stronger “for dealerships” home-page message; dropping the word “used” on the shop; a back button; and showing the inquiry character limit as the user approaches it. The inquiry limit of 1–1000 characters is already specified (`design/21-Feature-Extensions.md` SHOP-04).
+The rest of the document is a fix or a change to an existing control. It is outside this note, including: unique full-name blocking account create; unsaved-change and lead-close confirmation; unlabeled day pickers; search-control order; removing DMS Make and Model boxes; a typeable Year; splitting the make list into major brands and all brands; limiting model years to the selected vehicle; moving the VIN box; changing how the Add lead Customer and Vehicle of interest boxes behave so they work like the Leads list type-ahead; prefilling the lead owner; renaming display name to full name; a clearer username error; sample ads linking to sign-up; a stronger “for dealerships” home-page message; dropping the word “used” on the shop; a back button; and showing the inquiry character limit as the user approaches it. The inquiry limit of 1–1000 characters is already specified (`design/21-Feature-Extensions.md` SHOP-04).

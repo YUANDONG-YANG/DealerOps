@@ -8,7 +8,7 @@ import { SortableTh, useSort } from '../components/TableSort';
 import { auditApi } from '../api/audit';
 import { joinRequestsApi } from '../api/joinRequests';
 import {
-  accountSourceLabel, memberLabel, membersApi, teamApi, type DealerProfileBody, type MemberOption, type MemberPatchBody,
+  accountSourceLabel, memberLabel, membersApi, teamApi, type DealerProfileBody, type MemberPatchBody, type MemberRecord,
 } from '../api/members';
 import type { DealerRole } from '../api/me';
 import { SUGGEST_LIMIT, matchesAny } from '../components/SearchSuggest';
@@ -43,7 +43,7 @@ function statusLabel(n: Notification): { text: string; className: string } {
 }
 
 // Sort values of the Members and Join request tables: what the column shows, dates as ISO text.
-function memberSortValue(m: MemberOption, key: string) {
+function memberSortValue(m: MemberRecord, key: string) {
   if (key === 'dealerRole') return enumLabel(m.dealerRole);
   if (key === 'source') return accountSourceLabel(m.source);
   return m.joinedAt;
@@ -55,6 +55,9 @@ function requestSortValue(r: JoinRequestRow, key: string) {
   return r.createdAt;
 }
 
+/** Role chip colour: the owner stands out, a manager is highlighted, sales keeps the plain chip. */
+const ROLE_TAG: Record<DealerRole, string> = { OWNER: 'tag-success', MANAGER: 'tag-info', SALES: '' };
+
 const PROFILE_FIELDS:{ key: 'legalName' | 'contactPhone' | 'contactEmail' | 'contactAddress'; label: string }[] = [
   { key: 'legalName', label: 'Legal name' },
   { key: 'contactPhone', label: 'Contact phone' },
@@ -63,23 +66,31 @@ const PROFILE_FIELDS:{ key: 'legalName' | 'contactPhone' | 'contactEmail' | 'con
 ];
 
 /**
- * The manager's page (AUTH-27), four tabs: this dealership's join requests
+ * The team page (AUTH-27), open to the dealership's owner and managers.
+ *
+ * The owner sees four tabs: this dealership's join requests
  * (GET /api/v1/dealer/notifications?includeResolved=true) split into Pending, with Approve / Reject,
- * and History; its members with their dealership role and joined date, where a manager edits
- * another member's full name and phone, changes their role between Manager and Staff, and removes
- * staff; the dealership profile that ads, the bill of sale and the buyer site show; and the
- * dealership's audit log (GET /api/v1/dealer/audit, AUD-11).
+ * and History; its members with their dealership role and joined date; the dealership profile that
+ * ads, the bill of sale and the buyer site show; and the dealership's audit log
+ * (GET /api/v1/dealer/audit, AUD-11).
+ *
+ * A manager sees Members and Activity only: the dealership profile and the join requests, with their
+ * approve / reject actions, are the owner's. On the members table the owner acts on every member
+ * below owner, a manager only on sales members, and nobody on the owner row or their own row.
  */
 export default function TeamPage() {
   const setProfile = useSessionStore((s) => s.setProfile);
+  const isOwner = useSessionStore((s) => s.dealerRole === 'OWNER');
   const [rows, setRows] = useState<JoinRequestRow[]>([]);
-  const [members, setMembers] = useState<MemberOption[]>([]);
-  const [tab, setTab] = useState<'requests' | 'members' | 'profile' | 'activity'>('requests');
-  const [removeTarget, setRemoveTarget] = useState<MemberOption | null>(null);
+  const [members, setMembers] = useState<MemberRecord[]>([]);
+  // Join requests are the owner's, so a manager opens on Members.
+  const [tab, setTab] = useState<'requests' | 'members' | 'profile' | 'activity'>(isOwner ? 'requests' : 'members');
+  const [removeTarget, setRemoveTarget] = useState<MemberRecord | null>(null);
   const signedInUser = useSessionStore((s) => s.username);
-  const [roleTarget, setRoleTarget] = useState<{ member: MemberOption; role: DealerRole } | null>(null);
-  const [editTarget, setEditTarget] = useState<MemberOption | null>(null);
+  const [roleTarget, setRoleTarget] = useState<{ member: MemberRecord; role: DealerRole } | null>(null);
+  const [editTarget, setEditTarget] = useState<MemberRecord | null>(null);
   const [editForm, setEditForm] = useState<MemberPatchBody>({ displayName: '', phone: null });
+  const editBaseline = useFormBaseline(editForm);
   const [editErrors, setEditErrors] = useState<Record<string, string>>({});
   const [editSaving, setEditSaving] = useState(false);
   const [dealer, setDealer] = useState<DealerProfileBody | null>(null);
@@ -97,11 +108,16 @@ export default function TeamPage() {
   async function load() {
     setLoading(true); setError('');
     try {
-      const [list, memberList, profile] = await Promise.all([notificationsApi.list(true), membersApi.list(), teamApi.profile()]);
+      // The dealership profile is owner-only, so a manager never asks for it.
+      const [list, memberList, profile] = await Promise.all([
+        notificationsApi.list(true),
+        membersApi.listRecords(),
+        isOwner ? teamApi.profile() : Promise.resolve(null),
+      ]);
       setRows(list.filter(isJoinRequest));
       setMembers(memberList.data);
       setDealer(profile);
-      profileBaseline.reset(profile);
+      if (profile) profileBaseline.reset(profile);
     } catch (err) {
       setError(describeError(err, 'load join requests'));
     } finally {
@@ -122,7 +138,7 @@ export default function TeamPage() {
       if (verb === 'approve') await joinRequestsApi.approve(username);
       else await joinRequestsApi.reject(username);
     } catch (err) {
-      // Already resolved elsewhere (the header inbox or another manager): just refresh the list.
+      // Already resolved elsewhere (the header inbox or the platform admin): just refresh the list.
       const gone = statusOf(err) === 404 || codeOf(err) === 'NOT_FOUND';
       if (!gone) setError(describeError(err, `${verb} the request`));
     } finally {
@@ -157,9 +173,19 @@ export default function TeamPage() {
     await load();
   }
 
-  function openEdit(m: MemberOption) {
+  /**
+   * Whether the signed-in member may edit, re-role and remove this row: the owner acts on every
+   * member below owner, a manager only on sales members, and nobody on the owner row.
+   */
+  function canActOn(m: MemberRecord) {
+    if (m.dealerRole === 'OWNER') return false;
+    return isOwner || m.dealerRole === 'SALES';
+  }
+
+  function openEdit(m: MemberRecord) {
     setEditTarget(m);
-    setEditForm({ displayName: m.displayName, phone: m.phone });
+    const values = { displayName: m.displayName, phone: m.phone };
+    setEditForm(values); editBaseline.reset(values);
     setEditErrors({});
   }
 
@@ -224,14 +250,22 @@ export default function TeamPage() {
       <header className="page-header">
         <div>
           <h1>Team</h1>
-          <p className="muted">Join requests to this dealership, its members, its profile and its activity. New members join as staff; a manager can make another member a manager or staff.</p>
+          <p className="muted">
+            {isOwner
+              ? 'Join requests to this dealership, its members, its profile and its activity. New members join as sales; the owner appoints managers and sales.'
+              : 'This dealership\'s members and its activity. New members join as sales; a manager can make a sales member a manager.'}
+          </p>
         </div>
       </header>
 
       <div className="tab-bar">
-        <button className={`tab-btn ${tab === 'requests' ? 'active' : ''}`} onClick={() => setTab('requests')}>Join requests</button>
+        {isOwner && (
+          <button className={`tab-btn ${tab === 'requests' ? 'active' : ''}`} onClick={() => setTab('requests')}>Join requests</button>
+        )}
         <button className={`tab-btn ${tab === 'members' ? 'active' : ''}`} onClick={() => setTab('members')}>Members</button>
-        <button className={`tab-btn ${tab === 'profile' ? 'active' : ''}`} onClick={() => setTab('profile')}>Dealership profile</button>
+        {isOwner && (
+          <button className={`tab-btn ${tab === 'profile' ? 'active' : ''}`} onClick={() => setTab('profile')}>Dealership profile</button>
+        )}
         <button className={`tab-btn ${tab === 'activity' ? 'active' : ''}`} onClick={() => setTab('activity')}>Activity</button>
       </div>
 
@@ -247,7 +281,7 @@ export default function TeamPage() {
       ) : loading ? (
         <div className="state">Loading…</div>
       ) : tab === 'profile' ? (
-        dealer && (
+        isOwner && dealer && (
           <form className="card" style={{ maxWidth: 560 }} onSubmit={requestProfileSave}>
             {PROFILE_FIELDS.map(f => (
               <div className="form-item" key={f.key}>
@@ -285,24 +319,24 @@ export default function TeamPage() {
               <tr key={m.username}>
                 <td style={{ whiteSpace: 'nowrap' }}>{m.displayName}</td>
                 <td>{m.username}</td>
-                <td><span className={`tag ${m.dealerRole === 'MANAGER' ? 'tag-success' : ''}`}>{enumLabel(m.dealerRole)}</span></td>
+                <td><span className={`tag ${ROLE_TAG[m.dealerRole]}`}>{enumLabel(m.dealerRole)}</span></td>
                 <td><span className="tag">{accountSourceLabel(m.source)}</span></td>
                 <td style={{ whiteSpace: 'nowrap' }}>{dateTimeLocal(m.joinedAt)}</td>
                 <td style={{ whiteSpace: 'nowrap' }}>
-                  <button type="button" className="btn-link" onClick={() => openEdit(m)}>Edit</button>
                   {m.username === signedInUser ? (
-                    <span className="muted" style={{ marginLeft: 12 }}>You</span>
-                  ) : (
+                    <span className="muted">You</span>
+                  ) : canActOn(m) ? (
                     <>
+                      <button type="button" className="btn-link" onClick={() => openEdit(m)}>Edit</button>
                       <button type="button" className="btn-link" style={{ marginLeft: 12 }}
-                        onClick={() => setRoleTarget({ member: m, role: m.dealerRole === 'MANAGER' ? 'STAFF' : 'MANAGER' })}>
-                        {m.dealerRole === 'MANAGER' ? 'Make staff' : 'Make manager'}
+                        onClick={() => setRoleTarget({ member: m, role: m.dealerRole === 'MANAGER' ? 'SALES' : 'MANAGER' })}>
+                        {m.dealerRole === 'MANAGER' ? 'Make sales' : 'Make manager'}
                       </button>
-                      {m.dealerRole === 'STAFF' && (
-                        <button type="button" className="btn-link danger" style={{ marginLeft: 12 }}
-                          onClick={() => setRemoveTarget(m)}>Remove</button>
-                      )}
+                      <button type="button" className="btn-link danger" style={{ marginLeft: 12 }}
+                        onClick={() => setRemoveTarget(m)}>Remove</button>
                     </>
+                  ) : (
+                    <span className="muted">{m.dealerRole === 'OWNER' ? 'Owner, set by the platform admin' : 'Owner only'}</span>
                   )}
                 </td>
               </tr>
@@ -417,20 +451,20 @@ export default function TeamPage() {
         )}
         </>
       )}
-    <ConfirmDialog open={removeTarget != null} title="Remove staff member" confirmLabel="Remove"
+    <ConfirmDialog open={removeTarget != null} title="Remove member" confirmLabel="Remove"
       message={`Remove ${removeTarget?.username ?? ''} from this dealership? They lose access to its data right away. The account is kept, and it can ask to join again.`}
       onCancel={() => setRemoveTarget(null)} onConfirm={removeMember} />
     <ConfirmDialog open={roleTarget != null}
-      title={roleTarget?.role === 'MANAGER' ? 'Make manager' : 'Make staff'}
-      confirmLabel={roleTarget?.role === 'MANAGER' ? 'Make manager' : 'Make staff'}
+      title={roleTarget?.role === 'MANAGER' ? 'Make manager' : 'Make sales'}
+      confirmLabel={roleTarget?.role === 'MANAGER' ? 'Make manager' : 'Make sales'}
       message={roleTarget?.role === 'MANAGER'
-        ? `Make ${roleTarget.member.username} a manager? Managers run the team, join requests and the dealership profile.`
-        : `Make ${roleTarget?.member.username ?? ''} staff? They lose access to the Team page.`}
+        ? `Make ${roleTarget.member.username} a manager? Managers open the Team page, appoint sales members and see the dealership activity.`
+        : `Make ${roleTarget?.member.username ?? ''} a sales member? They lose access to the Team page.`}
       onCancel={() => setRoleTarget(null)} onConfirm={changeRole} />
     <ConfirmDialog open={confirmProfileSave} title="Save dealership profile" confirmLabel="Save"
       message="Save changes to the dealership profile?"
       onCancel={() => setConfirmProfileSave(false)} onConfirm={() => void saveProfile()} />
-    <FormDrawer title={`Edit ${editTarget?.username ?? ''}`} open={editTarget != null} onClose={() => setEditTarget(null)}>
+    <FormDrawer title={`Edit ${editTarget?.username ?? ''}`} open={editTarget != null} dirty={editBaseline.dirty} onClose={() => setEditTarget(null)}>
       <form onSubmit={saveMember}>
         <div className="form-item">
           <label className="form-label form-required" htmlFor="member-displayName">Full name</label>

@@ -7,6 +7,8 @@ export default defineConfig({
   timeout: 30_000,
   expect: { timeout: 10_000 },
   fullyParallel: true,
+  // Six of the eight logical cores; the remaining two stay free for core, the gateway and Vite.
+  workers: process.env.CI ? undefined : 6,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
   reporter: [

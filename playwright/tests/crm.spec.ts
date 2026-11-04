@@ -12,7 +12,8 @@ test('staff creates a customer and finds it by search', async ({ staffPage: page
   await drawer.getByLabel('Name').fill(name);
   await drawer.getByLabel('Email').fill(`e2e.${stamp}@example.com`);
   await drawer.getByLabel('Phone').fill(`+1403${stamp.slice(-7)}`);
-  await drawer.getByLabel('Home address').fill('1 Test Street, Calgary, AB');
+  // An address of its own: the drawer's duplicate check (R4) asks to confirm a shared one.
+  await drawer.getByLabel('Home address').fill(`${stamp} Test Street, Calgary, AB`);
 
   const created = page.waitForResponse(
     (r) => r.url().includes('/api/v1/customers') && r.request().method() === 'POST',

@@ -1,12 +1,12 @@
 # Change inventory
 
-Source: `requirements/update-cr/Changes Document.docx`
+Source: `requirements/iteration-2/Changes Document.docx`
 
 This file inventories that document only. It does not compare the document to the product, the design docs, or the code. Nothing below is added from outside the document. Wording that is awkward or incomplete is quoted as printed.
 
-The document does not classify items as new, modified, removed, or clarified. Where the author uses a marker, it is recorded as **Author marker**. **Change type** is filled only when the sentence itself says the behavior is removed, optional, a replacement, or an interim removal. Otherwise the change type is not stated.
+The document does not classify items as new, modified, removed, or clarified. Where the author uses a marker, it is recorded as **Author marker**. Items CR-001 through CR-020 carry no inline marker; their "Client request" entry comes from the "Client Requests" section heading. **Change type** is filled only when the sentence itself says the behavior is removed, optional, a replacement, or an interim removal. Otherwise the change type is not stated.
 
-Embedded screenshots illustrate the current screens. They are not separate requirements. A screenshot is described only where the document uses it to state placement or a comparison that the sentence does not spell out. The file contains 70 pictures. It contains no tables, no headers, no footers, and no comments.
+Embedded screenshots illustrate the current screens. They are not separate requirements. A screenshot is described only where the document uses it to state placement or a comparison that the sentence does not spell out. The file contains 70 picture placements but 69 distinct images: one image (relationship `rId29`, `image25`) is placed twice, under CR-024 and under CR-041. It contains no tables, no headers, no footers, and no comments.
 
 ## Document identity
 
@@ -51,7 +51,7 @@ Items follow document order. Identifiers CR-001 through CR-068 are assigned here
 - **Author marker:** Client request
 - **Change type:** Not stated
 - **Source:** "The client has requested that the DMS page contain more columns." The columns are a numbered list: "Sold by – this column should list who sold the vehicle"; "Sold to – this column should list the customer who bought the vehicle"; "Date sold – this column should list the day the vehicle was sold."
-- **Placement:** The following screenshot is captioned "Where columns should go." It shows the DMS vehicle-inventory table with a red arrow marking the gap between the Stock # and Body columns.
+- **Placement:** The following screenshot is captioned "Where columns should go." It shows the current DMS vehicle-inventory table with no marks on it. The document does not show or state where the new columns go.
 
 #### CR-002
 
@@ -135,6 +135,8 @@ Items follow document order. Identifiers CR-001 through CR-068 are assigned here
   5. User not logged in
 
   The privilege list is not given its own change marker.
+
+- **Resolution (2026-11-03):** this optional role was decided and built as a single dealership **Owner** tier, so `DealerRole` is now `{ Owner, Manager, Sales }`. See `requirements/iteration-2/CR-Role-Hierarchy-2026-11-03.md`. The entry above still records the document as written.
 
 #### CR-011
 
@@ -359,7 +361,7 @@ Items follow document order. Identifiers CR-001 through CR-068 are assigned here
 - **Author marker:** Change (same search-box passage)
 - **Change type:** Not stated
 - **Source:** "The “Customer” and “Vehicle of interest” boxes are confusing and difficult to use, I suggest making the boxes similar to that seen in the leads menu (see screenshot)."
-- **Illustration:** The attached screenshots show the Add Lead form (Customer, and Vehicle of interest) and the Leads page search. The document does not describe the target interaction beyond that comparison.
+- **Illustration:** Two screenshots follow. The first (`image36`) shows the current Customer and Vehicle of interest boxes on the Add Lead form. The second (`image37`) shows the type-ahead search on the Leads list, which is the "leads menu" behavior to copy. The document does not describe the target interaction beyond that comparison.
 
 #### CR-037
 
@@ -528,7 +530,7 @@ Items follow document order. Identifiers CR-001 through CR-068 are assigned here
 #### CR-057
 
 - **Section:** Site Fixes and Changes
-- **Statement:** Admins must be able to edit a pending account's email, phone, and username when the creation details were entered incorrectly.
+- **Statement:** Admins must be able to edit a pending account in some way, such as its email, phone, or username, when the creation details were entered incorrectly. The fields are an open "such as" list, not a closed set.
 - **Author marker:** Changes
 - **Change type:** Not stated
 - **Source:** "Changes: Pending accounts should be able to be edited in some way by admin, such as email, phone, username, in the event that account creation information was accidentally input incorrectly."
@@ -640,8 +642,8 @@ These are only the points the document itself states. They are not extra product
 
 ### Explicit discussion points and optional scope
 
-- Home-page account creation "being done a different way" still "need[s] to [be] discuss[ed] further with the client." Until then, "removing the button to create account from the home page will suffice." (CR-009)
-- The dealership admin/owner/regional-manager account "is optional and should likely be discussed further with the client before full implementation occurs." (CR-010)
+- Home-page account creation "being done a different way" is described as "this is something we need to discuss further with the client." Until then, "removing the button to create account from the home page will suffice." (CR-009)
+- The dealership admin/owner/regional-manager account "is optional and should likely be discussed further with the client before full implementation occurs." (CR-010) **Resolved 2026-11-03:** built as one Owner tier (`requirements/iteration-2/CR-Role-Hierarchy-2026-11-03.md`).
 - For sortable columns, the author writes: "if you feel any other columns that I haven’t listed should be sortable feel free to add that functionality." (CR-011)
 - Full-name clashes were found in three places, "but there may be more." (CR-021)
 - The search-box list "may not be all the boxes needing changes." (CR-029 through CR-040)
@@ -651,7 +653,7 @@ These are only the points the document itself states. They are not extra product
 ### Constraints and reasons the document gives
 
 - People share full names, so a used full name must not block account creation. (CR-021)
-- The author ranks privilege from most to least as: Platform admin; Dealership admin/owner/regional manager; Dealership manager; Dealership staff; User not logged in. (CR-010)
+- The author ranks privilege from most to least as: Platform admin; Dealership admin/owner/regional manager; Dealership manager; Dealership staff; User not logged in. (CR-010) This ladder was adopted on 2026-11-03 as Platform admin, Owner, Manager, Sales (`requirements/iteration-2/CR-Role-Hierarchy-2026-11-03.md` §1).
 - The client asked that platform admins not be able to "access a dealerships customer and vehicle database." The document gives that as the reason a platform admin may only send a join request. (CR-055)
 - Dealership-profile edits are called "a larger change" that should be confirmed before save. (CR-023)
 - Dealership deletion and user deletion are each "a more complex decision requiring at least one extra step to confirm." The document does not describe that step. (CR-060, CR-061)
@@ -664,7 +666,7 @@ The document does not call these open questions, and it does not resolve them:
 
 - Which employee fields a manager may edit. (CR-007)
 - Which sales metrics appear for each sales employee. (CR-005)
-- Which admin capabilities the optional dealership admin/owner/regional-manager account would have, beyond changing things for a single dealership "like the platform admin account." (CR-010)
+- Which admin capabilities the optional dealership admin/owner/regional-manager account would have, beyond changing things for a single dealership "like the platform admin account." (CR-010) **Answered 2026-11-03** by `requirements/iteration-2/CR-Role-Hierarchy-2026-11-03.md` §3 and §5a.
 - Which label is "the appropriate label" when a lead closes because the vehicle was sold. (CR-052)
 - Which contact details appear on the shop-page dealership list. (CR-066)
 - What the character limit is on "Ask about this vehicle." (CR-068)

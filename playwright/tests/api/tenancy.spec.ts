@@ -66,16 +66,19 @@ test('AUTH-09: a client-supplied dealerId is ignored', async ({ staffApi, rivalA
 });
 
 test('AT-04 / AUTH-05 / AUTH-13: removing a login ends business access but keeps the account', async ({
-  request, adminApi,
+  request, adminApi, staffApi,
 }) => {
   const dealers = await (await adminApi.get('/api/v1/admin/dealers', { q: env.dealerName })).json();
   const dealerId = dealers.items.find((d: { legalName: string }) => d.legalName === env.dealerName).id;
   const username = `e2e.tmp.${uniqueSuffix()}`;
   const password = 'temporary-pass-1';
 
+  // E2E Motors already has an owner, so the admin's bind files a join request that the owner
+  // (e2e.staff) approves; the member then joins as a sales member (CR role hierarchy §2).
   await expectStatus(await adminApi.post(`/api/v1/admin/dealers/${dealerId}/members`, {
     username, displayName: `E2E Temp ${username}`, email: `${username}@example.com`, password,
-  }), 201);
+  }), 202);
+  await expectStatus(await staffApi.post(`/api/v1/dealer/join-requests/${username}/approve`), 204);
 
   const member = await Api.as(request, username, password);
   await expectStatus(await member.get('/api/v1/vehicles'), 200);

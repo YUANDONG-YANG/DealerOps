@@ -23,5 +23,5 @@ public record MeResponse(
     string? FamilyName,
     string? AvatarUrl,
     string? Locale,
-    // MANAGER or STAFF inside the bound dealership; null for the admin and unbound users.
+    // OWNER, MANAGER or SALES inside the bound dealership; null for the admin and unbound users.
     DealerOps.Core.Dealer.DealerRole? DealerRole);

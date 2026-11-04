@@ -29,20 +29,20 @@ public class VehiclePaymentService
 
     /// <summary>
     /// Returns the vehicle's payments, newest first, with the paid total and balance due.
-    /// Manager only: staff record payments but do not see the ledger (PAY-05).
+    /// Owner and manager only: sales members record payments but do not see the ledger (PAY-05).
     /// </summary>
     public PaymentLedger Ledger(long vehicleId)
     {
         // Another dealership's vehicle stays 404 for every caller; only then is the role checked.
         var vehicle = LoadVehicle(vehicleId, TenantGuard.RequireTenantId());
-        TenantGuard.RequireManager();
+        TenantGuard.RequireTeamAccess();
         return ToLedger(vehicle);
     }
 
     /// <summary>
     /// Records a payment on a sold vehicle. The amount must not exceed the balance due and the
-    /// date must fall between the sold date and today. A manager gets the updated ledger back;
-    /// staff get only the payment they recorded (PAY-05).
+    /// date must fall between the sold date and today. The owner and managers get the updated
+    /// ledger back; sales members get only the payment they recorded (PAY-05).
     /// </summary>
     public object Create(long vehicleId, CreatePaymentRequest body)
     {
@@ -111,7 +111,7 @@ public class VehiclePaymentService
         tx.Commit();
         _logger.LogInformation("Payment recorded paymentId={PaymentId} vehicleId={VehicleId} dealerId={DealerId} amount={Amount} method={Method} paidOn={PaidOn} by {Actor}",
             payment.Id, vehicle.Id, tenant, amount, method, paidOnText, actor);
-        if (user.DealerRole == DealerRole.Manager)
+        if (user.DealerRole is DealerRole.Owner or DealerRole.Manager)
             return ToLedger(vehicle);
         return new PaymentItem(payment.Id, payment.Amount, payment.Method, payment.PaidOn, payment.Note,
             payment.RecordedBy, DateTime.SpecifyKind(payment.CreatedAt, DateTimeKind.Utc));
@@ -126,7 +126,7 @@ public class VehiclePaymentService
     {
         var tenant = TenantGuard.RequireTenantId();
         var vehicle = LoadVehicle(vehicleId, tenant);
-        TenantGuard.RequireManager();
+        TenantGuard.RequireTeamAccess();
         var payment = PaymentsOf(vehicle).FirstOrDefault(p => p.Id == paymentId)
                       ?? throw new ApiException(ErrorCode.NotFound, "Not found");
         var actor = TenantContext.ActorUsername();

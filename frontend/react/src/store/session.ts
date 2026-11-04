@@ -6,7 +6,7 @@ export type Role = 'Platform.Admin' | 'Dealer.User' | null;
 interface SessionState {
   role: Role;
   dealerId: number | null;
-  /** MANAGER sees Team and the join-request inbox (AUTH-27). */
+  /** The dealership tier: OWNER and MANAGER see Team, SALES does not (AUTH-27). */
   dealerRole: DealerRole | null;
   dealerLegalName: string | null;
   dealerContactPhone: string | null;
@@ -27,6 +27,17 @@ function computeAccess(role: Role, dealerId: number | null): boolean {
 
 export function hasBusinessAccess(s: Pick<SessionState, 'role' | 'dealerId'>): boolean {
   return computeAccess(s.role, s.dealerId);
+}
+
+/**
+ * Team administration shared by the owner and the managers: the Team page, the dealership audit
+ * log and the payment ledger. The dealership profile and join requests stay with the owner alone.
+ *
+ * @param dealerRole the signed-in member's dealership role
+ * @returns true for OWNER and MANAGER
+ */
+export function isTeamAdmin(dealerRole: DealerRole | null | undefined): boolean {
+  return dealerRole === 'OWNER' || dealerRole === 'MANAGER';
 }
 
 export const useSessionStore = create<SessionState>((set) => ({

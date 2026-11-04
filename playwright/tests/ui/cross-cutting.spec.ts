@@ -227,8 +227,11 @@ test.describe('ARC-03 / AT-23 gateway-only access', () => {
     expect(forbidden).toEqual([]);
   });
 
-  test('ARC-03: the frontend HTTP client refuses /internal URLs', async ({ staffPage }) => {
+  test('ARC-03: the frontend HTTP client refuses /internal URLs', async ({ staffPage, allowBrowserErrors }) => {
     test.skip(!env.isLocal, 'Loads the HTTP client module from the Vite dev server');
+    // The client reports every refused call through the shared API-failure log; here that is the
+    // expected outcome, not a defect.
+    allowBrowserErrors(/CLIENT_BLOCKED/);
     const sent: string[] = [];
     staffPage.on('request', (r) => {
       if (new URL(r.url()).pathname.includes('/internal')) sent.push(r.url());

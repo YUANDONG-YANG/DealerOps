@@ -4,7 +4,7 @@ import { cad, enumLabel, MONEY_PATTERN } from '../format';
 import { fieldErrorsOf } from '../api/http';
 import { describeError } from '../api/errors';
 import { PAYMENT_METHODS, paymentsApi, type PaymentItem, type PaymentLedger } from '../api/payments';
-import { useSessionStore } from '../store/session';
+import { isTeamAdmin, useSessionStore } from '../store/session';
 
 interface Props {
   vehicleId: number;
@@ -13,11 +13,11 @@ interface Props {
 
 /**
  * Payments received for a sold vehicle and the balance still due. This records money taken at
- * the dealership; it does not charge a card. Only a manager sees the ledger and can remove a
- * payment; staff see only the record form and a confirmation after each recorded payment.
+ * the dealership; it does not charge a card. Only the owner and a manager see the ledger and can
+ * remove a payment; a sales member sees only the record form and a confirmation after each payment.
  */
 export default function PaymentPanel({ vehicleId, onChanged }: Props) {
-  const isManager = useSessionStore().dealerRole === 'MANAGER';
+  const canManage = isTeamAdmin(useSessionStore().dealerRole);
   const [ledger, setLedger] = useState<PaymentLedger | null>(null);
   const [error, setError] = useState('');
   const [form, setForm] = useState({ amount: '', method: '', paidOn: '', note: '' });
@@ -35,7 +35,7 @@ export default function PaymentPanel({ vehicleId, onChanged }: Props) {
     }
   }, [vehicleId]);
 
-  useEffect(() => { if (isManager) void load(); }, [isManager, load]);
+  useEffect(() => { if (canManage) void load(); }, [canManage, load]);
 
   async function add() {
     setFormError('');

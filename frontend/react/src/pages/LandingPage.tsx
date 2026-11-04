@@ -220,7 +220,7 @@ export default function LandingPage() {
                     ))}
                   </ul>
                   <p className="landing-sample-verdict">{row.verdict}</p>
-                  <Link to="/register">Sign up to check your own ads →</Link>
+                  <Link to="/login">Sign in to check your own ads →</Link>
                 </div>
               )}
             </div>

@@ -9,12 +9,19 @@ import { env } from '../support/env';
 
 const TOKEN_KEY = 'dealerops.accessToken';
 
+// The dealer user is seeded as a manager, so Team is part of their walkthrough; a sales member
+// has no Team page at all (CR role hierarchy §3).
 const roles = [
   { name: 'admin', account: () => env.admin, routes: ['/admin', '/profile'] },
   {
     name: 'dealer user',
     account: () => ({ identifier: env.dealerUser.username, password: env.dealerUser.password }),
     routes: ['/dms', '/crm', '/leads', '/ads', '/team', '/profile'],
+  },
+  {
+    name: 'sales member',
+    account: () => ({ identifier: env.sales.username, password: env.sales.password }),
+    routes: ['/dms', '/crm', '/leads', '/ads', '/profile'],
   },
 ];
 

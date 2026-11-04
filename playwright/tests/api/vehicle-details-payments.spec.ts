@@ -87,14 +87,22 @@ test.describe('DMS-18: listing details', () => {
 
   test('the details are locked once the vehicle is sold', async ({ staffApi }) => {
     const v = (await staffApi.createVehicle({ mileageKm: 30000 })) as Details;
-    const sold = (await staffApi.sellVehicle(v, 18000, SOLD_ON)) as Details;
+    const sold = (await sellForTest(staffApi, v)) as Details;
     await expectError(await staffApi.patch(`/api/v1/vehicles/${v.id}`, patchBody(sold, { mileageKm: 1 })), 409, 'SOLD_LOCKED');
   });
 });
 
+/** Sells a vehicle for 18000, naming the "Other" buyer every sale now needs (CR-D8). */
+async function sellForTest(api: Api, v: Vehicle) {
+  const res = await api.post(`/api/v1/vehicles/${v.id}/sell`, {
+    soldOn: SOLD_ON, soldPrice: 18000, version: v.version, buyerName: 'E2E Walk-in Buyer',
+  });
+  await expectStatus(res, 200);
+  return (await res.json()) as Vehicle;
+}
+
 async function soldVehicle(api: Api) {
-  const v = await api.createVehicle();
-  return api.sellVehicle(v, 18000, SOLD_ON);
+  return sellForTest(api, await api.createVehicle());
 }
 
 test.describe('PAY-01 to PAY-04: payments on a sold vehicle', () => {
@@ -160,5 +168,38 @@ test.describe('PAY-01 to PAY-04: payments on a sold vehicle', () => {
 
     await expectError(await rivalApi.get(path), 404, 'NOT_FOUND');
     await expectError(await rivalApi.post(path, { amount: 1, method: 'CASH', paidOn: SOLD_ON }), 404, 'NOT_FOUND');
+  });
+
+  test('ROLE / PAY-02: a sales member records a payment but never reads or removes the ledger', async ({
+    staffApi, staff2Api,
+  }) => {
+    const roleOf = async (api: Api) => {
+      const res = await api.get('/api/v1/me');
+      await expectStatus(res, 200);
+      return ((await res.json()) as { dealerRole: string | null }).dealerRole ?? null;
+    };
+    // The ledger is owner-or-manager; recording a payment is every member's (role spec §3).
+    expect(await roleOf(staffApi), 'the first seeded member leads the dealership').toMatch(/OWNER|MANAGER/);
+    expect(await roleOf(staff2Api), 'the second seeded member is a sales member (tests/global.setup.ts)').toBe('SALES');
+
+    const v = await soldVehicle(staffApi);
+    const path = `/api/v1/vehicles/${v.id}/payments`;
+
+    // A sales member gets back only the payment they recorded, not the ledger.
+    const recorded = await staff2Api.post(path, { amount: 1500, method: 'CASH', paidOn: SOLD_ON, note: 'Deposit' });
+    await expectStatus(recorded, 201);
+    const item = (await recorded.json()) as Record<string, unknown>;
+    expect(item).toMatchObject({ amount: 1500, method: 'CASH' });
+    expect(item.items, 'a sales member is not sent the ledger').toBeUndefined();
+    expect(item.balanceDue, 'a sales member is not sent the balance due').toBeUndefined();
+
+    await expectError(await staff2Api.get(path), 403, 'FORBIDDEN');
+
+    // The payment is in the ledger the owner reads, and only the owner can remove it.
+    const ledger = (await (await staffApi.get(path)).json()) as Ledger;
+    const added = ledger.items.find((i) => i.amount === 1500);
+    expect(added, "the sales member's payment is in the ledger").toBeTruthy();
+    await expectError(await staff2Api.delete(`${path}/${added!.id}`), 403, 'FORBIDDEN');
+    await expectStatus(await staffApi.delete(`${path}/${added!.id}`), 200);
   });
 });

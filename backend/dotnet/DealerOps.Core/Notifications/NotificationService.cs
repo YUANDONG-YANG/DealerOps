@@ -87,14 +87,15 @@ public class NotificationService
 
     /// <summary>
     /// The caller's dealership inbox, newest first; resolved rows are included only for the
-    /// message-history view. Join requests are for managers only (AUTH-27); staff see the rest.
+    /// message-history view. Join requests are for the owner only (AUTH-27), because only the
+    /// owner approves them; managers and sales members see the rest.
     /// </summary>
     public List<NotificationEntity> List(bool includeResolved)
     {
         var user = TenantGuard.RequireDealerUser();
         var tenant = user.TenantDealerId!.Value;
         var query = _db.Notifications.Where(n => n.DealerId == tenant);
-        if (user.DealerRole != DealerRole.Manager) query = query.Where(n => n.Kind != "JOIN_REQUEST");
+        if (user.DealerRole != DealerRole.Owner) query = query.Where(n => n.Kind != "JOIN_REQUEST");
         if (!includeResolved) query = query.Where(n => n.ResolvedAt == null);
         return query.OrderByDescending(n => n.CreatedAt).ThenByDescending(n => n.Id).ToList();
     }

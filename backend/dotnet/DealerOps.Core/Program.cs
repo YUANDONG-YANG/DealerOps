@@ -303,8 +303,12 @@ using (var scope = app.Services.CreateScope())
         "ALTER TABLE app_user ADD COLUMN family_name VARCHAR(120) NULL",
         "ALTER TABLE app_user ADD COLUMN avatar_url TEXT NULL",
         "ALTER TABLE app_user ADD COLUMN locale VARCHAR(16) NULL",
-        // Existing members become staff; the platform admin promotes managers afterwards.
-        "ALTER TABLE membership ADD COLUMN dealer_role VARCHAR(16) NOT NULL DEFAULT 'staff'",
+        // Existing members become sales; the owner and the platform admin promote afterwards.
+        "ALTER TABLE membership ADD COLUMN dealer_role VARCHAR(16) NOT NULL DEFAULT 'SALES'",
+        // ADD COLUMN cannot change the default of a column that is already there, so a database
+        // created before the role rename still defaults to the old value DealerRole cannot parse.
+        // SET DEFAULT is already idempotent.
+        "ALTER TABLE membership ALTER COLUMN dealer_role SET DEFAULT 'SALES'",
         "ALTER TABLE audit_event ADD COLUMN previous_values JSON NULL",
         "ALTER TABLE audit_event ADD COLUMN client_ip VARCHAR(45) NULL",
         "ALTER TABLE audit_event ADD COLUMN client_location VARCHAR(255) NULL",
@@ -328,10 +332,98 @@ using (var scope = app.Services.CreateScope())
     })
     {
         try { db.Database.ExecuteSqlRaw(patch); }
-        catch (Exception ex) when (
-            ex.ToString().Contains("Duplicate column", StringComparison.OrdinalIgnoreCase)
-            || ex.ToString().Contains("1060", StringComparison.Ordinal))
-        { /* already present */ }
+        // 1060: the column is already there.
+        catch (MySqlException ex) when (ex.Number is 1060) { }
+    }
+    // The dealership role hierarchy gained a third tier: the old STAFF role is now SALES, and each
+    // dealership keeps one owner. The promotion overrides whatever role a row holds, so it runs
+    // once only: an administrator who unbinds an owner to bind a replacement would otherwise see
+    // the earliest manager promoted again on the next start. The marker row records that.
+    db.Database.ExecuteSqlRaw(@"
+        CREATE TABLE IF NOT EXISTS schema_patch (
+            patch_id VARCHAR(64) PRIMARY KEY,
+            applied_at DATETIME(6) NOT NULL
+        )");
+    using (var roleTx = db.Database.BeginTransaction())
+    {
+        // INSERT IGNORE claims the marker: 1 row means this database has not had the patch, 0 rows
+        // means a previous start applied it. Every statement below shares this transaction, so a
+        // transient failure rolls the marker back instead of leaving the data half migrated.
+        var claimed = db.Database.ExecuteSqlRaw(
+            "INSERT IGNORE INTO schema_patch (patch_id, applied_at) VALUES ({0}, UTC_TIMESTAMP(6))",
+            "dealer_role_hierarchy_2026_11_03");
+        if (claimed > 0)
+        {
+            // Canonicalise the stored spelling before the comparisons below. Rows written by the
+            // app are upper case (EnumSnakeCaseConverter upper-cases every character) and the
+            // committed seed files now hold upper case too, but rows written by an earlier build
+            // or loaded from an older seed revision or dump may be lower case ('staff',
+            // 'manager'). Normalising here, and comparing against UPPER(dealer_role) below, makes
+            // the patch behave the same under a _ci, _cs or _bin collation instead of silently
+            // flattening a lower-case 'manager' to SALES.
+            db.Database.ExecuteSqlRaw("UPDATE membership SET dealer_role = UPPER(dealer_role)");
+            // Any legacy spelling lands on SALES, including the old 'staff' and 'STAFF'.
+            db.Database.ExecuteSqlRaw(
+                "UPDATE membership SET dealer_role = 'SALES' WHERE UPPER(dealer_role) NOT IN ('OWNER','MANAGER','SALES')");
+            // Each dealership keeps one owner: its earliest active manager (lowest created_at, then
+            // lowest id) takes the new top tier. Dealerships that already have an active owner are
+            // skipped. The derived tables are what lets MySQL read membership while updating it.
+            db.Database.ExecuteSqlRaw(@"UPDATE membership
+                JOIN (
+                    SELECT id FROM (
+                        SELECT id, ROW_NUMBER() OVER (PARTITION BY dealer_id ORDER BY created_at, id) AS rn
+                        FROM membership
+                        WHERE active = 1 AND UPPER(dealer_role) = 'MANAGER'
+                          AND dealer_id NOT IN (
+                              SELECT dealer_id FROM (
+                                  SELECT DISTINCT dealer_id FROM membership
+                                  WHERE active = 1 AND UPPER(dealer_role) = 'OWNER'
+                              ) owned
+                          )
+                    ) ranked
+                    WHERE ranked.rn = 1
+                ) promote ON promote.id = membership.id
+                SET membership.dealer_role = 'OWNER'");
+            // A dealership whose members were all staff has nobody left who can open Team, approve
+            // a join request or edit the profile once every row reads SALES, so only the platform
+            // admin could rescue it. Its earliest active member becomes the owner. This runs after
+            // the manager promotion, so a dealership that just gained an owner is already excluded;
+            // a dealership with no active member at all matches no row and gets nobody.
+            db.Database.ExecuteSqlRaw(@"UPDATE membership
+                JOIN (
+                    SELECT id FROM (
+                        SELECT id, ROW_NUMBER() OVER (PARTITION BY dealer_id ORDER BY created_at, id) AS rn
+                        FROM membership
+                        WHERE active = 1
+                          AND dealer_id NOT IN (
+                              SELECT dealer_id FROM (
+                                  SELECT DISTINCT dealer_id FROM membership
+                                  WHERE active = 1 AND UPPER(dealer_role) IN ('OWNER','MANAGER')
+                              ) administered
+                          )
+                    ) ranked
+                    WHERE ranked.rn = 1
+                ) promote ON promote.id = membership.id
+                SET membership.dealer_role = 'OWNER'");
+            // vehicle.sold_by was added today, so every earlier sale has it NULL and the sales
+            // report's per-salesperson rows would not add up to the headline totals. The sale wrote
+            // a VEHICLE/SELL audit row naming the acting user, which is the same value Sell now
+            // stores, so the most recent such row per vehicle backfills it. Sold vehicles with no
+            // SELL audit row keep NULL and stay out of the per-salesperson breakdown.
+            db.Database.ExecuteSqlRaw(@"UPDATE vehicle
+                JOIN (
+                    SELECT entity_id, actor_username FROM (
+                        SELECT entity_id, actor_username,
+                               ROW_NUMBER() OVER (PARTITION BY entity_id ORDER BY created_at DESC, id DESC) AS rn
+                        FROM audit_event
+                        WHERE entity_type = 'VEHICLE' AND action = 'SELL' AND actor_username <> ''
+                    ) ranked
+                    WHERE ranked.rn = 1
+                ) seller ON seller.entity_id = vehicle.id
+                SET vehicle.sold_by = seller.actor_username
+                WHERE vehicle.sold_by IS NULL AND vehicle.status = 'SOLD'");
+        }
+        roleTx.Commit();
     }
     // CREATE TABLE IF NOT EXISTS is supported, so the notification table is created in the
     // same idempotent spirit as the ALTERs above. Dealer-scoped: queries filter by dealer_id

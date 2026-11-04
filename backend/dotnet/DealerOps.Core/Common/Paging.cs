@@ -28,4 +28,22 @@ public static class Paging
     public static IOrderedQueryable<T> OrderByDirection<T, TKey>(
         this IQueryable<T> query, Expression<Func<T, TKey>> key, bool descending) =>
         descending ? query.OrderByDescending(key) : query.OrderBy(key);
+
+    /// <summary>
+    /// Orders by a nullable key ascending or descending, keeping rows with a blank value last in both
+    /// directions as the lists' sort does; a plain ORDER BY would put them first ascending.
+    /// </summary>
+    public static IOrderedQueryable<T> OrderByDirectionBlanksLast<T, TKey>(
+        this IQueryable<T> query, Expression<Func<T, TKey>> key, bool descending)
+    {
+        var blank = Expression.Lambda<Func<T, bool>>(IsBlank(key.Body), key.Parameters);
+        var ordered = query.OrderBy(blank);
+        return descending ? ordered.ThenByDescending(key) : ordered.ThenBy(key);
+    }
+
+    // A blank value is null, or an empty string for a text key.
+    private static Expression IsBlank(Expression value) =>
+        value.Type == typeof(string)
+            ? Expression.Call(typeof(string).GetMethod(nameof(string.IsNullOrEmpty))!, value)
+            : Expression.Equal(value, Expression.Constant(null, value.Type));
 }

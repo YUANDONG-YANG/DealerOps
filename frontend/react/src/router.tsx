@@ -9,7 +9,7 @@ import {
 } from 'react-router-dom';
 import { getMe, type Profile } from './api/me';
 import { accessToken, clearAccount, roleHome } from './auth/login';
-import { hasBusinessAccess, useSessionStore } from './store/session';
+import { hasBusinessAccess, isTeamAdmin, useSessionStore } from './store/session';
 
 import LandingPage from './pages/LandingPage';
 import LoginPage from './pages/LoginPage';
@@ -111,11 +111,11 @@ function AdminGuard() {
   return <Outlet />;
 }
 
-// /team is for the dealership's managers; staff are sent to their home page (AUTH-27).
-function ManagerGuard() {
+// /team is for the dealership's owner and managers; sales members are sent to /dms (AUTH-27).
+function TeamGuard() {
   const dealerRole = useSessionStore((s) => s.dealerRole);
   const role = useSessionStore((s) => s.role);
-  if (dealerRole !== 'MANAGER') return <Navigate to={roleHome(role)} replace />;
+  if (!isTeamAdmin(dealerRole)) return <Navigate to={roleHome(role)} replace />;
   return <Outlet />;
 }
 
@@ -128,7 +128,7 @@ function DealerGuard() {
   return <Outlet />;
 }
 
-/** Public pages, then signed-in pages behind the admin, dealer, and manager guards. */
+/** Public pages, then signed-in pages behind the admin, dealer, and team guards. */
 export default function AppRoutes() {
   return (
     <Routes>
@@ -153,7 +153,7 @@ export default function AppRoutes() {
           <Route path="/leads" element={<LeadsPage />} />
           <Route path="/reports/sales-funnel" element={<SalesFunnelPage />} />
           <Route path="/ads" element={<AdsPage />} />
-          <Route element={<ManagerGuard />}>
+          <Route element={<TeamGuard />}>
             <Route path="/team" element={<TeamPage />} />
           </Route>
         </Route>

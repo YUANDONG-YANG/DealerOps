@@ -1,13 +1,13 @@
 # Gaps, risks, and ambiguities
 
-Review of `requirements/update-cr/Changes Document.docx` only. This note does not add product requirements and does not propose a redesign. Each finding ends with the question the team must answer before anyone builds it.
+Review of `requirements/iteration-2/Changes Document.docx` only. This note does not add product requirements and does not propose a redesign. Each finding ends with the question the team must answer before anyone builds it.
 
 The document has two sections:
 
 - **Client Requests.** "The client has requested several things directly; these are urgent changes that must be completed first."
 - **Site Fixes and Changes.** "These are issues that have been located with the site and things I believe should be changed, they are less urgent than the client requests but should still be implemented, especially the fixes."
 
-About seventy figures show the current screens. They are evidence of where a problem was seen. They are not target mockups. The caption "Where columns should go" sits on the current DMS table and does not mark an insertion point. The sell-vehicle figure shows Sold date, Sold price, and an optional "Buyer (CRM customer)" control. The sales-report figure shows all-time cards plus one month row. The dashboard figure has a red arrow pointing at the Sales heading. The Team figure's own subtitle reads "New members join as staff; the platform admin appoints managers."
+About seventy figures show the current screens. They are evidence of where a problem was seen. They are not target mockups. The caption "Where columns should go" sits on the current DMS table and does not mark an insertion point. The sell-vehicle figure shows Sold date, Sold price, and an optional "Buyer (CRM customer)" control. The sales-report figure shows all-time cards plus one month row. The dashboard figure has a red arrow pointing at the Sales heading. The Team figure's own subtitle reads "New members join as staff; the platform admin appoints managers." The audit figures show a Location column; the screenshots were taken from an origin/robin build, where commit 54b6664 added the audit Location column (`audit_event.client_location`). That column is now on branch V2, so the Location sort requests describe an existing column.
 
 **Priority**
 
@@ -23,11 +23,11 @@ These are the high questions in one place. Detail is in the sections below.
 2. Is every "Change:" and "I suggest" in section 2 required, or only the items marked as fixes?
 3. Who is "sold by," and what does "sold to" show when the buyer is not a CRM customer?
 4. What numbers, date boundaries, and employee definition do the day/week/month/year sales views use?
-5. Which employee fields may a manager change, and may a manager demote another manager?
-6. Is the dealership admin/owner/regional-manager role out of this delivery?
-7. Is home-page account creation hidden, replaced by a dealership inquiry, or still a sign-up page that sample ads link to?
+5. Which employee fields may a manager change, and may a manager demote another manager? **Answered 2026-11-03:** full name and phone, for sales members only; no demotion of a manager.
+6. Is the dealership admin/owner/regional-manager role out of this delivery? **Answered 2026-11-03:** no — it is in, as one dealership Owner tier (`requirements/iteration-2/CR-Role-Hierarchy-2026-11-03.md`).
+7. Is home-page account creation hidden or replaced by a dealership inquiry? (Sample ads stay on sign-in under decision D4, which follows the client; see A-07.)
 8. Which leads close when a vehicle is sold, with which label, and who may reopen them?
-9. Which platform-admin powers are removed (direct bind) and which are added (edit, delete users, delete dealerships, edit pending accounts)? Who approves the first member of a new dealership?
+9. Which platform-admin powers are removed (direct bind) and which are added (edit, delete users, delete dealerships, edit pending accounts)? Who approves the first member of a new dealership? **Answered 2026-11-03:** nobody — the platform admin binds the first owner directly, and only later members come through a join request the owner approves (`requirements/iteration-2/CR-Role-Hierarchy-2026-11-03.md` §2).
 10. Are cost, work-order spend, and list price on the sell dialog read-only displays of data the vehicle already has?
 
 ## 1. Ambiguous terms and statements
@@ -72,11 +72,15 @@ The sortable-column list later says Members columns include "Date Added (when ad
 
 **Question:** Which fields are editable? Is "when the member joined" the membership start, the account creation time, or the same column as "Date Added (when added)"?
 
+**Answered 2026-11-03** for the fields: full name and phone, and no more — a manager edits them for a sales member, the owner for any member below owner (`requirements/iteration-2/CR-Role-Hierarchy-2026-11-03.md` §3 and §5a). The date question stands.
+
 ### A-06. High. One slash-combined role name
 
 > "a dealership specific admin/owner/regional manger account that has some admin capabilities to change things with the dealership, like the platform admin account, but is exclusive to a single dealership."
 
 **Question:** Is this one new role or three names for powers the dealership manager might receive? Which "things with the dealership" would that account change? (See C-02: the same document says not to implement this yet.)
+
+**Answered 2026-11-03:** one new role. `admin`, `owner` and `regional manager` all mean the dealership Owner, and the things it changes are the dealership profile, join requests, manager and sales appointments, a below-owner member's full name and phone, and the dealership audit log (`requirements/iteration-2/CR-Role-Hierarchy-2026-11-03.md` §3).
 
 ### A-07. High. "Create account" becomes an inquiry, a removed button, or a sign-up page
 
@@ -86,7 +90,9 @@ The sortable-column list later says Members columns include "Date Added (when ad
 
 > "The sample ads on the home page link to the sign in page. I believe most people who are clicking on the ads are potential users and this should link to the sign-up page."
 
-**Question:** For this delivery, is the acceptance criterion only that the home-page create-account control is hidden? If sample ads must open a sign-up page, which page is that after the control is removed? If the inquiry stays in scope, what fields does it collect, and who receives it?
+The sample-ad sentence is an author suggestion ("I believe"); the client request (CR-009) is to remove home-page account creation. Decision D4 follows the client: sample ads stay on `/login`, a recorded decision against the author suggestion.
+
+**Question:** For this delivery, is the acceptance criterion only that the home-page create-account control is hidden? If the inquiry stays in scope, what fields does it collect, and who receives it?
 
 ### A-08. High. "They" and "the appropriate label" on sale
 
@@ -102,9 +108,9 @@ The sortable-column list later says Members columns include "Date Added (when ad
 
 ### A-10. High. "Admins" is not a single actor
 
-The document says "manager accounts," "any user account," "any manager account," "platform admin," and "Admins" in different bullets. Delete-user, edit-account, pending-account, and dealership-delete bullets say "Admins" without "platform."
+The document says "manager accounts," "any user account," "any manager account," "platform admin," and "Admins" in different bullets. Delete-user, edit-account, and pending-account bullets say "Admins" without "platform." The dealership-delete bullet does say "platform admin."
 
-**Question:** For each admin bullet, is the actor only the platform admin?
+**Question:** For each "Admins" bullet, is the actor only the platform admin?
 
 ### A-11. High. VIN "forced to match vehicle information"
 
@@ -134,7 +140,7 @@ The sentence ends mid-word. No fields are named.
 
 > "When closing a lead, confirm before saving"
 
-The listed screens are dealership edit, vehicle add/edit, customer add/edit, lead add/edit, dealership profile, and closing a lead. The document says the list is incomplete ("… screenshots").
+The listed screens are dealership edit, vehicle add/edit, customer add/edit, lead add/edit, dealership profile, and closing a lead. The ellipsis in "frustration, … screenshots" ends the list of problems, not the list of screens; the open-ended scope comes from "Many menus" (R-06).
 
 **Question:** For each listed screen, is the required behavior a warning when leaving with unsaved edits, a dialog before the save is committed, or a message after a successful save?
 
@@ -212,7 +218,9 @@ The sortable columns named for this screen are "Requested, Status, Resolved."
 
 > "a way to add notes about customers in the customer menu"
 
-**Question:** What interaction should Customer and Vehicle of interest copy from leads? What string is a "vehicle name"? Is the CRM replacement a count, a list, or a link, and of which leads? Is a customer note a separate record from lead notes, and who may add or edit it? May a manager create a lead whose owner starts as someone else?
+> "a column for the amount of leads a vehicle has"
+
+**Question:** What interaction should Customer and Vehicle of interest copy from leads? What string is a "vehicle name"? Is the CRM replacement a count, a list, or a link, and of which leads? Does the "amount of leads" on a vehicle (and on a customer) count open leads only or all leads, and does it include leads created by buyer-site inquiries? Is a customer note a separate record from lead notes, and who may add or edit it? May a manager create a lead whose owner starts as someone else?
 
 ### A-21. Medium. Duplicate-customer warning
 
@@ -268,7 +276,9 @@ The path line under this item is "Logged in as any user account > CRM > Add cust
 
 > "typing the username with incorrect characters returns a difficult to read error."
 
-**Question:** Is the display-name change only the label? What should the username error say, and should it use the character rules the account API already enforces?
+Before the change (branch v1), `frontend/react/src/pages/ProfilePage.tsx` and the admin staff drawer in `frontend/react/src/pages/AdminPage.tsx` label the field "Display name", with the hint "Display names are unique". The label change is real work, separate from the uniqueness fix (C-06).
+
+**Question:** What should the username error say, and should it use the character rules the account API already enforces?
 
 ### A-27. Low. Author voice is mixed with client voice
 
@@ -308,6 +318,8 @@ The paragraph above that list says the dealership admin/owner/regional-manager a
 
 **Question:** Is that middle role a discussion note, with no build work in this delivery?
 
+**Answered 2026-11-03:** it is build work. The three names are one role, the dealership Owner, and the ladder is Platform admin, Owner, Manager, Sales. The screenshot's "the platform admin appoints managers" is superseded: the platform admin binds the first owner and the owner appoints managers (`requirements/iteration-2/CR-Role-Hierarchy-2026-11-03.md` §1–§2).
+
 ### C-03. High. "Any user account" is sent to manager-only Team pages
 
 > "When logged in as any user account > Team > Members"
@@ -319,6 +331,8 @@ The paragraph above that list says the dealership admin/owner/regional-manager a
 Other bullets correctly say "any manager account" for join requests and activity. Staff do not have the Team page in the current product, and the document never says staff should gain it.
 
 **Question:** Are the Team sort rules for managers only?
+
+**Answered 2026-11-03:** Team is open to the owner and the manager; the Sales role has no Team access (`requirements/iteration-2/CR-Role-Hierarchy-2026-11-03.md` §3).
 
 ### C-04. High. Sale linking, "other," sold-to, duplicate leads, auto-close, and reopen do not fit one story
 
@@ -346,9 +360,9 @@ The same section then asks admins to edit pending accounts (email, phone, userna
 
 > "Display name should be listed as full name in Profile and when creating a staff account through the admin page"
 
-Renaming the label does not allow two people to share a name. The uniqueness bullet lists three entry points and says "there may be more."
+Renaming the label does not allow two people to share a name. The uniqueness bullet lists three entry points and says "there may be more." Both fixes are needed: the labels still say "Display name" (A-26).
 
-**Question:** Is the unique full-name rule removed for every create and profile edit, while the label change is only cosmetic?
+**Question:** Is the unique full-name rule removed for every create and profile edit, with the label renamed to "Full name" on Profile and the admin staff drawer?
 
 ### C-07. Medium. Customer phone is both a hard block and a confirm-to-continue warning
 
@@ -393,6 +407,8 @@ A-08 does not say whether a staff member and a manager both trigger the close, w
 The document does not say that the target must be staff at the same dealership, that the actor must be a manager of that dealership, or what happens if the target is already a manager or is the actor.
 
 **Question:** Who may promote whom, and what does the member row show after promotion?
+
+**Answered 2026-11-03:** a manager may promote a sales member of the same dealership to manager and nothing else; the owner appoints managers and sales and may demote a manager to sales; nobody changes their own role and nobody inside the dealership sets `OWNER` (`requirements/iteration-2/CR-Role-Hierarchy-2026-11-03.md` §2).
 
 ### M-03. High. No postcondition for removing the create-account control
 
@@ -516,6 +532,12 @@ A-25 does not say whether the limit is the existing inquiry message limit, or wh
 
 **Question:** What is the limit, and what is shown when the text is already too long?
 
+### E-13. Medium. Duplicate-lead block versus a buyer-site inquiry
+
+A buyer-site inquiry finds the customer and creates a lead. If duplicate customer-vehicle leads are refused (A-22), a second inquiry from the same shopper about the same vehicle would either fail on the public page or be dropped.
+
+**Question:** Does a repeat inquiry attach to the existing open lead (for example as a note), or is it refused, and what does the shopper see?
+
 ## 5. Scope holes and unstated dependencies
 
 ### S-01. High. Section 2 is an open list
@@ -536,7 +558,7 @@ The team already has behavior for these areas. The change request does not say w
 | --- | --- | --- |
 | Sold date, sold price, optional CRM buyer | Sell dialog already collects those | Is the work new columns and read-only context, or a new sale record? |
 | Day/week/month/year sales | Sales report and dashboard already show units, revenue, gross profit, and a month breakdown | Do the new periods reuse those measures? |
-| Promote staff | Only the platform admin changes a membership role; managers cannot remove a manager | Does manager promotion replace that rule? |
+| Promote staff | Only the platform admin changes a membership role; managers cannot remove a manager | Does manager promotion replace that rule? Answered 2026-11-03: partly — a manager may promote and remove sales members, the owner acts on managers, and the platform admin keeps the `OWNER` change. |
 | Full-name uniqueness | Display name is unique; the listed screens are entry points to one rule | Is the rule removed once, for every entry point? |
 | Customer phone | Duplicate phone is rejected; duplicate email warns and saves | See C-07 |
 | Buyer inquiry | Inquiry finds or creates the customer by phone, then creates a lead | See E-04 |
@@ -556,7 +578,7 @@ A-19 points at Autotrader screenshots as a visual idea. It does not name a data 
 
 ### S-04. High. Dealership delete and user delete are data-retention decisions
 
-The project baseline keeps audit history for business changes. The document asks for delete with one extra confirm and does not say whether rows are hidden or removed.
+The project baseline keeps audit history for business changes, and `design/15-Data-Auth-and-Gateway.md` §8.6 (NFR-07) says nothing is deleted. The document asks for delete with one extra confirm and does not say whether rows are hidden or removed.
 
 **Question:** Is delete in this delivery? If it is, is it a hide that keeps audit history?
 
@@ -600,6 +622,8 @@ A dealership admin/owner/regional-manager role "like the platform admin" plus ma
 
 **Question:** Is that role deferred, with manager promotion specified on its own?
 
+**Answered 2026-11-03:** the two were specified together, which removes the overlap. The owner holds the dealership profile, join-request approval and action on managers; the manager acts on sales members only (`requirements/iteration-2/CR-Role-Hierarchy-2026-11-03.md` §3).
+
 ### R-03. High. Period reporting and per-employee metrics are a new reporting model
 
 The current sales view is a snapshot plus recent months. Day, week, month, year, and a per-employee breakdown need a seller on each sale (A-01) and agreed boundaries (A-04, E-05). That is larger than adding a control to the existing cards.
@@ -614,7 +638,7 @@ Direct bind is how a dealership gets its first staff and its first manager. Chan
 
 ### R-05. High. Delete dealership and delete user are high-impact and unspecified
 
-R-04 and S-04 apply. A confirm step does not define the data left behind. This is a poor fit for a short capstone unless the team reduces it to a single, reversible action with an explicit refuse list (E-10).
+R-04 and S-04 apply. A hard delete conflicts with `design/15-Data-Auth-and-Gateway.md` §8.6 (NFR-07, "nothing is deleted"). A confirm step does not define the data left behind. This is a poor fit for a short capstone unless the team reduces it to a single, reversible action with an explicit refuse list (E-10).
 
 **Question:** Are dealership delete and user delete out of this delivery?
 
@@ -638,7 +662,7 @@ A-15. Partial search over audit text is a performance and privacy problem if it 
 
 ### R-09. Medium. Sale-to-lead automation crosses two modules and the public inquiry path
 
-S-06, C-04, E-01, E-04, and E-08. Shipping auto-close, duplicate blocking, and reopen in one pass will need answers the document does not contain. Each can be deferred independently.
+S-06, C-04, E-01, E-04, E-08, and E-13. Shipping auto-close, duplicate blocking, and reopen in one pass will need answers the document does not contain. Each can be deferred independently.
 
 **Question:** Which single lead rule, if any, is worth doing in this delivery?
 

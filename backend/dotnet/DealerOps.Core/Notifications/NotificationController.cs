@@ -8,7 +8,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace DealerOps.Core.Notifications;
 
 /// <summary>
-/// Dealer inbox: managers see join requests (AUTH-27) and every member sees buyer-site inquiries.
+/// Dealer inbox: the owner sees join requests (AUTH-27) and every member sees buyer-site inquiries.
 /// The first member who handles an item takes it off everyone else's screen. The payload
 /// is forwarded as a JSON tree so the frontend can switch on <c>kind</c> without the backend
 /// knowing which UI it renders.

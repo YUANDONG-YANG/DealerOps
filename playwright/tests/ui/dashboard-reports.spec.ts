@@ -1,6 +1,7 @@
 import type { Page } from '@playwright/test';
 import { test, expect } from '../../support/fixtures';
-import { expectStatus } from '../../support/api';
+import { expectStatus, today } from '../../support/api';
+import { env } from '../../support/env';
 
 // KPI dashboard (design/21 DASH-01), lead stage history (CRM-16) and workshop settlement (WO-08)
 // on the sales report, and the ad workspace links to the disclaimer and buyer site (AD-14).
@@ -20,10 +21,12 @@ test('DASH-01: the dashboard is first in the menu and shows inventory, sales and
   await expect(page).toHaveURL(/\/dashboard$/);
   await expect(page.getByRole('heading', { name: 'Dashboard', level: 1 })).toBeVisible();
 
-  for (const label of ['In stock', 'Outstanding work orders', 'Workshop cost settled', 'Sold this month',
-    'Vehicles sold', 'Gross profit', 'Open pipeline', 'Overdue follow-ups', 'Win rate']) {
+  // CR-C3 replaced the fixed "Sold this month" card with the period selector over the Sales KPIs.
+  for (const label of ['In stock', 'Outstanding work orders', 'Workshop cost settled',
+    'Vehicles sold', 'Revenue', 'Gross profit', 'Open pipeline', 'Overdue follow-ups', 'Win rate']) {
     await expect(page.getByText(label, { exact: true })).toBeVisible(LOAD);
   }
+  await expect(page.getByLabel('Sales period')).toHaveValue('MONTH');
   await expect(page.getByRole('link', { name: 'Open buyer site' })).toHaveAttribute('href', /^\/shop\/\d+$/);
   await page.getByRole('link', { name: 'Full sales report' }).click();
   await expect(page.getByRole('heading', { name: 'Sales report', level: 1 })).toBeVisible();
@@ -74,4 +77,81 @@ test('AD-14: the ad workspace opens the full disclaimer and links to the buyer s
     .toHaveAttribute('href', /^\/shop\/[a-z0-9-]+$/);
   await page.getByRole('button', { name: 'Read the full disclaimer' }).click();
   await expect(page.getByRole('dialog')).toBeVisible();
+});
+
+test('ROLE / CR-C3: the sales report lists every member who sold a vehicle, including the one leading the dealership', async ({
+  staffPage: page, staffApi,
+}) => {
+  const v = await staffApi.createVehicle({ purchaseCost: 10000, repairCost: 0 });
+  await expectStatus(await staffApi.post(`/api/v1/vehicles/${v.id}/sell`, {
+    soldOn: today(), soldPrice: 12000, version: v.version, buyerName: 'Report Buyer',
+  }), 200);
+
+  await page.goto('/reports/sales-funnel');
+  await page.getByLabel('Sales period').selectOption('MONTH');
+  await expect(page.getByRole('heading', { name: 'Sales for this month' })).toBeVisible(LOAD);
+
+  // The table is not filtered by dealership role: the signed-in member sold this vehicle.
+  const table = page.getByRole('table', { name: 'Sales by salesperson' });
+  await expect(table).toBeVisible(LOAD);
+  // Filtered on the exact name cell: "E2E Staff" is also a prefix of the sales member's name.
+  const row = table.getByRole('row')
+    .filter({ has: page.getByRole('cell', { name: env.staff.displayName, exact: true }) });
+  await expect(row).toHaveCount(1);
+
+  // The dealership is shared with the other specs, which sell as the same member, so the row's
+  // own figures are checked for this sale's contribution instead of an exact total.
+  const cells = await row.getByRole('cell').allInnerTexts();
+  const [, soldCount, revenue] = cells;
+  expect(Number(soldCount), 'vehicles sold').toBeGreaterThanOrEqual(1);
+  expect(Number(revenue.replace(/[^0-9.]/g, '')), 'revenue includes this sale').toBeGreaterThanOrEqual(12000);
+});
+
+test('CR-C3 / DASH-01: the dashboard sales section has the same period selector', async ({ staffPage: page }) => {
+  await page.goto('/dashboard');
+  const selector = page.getByLabel('Sales period');
+  await expect(selector).toBeVisible(LOAD);
+  await expect(selector.getByRole('option')).toHaveText(['Today', 'This week', 'This month', 'This year']);
+
+  // Only the Sales KPIs follow the selector; the inventory and lead cards stay put.
+  const reloaded = page.waitForResponse((r) =>
+    r.url().includes('/api/v1/vehicles/report/sales') && new URL(r.url()).searchParams.get('period') === 'YEAR');
+  await selector.selectOption('YEAR');
+  expect((await reloaded).status()).toBe(200);
+  await expect(page.getByText('In stock', { exact: true })).toBeVisible();
+  await expect(page.getByText('Win rate', { exact: true })).toBeVisible();
+
+  // TODAY narrows the sold window to one day, shown as the hint under "Vehicles sold".
+  const sameDay = page.waitForResponse((r) =>
+    r.url().includes('/api/v1/vehicles/report/sales') && new URL(r.url()).searchParams.get('period') === 'TODAY');
+  await selector.selectOption('TODAY');
+  expect((await sameDay).status()).toBe(200);
+  // The window is today to today; the server computes both dates in UTC, as `today()` does.
+  const hint = page.getByText(/^\d{4}-\d{2}-\d{2} to \d{4}-\d{2}-\d{2}$/);
+  await expect(hint).toHaveText(`${today()} to ${today()}`, LOAD);
+});
+
+test('CR / DASH-01: the sales period selector reloads the period totals', async ({ staffPage: page }) => {
+  await page.goto('/reports/sales-funnel');
+  const selector = page.getByLabel('Sales period');
+  await expect(selector).toBeVisible(LOAD);
+
+  for (const [value, heading] of [['TODAY', 'Sales for today'], ['WEEK', 'Sales for this week'],
+    ['MONTH', 'Sales for this month'], ['YEAR', 'Sales for this year']] as const) {
+    const reloaded = page.waitForResponse((r) =>
+      r.url().includes('/api/v1/vehicles/report/sales') && new URL(r.url()).searchParams.get('period') === value);
+    await selector.selectOption(value);
+    expect((await reloaded).status()).toBe(200);
+    await expect(page.getByRole('heading', { name: heading })).toBeVisible(LOAD);
+  }
+
+  // TODAY narrows the window to a single day; the server computes the dates in UTC.
+  const sameDay = page.waitForResponse((r) =>
+    r.url().includes('/api/v1/vehicles/report/sales') && new URL(r.url()).searchParams.get('period') === 'TODAY');
+  await selector.selectOption('TODAY');
+  expect((await sameDay).status()).toBe(200);
+  await expect(page.getByRole('heading', { name: 'Sales for today' })).toBeVisible(LOAD);
+  // The window is today to today; the server computes both dates in UTC, as `today()` does.
+  const hint = page.getByText(/^\d{4}-\d{2}-\d{2} to \d{4}-\d{2}-\d{2}$/);
+  await expect(hint).toHaveText(`${today()} to ${today()}`, LOAD);
 });

@@ -55,24 +55,51 @@ async function expectNoAccessScreen(page: Page, username?: string) {
 }
 
 test.describe('landing page', () => {
-  test('UI-01: anonymous visitor sees Sign in, Create account and the VIN decoder', async ({ page }) => {
+  test('UI-01 CR-009: anonymous visitor sees Sign in and the VIN decoder, and no way to create an account', async ({ page }) => {
     await page.goto('/');
     await expect(page).toHaveURL(/\/$/);
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
     await expect(page.getByRole('link', { name: 'Sign in' }).first()).toBeVisible();
-    await expect(page.getByRole('link', { name: 'Create account' }).first()).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Decode any VIN' })).toBeVisible();
     await expect(page.getByPlaceholder('17-character VIN')).toBeVisible();
 
-    // Header links lead to the auth pages.
-    await page.locator('.landing-auth-links').getByRole('link', { name: 'Create account' }).click();
-    await expect(page).toHaveURL(/\/register$/);
-    await expect(page.getByRole('heading', { name: 'Create account' })).toBeVisible();
+    // CR-009: the home page has no create-account entry at all, in the header or anywhere else.
+    await expect(page.getByRole('link', { name: 'Create account' })).toHaveCount(0);
+    await expect(page.locator('a[href="/register"]')).toHaveCount(0);
+    await expect(page.locator('.landing-auth-links').getByRole('link')).toHaveCount(1);
 
-    await page.goto('/');
+    // The header link leads to the sign-in page.
     await page.locator('.landing-auth-links').getByRole('link', { name: 'Sign in' }).click();
     await expect(page).toHaveURL(/\/login$/);
     await expect(page.getByPlaceholder('Email, username or phone number')).toBeVisible();
+  });
+
+  test('CR-064: the home page says it is dealership software, not a place to buy a car', async ({ page }) => {
+    await page.goto('/');
+    const banner = page.getByRole('note');
+    await expect(banner).toContainText('Dealer Ops is software for car dealerships, not a place to buy a car.');
+    // A vehicle shopper is sent to the buyer site instead of an account.
+    await banner.getByRole('link', { name: /Shop vehicles from our dealerships/ }).click();
+    await expect(page).toHaveURL(/\/shop$/);
+  });
+
+  test('CR-063: an opened sample ad links to sign in, not to sign-up', async ({ page }) => {
+    await page.goto('/');
+    await page.locator('.landing-preview-row').first().click();
+    const sample = page.locator('.landing-sample').first();
+    await expect(sample).toBeVisible();
+    const link = sample.getByRole('link', { name: /Sign in to check your own ads/ });
+    await expect(link).toHaveAttribute('href', '/login');
+    // CR-009 again: the sample must not reintroduce the create-account entry.
+    await expect(sample.locator('a[href="/register"]')).toHaveCount(0);
+    await link.click();
+    await expect(page).toHaveURL(/\/login$/);
+  });
+
+  test('CR-009: /register stays reachable by direct link for invited dealership staff', async ({ page }) => {
+    await page.goto('/register');
+    await expect(page).toHaveURL(/\/register$/);
+    await expect(page.getByRole('heading', { name: 'Create account' })).toBeVisible();
   });
 
   test('VIN-04: anonymous VIN decode on the landing page shows the vehicle facts', async ({ page, request }) => {

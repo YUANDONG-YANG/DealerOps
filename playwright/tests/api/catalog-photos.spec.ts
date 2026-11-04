@@ -136,7 +136,12 @@ test.describe('catalog (§4.6, anonymous)', () => {
     expect(Array.isArray(dealers)).toBe(true);
 
     for (const d of dealers) {
-      expect(Object.keys(d).sort(), JSON.stringify(d)).toEqual(['hasLogo', 'id', 'inStockCount', 'legalName', 'slug', 'soldCount']);
+      // CR H4 (design/14 §4.6.2): the card also carries the public contact block the buyer-site
+      // directory shows and searches.
+      expect(Object.keys(d).sort(), JSON.stringify(d)).toEqual([
+        'contactAddress', 'contactEmail', 'contactPhone',
+        'hasLogo', 'id', 'inStockCount', 'legalName', 'slug', 'soldCount',
+      ]);
       expect(typeof d.id).toBe('number');
       expect(typeof d.legalName).toBe('string');
       expect(d.slug).toMatch(/^[a-z0-9]+(-[a-z0-9]+)*$/);
@@ -149,13 +154,15 @@ test.describe('catalog (§4.6, anonymous)', () => {
     expect(names).toContain(env.dealerB.legalName);
     expect(isSortedIgnoringCase(names), `sorted by legal name: ${names.join(' | ')}`).toBe(true);
 
-    // No contact details anywhere in the payload, not even nested or under another key.
+    // The public contact block of every seeded dealership is present; nothing beyond it is.
     for (const dealer of env.dealers) {
-      expect(text).not.toContain(dealer.contactPhone);
-      expect(text).not.toContain(dealer.contactEmail);
-      expect(text).not.toContain(dealer.contactAddress);
+      const card = dealers.find((d) => d.legalName === dealer.legalName);
+      expect(card, dealer.legalName).toBeTruthy();
+      expect(card!.contactPhone).toBe(dealer.contactPhone);
+      expect(card!.contactEmail).toBe(dealer.contactEmail);
+      expect(card!.contactAddress).toBe(dealer.contactAddress);
     }
-    for (const key of ['contactPhone', 'contactEmail', 'contactAddress', 'logoDataUrl', 'staffCount', 'active', 'version']) {
+    for (const key of ['logoDataUrl', 'staffCount', 'active', 'version']) {
       expect(text).not.toContain(`"${key}"`);
     }
   });

@@ -72,56 +72,56 @@ SELECT 'test4', '$2a$11$jvS6MF5WvLBQIOQCIY5e4ue866cTeHdlbliWTK4YryH.mvZcOaNHu', 
 WHERE NOT EXISTS (SELECT 1 FROM `app_user` WHERE `username` <=> 'test4' OR `email` = 'test@test2.c' OR `display_name` = 'test 4!@#$%^&*()_+[]\\/.,\';+--/*');
 SET @app_user_169 = (SELECT id FROM `app_user` WHERE `username` <=> 'test4');
 INSERT INTO `membership` (`dealer_id`, `username`, `active`, `dealer_role`, `created_by`, `created_at`)
-SELECT @dealer_1, 'ga3205519m', 1, 'MANAGER', 'admin', '2026-11-02 20:55:31.196245' FROM DUAL
+SELECT @dealer_1, 'ga3205519m', 1, 'OWNER', 'admin', '2026-11-02 20:55:31.196245' FROM DUAL
 WHERE NOT EXISTS (SELECT 1 FROM `membership` WHERE `dealer_id` <=> @dealer_1 AND `username` <=> 'ga3205519m');
 SET @membership_1 = (SELECT id FROM `membership` WHERE `dealer_id` <=> @dealer_1 AND `username` <=> 'ga3205519m');
 INSERT INTO `membership` (`dealer_id`, `username`, `active`, `dealer_role`, `created_by`, `created_at`)
-SELECT @dealer_1, 'ga3205519s', 1, 'STAFF', 'admin', '2026-11-02 20:55:32.624497' FROM DUAL
+SELECT @dealer_1, 'ga3205519s', 1, 'SALES', 'admin', '2026-11-02 20:55:32.624497' FROM DUAL
 WHERE NOT EXISTS (SELECT 1 FROM `membership` WHERE `dealer_id` <=> @dealer_1 AND `username` <=> 'ga3205519s');
 SET @membership_2 = (SELECT id FROM `membership` WHERE `dealer_id` <=> @dealer_1 AND `username` <=> 'ga3205519s');
 INSERT INTO `membership` (`dealer_id`, `username`, `active`, `dealer_role`, `created_by`, `created_at`)
-SELECT @dealer_2, 'ga3205519b', 1, 'MANAGER', 'admin', '2026-11-02 20:55:33.892341' FROM DUAL
+SELECT @dealer_2, 'ga3205519b', 1, 'OWNER', 'admin', '2026-11-02 20:55:33.892341' FROM DUAL
 WHERE NOT EXISTS (SELECT 1 FROM `membership` WHERE `dealer_id` <=> @dealer_2 AND `username` <=> 'ga3205519b');
 SET @membership_3 = (SELECT id FROM `membership` WHERE `dealer_id` <=> @dealer_2 AND `username` <=> 'ga3205519b');
 INSERT INTO `membership` (`dealer_id`, `username`, `active`, `dealer_role`, `created_by`, `created_at`)
-SELECT @dealer_31, 'lafe', 1, 'MANAGER', 'admin', '2026-11-02 01:21:34.980724' FROM DUAL
+SELECT @dealer_31, 'lafe', 1, 'OWNER', 'admin', '2026-11-02 01:21:34.980724' FROM DUAL
 WHERE NOT EXISTS (SELECT 1 FROM `membership` WHERE `dealer_id` <=> @dealer_31 AND `username` <=> 'lafe');
 SET @membership_112 = (SELECT id FROM `membership` WHERE `dealer_id` <=> @dealer_31 AND `username` <=> 'lafe');
 INSERT INTO `membership` (`dealer_id`, `username`, `active`, `dealer_role`, `created_by`, `created_at`)
-SELECT @dealer_33, 'Fadhil', 1, 'MANAGER', 'admin', '2026-11-02 01:32:46.623862' FROM DUAL
+SELECT @dealer_33, 'Fadhil', 1, 'OWNER', 'admin', '2026-11-02 01:32:46.623862' FROM DUAL
 WHERE NOT EXISTS (SELECT 1 FROM `membership` WHERE `dealer_id` <=> @dealer_33 AND `username` <=> 'Fadhil');
 SET @membership_113 = (SELECT id FROM `membership` WHERE `dealer_id` <=> @dealer_33 AND `username` <=> 'Fadhil');
 INSERT INTO `membership` (`dealer_id`, `username`, `active`, `dealer_role`, `created_by`, `created_at`)
-SELECT @dealer_31, 'yuandongyang061903', 1, 'STAFF', 'lafe', '2026-11-02 01:51:16.013422' FROM DUAL
+SELECT @dealer_31, 'yuandongyang061903', 1, 'SALES', 'lafe', '2026-11-02 01:51:16.013422' FROM DUAL
 WHERE NOT EXISTS (SELECT 1 FROM `membership` WHERE `dealer_id` <=> @dealer_31 AND `username` <=> 'yuandongyang061903');
 SET @membership_114 = (SELECT id FROM `membership` WHERE `dealer_id` <=> @dealer_31 AND `username` <=> 'yuandongyang061903');
 INSERT INTO `membership` (`dealer_id`, `username`, `active`, `dealer_role`, `created_by`, `created_at`)
-SELECT @dealer_34, 'Logan', 1, 'MANAGER', 'admin', '2026-11-02 02:08:34.888601' FROM DUAL
+SELECT @dealer_34, 'Logan', 1, 'OWNER', 'admin', '2026-11-02 02:08:34.888601' FROM DUAL
 WHERE NOT EXISTS (SELECT 1 FROM `membership` WHERE `dealer_id` <=> @dealer_34 AND `username` <=> 'Logan');
 SET @membership_115 = (SELECT id FROM `membership` WHERE `dealer_id` <=> @dealer_34 AND `username` <=> 'Logan');
 INSERT INTO `membership` (`dealer_id`, `username`, `active`, `dealer_role`, `created_by`, `created_at`)
-SELECT @dealer_34, 'test', 1, 'STAFF', 'admin', '2026-11-02 04:03:40.706987' FROM DUAL
+SELECT @dealer_34, 'test', 1, 'SALES', 'admin', '2026-11-02 04:03:40.706987' FROM DUAL
 WHERE NOT EXISTS (SELECT 1 FROM `membership` WHERE `dealer_id` <=> @dealer_34 AND `username` <=> 'test');
 SET @membership_116 = (SELECT id FROM `membership` WHERE `dealer_id` <=> @dealer_34 AND `username` <=> 'test');
 INSERT INTO `membership` (`dealer_id`, `username`, `active`, `dealer_role`, `created_by`, `created_at`)
-SELECT @dealer_35, 'hana.yoshida', 0, 'STAFF', 'admin', '2026-11-02 04:07:33.838720' FROM DUAL
+SELECT @dealer_35, 'hana.yoshida', 0, 'SALES', 'admin', '2026-11-02 04:07:33.838720' FROM DUAL
 WHERE NOT EXISTS (SELECT 1 FROM `membership` WHERE `dealer_id` <=> @dealer_35 AND `username` <=> 'hana.yoshida');
 SET @membership_117 = (SELECT id FROM `membership` WHERE `dealer_id` <=> @dealer_35 AND `username` <=> 'hana.yoshida');
 INSERT INTO `membership` (`dealer_id`, `username`, `active`, `dealer_role`, `created_by`, `created_at`)
-SELECT @dealer_35, 'test1', 1, 'STAFF', 'admin', '2026-11-02 04:08:53.865392' FROM DUAL
+SELECT @dealer_35, 'test1', 1, 'OWNER', 'admin', '2026-11-02 04:08:53.865392' FROM DUAL
 WHERE NOT EXISTS (SELECT 1 FROM `membership` WHERE `dealer_id` <=> @dealer_35 AND `username` <=> 'test1');
 SET @membership_118 = (SELECT id FROM `membership` WHERE `dealer_id` <=> @dealer_35 AND `username` <=> 'test1');
 INSERT INTO `membership` (`dealer_id`, `username`, `active`, `dealer_role`, `created_by`, `created_at`)
-SELECT @dealer_35, 'test3', 0, 'STAFF', 'admin', '2026-11-02 04:09:12.550043' FROM DUAL
+SELECT @dealer_35, 'test3', 0, 'SALES', 'admin', '2026-11-02 04:09:12.550043' FROM DUAL
 WHERE NOT EXISTS (SELECT 1 FROM `membership` WHERE `dealer_id` <=> @dealer_35 AND `username` <=> 'test3');
 SET @membership_119 = (SELECT id FROM `membership` WHERE `dealer_id` <=> @dealer_35 AND `username` <=> 'test3');
 INSERT INTO `membership` (`dealer_id`, `username`, `active`, `dealer_role`, `created_by`, `created_at`)
-SELECT @dealer_35, 'test4', 1, 'STAFF', 'admin', '2026-11-02 04:10:27.474535' FROM DUAL
+SELECT @dealer_35, 'test4', 1, 'SALES', 'admin', '2026-11-02 04:10:27.474535' FROM DUAL
 WHERE NOT EXISTS (SELECT 1 FROM `membership` WHERE `dealer_id` <=> @dealer_35 AND `username` <=> 'test4');
 SET @membership_120 = (SELECT id FROM `membership` WHERE `dealer_id` <=> @dealer_35 AND `username` <=> 'test4');
 SET @dealer_27 = (SELECT id FROM `dealer` WHERE `legal_name` <=> 'Westside Motor Co. Corp.');
 INSERT INTO `membership` (`dealer_id`, `username`, `active`, `dealer_role`, `created_by`, `created_at`)
-SELECT @dealer_27, 'test4', 0, 'STAFF', 'admin', '2026-11-02 04:10:55.660339' FROM DUAL
+SELECT @dealer_27, 'test4', 0, 'SALES', 'admin', '2026-11-02 04:10:55.660339' FROM DUAL
 WHERE NOT EXISTS (SELECT 1 FROM `membership` WHERE `dealer_id` <=> @dealer_27 AND `username` <=> 'test4');
 SET @membership_121 = (SELECT id FROM `membership` WHERE `dealer_id` <=> @dealer_27 AND `username` <=> 'test4');
 INSERT INTO `vehicle` (`dealer_id`, `vin`, `make`, `model`, `model_year`, `source`, `purchase_cost`, `added_on`, `condition_code`, `body_type`, `repair_cost`, `carfax_url`, `mileage_km`, `exterior_color`, `fuel_type`, `stock_number`, `list_price`, `sold_on`, `sold_price`, `status`, `version`, `created_at`, `updated_at`, `deleted_at`)

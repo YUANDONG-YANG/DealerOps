@@ -1,6 +1,6 @@
 # Data model implied by the change document
 
-Source: the written text of `requirements/update-cr/Changes Document.docx`. Embedded screenshots have no text alternatives, so a label that appears only in a picture is not listed here.
+Source: the written text of `requirements/iteration-2/Changes Document.docx`. Embedded screenshots have no text alternatives, so a label that appears only in a picture is not listed here.
 
 Comparison baseline (active persistence is the .NET model; Java Flyway is out of scope):
 
@@ -23,7 +23,7 @@ Table `vehicle` (`design/15` §3, `design/14` §4, `design/21` DMS-18).
 | Stock # | `stock_number` | Already modeled. A Stock # search box is a query. `q` already matches the stock number (`design/21` DMS-18). |
 | Body | `body_type` | Already modeled. |
 | Source | `source` | Already modeled. |
-| Condition | `condition_code` | Already modeled. Values are `CERTIFIED`, `AS_IS`, `UNFIT`, `IRREPARABLE` (`design/14` §4). |
+| Condition | `condition_code` | Already modeled. Values are `CERTIFIED`, `AS_IS`, `UNFIT`, `IRREPARABLE` (`design/15` §6 and the entity-layer notes). |
 | Cost | `purchase_cost` | Already modeled. The document says "cost" in the DMS list and in the sell menu. It does not rename the field. |
 | List price | `list_price` | Already modeled. |
 | Date added | `added_on` | Already modeled. |
@@ -60,7 +60,7 @@ Explicit as a possible DMS column: how many leads a vehicle has, and leads shown
 
 Table `work_order`. Statuses `OPEN`, `IN_PROGRESS`, `DONE`, `CANCELLED` (`design/21`). Cost is already stored.
 
-The document only uses the open count and the spend total. No new work-order field.
+The document only uses the open count and the spend total. No new work-order field. A completed work order's cost is already added to `vehicle.repair_cost` (`design/21` WO-04), so a spend total over `work_order.cost` must not be added on top of repair cost a second time.
 
 ## 3. Sales report and dashboard
 
@@ -70,7 +70,7 @@ Already modeled (`design/14` §4.3b, `design/21` DASH-01): overall `soldCount`, 
 
 Day, week, month, and year are filters on `sold_on`. They do not need a new fact table. Employee metrics need the Sold by fact in §1. The document says "sales metrics" and does not name the measures, so it does not by itself add revenue, count, or profit columns.
 
-**INFERRED:** "sales employees" is not a new role. The document does not define the set. Do not add a sales-employee flag. Current dealership roles are only `MANAGER` and `STAFF` (`design/15` §2.5).
+**INFERRED:** "sales employees" is not a new role. The document does not define the set. Do not add a sales-employee flag. Current dealership roles are only `MANAGER` and `STAFF` (`design/15` §2.5). The `SALES` role added on 2026-11-03 (`requirements/iteration-2/CR-Role-Hierarchy-2026-11-03.md`) is still not this set: the report is not filtered by role, so an owner or manager who sold a vehicle appears too.
 
 ## 4. Customer
 
@@ -81,7 +81,7 @@ Explicit validation, also when a customer is created from the leads page:
 - If name, email, phone, or address matches an existing customer, warn and still allow the create. The warning names which of the four matched.
 - Phone numbers are not exclusive. People may share a phone and still have separate customers.
 
-Conflict: phone is unique among the dealership's customers (`409 PHONE_TAKEN`, CRM-09). Duplicate email already saves with `emailWarning` (CRM-13). Name and address have no duplicate check. Needs the phone rejection removed. The warning for name and address is a check, not a unique key.
+Conflict: phone is unique among the dealership's customers (`409 PHONE_TAKEN`, `design/14` §5.2). Duplicate email already saves with `emailWarning` (CRM-13). Name and address have no duplicate check. Needs the phone rejection removed. The warning for name and address is a check, not a unique key.
 
 Explicit display: replace the CRM "vehicles purchased" column with that customer's leads. `customer_vehicle` stays; the document does not remove purchase links. Leads are already `sales_lead.customer_id`. No new column.
 
@@ -114,7 +114,7 @@ Leads on the vehicle use `sales_lead.vehicle_id` (already modeled).
 
 ### Account (`app_user`)
 
-Explicit conflict: full name must not be unique. The same block is reported on public create-account, platform-admin create-staff, and profile. Today `display_name` is unique (`uk_app_user_display_name`, `409 DISPLAY_NAME_TAKEN`) in `design/14` §1.5 and §2.1, `design/15` §8.3, and `design/21` AUTH-16. Needs that unique constraint dropped. Username, email, and phone uniqueness are not waived.
+Explicit conflict: full name must not be unique. The same block is reported on public create-account, platform-admin create-staff, and profile. Today `display_name` is unique (`uk_app_user_display_name`, `409 DISPLAY_NAME_TAKEN`) in `design/14` §1.5 and §2.1, `design/15` §8.3, and `design/21` AUTH-16. Firebase sign-up also returns `DISPLAY_NAME_TAKEN` on a collision (`design/14` §1.7); only Google suffixes it (§1.6). Needs that unique constraint dropped. Username, email, and phone uniqueness are not waived.
 
 The profile and the admin staff form should call display name "full name". Same column.
 
@@ -122,7 +122,7 @@ A username with illegal characters must return a readable error. The allowed for
 
 Explicit edits by the platform admin:
 
-- Pending accounts: email, phone, and username, for a mistake at creation. Binding an existing account currently does not change contact fields (`design/14` §3.6). Needs those three columns to be updatable. Username is the membership key, the audit actor, and the JWT subject (`design/15` §8). The document does not say how membership and audit rows that store the old username are updated.
+- Pending accounts: email, phone, and username, for a mistake at creation. Binding an existing account currently does not change contact fields (`design/14` §3.6). Email and phone need to be updatable. Username is a conflict: it is the membership key, the audit actor, and the JWT subject (`design/15` §8.3). The document does not say how membership and audit rows that store the old username are updated.
 - Other accounts: "some information", with email and phone given as the examples. Only those two are explicit.
 
 Explicit removal:
@@ -139,13 +139,13 @@ Already modeled list facts:
 
 ### Membership (`membership`)
 
-`dealer_role` is `MANAGER` or `STAFF` (`design/15` §2.5). `created_at` is when the row was created. Inactive rows are kept.
+`dealer_role` is `MANAGER` or `STAFF` (`design/15` §2.5). `created_at` is when the row was created, which is the first join: a rebind to the same dealership reuses the existing row (`MembershipService`), so a rejoin keeps the original date. Inactive rows are kept.
 
 Explicit:
 
-- A manager may promote other staff to manager. Conflict: only `Platform.Admin` changes `dealer_role`, and a manager does not manage another manager (`design/15` §2.5). The column exists. No new role value for this promotion. The document does not say a manager may demote a manager.
+- A manager may promote other staff to manager. Conflict: only `Platform.Admin` changes `dealer_role`, and a manager does not manage another manager (`design/15` §2.5). The column exists. No new role value for this promotion. The document does not say a manager may demote a manager. **Resolved 2026-11-03:** a manager may promote a `sales` member to `manager` and may not demote a manager; demoting a manager to sales is the owner's (`requirements/iteration-2/CR-Role-Hierarchy-2026-11-03.md` §2).
 - A manager may edit "certain employee information." The fields are not named. Email and phone are not inferred here; that example belongs to the platform admin above.
-- The members list shows when the member joined, and Date Added is sortable. That is `membership.created_at`. Already modeled; the list column is missing. Role and Source are already on the member directory (`design/14` §5.6). Source is derived from the account's `APP_USER` / `CREATE` audit (`google`, `firebase`, `password`, `admin`), not its own column.
+- The members list shows when the member joined, and Date Added is sortable. That is `membership.created_at`. The data is stored, but `GET /api/v1/members` (`design/14` §5.6) and the admin member item (§3.5) do not return it, so the API and the list column are missing. Role and Source are already on the member directory (`design/14` §5.6). Source is derived from the account's `APP_USER` / `CREATE` audit (`google`, `firebase`, `password`, `admin`), not its own column.
 
 ### Join request
 
@@ -153,7 +153,7 @@ Stored as notification kind `JOIN_REQUEST` plus `app_user.requested_dealer_id` (
 
 Explicit: two lists, not one combined list. Current rows still need approve or reject. Past rows are those already approved or rejected. Sort Requested, Status, and Resolved.
 
-Already modeled as a filter on resolved versus unresolved. The outstanding join-request query does not return history; resolved rows remain on the notification. Needs a history view, not a new table. Stored outcomes include `APPROVED`, `REJECTED`, and `CANCELLED`. The document's past list is approved or rejected only.
+Already modeled as a filter on resolved versus unresolved. The history already exists: `GET /api/v1/dealer/notifications?includeResolved=true` returns resolved rows (`design/14` §5.7), and the Team page already loads it (`design/13` §2). Only the split into two tables is new. No new table. Stored outcomes include `APPROVED`, `REJECTED`, and `CANCELLED`. The document's past list is approved or rejected only.
 
 Explicit conflict: the platform admin must not bind an account to a dealership. The admin sends a join request, and the dealership accepts it. Today the platform admin is the party who binds (`design/15` §8.2, `design/14` §3.6). The existing request can carry this. The document does not require a new table or a separate admin-request kind.
 
@@ -171,6 +171,8 @@ Current stored roles are `Platform.Admin` and `Dealer.User`, and the dealership 
 
 The dealership admin / owner / regional manager is explicitly optional and should be discussed before implementation. The only capability named is "some admin capabilities" for a single dealership, similar to the platform admin. No field list. Do not add the role from this document. If it is built later it needs a new `dealer_role` value or a new account role, which conflicts with the two membership roles.
 
+**Built on 2026-11-03** (`requirements/iteration-2/CR-Role-Hierarchy-2026-11-03.md`): it is a third `dealer_role` value, not a new account role, so `dealer_role` is now `owner`, `manager` or `sales`, one active `owner` per dealership. The role rename and the per-dealership owner backfill are the idempotent data patch in §4 of that spec.
+
 ### Public account creation
 
 Explicit, then deferred: home-page create-account should become a way for a dealership to inquire about using the service. The same section says account creation still needs a client discussion, and removing the home-page button is enough for now. No inquiry fields are given. Do not add an inquiry table. Removing the button does not drop `app_user` or the register contract in `design/14` §1.5.
@@ -179,7 +181,7 @@ Explicit, then deferred: home-page create-account should become a way for a deal
 
 Table `dealer`. Legal name, contact phone, contact email, contact address, logo, and `active` already exist.
 
-Explicit: the platform admin may delete a dealership, with at least one extra confirmation. `active` can already be cleared. There is no `deleted_at` on `dealer`. The document says "deleted" and does not say whether vehicles, customers, memberships, or audit rows remain. A destroyed row conflicts with `design/15` §8.6. Needs a defined delete. No cascade columns are inferred.
+Explicit: the platform admin may delete a dealership, with at least one extra confirmation. `active` can already be cleared. There is no `deleted_at` on `dealer`. The document says "deleted" and does not say whether vehicles, customers, memberships, or audit rows remain. Conflict: `design/14` §3.4 says "Do not add `DELETE /admin/dealers/{id}`", and a destroyed row also conflicts with `design/15` §8.6. Needs a defined delete. No cascade columns are inferred.
 
 Explicit public directory: search dealerships, and show address and some contact information on each dealership. Those columns exist. `GET /api/v1/catalog/dealers` returns id, legal name, slug, logo flag, and in-stock and sold counts only (`design/14` §4.6). The buyer inventory payload already includes contact phone, email, and address. Needs the directory to expose the existing contact fields. The document does not name the search fields beyond finding a dealership.
 
@@ -189,7 +191,7 @@ The home page should say it is for dealerships rather than retail customers. Cop
 
 ## 8. Audit and activity
 
-Table `audit_event` (`design/15` §8.8, `design/14` §9). Already stored: `created_at` (When), `actor_username` (Actor), `action` (Action), `entity_type` plus `entity_id` (Record, type then number), `client_ip` (Source IP), `field_summary` and `previous_values` (the change), and optional `dealer_id`. Rows are append-only.
+Table `audit_event` (`design/15` §8.8, `design/14` §9). Already stored: `created_at` (When), `actor_username` (Actor), `action` (Action), `entity_type` plus `entity_id` (Record, type then number), `client_ip` (Source IP), `client_location` (Location, on `origin/robin`), `field_summary` and `previous_values` (the change), and optional `dealer_id`. Rows are append-only.
 
 Explicit sort, already modeled:
 
@@ -199,13 +201,13 @@ Explicit sort, already modeled:
 
 Explicit query, already stored but not matched this way:
 
-- Search the activity log by the change text. The example is the word "password" to find login requests made with passwords. That is a query over `field_summary` and `previous_values`. Sign-in rows do not store the typed identifier or the password (`design/15` §8.8, AUD-12), so the word "password" is not on a login row today. No new column fixes that example unless login rows start carrying text the current rule forbids.
+- Search the activity log by the change text. The example is the word "password" to find login requests made with passwords. That is a query over `field_summary` and `previous_values`. Sign-in rows already store the method in `field_summary`, for example `{"method":"password"}` (`design/14` §1.4, `AuthService`), so a text search for "password" finds password sign-ins. They do not store the typed identifier or the password itself (`design/15` §8.8, AUD-12). No new column.
 - The same change search on the admin audit log.
 - Partial match on the user search. Conflict: actor match is the exact username (`design/14` §9.2). Query behavior only.
 - Day pickers on team activity and the admin audit log. `from` and `to` already exist. Missing labels are UI.
 - Search options and columns in the same order. UI.
 
-**Location** is named as a column on team activity and the admin audit log. `audit_event` has no location, and the log does not show one. The document does not say whether it is a place name, a dealership, or another value. Needs a defined value before a column is added. IP geolocation is not inferred.
+**Location** is named as a column on team activity and the admin audit log. It already exists on `origin/robin` (commit `54b6664`): `audit_event.client_location` holds a place name resolved from `client_ip` when the row is written, returned as `clientLocation` on the platform and dealership logs. The document's screenshots came from that build. Already modeled; sort is a query.
 
 ## 9. Ad rules and buyer inquiry
 
@@ -213,7 +215,7 @@ Ad-rule sort columns Enabled and Severity are `compliance_rule_override.enabled`
 
 "Ask about this vehicle" must show its character limit as the writer nears it. The document does not state the number. The inquiry message is already 1–1000 characters (`design/14` public inquiries). No new field.
 
-That inquiry reuses an active customer with the same phone, then creates a `NEW` lead. The customer rule in §4 says a phone is not exclusive, including customer creation from the leads page. The document does not retarget the buyer form. The phone-match will conflict with that rule once two customers may share a phone.
+That inquiry reuses an active customer with the same phone, then creates a `NEW` lead. The customer rule in §4 says a phone is not exclusive, including customer creation from the leads page. The document does not retarget the buyer form. The phone-match will conflict with that rule once two customers may share a phone. Each inquiry also creates a new lead, so a second inquiry on the same vehicle conflicts with the one-lead-per-customer-and-vehicle rule in §5.
 
 ## 10. Retention and history
 
@@ -225,7 +227,7 @@ Explicit history that matches current storage:
 - Date sold stays on the DMS row. `sold_on` is already kept, and a second sell is rejected (`design/15` §3). Sold by and sold to, once stored, are the same kind of sale fact. The document does not say they can be edited after the sale.
 - A closed lead stays, because it can be reopened.
 - Activity and admin audit stay searchable after the fact. That matches append-only `audit_event` for the life of the database (`design/15` §8.6–§8.8).
-- The member joined date stays. That matches `membership.created_at`, including inactive memberships.
+- The member joined date stays. That matches `membership.created_at`, including inactive memberships. It is the first join; a rejoin reuses the row.
 
 Explicit deletes with no survival rule in the document:
 
@@ -243,10 +245,10 @@ A duplicate-customer warning still creates the new customer. No merge and no del
 | --- | --- | --- |
 | Full name is not unique | Explicit, three create or edit paths | Conflict. Drop `uk_app_user_display_name`. |
 | Username character errors must be readable | Explicit | Rule already modeled. Message only. |
-| Pending email, phone, and username can be corrected | Explicit | Needs update. Username is a stable key today. |
+| Pending email, phone, and username can be corrected | Explicit | Email and phone need update. Username is a conflict: it is a stable key today. |
 | Admin can edit email and phone | Explicit examples | Needs update. Uniqueness of account email and phone stays; the document does not drop it. |
 | Customer name, email, phone, or address match warns, then allows create | Explicit, CRM and lead-page create | Phone is a conflict (`PHONE_TAKEN`). Email warning exists. Name and address need a check only. |
-| Customer phone is not unique | Explicit | Conflict with CRM-09. |
+| Customer phone is not unique | Explicit | Conflict with `PHONE_TAKEN` (`design/14` §5.2). |
 | VIN must match the vehicle information | Explicit | Needs a save-time check. Decode today does not gate save (`design/14` §4.2, §4.6.1). What is compared is not stated. |
 | Carfax URL is exclusive and must be a real Carfax link before save | Explicit | Conflict with optional any-http(s) `carfaxUrl`. **INFERRED:** "exclusive" means unique, the same sense the document uses for a phone that cannot be shared. No URL pattern is given beyond "an actual Carfax link". |
 | Sale requires a customer, or Other plus a typed buyer | Explicit | Conflict. Sell body is `soldOn`, `soldPrice`, `version` only. |
@@ -280,10 +282,10 @@ Sorting does not add columns. Each name is a field already covered above.
 | --- | --- | --- |
 | DMS | Stock #, Body, Source, Condition, Cost, List price, Date added, Open WOS, Status | All already modeled. Sold by, Sold to, and Date sold are extra columns; only Date sold is stored. |
 | Leads | All | Existing lead list fields. |
-| Team members | Role, Source, Date added | `dealer_role`, derived account source, `membership.created_at`. |
-| Team activity | When, Actor, Action, Record, Source IP, Location | All on `audit_event` except Location. |
+| Team members | Role, Source, Date added | `dealer_role`, derived account source, `membership.created_at` (stored, not yet returned by the API). |
+| Team activity | When, Actor, Action, Record, Source IP, Location | All on `audit_event`; Location is `client_location` from `origin/robin`. |
 | Join requests | Requested, Status, Resolved | Notification create time, resolved action, resolved time. |
-| Admin audit | When, Actor, Action, Record, Location | Location is the gap. |
+| Admin audit | When, Actor, Action, Record, Location | All on `audit_event`, including `client_location`. |
 | Ad rules | Enabled, Severity | Already modeled. |
 | Pending accounts | Registered | `app_user.created_at`. |
 | Platform members | Dealership, Role, Sign-in, Status | Already modeled. |
@@ -300,7 +302,9 @@ Needs a new stored fact:
 - Vehicle seller.
 - Sale buyer: a customer, or a typed other-buyer name.
 - Customer notes, shape unspecified.
-- Audit Location, only after that word is defined.
+
+Needs a dropped constraint or a new rule, not a new stored fact:
+
 - Drop unique `display_name`.
 - Stop treating customer phone as unique.
 - Uniqueness for one lead per customer and vehicle, scope of closed leads unspecified.
@@ -308,7 +312,7 @@ Needs a new stored fact:
 
 Already modeled, so the change is a column on screen, a filter, or a rule on existing rows:
 
-- Date sold, cost, list price, stock number, body, source, condition, date added, status, open work-order count, work-order cost, lead-to-vehicle link, lead owner, member joined date, member source, sign-in method, registered time, join-request requested / status / resolved, audit when / actor / action / record / source IP / change text, dealership address and contact, ad-rule enabled and severity, inquiry message length.
+- Date sold, cost, list price, stock number, body, source, condition, date added, status, open work-order count, work-order cost, lead-to-vehicle link, lead owner, member joined date (stored, not returned by the member APIs), member source, sign-in method, registered time, join-request requested / status / resolved and history, audit when / actor / action / record / source IP / location / change text (including `{"method":"password"}` on sign-ins), dealership address and contact, ad-rule enabled and severity, inquiry message length.
 
 Conflicts with the design docs:
 
@@ -316,12 +320,15 @@ Conflicts with the design docs:
 - Unique customer phone, including buyer-inquiry match by phone (`design/14` §5.2).
 - Sell without a buyer; a sale does not close leads; `WON` and `LOST` cannot change (`design/15` §3–§4, `design/14` §4.5 and §5.5).
 - Only the platform admin changes `dealer_role` and binds accounts (`design/15` §2.5 and §8.2).
-- Optional dealership-admin role versus manager and staff only.
+- Optional dealership-admin role versus manager and staff only. Resolved 2026-11-03: `dealer_role` now carries a third `owner` value (`requirements/iteration-2/CR-Role-Hierarchy-2026-11-03.md`).
 - Optional Carfax URL accepting any http(s) link (`design/14` §4.2).
-- Exact actor match, and login audit rows with no password text (`design/14` §9, `design/15` §8.8).
+- Exact actor match (`design/14` §9.2).
+- Pending-account username edit versus username as a stable key (`design/15` §8.3).
+- Dealership delete versus "Do not add `DELETE /admin/dealers/{id}`" (`design/14` §3.4).
 - Hard reading of dealership or user delete versus nothing is deleted (`design/15` §8.6).
+- Buyer inquiry creating a new lead each time versus one lead per customer and vehicle.
 
 Deferred, with no fields to add:
 
 - Home-page create-account becomes a dealership inquiry. Interim step is removing the button.
-- Dealership admin / owner / regional manager. Optional, and not specified enough to model.
+- Dealership admin / owner / regional manager. Optional, and not specified enough to model. No longer deferred: specified and modelled on 2026-11-03 as the `owner` value of `dealer_role` (`requirements/iteration-2/CR-Role-Hierarchy-2026-11-03.md`).

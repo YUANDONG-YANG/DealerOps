@@ -1,6 +1,6 @@
 import type { Locator, Page } from '@playwright/test';
 import { test, expect } from '../../support/fixtures';
-import { expectStatus, uniqueSuffix, type Api, type Customer, type Vehicle } from '../../support/api';
+import { expectStatus, today, uniqueSuffix, type Api, type Customer, type Vehicle } from '../../support/api';
 
 // The picker collects every vehicle page of the dealership before filtering, which can take
 // a while in a busy shared dealer, so positive picker assertions get a longer timeout.
@@ -13,6 +13,21 @@ function uniqueModel() {
 
 async function link(api: Api, customer: Customer, vehicle: Vehicle) {
   await expectStatus(await api.put(`/api/v1/customers/${customer.id}/vehicles/${vehicle.id}`), 200);
+}
+
+/**
+ * Sells a vehicle. A sale needs a buyer since the 2026-11-03 change request (D8): a CRM customer
+ * or "Other" with a typed name, so `Api.sellVehicle` cannot be used. A vehicle already linked to
+ * a customer must be sold to that customer (CRM-07); without `buyerCustomerId` the buyer is a
+ * typed name and the vehicle stays unlinked.
+ */
+async function sell(api: Api, v: Vehicle, buyerCustomerId: number | null = null) {
+  const res = await api.post(`/api/v1/vehicles/${v.id}/sell`, {
+    soldOn: today(), soldPrice: 18900, version: v.version,
+    buyerCustomerId, buyerName: buyerCustomerId == null ? 'Walk-in buyer' : null,
+  });
+  await expectStatus(res, 200);
+  return (await res.json()) as Vehicle;
 }
 
 async function openCustomer(page: Page, customerId: number) {
@@ -59,7 +74,7 @@ test.describe('CRM link and unlink (UI)', () => {
     const toSell = await staffApi.createVehicle();
     await link(staffApi, customer, inStock);
     await link(staffApi, customer, toSell);
-    await staffApi.sellVehicle(toSell);
+    await sell(staffApi, toSell, customer.id);
 
     const drawer = await openCustomer(page, customer.id);
 
@@ -176,7 +191,7 @@ test.describe('CRM link and unlink (UI)', () => {
     const customer = await staffApi.createCustomer();
     const vehicle = await staffApi.createVehicle();
     await link(staffApi, customer, vehicle);
-    await staffApi.sellVehicle(vehicle);
+    await sell(staffApi, vehicle, customer.id);
 
     const drawer = await openCustomer(page, customer.id);
     const row = linkedRow(drawer, vehicle.id);
@@ -197,7 +212,7 @@ test.describe('CRM link and unlink (UI)', () => {
     await expect(row.getByRole('button', { name: 'Unlink' })).toBeVisible();
 
     // Sold by someone else after the drawer loaded.
-    await staffApi.sellVehicle(await staffApi.getVehicle(vehicle.id));
+    await sell(staffApi, await staffApi.getVehicle(vehicle.id), customer.id);
 
     await row.getByRole('button', { name: 'Unlink' }).click();
     const del = page.waitForResponse(
@@ -216,7 +231,7 @@ test.describe('CRM link and unlink (UI)', () => {
   test('AT-25 / CRM-05 / CRM-07: a sold unlinked vehicle can be linked from the picker once, then is locked', async ({ staffPage: page, staffApi }) => {
     const customer = await staffApi.createCustomer();
     const second = await staffApi.createCustomer();
-    const vehicle = await staffApi.sellVehicle(await staffApi.createVehicle({ model: uniqueModel() }));
+    const vehicle = await sell(staffApi, await staffApi.createVehicle({ model: uniqueModel() }));
     // An unlinked vehicle used only to prove the second picker has loaded.
     const probe = await staffApi.createVehicle();
 

@@ -26,6 +26,16 @@ function checklistRow(pane: Locator, label: string) {
   return pane.locator('li').filter({ hasText: new RegExp(`^\\S*\\s*${escapeRegex(label)}$`) });
 }
 
+/**
+ * UI-43: a row's pass / fail / review mark is a themed icon (`CheckMark` in
+ * `frontend/react/src/components/CheckMark.tsx`) rather than an emoji, so the state is asserted on
+ * the icon's class next to the row text.
+ */
+async function expectMarked(row: Locator, state: 'pass' | 'fail' | 'warn', text: string) {
+  await expect(row).toHaveText(text);
+  await expect(row.locator(`.check-mark-${state}`)).toHaveCount(1);
+}
+
 async function openAd(page: Page, vehicleId: number) {
   await page.goto(`/ads?vehicleId=${vehicleId}`);
   // The deep link selects the vehicle from an effect; in the React StrictMode dev build that
@@ -60,7 +70,7 @@ test.describe('Ad compliance check (UI)', () => {
     const pane = resultPane(page);
     await expect(pane.getByText(DISCLAIMER, { exact: true })).toBeVisible();
 
-    // The model year is left out on purpose so one REVIEW row (⚠️) appears next to the BLOCK.
+    // The model year is left out on purpose so one REVIEW row appears next to the BLOCK.
     await field(page, 'Title').locator('input').fill('Used Toyota Camry, sold as-is');
     await field(page, 'Body').locator('textarea').fill(`Used Toyota Camry, sold as-is. ${CONTACTS}`);
     await field(page, 'Type').locator('select').selectOption('CASH');
@@ -101,17 +111,15 @@ test.describe('Ad compliance check (UI)', () => {
     await expect(page.getByRole('button', { name: 'Run check' })).toBeVisible();
     await expect(pane.getByRole('status')).toHaveText('Blocked');
 
-    // UI-43: failing rule ❌ with its reason, review rule ⚠️, passing rows ✅.
-    await expect(pane.locator('li', { hasText: 'PRICE_MISSING' })).toHaveText(
-      '❌ Block · PRICE_MISSING: Advertised price not found in the ad body.',
-    );
-    await expect(pane.locator('li', { hasText: 'YEAR_NOT_IN_COPY' })).toHaveText(
-      '⚠️ Review · YEAR_NOT_IN_COPY: Model year is not present in the ad copy.',
-    );
-    await expect(checklistRow(pane, 'Price')).toHaveText('❌ Price');
-    await expect(checklistRow(pane, 'New/used and year')).toHaveText('⚠️ New/used and year');
-    await expect(checklistRow(pane, 'Dealership name and contacts')).toHaveText('✅ Dealership name and contacts');
-    await expect(checklistRow(pane, 'Condition')).toHaveText('✅ Condition');
+    // UI-43: failing rule marked fail with its reason, review rule marked warn, passing rows pass.
+    await expectMarked(pane.locator('li', { hasText: 'PRICE_MISSING' }), 'fail',
+      'Block · PRICE_MISSING: Advertised price not found in the ad body.');
+    await expectMarked(pane.locator('li', { hasText: 'YEAR_NOT_IN_COPY' }), 'warn',
+      'Review · YEAR_NOT_IN_COPY: Model year is not present in the ad copy.');
+    await expectMarked(checklistRow(pane, 'Price'), 'fail', 'Price');
+    await expectMarked(checklistRow(pane, 'New/used and year'), 'warn', 'New/used and year');
+    await expectMarked(checklistRow(pane, 'Dealership name and contacts'), 'pass', 'Dealership name and contacts');
+    await expectMarked(checklistRow(pane, 'Condition'), 'pass', 'Condition');
 
     // UI-46: the disclaimer stays visible next to the result.
     await expect(pane.getByText(DISCLAIMER, { exact: true })).toBeVisible();
@@ -139,17 +147,16 @@ test.describe('Ad compliance check (UI)', () => {
 
     const pane = resultPane(page);
     await expect(pane.getByRole('status')).toHaveText('Blocked');
-    await expect(pane.locator('li', { hasText: 'FINANCE_APR_MISSING' })).toHaveText(
-      '❌ Block · FINANCE_APR_MISSING: Finance APR is missing from the ad.',
-    );
+    await expectMarked(pane.locator('li', { hasText: 'FINANCE_APR_MISSING' }), 'fail',
+      'Block · FINANCE_APR_MISSING: Finance APR is missing from the ad.');
     // With no APR at all there is nothing to place next to the payment: only the APR row fails.
     await expect(pane.locator('li', { hasText: 'FINANCE_APR_PROXIMITY' })).toHaveCount(0);
-    await expect(checklistRow(pane, 'APR')).toHaveText('❌ APR');
-    await expect(checklistRow(pane, 'APR shown as prominently as the payment amount'))
-      .toHaveText('✅ APR shown as prominently as the payment amount');
-    await expect(checklistRow(pane, 'Finance term')).toHaveText('✅ Finance term');
-    await expect(checklistRow(pane, 'Cash price or cost of borrowing')).toHaveText('✅ Cash price or cost of borrowing');
-    await expect(checklistRow(pane, 'Price')).toHaveText('✅ Price');
+    await expectMarked(checklistRow(pane, 'APR'), 'fail', 'APR');
+    await expectMarked(checklistRow(pane, 'APR shown as prominently as the payment amount'), 'pass',
+      'APR shown as prominently as the payment amount');
+    await expectMarked(checklistRow(pane, 'Finance term'), 'pass', 'Finance term');
+    await expectMarked(checklistRow(pane, 'Cash price or cost of borrowing'), 'pass', 'Cash price or cost of borrowing');
+    await expectMarked(checklistRow(pane, 'Price'), 'pass', 'Price');
     await expect(pane.getByText(DISCLAIMER, { exact: true })).toBeVisible();
   });
 
@@ -172,13 +179,12 @@ test.describe('Ad compliance check (UI)', () => {
 
     const pane = resultPane(page);
     await expect(pane.getByRole('status')).toHaveText('Blocked');
-    await expect(pane.locator('li', { hasText: 'CONDITION_MISMATCH' })).toHaveText(
-      '❌ Block · CONDITION_MISMATCH: Ad claims certified but the vehicle is not certified.',
-    );
-    await expect(checklistRow(pane, 'Condition')).toHaveText('❌ Condition');
-    await expect(checklistRow(pane, 'Price')).toHaveText('✅ Price');
-    await expect(checklistRow(pane, 'New/used and year')).toHaveText('✅ New/used and year');
-    await expect(checklistRow(pane, 'Dealership name and contacts')).toHaveText('✅ Dealership name and contacts');
+    await expectMarked(pane.locator('li', { hasText: 'CONDITION_MISMATCH' }), 'fail',
+      'Block · CONDITION_MISMATCH: Ad claims certified but the vehicle is not certified.');
+    await expectMarked(checklistRow(pane, 'Condition'), 'fail', 'Condition');
+    await expectMarked(checklistRow(pane, 'Price'), 'pass', 'Price');
+    await expectMarked(checklistRow(pane, 'New/used and year'), 'pass', 'New/used and year');
+    await expectMarked(checklistRow(pane, 'Dealership name and contacts'), 'pass', 'Dealership name and contacts');
   });
 
   test('UI-44 / AD-11: editing a Blocked ad returns the badge to "Needs AI review", not Stale', async ({

@@ -1,6 +1,6 @@
 # Design and code impact
 
-Source: the client change note in `requirements/update-cr/Changes Document.docx`.
+Source: the client change note in `requirements/iteration-2/Changes Document.docx`.
 
 This map covers the active .NET 10 services (`DealerOps.Core`, `DealerOps.Gateway`, `DealerOps.AiService`) and `frontend/react`. Java and Vue are out of scope. `DealerOps.AiService` does not own any of these changes: none of them are model calls, and that service must not read or write the application database. VIN decode already runs in Core against NHTSA vPIC (`design/14-Backend-API-Contract.md` §4.6.1).
 
@@ -8,9 +8,11 @@ The browser talks only to the gateway. `backend/dotnet/DealerOps.Gateway/Program
 
 "Design update required" below means the repository rule for authentication, tenancy, roles, API contracts, gateway behavior, or classroom acceptance (`design/14-Backend-API-Contract.md`, `design/15-Data-Auth-and-Gateway.md`, `design/16-Acceptance-and-Test.md`, `design/21-Feature-Extensions.md`, and `design/00-Current-Development-Design.md` where those topics are restated). A UI-only change can still leave `design/12-Frontend-UI-Conventions.md` stale; that is noted, and it is not by itself a "yes" under that rule.
 
-Two items in the note should not be built until the client confirms them: replacing self-registration with a dealership inquiry, and a per-dealership admin/owner/regional-manager role. The note says removing the home-page create-account button is enough for now, and that the new role should be discussed first.
+Two items in the note should not be built until the client confirms them: replacing self-registration with a dealership inquiry, and a per-dealership admin/owner/regional-manager role. The note says removing the home-page create-account button is enough for now, and that the new role should be discussed first. **Decided 2026-11-03:** the role is no longer held back — it ships as a single dealership Owner tier, so `DealerRole` is `{ Owner, Manager, Sales }` and the affected code and documents are listed in `requirements/iteration-2/CR-Role-Hierarchy-2026-11-03.md` §6. The registration item is unaffected.
 
-Lists are paged at 10 rows (`design/12-Frontend-UI-Conventions.md` §2; `frontend/react/src/components/DataTable.tsx` has no sort). Sorting only the current page would be wrong. Real column sorting is a list-query contract change in Core.
+Lists are paged at 10 rows (`design/12-Frontend-UI-Conventions.md` §2; `frontend/react/src/components/DataTable.tsx` has no sort); audit pages default to 20 rows. Sorting only the current page would be wrong. Real column sorting is a list-query contract change in Core.
+
+Cross-cutting files that every contract change below also touches: `dealer-platform/openapi.yaml` (the contract next to `design/14-Backend-API-Contract.md`), the typed clients in `frontend/react/src/api/*.ts` (pages must not call the API directly), and `design/13-Frontend-Engineering.md` for client-layer changes. Core has no EF migrations: `backend/dotnet/DealerOps.Core/Program.cs` runs `EnsureCreated()` and then a hand-written DDL patch list, so every new column, dropped index, or new table needs an entry there, or an existing database (including the Azure demo database) keeps the old shape. New admin endpoints must stay under `/api/v1/admin/**` so the gateway AUTH-08 gate keeps covering them.
 
 ## 1. DMS sold-by, sold-to, and date-sold columns
 
@@ -34,23 +36,23 @@ Lists are paged at 10 rows (`design/12-Frontend-UI-Conventions.md` §2; `fronten
 
 ## 3. Sales report periods and per-employee metrics
 
-**Design.** `design/14-Backend-API-Contract.md` §4.3 and `design/21-Feature-Extensions.md` DASH-01 define one all-time sales report plus the twelve most recent months, shared by `/dashboard` and `/reports/sales-funnel`. There is no day/week/year switch and no salesperson breakdown. **Silent on both requests; the current contract conflicts with a period switch if the same endpoint keeps returning only lifetime totals.**
+**Design.** `design/14-Backend-API-Contract.md` §4.3b (`GET /api/v1/vehicles/report/sales`) and `design/21-Feature-Extensions.md` DASH-01 define one all-time sales report plus the twelve most recent months, shared by `/dashboard` and `/reports/sales-funnel`. There is no day/week/year switch and no salesperson breakdown. **Silent on both requests; the current contract conflicts with a period switch if the same endpoint keeps returning only lifetime totals.**
 
 **Code.** `backend/dotnet/DealerOps.Core/Vehicle/Dto/SalesReport.cs` is `SoldCount`, `Revenue`, `GrossProfit`, `AverageDaysToSell`, `InStockCount`, `InventoryCost`, and `Months`. `frontend/react/src/pages/DashboardPage.tsx` and `frontend/react/src/pages/SalesFunnelPage.tsx` render that payload. No salesperson dimension exists until sold-by is stored (item 1).
 
 **Size.** Large. Period filtering changes the report contract, and employee metrics need a seller on each sale plus a new grouping. Both pages must stay on the same Core endpoint.
 
-**Design update required.** Yes. `design/14-Backend-API-Contract.md` §4.3 and `design/21-Feature-Extensions.md` DASH-01. Classroom report checks in `design/16-Acceptance-and-Test.md` (the EXT-11–EXT-19 pointer) need the same update if the demo numbers change.
+**Design update required.** Yes. `design/14-Backend-API-Contract.md` §4.3b and `design/21-Feature-Extensions.md` DASH-01. Classroom report checks in `design/16-Acceptance-and-Test.md` (the EXT-11–EXT-19 pointer) need the same update if the demo numbers change.
 
 ## 4. Managers promote staff and edit employee details; members show join date
 
 **Design.** **Conflicts.** `design/15-Data-Auth-and-Gateway.md` §2.5 and `design/21-Feature-Extensions.md` AUTH-26 say only the platform admin changes `MANAGER`/`STAFF`. AUTH-27 lets a manager remove staff and edit the dealership profile, not another person's account. `design/14-Backend-API-Contract.md` §3.7b is the admin role route. §2.1 lets a user patch their own display name and phone; username, role, and email stay fixed. §3.6 says binding an existing account never changes its contact fields.
 
-**Code.** `backend/dotnet/DealerOps.Core/Dealer/DealerRole.cs` is `Manager` and `Staff`. `MembershipService.SetRole` is reached from `AdminMemberController` (platform admin). `frontend/react/src/pages/TeamPage.tsx` says the platform admin appoints managers and only offers Remove for staff. `MembershipEntity.CreatedAt` exists, but `MemberResponse` does not expose it, and the members table has no joined column. `frontend/react/src/pages/AdminPage.tsx` already has Make manager / Make staff.
+**Code.** `backend/dotnet/DealerOps.Core/Dealer/DealerRole.cs` is `Manager` and `Staff`. `MembershipService.SetRole` is reached from `AdminMemberController` (platform admin). `frontend/react/src/pages/TeamPage.tsx` says the platform admin appoints managers and only offers Remove for staff. `MembershipEntity.CreatedAt` exists, but `MemberResponse` does not expose it, and the members table has no joined column. The Team members table is fed by `MemberOption` from `GET /members` (`MemberDirectoryService`), so the joined date goes on that DTO. `frontend/react/src/pages/AdminPage.tsx` already has Make manager / Make staff.
 
-**Size.** Medium for a joined-date column (membership `created_at` is already stored). Large for promotion and for a manager editing another account's email or phone: that moves a platform-admin power onto the dealership and changes who may write `app_user`.
+**Size.** Medium for a joined-date column (membership `created_at` is already stored; it is the first-bind time, so a member who was unbound and re-bound may show the original row's date unless the rule is stated). Large for promotion and for a manager editing another account's email or phone: that moves a platform-admin power onto the dealership and changes who may write `app_user`.
 
-**Design update required.** Yes. `design/14-Backend-API-Contract.md` §3.7b and §5.6–§5.8, `design/15-Data-Auth-and-Gateway.md` §2.5, `design/21-Feature-Extensions.md` AUTH-26 and AUTH-27, and the manager/staff acceptance notes in `design/16-Acceptance-and-Test.md`. Do not add a JWT role; keep using `membership.dealer_role` so `DealerOps.Gateway` stays unchanged.
+**Design update required.** Yes. `design/14-Backend-API-Contract.md` §3.7b and §5.6–§5.8, `design/15-Data-Auth-and-Gateway.md` §2.5, `design/21-Feature-Extensions.md` AUTH-26 and AUTH-27, and the manager/staff acceptance notes in `design/16-Acceptance-and-Test.md`. Do not add a JWT role; keep using `membership.dealer_role` so `DealerOps.Gateway` stays unchanged. **Settled 2026-11-03:** that is the route taken — `dealer_role` gains `owner` and `staff` is renamed `sales`, a manager may promote and edit **sales** members only, and the editable fields are full name and phone (`requirements/iteration-2/CR-Role-Hierarchy-2026-11-03.md`).
 
 ## 5. Home-page account creation, dealership inquiry, and a dealership-admin role
 
@@ -60,9 +62,9 @@ Lists are paged at 10 rows (`design/12-Frontend-UI-Conventions.md` §2; `fronten
 
 **Size.** Small to hide the create-account buttons and leave `/register` and the API in place, which matches "for now". Large to replace registration with an inquiry, and large again for a fourth privilege level.
 
-**Design update required.** Yes even for the small hide, because `design/16-Acceptance-and-Test.md` and `design/12-Frontend-UI-Conventions.md` §1 describe the button. A public inquiry needs `design/14-Backend-API-Contract.md` and a gateway anonymous-route update in `design/15-Data-Auth-and-Gateway.md`. A new role needs `design/15-Data-Auth-and-Gateway.md`, `design/14-Backend-API-Contract.md`, and `design/21-Feature-Extensions.md` before any code. **Do not implement the new role in this pass.**
+**Design update required.** Yes even for the small hide, because `design/16-Acceptance-and-Test.md` and `design/12-Frontend-UI-Conventions.md` §1 describe the button. A public inquiry needs `design/14-Backend-API-Contract.md` and a gateway anonymous-route update in `design/15-Data-Auth-and-Gateway.md`. A new role needs `design/15-Data-Auth-and-Gateway.md`, `design/14-Backend-API-Contract.md`, and `design/21-Feature-Extensions.md` before any code. **Do not implement the new role in this pass.** **Superseded 2026-11-03:** the role was specified and implemented as the dealership Owner, a third `dealer_role` value rather than a fourth privilege level in the JWT, with the design updates in `requirements/iteration-2/CR-Role-Hierarchy-2026-11-03.md` §6.
 
-The same note also asks sample ads to link to sign-up instead of sign-in. `LandingPage.tsx` currently sends "Sign in to check your own ads" to `/login`. Do not point that link at `/register` in the same change that removes create-account. Leave it on sign-in until an inquiry page exists.
+The same note also asks sample ads to link to sign-up instead of sign-in. `LandingPage.tsx` currently sends "Sign in to check your own ads" to `/login`. That request is an author suggestion; the client request (CR-009) is to remove home-page account creation. Decision D4 follows the client: sample ads stay on `/login` and are not pointed at `/register`, a recorded decision against the author suggestion until an inquiry page exists.
 
 ## 6. Sortable columns across DMS, leads, team, audit, rules, and pending accounts
 
@@ -78,7 +80,7 @@ The same note also asks sample ads to link to sign-up instead of sign-in. `Landi
 | Admin audit, ad rules, pending accounts, members | `frontend/react/src/pages/AdminPage.tsx`, `frontend/react/src/components/ComplianceRulesPanel.tsx`, `frontend/react/src/components/PendingAccounts.tsx` | Same audit panel; rules are a static table; pending rows expose `createdAt` |
 | Record audit drawers | `frontend/react/src/components/AuditTrail.tsx` | Action, Actor, When, Summary, one page of history |
 
-Team activity columns in the note include Location. `backend/dotnet/DealerOps.Core/Audit/Dto/AuditItem.cs` has `ClientIp` and no location. Do not invent geocoding; either drop Location or specify it before building it.
+Team activity columns in the note include Location. The screenshots were taken from an origin/robin build: commit 54b6664 ("Show the client location in the audit log") added `audit_event.client_location` and a Location column, now merged into V2. Location therefore exists; keep it and add it to the sortable set rather than dropping it.
 
 **Size.** Large as a program, small per endpoint if every list takes the same `sort` and `direction`. Client-only sort is the wrong fix on paged APIs. The ad-rules table and the current-page member table can be sorted in the browser.
 
@@ -94,15 +96,15 @@ Team activity columns in the note include Location. `backend/dotnet/DealerOps.Co
 
 **Design update required.** Yes. `design/14-Backend-API-Contract.md`, `design/15-Data-Auth-and-Gateway.md` §8, `design/21-Feature-Extensions.md` AUTH-16, and `design/16-Acceptance-and-Test.md` EXT-05.
 
-The visible labels on `ProfilePage.tsx` and the admin staff drawer already say "Full name". No label change is required there. The JSON field remains `displayName`.
+The label change is real work. Before the change (branch v1), `frontend/react/src/pages/ProfilePage.tsx` line 138 and `frontend/react/src/pages/AdminPage.tsx` lines 52 and 582 say "Display name", and the hint at `AdminPage.tsx` line 57 says "Display names are unique". Rename those labels to "Full name" and drop the uniqueness hint. The JSON field remains `displayName`.
 
 ## 8. Confirm unsaved edits and lead closure
 
 **Design.** `design/12-Frontend-UI-Conventions.md` §1 already requires a second confirmation for Sell and Unbind. It is **silent** on dirty-form prompts and on confirming a lead close. `design/21-Feature-Extensions.md` LEAD-03 treats `WON` and `LOST` as final, which is why a confirm is warranted, but it does not require one.
 
-**Code.** `frontend/react/src/components/FormDrawer.tsx` closes on overlay click or Escape with no dirty check. `frontend/react/src/components/ConfirmDialog.tsx` already exists and is used for sell and unbind. The drawers called out are dealership edit (`AdminPage.tsx`), vehicle add/edit (`DmsPage.tsx`), customer add/edit (`CrmPage.tsx`), lead add/edit and close (`LeadsPage.tsx`), and dealership profile (`TeamPage.tsx`).
+**Code.** `frontend/react/src/components/FormDrawer.tsx` closes on overlay click or Escape with no dirty check. `frontend/react/src/components/ConfirmDialog.tsx` already exists and is used for sell and unbind. The drawers called out are dealership edit (`AdminPage.tsx`), vehicle add/edit (`DmsPage.tsx`), customer add/edit (`CrmPage.tsx`), lead add/edit and close (`LeadsPage.tsx`), and dealership profile (`TeamPage.tsx`). The dealership profile is an inline form, not a `FormDrawer`, so it needs its own confirm-before-save.
 
-**Size.** Small. One dirty check in `FormDrawer`, plus an explicit confirm when a lead stage becomes `WON` or `LOST`. No API change.
+**Size.** Small. One dirty check in `FormDrawer`, a confirm before saving the inline dealership profile, plus an explicit confirm when a lead stage becomes `WON` or `LOST`. No API change.
 
 **Design update required.** No. Record the confirm in `design/12-Frontend-UI-Conventions.md` §4 so later UI work does not remove it.
 
@@ -112,7 +114,7 @@ The visible labels on `ProfilePage.tsx` and the admin staff drawer already say "
 
 **Code.** `frontend/react/src/pages/TeamPage.tsx` renders one join-request table with Requested, Status, and Resolved. Status is already on each row, so open versus closed can be two tabs over the same payload.
 
-**Size.** Small, React only, if the existing list includes resolved rows.
+**Size.** Small, React only, if the existing list includes resolved rows. The closed history comes from the join-request notifications read with `includeResolved`.
 
 **Design update required.** No, unless the list API gains a status filter. Then update `design/14-Backend-API-Contract.md` §5.7.
 
@@ -142,6 +144,8 @@ The visible labels on `ProfilePage.tsx` and the admin staff drawer already say "
 
 **Code.** `LeadService.List` applies `q` only to the customer name. `frontend/react/src/pages/LeadsPage.tsx` starts `ownerUsername` as empty. `frontend/react/src/pages/CrmPage.tsx` already filters its vehicle picker on year, make, model, and VIN. The sell dialog in `DmsPage.tsx` uses a plain `<select>` of buyers.
 
+The client asks the Lead drawer's Customer and Vehicle boxes to behave like the leads search (`SearchSuggest`), but `design/12-Frontend-UI-Conventions.md` §3 says "form pickers inside drawers keep their own controls". That is a conflict; the client request wins, so §3 must be amended.
+
 **Size.** Small to prefill the owner from the signed-in username and to reuse the CRM picker pattern. Small-to-medium to let `q` also match the vehicle's year, make, and model, which is an API change because the current page cannot see unloaded rows.
 
 **Design update required.** Yes for a vehicle match on `GET /api/v1/leads`: `design/14-Backend-API-Contract.md` lead list query and `design/21-Feature-Extensions.md` LEAD-05. No for defaulting the owner in the form.
@@ -158,7 +162,7 @@ The visible labels on `ProfilePage.tsx` and the admin staff drawer already say "
 
 ## 14. CRM list: leads instead of vehicles purchased; add a lead; customer notes
 
-**Design.** `design/12-Frontend-UI-Conventions.md` §2 and `design/00-Current-Development-Design.md` keep "Vehicles purchased". Lead notes exist (`design/21-Feature-Extensions.md` LEAD-07). **Customer notes are silent.** A lead can already be created for an existing customer (LEAD-01).
+**Design.** `design/12-Frontend-UI-Conventions.md` §2 and `design/14-Backend-API-Contract.md` §5.1 keep "Vehicles purchased" (`design/00-Current-Development-Design.md` does not mention it). Lead notes exist (`design/21-Feature-Extensions.md` LEAD-07). **Customer notes are silent.** A lead can already be created for an existing customer (LEAD-01).
 
 **Code.** `backend/dotnet/DealerOps.Core/Customer/Dto/CustomerListItem.cs` exposes `LinkedVehicleCount`, not a lead count. `frontend/react/src/pages/CrmPage.tsx` shows that column, and the open customer already lists leads via `customerId` on `LeadController.List` with links to `/leads`. There is no customer-note type; notes are `LeadNoteEntity` only.
 
@@ -168,19 +172,19 @@ The visible labels on `ProfilePage.tsx` and the admin staff drawer already say "
 
 ## 15. Duplicate-customer warning, and shared customer phone numbers
 
-**Design.** **Conflicts on phone.** `design/14-Backend-API-Contract.md` §5.2 and §5.3 return `409 PHONE_TAKEN` inside the dealership. Email may be shared and returns `emailWarning` (CRM-13). Name and address duplicates are **silent**. Account phone uniqueness (`uk_app_user_phone`) is a different rule and is not what this note asks to relax.
+**Design.** **Conflicts on phone.** `design/14-Backend-API-Contract.md` §5.2 and §5.3 return `409 PHONE_TAKEN` inside the dealership. Email may be shared and returns `emailWarning` (cited as CRM-13 from `design/12-Frontend-UI-Conventions.md` §4 and `design/14-Backend-API-Contract.md` §5.4, but CRM-13 is not defined in `design/21-Feature-Extensions.md`). Name and address duplicates are **silent**. Account phone uniqueness (`uk_app_user_phone`) is a different rule and is not what this note asks to relax.
 
-**Code.** `CustomerService.RequireUniquePhone` enforces the dealership phone rule on create and patch. The same service already builds `emailWarning`. `frontend/react/src/pages/CrmPage.tsx` maps `PHONE_TAKEN` to a visible error. Lead create goes through the same customer rules when `newCustomer` is sent.
+**Code.** `CustomerService.RequireUniquePhone` enforces the dealership phone rule on create and patch. The same service already builds `emailWarning`. `frontend/react/src/pages/CrmPage.tsx` maps `PHONE_TAKEN` to a visible error. Lead create goes through the same customer rules when `newCustomer` is sent. `BuyerSiteService` finds the customer by phone for a public inquiry, so shared phones need a rule there too.
 
 **Size.** Medium. Replace the phone 409 with the email-warning pattern for name, email, phone, and address, on CRM save and on lead create. Confirm-and-save needs a second request or a flag so the API can tell a warning from a hard error.
 
-**Design update required.** Yes. `design/14-Backend-API-Contract.md` §5.2, `design/12-Frontend-UI-Conventions.md` §4, and `design/21-Feature-Extensions.md` CRM-13.
+**Design update required.** Yes. `design/14-Backend-API-Contract.md` §5.2, `design/12-Frontend-UI-Conventions.md` §4, and `design/21-Feature-Extensions.md` (define CRM-13 there).
 
 ## 16. VIN must match the decoded vehicle, and the Carfax URL must be a unique Carfax link
 
 **Design.** **Conflicts.** §4.2 accepts any 17-character VIN (no I, O, or Q) and any http(s) `carfaxUrl` up to the documented length. §4.6.1 decode prefills the form and does not reject a mismatch. VIN uniqueness per dealership stays.
 
-**Code.** Validation is in `VehicleService` on create and patch, and mirrored in `DmsPage.tsx` (`URL_PATTERN` for Carfax). Decode is the public catalog route, implemented in Core.
+**Code.** VIN and Carfax format rules are DataAnnotations on `backend/dotnet/DealerOps.Core/Vehicle/Dto/CreateVehicleRequest.cs` and `PatchVehicleRequest.cs`; VIN uniqueness is checked in `VehicleService`. The format rules are mirrored in `DmsPage.tsx` (`URL_PATTERN` for Carfax). Decode is the public catalog route, implemented in Core.
 
 **Size.** Medium. Carfax host and uniqueness checks are ordinary validation. Forcing make, model, and year to equal a vPIC decode is larger: the catalog can be down (`502`), many vehicles decode incompletely, and staff can legitimately correct a bad decode. Specify the failure mode before coding it.
 
@@ -190,7 +194,7 @@ The visible labels on `ProfilePage.tsx` and the admin staff drawer already say "
 
 **Design.** **Conflicts and extends.** §4.5 sells with date and price only. The sell dialog may link a customer, and the bill of sale already tolerates no buyer (`design/21-Feature-Extensions.md` SALE-01). LEAD-02 allows a vehicle on a lead and does not forbid a second open lead for the same customer and vehicle. LEAD-03 does not auto-close leads on a sale. One vehicle still links to one customer (`design/00-Current-Development-Design.md`).
 
-**Code.** `VehicleService.Sell` does not read leads. `DmsPage.tsx` lets the buyer stay "Not linked yet". `AppDbContext.ConfigureLead` indexes `(dealer, stage)` and does not unique `(customer, vehicle)`. `CrmPage.tsx` already shows a customer's leads; the vehicle drawer does not show a lead count.
+**Code.** `VehicleService.Sell` does not read leads. `DmsPage.tsx` lets the buyer stay "Not linked yet". `AppDbContext.ConfigureLead` indexes `(dealer, stage)` and does not unique `(customer, vehicle)`. `CrmPage.tsx` already shows a customer's leads; the vehicle drawer does not show a lead count. Today sell and buyer link are two browser calls (sell, then the CustomerVehicle link/unlink path), so a required buyer means one Core call. A duplicate-lead rule also hits `BuyerSiteService`, which creates a lead for each public inquiry.
 
 **Size.** Large. These four behaviors belong in one Core transaction: require `customerId` or an explicit other-buyer name on sell, reject a duplicate open lead, attach leads to the vehicle list, and move matching open leads to a defined closed stage when that customer buys that vehicle. An "other" buyer who is not a CRM customer conflicts with "one vehicle, one customer" and needs an explicit decision. Auto-close must not close a different customer's lead on the same vehicle without a rule.
 
@@ -200,9 +204,9 @@ The visible labels on `ProfilePage.tsx` and the admin staff drawer already say "
 
 **Design.** AUTH-16 already states the username character set and says every error names its field in English. **Covers the rule; the note says the current text is hard to read.**
 
-**Code.** `NewAccountRules.cs` and the admin staff drawer. `AdminPage.tsx` already has a readable hint when the username is taken. Invalid characters are a separate `400 VALIDATION` message.
+**Code.** The username pattern is on `backend/dotnet/DealerOps.Core/Dealer/Dto/CreateMemberRequest.cs` with no `ErrorMessage`, so the default DataAnnotations text is returned; the admin staff drawer shows it. `AdminPage.tsx` already has a readable hint when the username is taken. Invalid characters are a separate `400 VALIDATION` message.
 
-**Size.** Small. Improve the `fieldErrors.username` text in Core and show it on the staff drawer. No rule change.
+**Size.** Small. Add an `ErrorMessage` for `fieldErrors.username` in `CreateMemberRequest.cs` and show it on the staff drawer. No rule change.
 
 **Design update required.** No, unless the allowed character set changes.
 
@@ -210,21 +214,21 @@ The visible labels on `ProfilePage.tsx` and the admin staff drawer already say "
 
 **Design.** **Conflicts.** AUTH-18 and AUTH-20, `design/15-Data-Auth-and-Gateway.md` §2.5 and §8, and `design/14-Backend-API-Contract.md` §3.6 and §3.8 say the platform admin binds an unbound account and does not rewrite its credentials. Join requests are filed by the user and approved by a manager (AUTH-25). Pending accounts have list and bind, not admin edit or delete. Self-delete exists at §2.2 and is not an admin action.
 
-**Code.** `frontend/react/src/components/PendingAccounts.tsx` offers "Bind without password" only. `MembershipService` binds directly. `AdminPendingUserController` lists pending users. There is no admin delete or admin patch of a pending username, email, or phone.
+**Code.** `frontend/react/src/components/PendingAccounts.tsx` offers "Bind without password" only. `MembershipService` binds directly. `AdminPendingUserController` lists pending users. There is no admin delete or admin patch of a pending username, email, or phone. The main account-creation path is the AdminPage create-staff drawer (`POST /api/v1/admin/dealers/{id}/members`), which creates and binds in one step.
 
-**Size.** Large. Replacing bind with "admin creates a join request that a manager must approve" changes tenancy onboarding and the classroom bind script. Editing username, email, or phone hits the same uniqueness rules as registration. Removing a pending account should follow the existing self-delete idea (deactivate, keep audit) rather than a hard delete.
+**Size.** Large. Replacing bind with "admin creates a join request that a manager must approve" changes tenancy onboarding and the classroom bind script. Editing username, email, or phone hits the same uniqueness rules as registration. Removing a pending account should follow the existing self-delete idea (deactivate, keep audit) rather than a hard delete, per `design/15-Data-Auth-and-Gateway.md` §8.6 (NFR-07, "nothing is deleted").
 
 **Design update required.** Yes. `design/14-Backend-API-Contract.md` §3.6 and §3.8, `design/15-Data-Auth-and-Gateway.md` §8, `design/21-Feature-Extensions.md` AUTH-18, AUTH-20, and AUTH-25, and `design/16-Acceptance-and-Test.md`. Gateway route list stays the same if these remain under `/api/v1/admin/**`.
 
 ## 20. Delete a dealership or a user, with a second confirmation; admin edits email and phone
 
-**Design.** **Conflicts with hard delete.** `design/15-Data-Auth-and-Gateway.md` §2.3 says unbind deactivates the membership and does not delete the account. `DealerAdminService` deactivates a dealership; it does not remove the row. Admin edit of someone else's email or phone **conflicts** with §3.6 (existing credentials are not replaced).
+**Design.** **Conflicts with hard delete.** `design/15-Data-Auth-and-Gateway.md` §8.6 (NFR-07) says nothing is deleted, and §2.3 says unbind deactivates the membership and does not delete the account. Admin edit of someone else's email or phone **conflicts** with §3.6 (existing credentials are not replaced).
 
-**Code.** `frontend/react/src/pages/AdminPage.tsx` already confirms unbind and can mark a dealership inactive on edit. There is no dealership-delete or user-delete action. `ConfirmDialog.tsx` is the confirmation widget to reuse.
+**Code.** `frontend/react/src/pages/AdminPage.tsx` already confirms unbind. The dealership edit drawer has no active toggle, and no dealership-deactivate action exists in the UI. There is no dealership-delete or user-delete action. `ConfirmDialog.tsx` is the confirmation widget to reuse.
 
-**Size.** Small for a second confirmation around the existing deactivate and unbind actions. Large for a true delete: vehicles, customers, leads, audit, and memberships reference the dealership, and `design/15-Data-Auth-and-Gateway.md` says the account row stays. Admin contact edits are medium and share the uniqueness work in item 7 and item 19.
+**Size.** Small for a second confirmation around the existing unbind action. A dealership deactivate (soft delete under NFR-07) is new work: an admin action, an endpoint under `/api/v1/admin/**`, and its confirm. Large for a true delete: vehicles, customers, leads, audit, and memberships reference the dealership, and `design/15-Data-Auth-and-Gateway.md` says the account row stays. Admin contact edits are medium and share the uniqueness work in item 7 and item 19.
 
-**Design update required.** Yes if delete or admin contact edit is real. No if the work is only an extra confirm on the existing inactive/unbind actions; still describe that confirm in `design/12-Frontend-UI-Conventions.md`.
+**Design update required.** Yes if delete, dealership deactivate, or admin contact edit is real. No if the work is only an extra confirm on the existing unbind action; still describe that confirm in `design/12-Frontend-UI-Conventions.md`.
 
 ## 21. Home page says it is for dealerships; shop copy, search, back, and the inquiry character count
 
@@ -240,11 +244,11 @@ The visible labels on `ProfilePage.tsx` and the admin staff drawer already say "
 
 Build in this order so later work sits on a stable contract, Core remains the only writer of business data, and the gateway stays a proxy.
 
-1. **Write the design deltas first for anything marked Yes**, in the same change as the code. Do not start the deferred dealership-admin role or a public inquiry. Hide the create-account buttons only, and update `design/12-Frontend-UI-Conventions.md` and `design/16-Acceptance-and-Test.md` with that hide. Leave sample ads on `/login`.
+1. **Write the design deltas first for anything marked Yes**, in the same change as the code. Do not start the deferred dealership-admin role or a public inquiry. Hide the create-account buttons only, and update `design/12-Frontend-UI-Conventions.md` and `design/16-Acceptance-and-Test.md` with that hide. Leave sample ads on `/login` (decision D4, following the client). Update `dealer-platform/openapi.yaml`, the `frontend/react/src/api/*.ts` clients, and the `Program.cs` DDL patch list with each contract or schema change.
 
 2. **React-only confirms and copy** (items 8, 9, and the small parts of 21): dirty-form and lead-close confirms, join-request tabs, shop wording, back link, inquiry counter, visible audit date labels. No Core deploy.
 
-3. **Account name uniqueness** (item 7) in `DealerOps.Core`, then the register, profile, and admin staff forms. This removes a false 409 before any later account-edit work.
+3. **Account name uniqueness and the "Full name" label** (item 7) in `DealerOps.Core` (drop `uk_app_user_display_name`, with a `Program.cs` DDL patch so existing databases drop it too), then the register, profile, and admin staff forms. This removes a false 409 before any later account-edit work.
 
 4. **Sale record** (items 1, 2, and the buyer rule in 17) in `VehicleService.Sell` and `DmsPage.tsx`: persist the seller, require a CRM buyer or an explicit documented alternative, and show cost, work-order spend, and list price. Publish `soldOn`, sold-to, and sold-by on the vehicle list.
 

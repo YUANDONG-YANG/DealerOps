@@ -1,6 +1,6 @@
 import { type ReactNode } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { useSessionStore } from '../store/session';
+import { isTeamAdmin, useSessionStore } from '../store/session';
 import JoinRequestInbox from '../components/JoinRequestInbox';
 import { enumLabel, initials } from '../format';
 
@@ -19,8 +19,9 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   const session = useSessionStore();
   const location = useLocation();
   const isAdmin = session.role === 'Platform.Admin';
-  // Team and the join-request inbox belong to the dealership's managers (AUTH-27).
-  const isManager = session.dealerRole === 'MANAGER';
+  // Team belongs to the owner and the managers; only the owner approves join requests (AUTH-27).
+  const canOpenTeam = isTeamAdmin(session.dealerRole);
+  const isOwner = session.dealerRole === 'OWNER';
   const name = session.displayName || session.username || 'User';
 
   const items = !session.hasBusinessAccess ? [] : isAdmin
@@ -32,7 +33,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
         { label: 'Leads', to: '/leads', icon: icons.leads },
         { label: 'Sales report', to: '/reports/sales-funnel', icon: icons.leads },
         { label: 'Ad compliance', to: '/ads', icon: icons.ads },
-        ...(isManager ? [{ label: 'Team', to: '/team', icon: icons.team }] : []),
+        ...(canOpenTeam ? [{ label: 'Team', to: '/team', icon: icons.team }] : []),
       ];
 
   return (
@@ -72,7 +73,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
             )}
           </span>
           <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 12 }}>
-            {session.hasBusinessAccess && <JoinRequestInbox isManager={isManager} />}
+            {session.hasBusinessAccess && <JoinRequestInbox isOwner={isOwner} canOpenTeam={canOpenTeam} />}
           </div>
           {/* Clicking the name/avatar goes to /profile, where the user can view their sign-in
               method, edit their details, and sign out or delete the account. */}

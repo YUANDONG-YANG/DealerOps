@@ -4,7 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace DealerOps.Core.Dealer;
 
-/// <summary>Active staff of the caller's dealership, for assignee pickers.</summary>
+/// <summary>Active members of the caller's dealership, for assignee pickers.</summary>
 [ApiController]
 [Authorize]
 public class MemberDirectoryController : ControllerBase

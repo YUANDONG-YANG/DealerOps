@@ -18,6 +18,9 @@ intended changes first, then rerun the deployment command.
 Accounts and data that people create on the cloud demo live only in Azure, so a normal deploy
 leaves out `--seed`. Use it only to load a first database or to reset the demo on purpose.
 
+Deploying the 2026-11-03 dealership role hierarchy to a database that holds demo data: follow
+`deploy/ROLE-MIGRATION-2026-11-03.md` first, because that startup patch runs once and its revert is lossy.
+
 ## Before `terraform destroy`
 
 Run this first, and do not destroy if it fails:
@@ -33,6 +36,11 @@ none are duplicated. The next `./deploy/deploy.sh --apply --seed` publishes them
 Azure, so an empty database cannot erase the saved rows; rerun it with `--allow-removal` if those
 accounts were removed on purpose. Changes to rows that existed before the database was built are
 not carried.
+
+Because it regenerates `09_cloud_additions.sql` from whatever Azure currently holds, do not run it
+against an Azure database that has not had the 2026-11-03 role migration applied yet: it would
+restore the old `MANAGER`/`STAFF` role values into the committed seed. See
+`deploy/ROLE-MIGRATION-2026-11-03.md` §3.
 
 The backup files stay out of git because of their size. For an exact copy of an earlier state, join
 them in order, leaving out the newest ones to go further back:
@@ -65,6 +73,12 @@ Sign in on the cloud with the local accounts. Both `.sql.gz` files stay out of g
 ```bash
 SEED_FILE=deploy/seed/azure-backup-<time>.sql.gz deploy/seed/import-to-azure.sh
 ```
+
+A dump taken before the 2026-11-03 role migration holds the old `MANAGER`/`STAFF` membership values.
+The import detects them, clears the one-shot migration marker and restarts dealer-core so the
+migration converts them again; `load-demo-sql.sh` does the same but prints the restart command
+instead of restarting. `deploy/ROLE-MIGRATION-2026-11-03.md` §7 lists which dumps in
+`deploy/seed/` are pre-migration and why the owner list is re-derived rather than restored.
 
 The two steps also run on their own: `deploy/seed/export-local-data.sh`, then
 `deploy/seed/import-to-azure.sh`. `deploy/seed/load-demo-sql.sh` loads only the committed

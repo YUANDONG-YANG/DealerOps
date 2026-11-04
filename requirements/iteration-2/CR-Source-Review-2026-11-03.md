@@ -1,6 +1,6 @@
 # Change Document Review — 2026-11-03
 
-Source: `requirements/update-cr/Changes Document.docx` (author Jackson Warga, created 2026-11-03, revision 1, 27 pages, 70 picture placements of 69 distinct images). Compared with the pre-change baseline on branch `v1`.
+Source: `requirements/iteration-2/Changes Document.docx` (author Jackson Warga, created 2026-11-03, revision 1, 27 pages, 70 picture placements of 69 distinct images). Compared with the pre-change baseline on branch `v1`.
 
 This note records problems **in the change document itself**: internal conflicts, conflicts with the current design, references to things that do not exist, undefined terms and typos. Each problem ends with the question to confirm with the author or client and the default used for implementation (see `CR-Analysis-2026-11-03.md` §6).
 

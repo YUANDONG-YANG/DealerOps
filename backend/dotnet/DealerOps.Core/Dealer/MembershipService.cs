@@ -10,9 +10,9 @@ using Microsoft.EntityFrameworkCore;
 namespace DealerOps.Core.Dealer;
 
 /// <summary>
-/// Dealership staff memberships: the admin binds, unbinds, promotes and resets passwords for
-/// staff, and a manager removes staff, changes other members' roles and edits their full name and
-/// phone in their own dealership. Every change is audited on
+/// Dealership memberships: the admin binds, unbinds, sets any role (owner included) and resets
+/// passwords, and inside a dealership the owner and managers remove members, change their roles
+/// and edit their full name and phone within their own scope. Every change is audited on
 /// MEMBERSHIP or APP_USER in the same unit of work as the change (AUD-07).
 /// </summary>
 public class MembershipService
@@ -24,9 +24,13 @@ public class MembershipService
     private readonly JoinRequestService _joinRequests;
     private readonly ILogger<MembershipService> _logger;
 
-    /// <summary>Message returned when the admin's create-staff or bind action files a join request.</summary>
+    /// <summary>Message returned when the admin's create-member or bind action files a join request.</summary>
     public const string JoinRequestSentMessage =
-        "Join request sent to the dealership. A manager approves it in Team > Join Requests.";
+        "Join request sent to the dealership. The owner approves it in Team > Join Requests.";
+
+    /// <summary>Message returned when an action would leave a dealership that still has staff without an owner.</summary>
+    public const string LastOwnerMessage =
+        "This is the dealership's only owner. Appoint another owner before demoting or removing this member.";
 
     public MembershipService(AppDbContext db, NewAccountRules accountRules, IAuditService audit,
         NotificationService notifications, JoinRequestService joinRequests, ILogger<MembershipService> logger)
@@ -76,12 +80,13 @@ public class MembershipService
         new(ErrorCode.DupMember, message, new Dictionary<string, string> { ["username"] = message });
 
     /// <summary>
-    /// The admin's create-staff and bind action, creating the login first when the username is
+    /// The admin's create-member and bind action, creating the login first when the username is
     /// new. A login is active staff at one dealership at most (AUTH-03). While the dealership has
-    /// no active manager the login is bound directly as its first manager; after that a join
-    /// request is filed that a dealership manager approves (AUTH-28).
+    /// no active owner the login is bound directly as its first owner, because an empty dealership
+    /// has nobody who could approve a join request; after that a join request is filed that the
+    /// dealership owner approves (AUTH-28).
     /// </summary>
-    /// <param name="dealerId">The dealership that gains the staff member.</param>
+    /// <param name="dealerId">The dealership that gains the member.</param>
     /// <param name="body">The login to bind. A password is required only when the login is new, and it is never logged.</param>
     /// <returns>The bound member, or the join request that was filed instead.</returns>
     /// <exception cref="ApiException">Forbidden when the caller is not the platform admin, NotFound when the dealership is missing, or a conflict when the login cannot be bound.</exception>
@@ -120,8 +125,22 @@ public class MembershipService
             _accountRules.RequireAvailable(username, contact);
         }
 
-        if (_db.Memberships.Any(m => m.DealerId == dealerId && m.Active && m.DealerRole == DealerRole.Manager))
-            return new AddMemberResult(null, RequestJoin(dealerId, username, body, existing, contact));
+        // One transaction from the bootstrap decision through the membership row and its audit
+        // entry (AUD-07): the flush further down only assigns the id, so nothing is committed
+        // until the audit row is written too. The dealership row is locked first, the way the
+        // payment ledger locks the vehicle, so two admin binds arriving at the same time cannot
+        // both read "no active owner" and both become owner (one active owner per dealership,
+        // design/15 §2.5). It must be the transaction's first read: MySQL takes the snapshot for
+        // the reads below only after the lock is granted.
+        using var tx = _db.Database.CurrentTransaction is null ? _db.Database.BeginTransaction() : null;
+        _db.Database.ExecuteSqlInterpolated($"SELECT id FROM dealer WHERE id = {dealerId} FOR UPDATE");
+
+        if (_db.Memberships.Any(m => m.DealerId == dealerId && m.Active && m.DealerRole == DealerRole.Owner))
+        {
+            var filed = RequestJoin(dealerId, username, body, existing, contact);
+            tx?.Commit();
+            return new AddMemberResult(null, filed);
+        }
 
         var membership = _db.Memberships
             .FirstOrDefault(m => m.DealerId == dealerId && m.Username == username)
@@ -130,14 +149,11 @@ public class MembershipService
         membership.DealerId = dealerId;
         membership.Username = username;
         membership.Active = true;
-        // A direct bind only happens while the dealership has no manager, so it bootstraps the
-        // first manager (AUTH-28). Later members join as staff through a join request.
-        membership.DealerRole = DealerRole.Manager;
+        // A direct bind only happens while the dealership has no active owner, so it bootstraps
+        // the first owner (AUTH-28). Later members join as sales through a join request the owner
+        // approves, and only the platform admin can appoint another owner.
+        membership.DealerRole = DealerRole.Owner;
         membership.CreatedBy = TenantContext.ActorUsername();
-
-        // One transaction from the membership row through its audit entry (AUD-07): the flush
-        // below only assigns the id, so nothing is committed until the audit row is written too.
-        using var tx = _db.Database.CurrentTransaction is null ? _db.Database.BeginTransaction() : null;
 
         if (membership.Id == 0)
             _db.Memberships.Add(membership);
@@ -209,9 +225,9 @@ public class MembershipService
     }
 
     /// <summary>
-    /// Files the admin's join request for a dealership that already has a manager, creating the
-    /// login first when it is new. Nothing is bound: the manager approves or rejects the request in
-    /// Team > Join Requests, and the member then joins as staff (AUTH-28).
+    /// Files the admin's join request for a dealership that already has an owner, creating the
+    /// login first when it is new (decision D3). Nothing is bound: the owner approves or rejects
+    /// the request in Team &gt; Join Requests, and the member then joins as sales (AUTH-28).
     /// </summary>
     private JoinRequestSentResponse RequestJoin(long dealerId, string username, CreateMemberRequest body,
         AppUserEntity? existing, NewAccountRules.Contact? contact)
@@ -256,7 +272,12 @@ public class MembershipService
         return new JoinRequestSentResponse(username, dealerId, true, JoinRequestSentMessage);
     }
 
-    /// <summary>The platform admin promotes staff to manager or demotes a manager (AUTH-26).</summary>
+    /// <summary>
+    /// The platform admin sets any role, owner included (AUTH-26). This is how a dealership's
+    /// owner is replaced when one leaves; nobody inside the dealership can appoint an owner.
+    /// Setting OWNER transfers the office: the sitting owner is demoted to MANAGER in the same
+    /// transaction, so the dealership keeps exactly one active owner.
+    /// </summary>
     public void SetRole(long dealerId, string username, DealerRole role)
     {
         TenantGuard.RequireAdmin();
@@ -265,29 +286,41 @@ public class MembershipService
     }
 
     /// <summary>
-    /// A manager sets another member of their own dealership to Manager or Staff (AUTH-27). The
-    /// caller cannot change their own role, so a dealership never loses its last manager this way.
+    /// The owner or a manager sets another member of their own dealership to Manager or Sales
+    /// (AUTH-27). Nobody changes their own role, and nobody inside the dealership sets OWNER or
+    /// acts on the owner: the owner is appointed by the platform admin only. An owner may act on
+    /// any member below owner; a manager only on a sales member, which is the promotion of a sales
+    /// member to manager.
     /// </summary>
     public void SetRoleInOwnDealership(string username, DealerRole role)
     {
-        var caller = TenantGuard.RequireManager();
+        var caller = TenantGuard.RequireTeamAccess();
         var tenant = caller.TenantDealerId!.Value;
         if (string.Equals(caller.Username, username, StringComparison.OrdinalIgnoreCase))
-        {
-            _logger.LogWarning("Own role change rejected dealerId={DealerId} username={Username}", tenant, username);
-            throw new ApiException(ErrorCode.Forbidden, "You cannot change your own role.");
-        }
+            throw DenyMemberAction(tenant, username, "own_role", "You cannot change your own role.");
+        if (role == DealerRole.Owner)
+            throw DenyMemberAction(tenant, username, "set_owner",
+                "Only the platform admin can appoint a dealership owner.");
+
+        var membership = ActiveMembership(tenant, username);
+        RequireActsOn(caller, membership, tenant,
+            ownerTarget: "Only the platform admin can change the dealership owner.",
+            managerTarget: "Only the dealership owner can change a manager's role.");
         ChangeRole(tenant, username, role);
     }
 
     /// <summary>
-    /// A manager edits the full name and phone of a member of their own dealership (AUTH-27).
-    /// The phone stays unique across accounts because it is also a sign-in name.
+    /// The owner or a manager edits the full name and phone of a member of their own dealership
+    /// (AUTH-27). An owner edits any member below owner; a manager edits sales members only. The
+    /// phone stays unique across accounts because it is also a sign-in name.
     /// </summary>
     public void UpdateInOwnDealership(string username, PatchMemberRequest body)
     {
-        var tenant = TenantGuard.RequireManager().TenantDealerId!.Value;
-        ActiveMembership(tenant, username);
+        var caller = TenantGuard.RequireTeamAccess();
+        var tenant = caller.TenantDealerId!.Value;
+        RequireActsOn(caller, ActiveMembership(tenant, username), tenant,
+            ownerTarget: "The dealership owner's own details are edited in Profile.",
+            managerTarget: "Only the dealership owner can edit a manager's details.");
         var user = _db.AppUsers.FirstOrDefault(u => u.Username == username && u.Active)
             ?? throw new ApiException(ErrorCode.NotFound, "Not found");
 
@@ -320,18 +353,97 @@ public class MembershipService
             tenant, username, string.Join(",", previous.Keys), TenantContext.ActorUsername());
     }
 
+    /// <summary>
+    /// The in-dealership administration scope: the owner acts on any member below owner, a manager
+    /// acts on sales members only. The caller is already known to be the owner or a manager.
+    /// </summary>
+    /// <param name="caller">The signed-in owner or manager.</param>
+    /// <param name="target">The active membership the caller wants to change.</param>
+    /// <param name="dealerId">The caller's dealership id, for the denial log.</param>
+    /// <param name="ownerTarget">The message returned when the target is the owner.</param>
+    /// <param name="managerTarget">The message returned when a manager targets another manager.</param>
+    /// <exception cref="ApiException">Forbidden when the target is outside the caller's scope.</exception>
+    private void RequireActsOn(CurrentUser caller, MembershipEntity target, long dealerId,
+        string ownerTarget, string managerTarget)
+    {
+        if (target.DealerRole == DealerRole.Owner)
+            throw DenyMemberAction(dealerId, target.Username, "target_owner", ownerTarget);
+        if (caller.DealerRole == DealerRole.Manager && target.DealerRole != DealerRole.Sales)
+            throw DenyMemberAction(dealerId, target.Username, "manager_target_manager", managerTarget);
+    }
+
+    // The filter writes the status and does not log, so each in-dealership denial is recorded here.
+    private ApiException DenyMemberAction(long dealerId, string username, string reason, string message)
+    {
+        _logger.LogWarning(
+            "Member action rejected dealerId={DealerId} username={Username} reason={Reason} outcome={Outcome} by {Actor}",
+            dealerId, username, reason, "forbidden", TenantContext.ActorUsername());
+        return new ApiException(ErrorCode.Forbidden, message);
+    }
+
     private void ChangeRole(long dealerId, string username, DealerRole role)
     {
         var membership = ActiveMembership(dealerId, username);
         if (membership.DealerRole == role) return;
+
+        using var tx = _db.Database.CurrentTransaction is null ? _db.Database.BeginTransaction() : null;
+        if (role == DealerRole.Owner)
+        {
+            // Appointing an owner transfers the office, because a dealership has exactly one
+            // active owner (design/15 §2.5): the sitting owner becomes a manager in the same
+            // transaction, and both rows are audited so the handover is traceable.
+            var sitting = _db.Memberships.FirstOrDefault(m => m.DealerId == dealerId && m.Active
+                && m.DealerRole == DealerRole.Owner && m.Id != membership.Id);
+            if (sitting != null)
+                RecordRoleChange(dealerId, sitting, DealerRole.Manager);
+        }
+        else
+            RequireOwnerRemains(dealerId, membership, memberLeaves: false);
+
+        RecordRoleChange(dealerId, membership, role);
+        _db.SaveChanges();
+        tx?.Commit();
+    }
+
+    // Sets the role on one membership row and audits it with the previous role (AUD-07). The
+    // caller saves, so an ownership transfer writes both rows in one unit of work.
+    private void RecordRoleChange(long dealerId, MembershipEntity membership, DealerRole role)
+    {
         var previousRole = membership.DealerRole;
         membership.DealerRole = role;
         _audit.Record("MEMBERSHIP", membership.Id, "UPDATE", dealerId, TenantContext.ActorUsername(),
-            new Dictionary<string, object> { ["username"] = username, ["dealerRole"] = EnumWireName.Of(role) },
+            new Dictionary<string, object>
+            {
+                ["username"] = membership.Username, ["dealerRole"] = EnumWireName.Of(role)
+            },
             new Dictionary<string, object?> { ["dealerRole"] = EnumWireName.Of(previousRole) });
-        _db.SaveChanges();
         _logger.LogInformation("Member role changed dealerId={DealerId} username={Username} from {PreviousRole} to {Role} by {Actor}",
-            dealerId, username, EnumWireName.Of(previousRole), EnumWireName.Of(role), TenantContext.ActorUsername());
+            dealerId, membership.Username, EnumWireName.Of(previousRole), EnumWireName.Of(role),
+            TenantContext.ActorUsername());
+    }
+
+    /// <summary>
+    /// A dealership that still has staff keeps its owner: demoting, unbinding or deleting the
+    /// only active owner is refused, so a successor is appointed first (design/15 §2.5). An owner
+    /// who is the dealership's last active member still leaves, which empties the dealership and
+    /// lets the admin bind its next owner directly.
+    /// </summary>
+    /// <param name="dealerId">The dealership losing the member.</param>
+    /// <param name="membership">The active membership the caller wants to demote or unbind.</param>
+    /// <param name="memberLeaves">True when the member loses the membership, false for a demotion that keeps it.</param>
+    /// <exception cref="ApiException">LastOwner when the dealership would be left without an owner.</exception>
+    private void RequireOwnerRemains(long dealerId, MembershipEntity membership, bool memberLeaves)
+    {
+        if (membership.DealerRole != DealerRole.Owner) return;
+        // A demotion keeps the member active, so the dealership would be left with staff and no
+        // owner whatever else is bound. An unbind or deletion only breaks the rule while another
+        // active member remains.
+        if (memberLeaves && !_db.Memberships.Any(m => m.DealerId == dealerId && m.Active && m.Id != membership.Id))
+            return;
+        _logger.LogWarning(
+            "Member action rejected dealerId={DealerId} username={Username} reason={Reason} outcome={Outcome} by {Actor}",
+            dealerId, membership.Username, "last_owner", "last_owner", TenantContext.ActorUsername());
+        throw new ApiException(ErrorCode.LastOwner, LastOwnerMessage);
     }
 
     /// <summary>
@@ -383,7 +495,7 @@ public class MembershipService
         : user?.FirebaseUid != null ? "firebase"
         : "google";
 
-    /// <summary>Admin soft unbind of any member, staff or manager, from the dealership.</summary>
+    /// <summary>Admin soft unbind of any member, owner, manager or sales, from the dealership.</summary>
     public void Remove(long dealerId, string username)
     {
         TenantGuard.RequireAdmin();
@@ -458,6 +570,7 @@ public class MembershipService
         using var tx = _db.Database.CurrentTransaction is null ? _db.Database.BeginTransaction() : null;
         foreach (var m in _db.Memberships.Where(m => m.Username == username && m.Active).ToList())
         {
+            RequireOwnerRemains(m.DealerId, m, memberLeaves: true);
             m.Active = false;
             _audit.Record("MEMBERSHIP", m.Id, "UPDATE", m.DealerId, actor,
                 new Dictionary<string, object> { ["username"] = username, ["unbound"] = true },
@@ -506,18 +619,17 @@ public class MembershipService
         ?? throw new ApiException(ErrorCode.NotFound, "Not found");
 
     /// <summary>
-    /// A manager removes a staff member from their own dealership (AUTH-27); same soft unbind as
-    /// the admin. Managers, the caller included, are removed only by the admin.
+    /// The owner removes managers and sales members, and a manager removes sales members, from
+    /// their own dealership (AUTH-27); same soft unbind as the admin. The owner, the caller
+    /// included, is removed only by the admin.
     /// </summary>
     public void RemoveFromOwnDealership(string username)
     {
-        var tenant = TenantGuard.RequireManager().TenantDealerId!.Value;
-        if (ActiveMembership(tenant, username).DealerRole != DealerRole.Staff)
-        {
-            _logger.LogWarning("Manager removal rejected dealerId={DealerId} username={Username} by {Actor}",
-                tenant, username, TenantContext.ActorUsername());
-            throw new ApiException(ErrorCode.Forbidden, "Only the platform admin can remove a manager.");
-        }
+        var caller = TenantGuard.RequireTeamAccess();
+        var tenant = caller.TenantDealerId!.Value;
+        RequireActsOn(caller, ActiveMembership(tenant, username), tenant,
+            ownerTarget: "Only the platform admin can remove the dealership owner.",
+            managerTarget: "Only the dealership owner can remove a manager.");
         Unbind(tenant, username);
     }
 
@@ -528,6 +640,7 @@ public class MembershipService
     private void Unbind(long dealerId, string username)
     {
         var membership = ActiveMembership(dealerId, username);
+        RequireOwnerRemains(dealerId, membership, memberLeaves: true);
 
         membership.Active = false;
 
@@ -545,12 +658,14 @@ public class MembershipService
 
     /// <summary>
     /// Admin queue of active dealer-user logins with no active membership, newest account first.
+    /// The optional sort orders the whole queue before paging (CR-018).
     /// </summary>
-    public PageResponse<PendingUserResponse> Pending(string? q, int page, int size)
+    public PageResponse<PendingUserResponse> Pending(string? q, int page, int size, string? sort = null)
     {
         TenantGuard.RequireAdmin();
         var p = Paging.ClampPage(page);
         var s = Paging.ClampSize(size);
+        var descending = Paging.ParseSort(sort, PendingSortFields)?.Descending ?? true;
 
         var query = _db.AppUsers
             .Where(u => u.Role == AppRole.DealerUser && u.Active)
@@ -564,7 +679,9 @@ public class MembershipService
                 u.DisplayName.Contains(needle));
         }
 
-        query = query.OrderByDescending(u => u.CreatedAt).ThenByDescending(u => u.Id);
+        query = descending
+            ? query.OrderByDescending(u => u.CreatedAt).ThenByDescending(u => u.Id)
+            : query.OrderBy(u => u.CreatedAt).ThenBy(u => u.Id);
 
         var total = query.LongCount();
         var users = query.Skip(p * s).Take(s).ToList();
@@ -637,6 +754,9 @@ public class MembershipService
         _logger.LogInformation("Pending account deleted userId={UserId} username={Username} by {Actor}",
             user.Id, user.Username, actor);
     }
+
+    /// <summary>Fields the pending-accounts queue sorts by: the Registered column.</summary>
+    private static readonly string[] PendingSortFields = ["createdAt"];
 
     private AppUserEntity PendingAccount(string username) =>
         _db.AppUsers.FirstOrDefault(u => u.Username == username && u.Role == AppRole.DealerUser && u.Active

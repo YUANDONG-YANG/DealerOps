@@ -22,14 +22,17 @@ public class VehicleService
     private readonly IAuditService _audit;
     private readonly ILogger<VehicleService> _logger;
     private readonly DealerOps.Core.Notifications.NotificationService _notifications;
+    private readonly DealerOps.Core.Catalog.VehicleCatalogService _catalog;
 
     public VehicleService(AppDbContext db, IAuditService audit, ILogger<VehicleService> logger,
-        DealerOps.Core.Notifications.NotificationService notifications)
+        DealerOps.Core.Notifications.NotificationService notifications,
+        DealerOps.Core.Catalog.VehicleCatalogService catalog)
     {
         _db = db;
         _audit = audit;
         _logger = logger;
         _notifications = notifications;
+        _catalog = catalog;
     }
 
     /// <summary>
@@ -108,22 +111,22 @@ public class VehicleService
         var (field, desc) = parsed.Value;
         var ordered = field switch
         {
-            "stockNumber" => query.OrderByDirection(v => v.StockNumber, desc),
+            "stockNumber" => query.OrderByDirectionBlanksLast(v => v.StockNumber, desc),
             "bodyType" => query.OrderByDirection(v => v.BodyType, desc),
             "source" => query.OrderByDirection(v => v.Source, desc),
             "conditionCode" => query.OrderByDirection(v => v.ConditionCode, desc),
             "purchaseCost" => query.OrderByDirection(v => v.PurchaseCost, desc),
-            "listPrice" => query.OrderByDirection(v => v.ListPrice, desc),
+            "listPrice" => query.OrderByDirectionBlanksLast(v => v.ListPrice, desc),
             "addedOn" => query.OrderByDirection(v => v.AddedOn, desc),
             "openWorkOrders" => query.OrderByDirection(v => _db.WorkOrders.Count(wo =>
                 wo.VehicleId == v.Id && wo.DealerId == v.DealerId &&
                 (wo.Status == WorkOrderStatus.Open || wo.Status == WorkOrderStatus.InProgress)), desc),
             "leadCount" => query.OrderByDirection(v => _db.Leads.Count(l => l.VehicleId == v.Id), desc),
             "status" => query.OrderByDirection(v => v.Status, desc),
-            "soldOn" => query.OrderByDirection(v => v.SoldOn, desc),
-            "soldBy" => query.OrderByDirection(v => v.SoldBy, desc),
+            "soldOn" => query.OrderByDirectionBlanksLast(v => v.SoldOn, desc),
+            "soldBy" => query.OrderByDirectionBlanksLast(v => v.SoldBy, desc),
             // The linked customer's name, else the typed buyer name, as the DMS column shows it.
-            _ => query.OrderByDirection(v => (from cv in _db.CustomerVehicles
+            _ => query.OrderByDirectionBlanksLast(v => (from cv in _db.CustomerVehicles
                 join c in _db.Customers on cv.CustomerId equals c.Id
                 where cv.VehicleId == v.Id
                 select c.Name).FirstOrDefault() ?? v.SoldToName, desc),
@@ -183,7 +186,7 @@ public class VehicleService
     }
 
     /// <summary>Adds a vehicle to this dealer's inventory as IN_STOCK; the VIN must be unique in the dealership.</summary>
-    public VehicleResponse Create(CreateVehicleRequest body)
+    public async Task<VehicleResponse> Create(CreateVehicleRequest body)
     {
         var tenant = TenantGuard.RequireTenantId();
         RequireModelYearInRange(body.ModelYear);
@@ -191,7 +194,7 @@ public class VehicleService
         RequireCents("repairCost", body.RepairCost);
         RequireCents("listPrice", body.ListPrice);
         var vin = NormalizeVin(body.Vin);
-        RequireVinMatchesModelYear(vin, body.ModelYear);
+        await RequireVinMatchesVehicle(vin, body.Make.Trim(), body.Model.Trim(), body.ModelYear);
         RequireCarfaxLink(body.CarfaxUrl);
         var stockNumber = TrimToNull(body.StockNumber);
         RequireUniqueStockNumber(tenant, stockNumber, null);
@@ -350,7 +353,7 @@ public class VehicleService
     /// Updates a vehicle under optimistic locking. A sold vehicle only accepts condition changes,
     /// and a condition change sends the vehicle's listing back to DRAFT for a new compliance check.
     /// </summary>
-    public VehicleResponse Patch(long id, PatchVehicleRequest body)
+    public async Task<VehicleResponse> Patch(long id, PatchVehicleRequest body)
     {
         var tenant = TenantGuard.RequireTenantId();
         var vehicle = LoadThisDealer(id);
@@ -400,8 +403,9 @@ public class VehicleService
             RequireUniqueStockNumber(tenant, next.StockNumber, vehicle.Id);
 
         // Checked only when edited, so a stored vehicle saved before these rules can still be updated.
-        if (changed.ContainsKey("vin") || changed.ContainsKey("modelYear"))
-            RequireVinMatchesModelYear(next.Vin, next.ModelYear);
+        if (changed.ContainsKey("vin") || changed.ContainsKey("modelYear")
+            || changed.ContainsKey("make") || changed.ContainsKey("model"))
+            await RequireVinMatchesVehicle(next.Vin, next.Make, next.Model, next.ModelYear);
         if (changed.ContainsKey("carfaxUrl"))
             RequireCarfaxLink(next.CarfaxUrl);
 
@@ -906,6 +910,67 @@ public class VehicleService
             : $"VIN does not match the model year: character 10 '{code}' means {1980 + index} or {2010 + index}, not {modelYear}.";
         throw new ApiException(ErrorCode.Validation, message,
             new Dictionary<string, string> { ["vin"] = message });
+    }
+
+    /// <summary>
+    /// CR-047: the entered make, model and model year must agree with the VIN decode. A decoded
+    /// field vPIC leaves blank is not checked. If the decode is unavailable (vPIC down, timed out,
+    /// or no vehicle for this VIN) the save falls back to the D-8 model-year character check, so a
+    /// vehicle is never unaddable because an external service is down.
+    /// </summary>
+    private async Task RequireVinMatchesVehicle(string vin, string make, string model, int modelYear)
+    {
+        DealerOps.Core.Catalog.VinDecodeResponse decoded;
+        try
+        {
+            // The vPIC client's configured 5-second timeout bounds this call; any failure, including
+            // that timeout and a VIN vPIC does not know, degrades to the year-code check below.
+            decoded = await _catalog.DecodeVinAsync(vin, CancellationToken.None);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning("VIN decode check skipped error={Error}; falling back to the model-year code",
+                ex.GetType().Name);
+            RequireVinMatchesModelYear(vin, modelYear);
+            return;
+        }
+
+        RequireDecodedFieldMatches("make", "Make", make, decoded.Make);
+        RequireDecodedFieldMatches("model", "Model", model, decoded.Model);
+
+        if (decoded.ModelYear is not { } decodedYear)
+        {
+            // vPIC gave no model year, so the VIN's own year code is still the only year check.
+            RequireVinMatchesModelYear(vin, modelYear);
+            return;
+        }
+        if (decodedYear == modelYear) return;
+        var message =
+            $"Model year does not match the VIN: the VIN decodes to {decodedYear}, not {modelYear}. "
+            + "Correct the model year or the VIN.";
+        throw new ApiException(ErrorCode.Validation, message,
+            new Dictionary<string, string> { ["modelYear"] = message });
+    }
+
+    // Compares one entered text field with its decoded value, ignoring case, spacing and punctuation
+    // so that "Mercedes Benz" is accepted for the decoder's "Mercedes-Benz".
+    private static void RequireDecodedFieldMatches(string field, string label, string entered, string? decoded)
+    {
+        if (string.IsNullOrWhiteSpace(decoded)) return;
+        if (TextKey(entered) == TextKey(decoded)) return;
+        var message = $"{label} does not match the VIN: the VIN decodes to \"{decoded.Trim()}\", "
+            + $"not \"{entered.Trim()}\". Correct the {label.ToLowerInvariant()} or the VIN.";
+        throw new ApiException(ErrorCode.Validation, message,
+            new Dictionary<string, string> { [field] = message });
+    }
+
+    // Letters and digits only, upper case: the forgiving form used to compare decoded text.
+    private static string TextKey(string value)
+    {
+        var sb = new System.Text.StringBuilder(value.Length);
+        foreach (var c in value)
+            if (char.IsLetterOrDigit(c)) sb.Append(char.ToUpperInvariant(c));
+        return sb.ToString();
     }
 
     /// <summary>D-9: a Carfax link must be https on carfax.com or carfax.ca (or one of their subdomains).</summary>

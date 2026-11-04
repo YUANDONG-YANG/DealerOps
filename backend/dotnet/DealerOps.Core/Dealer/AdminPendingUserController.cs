@@ -17,13 +17,14 @@ public class AdminPendingUserController : ControllerBase
         _membershipService = membershipService;
     }
 
-    /// <summary>Lists pending logins, newest account first.</summary>
+    /// <summary>Lists pending logins, newest account first unless <c>sort=createdAt,asc|desc</c> is given.</summary>
     [HttpGet("api/v1/admin/pending-users")]
     public PageResponse<PendingUserResponse> List(
         [FromQuery] string? q = null,
         [FromQuery] int page = 0,
-        [FromQuery] int size = 10) =>
-        _membershipService.Pending(q, page, size);
+        [FromQuery] int size = 10,
+        [FromQuery] string? sort = null) =>
+        _membershipService.Pending(q, page, size, sort);
 
     /// <summary>Edits a pending login's username, email and phone.</summary>
     [HttpPatch("api/v1/admin/pending-users/{username}")]

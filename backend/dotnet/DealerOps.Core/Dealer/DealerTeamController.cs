@@ -5,8 +5,9 @@ using Microsoft.AspNetCore.Mvc;
 namespace DealerOps.Core.Dealer;
 
 /// <summary>
-/// The caller's own dealership: its profile and its staff (AUTH-27). Every route needs the
-/// MANAGER dealer role. The tenant comes from the caller's membership, never from the route.
+/// The caller's own dealership: its profile and its members (AUTH-27). The profile routes need the
+/// OWNER dealer role; the member routes need OWNER or MANAGER, and the service decides which
+/// members the caller may act on. The tenant comes from the caller's membership, never from the route.
 /// </summary>
 [ApiController]
 [Route("api/v1/dealer")]
@@ -30,7 +31,7 @@ public class DealerTeamController : ControllerBase
     [HttpPatch("profile")]
     public DealerResponse PatchProfile([FromBody] PatchDealerProfileRequest body) => _dealers.PatchOwn(body);
 
-    /// <summary>Sets another member of the caller's dealership to MANAGER or STAFF.</summary>
+    /// <summary>Sets another member of the caller's dealership to MANAGER or SALES.</summary>
     [HttpPut("members/{username}/role")]
     public IActionResult SetMemberRole(string username, [FromBody] SetDealerRoleRequest body)
     {
@@ -46,7 +47,7 @@ public class DealerTeamController : ControllerBase
         return NoContent();
     }
 
-    /// <summary>Removes a staff member from the caller's dealership.</summary>
+    /// <summary>Removes a member from the caller's dealership.</summary>
     [HttpDelete("members/{username}")]
     public IActionResult RemoveMember(string username)
     {

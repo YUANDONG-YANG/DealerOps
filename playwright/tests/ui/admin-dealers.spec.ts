@@ -1,6 +1,6 @@
 import type { Locator, Page } from '@playwright/test';
 import { test, expect } from '../../support/fixtures';
-import { expectStatus, randomDigits, uniqueSuffix, type Api } from '../../support/api';
+import { bindOwner, expectStatus, randomDigits, uniqueSuffix, type Api } from '../../support/api';
 import { env } from '../../support/env';
 
 // Seeded dealers ("E2E Motors", "E2E Rival Autos") are only read here, never edited.
@@ -40,7 +40,8 @@ async function searchDealer(page: Page, legalName: string): Promise<Locator> {
   return page.getByRole('row').filter({ has: page.getByRole('cell', { name: legalName, exact: true }) });
 }
 
-const COLUMNS = ['Name', 'Contact', 'Staff count'] as const;
+// "Owner" marks the dealerships that still need their first owner bound (CR role hierarchy §2).
+const COLUMNS = ['Name', 'Contact', 'Staff count', 'Owner'] as const;
 
 /** Cell of a dealer row by column header; the header order is asserted in the UI-10 test. */
 async function cellOf(_page: Page, row: Locator, column: (typeof COLUMNS)[number]) {
@@ -67,6 +68,8 @@ test.describe('Admin dealerships', () => {
     const row = await searchDealer(page, seeded.legalName);
     await expect(row).toHaveCount(1);
     await expect(await cellOf(page, row, 'Contact')).toHaveText(`${stored!.contactPhone} / ${stored!.contactEmail}`);
+    // The seed binds dealer A's owner first, so it never shows as ownerless.
+    await expect(await cellOf(page, row, 'Owner')).toHaveText('Owner set', { timeout: 30_000 });
     // Dealer A is seeded with two staff; other suites may bind more, never fewer.
     const staffCount = await (await cellOf(page, row, 'Staff count')).textContent();
     expect(staffCount?.trim()).toMatch(/^\d+$/);
@@ -137,7 +140,11 @@ test.describe('Admin dealerships', () => {
     }
     expect(posted, 'no create request is sent while a required field is empty').toBe(false);
 
+    // The form holds typed values, so closing it asks before throwing them away.
     await drawer.getByRole('button', { name: 'Close' }).click();
+    const discard = page.locator('.dialog').filter({ hasText: 'Unsaved changes' });
+    await expect(discard).toBeVisible();
+    await discard.getByRole('button', { name: 'Discard' }).click();
     await expect(drawer).toHaveCount(0);
     expect(await findDealer(adminApi, body.legalName)).toBeUndefined();
   });
@@ -219,5 +226,49 @@ test.describe('Admin dealerships', () => {
       contactEmail: next.contactEmail,
       contactAddress: next.contactAddress,
     });
+  });
+
+  test('ROLE / the Owner column marks the dealerships that still need their first owner', async ({
+    adminPage: page, request, adminApi,
+  }) => {
+    const dealer = await createDealer(adminApi);
+    await page.goto('/admin');
+
+    // A brand-new dealership has nobody who could approve a join request, so its first owner is
+    // bound from the Staff drawer.
+    let row = await searchDealer(page, dealer.legalName);
+    await expect(await cellOf(page, row, 'Owner')).toHaveText('No owner', { timeout: 30_000 });
+
+    await bindOwner(request, adminApi, dealer.id);
+    await page.getByRole('button', { name: 'Search', exact: true }).click();
+    row = await searchDealer(page, dealer.legalName);
+    await expect(await cellOf(page, row, 'Owner')).toHaveText('Owner set', { timeout: 30_000 });
+  });
+
+  test('UI-11: deleting a dealership needs its name typed, then it leaves the list', async ({
+    adminPage: page, adminApi,
+  }) => {
+    const dealer = await createDealer(adminApi);
+    await page.goto('/admin');
+    const row = await searchDealer(page, dealer.legalName);
+    await row.getByRole('button', { name: 'Delete' }).click();
+
+    const dialog = page.locator('.dialog').filter({ hasText: `Delete dealership ${dealer.legalName}` });
+    await expect(dialog).toBeVisible();
+    const confirm = dialog.getByRole('button', { name: 'Delete dealership' });
+    await expect(confirm).toBeDisabled();
+
+    // A near miss is not enough; the exact legal name is.
+    await dialog.getByLabel('Type the dealership name to confirm').fill(`${dealer.legalName}x`);
+    await expect(confirm).toBeDisabled();
+    await dialog.getByLabel('Type the dealership name to confirm').fill(dealer.legalName);
+    await expect(confirm).toBeEnabled();
+    await confirm.click();
+
+    await expect(dialog).toHaveCount(0, { timeout: 30_000 });
+    await expect(page.getByText(`${dealer.legalName} was deleted.`)).toBeVisible();
+    await searchDealer(page, dealer.legalName);
+    await expect(page.getByText('No dealerships yet.')).toBeVisible({ timeout: 30_000 });
+    expect(await findDealer(adminApi, dealer.legalName)).toBeUndefined();
   });
 });

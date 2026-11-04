@@ -21,7 +21,7 @@ Browser ──> dealer-web (5174) ──> dealer-gateway (8080) ──> dealer-c
 | `playwright/` | Browser end-to-end tests on a private stack ([playwright/README.md](playwright/README.md)) |
 | `deploy/` | Terraform + Azure App Service deployment ([deploy/README.md](deploy/README.md)) |
 | `design/` | Design documents, the source of truth ([design/README.md](design/README.md)) |
-| `requirements/` | Customer sources and the requirements specification |
+| `requirements/` | Customer sources and the requirements specification, by iteration (`iteration-1/`, `iteration-2/`) |
 
 The browser only talks to the gateway on `8080`. Core (`8081`) and ai-service (`8082`) must not be called from the browser. Everything runs as plain processes; there are no containers. The Java and Vue implementations have been removed.
 
@@ -135,7 +135,7 @@ Claude Code asks each developer to approve project servers on first use. Never c
 | Topic | Document |
 |---|---|
 | Approved scope (in / out) | [design/SCOPE-BASELINE.md](design/SCOPE-BASELINE.md) |
-| Requirements (English) | [requirements/DealerOps-Requirements.md](requirements/DealerOps-Requirements.md) |
+| Requirements (English) | [requirements/iteration-1/DealerOps-Requirements.md](requirements/iteration-1/DealerOps-Requirements.md) |
 | Map of all design docs | [design/README.md](design/README.md) |
 | API contract | [design/14-Backend-API-Contract.md](design/14-Backend-API-Contract.md), [dealer-platform/openapi.yaml](dealer-platform/openapi.yaml) |
 | Testing and team acceptance | [design/TESTING-AND-ACCEPTANCE-GUIDE.md](design/TESTING-AND-ACCEPTANCE-GUIDE.md) |

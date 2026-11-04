@@ -1,6 +1,6 @@
 # Workflows and screens
 
-Source: the written text of `requirements/update-cr/Changes Document.docx` (sections **Client Requests** and **Site Fixes and Changes**). Screenshots in that document show the current screens; this note follows the written actor, steps, and states. It does not invent labels that appear only in a picture.
+Source: the written text of `requirements/iteration-2/Changes Document.docx` (sections **Client Requests** and **Site Fixes and Changes**). Screenshots in that document show the current screens; this note follows the written actor, steps, and states. It does not invent labels that appear only in a picture.
 
 Active UI is `frontend/react`. Routes are declared in `frontend/react/src/router.tsx`. The signed-in shell (side menu, header, profile link) is `frontend/react/src/layouts/AppLayout.tsx`.
 
@@ -17,9 +17,9 @@ No workflow in this document asks for a new route that is specified well enough 
 From most to least privilege, as the document lists them:
 
 1. Platform admin (`Platform.Admin`, menu **Admin** only, route `/admin`).
-2. Dealership admin / owner / regional manager — described as optional and not to be built until discussed. No route, menu, or screen is specified. **Unknown.**
+2. Dealership admin / owner / regional manager — described as optional and not to be built until discussed. No route, menu, or screen is specified. **Unknown.** **Decided 2026-11-03:** built as the dealership **Owner** (`dealer_role` `OWNER`), which opens **Team** and owns the dealership profile and join requests (`requirements/iteration-2/CR-Role-Hierarchy-2026-11-03.md`).
 3. Dealership manager (`Dealer.User` with dealership role manager). Menu adds **Team** (`/team`).
-4. Dealership staff (`Dealer.User`). Menu: Dashboard, DMS, CRM, Leads, Sales report, Ad compliance.
+4. Dealership staff (`Dealer.User`). Menu: Dashboard, DMS, CRM, Leads, Sales report, Ad compliance. (Now the **Sales** role, same menu.)
 5. Signed-out visitor. Public routes: `/`, `/login`, `/register`, `/shop`, `/shop/:dealer`, `/disclaimer`.
 
 The document sometimes says “any user account” and then names **Team**. Team is manager-only. Staff who open `/team` are sent to their home page (`frontend/react/src/router.tsx`, `ManagerGuard`). Those steps are manager steps.
@@ -43,8 +43,8 @@ The document sometimes says “any user account” and then names **Team**. Team
 | Shop vehicles (directory) | `/shop` | `frontend/react/src/pages/ShopPage.tsx` (`DealerDirectory`) | Change existing screen |
 | One dealership’s buyer site | `/shop/:dealer` | `frontend/react/src/pages/ShopPage.tsx` (`DealerInventory`) | Change existing screen |
 | Ask about this vehicle | drawer on `/shop/:dealer` | same file, inquiry `FormDrawer` | Change existing screen |
-| Dealership admin / owner / regional manager | none | none | **Unknown** (deferred) |
-| Customer and Vehicle of interest controls | not named | only matching labels are on `/leads` | **Unknown** |
+| Dealership admin / owner / regional manager | `/team`, `/team` Members | `frontend/react/src/pages/TeamPage.tsx` | Change existing screen (decided 2026-11-03 as the Owner role) |
+| Customer and Vehicle of interest controls | `/leads` **Add lead** and **Edit** drawers | `frontend/react/src/pages/LeadsPage.tsx` | Change existing screen |
 
 ## Convention conflicts that apply to more than one workflow
 
@@ -53,13 +53,13 @@ Citations are `design/12-Frontend-UI-Conventions.md` (UI) and `design/13-Fronten
 - **C1. One table per view.** UI §1: a second list goes behind its own tab (`tab-bar`). Do not stack two tables on one screen. Hit by the join-request split and by an employee-metrics table on the sales report (that page already stacks a monthly sales table with funnel and workshop sections).
 - **C2. Prescribed columns.** UI §2 fixes DMS columns (Year Make Model, VIN, Source, Condition, Cost, Date added, Status, Actions) and CRM columns (including **Vehicles purchased**). The document adds DMS sale columns and replaces the CRM purchase count.
 - **C3. Filter row.** UI §3: one row of search plus 1–3 dropdowns, plus **Search** and **Reset**. DMS filters are VIN/make/model, Status, and Condition. Ad compliance is the only page allowed four dropdowns. DMS search changes add Stock # and open-work-order search and a typeable Year on top of the remaining filters.
-- **C4. SearchSuggest.** UI §3: a list-page search waits 300 ms, shows up to 8 suggestions, and filters when a suggestion is picked or Enter runs the typed search. The leads request asks the customer-name list to update as the name is typed, which is a live filter rather than pick-or-Enter.
+- **C4. SearchSuggest.** UI §3: a list-page search waits 300 ms, shows up to 8 suggestions, and filters when a suggestion is picked or Enter runs the typed search. The leads request compares the customer-name box with DMS and CRM; its screenshots contrast deduplicated suggestions with repeated names, not live filtering, so `SearchSuggest` behavior still fits.
 - **C5. At most three action links.** UI §2. Promote, edit, remove, delete, and reopen can push a row past three text links.
 - **C6. Sell dialog.** UI §4: Sell is a small dialog; sold date and sold price are required as a pair. The document keeps that pair and adds read-only money facts plus a required buyer.
 - **C7. Customer identity.** UI §4: a matching email is a non-blocking warning and the save still proceeds (CRM-13). Phone is unique in the dealership and is rejected. The document wants a confirm-before-create for name, email, phone, or address, and wants shared phone numbers allowed.
-- **C8. Landing account entry.** UI §1 and engineering §2: the landing brand bar has **Sign in** and **Create account**. Removing **Create account**, or sending the sample cars to sign-up instead of the sample ad-check, conflicts with that page.
-- **C9. No third role.** Engineering §3: do not invent a role other than `Platform.Admin` and `Dealer.User`. A dealership admin / owner / regional manager is a third role. Team stays manager-only.
-- **C10. Audit is manager-only.** Engineering §3: staff never see audit. Sorting “any menu with audit” must stay on the manager drawer trail, Team **Activity**, and the platform **Audit log**.
+- **C8. Landing account entry.** UI §1 and engineering §2: the landing brand bar has **Sign in** and **Create account**. Removing **Create account** conflicts with that page. The sample-ad request (W32) changes only the inner sign-in link, so it does not conflict here.
+- **C9. No third role.** Engineering §3: do not invent a role other than `Platform.Admin` and `Dealer.User`. A dealership admin / owner / regional manager is a third role. Team stays manager-only. **Resolved 2026-11-03:** the owner is a third `dealer_role`, not a third JWT role, so C9 holds as written; Team now opens to owner and manager, and Sales still has no Team access (`requirements/iteration-2/CR-Role-Hierarchy-2026-11-03.md`).
+- **C10. Audit is manager-only.** Engineering §3: staff never see audit. (Now owner and manager; Sales never sees audit.) Sorting “any menu with audit” must stay on the manager drawer trail, Team **Activity**, and the platform **Audit log**.
 - **C11. Unsaved-changes and delete confirms.** UI §1 already requires a second confirm for Sell and Unbind. It does not require a dirty-form confirm. The document adds that confirm, and the same extra step for deleting a dealership or a user. Use the existing confirm dialog rather than a second pattern.
 - **C12. Display name.** Engineering §2 describes profile as editing the user’s own display name. The document renames that label to full name on Profile and on admin staff creation.
 
@@ -101,7 +101,7 @@ Citations are `design/12-Frontend-UI-Conventions.md` (UI) and `design/13-Fronten
 - **Steps.** Promote another staff member to manager. Edit certain employee information (the document does not list the fields). Show a column for when the member joined. The sort list calls that column **Date added**.
 - **States.** None stated (no confirm copy for promotion, no error if the last manager is demoted — demotion is not requested).
 - **Screen.** Change existing screen. `TeamPage.tsx` **Members** columns are Member, Username, Role, Source, Actions. Staff rows have **Remove**. Manager rows say they are managed by the platform admin. There is no joined date and no promote or edit.
-- **Conflicts.** C5: Promote, Edit, and Remove are already three links; do not add a fourth on the row. Engineering §3 puts **Make manager** / **Make staff** on platform-admin **Members**, not on Team. This request moves promotion to the dealership manager and does not say to remove it from Admin. C9: promotion stays inside manager vs staff. It is not the deferred dealership-admin role.
+- **Conflicts.** C5: Promote, Edit, and Remove are already three links; do not add a fourth on the row. Engineering §3 puts **Make manager** / **Make staff** on platform-admin **Members**, not on Team. This request moves promotion to the dealership manager and does not say to remove it from Admin. C9: promotion stays inside manager vs staff. It is not the deferred dealership-admin role. **Resolved 2026-11-03:** a manager's row actions apply to **sales** members only — promote to manager, edit full name and phone, remove — while owner and manager rows are out of a manager's reach; the owner acts on any member below owner (`requirements/iteration-2/CR-Role-Hierarchy-2026-11-03.md` §2–§3).
 
 ### W5. Home page account creation becomes a dealership inquiry — deferred; remove the button for now
 
@@ -120,6 +120,7 @@ Citations are `design/12-Frontend-UI-Conventions.md` (UI) and `design/13-Fronten
 - **States.** None.
 - **Screen.** **Unknown.** Not a page to add in this change.
 - **Conflicts.** C9. Engineering §3: do not invent a third role, and a platform admin must not be sent into dealership business tables.
+- **Resolved 2026-11-03.** Built as the dealership Owner on the existing screens — no new page: Team Members carries the owner's member actions, and the dealership profile and join requests stay where they are. See `requirements/iteration-2/CR-Role-Hierarchy-2026-11-03.md`.
 
 ### W7. Sortable columns
 
@@ -127,7 +128,7 @@ Citations are `design/12-Frontend-UI-Conventions.md` (UI) and `design/13-Fronten
 - **Navigation.** The page and tab in the table.
 - **Steps.** Sort by the listed columns. No sort direction, default sort, or “unsorted” state is stated.
 - **States.** None stated.
-- **Screen.** Change existing screens. `frontend/react/src/components/DataTable.tsx` has no sort control. Team and Admin tables are local `<table>` markup, also unsorted.
+- **Screen.** Change existing screens. `frontend/react/src/components/DataTable.tsx` has no sort control. It renders DMS, Leads, Admin **Dealerships** and **Members**, and both audit logs. Local `<table>` markup, also unsorted, renders Team **Members**, Team **Join requests**, `PendingAccounts.tsx`, `ComplianceRulesPanel.tsx`, and the admin staff drawer. **Pending accounts** shows Registered only as a muted line in the Account cell, so sorting by it needs a Registered column. **Location** is not in branch `v1`; it exists on `origin/robin` (commit 54b6664, `audit_event.client_location`), and the audit screenshots come from that build.
 
 | Actor | Navigation | Sortable columns | Page |
 | --- | --- | --- | --- |
@@ -157,7 +158,7 @@ Citations are `design/12-Frontend-UI-Conventions.md` (UI) and `design/13-Fronten
   3. **Profile** (`/profile`), from the header name.
 - **Steps.** Creating or saving an account whose full name is already used must succeed. The document says the same full name is rejected in these three places and that other places may exist.
 - **States.** Today the stated failure is that the account cannot be created. No replacement error copy is given. Other validation (empty name, length) is not discussed.
-- **Screen.** Change existing screen on `RegisterPage.tsx` (the field is display name; the hint already says “Enter your full name.”), the admin staff form in `AdminPage.tsx`, and `ProfilePage.tsx`.
+- **Screen.** Change existing screen on `RegisterPage.tsx` (the field is already labeled **Full name**; “Enter your full name.” is its empty-field validation error), the admin staff form in `AdminPage.tsx`, and `ProfilePage.tsx`. The **Display name** label appears only on `ProfilePage.tsx` and `AdminPage.tsx` (W25).
 - **Conflicts.** None beyond C12’s label. Uniqueness of username, email, and phone is not waived here.
 
 ### W9. Confirm before leaving or saving dirty forms
@@ -194,7 +195,7 @@ Citations are `design/12-Frontend-UI-Conventions.md` (UI) and `design/13-Fronten
 - **Steps.** The day pickers have no labels, so the user cannot tell what they do. Label them. The document does not supply the label text (start, end, from, to).
 - **States.** None.
 - **Screen.** Change existing screen. Both logs use `frontend/react/src/components/AuditLogPanel.tsx`.
-- **Conflicts.** None. Labels should be the uppercase tracked form labels from UI §1, not a new control style.
+- **Conflicts.** None. Labels should be the uppercase tracked labels named in the introduction of `design/12-Frontend-UI-Conventions.md`, not a new control style.
 
 ### W12. Activity log: search the change text, align filters with columns, partial name search
 
@@ -206,7 +207,7 @@ Citations are `design/12-Frontend-UI-Conventions.md` (UI) and `design/13-Fronten
   3. Searching by user must return matches on a partial name. Today a partial user search shows no results.
 - **States.** Partial search currently looks empty. No error copy is stated. No empty copy is stated for a real zero-hit search.
 - **Screen.** Change existing screen (`AuditLogPanel.tsx` as used by `TeamPage.tsx`). Engineering §2: Activity filters are record type, record id, action, actor, and a date range, newest first.
-- **Conflicts.** C3 if the new “what changed” box plus the existing filters exceeds one search row and three dropdowns. C4: actor search is a list-page search and should use `SearchSuggest` (`frontend/react/src/components/SearchSuggest.tsx`), which already matches typed text anywhere. A partial search that stays empty until the full username is typed conflicts with that rule; fixing it aligns with the convention. C10: this stays the manager activity tab, not a new `/audit` route (engineering §2 forbids a standalone audit page).
+- **Conflicts.** C3 if the new “what changed” box plus the existing filters exceeds one search row and three dropdowns. C4: the actor box already uses `SearchSuggest` (`frontend/react/src/components/SearchSuggest.tsx`). The empty partial search comes from the API: `AuditService` matches `actor` exactly, so the fix is a contains match on the server, not a new control. C10: this stays the manager activity tab, not a new `/audit` route (engineering §2 forbids a standalone audit page).
 
 ### W13. DMS filters and the Add vehicle form
 
@@ -226,12 +227,12 @@ Citations are `design/12-Frontend-UI-Conventions.md` (UI) and `design/13-Fronten
 
 ### W14. Customer and Vehicle of interest pickers
 
-- **Actor.** Not stated.
-- **Navigation.** Not stated. The sentence sits between the DMS form notes and the Team activity notes. It says the **Customer** and **Vehicle of interest** boxes are confusing and should work like the leads menu. The next paragraph is the one that starts “In the leads page.”
-- **Steps.** Replace those boxes with the leads-style picker. No further steps.
+- **Actor.** Any signed-in dealership user.
+- **Navigation.** **Leads** `/leads` → **Add lead** (the screenshot, image36), and the same fields in the **Edit** drawer. The document says the **Customer** and **Vehicle of interest** boxes are confusing and should work like the leads menu; image37 shows the Leads list `SearchSuggest` as that pattern.
+- **Steps.** Replace those boxes with a type-ahead that works like the Leads list search. No further steps.
 - **States.** None.
-- **Screen.** **Unknown.** The only controls with those labels are the Leads create/edit drawer and the Leads table columns in `LeadsPage.tsx` (Customer, Vehicle of interest). CRM uses Name and a vehicle link, not those labels. If the screenshot is the leads form itself, this item has no separate target.
-- **Conflicts.** None until the screen is known. If it is the leads drawer, UI §4’s searchable vehicle select (VIN / model, this dealership, unlinked in-stock or sold) is the CRM link rule, not the leads “in stock” rule. Do not merge those two pickers without a decision.
+- **Screen.** Change existing screen (`LeadsPage.tsx`, Add lead drawer around lines 290–324, Edit drawer around lines 377–384).
+- **Conflicts.** UI §4’s searchable vehicle select (VIN / model, this dealership, unlinked in-stock or sold) is the CRM link rule, not the leads “in stock” rule. Changing the control does not change which vehicles the lead picker offers.
 
 ### W15. Lead owner default, vehicle-name search, live customer-name filter
 
@@ -243,7 +244,7 @@ Citations are `design/12-Frontend-UI-Conventions.md` (UI) and `design/13-Fronten
   3. When a name is typed into **Customer name**, update the list as on DMS and CRM (the document’s comparison).
 - **States.** An owner list that fails to load is not discussed. Unassigned leads exist today (`Unassigned` in the Owner column); a default owner would make a new lead assigned.
 - **Screen.** Change existing screen (`LeadsPage.tsx`). Filters today: customer name (`SearchSuggest`), stage, owner, overdue. The create form has Owner and Vehicle of interest. Customer name search is already a `SearchSuggest`.
-- **Conflicts.** C4. Live filtering on each keystroke is stricter than pick-a-suggestion or Enter. C3: a vehicle-name box is another search on a row that already has customer name plus stage and owner dropdowns. UI §3 names Leads type-ahead as customer name only.
+- **Conflicts.** C4 does not block this: the screenshots contrast deduplicated suggestions on DMS and CRM with repeated customer names on Leads, so the fix is deduplicating Leads suggestions, not live filtering. C3: a vehicle-name box is another search on a row that already has customer name plus stage and owner dropdowns. UI §3 names Leads type-ahead as customer name only.
 
 ### W16. Reopen a closed lead
 
@@ -369,7 +370,7 @@ Citations are `design/12-Frontend-UI-Conventions.md` (UI) and `design/13-Fronten
 
 - **Actor.** Platform admin.
 - **Navigation.** **Admin** → **Audit log**.
-- **Steps.** Same three changes as W12, on this log: search controls in the same order as the columns, search by what changed, and partial search must return rows. Date pickers are the unlabeled controls from W11. Sortable columns are W7 (When, Actor, Action, Record, Location). This list does not include Source IP; Team activity does.
+- **Steps.** Same three changes as W12, on this log: search controls in the same order as the columns, search by what changed, and partial search must return rows. Date pickers are the unlabeled controls from W11. Sortable columns are W7 (When, Actor, Action, Record, Location). This list does not include Source IP; Team activity does. Location is the `origin/robin` column from W7, not a `v1` column.
 - **States.** Partial search currently returns nothing. No empty or error copy.
 - **Screen.** Change existing screen (same `AuditLogPanel.tsx`, platform loader from `AdminPage.tsx`).
 - **Conflicts.** Same as W12 (C3, C4). Not a new audit route.
@@ -390,16 +391,16 @@ Citations are `design/12-Frontend-UI-Conventions.md` (UI) and `design/13-Fronten
 - **Steps.** Delete requires at least one extra confirmation, same weight as W30. Edit covers email or phone (the examples given), not every field.
 - **States.** Extra confirm before delete. No copy. No rule for deleting the last admin or a user who still belongs to a dealership.
 - **Screen.** Change existing screen (`AdminPage.tsx` **Members**, and possibly the staff list inside a dealership). Profile already lets a user delete their own account; this request is the admin deleting someone else.
-- **Conflicts.** C5 and C11. Engineering §2: on Admin, members show dealership role with **Make manager** / **Make staff**. Adding Edit and Delete on that row exceeds three action links unless edit and delete live in a drawer. C12 does not apply; this is email and phone, not the full-name label.
+- **Conflicts.** C5 and C11. Engineering §3: on Admin, members show dealership role with **Make manager** / **Make staff**. Adding Edit and Delete on that row exceeds three action links unless edit and delete live in a drawer. C12 does not apply; this is email and phone, not the full-name label.
 
 ### W32. Sample ads should lead to sign-up
 
 - **Actor.** Signed-out visitor, described as a potential user.
 - **Navigation.** Home page sample ads (`/` hero).
-- **Steps.** The document says the sample ads link to the sign-in page and should link to the sign-up page instead.
+- **Steps.** The document says the sample ads link to the sign-in page and should link to the sign-up page instead. The screenshot circles only the **Sign in to check your own ads** link.
 - **States.** None.
-- **Screen.** Change existing screen (`LandingPage.tsx`). In the current page, choosing a sample car opens an inline ad-check (passed, blocked, or stale) and that panel contains **Sign in to check your own ads**, which goes to `/login`. The car itself is not a link to `/login`.
-- **Conflicts.** C8 and UI §1: the three fictional cars open a sample ad-check result using the real checklist labels. Sending the car click to `/register` removes that result. The conflict is smaller if only the inner “Sign in to check your own ads” link changes, but the document says the ads should link to sign-up. W5 removes **Create account** from the home page while this item sends people to sign-up. Those two requests disagree.
+- **Screen.** Change existing screen (`LandingPage.tsx`). In the current page, choosing a sample car opens an inline ad-check (passed, blocked, or stale) and that panel contains **Sign in to check your own ads**, which goes to `/login`. That link is the target; the car click and the sample ad-check stay.
+- **Conflicts.** None with C8 or UI §1, because the sample ad-check result stays. W5 removes **Create account** from the home page while this link sends people to sign-up; the link can point to `/register` for as long as that route exists.
 
 ### W33. Say the home page is for dealerships
 
@@ -448,7 +449,7 @@ These are the only sequences that leave the screen where they start.
 
 1. **Sell a vehicle.** `/dms` Sell dialog (W2 facts, W21 buyer) writes Sold by / Sold to / Date sold (W1), closes matching leads (W24), and those leads can be reopened (W16). A duplicate lead cannot be created again for that customer and vehicle (W23) unless reopen is the intended path; the document does not say.
 2. **Join a dealership.** Platform admin sends a join request instead of binding (W27). The manager sees it under **Team** → **Join requests**, in the open list rather than the history list (W10), and approves or rejects. Pending-account edit/remove (W28) happens before that send. The waiting user’s no-access screen is not redesigned.
-3. **Public entry.** `/` loses **Create account** for now (W5), gains a dealership-audience message (W33), and the sample-ad target moves toward sign-up (W32), which conflicts with W5. **Shop vehicles** goes to `/shop` (W34) and then `/shop/:dealer` (W35, W36). No new public route is named.
+3. **Public entry.** `/` loses **Create account** for now (W5), gains a dealership-audience message (W33), and the sample ad-check’s sign-in link moves to sign-up (W32) while `/register` still exists. **Shop vehicles** goes to `/shop` (W34) and then `/shop/:dealer` (W35, W36). No new public route is named.
 4. **Customer and lead.** CRM replaces the purchase count with leads, can start a lead, and can store notes (W17). Creating that customer, from CRM or from Leads, confirms possible duplicates and allows a shared phone (W18). Lead owner defaults to the creator (W15).
 
 ## Not a workflow in this document

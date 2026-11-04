@@ -5,6 +5,9 @@ d = json.load(open(contract))
 HASH = "$2a$10$3HJsO33X6V2tItq6H05zG.JPypocvryhII3YPyYNHU1mOKrUJY0z."
 FEMALE = {"Chloé", "Emma", "Fatima", "Grace", "Harleen", "Isabella", "Jasmine", "Mei", "Natalie",
           "Olivia", "Priya", "Rachel", "Simran", "Victoria", "Zofia"}
+# Dealerships whose owner is already supplied by sql/09_cloud_additions.sql, which load-seed.sh
+# loads after this file. Promoting a member here too would leave them with two active owners.
+CLOUD_OWNED = {"D29"}  # Summit Auto Group Inc.: 09_cloud_additions.sql binds `lafe` as OWNER.
 
 def q(s):
     return "'" + s.replace("\\", "\\\\").replace("'", "''") + "'"
@@ -61,8 +64,12 @@ for i, x in enumerate(d):
         L.append(f"       {q(s['email'])}, {q(s['phone'])}, {q(s['given_name'])}, {q(s['family_name'])}, {q(avatar)}, 'en-CA'")
         L.append(f"FROM DUAL WHERE @d{n} IS NOT NULL AND NOT EXISTS (SELECT 1 FROM app_user WHERE username = {q(s['username'])}"
                  f" OR email = {q(s['email'])} OR display_name = {q(s['display_name'])} OR phone = {q(s['phone'])});")
+        # The first staff member of each dealership is its owner, which is the member the role
+        # patch in DealerOps.Core/Program.cs would promote (earliest active membership). The seed
+        # carries the value so a database whose patch marker already exists is seeded correctly.
+        role = "OWNER" if j == 0 and x["code"] not in CLOUD_OWNED else "SALES"
         L.append("INSERT INTO membership (dealer_id, username, active, dealer_role, created_by, created_at)")
-        L.append(f"SELECT @d{n}, {q(s['username'])}, 1, 'staff', 'admin', {ts}")
+        L.append(f"SELECT @d{n}, {q(s['username'])}, 1, '{role}', 'admin', {ts}")
         L.append(f"FROM DUAL WHERE EXISTS (SELECT 1 FROM app_user WHERE username = {q(s['username'])} AND dealer_id = @d{n})")
         L.append(f"  AND NOT EXISTS (SELECT 1 FROM membership WHERE dealer_id = @d{n} AND username = {q(s['username'])});")
 open(out, "w").write("\n".join(L) + "\n")

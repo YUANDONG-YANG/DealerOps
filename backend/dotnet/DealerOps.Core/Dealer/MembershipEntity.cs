@@ -4,7 +4,8 @@ using System.ComponentModel.DataAnnotations.Schema;
 namespace DealerOps.Core.Dealer;
 
 /// <summary>
-/// A login's staff membership at one dealership. Unbinding sets <c>Active</c> to false and keeps
+/// A login's membership at one dealership, carrying its in-dealership role (owner, manager or
+/// sales). Unbinding sets <c>Active</c> to false and keeps
 /// the row, so the history of who worked where stays traceable.
 /// </summary>
 [Table("membership")]
@@ -27,7 +28,7 @@ public class MembershipEntity
     public bool Active { get; set; } = true;
 
     [Column("dealer_role")]
-    public DealerRole DealerRole { get; set; } = DealerRole.Staff;
+    public DealerRole DealerRole { get; set; } = DealerRole.Sales;
 
     [Column("created_by")]
     [MaxLength(64)]

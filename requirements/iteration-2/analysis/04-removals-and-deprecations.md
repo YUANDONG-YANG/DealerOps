@@ -1,6 +1,6 @@
 # Removals, deprecations, and deferred scope
 
-Source: `requirements/update-cr/Changes Document.docx` (body text only). The file has no tracked changes and no comments. Embedded screenshots have empty descriptions, so this note does not treat them as extra requirements.
+Source: `requirements/iteration-2/Changes Document.docx` (body text only). The file has no tracked changes and no comments. Embedded screenshots have empty descriptions, so this note does not treat them as extra requirements.
 
 The document never uses the words deprecate, sunset, migration, or out of scope. Removals below are only statements that drop, replace, or hold back something that exists or that the text itself proposes. Wording strength is kept as written: a client request is stronger than an author line that says "I suggest" or "I feel."
 
@@ -144,6 +144,8 @@ Privilege order given with that idea, from most to least:
 3. Dealership manager
 4. Dealership staff
 5. User not logged in
+
+**No longer deferred.** On 2026-11-03 this was decided and implemented as a single dealership **Owner** tier, so `DealerRole` is now `{ Owner, Manager, Sales }` and the ladder is Platform admin, Owner, Manager, Sales (`requirements/iteration-2/CR-Role-Hierarchy-2026-11-03.md`). The "dealership staff" level is the same level, renamed Sales; no level was dropped.
 
 ### Model-year list, reduced if full coverage is too hard
 

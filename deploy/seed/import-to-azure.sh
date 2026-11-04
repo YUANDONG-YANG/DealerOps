@@ -121,6 +121,33 @@ for t in dealer app_user membership vehicle customer customer_vehicle listing ve
   printf '  %-18s %s\n' "$t" "$("${mysql_cmd[@]}" -N -e "SELECT COUNT(*) FROM \`${t}\`")"
 done
 
+# The 2026-11-03 role patch in dealer-core converts legacy MANAGER/STAFF membership rows to
+# OWNER/MANAGER/SALES, but it is one-shot: a marker row in schema_patch stops it running a second
+# time. A dump taken before that migration carries legacy role values and no schema_patch row, so
+# importing one into an already migrated database would leave values DealerRole cannot parse and
+# every member read would return 500, with nothing left to convert them. Clearing the marker makes
+# the restart below re-run the migration. This is keyed off the imported data, so a post-migration
+# dump - which brings its own schema_patch rows and holds no legacy value - is left alone.
+echo "==> checking the imported membership roles against the 2026-11-03 role model"
+legacy_roles="$("${mysql_cmd[@]}" -N -e "SELECT COUNT(*) FROM membership
+  WHERE UPPER(dealer_role) NOT IN ('OWNER','MANAGER','SALES')")"
+if [ "${legacy_roles}" -gt 0 ]; then
+  echo "    ${legacy_roles} membership rows hold a pre-migration role value, so ${seed} predates"
+  echo "    the 2026-11-03 role migration (deploy/ROLE-MIGRATION-2026-11-03.md)"
+  patch_table="$("${mysql_cmd[@]}" -N -e "SELECT COUNT(*) FROM information_schema.tables
+    WHERE table_schema='dealer_core' AND table_name='schema_patch'")"
+  if [ "${patch_table}" -gt 0 ]; then
+    "${mysql_cmd[@]}" -e "DELETE FROM schema_patch WHERE patch_id = 'dealer_role_hierarchy_2026_11_03'"
+    echo "    cleared the dealer_role_hierarchy_2026_11_03 marker; dealer-core must restart to"
+    echo "    re-run the migration, which the restart below does"
+  else
+    echo "    schema_patch does not exist yet, so dealer-core has the migration still to run"
+  fi
+  echo "    owners are re-picked by seniority, not restored from the dump: see §5.3 of the runbook"
+else
+  echo "    every membership row already reads OWNER, MANAGER or SALES"
+fi
+
 echo "==> restarting ${core_app} so no cached state predates the import"
 az webapp restart -g "${rg}" -n "${core_app}" -o none
 

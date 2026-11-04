@@ -1,6 +1,6 @@
 # API and integrations in the change document
 
-Source: `requirements/update-cr/Changes Document.docx`.
+Source: `requirements/iteration-2/Changes Document.docx`.
 
 Compared with the current HTTP contract in `design/14-Backend-API-Contract.md` and `dealer-platform/openapi.yaml`. Where those two differ, this note follows `design/14-Backend-API-Contract.md` (it owns HTTP JSON) and calls out the OpenAPI difference.
 
@@ -30,12 +30,13 @@ Browser traffic stays on `dealer-gateway` under `/api/v1/**`. `DealerOps.AiServi
 | Sales periods and employee metrics | Day, week, month, year, and per-employee sales | Contract change on `GET /api/v1/vehicles/report/sales`. |
 | Manager promotes and edits staff | Managers promote staff and edit some employee fields; members show join date | New manager write. `joinedAt` is a contract change on `GET /api/v1/members`. |
 | Home create-account | Remove the button for now. Dealership inquiry and a new signup flow are discussions. | No API change for the interim. Inquiry endpoint deferred. |
-| Dealership admin / owner / regional manager | Optional extra role | Deferred. |
+| Dealership admin / owner / regional manager | Optional extra role | Decided 2026-11-03: one `OWNER` value of `dealerRole`, no new JWT role (`requirements/iteration-2/CR-Role-Hierarchy-2026-11-03.md`). |
 | Sortable columns | Named columns on DMS, leads, team, audit, ad rules, pending accounts, admin members | **INFERRED** server sort on paginated lists. Full lists can sort in the client once fields exist. |
-| Duplicate full name | Same full name must be allowed | Contract change. Stop `409 DISPLAY_NAME_TAKEN`. |
-| Join-request history | Current queue and a past approved/rejected table | Contract change. Today’s list is pending only. |
+| Duplicate full name | Same full name must be allowed | Contract change. Stop `409 DISPLAY_NAME_TAKEN` and drop the display-name unique key. |
+| Join-request history | Current queue and a past approved/rejected table | No API change. Team already loads `GET /api/v1/dealer/notifications?includeResolved=true`; the split is client-side. |
+| Unsaved-change confirms | Confirm before leaving or saving dirty forms, and before closing a lead | No API change. |
 | Audit search | Search the change text; partial person search | Contract change on both audit logs. |
-| Customer duplicates and phone | Warn on shared name, email, phone, or address; phone may be shared | Contract change. Customer `PHONE_TAKEN` goes away. Buyer-inquiry matching is affected. |
+| Customer duplicates and phone | Warn on shared name, email, phone, or address; phone may be shared | Contract change. Customer `PHONE_TAKEN` and the customer phone unique key go away. Buyer-inquiry matching is affected. |
 | Customer notes and lead column | Notes on the customer; CRM column becomes leads | Notes are a new resource. Lead count is a contract change. Add-lead from the customer screen is existing. |
 | Lead reopen, duplicate lead, vehicle leads, sale closes leads | Reopen; block same customer+vehicle; show leads on the vehicle; close leads when that customer buys | Contract changes on leads and on sell. |
 | VIN vs catalog; Carfax URL | Saved VIN data must match the vehicle; Carfax box must be a Carfax link | Contract change on vehicle write. Uses the existing vPIC integration. No Carfax API. |
@@ -212,7 +213,7 @@ The warning must happen before create, and it must cover address. A client searc
 
 **Contract change** on `POST /api/v1/customers`, `PATCH /api/v1/customers/{id}`, and lead `newCustomer`:
 
-- Do not reject a shared customer phone. Account `PHONE_TAKEN` (§1.5, §2.1, §3.6) is a different rule and the document does not lift it.
+- Do not reject a shared customer phone. Dropping customer `PHONE_TAKEN` also drops the database unique key on customer phone; otherwise the insert still fails. Account `PHONE_TAKEN` (§1.5, §2.1, §3.6) is a different rule and the document does not lift it.
 - Surface matches for name, email, phone, and address before the row is saved. Email’s current `emailWarning` is returned after save, so it does not meet the “before allowing creation” sentence.
 
 The document does not define the handshake. **INFERRED** a first request returns the matches and does not persist, and a confirmed request persists. A preview path is the alternative. Either way it is a contract change, not the notification inbox (§8).
@@ -229,9 +230,9 @@ The client wants manager accounts to promote other staff to managers and to edit
 
 Today only `Platform.Admin` can change `dealerRole`, via `PUT /api/v1/admin/dealers/{id}/members/{username}/role` (§3.7b). The contract says no dealer user can change a role. A manager may unbind a `STAFF` member with `DELETE /api/v1/dealer/members/{username}` and may not remove a manager (§5.8). There is no route for a manager to edit another account’s email, phone, or name. `PATCH /api/v1/me` updates only the caller, and it cannot change email (§2.1).
 
-**New endpoint** for promotion, manager-only, same `403` rule as the other `/api/v1/dealer/**` manager routes (§5.7). **INFERRED** path shape `PUT /api/v1/dealer/members/{username}/role` with `{ dealerRole: "MANAGER" }`, mirroring §3.7b. The document does not say managers may demote. Demotion staying admin-only is **INFERRED**.
+**New endpoint** for promotion, manager-only, same `403` rule as the other `/api/v1/dealer/**` manager routes (§5.7). **INFERRED** path shape `PUT /api/v1/dealer/members/{username}/role` with `{ dealerRole: "MANAGER" }`, mirroring §3.7b. The document does not say managers may demote. Demotion staying admin-only is **INFERRED**. **Settled 2026-11-03:** the promotion write takes a `sales` member to `MANAGER` only, and is refused for an owner or another manager; demotion to sales is the owner's, and `OWNER` can be set only by the platform admin (`requirements/iteration-2/CR-Role-Hierarchy-2026-11-03.md` §2–§3).
 
-Editing “certain employee information” names no fields in that paragraph. Later, the document says platform admin edits email or phone (§7.4). Those examples are not repeated for the manager. **INFERRED** a manager write exists; its fields are unspecified, so this note does not list them. Auth is manager-only, by the subject of the request.
+Editing “certain employee information” names no fields in that paragraph. Later, the document says platform admin edits email or phone (§7.4). Those examples are not repeated for the manager. **INFERRED** a manager write exists; its fields are unspecified, so this note does not list them. Auth is manager-only, by the subject of the request. **Settled 2026-11-03:** the fields are full name and phone; a manager may write them for a sales member, the owner for any member below owner, and the sign-in email is not among them (`requirements/iteration-2/CR-Role-Hierarchy-2026-11-03.md` §3 and §5a).
 
 ### 6.2 Date the member joined
 
@@ -249,13 +250,15 @@ The document says the join-request screen lists every request, and asks for two 
 
 `GET /api/v1/dealer/notifications?includeResolved=true` returns inbox history, including `JOIN_REQUEST` rows with `resolvedAt`, `resolvedBy`, and `resolvedAction` (`APPROVED`, `REJECTED`, `CANCELLED`). That inbox also contains other kinds, and staff do not receive `JOIN_REQUEST`. It is not the join-request table.
 
-The document’s description of the current screen (every request in one list) does not match the contract (pending only). The requested past table is still missing from `GET /api/v1/dealer/join-requests`.
+The document’s description of the current screen is correct. The Team **Join requests** tab does not use the pending-only list; `TeamPage.tsx` loads `GET /api/v1/dealer/notifications?includeResolved=true` and shows the `JOIN_REQUEST` rows, pending and resolved, in one table.
 
-**Contract change** on that list: return decided requests as well, with status and resolved time. **INFERRED** a query such as pending versus resolved, so the two tables do not require two resources. Requested maps to `createdAt`. Status and Resolved map to `resolvedAction` and `resolvedAt`, which exist on the notification and not on `JoinRequest`. Approve and reject paths stay as they are.
+**No API change.** The split into open and past lists filters that existing response on `resolvedAt` in the client. Requested maps to `createdAt`. Status and Resolved map to `resolvedAction` and `resolvedAt`. Approve and reject paths stay as they are.
 
 ### 6.4 Dealership profile confirmation
 
 A large dealership-profile change should ask for confirmation before save. `PATCH /api/v1/dealer/profile` is the save (§5.8). **No API change.** The extra step is client-side, as with unlink (§6).
+
+The other unsaved-change confirms (dealership edit, vehicle, customer, and lead drawers, and closing a lead) are also **no API change**. Each confirm runs before the existing save call.
 
 ### 6.5 Optional dealership admin, owner, or regional manager
 
@@ -264,6 +267,8 @@ The document lists a privilege ladder: platform admin, then dealership admin/own
 **Deferred.** No contract change in this pass.
 
 The current contract has two JWT roles, `Platform.Admin` and `Dealer.User`, and `dealerRole` of `MANAGER` or `STAFF` (§1.3, §2). A later implementation would add a role or a `dealerRole` value and would change who may call `/api/v1/admin/**` and `/api/v1/dealer/**`. The document does not list those powers beyond “some admin capabilities” for a single dealership.
+
+**No longer deferred.** On 2026-11-03 the three names were settled as one role and implemented: JWT roles are unchanged, `dealerRole` becomes `OWNER` / `MANAGER` / `SALES`, the dealership profile and join-request routes are owner-only, Team reads are owner or manager, and the platform admin keeps `PUT /api/v1/admin/dealers/{id}/members/{username}/role` for every role. See `requirements/iteration-2/CR-Role-Hierarchy-2026-11-03.md` §3 and §6.
 
 ---
 
@@ -292,7 +297,7 @@ Those map to:
 | Admin create staff | `POST /api/v1/admin/dealers/{id}/members` uses the same uniqueness rules (§3.6, §1.5). |
 | Profile | `PATCH /api/v1/me` returns `409 DISPLAY_NAME_TAKEN` (§2.1). |
 
-**Contract change.** Stop treating display name as unique on these writes, and stop returning `DISPLAY_NAME_TAKEN` for them. Username, email, and account phone stay unique (`USERNAME_TAKEN`, `EMAIL_TAKEN`, `PHONE_TAKEN`).
+**Contract change.** Stop treating display name as unique on these writes, and stop returning `DISPLAY_NAME_TAKEN` for them. That also drops the display-name unique key or check in the database; otherwise the save still fails. Username, email, and account phone stay unique (`USERNAME_TAKEN`, `EMAIL_TAKEN`, `PHONE_TAKEN`).
 
 Google sign-in already avoids a collision by appending a numeric suffix to the display name (§1.6). That still changes the person’s name. **INFERRED** once display name is not unique, Google keeps the requested name too. The document does not name Google.
 
@@ -304,7 +309,7 @@ Creating a staff account with illegal username characters returns an error that 
 
 The username rule is already specific: 3–64 characters from letters, digits, `.`, `_`, and `-`, with at least one letter (§1.5). Failures use `400 VALIDATION` and `fieldErrors.username` with an English message (§1.2, §1.5).
 
-**Contract change** only if the published message text is still a raw pattern. The code stays `VALIDATION`. No new error code.
+This is a bug, not a contract change. In branch `v1`, the `[RegularExpression]` on `Username` in `backend/dotnet/DealerOps.Core/Dealer/Dto/CreateMemberRequest.cs` has no `ErrorMessage`, so `fieldErrors.username` carries the raw pattern (the screenshot shows it). **No API change:** give the DTO attribute the §1.5 English message. The code stays `VALIDATION`. No new error code.
 
 ### 7.4 Platform admin must not bind a dealership directly
 
@@ -347,7 +352,7 @@ Platform admin can delete users, with at least one extra confirmation, and can e
 |---|---|
 | Extra confirmation | No API change. |
 | Delete the user account | New endpoint. Distinct from unbind. **INFERRED** soft-delete as in §2.2. |
-| Edit email or phone | New endpoint, or a contract change that adds those fields to an admin write. §3.6 currently refuses to change them on an existing account. Uniqueness stays `EMAIL_TAKEN` and `PHONE_TAKEN`. |
+| Edit email or phone | New endpoint, or a contract change that adds those fields to an admin write. §3.6 currently ignores those fields for an existing account; it does not refuse the request. Uniqueness stays `EMAIL_TAKEN` and `PHONE_TAKEN`. |
 
 The document does not say a manager can delete users. Manager unbind of `STAFF` stays §5.8.
 
@@ -355,9 +360,9 @@ The document does not say a manager can delete users. Manager unbind of `STAFF` 
 
 Sortable columns on platform admin > Members: Dealership, Role, Sign-in, Status.
 
-`GET /api/v1/admin/dealers/{id}/members` is one dealership. Each item has `role`, `dealerRole`, `signInMethod`, and `active` (§3.5). It has no dealership name, because the dealership is the path id. There is no platform-wide members list.
+`GET /api/v1/admin/dealers/{id}/members` is one dealership. Each item has `role`, `dealerRole`, `signInMethod`, and `active` (§3.5). It has no dealership name, because the dealership is the path id.
 
-Role, sign-in method, and active status exist on that per-dealership list. A Dealership column whose value changes per row is not in the contract. **INFERRED** either the column is the dealership already selected in the UI, which is no API change, or the screen is a cross-dealership directory, which would be a new list. The document does not say which screen layout it means.
+The Admin **Members** tab is already one flat table across dealerships with a **Dealership** column: `AdminPage.tsx` calls that list for every dealership, adds each dealership’s `legalName`, and pages the result in the client. **No API change.** All four sortable columns sort in the client on that combined array.
 
 ---
 
@@ -395,9 +400,9 @@ Entity history `GET /api/v1/audit` is not the activity log. The document’s act
 
 Team activity columns include Source IP and Location. Platform audit columns include Location and do not list Source IP.
 
-`clientIp` is returned on §9.2 and §9.3 and is omitted on §9.1. The contract has no location, city, or geocoding field, and it names no geo provider.
+`clientIp` is returned on §9.2 and §9.3 and is omitted on §9.1. In branch `v1` the contract has no location field.
 
-Source IP is the existing `clientIp`. Location is a **contract change** if it is a stored or resolved place. **INFERRED** it is not a second label for the IP, because the team-activity list names both columns. No external geo integration is stated, so this note does not add one.
+Source IP is the existing `clientIp`. Location is not a second label for the IP. It already exists on `origin/robin` (commit 54b6664): `audit_event.client_location` is stored and shown as the audit **Location** column, and the audit screenshots in the document come from that build. Once that merge is in, Location is existing data; sorting it is the §9 item.
 
 ---
 
@@ -412,12 +417,12 @@ Paginated screens show a default page of 10 (audit logs default to 20) with a ca
 | DMS | `GET /api/v1/vehicles` | Stock number, body, source, condition, cost, list price, date added, open work orders, status | **INFERRED** server sort. Fields exist: `stockNumber`, `bodyType`, `source`, `conditionCode`, `purchaseCost`, `listPrice`, `addedOn`, `openWorkOrders`, `status`. |
 | Leads | `GET /api/v1/leads` | All columns | **INFERRED** server sort on the list-row fields (§5.5). |
 | Team > Members | `GET /api/v1/members` | Role, source, date added | Client sort once §6.2 adds the date. Role and source exist. |
-| Team > Activity | `GET /api/v1/dealer/audit` | When, actor, action, record (type and number), source IP, location | **INFERRED** server sort. When, actor, action, `entityType`+`entityId`, and `clientIp` exist. Location depends on §8.3. |
-| Team > Join requests | `GET /api/v1/dealer/join-requests` | Requested, status, resolved | Client sort once §6.3 returns status and resolved time. The list is not paginated. |
+| Team > Activity | `GET /api/v1/dealer/audit` | When, actor, action, record (type and number), source IP, location | **INFERRED** server sort. When, actor, action, `entityType`+`entityId`, and `clientIp` exist. Location is `client_location` from `origin/robin` (§8.3). |
+| Team > Join requests | `GET /api/v1/dealer/notifications?includeResolved=true` | Requested, status, resolved | No API change. Client sort on `createdAt`, `resolvedAction`, and `resolvedAt` (§6.3). |
 | Platform audit | `GET /api/v1/admin/audit` | When, actor, action, record, location | Same as team activity, without a source-IP column in the document. `clientIp` is already on the row. |
 | Ad rules | `GET /api/v1/admin/compliance-rules` | Enabled, severity | No API change. The route returns the full catalog (§3.9). |
 | Pending accounts | `GET /api/v1/admin/pending-users` | Registered | `createdAt` exists and the list is newest first. **INFERRED** server sort only for the opposite direction. |
-| Platform admin > Members | `GET /api/v1/admin/dealers/{id}/members` | Dealership, role, sign-in, status | **INFERRED** server sort for role, sign-in method, and status. Dealership depends on §7.8. |
+| Platform admin > Members | `GET /api/v1/admin/dealers/{id}/members` | Dealership, role, sign-in, status | No API change. Client sort on the combined array the page already builds (§7.8). |
 
 Manager audit menus name Action, Actor, and When. Those are `action`, `actorUsername`, and `createdAt` on §9.1 and §9.3. **INFERRED** server sort on the paginated calls.
 
@@ -430,10 +435,10 @@ Anonymous routes. The gateway allows `GET /api/v1/catalog/**` and `GET`/`POST /a
 | Document request | Current contract | Disposition |
 |---|---|---|
 | Shop page should not say “used” | Public inventory is in-stock vehicles with a ready, passed ad (§12a). `conditionCode` is returned. There is no used-only filter. | No API change. Copy only. |
-| Search dealerships on the shop page | `GET /api/v1/catalog/dealers` returns every active dealership, sorted by legal name, with no query (§4.6.2). | No new endpoint. The array includes `legalName`, so a name search can run in the client. |
+| Search dealerships on the shop page | `GET /api/v1/catalog/dealers` returns every active dealership, sorted by legal name, with no query (§4.6.2). | No API change. The array includes `legalName`, so a name search can run in the client. |
 | Address and some contact information on each dealership | `PublicDealer` is `id`, `legalName`, `slug`, `hasLogo`, `inStockCount`, `soldCount` (§4.6.2). Phone, email, and address are on `GET /api/v1/public/dealers/{dealer}/inventory`, not on the directory. | Contract change on `GET /api/v1/catalog/dealers`: add the public contact fields. They are already public on the inventory payload. **INFERRED** “some contact information” means those existing fields (`contactPhone`, `contactEmail`, `contactAddress`), not a new contact type. The same payload feeds the Google dealership picker (§1.6, §4.6.2); extra fields do not change that call. |
 | Back button on a dealership’s buyer page | Navigation. | No API change. |
-| Search that dealership’s inventory | `GET /api/v1/public/dealers/{dealer}/inventory` returns the full listed array, newest `addedOn` first, with year, make, model, title, and other public fields. No VIN, cost, list price, or customer (§12a). | No contract change required. **INFERRED** the client filters that array. The document does not ask for a server query. Search must not add VIN to this public payload; the contract withholds it. |
+| Search that dealership’s inventory | `GET /api/v1/public/dealers/{dealer}/inventory` returns the full listed array, newest `addedOn` first, with year, make, model, title, and other public fields. No VIN, cost, list price, or customer (§12a). | No API change. **INFERRED** the client filters that array. The document does not ask for a server query. Search must not add VIN to this public payload; the contract withholds it. |
 | Show the character limit on “Ask about this vehicle” as the writer nears it | `message` is 1–1,000 characters. Errors are `400 VALIDATION`. Rate limit is `429 RATE_LIMITED` (§12a, schema `Inquiry`). | No API change. The limit is already 1,000. |
 | Home page should say it is for dealerships | Copy. | No API change. |
 | Sample ads go to sign-up | Client route. | No API change. See §7.1. |
@@ -507,7 +512,7 @@ Only where the document or the current contract supports the implication.
 | Topic | Implication |
 |---|---|
 | Who may sell, list vehicles, report sales, edit customers and leads | `Dealer.User` with an active membership. The document says “any user account” for those screens and does not split manager from staff. Admin remains `403` on business URLs (§1.3). |
-| Promote staff, join-request history, dealership activity | Manager `dealerRole`, matching §5.7 and §9.3. Staff remain `403`. |
+| Promote staff, join-request history, dealership activity | Manager `dealerRole`, matching §5.7 and §9.3. Staff remain `403`. Since 2026-11-03 the owner is included, join-request approval is owner-only, and Sales replaces staff. |
 | Pending accounts, dealership delete, user delete, admin audit, ad rules | `Platform.Admin`, matching §3 and §9.2. |
 | Public directory, inventory, and vehicle inquiry | Anonymous, matching §4.6 and §12a. |
 | `DISPLAY_NAME_TAKEN` | Stops applying to register, profile, Firebase create, and new admin staff (§7.2). |
@@ -515,7 +520,7 @@ Only where the document or the current contract supports the implication.
 | `LEAD_CLOSED` | Cannot stay a blanket block if closed leads reopen (§4.3). |
 | `SOLD_PAIR_REQUIRED` | Still the missing date or price. A missing buyer is a separate validation; the document does not name the code (§2.3). |
 | Duplicate lead | New conflict. Code not specified (§4.4). |
-| Username characters | Existing `400 VALIDATION` / `fieldErrors.username` (§7.3). |
+| Username characters | Existing `400 VALIDATION` / `fieldErrors.username`; the DTO message must replace the raw pattern (§7.3). |
 | Catalog mismatch on save | No code today. `CATALOG_UNAVAILABLE` exists for vPIC failure on catalog reads (§2.4). |
 | Direct admin bind | Replaced by join-request outcomes already defined in §5.7 (`400`, `403`, `404`), instead of creating a membership (§7.4). |
 
@@ -537,5 +542,4 @@ The document requires the behavior and does not specify these. They are listed s
 - Which employee fields a manager may edit (§6.1).
 - Dealership-delete cascade (§7.6).
 - Whether user delete is the §2.2 soft-delete (§7.5, §7.7).
-- What the Location column contains (§8.3).
 - Sort parameter names (§9).

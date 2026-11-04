@@ -96,10 +96,14 @@ public class BuyerSiteService
     }
 
     /// <summary>
-    /// Files the inquiry as a NEW lead on the vehicle, due for follow-up today. The buyer is
-    /// matched to an existing customer by phone (unique per dealership, CRM-09); otherwise a
-    /// customer is created. The message and the contact details as typed go in the first note,
-    /// and every member of the dealership gets a <c>BUYER_INQUIRY</c> inbox message.
+    /// Files the inquiry on the vehicle. The buyer is matched to an existing active customer of the
+    /// dealership only when BOTH the phone (compared digits only) and the name (trimmed,
+    /// case-insensitive) match, so people who share a household phone keep separate profiles; the
+    /// most recently updated match wins. Otherwise a customer is created. When that customer already has
+    /// an open lead on the vehicle the inquiry is added to it as a note (CR-051); otherwise a NEW
+    /// lead due for follow-up today is created with it as the first note. Only a new lead posts a
+    /// <c>BUYER_INQUIRY</c> inbox message to every member, because that message is resolved when the
+    /// lead gets an owner or leaves NEW and a note on an already taken lead has nothing to resolve.
     /// </summary>
     public void Inquire(long dealerId, InquiryRequest body)
     {
@@ -122,8 +126,21 @@ public class BuyerSiteService
         var homeAddress = contact.HomeAddress.Trim();
 
         using var tx = _db.Database.BeginTransaction();
+        // Phone is no longer unique (D1): people who share a household phone must be able to keep
+        // separate profiles, so a returning shopper is matched on phone AND name, never on phone
+        // alone. The email is never part of the match, so a newly typed address cannot split a
+        // shopper into a second customer. Phones are compared digits only, the same way CRM
+        // duplicate detection compares them, so "(403) 555-0123" and "4035550123" are one number.
+        // The phone filter runs in SQL; the name is compared in memory to stay case-insensitive and
+        // trim-insensitive regardless of the column collation. Most recently updated match wins.
+        var phoneDigits = new string(phone.Where(char.IsDigit).ToArray());
         var customer = _db.Customers.IgnoreQueryFilters()
-            .FirstOrDefault(c => c.DealerId == dealerId && c.DeletedAt == null && c.Phone == phone);
+            .Where(c => c.DealerId == dealerId && c.DeletedAt == null
+                        && c.Phone.Replace(" ", "").Replace("-", "").Replace("(", "")
+                            .Replace(")", "").Replace("+", "") == phoneDigits)
+            .OrderByDescending(c => c.UpdatedAt).ThenByDescending(c => c.Id)
+            .ToList()
+            .FirstOrDefault(c => string.Equals(c.Name.Trim(), name, StringComparison.OrdinalIgnoreCase));
         var newCustomer = customer == null;
         if (customer == null)
         {
@@ -137,24 +154,36 @@ public class BuyerSiteService
                 CustomerService.ContactFieldChanges(null, null, null, null, name, email, phone, homeAddress));
         }
 
-        var lead = new LeadEntity
+        // Only one OPEN lead per customer and vehicle (CR-051): a repeat inquiry becomes a note on it.
+        var lead = newCustomer
+            ? null
+            : _db.Leads.IgnoreQueryFilters()
+                .Where(l => l.DealerId == dealerId && l.CustomerId == customer.Id && l.VehicleId == vehicleId
+                            && l.Stage != LeadStage.Won && l.Stage != LeadStage.Lost)
+                .OrderByDescending(l => l.Id)
+                .FirstOrDefault();
+        var newLead = lead == null;
+        if (lead == null)
         {
-            DealerId = dealerId,
-            CustomerId = customer.Id,
-            VehicleId = vehicleId,
-            Stage = LeadStage.New,
-            NextFollowUpOn = DateOnly.FromDateTime(DateTime.UtcNow)
-        };
-        _db.Leads.Add(lead);
-        _db.SaveChanges();
-        _audit.Record("LEAD", lead.Id, "CREATE", dealerId, Actor,
-            new Dictionary<string, object>
+            lead = new LeadEntity
             {
-                ["customerId"] = customer.Id,
-                ["stage"] = EnumWireName.Of(LeadStage.New),
-                ["vehicleId"] = vehicleId,
-                ["source"] = "BUYER_SITE"
-            });
+                DealerId = dealerId,
+                CustomerId = customer.Id,
+                VehicleId = vehicleId,
+                Stage = LeadStage.New,
+                NextFollowUpOn = DateOnly.FromDateTime(DateTime.UtcNow)
+            };
+            _db.Leads.Add(lead);
+            _db.SaveChanges();
+            _audit.Record("LEAD", lead.Id, "CREATE", dealerId, Actor,
+                new Dictionary<string, object>
+                {
+                    ["customerId"] = customer.Id,
+                    ["stage"] = EnumWireName.Of(LeadStage.New),
+                    ["vehicleId"] = vehicleId,
+                    ["source"] = "BUYER_SITE"
+                });
+        }
 
         var note = new LeadNoteEntity
         {
@@ -168,17 +197,20 @@ public class BuyerSiteService
         _audit.Record("LEAD", lead.Id, "NOTE", dealerId, Actor,
             new Dictionary<string, object> { ["noteId"] = note.Id });
         _db.SaveChanges();
+        // Only a new lead is announced: a note on an existing lead either joins the inquiry message
+        // already in the inbox, or lands on a lead that is taken and would never be resolved.
         // leadId is a string because the inbox resolves messages by a string payload field.
-        _notifications.Create(dealerId, NotificationService.BuyerInquiry, new
-        {
-            leadId = lead.Id.ToString(),
-            customerName = name,
-            vehicle = $"{vehicle.ModelYear} {vehicle.Make} {vehicle.Model}"
-        });
+        if (newLead)
+            _notifications.Create(dealerId, NotificationService.BuyerInquiry, new
+            {
+                leadId = lead.Id.ToString(),
+                customerName = name,
+                vehicle = $"{vehicle.ModelYear} {vehicle.Make} {vehicle.Model}"
+            });
         tx.Commit();
         // Ids only: the buyer's contact details stay out of the log.
-        _logger.LogInformation("Buyer inquiry filed leadId={LeadId} dealerId={DealerId} vehicleId={VehicleId} customerId={CustomerId} newCustomer={NewCustomer}",
-            lead.Id, dealerId, vehicleId, customer.Id, newCustomer);
+        _logger.LogInformation("Buyer inquiry filed leadId={LeadId} dealerId={DealerId} vehicleId={VehicleId} customerId={CustomerId} newCustomer={NewCustomer} newLead={NewLead}",
+            lead.Id, dealerId, vehicleId, customer.Id, newCustomer, newLead);
     }
 
     private sealed class PublicRow

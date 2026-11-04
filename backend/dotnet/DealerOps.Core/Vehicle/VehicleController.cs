@@ -47,9 +47,9 @@ public class VehicleController : ControllerBase
     /// <summary>Adds a vehicle and returns 201 with the created record.</summary>
     [HttpPost]
     [ProducesResponseType(StatusCodes.Status201Created)]
-    public IActionResult Create([FromBody] CreateVehicleRequest body)
+    public async Task<IActionResult> Create([FromBody] CreateVehicleRequest body)
     {
-        return StatusCode(201, _vehicleService.Create(body));
+        return StatusCode(201, await _vehicleService.Create(body));
     }
 
     /// <summary>Returns the dealership sales report, optionally with one period's totals (TODAY, WEEK, MONTH, YEAR).</summary>
@@ -65,7 +65,7 @@ public class VehicleController : ControllerBase
 
     /// <summary>Updates a vehicle; the body carries the version read by the client.</summary>
     [HttpPatch("{id}")]
-    public VehicleResponse Patch(long id, [FromBody] PatchVehicleRequest body)
+    public Task<VehicleResponse> Patch(long id, [FromBody] PatchVehicleRequest body)
     {
         return _vehicleService.Patch(id, body);
     }

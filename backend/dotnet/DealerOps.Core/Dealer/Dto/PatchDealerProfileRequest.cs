@@ -3,7 +3,7 @@ using DealerOps.Core.Common;
 
 namespace DealerOps.Core.Dealer.Dto;
 
-/// <summary>A manager's edit of their own dealership: the admin's dealer edit without the active flag.</summary>
+/// <summary>An owner's edit of their own dealership: the admin's dealer edit without the active flag.</summary>
 public record PatchDealerProfileRequest(
     [Required] int Version,
     [Required, NotBlank, MaxLength(200)] string LegalName,

@@ -102,6 +102,31 @@ echo "==> ${dealers} dealership rows already present; they are kept (no truncate
 echo "==> loading committed demo seed from dealer-platform/seed"
 "${load_script}"
 
+# The committed seed holds the 2026-11-03 role model (OWNER/MANAGER/SALES), but the generated
+# dealer-platform/seed/sql/09_cloud_additions.sql can regress to the old MANAGER/STAFF values when
+# save-cloud-to-seed.sh is run against an un-migrated Azure database; see §3 of
+# deploy/ROLE-MIGRATION-2026-11-03.md. The role patch in dealer-core is one-shot, guarded by a
+# marker row in schema_patch, so rows loaded with legacy values would stay unparseable and every
+# member read would return 500. Clearing the marker lets the patch convert them on the next start.
+echo "==> checking the loaded membership roles against the 2026-11-03 role model"
+legacy_roles="$("${mysql_cmd[@]}" -N -e "SELECT COUNT(*) FROM membership
+  WHERE UPPER(dealer_role) NOT IN ('OWNER','MANAGER','SALES')")"
+if [ "${legacy_roles}" -gt 0 ]; then
+  echo "    ${legacy_roles} membership rows hold a pre-migration role value" >&2
+  patch_table="$("${mysql_cmd[@]}" -N -e "SELECT COUNT(*) FROM information_schema.tables
+    WHERE table_schema='dealer_core' AND table_name='schema_patch'")"
+  if [ "${patch_table}" -gt 0 ]; then
+    "${mysql_cmd[@]}" -e "DELETE FROM schema_patch WHERE patch_id = 'dealer_role_hierarchy_2026_11_03'"
+    echo "    cleared the dealer_role_hierarchy_2026_11_03 marker" >&2
+  fi
+  core_app="$(terraform -chdir="${tf_dir}" output -raw core_app_name)"
+  echo "    Restart dealer-core now, or member reads keep returning 500:" >&2
+  echo "      az webapp restart -g ${rg} -n ${core_app}" >&2
+  echo "    See deploy/ROLE-MIGRATION-2026-11-03.md §7." >&2
+else
+  echo "    every membership row reads OWNER, MANAGER or SALES"
+fi
+
 # Business rows are read from MySQL on each request. The only in-memory cache is the
 # external VIN catalog, so the apps deploy-apps.sh already found healthy stay up.
 web_url="$(terraform -chdir="${tf_dir}" output -raw web_public_url)"

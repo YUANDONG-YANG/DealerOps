@@ -14,6 +14,15 @@ type WorkOrder = {
 
 type VehicleWithWo = Vehicle & { openWorkOrders: number };
 
+/** Sells a vehicle, naming the "Other" buyer every sale now needs (CR-D8). */
+async function sellForTest(api: Api, v: Vehicle) {
+  const res = await api.post(`/api/v1/vehicles/${v.id}/sell`, {
+    soldOn: today(), soldPrice: 18900, version: v.version, buyerName: 'E2E Walk-in Buyer',
+  });
+  await expectStatus(res, 200);
+  return (await res.json()) as Vehicle;
+}
+
 type AuditItem = {
   entityType: string; entityId: number; action: string; fieldSummary: Record<string, unknown>;
   actorUsername: string;
@@ -266,7 +275,7 @@ test('WO-05: selling with OPEN or IN_PROGRESS work orders -> 409 WORK_ORDERS_OPE
   expect((await getVehicle(staffApi, vehicle.id)).status).toBe('IN_STOCK');
 
   await patchOk(staffApi, started, { status: 'DONE', cost: 150, completionNote: 'Done' });
-  const sold = await staffApi.sellVehicle(await getVehicle(staffApi, vehicle.id));
+  const sold = await sellForTest(staffApi, await getVehicle(staffApi, vehicle.id));
   expect(sold.status).toBe('SOLD');
 });
 
@@ -274,7 +283,7 @@ test('WO-05: work orders on a sold vehicle cannot be created or changed -> 409 S
   const vehicle = await staffApi.createVehicle({ addedOn: '2026-09-01' });
   const done = await patchOk(staffApi, await createWorkOrder(staffApi, vehicle.id),
     { status: 'DONE', cost: 20, completionNote: 'Done before sale' });
-  await staffApi.sellVehicle(await getVehicle(staffApi, vehicle.id));
+  await sellForTest(staffApi, await getVehicle(staffApi, vehicle.id));
 
   await expectError(
     await staffApi.post(`/api/v1/vehicles/${vehicle.id}/work-orders`, { task: 'After sale' }), 409, 'SOLD_LOCKED');

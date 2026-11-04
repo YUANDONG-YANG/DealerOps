@@ -15,7 +15,8 @@ export type Profile = {
   dealerRole: DealerRole | null;
 };
 
-export type DealerRole = 'MANAGER' | 'STAFF';
+/** The three dealership tiers: the owner, a manager, and a sales member. */
+export type DealerRole = 'OWNER' | 'MANAGER' | 'SALES';
 
 export type PatchProfileBody = { displayName: string; phone?: string | null };
 

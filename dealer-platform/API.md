@@ -4,6 +4,8 @@ The browser only calls the gateway: `http://localhost:8080` locally, or `terrafo
 
 **Full request/response/error codes:** [design/14-Backend-API-Contract.md](../design/14-Backend-API-Contract.md) (current v6.1). Do not use the retired [design/archive/04-API-Contract.md](../design/archive/04-API-Contract.md).
 
+This page is an inventory only and lags behind the implementation. The current contract is [design/14-Backend-API-Contract.md](../design/14-Backend-API-Contract.md) together with [openapi.yaml](openapi.yaml); where this page differs from those two, they win.
+
 Shared rules: every `/api/v1` path except the sign-in routes and `GET /api/v1/catalog/**` needs a Bearer token; pagination `{items,page,size,totalElements}` (default size=10); errors `{code,message,requestId}` plus optional `fieldErrors`; writes carry `version` where specified; cross-dealership id → **404** (not 403); ignore client `dealerId`. Staff without valid `membership.active=1` → **403** on everything except `/me`. `SOLD_LOCKED` = **409**. Every route below enters through Gateway `/api/v1/**` and is proxied to dealer-core (photo paths use their own `dealer-core-photos` route).
 
 ## Public
@@ -25,7 +27,7 @@ Shared rules: every `/api/v1` path except the sign-in routes and `GET /api/v1/ca
 | Method | Path | Notes |
 |---|---|---|
 | GET | `/api/v1/me` | Identity, dealership display fields, own email/phone, `signInMethod`, Google profile fields; 200 even when unbound |
-| PATCH | `/api/v1/me` | `{displayName,phone?}` → same shape as GET; **409** `DISPLAY_NAME_TAKEN` / `PHONE_TAKEN` |
+| PATCH | `/api/v1/me` | `{displayName,phone?}` → same shape as GET; **409** `PHONE_TAKEN` |
 | DELETE | `/api/v1/me` | Soft-delete own account → **204**; Platform.Admin → **403** |
 
 `/me` is exempt from the membership gate, so an unbound `Dealer.User` can read, edit, and delete its own account.
@@ -62,7 +64,7 @@ There is no `DELETE /admin/dealers/{id}`. Platform.Admin may call only `/api/v1/
 | POST | `/api/v1/listings/{id}/exports` | `text/plain` |
 | GET | `/api/v1/audit?entityType=&entityId=` | this dealership only |
 | POST | `/api/v1/assistant/ask` | `{text}`; does not write business tables |
-| GET | `/api/v1/members` | Active staff usernames in this dealership for lead/work-order assignment |
+| GET | `/api/v1/members` | Active members of this dealership, for the lead/work-order assignee pickers and the Team page. Role-dependent payload: an `OWNER` or `MANAGER` gets the full record (`source`, `dealerRole`, `phone`, `joinedAt`), any other member gets `username` and `displayName` only — 14 §5.6 |
 | GET POST | `/api/v1/leads` | List/filter leads or create a lead with an existing or new customer |
 | GET PATCH | `/api/v1/leads/{id}` | Read or update an open lead |
 | POST | `/api/v1/leads/{id}/notes` | Append a note; notes are newest first |

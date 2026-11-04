@@ -13,6 +13,7 @@ const REASONS: Record<string, string> = {
   METHOD_NOT_ALLOWED: 'This action is not supported here. Refresh the page and try again.',
   VERSION_CONFLICT: 'Someone else changed this record after you opened it. Reopen it to load the latest version, then make your change again.',
   DUP_MEMBER: 'This login already belongs to a dealership. A login can belong to only one dealership.',
+  LAST_OWNER: 'A dealership keeps one owner while it still has staff. Appoint another owner first.',
   USERNAME_TAKEN: 'That username is already in use. Choose another one.',
   EMAIL_TAKEN: 'That email address is already used by another account. Use a different email.',
   PHONE_TAKEN: 'That phone number is already used by another account. Use a different number.',
@@ -32,7 +33,7 @@ const REASONS: Record<string, string> = {
 };
 
 const SPECIFIC_SERVER_MESSAGE = new Set([
-  'VALIDATION', 'DUP_MEMBER', 'USERNAME_TAKEN', 'EMAIL_TAKEN', 'PHONE_TAKEN',
+  'VALIDATION', 'DUP_MEMBER', 'LAST_OWNER', 'USERNAME_TAKEN', 'EMAIL_TAKEN', 'PHONE_TAKEN',
 ]);
 
 const BY_STATUS: Record<number, string> = {

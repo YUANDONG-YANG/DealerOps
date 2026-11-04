@@ -10,7 +10,8 @@ export type AuditLogRow = AuditRow & {
  * Optional filters of the audit logs; `from` and `to` are inclusive `YYYY-MM-DD` days in the viewer's time zone.
  * `actor` matches any part of the username, ignoring case. `q` is free text matched against the action,
  * the record type and the changed values (new and previous), ignoring case.
- * `sort` is `field,asc|desc` (createdAt, actorUsername, action, entityType, dealerId, clientIp); omitted is newest first.
+ * `sort` is `field,asc|desc` (createdAt, actorUsername, action, entityType, dealerId, clientIp, clientLocation);
+ * omitted is newest first.
  */
 export type AuditLogFilter = {
   entityType?: string; action?: string; actor?: string; dealerId?: number; from?: string; to?: string; q?: string;
@@ -39,16 +40,19 @@ function logParams(filter: AuditLogFilter, page: number) {
 }
 
 export const auditApi = {
-  /** History of one record, newest first. */
-  list(p: { entityType: string; entityId: number; page?: number; size?: number }) {
+  /**
+   * History of one record, newest first unless `sort` (`field,asc|desc` over createdAt, actorUsername,
+   * action) orders the whole history before paging.
+   */
+  list(p: { entityType: string; entityId: number; page?: number; size?: number; sort?: string }) {
     return http.get('/api/v1/audit', {
-      params: { entityType: p.entityType, entityId: p.entityId, page: p.page ?? 0, size: p.size ?? 10 },
+      params: { entityType: p.entityType, entityId: p.entityId, page: p.page ?? 0, size: p.size ?? 10, sort: p.sort },
     });
   },
   /** Every audit row on the platform, newest first (admin only). */
   platformLog: (filter: AuditLogFilter, page: number) =>
     http.get<AuditLogPage>('/api/v1/admin/audit', { params: logParams(filter, page) }).then(r => r.data),
-  /** Every audit row of the caller's dealership, newest first (manager only). */
+  /** Every audit row of the caller's dealership, newest first (owner and managers only). */
   dealershipLog: (filter: AuditLogFilter, page: number) =>
     http.get<AuditLogPage>('/api/v1/dealer/audit', { params: logParams(filter, page) }).then(r => r.data),
 };

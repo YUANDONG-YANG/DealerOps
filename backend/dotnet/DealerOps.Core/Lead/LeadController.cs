@@ -22,7 +22,7 @@ public class LeadController : ControllerBase
     [HttpGet("report/funnel")]
     public SalesFunnelReport Funnel() => _service.Funnel();
 
-    /// <summary>Filtered page of leads, newest first.</summary>
+    /// <summary>Filtered page of leads, newest first unless <c>sort=field,asc|desc</c> names a column.</summary>
     [HttpGet]
     public PageResponse<LeadListItem> List(
         [FromQuery] string? q,
@@ -32,10 +32,11 @@ public class LeadController : ControllerBase
         [FromQuery] long? customerId,
         [FromQuery] long? vehicleId,
         [FromQuery] bool? overdue,
+        [FromQuery] string? sort,
         [FromQuery] int page = 0,
         [FromQuery] int size = 10)
     {
-        return _service.List(q, vehicle, stage, owner, customerId, vehicleId, overdue, page, size);
+        return _service.List(q, vehicle, stage, owner, customerId, vehicleId, overdue, sort, page, size);
     }
 
     /// <summary>Creates a lead; returns 201 with the lead detail.</summary>

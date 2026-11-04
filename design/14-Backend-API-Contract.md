@@ -77,7 +77,7 @@ Do not return SQL, stack traces, or raw model text to the browser.
 | 403 | insufficient role (Admin↔staff hitting the wrong prefix); **staff with no valid `membership.active=1` calling a business API** (signed in, no dealership). **Not** cross-dealership |
 | 404 | this id is not in this dealership, **cross-dealership id** (anti-probing, not 403) |
 | 405 | `METHOD_NOT_ALLOWED` (HTTP method not supported on this path) |
-| 409 | `VERSION_CONFLICT`, `DUP_MEMBER`, `USERNAME_TAKEN`, `EMAIL_TAKEN`, `PHONE_TAKEN`, `VEHICLE_ALREADY_LINKED`, `SOLD_LOCKED`, `CHECK_STALE`, `NOT_PASSED`, `LEAD_CLOSED`, `LEAD_DUPLICATE`, `WORK_ORDER_CLOSED`, `WORK_ORDERS_OPEN` |
+| 409 | `VERSION_CONFLICT`, `DUP_MEMBER`, `LAST_OWNER`, `USERNAME_TAKEN`, `EMAIL_TAKEN`, `PHONE_TAKEN`, `VEHICLE_ALREADY_LINKED`, `SOLD_LOCKED`, `CHECK_STALE`, `NOT_PASSED`, `LEAD_CLOSED`, `LEAD_DUPLICATE`, `WORK_ORDER_CLOSED`, `WORK_ORDERS_OPEN` |
 | 415 | `UNSUPPORTED_MEDIA_TYPE` (body is not `application/json`) |
 | 429 | `RATE_LIMITED` (written by the gateway with `Retry-After: 60`; per-client limits in [19](19-Gateway-and-AI-Engineering.md) §1.5.1) |
 | 500 | `INTERNAL_ERROR` (unexpected error; details logged server-side only) |
@@ -221,7 +221,7 @@ Only `idToken` (≤ 4096) is required; `username` (≤ 64), `displayName` (≤ 1
 }
 ```
 
-`dealerRole` is `MANAGER` or `STAFF` inside the bound dealership (design/21 AUTH-26) and `null` for the admin and unbound accounts.
+`dealerRole` is `OWNER`, `MANAGER` or `SALES` inside the bound dealership (design/15 §2.5, design/21 AUTH-26) and `null` for the admin and unbound accounts.
 
 Admin: `dealerId`, `dealerLegalName`, the three `dealerContact*` fields, and `dealerLogoDataUrl` are `null`. They are display-only derived fields (the ad page shows the contact fields, UI-41; the app header shows the legal name and logo), not a second set of dealership data. `dealerLogoDataUrl` is `null` when the dealership has no logo.
 
@@ -239,7 +239,7 @@ Updates the caller's own profile. Username, role, email, and dealership stay fix
 
 ### 2.2 `DELETE /api/v1/me` → 204
 
-Soft-deletes the caller's own account in one transaction: memberships are deactivated, a pending `JOIN_REQUEST` notification is resolved as `CANCELLED`, the account is flipped inactive, and the email, phone, and Google subject are suffixed with `:deleted:<id>` so the same person can sign up again. The username and audit history stay. The client must discard its token. `Platform.Admin` → **403**. Audit `APP_USER` / `DELETE` `{self:true}`.
+Soft-deletes the caller's own account in one transaction: memberships are deactivated, a pending `JOIN_REQUEST` notification is resolved as `CANCELLED`, the account is flipped inactive, and the email, phone, and Google subject are suffixed with `:deleted:<id>` so the same person can sign up again. The username and audit history stay. The client must discard its token. `Platform.Admin` → **403**. A caller who is their dealership's `OWNER` while another active member remains → **409** `LAST_OWNER` ("You are this dealership's only owner. Ask the platform admin to appoint another owner before deleting your account."); an owner who is the last active member deletes as usual. Audit `APP_USER` / `DELETE` `{self:true}`.
 
 ---
 
@@ -342,7 +342,7 @@ Dealership missing → 404. Paginated envelope (`page`/`size`/`q` matches `displ
       "signInMethod": "password",
       "email": "alex@example.com",
       "phone": null,
-      "dealerRole": "STAFF"
+      "dealerRole": "SALES"
     }
   ],
   "page": 0,
@@ -353,7 +353,7 @@ Dealership missing → 404. Paginated envelope (`page`/`size`/`q` matches `displ
 
 `signInMethod` is `password` when the account has a DealerOps password hash (even if Google or Firebase sign-in was linked later), otherwise `firebase` when it has a Firebase UID, otherwise `google`. Only `password` accounts can be reset through 3.7a.
 
-`email` and `phone` are the account's own sign-in contact values from `app_user`, each `null` when not set (UI-12). Admin-only: the dealer-side staff directory (§5.6) is unchanged.
+`email` and `phone` are the account's own sign-in contact values from `app_user`, each `null` when not set (UI-12). Admin-only: the dealer-side member directory (§5.6) is unchanged.
 
 ### 3.6 `POST /api/v1/admin/dealers/{id}/members` → 201 or 202
 
@@ -366,16 +366,16 @@ Write `membership` + `app_user` (column authority is in 15). Response matches a 
 `400 VALIDATION`; dealership 404; already an **active** member of that dealership, still active at another dealership, or the username belongs to a `Platform.Admin` account → **409** `DUP_MEMBER` (an admin account is never overwritten or demoted).  
 Binding an already-unbound person again is treated as **reactivation**, not 409 (whether the same row is updated is left to 15). Do not delete the `app_user` account.
 
-**Direct bind or join request (design/21 AUTH-28, decided 2026-11-03).** The admin binds directly only while the dealership has **no active manager**: the response is **201** with the member item, the member starts as `MANAGER` (the dealership's first manager), and Audit `MEMBERSHIP`/`CREATE` carries `dealerRole`. Once the dealership has an active manager, the same call binds nothing: it creates the login when the username is new (same validation as above) and files a join request for that dealership (`app_user.requested_dealer_id`, a `JOIN_REQUEST` inbox notification, Audit `APP_USER`/`UPDATE` `{requestedDealerId}`), replacing a request the account had pending at another dealership. A dealership manager approves or rejects it in Team › Join Requests (§5.7), and an approved member joins as `STAFF`. Repeating the call for the same dealership is a no-op. Response **202**:
+**Direct bind or join request (design/21 AUTH-28, decided 2026-11-03).** The admin binds directly only while the dealership has **no active owner**: the response is **201** with the member item, the member starts as `OWNER` (the dealership's first owner), and Audit `MEMBERSHIP`/`CREATE` carries `dealerRole`. An empty dealership has nobody to approve a join request, so this bootstrap cannot become a join request. Once the dealership has an active owner, the same call binds nothing: it creates the login when the username is new (same validation as above) and files a join request for that dealership (`app_user.requested_dealer_id`, a `JOIN_REQUEST` inbox notification, Audit `APP_USER`/`UPDATE` `{requestedDealerId}`), replacing a request the account had pending at another dealership. The dealership owner approves or rejects it in Team › Join Requests (§5.7), and an approved member joins as `SALES`. Repeating the call for the same dealership is a no-op. Response **202**:
 
 ```json
 { "username": "alex", "dealerId": 3, "joinRequested": true,
-  "message": "Join request sent to the dealership. A manager approves it in Team > Join Requests." }
+  "message": "Join request sent to the dealership. The owner approves it in Team > Join Requests." }
 ```
 
 ### 3.7 `DELETE /api/v1/admin/dealers/{id}/members/{username}` → 204
 
-Unbind; do not delete the `app_user` account. No such binding → 404.
+Unbind; do not delete the `app_user` account. No such binding → 404. The dealership's only active `OWNER` cannot be unbound while another active member remains → **409** `LAST_OWNER` ("This is the dealership's only owner. Appoint another owner before demoting or removing this member."); an owner who is the last active member is unbound as usual, which empties the dealership so §3.6 can bind its next owner directly.
 
 ### 3.7a `PUT /api/v1/admin/dealers/{id}/members/{username}/password` → 204
 
@@ -388,10 +388,15 @@ Platform.Admin sets a new password for an active member who forgot theirs, and t
 ### 3.7b `PUT /api/v1/admin/dealers/{id}/members/{username}/role` → 204
 
 ```json
-{ "dealerRole": "MANAGER" }
+{ "dealerRole": "OWNER" }
 ```
 
-Platform.Admin promotes a staff member to `MANAGER` or demotes a manager to `STAFF` (design/21 AUTH-26); a dealership manager can do the same for other members of their own dealership through §5.8. Missing or unknown `dealerRole` → `400 VALIDATION`. No active binding of that username at this dealership → 404. Setting the current role again is a no-op. Audit `MEMBERSHIP`/`UPDATE` `{username, dealerRole}`. The change applies on the member's next request; no new token is needed.
+`dealerRole` is `OWNER`, `MANAGER` or `SALES` (design/15 §2.5, design/21 AUTH-26). Platform.Admin sets any of the three on any active member of any dealership, which is the only way an owner is appointed after the bootstrap bind (§3.6) or replaced when one leaves; the dealership's own owner and managers set the lower roles for their own dealership through §5.8, and never `OWNER`. Missing or unknown `dealerRole` → `400 VALIDATION`. No active binding of that username at this dealership → 404. Setting the current role again is a no-op. Audit `MEMBERSHIP`/`UPDATE` `{username, dealerRole}`. The change applies on the member's next request; no new token is needed.
+
+A dealership has exactly one active owner (design/15 §2.5), so this endpoint enforces both halves of that rule in one transaction:
+
+- `"OWNER"` on another member **transfers** the office: the dealership's sitting owner is demoted to `MANAGER` and the target is promoted together, and both rows are audited `MEMBERSHIP`/`UPDATE` `{username, dealerRole}` with their previous role, so the handover is traceable. The target already being the owner stays a no-op.
+- Any other role on the dealership's only active owner → **409** `LAST_OWNER`: a demotion keeps the member active, so the dealership would be left with staff and no owner. Appoint the next owner, which transfers the office, instead of demoting this one.
 
 ### 3.7c `PATCH /api/v1/admin/dealers/{id}/members/{username}` → 200
 
@@ -403,11 +408,11 @@ Change request A6. Platform.Admin edits the sign-in email and phone of an accoun
 
 ### 3.7d `DELETE /api/v1/admin/dealers/{id}/members/{username}/account` → 204
 
-Change request A6. Platform.Admin deletes the account with the same soft delete as §2.2: active memberships are unbound, a pending join request is cancelled, `app_user.active` becomes false, and the email, phone and Google link get a `:deleted:<id>` suffix so they are free for a new sign-up. The username and audit trail stay; the account leaves §3.5 and §3.8 and can no longer sign in. No membership row of that username at this dealership, or the account is already deleted → 404. A `Platform.Admin` account, including the caller → `403 FORBIDDEN`. Audit `APP_USER`/`DELETE` `{username, active:false}` with the previous `email` and `phone`, plus `MEMBERSHIP`/`UPDATE` `{username, unbound:true}` for each unbound membership. The Admin Members tab asks for the username to be typed before it sends the request.
+Change request A6. Platform.Admin deletes the account with the same soft delete as §2.2: active memberships are unbound, a pending join request is cancelled, `app_user.active` becomes false, and the email, phone and Google link get a `:deleted:<id>` suffix so they are free for a new sign-up. The username and audit trail stay; the account leaves §3.5 and §3.8 and can no longer sign in. No membership row of that username at this dealership, or the account is already deleted → 404. A `Platform.Admin` account, including the caller → `403 FORBIDDEN`. The dealership's only active owner while another active member remains → **409** `LAST_OWNER`, as in §3.7. Audit `APP_USER`/`DELETE` `{username, active:false}` with the previous `email` and `phone`, plus `MEMBERSHIP`/`UPDATE` `{username, unbound:true}` for each unbound membership. The Admin Members tab asks for the username to be typed before it sends the request.
 
 ### 3.8 `GET /api/v1/admin/pending-users`
 
-Platform.Admin only (staff → 403). Active `Dealer.User` accounts with no active membership — self sign-ups and unbound former staff — newest first. Query `q` (username, display name, email, or phone contains), `page`, `size`.
+Platform.Admin only (staff → 403). Active `Dealer.User` accounts with no active membership — self sign-ups and unbound former staff — newest first. Query `q` (username or display name contains; unlike the admin members list, it does not match email or phone), `sort=createdAt,asc|desc` (direction defaults to `asc`; orders the whole queue before paging, with the account id in the same direction breaking ties; CR-018; omitted → newest first; any other field or direction → `400 VALIDATION` with a `sort` field error), `page`, `size`. The Registered column of the Pending accounts tab sorts through this parameter and pages with the response `totalElements`.
 
 ```json
 { "items": [ { "username": "user_9d20…", "displayName": "Ada Lee", "email": "ada@example.com", "phone": null, "createdAt": "2026-10-08T21:59:51Z",
@@ -439,7 +444,7 @@ Platform.Admin only; dealer users and unbound accounts receive **403**. `GET /ap
 
 Admin hitting any URL in this section → **403** `FORBIDDEN` (same as CRM/ads/assistant; the body must not contain vin/cost or other business fields). Staff sees this dealership only. Staff with no valid membership → **403** (see §1.3).
 
-List query: `q` (substring of VIN / make / model / stock number), `make` and `model` (exact match, ignoring case), `modelYear` (exact), `status`=`IN_STOCK`\|`SOLD`, `condition` (that is `conditionCode`), `bodyType` (exact), `unlinkedOnly`=`true` (exclude vehicles linked to any customer), `openWorkOrdersOnly`=`true` (only vehicles with at least one `OPEN` or `IN_PROGRESS` work order, the same count as `openWorkOrders`; D-4), the Ad compliance filters `adKind`=`CASH`\|`FINANCE`\|`LEASE`, `medium`=`ONLINE`\|`RADIO_TV_BILLBOARD`, `checkStatus` (one of the five §8 values, derived exactly as there; anything else → `400 VALIDATION`) and `buyerSite`=`LISTED`\|`NOT_LISTED`\|`TAKEN_DOWN` (`LISTED` by the §12a listing rule; `TAKEN_DOWN` is a sold vehicle whose ad is `READY`; `NOT_LISTED` is the rest), `page`, `size`. A vehicle with no saved ad counts as its virtual draft (§7.1): `CASH`, `ONLINE`, `NEEDS_AI`, not listed. Blank values are ignored and the filters combine with AND. Default `createdAt` descending. Optional `sort=field,asc|desc` (direction defaults to `asc`; CR C7) orders the whole result before paging, with newest first breaking ties; `field` is one of `stockNumber`, `bodyType`, `source`, `conditionCode`, `purchaseCost`, `listPrice`, `addedOn`, `openWorkOrders`, `leadCount`, `status`, `soldOn`, `soldBy`, `soldToName` (the linked customer's name, else the typed buyer name). Any other field or direction → `400 VALIDATION` with a `sort` field error. Blank values sort first ascending, last descending (database order).
+List query: `q` (substring of VIN / make / model / stock number), `make` and `model` (exact match, ignoring case), `modelYear` (exact), `status`=`IN_STOCK`\|`SOLD`, `condition` (that is `conditionCode`), `bodyType` (exact), `unlinkedOnly`=`true` (exclude vehicles linked to any customer), `openWorkOrdersOnly`=`true` (only vehicles with at least one `OPEN` or `IN_PROGRESS` work order, the same count as `openWorkOrders`; D-4), the Ad compliance filters `adKind`=`CASH`\|`FINANCE`\|`LEASE`, `medium`=`ONLINE`\|`RADIO_TV_BILLBOARD`, `checkStatus` (one of the five §8 values, derived exactly as there; anything else → `400 VALIDATION`) and `buyerSite`=`LISTED`\|`NOT_LISTED`\|`TAKEN_DOWN` (`LISTED` by the §12a listing rule; `TAKEN_DOWN` is a sold vehicle whose ad is `READY`; `NOT_LISTED` is the rest), `page`, `size`. A vehicle with no saved ad counts as its virtual draft (§7.1): `CASH`, `ONLINE`, `NEEDS_AI`, not listed. Blank values are ignored and the filters combine with AND. Default `createdAt` descending. Optional `sort=field,asc|desc` (direction defaults to `asc`; CR C7) orders the whole result before paging, with newest first breaking ties; `field` is one of `stockNumber`, `bodyType`, `source`, `conditionCode`, `purchaseCost`, `listPrice`, `addedOn`, `openWorkOrders`, `leadCount`, `status`, `soldOn`, `soldBy`, `soldToName` (the linked customer's name, else the typed buyer name). Any other field or direction → `400 VALIDATION` with a `sort` field error. Blank values (null or empty) sort last in both directions.
 
 ### 4.1 `GET /api/v1/vehicles`
 
@@ -449,9 +454,9 @@ List query: `q` (substring of VIN / make / model / stock number), `make` and `mo
     {
       "id": 10,
       "vin": "1HGCM82633A004352",
-      "make": "Toyota",
-      "model": "Camry",
-      "modelYear": 2020,
+      "make": "Honda",
+      "model": "Accord",
+      "modelYear": 2003,
       "source": "AUCTION",
       "purchaseCost": 14200.00,
       "addedOn": "2026-09-01",
@@ -493,9 +498,9 @@ Errors: `401`, `403` (not staff).
 
 ```json
 {
-  "make": "Toyota",
-  "model": "Camry",
-  "modelYear": 2020,
+  "make": "Honda",
+  "model": "Accord",
+  "modelYear": 2003,
   "vin": "1HGCM82633A004352",
   "source": "AUCTION",
   "purchaseCost": 14200.00,
@@ -513,7 +518,11 @@ Errors: `401`, `403` (not staff).
 
 Required: make/model/modelYear/vin/source/purchaseCost/addedOn/conditionCode.  
 **Ignore** `dealerId`, `status`, `soldOn`, `soldPrice`. Server sets `status=IN_STOCK`.  
-The server trims `make` / `model` (1-50 characters) and upper-cases `vin`. `400 VALIDATION` covers the field rules in requirements/analysis/02-DMS-Vehicles.md (VIN 17 chars without I/O/Q, 1900 ≤ `modelYear` ≤ next year, costs ≥ 0 with at most two decimals (a third decimal is refused, never rounded; the same applies to `soldPrice` on sell), `addedOn` not in the future, `carfaxUrl` an https link on `carfax.com` or `carfax.ca` or a subdomain (D-9), and from model year 1980 on the VIN's 10th character, the model-year code, must match `modelYear`; the code repeats every 30 years, so `F` accepts 1985 or 2015 (D-8)). Both D-8 and D-9 put the readable message under `fieldErrors.vin` / `fieldErrors.carfaxUrl`. PATCH applies the same rules, but re-checks D-8 only when `vin` or `modelYear` changes and D-9 only when `carfaxUrl` changes, so older records stay editable.  
+The server trims `make` / `model` (1-50 characters) and upper-cases `vin`. `400 VALIDATION` covers the field rules in requirements/analysis/02-DMS-Vehicles.md (VIN 17 chars without I/O/Q, 1900 ≤ `modelYear` ≤ next year, costs ≥ 0 with at most two decimals (a third decimal is refused, never rounded; the same applies to `soldPrice` on sell), `addedOn` not in the future, `carfaxUrl` an https link on `carfax.com` or `carfax.ca` or a subdomain (D-9), and from model year 1980 on the VIN's 10th character, the model-year code, must match `modelYear`; the code repeats every 30 years, so `F` accepts 1985 or 2015 (D-8)). Both D-8 and D-9 put the readable message under `fieldErrors.vin` / `fieldErrors.carfaxUrl`. PATCH applies the same rules, but re-checks D-8 only when `vin` or `modelYear` changes and D-9 only when `carfaxUrl` changes, so older records stay editable.
+
+**VIN must match the vehicle information (CR-047).** Before the D-8 check, the server decodes the VIN through the §4.6.1 vPIC client and compares the decoded `make`, `model` and `modelYear` with the values being saved. A disagreement is `400 VALIDATION` with the message under `fieldErrors.make`, `fieldErrors.model` or `fieldErrors.modelYear`, naming the field and the decoded value, for example `Make does not match the VIN: the VIN decodes to "Toyota", not "Honda". Correct the make or the VIN.` and `Model year does not match the VIN: the VIN decodes to 2020, not 2019. Correct the model year or the VIN.` Make and model are compared on letters and digits only, ignoring case, spacing and punctuation, so `Mercedes Benz` is accepted for the decoder's `Mercedes-Benz`. A field vPIC returns blank is not checked. PATCH re-checks CR-047 when `vin`, `make`, `model` or `modelYear` changes.
+
+**Graceful degradation.** The decode never fails a save by itself: if vPIC is unreachable, times out (the client's 5-second timeout), returns malformed data, or knows no vehicle for the VIN, the server logs a warning and falls back to the D-8 model-year character check, and the save proceeds. The same fallback covers the model year alone when the decode succeeds without a `modelYear`. The write endpoints therefore never return `502 CATALOG_UNAVAILABLE`.  
 Errors: `400 VALIDATION`, `400 VIN_DUP`. Response = detail. Audit `VEHICLE`/`CREATE`.
 
 ### 4.3 `GET /api/v1/vehicles/{id}`
@@ -525,9 +534,9 @@ Response matches a list item. Cross-dealership / no such vehicle → **404**.
 ```json
 {
   "version": 0,
-  "make": "Toyota",
-  "model": "Camry",
-  "modelYear": 2020,
+  "make": "Honda",
+  "model": "Accord",
+  "modelYear": 2003,
   "vin": "1HGCM82633A004352",
   "source": "AUCTION",
   "purchaseCost": 14200.00,
@@ -541,6 +550,7 @@ Response matches a list item. Cross-dealership / no such vehicle → **404**.
 Whitelist is the fields above only, plus `bodyType` and the listing details of §4.1; all are required except `bodyType`, `repairCost`, `carfaxUrl`, and the listing details (full replacement, same rules as 4.2: an omitted or null listing detail clears it). Do not use PATCH to change `status` / `soldOn` / `soldPrice` (use `/sell`). Ignore `dealerId`.  
 Changing purchase fields on a sold vehicle (make/model/year/vin/source/purchaseCost/addedOn/repairCost/carfax, body type, or a listing detail) → **409** `SOLD_LOCKED`.  
 Changing VIN while unsold is still unique per dealership → `400 VIN_DUP`.  
+Changing `vin`, `make`, `model` or `modelYear` re-runs the CR-047 VIN decode match of §4.2 (with the same fallback when the decoder is unavailable).  
 Changing `conditionCode` (handbook: a condition change voids the old check) → increment the corresponding listing `contentVersion++` (if a listing exists). Changing purchase cost alone does not void the ad.  
 Audit `VEHICLE`/`UPDATE`. Other errors: `404`, `409 VERSION_CONFLICT`.
 
@@ -560,15 +570,15 @@ Optional query `period` = `TODAY`\|`WEEK`\|`MONTH`\|`YEAR` (an unknown value →
 
 A ledger of payments the dealership has already received (design/21 PAY-01–04). It records money; it does not charge a card. Admin → 403; another dealership's vehicle or payment → 404.
 
-Staff may only record payments (PAY-05): reading the ledger and removing a payment are for a dealership manager (`MANAGER` role, §5.8); staff → **403** `FORBIDDEN` (`Only a dealership manager can do this.`).
+A sales member may only record payments (PAY-05): reading the ledger and removing a payment are for the dealership owner or a manager (§5.8); a sales member → **403** `FORBIDDEN` (`Only a dealership owner or manager can do this.`).
 
 `PaymentLedger`: `{ "soldPrice": 21000.00, "paidTotal": 6000.00, "balanceDue": 15000.00, "items": [ PaymentItem ] }`, items newest `paidOn` first (then newest `id`). `PaymentItem`: `{ "id", "amount", "method", "paidOn", "note", "recordedBy", "createdAt" }`. `method` is `CASH`\|`DEBIT`\|`CREDIT_CARD`\|`CHEQUE`\|`BANK_TRANSFER`\|`FINANCING`\|`OTHER`.
 
 | Method and path | Body | Result |
 |---|---|---|
-| `GET /api/v1/vehicles/{vehicleId}/payments` | — | Manager only. 200 ledger; `soldPrice` and `balanceDue` are null while the vehicle is in stock |
-| `POST /api/v1/vehicles/{vehicleId}/payments` | `amount` (> 0, two decimals), `method`, `paidOn`, `note?` (≤ 200) | Every dealer user. 201: a manager gets the updated ledger; staff get only the recorded `PaymentItem` (PAY-05). In-stock vehicle → `400 VALIDATION` "Record the sale before adding payments."; more than the balance due → `400 VALIDATION` on `amount`; `paidOn` after today or before `soldOn` → `400 VALIDATION` on `paidOn` |
-| `DELETE /api/v1/vehicles/{vehicleId}/payments/{paymentId}` | — | Manager only. 200 ledger. The payment is soft-deleted (row kept, `deleted_at` set) and leaves the ledger totals |
+| `GET /api/v1/vehicles/{vehicleId}/payments` | — | Owner or manager only. 200 ledger; `soldPrice` and `balanceDue` are null while the vehicle is in stock |
+| `POST /api/v1/vehicles/{vehicleId}/payments` | `amount` (> 0, two decimals), `method`, `paidOn`, `note?` (≤ 200) | Every dealer user. 201: an owner or a manager gets the updated ledger; a sales member gets only the recorded `PaymentItem` (PAY-05). In-stock vehicle → `400 VALIDATION` "Record the sale before adding payments."; more than the balance due → `400 VALIDATION` on `amount`; `paidOn` after today or before `soldOn` → `400 VALIDATION` on `paidOn` |
+| `DELETE /api/v1/vehicles/{vehicleId}/payments/{paymentId}` | — | Owner or manager only. 200 ledger. The payment is soft-deleted (row kept, `deleted_at` set) and leaves the ledger totals |
 
 Creating a payment locks the vehicle row (`SELECT … FOR UPDATE`) before the balance check, so concurrent payments on the same vehicle cannot together exceed the balance due.
 
@@ -721,9 +731,9 @@ Query: `name`, `email`, `phone`, `homeAddress` (all optional) and `excludeId` (t
     {
       "id": 10,
       "vin": "1HGCM82633A004352",
-      "modelYear": 2020,
-      "make": "Toyota",
-      "model": "Camry",
+      "modelYear": 2003,
+      "make": "Honda",
+      "model": "Accord",
       "status": "IN_STOCK"
     }
   ],
@@ -750,7 +760,7 @@ All fields except `notes` are required (full replacement, same rules as 5.2; no 
 
 ### 5.4a `DELETE /api/v1/customers/{id}`
 
-Soft-deletes the customer from active CRM queries, returns **204**, and records `CUSTOMER`/`DELETE`. Customer rows and lead/link relationships remain for history. Unknown or cross-dealership ids return **404**.
+Soft-deletes the customer from active CRM queries, returns **204**, and records `CUSTOMER`/`DELETE`. Customer rows and lead/link relationships remain for history. A customer linked to a vehicle with `status=SOLD` is the buyer of that sale and **cannot be deleted** → **409** `SOLD_LOCKED` (same rule as unlink in §6.2: the DMS "Sold to" column reads the linked customer's name). Unknown or cross-dealership ids return **404**.
 
 ---
 
@@ -760,7 +770,7 @@ Lead follow-up ([21](21-Feature-Extensions.md) §3). Admin or unbound → 403; a
 
 | Method and path | Body / query | Result |
 |---|---|---|
-| `GET /api/v1/leads` | `q` (customer name contains), `vehicle` (contains, on "year make model" or VIN; CR L2), `vehicleId` (exact; CR D-11), `stage`, `owner` (exact username), `customerId`, `overdue` (`true` = open stage and `nextFollowUpOn` before today, server date), `page`, `size` | page of list rows, newest first |
+| `GET /api/v1/leads` | `q` (customer name contains), `vehicle` (contains, on "year make model" or VIN; CR L2), `vehicleId` (exact; CR D-11), `stage`, `owner` (exact username), `customerId`, `overdue` (`true` = open stage and `nextFollowUpOn` before today, server date), `sort` (CR-012: `field,asc\|desc` over all pages, newest first breaking ties; `customerName`, `vehicle` ("year make model", as the column displays it), `stage` (pipeline order), `ownerUsername`, `nextFollowUpOn` (won and lost leads sort as blank); blank values sort last in both directions; other values → 400 `VALIDATION`), `page`, `size` | page of list rows, newest first unless `sort` is given |
 | `POST /api/v1/leads` | exactly one of `customerId` or `newCustomer{name,email,phone,homeAddress}` (same rules as §5.2; the customer is created and audited in the same transaction); `vehicleId?`, `ownerUsername?`, `nextFollowUpOn?`, `note?` (first note) | 201 detail; stage starts `NEW` |
 | `GET /api/v1/leads/{id}` | — | detail with notes newest first |
 | `PATCH /api/v1/leads/{id}` | full editable state: `stage`, `ownerUsername`, `nextFollowUpOn`, `vehicleId`, `lostReason`, `version` (null clears a field) | 200 detail |
@@ -769,33 +779,49 @@ Lead follow-up ([21](21-Feature-Extensions.md) §3). Admin or unbound → 403; a
 | `GET /api/v1/leads/report/funnel` | — | Current tenant-scoped counts and share for all five stages, total and open (`NEW`/`CONTACTED`/`QUALIFIED`) lead counts, and won rate over closed leads (`WON / (WON + LOST)`, 0 when none are closed). `months` (design/21 CRM-16): the twelve most recent UTC months with a lead create or stage change, newest first, each `{ month: "yyyy-MM", stages: [{ stage, count, percentOfTotal }] }` counting the leads that entered each stage that month, from `LEAD` audit rows |
 
 List row: `{ id, customerId, customerName, vehicle: { id, vin, modelYear, make, model, status } | null, stage, ownerUsername, nextFollowUpOn, overdue, version }`. Detail adds `lostReason`, `notes`, `createdAt`.
-Stages `NEW`, `CONTACTED`, `QUALIFIED`, `WON`, `LOST`; any stage may be chosen while the lead is open; `WON` and `LOST` are closed and change only through reopen (CR L4, decision D7): a `LOST` lead can always be reopened, a `WON` lead only while its vehicle is not `SOLD` and linked to the lead's customer. Only one open lead may exist per customer and vehicle (CR L5); a lead without a vehicle is never a duplicate. `WON` does not sell the vehicle or link it — those stay §4.5 and §6. Selling a vehicle (§4.5) closes its open leads: the buyer's as `WON`, others as `LOST` ("Vehicle sold").
-Errors: both or neither customer source → `400 VALIDATION`; owner not an active member → `400 VALIDATION`; vehicle not `IN_STOCK` in this dealership → `400 WRONG_DEALER_OR_SOLD`; `LOST` without a reason → `400 VALIDATION` (`lostReason` is cleared for other stages); changing a `WON`/`LOST` lead, or reopening a `WON` lead whose vehicle was sold to its customer → `409 LEAD_CLOSED`; reopening an open lead or to a closed stage → `400 VALIDATION`; create, vehicle change or reopen that would give the customer a second open lead on the same vehicle → `409 LEAD_DUPLICATE`; stale `version` → `409 VERSION_CONFLICT`.
+Stages `NEW`, `CONTACTED`, `QUALIFIED`, `WON`, `LOST`; any stage may be chosen while the lead is open; `WON` and `LOST` are closed and change only through reopen (CR L4, decision D7): a `LOST` lead can always be reopened, a `WON` lead only while its vehicle is not `SOLD` and linked to the lead's customer. Reopening also requires what a create requires: a lead that has a vehicle reopens only while that vehicle is still `IN_STOCK` in this dealership, so no open lead can point at a sold car; a lead with no vehicle always reopens. Only one open lead may exist per customer and vehicle (CR L5); a lead without a vehicle is never a duplicate. `WON` does not sell the vehicle or link it — those stay §4.5 and §6. Selling a vehicle (§4.5) closes its open leads: the buyer's as `WON`, others as `LOST` ("Vehicle sold").
+Errors: both or neither customer source → `400 VALIDATION`; owner not an active member → `400 VALIDATION`; vehicle not `IN_STOCK` in this dealership, on create, vehicle change or reopen → `400 WRONG_DEALER_OR_SOLD`; `LOST` without a reason → `400 VALIDATION` (`lostReason` is cleared for other stages); changing a `WON`/`LOST` lead, or reopening a `WON` lead whose vehicle was sold to its customer → `409 LEAD_CLOSED`; reopening an open lead or to a closed stage → `400 VALIDATION`; create, vehicle change or reopen that would give the customer a second open lead on the same vehicle → `409 LEAD_DUPLICATE`; stale `version` → `409 VERSION_CONFLICT`.
 Audit `LEAD`: `CREATE` (`customerId`, `stage`, `vehicleId?`, `ownerUsername?`, `nextFollowUpOn?`; an optional key is left out when not set), `UPDATE` (changed keys; a reopen records `stage`, `reopened: true` and, when a lost reason was cleared, `lostReason: false`), `NOTE` (`noteId` only — note text is never copied into the audit). Lead data is never sent to AI.
 
 ### 5.6 `GET /api/v1/members` (Dealer.User)
 
-The caller's dealership's active members, sorted by username, for the lead owner and work-order assignee pickers and the Team page. Admin or unbound → 403. `displayName` falls back to the username. `source` is how the account was created (below). `phone` is the account's own phone or `null`. `joinedAt` is the membership's `created_at` (UTC), shown as Team › Members › Joined.
+The caller's dealership's active members, sorted by username, for the lead owner and work-order assignee pickers and the Team page. Admin or unbound → 403. `displayName` falls back to the username.
+
+The list itself stays open to every member, including sales, because the lead owner and work-order assignee pickers need it; only the Team page's administration actions are restricted (§5.8). The caller's `dealerRole` therefore decides the **payload**, in two shapes:
+
+- **Picker fields**, for every bound member: `username` and `displayName` only. The record fields are omitted from the row, not sent as `null`.
+- **Full record**, for a caller with team access (`OWNER` or `MANAGER`): the picker fields plus `source`, `dealerRole`, `phone` and `joinedAt`. `source` is how the account was created (below). `phone` is the account's own phone, omitted when the account has no phone. `joinedAt` is the membership's `created_at` (UTC), shown as Team › Members › Joined.
+
+Full record, as the owner or a manager sees it:
 
 ```json
-[ { "username": "a1", "displayName": "Alice Staff", "source": "admin", "dealerRole": "MANAGER", "phone": "+14165550100", "joinedAt": "2026-10-01T14:00:00Z" },
-  { "username": "a2", "displayName": "a2", "source": null, "dealerRole": "STAFF", "phone": null, "joinedAt": "2026-10-20T09:30:00Z" } ]
+[ { "username": "a1", "displayName": "Alice Owner", "source": "admin", "dealerRole": "OWNER", "phone": "+14165550100", "joinedAt": "2026-10-01T14:00:00Z" },
+  { "username": "a2", "displayName": "a2", "dealerRole": "SALES", "joinedAt": "2026-10-20T09:30:00Z" } ]
 ```
 
-Account `source` values: `google` (Google sign-in), `firebase` (email sign-up), `password` (registration form), `admin` (added by a platform admin). It is read from the account's `APP_USER`/`CREATE` audit `registration` key; an account without that row falls back to `google` or `firebase` from its linked identity, otherwise `null` (unknown, such as seed data).
+Picker fields, as a sales member sees the same dealership:
 
-### 5.7 Join requests and dealer inbox (dealership managers)
+```json
+[ { "username": "a1", "displayName": "Alice Owner" },
+  { "username": "a2", "displayName": "a2" } ]
+```
 
-Accounts that asked to join this dealership (§1.6), or that the platform admin sent a join request for (§3.6), wait here for its managers (design/21 AUTH-27). The `/api/v1/dealer/**` routes below need an active membership with `dealerRole` `MANAGER`; staff, admin, or unbound → 403. The two `/me/join-request` routes are the applicant's own and need no dealership. Neither list is paginated.
+`dealerRole` is `OWNER`, `MANAGER` or `SALES` (design/15 §2.5). A sales member never receives another member's role, phone or joined date, so the Team members table reads this route only as the owner or a manager.
+
+Account `source` values: `google` (Google sign-in), `firebase` (email sign-up), `password` (registration form), `admin` (added by a platform admin). It is read from the account's `APP_USER`/`CREATE` audit `registration` key; an account without that row falls back to `google` or `firebase` from its linked identity, otherwise the source is unknown and `source` is omitted (such as seed data). Every unset field of the full record is omitted from the JSON rather than sent as `null`, as the example above shows for `a2`.
+
+### 5.7 Join requests and dealer inbox (dealership owner)
+
+Accounts that asked to join this dealership (§1.6), or that the platform admin sent a join request for (§3.6), wait here for its owner (design/21 AUTH-27). Approving or rejecting a join request is an owner power: the `/api/v1/dealer/join-requests/**` routes below need an active membership with `dealerRole` `OWNER`; a manager, a sales member, the admin, or an unbound account → 403. The two `/me/join-request` routes are the applicant's own and need no dealership. Neither list is paginated.
 
 | Method and path | Result |
 |---|---|
 | `GET /api/v1/me/join-request` | Signed-in account, including unbound. **204** when none is pending. **200** `{ "dealerId", "legalName" }` for the one pending request |
 | `POST /api/v1/me/join-request` | Body `{ "dealerId" }`. An unbound account requests one active dealership. **200** `{ "dealerId", "legalName" }`. A second, different dealership → **400** `VALIDATION`. Unknown or inactive dealership → **404**. Already a member → **403** |
 | `GET /api/v1/dealer/join-requests` | 200 `[{ "username", "displayName", "email", "createdAt", "source" }]`: active unbound accounts that requested this dealership, newest first |
-| `POST /api/v1/dealer/join-requests/{username}/approve` | 204. Creates or reactivates the membership as `STAFF`, binds the account, resolves the notification as `APPROVED`. Audit `MEMBERSHIP`/`CREATE` `{username, source:"join_request"}`. The account already active at another dealership → **409** `DUP_MEMBER`, as for the admin bind (one login, one dealership) |
+| `POST /api/v1/dealer/join-requests/{username}/approve` | 204. Creates or reactivates the membership as `SALES`, binds the account, resolves the notification as `APPROVED`. Audit `MEMBERSHIP`/`CREATE` `{username, source:"join_request"}`. The account already active at another dealership → **409** `DUP_MEMBER`, as for the admin bind (one login, one dealership) |
 | `POST /api/v1/dealer/join-requests/{username}/reject` | 204. Clears the requested dealership (the account stays, unbound), resolves the notification as `REJECTED`. Audit `APP_USER`/`UPDATE` `{username, rejected:true}` |
-| `GET /api/v1/dealer/notifications?includeResolved=false` | Any member (the one exception to the manager-only rule above). 200 array, newest first; staff get every kind except `JOIN_REQUEST`. Default returns unresolved rows only; `includeResolved=true` returns the history. A `JOIN_REQUEST` payload also carries the applicant's account `source`, read at request time. A `BUYER_INQUIRY` payload is `{ leadId, customerName, vehicle }` (design/21 SHOP-04) |
+| `GET /api/v1/dealer/notifications?includeResolved=false` | Any member (the one exception to the owner-only rule above). 200 array, newest first; only the owner gets `JOIN_REQUEST` rows, because only the owner acts on them — managers and sales members get every other kind. Default returns unresolved rows only; `includeResolved=true` returns the history. A `JOIN_REQUEST` payload also carries the applicant's account `source`, read at request time. A `BUYER_INQUIRY` payload is `{ leadId, customerName, vehicle }` (design/21 SHOP-04) |
 
 No pending request from that username to this dealership → **404**. Notification item:
 
@@ -805,19 +831,19 @@ No pending request from that username to this dealership → **404**. Notificati
   "resolvedAt": null, "resolvedBy": null, "resolvedAction": null }
 ```
 
-`resolvedAction` is `APPROVED`, `REJECTED`, or `CANCELLED` (the requester deleted the account, §2.2). The first manager to act resolves the row for every manager in the dealership.
+`resolvedAction` is `APPROVED`, `REJECTED`, or `CANCELLED` (the requester deleted the account, §2.2). Acting on the request resolves the row, so it leaves the owner's inbox.
 
-### 5.8 Own dealership: profile and staff (dealership managers)
+### 5.8 Own dealership: profile and members (owner and manager)
 
-Manager only (design/21 AUTH-27); staff, admin, or unbound → 403. The dealership is the caller's own, never taken from the route.
+Design/21 AUTH-27 and design/15 §2.5. The dealership is the caller's own, never taken from the route. The dealership profile is **owner only**; the member routes are open to the **owner or a manager**, each with the scope rules below. A sales member, the admin, or an unbound account → **403** `FORBIDDEN`, as does a manager on the profile routes.
 
 | Method and path | Body | Result |
 |---|---|---|
-| `GET /api/v1/dealer/profile` | — | 200, the §3.3 dealership shape |
-| `PATCH /api/v1/dealer/profile` | `version`, `legalName`, `contactPhone`, `contactEmail`, `contactAddress`, `logoDataUrl` (same rules as §3.4; `active` stays with the admin) | 200 dealership. Stale `version` → `409 VERSION_CONFLICT`. Audit `DEALER`/`UPDATE` with the changed keys |
-| `DELETE /api/v1/dealer/members/{username}` | — | 204. Unbinds a `STAFF` member exactly as §3.7. A `MANAGER`, the caller included → **403** `FORBIDDEN` (only the admin removes managers); no active member of that name → 404 |
-| `PUT /api/v1/dealer/members/{username}/role` | `{ "dealerRole": "MANAGER" \| "STAFF" }` | 204. Sets another active member of the caller's dealership to `MANAGER` or `STAFF`, as §3.7b. The caller's own username → **403** `FORBIDDEN` ("You cannot change your own role."); missing or unknown `dealerRole` → `400 VALIDATION`; no active member of that name in this dealership → 404. Same role again is a no-op. Audit `MEMBERSHIP`/`UPDATE` `{username, dealerRole}` with the previous role |
-| `PATCH /api/v1/dealer/members/{username}` | `{ "displayName", "phone" }` (`displayName` required, at most 120 characters; `phone` optional, at most 40, blank or `null` clears it) | 204. Edits an active member's full name and phone. The phone is stored in canonical `+digits` form; an invalid phone → `400 VALIDATION` (`phone`); a phone used by another account → `409 PHONE_TAKEN`; no active member of that name in this dealership → 404. Nothing changed → no audit row. Otherwise audit `APP_USER`/`UPDATE` `{username, displayName?, phone?}` with the previous values |
+| `GET /api/v1/dealer/profile` | — | Owner only. 200, the §3.3 dealership shape |
+| `PATCH /api/v1/dealer/profile` | `version`, `legalName`, `contactPhone`, `contactEmail`, `contactAddress`, `logoDataUrl` (same rules as §3.4; `active` stays with the admin) | Owner only. 200 dealership. Stale `version` → `409 VERSION_CONFLICT`. Audit `DEALER`/`UPDATE` with the changed keys |
+| `DELETE /api/v1/dealer/members/{username}` | — | 204, unbinds exactly as §3.7. An owner removes a `MANAGER` or a `SALES` member; a manager removes `SALES` members only. The `OWNER`, the caller included → **403** `FORBIDDEN` (only the admin removes an owner); a manager targeting another `MANAGER` → **403** `FORBIDDEN`; no active member of that name → 404 |
+| `PUT /api/v1/dealer/members/{username}/role` | `{ "dealerRole": "MANAGER" \| "SALES" }` | 204. Sets another active member of the caller's dealership, as §3.7b. An owner sets any member below owner to `MANAGER` or `SALES`; a manager may only promote a `SALES` member to `MANAGER`. `"OWNER"` from inside the dealership → **403** `FORBIDDEN` (only the platform admin appoints an owner, §3.7b); the `OWNER` as target → **403** `FORBIDDEN`; a manager targeting another `MANAGER` → **403** `FORBIDDEN`; the caller's own username → **403** `FORBIDDEN` ("You cannot change your own role."); missing or unknown `dealerRole` → `400 VALIDATION`; no active member of that name in this dealership → 404. Same role again is a no-op. Audit `MEMBERSHIP`/`UPDATE` `{username, dealerRole}` with the previous role |
+| `PATCH /api/v1/dealer/members/{username}` | `{ "displayName", "phone" }` (`displayName` required, at most 120 characters; `phone` optional, at most 40, blank or `null` clears it) | 204. Edits an active member's full name and phone: an owner edits any member below owner, a manager edits `SALES` members only. The `OWNER` as target → **403** `FORBIDDEN` (the owner's own details are edited in Profile); a manager targeting a `MANAGER` → **403** `FORBIDDEN`. The phone is stored in canonical `+digits` form; an invalid phone → `400 VALIDATION` (`phone`); a phone used by another account → `409 PHONE_TAKEN`; no active member of that name in this dealership → 404. Nothing changed → no audit row. Otherwise audit `APP_USER`/`UPDATE` `{username, displayName?, phone?}` with the previous values |
 
 ---
 
@@ -1008,16 +1034,16 @@ Success: **200** plain text. Content = dealership public four fields + vehicle p
 
 ## 9. Audit
 
-All audit reads are newest first (`createdAt` desc, then `id` desc) and use the §1.1 page envelope. Audit rows are append-only; there is no write, edit or delete endpoint.
+All audit reads are newest first (`createdAt` desc, then `id` desc) unless a `sort` is given, which also breaks ties, and use the §1.1 page envelope. Audit rows are append-only; there is no write, edit or delete endpoint.
 
 ### 9.1 `GET /api/v1/audit`
 
-Query: `entityType`, `entityId` required; `page`, `size` optional.
+Query: `entityType`, `entityId` required; `page`, `size` optional; `sort=field,asc|desc` optional with `field` one of `createdAt`, `actorUsername`, `action` (default newest first). The sort orders the whole history, related rows included, before paging (CR-020). An unknown `sort` → `400 VALIDATION`.
 
-A dealership manager (`MANAGER` role, §5.8) only; staff → **403** `FORBIDDEN` (`Only a dealership manager can do this.`) (AUD-17). Entity not in this dealership → **404**.  
+The dealership owner or a manager (§5.8) only; a sales member → **403** `FORBIDDEN` (`Only a dealership owner or manager can do this.`) (AUD-17). Entity not in this dealership → **404**.  
 Admin → **403** `FORBIDDEN` for every `entityType`, no `fieldSummary` content; the admin reads audit through §9.2.
 
-`entityType`: `VEHICLE`\|`CUSTOMER`\|`CUSTOMER_VEHICLE`\|`LEAD`\|`WORK_ORDER`\|`VEHICLE_PHOTO`\|`LISTING` (manager query; a `LISTING` `entityId` is the listing id). A deleted photo's id or an unlinked `CUSTOMER_VEHICLE` id stays queryable while its audit rows exist in this dealership. `CUSTOMER` history also includes the `CUSTOMER_VEHICLE` `LINK`/`UNLINK` events whose `fieldSummary.customerId` is that customer, newest first. `VEHICLE` history likewise includes the `CUSTOMER_VEHICLE` `LINK`/`UNLINK` events and the `VEHICLE_PHOTO` events whose `fieldSummary.vehicleId` is that vehicle (AUD-06). Admin writes use `DEALER`/`MEMBERSHIP`; **this query API does not open those two types to dealer users** (→ **403**). Any other type (for example `APP_USER`) or a missing `entityType`/`entityId` → `400 VALIDATION`.
+`entityType`: `VEHICLE`\|`CUSTOMER`\|`CUSTOMER_VEHICLE`\|`LEAD`\|`WORK_ORDER`\|`VEHICLE_PHOTO`\|`LISTING` (owner or manager query; a `LISTING` `entityId` is the listing id). A deleted photo's id or an unlinked `CUSTOMER_VEHICLE` id stays queryable while its audit rows exist in this dealership. `CUSTOMER` history also includes the `CUSTOMER_VEHICLE` `LINK`/`UNLINK` events whose `fieldSummary.customerId` is that customer, newest first. `VEHICLE` history likewise includes the `CUSTOMER_VEHICLE` `LINK`/`UNLINK` events and the `VEHICLE_PHOTO` events whose `fieldSummary.vehicleId` is that vehicle (AUD-06). Admin writes use `DEALER`/`MEMBERSHIP`; **this query API does not open those two types to dealer users** (→ **403**). Any other type (for example `APP_USER`) or a missing `entityType`/`entityId` → `400 VALIDATION`.
 
 ```json
 {
@@ -1054,17 +1080,17 @@ Admin → **403** `FORBIDDEN` for every `entityType`, no `fieldSummary` content;
 | `clientIp` | the caller's IP (AUD-16); returned only by §9.2 and §9.3, `null` here |
 | `clientLocation` | place name stored with the row (design/15 §8.8): neighborhood, city with quadrant (`Calgary SW`), region, and country. `Local or private network` for a non-routable address. `null` when the lookup did not return a place. Returned only by §9.2 and §9.3, `null` here |
 
-Contact fields (`email`, `phone`, `address`, `homeAddress`, `contact*`) are recorded by value like every other field: the new value in `fieldSummary` and the replaced value in `previous` (AUD-04, changed 2026-10-21). Only managers and the admin can read audit rows (AUD-17). Application logs still never carry contact values.
+Contact fields (`email`, `phone`, `address`, `homeAddress`, `contact*`) are recorded by value like every other field: the new value in `fieldSummary` and the replaced value in `previous` (AUD-04, changed 2026-10-21). Only the dealership owner, its managers and the admin can read audit rows (AUD-17). Application logs still never carry contact values.
 
 ### 9.2 `GET /api/v1/admin/audit`
 
 Platform audit log (AUD-10). `Platform.Admin` only; any other caller → **403** `FORBIDDEN`. Returns every audit row across dealerships, including sign-ins and admin operations.
 
-Query (all optional): `entityType`, `entityId`, `action`, `actor` (any part of the username, ignoring case; `anonymous` for unknown sign-in identifiers), `dealerId`, `q` (free text, ignoring case, matched against the action, the record type and the stored change values in `fieldSummary` and `previous`, for example `password`; spaces match the underscores of wire names such as `WORK_ORDER`; CR T3, T5), `from` (inclusive) and `to` (exclusive) as ISO 8601 instants, so the UI can filter by the viewer's local days, `sort=field,asc|desc` with `field` one of `createdAt`, `actorUsername`, `action`, `entityType` (then `entityId`), `dealerId`, `clientIp`, `clientLocation` (default newest first, which also breaks ties; CR C7), `page`, `size` (default **20**, at most 100). An unknown `entityType`, `action` or `sort` → `400 VALIDATION`. Each item carries `dealerId`, `clientIp`, and `clientLocation`. Sign-ins (`LOGIN`, `LOGIN_FAILED`) and other operations are the same rows; filter `action` to separate them.
+Query (all optional): `entityType`, `entityId`, `action`, `actor` (any part of the username, ignoring case; `anonymous` for unknown sign-in identifiers), `dealerId`, `q` (free text, ignoring case, matched against the action, the record type and the stored change values in `fieldSummary` and `previous`, for example `password`; spaces match the underscores of wire names such as `WORK_ORDER`; CR T3, T5), `from` (inclusive) and `to` (exclusive) as ISO 8601 instants, so the UI can filter by the viewer's local days, `sort=field,asc|desc` with `field` one of `createdAt`, `actorUsername`, `action`, `entityType` (then `entityId`), `dealerId`, `clientIp`, `clientLocation` (default newest first, which also breaks ties; CR C7; blank values sort last in both directions), `page`, `size` (default **20**, at most 100). An unknown `entityType`, `action` or `sort` → `400 VALIDATION`. Each item carries `dealerId`, `clientIp`, and `clientLocation`. Sign-ins (`LOGIN`, `LOGIN_FAILED`) and other operations are the same rows; filter `action` to separate them.
 
 ### 9.3 `GET /api/v1/dealer/audit`
 
-Dealership audit log (AUD-11). A dealership manager (`MANAGER` role, §5.8) only; staff → **403** `FORBIDDEN` (`Only a dealership manager can do this.`); Admin → **403**. Returns every row whose `dealerId` is the caller's dealership. Same query as §9.2 except that `dealerId` is ignored. Each item carries `dealerId`, `clientIp`, and `clientLocation`.
+Dealership audit log (AUD-11). The dealership owner or a manager (§5.8) only; a sales member → **403** `FORBIDDEN` (`Only a dealership owner or manager can do this.`); Admin → **403**. Returns every row whose `dealerId` is the caller's dealership. Same query as §9.2 except that `dealerId` is ignored. Each item carries `dealerId`, `clientIp`, and `clientLocation`.
 
 ---
 
@@ -1180,6 +1206,7 @@ core calls these on ai-service directly; the browser does not.
 | `METHOD_NOT_ALLOWED` | 405 | HTTP method not supported on this path |
 | `VERSION_CONFLICT` | 409 | `version` mismatch |
 | `DUP_MEMBER` | 409 | this dealership already has this active member |
+| `LAST_OWNER` | 409 | demote, unbind or delete the dealership's only active owner while it still has another active member (§2.2, §3.7, §3.7b, §3.7d) |
 | `USERNAME_TAKEN` | 409 | sign-up (§1.5–1.7) or new member (§3.6) with a username already in use |
 | `EMAIL_TAKEN` | 409 | same, with an email already in use. A customer email shared inside a dealership is not rejected; it returns `emailWarning` (§5.2) |
 | `PHONE_TAKEN` | 409 | same (including `PATCH /me`), with a phone number already in use |
@@ -1188,7 +1215,7 @@ core calls these on ai-service directly; the browser does not.
 | `WORK_ORDER_CLOSED` | 409 | change to a `DONE` or `CANCELLED` work order (§4.7) |
 | `WORK_ORDERS_OPEN` | 409 | sell while `OPEN`/`IN_PROGRESS` work orders exist (§4.5) |
 | `VEHICLE_ALREADY_LINKED` | 409 | vehicle already linked to a customer |
-| `SOLD_LOCKED` | 409 | sold purchase edit, sell again, or **unlink a sold vehicle** |
+| `SOLD_LOCKED` | 409 | sold purchase edit, sell again, **unlink a sold vehicle**, or delete the buyer of a sold vehicle (§5.4a) |
 | `CHECK_STALE` | 409 | check expired at Ready/Export |
 | `NOT_PASSED` | 409 | not Passed at Ready/Export |
 | `UNSUPPORTED_MEDIA_TYPE` | 415 | request body is not `application/json`; or an uploaded photo is not JPEG/PNG (§4.8) |
@@ -1207,7 +1234,7 @@ Public routes for `/shop` (design/21 SHOP-01–05). The Gateway passes `GET` and
 | `GET /api/v1/public/dealers/{dealer}/inventory` | — | `dealer` is the dealership's slug (§4.6.2) or its numeric id (older links). 200 `{ dealerId, slug, legalName, contactPhone, contactEmail, contactAddress, vehicles: [{ vehicleId, modelYear, make, model, bodyType, conditionCode, mileageKm, exteriorColor, fuelType, title, body, hasPhoto }] }`, newest `addedOn` first. No VIN, cost, list price, or customer data |
 | `GET /api/v1/public/dealers/{dealerId}/logo` | — | 200 image: the dealership logo decoded from its stored data URL (PNG, JPEG or WebP); `Cache-Control: public, max-age=300`. No logo → 404. The `/shop` directory cards use it as their artwork |
 | `GET /api/v1/public/dealers/{dealerId}/vehicles/{vehicleId}/photo` | — | 200 image: the first photo, enhanced copy when present; `Cache-Control: public, max-age=300`. No photo → 404 |
-| `POST /api/v1/public/dealers/{dealerId}/inquiries` | `{ vehicleId, contact: { name, email, phone, homeAddress }, message }` | 204. `contact` follows §5.2; `message` 1–1000; errors are `400 VALIDATION` with `contact.name`-style keys. Reuses the active customer with the same phone, else creates one; creates a `NEW` lead on the vehicle due today with the message as its first note, and posts a `BUYER_INQUIRY` notification to the dealership. Actor `buyer-site` on the customer, lead, note, and audit rows. Rate-limited per IP (`inquiryPerMinute`, default 5) → `429 RATE_LIMITED` |
+| `POST /api/v1/public/dealers/{dealerId}/inquiries` | `{ vehicleId, contact: { name, email, phone, homeAddress }, message }` | 204. `contact` follows §5.2; `message` 1–1000; errors are `400 VALIDATION` with `contact.name`-style keys. Reuses the most recently updated active customer whose phone **and** name both match (phone compared digits only, so `(403) 555-0123` and `4035550123` are one number; name trimmed and case-insensitive), else creates one. Phone alone is never enough: people who share a phone keep separate profiles. The email is never part of the match — a different or newly typed email neither prevents the match nor overwrites the stored one. When that customer already has an open (not `WON`/`LOST`) lead on the vehicle, the message is added to that lead as a note and no lead is created (CR-051); otherwise creates a `NEW` lead on the vehicle due today with the message as its first note. Only a created lead posts a `BUYER_INQUIRY` notification to the dealership, because that notification is resolved when the lead gets an owner or leaves `NEW`. Actor `buyer-site` on the customer, lead, note, and audit rows. Rate-limited per IP (`inquiryPerMinute`, default 5) → `429 RATE_LIMITED` |
 
 ## 13. Do not build (do not bring the retired draft back)
 

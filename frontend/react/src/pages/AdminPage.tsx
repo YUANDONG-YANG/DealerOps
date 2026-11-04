@@ -60,6 +60,17 @@ const TAKEN_HINTS: Record<string, string> = {
   phone: 'Use a different number, or leave this blank and enter an email instead.',
 };
 
+// The three dealership tiers. The platform admin may set any of them, including a replacement owner.
+const DEALER_ROLES: Member['dealerRole'][] = ['OWNER', 'MANAGER', 'SALES'];
+
+const ROLE_TAG_CLASS: Record<string, string> = { OWNER: 'tag tag-success', MANAGER: 'tag tag-info', SALES: 'tag' };
+
+function RoleTag({ role }: { role: Member['dealerRole'] }) {
+  return <span className={ROLE_TAG_CLASS[role] ?? 'tag'}>{enumLabel(role)}</span>;
+}
+
+const hasActiveOwner = (members: Member[]) => members.some((m) => m.active && m.dealerRole === 'OWNER');
+
 /** Platform admin console: dealerships, their staff, pending accounts, ad rules and the platform audit log. */
 export default function AdminPage() {
   const [tab, setTab] = useState<'dealers' | 'members' | 'pending' | 'rules' | 'audit'>('dealers');
@@ -70,6 +81,8 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [forbidden, setForbidden] = useState(false);
+  // Ids of the listed dealerships that have no active owner yet.
+  const [ownerlessDealers, setOwnerlessDealers] = useState<Set<number>>(new Set());
 
   const [memberQ, setMemberQ] = useState('');
   const [flatMembers, setFlatMembers] = useState<FlatMember[]>([]);
@@ -91,8 +104,12 @@ export default function AdminPage() {
   const [staffTab, setStaffTab] = useState<'staff' | 'pending'>('staff');
   const [memberDrawer, setMemberDrawer] = useState(false);
   const [drawerMembers, setDrawerMembers] = useState<Member[]>([]);
+  // False while the drawer's member list is still loading, or if that load failed: the owner line
+  // must not state an outcome we do not know yet.
+  const [drawerMembersLoaded, setDrawerMembersLoaded] = useState(false);
   const [drawerError, setDrawerError] = useState('');
   const [member, setMember] = useState({ username: '', displayName: '', password: '', email: '', phone: '' });
+  const memberBaseline = useFormBaseline(member);
   const [bindError, setBindError] = useState('');
   // Success line after a create or bind: the member was bound, or a join request was sent (AUTH-28).
   const [bindNotice, setBindNotice] = useState('');
@@ -124,7 +141,7 @@ export default function AdminPage() {
   const [accountNotice, setAccountNotice] = useState('');
   // Bumped to remount the status checkboxes so a cancelled confirm snaps back to the stored state.
   const [statusRevert, setStatusRevert] = useState(0);
-  // Bumped to remount the pending lists after a membership change adds or removes a pending account.
+  // Bumped to refetch the pending lists after a membership change adds or removes a pending account.
   const [pendingReload, setPendingReload] = useState(0);
 
   const dealersLoadSeq = useRef(0);
@@ -135,6 +152,10 @@ export default function AdminPage() {
   // list reload drops it so a bind or unbind shows up in the next suggestions.
   const memberPool = useRef<Promise<FlatMember[]> | null>(null);
   const signedInUser = useSessionStore((s) => s.username);
+
+  // The staff drawer tells the admin whether the next account is bound as the owner or filed as a
+  // request. Null until the member list is loaded, because neither answer is known before that.
+  const drawerHasOwner = drawerMembersLoaded ? hasActiveOwner(drawerMembers) : null;
 
   // The member list is paged here, so it is sorted in full before the page is cut.
   const memberSort = useSort(flatMembers);
@@ -192,6 +213,22 @@ export default function AdminPage() {
     }))).slice(0, SUGGEST_LIMIT);
   };
 
+  // A dealership with no active owner still needs its first owner bound here, because nobody inside
+  // it can approve a join request. Rechecked for the listed page after every dealership reload.
+  useEffect(() => {
+    if (!rows.length) { setOwnerlessDealers(new Set()); return; }
+    const seq = dealersLoadSeq.current;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const staff = await Promise.all(rows.map((d) => fetchDealerMembers(d.id, '')));
+        if (cancelled || seq !== dealersLoadSeq.current) return;
+        setOwnerlessDealers(new Set(rows.filter((_, i) => !hasActiveOwner(staff[i])).map((d) => d.id)));
+      } catch { /* the marker is a hint; the dealership list itself is already on screen */ }
+    })();
+    return () => { cancelled = true; };
+  }, [rows]);
+
   // The platform admin acts without a membership, so the signed-in username joins the actor list.
   const suggestActors = async (q: string): Promise<Suggestion[]> => {
     const own = signedInUser && matchesAny(q, signedInUser) ? [{ value: signedInUser, label: signedInUser }] : [];
@@ -227,11 +264,13 @@ export default function AdminPage() {
   const openMembers = async (row: Dealer) => {
     const seq = ++drawerMembersLoadSeq.current;
     setStaffDealer(row); setStaffTab('staff'); setMemberDrawer(true); setBindError(''); setBindNotice('');
-    setMemberErrors({}); setDrawerError(''); setDrawerMembers([]);
+    setMemberErrors({}); setDrawerError(''); setDrawerMembers([]); setDrawerMembersLoaded(false);
+    const emptyMember = { username: '', displayName: '', password: '', email: '', phone: '' };
+    setMember(emptyMember); memberBaseline.reset(emptyMember);
     try {
       const items = await fetchDealerMembers(row.id, '');
       if (seq !== drawerMembersLoadSeq.current) return;
-      setDrawerMembers(items);
+      setDrawerMembers(items); setDrawerMembersLoaded(true);
     } catch (e) {
       if (seq !== drawerMembersLoadSeq.current) return;
       if (isForbidden(e)) setDrawerError('You do not have access to Admin.');
@@ -245,7 +284,7 @@ export default function AdminPage() {
     try {
       const items = await fetchDealerMembers(staffDealer.id, '');
       if (seq !== drawerMembersLoadSeq.current) return;
-      setDrawerMembers(items);
+      setDrawerMembers(items); setDrawerMembersLoaded(true);
       setDrawerError('');
     } catch (e) {
       if (seq !== drawerMembersLoadSeq.current) return;
@@ -309,6 +348,7 @@ export default function AdminPage() {
         await adminApi.createDealer(form);
       }
       setDrawer(false); setEditingDealer(null); setTab('dealers');
+      setAccountNotice(`${form.legalName.trim()} was ${editingDealer ? 'saved' : 'created'}.`);
       if (!editingDealer) setPage(0);
       await loadDealers();
     } catch (e) {
@@ -348,8 +388,9 @@ export default function AdminPage() {
         email: member.email.trim() || undefined,
         phone: member.phone.trim() || undefined,
       });
-      setBindNotice(isJoinRequestSent(r.data) ? r.data.message : `${r.data.username} is bound as the dealership's first manager.`);
-      setMember({ username: '', displayName: '', password: '', email: '', phone: '' });
+      setBindNotice(isJoinRequestSent(r.data) ? r.data.message : `${r.data.username} is bound as the dealership's owner.`);
+      const emptyMember = { username: '', displayName: '', password: '', email: '', phone: '' };
+      setMember(emptyMember); memberBaseline.reset(emptyMember);
       await refreshMemberships(staffDealer.id);
     } catch (e) {
       const code = codeOf(e);
@@ -437,15 +478,15 @@ export default function AdminPage() {
     );
   };
 
-  // The platform admin promotes staff to manager or demotes a manager in any dealership (AUTH-26).
+  // The platform admin sets any of the three tiers in any dealership, owner included (AUTH-26).
   const roleAction = (dealerId: number, m: Member) => {
     if (!m.active) return null;
-    const next = m.dealerRole === 'MANAGER' ? 'STAFF' : 'MANAGER';
     return (
-      <button className="btn-link" disabled={statusBusy === `${dealerId}:${m.username}`}
-        onClick={() => void changeRole(dealerId, m.username, next)}>
-        {next === 'MANAGER' ? 'Make manager' : 'Make staff'}
-      </button>
+      <select className="select" aria-label={`Dealership role for ${m.username}`}
+        value={m.dealerRole} disabled={statusBusy === `${dealerId}:${m.username}`}
+        onChange={(e) => void changeRole(dealerId, m.username, e.target.value as Member['dealerRole'])}>
+        {DEALER_ROLES.map((role) => <option key={role} value={role}>{enumLabel(role)}</option>)}
+      </select>
     );
   };
 
@@ -571,6 +612,9 @@ export default function AdminPage() {
                   )},
                   { label: 'Contact', render: (r) => `${r.contactPhone} / ${r.contactEmail}` },
                   { label: 'Staff count', render: (r) => String(r.staffCount ?? 0) },
+                  { label: 'Owner', render: (r) => (ownerlessDealers.has(r.id)
+                    ? <span className="tag" title="Bind the first owner from the Staff drawer; nobody inside the dealership can approve a join request yet.">No owner</span>
+                    : <span className="tag tag-success">Owner set</span>) },
                 ]}
                 actions={(r) => (
                   <>
@@ -607,7 +651,7 @@ export default function AdminPage() {
                 columns={[
                   { label: 'Username', render: (r) => r.username },
                   { key: 'legalName', label: 'Dealership', sortable: true },
-                  { key: 'dealerRole', label: 'Role', sortable: true, render: (r) => <span className={`tag ${r.dealerRole === 'MANAGER' ? 'tag-success' : ''}`}>{enumLabel(r.dealerRole)}</span> },
+                  { key: 'dealerRole', label: 'Role', sortable: true, render: (r) => <RoleTag role={r.dealerRole} /> },
                   { label: 'Contact', render: (r) => memberContact(r) },
                   { key: 'signInMethod', label: 'Sign-in', sortable: true, render: (r) => <SignInTag method={r.signInMethod} /> },
                   { key: 'active', label: 'Status', sortable: true, render: (r) => (
@@ -633,7 +677,7 @@ export default function AdminPage() {
           </>
         )}
         {tab === 'pending' && (
-          <PendingAccounts key={pendingReload} onBound={() => { void loadFlatMembers(); void loadDealers(); }} />
+          <PendingAccounts refresh={pendingReload} onBound={() => { void loadFlatMembers(); void loadDealers(); }} />
         )}
         {tab === 'rules' && <ComplianceRulesPanel />}
         {tab === 'audit' && <AuditLogPanel load={auditApi.platformLog} showDealer suggestActors={suggestActors} />}
@@ -671,13 +715,20 @@ export default function AdminPage() {
       </FormDrawer>
 
       <FormDrawer modal title={staffDealer ? `Staff · ${staffDealer.legalName}` : 'Staff'}
-        open={memberDrawer} onClose={() => setMemberDrawer(false)}>
+        open={memberDrawer} dirty={memberBaseline.dirty} onClose={() => setMemberDrawer(false)}>
         {drawerError && <p className="danger-text">{drawerError}</p>}
         <div className="muted" style={{ marginBottom: 8 }}>
           Create a new staff account — a temporary password is required. An account that registered itself is added
-          from the Pending accounts tab below, without one. While the dealership has no manager, the account is bound as
-          its first manager; otherwise a join request is sent for a dealership manager to approve in Team &gt; Join Requests.
+          from the Pending accounts tab below, without one. While the dealership has no owner, the account is bound as
+          its owner; otherwise a join request is sent for the dealership owner to approve in Team &gt; Join Requests.
         </div>
+        {drawerHasOwner !== null && (
+          <p className={drawerHasOwner ? 'muted' : 'danger-text'}>
+            {drawerHasOwner
+              ? 'This dealership has an owner, so the next account you add here is filed as a join request.'
+              : 'This dealership has no owner yet. The next account you add here is bound directly as its owner.'}
+          </p>
+        )}
         <div className="form-item"><label className="form-label form-required">Username</label>
           <input className="input" value={member.username}
             onChange={(e) => setMember((m) => ({ ...m, username: e.target.value }))} />
@@ -730,7 +781,7 @@ export default function AdminPage() {
                   <td className="staff-username">{m.username}</td>
                   <td>{m.displayName}</td>
                   <td className="muted">{memberContact(m)}</td>
-                  <td><span className={`tag ${m.dealerRole === 'MANAGER' ? 'tag-success' : ''}`}>{enumLabel(m.dealerRole)}</span></td>
+                  <td><RoleTag role={m.dealerRole} /></td>
                   <td><SignInTag method={m.signInMethod} /></td>
                   <td><span className={`tag ${m.active ? 'tag-success' : ''}`}>{m.active ? 'Active' : 'Inactive'}</span></td>
                   {/* Each action has its own cell so the same action lines up on every row. */}
@@ -748,7 +799,7 @@ export default function AdminPage() {
           </div>
         </div>}
         {staffTab === 'pending' && staffDealer && (
-          <PendingAccounts key={pendingReload} dealerId={staffDealer.id}
+          <PendingAccounts refresh={pendingReload} dealerId={staffDealer.id}
             onBound={() => { void refreshDrawerMembers(); void loadDealers(); }} />
         )}
       </FormDrawer>

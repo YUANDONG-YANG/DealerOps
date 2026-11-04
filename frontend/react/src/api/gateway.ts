@@ -30,7 +30,10 @@ let runtimeConfig: Promise<RuntimeConfig> | undefined;
 function loadRuntimeConfig(): Promise<RuntimeConfig> {
   runtimeConfig ??= fetch('/config.json', { cache: 'no-store' })
     .then((response) => {
-      if (response.ok) return response.json() as Promise<RuntimeConfig>;
+      // A dev server answers an unknown path with the SPA shell, so only JSON is a real config
+      // file; anything else means the file is absent, like a 404.
+      const isJson = (response.headers.get('content-type') ?? '').toLowerCase().includes('json');
+      if (response.ok) return isJson ? (response.json() as Promise<RuntimeConfig>) : {};
       // A missing file is the normal local fallback. Any other status is a broken deploy.
       if (response.status !== 404) {
         logApiFailure(
