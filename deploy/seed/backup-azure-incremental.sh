@@ -27,10 +27,8 @@ batch_size=500
 for tool in az terraform mysql mysqldump curl; do
   command -v "$tool" >/dev/null 2>&1 || { echo "Missing required tool: $tool" >&2; exit 1; }
 done
-# Windows mysql.exe and mysqldump.exe end lines with CRLF. Strip the CR so captured values work
-# under Git Bash. mysqldump escapes any CR inside a value, so none are lost.
-mysql() { command mysql "$@" | tr -d '\r'; }
-mysqldump() { command mysqldump "$@" | tr -d '\r'; }
+# shellcheck source=deploy/seed/azure-mysql-client.sh
+. "${seed_dir}/azure-mysql-client.sh"
 
 if ! host="$(terraform -chdir="${tf_dir}" output -raw mysql_fqdn 2>/dev/null)"; then
   echo "==> no Azure database yet; nothing to back up"

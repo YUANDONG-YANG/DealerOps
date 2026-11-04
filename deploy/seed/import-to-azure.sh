@@ -24,10 +24,8 @@ rule="seed-import-$(date +%s)"
 for tool in az terraform mysql mysqldump curl python3; do
   command -v "$tool" >/dev/null 2>&1 || { echo "Missing required tool: $tool" >&2; exit 1; }
 done
-# Windows mysql.exe and mysqldump.exe end lines with CRLF. Strip the CR so captured values and
-# line-anchored sed patterns work under Git Bash. mysqldump escapes any CR inside a value.
-mysql() { command mysql "$@" | tr -d '\r'; }
-mysqldump() { command mysqldump "$@" | tr -d '\r'; }
+# shellcheck source=deploy/seed/azure-mysql-client.sh
+. "${seed_dir}/azure-mysql-client.sh"
 [ -f "${seed}" ] || { echo "Missing ${seed}; run deploy/seed/export-local-data.sh first" >&2; exit 1; }
 
 rg="$(terraform -chdir="${tf_dir}" output -raw resource_group_name)"
@@ -54,14 +52,30 @@ trap 'echo "==> closing firewall rule ${rule}"; az mysql flexible-server firewal
 echo "==> waiting for dealer-core to create the schema"
 gateway_url="$(terraform -chdir="${tf_dir}" output -raw gateway_public_url)"
 tables=0
+last_error=""
+error_file="$(mktemp)"
 for i in $(seq 1 60); do
-  tables="$("${mysql_cmd[@]}" -N -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='dealer_core'" 2>/dev/null || echo 0)"
-  [ "${tables}" -ge 14 ] && break
+  if tables="$("${mysql_cmd[@]}" -N -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='dealer_core'" 2>"${error_file}")"; then
+    [ "${tables}" -ge 14 ] && break
+  else
+    last_error="$(tr -d '\n' <"${error_file}")"
+    # A rejected credential or a missing client plugin never becomes true by waiting.
+    if azure_mysql_fatal "${last_error}"; then
+      echo "Cannot connect to ${host} as ${user} with ${MYSQL_BIN}: ${last_error}" >&2
+      echo "This server's admin uses mysql_native_password, which MySQL 9 clients dropped." >&2
+      echo "Install a MySQL 8 client or point MYSQL_BIN and MYSQLDUMP_BIN at one." >&2
+      rm -f "${error_file}"
+      exit 1
+    fi
+    tables=0
+  fi
   curl -fsS -o /dev/null --max-time 30 "${gateway_url}/actuator/health" || true
   sleep 10
 done
+rm -f "${error_file}"
 if [ "${tables}" -lt 14 ]; then
   echo "dealer_core has ${tables} tables after 10 minutes; deploy dealer-core first (deploy/terraform/deploy-apps.sh core)" >&2
+  [ -n "${last_error}" ] && echo "Last MySQL error: ${last_error}" >&2
   exit 1
 fi
 

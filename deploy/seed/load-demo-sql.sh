@@ -50,8 +50,8 @@ check_seed_files
 for tool in az terraform mysql python3 curl; do
   command -v "$tool" >/dev/null 2>&1 || { echo "Missing required tool: $tool" >&2; exit 1; }
 done
-# Windows mysql.exe ends lines with CRLF. Strip the CR so captured values work under Git Bash.
-mysql() { command mysql "$@" | tr -d '\r'; }
+# shellcheck source=deploy/seed/azure-mysql-client.sh
+. "${seed_dir}/azure-mysql-client.sh"
 
 rule="demo-seed-$(date +%s)"
 rg="$(terraform -chdir="${tf_dir}" output -raw resource_group_name)"
