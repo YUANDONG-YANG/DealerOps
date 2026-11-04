@@ -11,7 +11,7 @@ Reopen your terminal afterward, then verify with dotnet --version, node -v, and 
 
 2. Create the database
 
-Open a MySQL shell (mysql -u root -p) and run the following. The exact database name, user and password are set in start-local.sh, so use whatever it uses (the README says database dealer_core, user dealer):
+Open a MySQL shell (mysql -u root -p) and run the following. The exact database name, user and password are set in start-local.sh, so use whatever it uses:
 
 sql
 CREATE DATABASE dealer_core;
@@ -22,15 +22,14 @@ Core creates the tables itself on first start, so there are no migrations.
 
 3. Set environment variables
 
-This is the fiddly part. The README says start-local.sh is the reference for them, so open it and copy every export X=... line. At minimum you’ll need things like the DB connection, a shared JWT secret (identical for Core and Gateway, or you’ll get 401s everywhere), INTERNAL_TOKEN, ADMIN_USERNAME / ADMIN_PASSWORD, and optionally AIMANAGER_API_KEY. dealer-platform/env.example also lists them. In PowerShell, each becomes:
-
 powershell
 $env:INTERNAL_TOKEN = "dev-internal-token"
 
 These only last for that terminal window, so set them in each terminal for the services that need them.
 
-
+4. Run dealer ops
 After installing everything use the opened powershell and run:
+
 powershell -ExecutionPolicy Bypass -File .\start-local.ps1
    
 

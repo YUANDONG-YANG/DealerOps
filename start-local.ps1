@@ -13,6 +13,7 @@ $EnvFile = Join-Path $Root 'dealer-platform\.env.local'
 $LogDir  = Join-Path $Root 'log-sum'
 $Procs   = @()
 $env:Path += ";C:\Program Files\MySQL\MySQL Server 8.4\bin"
+$env:INTERNAL_TOKEN = "dev-internal-token"
 
 
 function Say($m)  { Write-Host "`n[DealerOps] $m" -ForegroundColor Cyan }
