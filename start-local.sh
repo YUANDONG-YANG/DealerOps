@@ -9,6 +9,7 @@ ENV_FILE="$ROOT_DIR/dealer-platform/.env.local"
 LOG_DIR="$ROOT_DIR/log-sum"
 PIDS=()
 
+
 say() { printf '\n\033[1;36m[DealerOps]\033[0m %s\n' "$*"; }
 warn() { printf '\033[1;33m[DealerOps]\033[0m %s\n' "$*"; }
 die() { printf '\033[1;31m[DealerOps]\033[0m %s\n' "$*" >&2; exit 1; }

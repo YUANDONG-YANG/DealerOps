@@ -12,6 +12,8 @@ $Root    = $PSScriptRoot
 $EnvFile = Join-Path $Root 'dealer-platform\.env.local'
 $LogDir  = Join-Path $Root 'log-sum'
 $Procs   = @()
+$env:Path += ";C:\Program Files\MySQL\MySQL Server 8.4\bin"
+
 
 function Say($m)  { Write-Host "`n[DealerOps] $m" -ForegroundColor Cyan }
 function Warn($m) { Write-Host "[DealerOps] $m" -ForegroundColor Yellow }
