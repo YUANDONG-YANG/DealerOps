@@ -604,7 +604,7 @@ paths:
       tags: [AdminDealers]
       operationId: patchDealer
       summary: Patch four contact fields, active, and logo
-      description: Every field except `logoDataUrl`, including `version` and `active`, is required; a null or missing `logoDataUrl` removes the logo. Ignore body.`id`. There is no `DELETE /admin/dealers/{id}`.
+      description: Every field except `logoDataUrl`, including `version` and `active`, is required; a null or missing `logoDataUrl` removes the logo. Ignore body.`id`.
       requestBody:
         required: true
         content:
@@ -628,6 +628,24 @@ paths:
           $ref: "#/components/responses/NotFound"
         "409":
           $ref: "#/components/responses/VersionConflict"
+    delete:
+      tags: [AdminDealers]
+      operationId: deleteDealer
+      summary: Soft-delete a dealership
+      description: |
+        Sets `deleted_at` and `active = false`; vehicles, sales, customers and audit rows are kept. Every active
+        member is unbound and pending join requests to the dealership are cleared. A deleted dealership is gone
+        from the admin list, the public shop and sign-in tenancy, and its admin routes answer 404.
+        Already deleted or missing → 404. Success **204** with no body.
+      responses:
+        "204":
+          description: Deleted, no body
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
 
   /api/v1/admin/dealers/{id}/members:
     parameters:
@@ -657,10 +675,11 @@ paths:
     post:
       tags: [AdminMemberships]
       operationId: bindMember
-      summary: Bind staff
+      summary: Bind staff or send a join request
       description: |
         Already an **active** member of this dealership, still active at another dealership, or the username belongs to a Platform.Admin account → **409** `DUP_MEMBER`.
         Re-binding a previously unbound person reactivates them (not 409). An existing account keeps its own password, display name, and contact fields; only a new account takes them from the body.
+        While the dealership has no active manager the login is bound directly as its first `MANAGER` (**201**). Otherwise nothing is bound: the login (created if new) gets a join request for this dealership that a dealership manager approves in Team > Join Requests (**202**, design/21 AUTH-28).
       requestBody:
         required: true
         content:
@@ -669,11 +688,17 @@ paths:
               $ref: "#/components/schemas/MemberBind"
       responses:
         "201":
-          description: Member item
+          description: Member item (direct bind of the first manager)
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Member"
+        "202":
+          description: Join request sent to the dealership
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JoinRequestSent"
         "400":
           $ref: "#/components/responses/Validation"
         "401":
@@ -704,6 +729,70 @@ paths:
       responses:
         "204":
           description: Unbound, no body
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    patch:
+      tags: [AdminMemberships]
+      operationId: updateMemberContact
+      summary: Edit a member's sign-in email and phone
+      description: |
+        Registration rules: an email and/or phone is required, canonical form, and each value must be unused by
+        another account (409 `EMAIL_TAKEN` or `PHONE_TAKEN`). A blank value clears it. No membership row of that
+        username at this dealership, or the account is deleted → 404.
+      parameters:
+        - $ref: "#/components/parameters/DealerId"
+        - $ref: "#/components/parameters/Username"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email: { type: string, nullable: true, maxLength: 254 }
+                phone: { type: string, nullable: true, maxLength: 40 }
+      responses:
+        "200":
+          description: Updated member item
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Member"
+        "400":
+          $ref: "#/components/responses/Validation"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: EMAIL_TAKEN or PHONE_TAKEN
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/v1/admin/dealers/{id}/members/{username}/account:
+    delete:
+      tags: [AdminMemberships]
+      operationId: deleteMemberAccount
+      summary: Delete a member's account
+      description: |
+        Same soft delete as `DELETE /api/v1/me`: memberships are unbound, a pending join request is cancelled, the
+        account is deactivated and its email, phone and Google link are freed. The username and audit trail stay.
+        A Platform.Admin account, including the caller → 403. No membership row of that username at this
+        dealership, or already deleted → 404. Success **204** with no body.
+      parameters:
+        - $ref: "#/components/parameters/DealerId"
+        - $ref: "#/components/parameters/Username"
+      responses:
+        "204":
+          description: Deleted, no body
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -935,7 +1024,7 @@ paths:
       description: |
         Platform.Admin only. Active Dealer.User accounts with no active membership (self sign-ups,
         unbound former staff), newest first. `q` matches username, display name, email, or phone. Bind one with
-        `POST /api/v1/admin/dealers/{id}/members` without a password.
+        `POST /api/v1/admin/dealers/{id}/members` without a password (a direct bind or a join request).
       parameters:
         - name: q
           in: query
@@ -954,6 +1043,64 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
+
+  /api/v1/admin/pending-users/{username}:
+    parameters:
+      - name: username
+        in: path
+        required: true
+        schema: { type: string }
+    patch:
+      tags: [AdminMemberships]
+      operationId: updatePendingUser
+      summary: Edit a pending account
+      description: |
+        Platform.Admin only. Edits the username, email and phone with the registration rules: an email
+        and/or phone is required, and each value must be unused by another account (409 `USERNAME_TAKEN`,
+        `EMAIL_TAKEN` or `PHONE_TAKEN`). Not a pending account → 404.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PendingUserUpdate"
+      responses:
+        "200":
+          description: Updated pending account
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PendingUser"
+        "400":
+          $ref: "#/components/responses/Validation"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: USERNAME_TAKEN, EMAIL_TAKEN or PHONE_TAKEN
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    delete:
+      tags: [AdminMemberships]
+      operationId: deletePendingUser
+      summary: Delete a pending account
+      description: |
+        Platform.Admin only. Soft delete: the account is deactivated, its email, phone and Google link are
+        freed for a new sign-up, and a pending join request is cancelled. Not a pending account → 404.
+      responses:
+        "204":
+          description: Deleted
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
 
   /api/v1/vehicles:
     get:
@@ -1193,7 +1340,7 @@ paths:
       tags: [Catalog]
       operationId: listPublicDealers
       summary: Public dealer directory
-      description: Anonymous. Active dealerships sorted by legal name: id, legal name, the derived buyer-site slug, logo flag, vehicle counts and the public contact card (phone, email, address). Used by the Google sign-in dealership picker and the buyer-site directory.
+      description: Anonymous. Active dealerships sorted by legal name; id, legal name, the derived buyer-site slug, logo flag, vehicle counts and the public contact card (phone, email, address). Used by the Google sign-in dealership picker and the buyer-site directory.
       security: []
       responses:
         "200":
@@ -4351,6 +4498,29 @@ components:
         email: { type: string, nullable: true }
         phone: { type: string, nullable: true }
         createdAt: { type: string, format: date-time }
+        requestedDealerId:
+          type: integer
+          format: int64
+          nullable: true
+          description: The dealership this account has a pending join request at.
+        requestedDealerName: { type: string, nullable: true }
+
+    PendingUserUpdate:
+      type: object
+      required: [username]
+      properties:
+        username: { type: string, maxLength: 64 }
+        email: { type: string, format: email, maxLength: 254, nullable: true }
+        phone: { type: string, maxLength: 40, nullable: true }
+
+    JoinRequestSent:
+      type: object
+      required: [username, dealerId, joinRequested, message]
+      properties:
+        username: { type: string }
+        dealerId: { type: integer, format: int64 }
+        joinRequested: { type: boolean, enum: [true] }
+        message: { type: string }
 
     PagePendingUser:
       allOf:

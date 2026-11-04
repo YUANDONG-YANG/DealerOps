@@ -125,11 +125,11 @@ The organisation has three levels: the platform admin (`Platform.Admin`), a deal
 
 | Who | Can |
 |---|---|
-| `Platform.Admin` | Create dealerships, create and bind accounts, unbind members, reset passwords, and promote staff to manager or demote a manager in any dealership (14 §3.7b) |
+| `Platform.Admin` | Create dealerships; create accounts; bind an account directly only while the dealership has no active manager (it becomes the first manager), otherwise file a join request that a manager approves (14 §3.6); edit or delete pending accounts (14 §3.8a, §3.8b); unbind members, reset passwords, and promote staff to manager or demote a manager in any dealership (14 §3.7b) |
 | Manager | Everything staff can, plus: the Team page, the join-request inbox, approving or rejecting join requests, removing staff, editing the dealership profile, setting another member of the same dealership to Manager or Staff (never themselves), and editing another member's full name and phone (14 §5.7, §5.8); each record's audit history (`GET /audit`, AUD-17) and the dealership audit log (`GET /dealer/audit`, Team › Activity); the payment ledger of a sold vehicle (`GET /vehicles/{id}/payments`) and removing a payment (`DELETE …/payments/{paymentId}`) |
 | Staff | All business data of the dealership (DMS, CRM, leads, ads, reports, work orders); may record a payment (`POST /vehicles/{id}/payments`, 201 with only the recorded payment item, PAY-05) but cannot read the ledger or remove a payment; no audit history or audit log, no Team page, no inbox. Every manager-only endpoint returns **403** `FORBIDDEN` to staff |
 
-Every bind, reactivation, and approved join request starts as `staff`. Existing members became `staff` when the column was added, so the admin appoints each dealership's first manager; after that a manager can promote or demote other members. A manager cannot change their own role, so the last manager cannot demote themselves. A manager removes only staff: another manager must be demoted to staff first, and a manager never removes themselves.
+Since 2026-11-03 (design/21 AUTH-28) the admin binds directly only to bootstrap a dealership's first manager: a direct bind or reactivation while the dealership has no active manager starts as `manager`. Once a manager exists, the admin's create-staff and bind actions file a join request instead, so the dealership itself controls who joins, and an approved join request starts as `staff`. Existing members became `staff` when the column was added; a manager can promote or demote other members. A manager cannot change their own role, so the last manager cannot demote themselves. A manager removes only staff: another manager must be demoted to staff first, and a manager never removes themselves.
 
 **V2 is not recommended.** If a later change must enforce one person / one dealership in the database, use a generated-column unique index on active rows only; Sprint 1 is not blocked — the application layer is enough.
 
@@ -511,7 +511,7 @@ Verification rules enforced server-side, never in the browser: RS256 only, issue
 
 ### 8.6 Data retention: nothing is deleted (NFR-07)
 
-Dealer Ops keeps financial and sales records, so no business data is destroyed or overwritten. Every delete is a soft delete: the row stays and `deleted_at` hides it from active lists. This applies to customers (CRM-14), vehicles (DMS-17), customer-vehicle links (unlink), vehicle photos (both variants) and payments (PAY-03). Removed staff memberships keep their row with `active = false`.
+Dealer Ops keeps financial and sales records, so no business data is destroyed or overwritten. Every delete is a soft delete: the row stays and `deleted_at` hides it from active lists. This applies to customers (CRM-14), vehicles (DMS-17), customer-vehicle links (unlink), vehicle photos (both variants), payments (PAY-03) and dealerships (`DELETE /admin/dealers/{id}`, which also sets `active = false` and unbinds every member). Removed staff memberships keep their row with `active = false`.
 
 | Data category | Retention |
 |---|---|
@@ -519,7 +519,8 @@ Dealer Ops keeps financial and sales records, so no business data is destroyed o
 | Soft-deleted customer (CRM-14) | Row and personal fields kept unchanged for lead, link and audit history; never anonymized |
 | Unlinked customer-vehicle link, deleted photo, deleted payment | Row kept with `deleted_at`; hidden from lists, the ledger and the buyer site |
 | Audit events | Kept for the life of the database, append-only (AUD-05); they hold contact values, new and replaced, so every version is traceable (AUD-04). Readable only by managers and the admin |
-| Staff accounts (`app_user`) | Until the user deletes the account (`DELETE /api/v1/me`) or an admin removes it |
+| Staff accounts (`app_user`) | Until the user deletes the account (`DELETE /api/v1/me`) or the admin deletes it (`DELETE /admin/dealers/{id}/members/{username}/account` or the pending-account delete); both are the same soft delete: `active = false`, email, phone and Google link suffixed `:deleted:<id>`, username and audit kept |
+| Deleted dealership | Row kept with `deleted_at` and `active = false`; its vehicles, customers, sales and audit rows stay; hidden from admin lists, the public shop and sign-in |
 | Database backups | 7 days (NFR-04) |
 
 There is no retention job: the former `CustomerRetention` service, which anonymized deleted customers after 730 days, was removed on 2026-10-22 because the project must not delete data. A customer-vehicle link keeps one active row per vehicle through the generated column `active_vehicle_id` (the vehicle id while `deleted_at` is NULL), which carries the unique key `uk_cv_active_vehicle`, so a vehicle can be linked again after an unlink.

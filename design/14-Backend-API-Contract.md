@@ -307,7 +307,7 @@ The handbook has no single-dealership GET. **New ruling:** add this read-only en
 
 ### 3.4 `PATCH /api/v1/admin/dealers/{id}`
 
-The handbook has no update. **New ruling:** allow changing the four contact fields, `active`, and the dealership logo; `version` is required. The Admin page uses this for its `Edit` dealership drawer (13 §5.3). Do not add `DELETE /admin/dealers/{id}` (the spec does not require deleting dealerships).
+The handbook has no update. **New ruling:** allow changing the four contact fields, `active`, and the dealership logo; `version` is required. The Admin page uses this for its `Edit` dealership drawer (13 §5.3). Deleting a dealership is §3.4a.
 
 ```json
 {
@@ -322,6 +322,10 @@ The handbook has no update. **New ruling:** allow changing the four contact fiel
 ```
 
 Every field in the example except `logoDataUrl` is required (full replacement; the four strings are non-blank). `logoDataUrl` is optional: `null` or missing removes the logo. When present it must be a `data:image/(png|jpeg|webp);base64,...` URL of at most 200,000 characters, else `400 VALIDATION`. The logo is stored in the database (no file storage service); the web client downscales the uploaded file to at most 160 px on the long side and sends PNG. Response matches 3.3. Errors: `400`, `404`, `409 VERSION_CONFLICT`. Ignore body.`id`.
+
+### 3.4a `DELETE /api/v1/admin/dealers/{id}` → 204
+
+Change request A5. Soft delete: the row keeps its id and gets `deleted_at` and `active = false`, so vehicles, sales, customers and audit rows keep their dealership. In the same transaction every active membership is unbound (as §3.7), each member's `app_user.dealer_id` is cleared, and pending join requests to the dealership (`requested_dealer_id`) are cleared; the unbound members appear under §3.8 and can be bound elsewhere. A deleted dealership is absent from §3.1, the public dealership list and buyer site, join-request targets and sign-in tenancy; §3.3, §3.4, §3.4a and every `/admin/dealers/{id}/members` route answer `404 NOT_FOUND` for it. Already deleted or missing → 404. Audit `DEALER`/`DELETE` `{legalName, deleted:true, unboundMembers}` plus one `MEMBERSHIP`/`UPDATE` `{username, unbound:true}` per member. There is no undelete. The Admin page asks for the dealership name to be typed before it sends the request; the server does not require it.
 
 ### 3.5 `GET /api/v1/admin/dealers/{id}/members`
 
@@ -351,7 +355,7 @@ Dealership missing → 404. Paginated envelope (`page`/`size`/`q` matches `displ
 
 `email` and `phone` are the account's own sign-in contact values from `app_user`, each `null` when not set (UI-12). Admin-only: the dealer-side staff directory (§5.6) is unchanged.
 
-### 3.6 `POST /api/v1/admin/dealers/{id}/members` → 201
+### 3.6 `POST /api/v1/admin/dealers/{id}/members` → 201 or 202
 
 ```json
 { "username": "user_9d20…", "displayName": "Alex Dealer", "password": "temporary-pass-1", "email": "alex@example.com" }
@@ -360,7 +364,14 @@ Dealership missing → 404. Paginated envelope (`page`/`size`/`q` matches `displ
 Write `membership` + `app_user` (column authority is in 15). Response matches a member item.  
 **Existing account** (for example a self sign-up from §3.8): identify the account by its username for binding; `displayName`, `password`, and contact fields may be omitted, and they are never changed — the person keeps signing in with their own email, username, or phone and password. **New account:** the admin supplies a username, display name, temporary password, and an email and/or phone (at least one); the person can sign in with any of them. Missing or invalid details → `400 VALIDATION`.
 `400 VALIDATION`; dealership 404; already an **active** member of that dealership, still active at another dealership, or the username belongs to a `Platform.Admin` account → **409** `DUP_MEMBER` (an admin account is never overwritten or demoted).  
-Binding an already-unbound person again is treated as **reactivation**, not 409 (whether the same row is updated is left to 15). Do not delete the `app_user` account. Every bind and reactivation starts the member as `STAFF`; Audit `MEMBERSHIP`/`CREATE` carries `dealerRole`.
+Binding an already-unbound person again is treated as **reactivation**, not 409 (whether the same row is updated is left to 15). Do not delete the `app_user` account.
+
+**Direct bind or join request (design/21 AUTH-28, decided 2026-11-03).** The admin binds directly only while the dealership has **no active manager**: the response is **201** with the member item, the member starts as `MANAGER` (the dealership's first manager), and Audit `MEMBERSHIP`/`CREATE` carries `dealerRole`. Once the dealership has an active manager, the same call binds nothing: it creates the login when the username is new (same validation as above) and files a join request for that dealership (`app_user.requested_dealer_id`, a `JOIN_REQUEST` inbox notification, Audit `APP_USER`/`UPDATE` `{requestedDealerId}`), replacing a request the account had pending at another dealership. A dealership manager approves or rejects it in Team › Join Requests (§5.7), and an approved member joins as `STAFF`. Repeating the call for the same dealership is a no-op. Response **202**:
+
+```json
+{ "username": "alex", "dealerId": 3, "joinRequested": true,
+  "message": "Join request sent to the dealership. A manager approves it in Team > Join Requests." }
+```
 
 ### 3.7 `DELETE /api/v1/admin/dealers/{id}/members/{username}` → 204
 
@@ -382,16 +393,41 @@ Platform.Admin sets a new password for an active member who forgot theirs, and t
 
 Platform.Admin promotes a staff member to `MANAGER` or demotes a manager to `STAFF` (design/21 AUTH-26); a dealership manager can do the same for other members of their own dealership through §5.8. Missing or unknown `dealerRole` → `400 VALIDATION`. No active binding of that username at this dealership → 404. Setting the current role again is a no-op. Audit `MEMBERSHIP`/`UPDATE` `{username, dealerRole}`. The change applies on the member's next request; no new token is needed.
 
+### 3.7c `PATCH /api/v1/admin/dealers/{id}/members/{username}` → 200
+
+```json
+{ "email": "alex@example.com", "phone": "+14165550123" }
+```
+
+Change request A6. Platform.Admin edits the sign-in email and phone of an account listed at this dealership, active or unbound. Same rules as registration (§1.5): at least one of the two (both blank → `400 VALIDATION` with `email` and `phone` field errors), canonical form, and each value unique across accounts other than this one → `409 EMAIL_TAKEN` / `PHONE_TAKEN` with a field error. A blank value clears that field. No membership row of that username at this dealership, or the account is deleted → 404. Response matches a §3.5 member item. Audit `APP_USER`/`UPDATE` with the changed fields and their previous values; no change → no audit row.
+
+### 3.7d `DELETE /api/v1/admin/dealers/{id}/members/{username}/account` → 204
+
+Change request A6. Platform.Admin deletes the account with the same soft delete as §2.2: active memberships are unbound, a pending join request is cancelled, `app_user.active` becomes false, and the email, phone and Google link get a `:deleted:<id>` suffix so they are free for a new sign-up. The username and audit trail stay; the account leaves §3.5 and §3.8 and can no longer sign in. No membership row of that username at this dealership, or the account is already deleted → 404. A `Platform.Admin` account, including the caller → `403 FORBIDDEN`. Audit `APP_USER`/`DELETE` `{username, active:false}` with the previous `email` and `phone`, plus `MEMBERSHIP`/`UPDATE` `{username, unbound:true}` for each unbound membership. The Admin Members tab asks for the username to be typed before it sends the request.
+
 ### 3.8 `GET /api/v1/admin/pending-users`
 
 Platform.Admin only (staff → 403). Active `Dealer.User` accounts with no active membership — self sign-ups and unbound former staff — newest first. Query `q` (username, display name, email, or phone contains), `page`, `size`.
 
 ```json
-{ "items": [ { "username": "user_9d20…", "displayName": "Ada Lee", "email": "ada@example.com", "phone": null, "createdAt": "2026-10-08T21:59:51Z" } ],
+{ "items": [ { "username": "user_9d20…", "displayName": "Ada Lee", "email": "ada@example.com", "phone": null, "createdAt": "2026-10-08T21:59:51Z",
+               "requestedDealerId": 3, "requestedDealerName": "Maple Motors" } ],
   "page": 0, "size": 10, "totalElements": 1 }
 ```
 
-The Admin Members tab lists these under **Pending accounts** with `Add to dealership`, which calls §3.6 without a password.
+`requestedDealerId` / `requestedDealerName` name the dealership the account has a pending join request at, or are `null`. The Admin **Pending accounts** tab lists these with `Bind without password` (§3.6 without a password: a direct bind or a join request), `Edit` (§3.8a) and `Delete` (§3.8b).
+
+### 3.8a `PATCH /api/v1/admin/pending-users/{username}` → 200
+
+```json
+{ "username": "ada.lee", "email": "ada@example.com", "phone": null }
+```
+
+Platform.Admin only (design/21 AUTH-28). Edits a pending account's username, email and phone with the registration rules (§1.5): the same username format, an email and/or phone is required, both are canonicalized, and a blank one clears it → else `400 VALIDATION`. A value already used by another account → **409** `USERNAME_TAKEN`, `EMAIL_TAKEN` or `PHONE_TAKEN` with the field error. Not a pending account (unknown, inactive, platform admin, or active staff) → 404. A rename also renames the account's inactive membership rows; a pending join request's inbox entry is re-posted under the new values. Audit `APP_USER`/`UPDATE` with the changed fields and their previous values. Response: the updated pending-user item. A signed-in account that is renamed must sign in again.
+
+### 3.8b `DELETE /api/v1/admin/pending-users/{username}` → 204
+
+Platform.Admin only (design/21 AUTH-28). Soft delete, same as `DELETE /me` (§2.2): the row and its audit history stay, `active=false`, and the email, phone and Google link get a `:deleted:{id}` suffix so they are free for a new sign-up; the username stays taken. A pending join request is cancelled. Not a pending account → 404. Audit `APP_USER`/`DELETE`.
 
 ### 3.9 Compliance rule configuration
 
@@ -750,7 +786,7 @@ Account `source` values: `google` (Google sign-in), `firebase` (email sign-up), 
 
 ### 5.7 Join requests and dealer inbox (dealership managers)
 
-Accounts that asked to join this dealership (§1.6) wait here for its managers (design/21 AUTH-27). The `/api/v1/dealer/**` routes below need an active membership with `dealerRole` `MANAGER`; staff, admin, or unbound → 403. The two `/me/join-request` routes are the applicant's own and need no dealership. Neither list is paginated.
+Accounts that asked to join this dealership (§1.6), or that the platform admin sent a join request for (§3.6), wait here for its managers (design/21 AUTH-27). The `/api/v1/dealer/**` routes below need an active membership with `dealerRole` `MANAGER`; staff, admin, or unbound → 403. The two `/me/join-request` routes are the applicant's own and need no dealership. Neither list is paginated.
 
 | Method and path | Result |
 |---|---|

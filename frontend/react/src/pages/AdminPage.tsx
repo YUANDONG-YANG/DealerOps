@@ -779,6 +779,59 @@ export default function AdminPage() {
         </p>
         {resetError && <p className="danger-text">{resetError}</p>}
       </ConfirmDialog>
+
+      <ConfirmDialog open={deleteDealerTarget != null} title={`Delete dealership ${deleteDealerTarget?.legalName ?? ''}`}
+        confirmLabel={deleting ? 'Deleting…' : 'Delete dealership'}
+        confirmDisabled={deleting || typedName.trim() !== deleteDealerTarget?.legalName}
+        onCancel={() => { if (!deleting) setDeleteDealerTarget(null); }}
+        onConfirm={deleteDealer}>
+        <p>
+          The dealership leaves the admin list, the public shop and sign-in. Every member is unbound and
+          pending join requests to it are cancelled. Vehicles, sales and the audit history are kept.
+        </p>
+        <label className="form-label" htmlFor="delete-dealer-name">Type the dealership name to confirm</label>
+        <input id="delete-dealer-name" className="input" autoComplete="off" autoFocus spellCheck={false}
+          placeholder={deleteDealerTarget?.legalName}
+          value={typedName} onChange={(e) => setTypedName(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter') void deleteDealer(); }} />
+        {deleteError && <p className="danger-text">{deleteError}</p>}
+      </ConfirmDialog>
+
+      <ConfirmDialog open={deleteAccountTarget != null} title={`Delete account ${deleteAccountTarget?.username ?? ''}`}
+        confirmLabel={deleting ? 'Deleting…' : 'Delete account'}
+        confirmDisabled={deleting || typedName.trim() !== deleteAccountTarget?.username}
+        onCancel={() => { if (!deleting) setDeleteAccountTarget(null); }}
+        onConfirm={deleteAccount}>
+        <p>
+          The account is unbound and can no longer sign in. Its email and phone are released for a new account.
+          The username and audit history are kept.
+        </p>
+        <label className="form-label" htmlFor="delete-account-username">Type the username to confirm</label>
+        <input id="delete-account-username" className="input" autoComplete="off" autoFocus spellCheck={false}
+          placeholder={deleteAccountTarget?.username}
+          value={typedName} onChange={(e) => setTypedName(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter') void deleteAccount(); }} />
+        {deleteError && <p className="danger-text">{deleteError}</p>}
+      </ConfirmDialog>
+
+      <ConfirmDialog open={contactTarget != null} title={`Edit contact for ${contactTarget?.username ?? ''}`}
+        confirmLabel={contactSaving ? 'Saving…' : 'Save'}
+        confirmDisabled={contactSaving}
+        onCancel={() => { if (!contactSaving) setContactTarget(null); }}
+        onConfirm={saveContact}>
+        <label className="form-label" htmlFor="contact-email">Login email</label>
+        <input id="contact-email" className="input" type="email" autoComplete="off"
+          value={contactForm.email} onChange={(e) => setContactForm((f) => ({ ...f, email: e.target.value }))} />
+        {contactErrors.email && <div className="form-error">{contactErrors.email}</div>}
+        <label className="form-label" htmlFor="contact-phone" style={{ marginTop: 12 }}>Login phone</label>
+        <input id="contact-phone" className="input" type="tel" autoComplete="off"
+          value={contactForm.phone} onChange={(e) => setContactForm((f) => ({ ...f, phone: e.target.value }))} />
+        {contactErrors.phone && <div className="form-error">{contactErrors.phone}</div>}
+        <p className="muted form-hint">
+          Email, phone, or both. Include the country code, e.g. +1 416 555 0123. Each email and number can belong to only one account.
+        </p>
+        {contactError && <p className="danger-text">{contactError}</p>}
+      </ConfirmDialog>
     </AppLayout>
   );
 }

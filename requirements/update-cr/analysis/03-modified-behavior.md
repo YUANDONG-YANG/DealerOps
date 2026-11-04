@@ -9,17 +9,17 @@ The document has two sections:
 - **Client Requests** — urgent, and to be done first.
 - **Site Fixes and Changes** — less urgent, and still to be implemented, especially items marked as fixes. Several of these are the author’s suggestions (“I suggest”, “I feel”).
 
-The author says the listed confirmation screens and search boxes may be incomplete, and that extra sortable columns beyond the written list are allowed.
+The author says the full-name places may be more than the three found, that the search-box list may not be complete, and that extra sortable columns beyond the written list are allowed. The confirmation-screen list carries no such caveat.
 
 ## Home page and public shop
 
 ### Remove the home-page create-account button
 
-- **Section:** Client request. Interim decision after a further discussion item.
+- **Section:** Client request. The interim step toward the requested dealership inquiry.
 - **Old behavior:** The home page has create-account functionality. One of the three places named for the duplicate-full-name block is “clicking any of the create account options” on the home page.
 - **New behavior:** Remove the create-account button from the home page. That is the change the document says will suffice for now.
-- **Who:** Home-page visitors who would use create account.
-- **Conditions / exceptions:** Converting that control into a dealership inquiry, and doing account creation a different way, need further discussion with the client. Those are not the interim change. See the pointer list.
+- **Who:** Home-page visitors who would use create account. The home page has more than one create-account option ("any of the create account options"); the removal covers each of them.
+- **Conditions / exceptions:** Converting that control into a way for dealerships to inquire is a direct client request. Only doing account creation a different way needs further discussion with the client. Removing the button is the interim change. See the pointer list.
 
 ### Sample ads link to sign-up
 
@@ -173,13 +173,13 @@ The author says the listed confirmation screens and search boxes may be incomple
 
 - **Section:** Site change.
 - **Old behavior:** old behavior not stated.
-- **New behavior:** A vehicle cannot be sold until the sale is linked to a customer. The user can pick “other” and type a buyer manually.
+- **New behavior:** The author suggests (“I suggest”) that a vehicle cannot be sold until the sale is linked to a customer. The user can pick “other” and type a buyer manually.
 - **Who:** Users selling a vehicle. Role not named.
 - **Conditions / exceptions:** “Other” plus a manually typed buyer is the stated alternative to an existing customer.
 
 ### Remove the DMS Make and Model boxes
 
-- **Section:** Site change. The author says the box list may be incomplete.
+- **Section:** Site change, author suggestion (“I suggest”). The author says the box list may be incomplete.
 - **Old behavior:** DMS has Make and Model boxes. A “Search VIN, make, or model” box already provides the same functionality in a better format.
 - **New behavior:** Remove the Make and Model boxes.
 - **Who:** DMS search. Role not repeated on this bullet. DMS sorting is described for any logged-in user.
@@ -187,7 +187,7 @@ The author says the listed confirmation screens and search boxes may be incomple
 
 ### DMS Year becomes a typeable box
 
-- **Section:** Site change.
+- **Section:** Site change, author suggestion (“I suggest”).
 - **Old behavior:** The Year box lists many years and is difficult to use.
 - **New behavior:** Turn it into a typeable box.
 - **Who:** DMS.
@@ -195,7 +195,7 @@ The author says the listed confirmation screens and search boxes may be incomple
 
 ### Split the Add Vehicle brand list
 
-- **Section:** Site change.
+- **Section:** Site change, author suggestion (“I suggest”).
 - **Old behavior:** The Add Vehicle dropdown is difficult to use because of its size.
 - **New behavior:** Split it into two sections, one for major brands and one for every brand, similar to Autotrader. The comparison is in screenshots.
 - **Who:** Users adding a vehicle. Role not named.
@@ -211,11 +211,11 @@ The author says the listed confirmation screens and search boxes may be incomple
 
 ### Move the VIN box to the top
 
-- **Section:** Site change, in the add-vehicle discussion that covers the brand list and model year.
+- **Section:** Site change, author suggestion (“I would also suggest”). It follows the model-year sentence and shares a sentence with the open-work-order search suggestion.
 - **Old behavior:** old behavior not stated.
 - **New behavior:** Move the VIN box to the top.
-- **Who:** Add-vehicle flow, from the surrounding sentences.
-- **Conditions / exceptions:** “The top” is not tied to a named form section.
+- **Who:** Ambiguous. The text does not say whether this is the VIN box in the DMS search options or the one in the Add Vehicle form; both exist. Reading it as the Add Vehicle form follows the surrounding brand and model-year sentences and is an inference.
+- **Conditions / exceptions:** “The top” is not tied to a named form section. Confirm which box is meant.
 
 ### VIN must match the vehicle information
 
@@ -236,10 +236,10 @@ The author says the listed confirmation screens and search boxes may be incomple
 ### Customer and Vehicle of interest match the leads menu
 
 - **Section:** Site change.
-- **Old behavior:** Those boxes exist and are described as confusing and difficult to use. The page that contains them is not named.
-- **New behavior:** Make them similar to the leads menu. The pattern is in a screenshot and is not described in text.
-- **Who:** Not stated.
-- **Conditions / exceptions:** The document does not name the screen.
+- **Old behavior:** Those boxes exist and are described as confusing and difficult to use. The text does not name the page; the accompanying screenshot shows the Add lead form.
+- **New behavior:** Make them similar to the leads menu. The target pattern is a screenshot of the Leads list search suggestions and is not described in text.
+- **Who:** Users adding or editing a lead, per the screenshot. The text names no role.
+- **Conditions / exceptions:** The screen is identified only by the screenshots.
 
 ## Sales report and dashboard
 
@@ -265,7 +265,7 @@ The author says the listed confirmation screens and search boxes may be incomple
 
 - **Section:** Site change.
 - **Old behavior:** Phone numbers are exclusive for customers.
-- **New behavior:** They should not be exclusive. The stated reason is that some people share a phone number and may want separate customer profiles.
+- **New behavior:** The author feels (“I feel”) they should not be exclusive. The stated reason is that some people share a phone number and may want separate customer profiles.
 - **Who:** Regular customer creation, customer creation through the leads page, and the location line Any user account > CRM > Add customer + Edit.
 - **Conditions / exceptions:** The document applies this both to regular customer creation and to customer creation through the leads page.
 
@@ -295,13 +295,13 @@ The author says the listed confirmation screens and search boxes may be incomple
 - **Who:** Leads page.
 - **Conditions / exceptions:** Follow the existing DMS and CRM auto-update. That existing behavior is not described beyond auto-update.
 
-### Confirm before closing a lead or saving a larger lead change
+### Confirm before closing a lead
 
 - **Section:** Fix, with a specific close-lead rule. See also the confirmation list.
 - **Old behavior:** Many menus give no confirmation for unsaved data or for changes that were made. Leads surfaces in that list are Add lead + Edit, and Leads > Open.
-- **New behavior:** A larger change requires confirmation before it is saved. When closing a lead, confirm before saving.
+- **New behavior:** Add lead and Edit confirm on unsaved data, like the other listed menus. When closing a lead, confirm before saving.
 - **Who:** Any user account > Leads > Add lead + Edit; any user account > Leads > Open; closing a lead.
-- **Conditions / exceptions:** The document does not define “larger.” The close rule is specifically “confirm before saving.”
+- **Conditions / exceptions:** The close rule is specifically “confirm before saving.” The “larger change” sentence belongs to Manager > Team > Dealership profile, not to leads (see the confirmation section).
 
 ### Reopen a closed lead
 
@@ -364,6 +364,7 @@ The author says the listed confirmation screens and search boxes may be incomple
 ### Team activity user search accepts a partial name
 
 - **Section:** Site change.
+- **Section note:** Author suggestion (“I suggest”).
 - **Old behavior:** Searching team activity by users does not show results on partial searches.
 - **New behavior:** Those searches work with partial searches.
 - **Who:** Team activity user search.
@@ -374,7 +375,7 @@ The author says the listed confirmation screens and search boxes may be incomple
 ### Order, change search, partial search, and day-picker labels
 
 - **Section:** Site change. Day-picker labeling is also stated earlier with team activity.
-- **Old behavior:** The day picker boxes are unlabeled. For search-option order, change search, and partial search on this log, old behavior not stated. Partial failure is stated for team activity user search, not restated as a current admin-log failure.
+- **Old behavior:** The day picker boxes are unlabeled. For search-option order, change search, and partial search on this log, old behavior not stated. Partial failure is stated for team activity user search. For the admin log the document asks that partial searches return results, which implies they do not today.
 - **New behavior:** Search options and columns are in the same order. Admin can search based on changes. Partial searches return results. Day pickers are labeled in line with the team activity change.
 - **Who:** Platform admin > audit log.
 - **Conditions / exceptions:** The target column order and the partial-search fields are not listed.
@@ -383,7 +384,7 @@ The author says the listed confirmation screens and search boxes may be incomple
 
 - **Section:** Fix.
 - **Old behavior:** Many menus give no confirmation when there is unsaved data or when changes are made. The document says that can cause accidental changes, loss of data, and frustration.
-- **New behavior:** Those menus should confirm. A larger change requires confirmation before save. Closing a lead requires confirmation before saving.
+- **New behavior:** Those menus should confirm. Manager > Team > Dealership profile is described as a larger change and requires confirmation before it is saved. Closing a lead requires confirmation before saving.
 - **Who:** The written list is:
   - Platform admin > Dealerships > Edit
   - Any user account > DMS > Add vehicle + Edit
@@ -392,7 +393,7 @@ The author says the listed confirmation screens and search boxes may be incomple
   - Manager account > Team > Dealership profile
   - Any user account > Leads > Open
   - Closing a lead
-- **Conditions / exceptions:** The document points at screenshots and does not say every form in the product is included. Dealership delete and user delete have their own “at least one extra step” rule.
+- **Conditions / exceptions:** The document points at screenshots and does not say every form in the product is included. Unlike the full-name places and the search boxes, this list has no “may be more” caveat. Dealership delete and user delete have their own “at least one extra step” rule.
 
 ## Sortable columns on existing lists
 
@@ -420,7 +421,7 @@ The author says the listed confirmation screens and search boxes may be incomple
 
 These are additions. This note does not treat them as changes to a stated current behavior.
 
-- Home-page create account may later become a way for dealerships to inquire about using the service. A different account-creation method also needs more client discussion. The interim change is removing the button, covered above.
+- The client requested that home-page create account become a way for dealerships to inquire about using the service. Only a different account-creation method needs more client discussion. The interim change is removing the button, covered above.
 - Optional dealership admin / owner / regional manager, with some platform-admin capabilities limited to one dealership. Discuss with the client before full implementation. The document’s privilege order, most to least, is platform admin, that dealership role, dealership manager, dealership staff, and user not logged in.
 - DMS search by Stock #.
 - DMS search for vehicles with open work orders.

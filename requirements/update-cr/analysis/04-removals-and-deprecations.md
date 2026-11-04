@@ -10,7 +10,7 @@ The document never uses the words deprecate, sunset, migration, or out of scope.
 
 **Section:** Client Requests.
 
-**Removed:** The button to create an account on the home page.
+**Removed:** The button to create an account on the home page. The document elsewhere refers to "any of the create account options" on the home page, so the removal covers every such option.
 
 **Replacement stated:** The client asked that home-page create-account functionality be converted into a way for dealerships to inquire and potentially use the service. The same passage says the client also talked about doing account creation a different way, and that this needs further discussion. The interim instruction is explicit: "For now, removing the button to create account from the home page will suffice."
 
@@ -52,7 +52,7 @@ The document never uses the words deprecate, sunset, migration, or out of scope.
 
 **Where it applies:** Regular customer creation and customer creation through the leads page. The location line is: any user account > CRM > Add customer + Edit.
 
-**Compatibility note:** None for existing rows. This is separate from the duplicate warning in the same paragraph. That warning covers name, email, phone, or address: tell the user a customer with that value already exists and ask them to confirm before creating another. The document does not drop uniqueness for name, email, or address. It only says phone exclusivity should stop.
+**Compatibility note:** None for existing rows. This is separate from the duplicate warning in the same paragraph. That warning covers name, email, phone, or address: tell the user a customer with that value already exists and ask them to confirm before creating another. Phone is the only field the document describes as exclusive today, and the author feels that exclusivity should stop. Name, email, and address are named only for the duplicate warning.
 
 ## Replaced flows and replaced presentation
 
@@ -123,7 +123,7 @@ The closest presentation and search drops are:
 
 No existing role is removed.
 
-The document still refers to platform admin, manager, dealership staff, any signed-in user, and a user who is not logged in. The dealership admin / owner / regional manager line below is a proposed optional role, not a role being retired. The document spells the last word "manger."
+The document still refers to platform admin, manager, dealership staff, any signed-in user, and a user who is not logged in. The dealership admin / owner / regional manager line below is a proposed optional role, not a role being retired. The document spells the last word "manger" in the role sentence and "manager" in the privilege list.
 
 ## Deferred and optional scope
 
@@ -154,9 +154,9 @@ For the Add Vehicle model-year control, the author suggests listing only years t
 Included so later synthesis does not treat new delete actions or tighter rules as retired features.
 
 - **New delete actions.** Admins should be able to remove pending accounts. Platform admin should be able to delete dealerships, with at least one extra confirmation. Admins should be able to delete users, with at least one extra confirmation, and should be able to edit some account information such as email or phone. These add actions.
-- **Join requests stay.** They should be split into a table of current requests to approve or reject, and a table of past requests that were approved or rejected. Logged-in path named: manager > Team > Join requests.
+- **Join requests stay.** They should be split into a table of current requests to approve or reject, and a table of past requests that were approved or rejected. Logged-in path named for the split: manager > Team > Join requests. The sortable-columns list names any user account > Team > Join Requests; the document does not reconcile the two.
 - **Duplicate-customer warning still allows create.** A matching name, email, phone, or address should prompt for confirmation. Phone exclusivity is the only rule in that paragraph that the author says should end.
-- **Closed leads stay in the product.** Closing a lead should ask for confirmation. Closed leads should be reopenable. When a vehicle is sold to a customer, leads for that customer and vehicle should be closed automatically and labeled. Duplicate leads with the same customer and vehicle should not be created.
+- **Closed leads stay in the product.** Closing a lead should ask for confirmation. Closed leads should be reopenable. Leads should be tied to vehicle sales: when a vehicle is sold to a customer, the leads are closed automatically, with the appropriate label applied to the customers tied to the lead. The document does not say which leads are in scope beyond that, for example other customers' leads on the same vehicle. Duplicate leads with the same customer and vehicle should not be created.
 - **New sale and vehicle rules.** A sale should require a linked customer, or "other" plus a typed buyer. VINs should be forced to match DMS vehicle information. The Carfax URL box should be exclusive and should require an actual Carfax link before save.
 - **Search controls that stay, with edits.** The DMS Year box becomes typeable. The Add Vehicle brand dropdown is split, not removed. Customer and Vehicle of interest boxes stay and should work more like the leads menu. Activity-log search is extended (including partial match and search by the change made). Column and search-option order is aligned. None of these are stated as removals.
 
