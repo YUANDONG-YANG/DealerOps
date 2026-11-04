@@ -25,7 +25,7 @@ These are the high questions in one place. Detail is in the sections below.
 4. What numbers, date boundaries, and employee definition do the day/week/month/year sales views use?
 5. Which employee fields may a manager change, and may a manager demote another manager? **Answered 2026-11-03:** full name and phone, for sales members only; no demotion of a manager.
 6. Is the dealership admin/owner/regional-manager role out of this delivery? **Answered 2026-11-03:** no — it is in, as one dealership Owner tier (`requirements/iteration-2/CR-Role-Hierarchy-2026-11-03.md`).
-7. Is home-page account creation hidden or replaced by a dealership inquiry? (Sample ads stay on sign-in under decision D4, which follows the client; see A-07.)
+7. Is home-page account creation hidden or replaced by a dealership inquiry? (Sample ads stay on sign-in under decision D4, which follows the client; see A-07.) **Reversed 2026-11-03** (`requirements/iteration-2/CR-Analysis-2026-11-03.md` §6, D4): the expanded sample ad links to `/register` with the text "Check your own ads"; the create-account buttons stay hidden.
 8. Which leads close when a vehicle is sold, with which label, and who may reopen them?
 9. Which platform-admin powers are removed (direct bind) and which are added (edit, delete users, delete dealerships, edit pending accounts)? Who approves the first member of a new dealership? **Answered 2026-11-03:** nobody — the platform admin binds the first owner directly, and only later members come through a join request the owner approves (`requirements/iteration-2/CR-Role-Hierarchy-2026-11-03.md` §2).
 10. Are cost, work-order spend, and list price on the sell dialog read-only displays of data the vehicle already has?
@@ -90,7 +90,7 @@ The sortable-column list later says Members columns include "Date Added (when ad
 
 > "The sample ads on the home page link to the sign in page. I believe most people who are clicking on the ads are potential users and this should link to the sign-up page."
 
-The sample-ad sentence is an author suggestion ("I believe"); the client request (CR-009) is to remove home-page account creation. Decision D4 follows the client: sample ads stay on `/login`, a recorded decision against the author suggestion.
+The sample-ad sentence is an author suggestion ("I believe"); the client request (CR-009) is to remove home-page account creation. Decision D4 follows the client: sample ads stay on `/login`, a recorded decision against the author suggestion. **Reversed 2026-11-03** (`requirements/iteration-2/CR-Analysis-2026-11-03.md` §6, D4): the suggestion was never in conflict with the client, who asked only for the create-account button to be removed and said nothing about where a sample ad should lead, and keeping the ad on sign-in sent an evaluating dealership to a page it had no account for. The ad links to `/register` as an interim and moves to the dealership enquiry page once that flow is designed.
 
 **Question:** For this delivery, is the acceptance criterion only that the home-page create-account control is hidden? If the inquiry stays in scope, what fields does it collect, and who receives it?
 

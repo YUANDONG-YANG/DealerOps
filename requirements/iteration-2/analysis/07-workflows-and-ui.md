@@ -397,10 +397,10 @@ Citations are `design/12-Frontend-UI-Conventions.md` (UI) and `design/13-Fronten
 
 - **Actor.** Signed-out visitor, described as a potential user.
 - **Navigation.** Home page sample ads (`/` hero).
-- **Steps.** The document says the sample ads link to the sign-in page and should link to the sign-up page instead. The screenshot circles only the **Sign in to check your own ads** link.
+- **Steps.** The document says the sample ads link to the sign-in page and should link to the sign-up page instead. The screenshot circles only the **Check your own ads** link.
 - **States.** None.
-- **Screen.** Change existing screen (`LandingPage.tsx`). In the current page, choosing a sample car opens an inline ad-check (passed, blocked, or stale) and that panel contains **Sign in to check your own ads**, which goes to `/login`. That link is the target; the car click and the sample ad-check stay.
-- **Conflicts.** None with C8 or UI §1, because the sample ad-check result stays. W5 removes **Create account** from the home page while this link sends people to sign-up; the link can point to `/register` for as long as that route exists.
+- **Screen.** Change existing screen (`LandingPage.tsx`). In the current page, choosing a sample car opens an inline ad-check (passed, blocked, or stale) and that panel contains **Check your own ads**, which goes to `/login`. That link is the target; the car click and the sample ad-check stay.
+- **Conflicts.** None with C8 or UI §1, because the sample ad-check result stays. W5 removes **Create account** from the home page while this link sends people to sign-up; the link can point to `/register` for as long as that route exists. **Confirmed 2026-11-03** (`requirements/iteration-2/CR-Analysis-2026-11-03.md` §6, D4): that is the decision taken — the link now reads **Check your own ads** and goes to `/register`, while the home-page create-account buttons stay removed.
 
 ### W33. Say the home page is for dealerships
 

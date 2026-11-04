@@ -1,8 +1,7 @@
 # Change request summary for the client — 3 November 2026
 
 This note reports back on the change request dated 3 November 2026. It covers all sixty-eight requested
-changes: sixty are finished, seven are finished in part, and one was deliberately built differently from
-the way the document described it.
+changes: sixty-one are finished and seven are finished in part.
 
 It is written for the people who wrote and will review the change request, so it describes what you will
 see on screen rather than how it was built.
@@ -99,16 +98,18 @@ could take over a colleague's account. Widening this needs your decision.
 
 ---
 
-## 3. Where we did something different, and why
+## 3. Where we read the request a particular way, and why
 
-**Home-page sample adverts still lead to sign-in.**
+**Home-page sample adverts now lead to the sign-up page.**
 The document asks: *"The sample ads on the home page link to the sign in page. I believe most people who
 are clicking on the ads are potential users and this should link to the sign-up page."* A few pages
 earlier the client asks that *"removing the button to create account from the home page will suffice"*.
-These two pull in opposite directions: an advert pointing at sign-up would put the create-account entry
-straight back on the home page. We kept the client's instruction and left the adverts on sign-in ("Sign
-in to check your own ads"). Once the dealership enquiry page exists, the adverts would be a natural place
-to send an interested dealership instead — that is an option open to you.
+On a closer reading these ask for different things: the first is about where an advert leads, the second
+is about the create-account button in the page header. Both are done. The button is gone from the home
+page, and opening one of the sample adverts now ends with "Check your own ads", which goes to the sign-up
+page. A dealership looking at the product follows that link and can start an account, rather than
+arriving at a sign-in page it has no account for. Once the dealership enquiry page exists, the adverts
+should lead there instead, and we will move the link in that change.
 
 **Full names and customer phone numbers are no longer unique.**
 The document reports: *"Currently an account is unable to be created if the full name is already used.

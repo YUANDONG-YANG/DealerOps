@@ -63,7 +63,8 @@ test.describe('landing page', () => {
     await expect(page.getByRole('heading', { name: 'Decode any VIN' })).toBeVisible();
     await expect(page.getByPlaceholder('17-character VIN')).toBeVisible();
 
-    // CR-009: the home page has no create-account entry at all, in the header or anywhere else.
+    // CR-009: nothing on the page as it loads invites the visitor to create an account.
+    // Expanding a sample ad reveals a sign-up link, which CR-063 covers separately.
     await expect(page.getByRole('link', { name: 'Create account' })).toHaveCount(0);
     await expect(page.locator('a[href="/register"]')).toHaveCount(0);
     await expect(page.locator('.landing-auth-links').getByRole('link')).toHaveCount(1);
@@ -83,17 +84,15 @@ test.describe('landing page', () => {
     await expect(page).toHaveURL(/\/shop$/);
   });
 
-  test('CR-063: an opened sample ad links to sign in, not to sign-up', async ({ page }) => {
+  test('CR-063: an opened sample ad links to sign-up', async ({ page }) => {
     await page.goto('/');
     await page.locator('.landing-preview-row').first().click();
     const sample = page.locator('.landing-sample').first();
     await expect(sample).toBeVisible();
-    const link = sample.getByRole('link', { name: /Sign in to check your own ads/ });
-    await expect(link).toHaveAttribute('href', '/login');
-    // CR-009 again: the sample must not reintroduce the create-account entry.
-    await expect(sample.locator('a[href="/register"]')).toHaveCount(0);
+    const link = sample.getByRole('link', { name: /Check your own ads/ });
+    await expect(link).toHaveAttribute('href', '/register');
     await link.click();
-    await expect(page).toHaveURL(/\/login$/);
+    await expect(page).toHaveURL(/\/register$/);
   });
 
   test('CR-009: /register stays reachable by direct link for invited dealership staff', async ({ page }) => {

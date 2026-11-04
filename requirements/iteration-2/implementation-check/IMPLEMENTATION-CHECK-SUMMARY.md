@@ -87,7 +87,7 @@ Not-applicable: CR-010.
 | CR-060 | implemented | A platform admin soft-deletes a dealership after typing its legal name. The button is on the Dealerships list, not in the Edit drawer. | [18-cr-060-062.md](requirements/update-cr/implementation-check/18-cr-060-062.md) |
 | CR-061 | implemented | A platform admin soft-deletes a member account after typing the username. Pending accounts have a separate confirm-and-delete. | [18-cr-060-062.md](requirements/update-cr/implementation-check/18-cr-060-062.md) |
 | CR-062 | implemented | A platform admin edits a member’s email and phone. Pending accounts can also be edited, including email and phone. | [18-cr-060-062.md](requirements/update-cr/implementation-check/18-cr-060-062.md) |
-| CR-063 | implemented | Each opened sample ad links to `/register` (“Sign up to check your own ads”). No sample-ad control goes to `/login`. | [19-cr-063-065.md](requirements/update-cr/implementation-check/19-cr-063-065.md) |
+| CR-063 | implemented | Each opened sample ad links to `/register` (“Check your own ads”). No sample-ad control goes to `/login`. | [19-cr-063-065.md](requirements/update-cr/implementation-check/19-cr-063-065.md) |
 | CR-064 | implemented | A banner above the hero says Dealer Ops is software for car dealerships, not a place to buy a car. | [19-cr-063-065.md](requirements/update-cr/implementation-check/19-cr-063-065.md) |
 | CR-065 | implemented | The shop directory heading is “Shop vehicles.” The shop page does not label the inventory as used. | [19-cr-063-065.md](requirements/update-cr/implementation-check/19-cr-063-065.md) |
 | CR-066 | implemented | `/shop` searches dealership name and address and shows address, phone, and email on each card. | [20-cr-066-068.md](requirements/update-cr/implementation-check/20-cr-066-068.md) |
@@ -138,7 +138,7 @@ Source: [03-cr-009-012.md](requirements/update-cr/implementation-check/03-cr-009
 
 **Present:** The home page no longer shows a Create account control in the header, the hero, or the bottom call to action. Those blocks offer Sign in. The hero also offers Decode a VIN. The footer links Disclaimer and Shop vehicles.
 
-**Missing:** Nothing on the home page collects a dealership’s inquiry about using the service. The buyer-site form asks about a listed vehicle; it is not that inquiry. `/register` is still mounted, Login still links Create account to `/register`, and the gateway still allows anonymous registration. One home-page control still opens registration: the sample-ad link “Sign up to check your own ads”. The change note says removing the home-page button is enough for now, and that a different account-creation method still needs a client discussion. The inquiry form, its fields, and a new endpoint are not specified there.
+**Missing:** Nothing on the home page collects a dealership’s inquiry about using the service. The buyer-site form asks about a listed vehicle; it is not that inquiry. `/register` is still mounted, Login still links Create account to `/register`, and the gateway still allows anonymous registration. One home-page control still opens registration: the sample-ad link “Check your own ads”. The change note says removing the home-page button is enough for now, and that a different account-creation method still needs a client discussion. The inquiry form, its fields, and a new endpoint are not specified there.
 
 ### CR-012 — Leads sort is page-only
 

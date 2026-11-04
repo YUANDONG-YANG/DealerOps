@@ -25,17 +25,17 @@ Rule: **the client's requests come first.** Where an author suggestion conflicts
 | CR-052 | Leads close as WON or LOST; nothing is written on the customer. | The lead stage is "the appropriate label" (P27). | None. |
 | CR-055 | The admin still binds directly when the dealership has no manager. | Onboarding needs a first manager (D3, P8). | None. Documented exception. |
 
-## 2. Client over author conflict
+## 2. The apparent client-over-author conflict
 
 | CR | Check finding | Decision | Action |
 |---|---|---|---|
-| CR-063 | Sample ads link to `/register`. | The client asked to remove the home-page create-account entry (CR-009). An ad linking to sign-up brings it back (D4, P1). | **Fix:** sample ads link back to `/login` ("Sign in to check your own ads"). |
+| CR-063 | Sample ads link to `/register`. | Not a conflict. The client asked for the create-account *button* to be removed from the home page (CR-009) and said nothing about where a sample ad leads; the sign-up suggestion is about a different element. D4 was reversed on 2026-11-03 and accepts H1; the earlier call to send the ads back to `/login` is withdrawn, since it sent an evaluating dealership to a sign-in page it has no account for while `/register` stayed reachable anyway. | None. The expanded sample ad links to `/register` ("Check your own ads") and stays there until the dealership enquiry flow exists. |
 
 ## 3. Order of work
 
 1. Wait for the running implementation workflow to finish, so the working tree is stable.
 2. Merge `origin/robin` into `V2`, resolving conflicts in the audit, `Program.cs`, `openapi.yaml` and design 13/14 files. Re-point `v1` to `origin/robin`, so it is the real pre-change snapshot.
-3. Apply the fixes above: CR-012, 014, 016, 018, 020, 022, 051 and 063.
+3. Apply the fixes above: CR-012, 014, 016, 018, 020, 022 and 051. CR-063 needs no change.
 4. Build Core, the Gateway and the React frontend, then rerun the affected Playwright specs and the full suite.
 5. Commit on `V2`.
 
@@ -58,7 +58,8 @@ Note on paths: the change-request documents were moved during the pass. They now
   confirmation kept only for the dealership profile and for closing a lead (CR-022).
 - Buyer-site inquiries from a shopper who already has an open lead on the vehicle become a note on
   that lead, with no second lead and no second unresolved inbox message (CR-051).
-- Sample ads link back to `/login` (CR-063, decision D4).
+- The expanded sample ad keeps its `/register` link, now worded "Check your own ads" (CR-063, decision D4
+  as reversed on 2026-11-03). The home-page create-account buttons stay removed.
 - `VehicleService` now decodes the VIN through the vPIC catalog client on create and on edit and
   refuses a save whose make, model or model year disagrees with the decode, falling back to the
   VIN's model-year character when the decoder is unavailable (CR-047, decision D9). This closes the

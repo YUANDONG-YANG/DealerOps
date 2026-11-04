@@ -6,7 +6,7 @@ Audience: the client and the capstone team.
 
 Client requests in section 1 outrank author suggestions in section 2. That rule applies where section 2 says "I believe" or "I suggest".
 
-Of the 8 items previously listed as partial or contradicted, 7 are accepted decisions. One item, CR-063, is an intentional departure.
+Of the 8 items previously listed as partial or contradicted, all 8 are now accepted decisions. CR-063 was reopened on 2026-11-03 and is implemented as the document asked.
 
 ## Accepted decisions
 
@@ -38,15 +38,15 @@ A second OPEN lead for the same customer and vehicle is blocked. A closed lead d
 
 Selling a vehicle closes related open leads. The CRM buyer is Won; other open leads on that vehicle are Lost. Won and Lost are the label. The source sentence is unclear, and it does not require a separate tag on the customer record.
 
-## Intentional departure
+## Reopened and implemented
 
 ### CR-063 — Sample ads
 
-Intentionally not done as written. Section 1 (urgent client request) removes the home-page sign-up entry. Section 2 ("I believe") says sample ads should link to the sign-up page. Linking the ads to `/register` would put that entry back on the home page. Sample ads stay on `/login` ("Sign in to check your own ads"). The client section wins. Changing that link back is not proposed.
+Done as written, after a reversal. This was first recorded as a deliberate departure, on the reading that an ad pointing at `/register` would restore the create-account entry section 1 asked to remove. On re-reading, the two asks are about different elements: section 1 names the create-account **button**, and says nothing about where a sample ad should lead; section 2's line is a usability note about the ad. Keeping the ad on sign-in also served nobody, since a dealership evaluating the product reached a page it had no account for while `/register` stayed reachable from sign-in anyway. The expanded sample ad now ends with "Check your own ads" to `/register`. The create-account button stays removed.
 
 ## Waiting on the client
 
-Future option, not part of this delivery: when the dealership inquiry page from CR-009 is defined, sample ads can link to that inquiry page. That matches "potential dealers should inquire" and does not restore self-service sign-up. This waits until the client defines that page.
+When the dealership inquiry page from CR-009 is defined, the sample ad should point at it instead of at sign-up. That is the intended end state: it matches "potential dealers should inquire" and stops sending new traffic into self-service registration, which the client wants to replace. Until then the sign-up link is the interim.
 
 ## Questions still open
 
