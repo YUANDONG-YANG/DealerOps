@@ -91,6 +91,7 @@ export default function AuditLogPanel({ load, showDealer = false, suggestActors 
             ...(showDealer ? [{ key: 'dealerId', label: 'Dealership', sortable: true, render: (r: AuditLogRow) => r.dealerId == null ? 'Platform' : String(r.dealerId) }] : []),
             { label: 'Changes', render: (r) => summaryText(r.fieldSummary, r.previous) },
             { key: 'clientIp', label: 'Source IP', sortable: true, render: (r) => r.clientIp ?? 'Not recorded' },
+            { key: 'clientLocation', label: 'Location', sortable: true, render: (r) => r.clientLocation ?? (r.clientIp ? 'Unavailable' : 'Not recorded') },
           ]}
         />
       </PageState>

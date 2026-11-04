@@ -429,6 +429,7 @@ export default function AdsPage() {
               {listingError && <p className="danger-text">{listingError}</p>}
               {actionError && <p className="danger-text">{actionError}</p>}
               {unsaved && listing.id && !sold && <p className="muted">Save the draft before running a check or exporting.</p>}
+              {canMarkReady && listing.status !== 'READY' && <p className="muted">Check passed. Click Mark ready to list this vehicle on your buyer site.</p>}
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 12 }}>
                 <button className="btn" disabled={!selected || sold || saving} onClick={save}>{saving ? 'Saving…' : 'Save draft'}</button>
                 <button className="btn" disabled={!canRunCheck || checking} onClick={runCheck}>{checking ? 'Checking…' : 'Run check'}</button>

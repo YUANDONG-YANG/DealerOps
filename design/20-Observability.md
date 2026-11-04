@@ -248,6 +248,7 @@ Every `Information` line ends with `by {Actor}` (the signed-in username) unless 
 | Forbidden | method, path, request id | `Program.cs` `OnForbidden` (authorization middleware) |
 | Version conflict | method, path, request id | `ApiExceptionFilter`, the concurrency collision only |
 | Audit summary unreadable | `auditEventId`, `column` (`fieldSummary` or `previousValues`) | `AuditService` |
+| IP geolocation lookup failed | `errorType` (exception type name only) | `IpGeolocator` / `AuditService`. The audit row is still written. The IP, the place, and the provider URL are not logged |
 | Schema upgrade skipped | statement, MySQL error text | `Program.cs` startup, when existing rows block a constraint |
 
 `Error`, one line, exception attached: unhandled exception in `Program.cs`, with method, path, and request id. A client disconnect (`OperationCanceledException`) is not logged.

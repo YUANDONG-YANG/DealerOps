@@ -1,8 +1,10 @@
 import { http } from './http';
 import type { AuditRow } from '../components/AuditTrail';
 
-/** A row of the admin or dealership audit log; those logs also carry the dealership and source IP. */
-export type AuditLogRow = AuditRow & { id: number; entityId: number; dealerId?: number | null; clientIp?: string | null };
+/** A row of the admin or dealership audit log; those logs also carry the dealership, source IP, and place. */
+export type AuditLogRow = AuditRow & {
+  id: number; entityId: number; dealerId?: number | null; clientIp?: string | null; clientLocation?: string | null;
+};
 
 /**
  * Optional filters of the audit logs; `from` and `to` are inclusive `YYYY-MM-DD` days in the viewer's time zone.

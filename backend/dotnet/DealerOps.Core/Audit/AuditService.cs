@@ -29,12 +29,20 @@ public class AuditService : IAuditService
     private readonly AppDbContext _db;
     private readonly IHttpContextAccessor _http;
     private readonly ILogger<AuditService> _logger;
+    private readonly IpGeolocator? _geo;
 
     public AuditService(AppDbContext db, IHttpContextAccessor http, ILogger<AuditService> logger)
+        : this(db, http, logger, null)
+    {
+    }
+
+    public AuditService(AppDbContext db, IHttpContextAccessor http, ILogger<AuditService> logger,
+        IpGeolocator? geolocator)
     {
         _db = db;
         _http = http;
         _logger = logger;
+        _geo = geolocator;
     }
 
     public void Record(string entityType, long entityId, string action,
@@ -47,6 +55,7 @@ public class AuditService : IAuditService
         if (!ActionMap.TryGetValue(action, out var act))
             throw new ArgumentException($"Unknown audit action {action}", nameof(action));
 
+        var clientIp = ClientIp();
         var entity = new AuditEventEntity
         {
             DealerId = dealerId,
@@ -60,7 +69,8 @@ public class AuditService : IAuditService
             PreviousValues = previous is { Count: > 0 }
                 ? JsonSerializer.Serialize(previous)
                 : null,
-            ClientIp = ClientIp()
+            ClientIp = clientIp,
+            ClientLocation = Locate(clientIp)
         };
         _db.AuditEvents.Add(entity);
     }
@@ -135,7 +145,7 @@ public class AuditService : IAuditService
     }
 
     /// <summary>Fields the admin and dealership logs sort by (C7); the wire names of the AuditItem fields.</summary>
-    private static readonly string[] SortFields = ["createdAt", "actorUsername", "action", "entityType", "dealerId", "clientIp"];
+    private static readonly string[] SortFields = ["createdAt", "actorUsername", "action", "entityType", "dealerId", "clientIp", "clientLocation"];
 
     // The requested order, then newest first; "entityType" orders by record type and then record id.
     private static IOrderedQueryable<AuditEventEntity> Sorted(IQueryable<AuditEventEntity> query, string? sort)
@@ -151,6 +161,7 @@ public class AuditService : IAuditService
             "action" => query.OrderByDirection(e => e.Action, desc),
             "entityType" => query.OrderByDirection(e => e.EntityType, desc).ThenBy(e => e.EntityId),
             "dealerId" => query.OrderByDirection(e => e.DealerId, desc),
+            "clientLocation" => query.OrderByDirection(e => e.ClientLocation, desc),
             _ => query.OrderByDirection(e => e.ClientIp, desc),
         };
         return ordered.ThenByDescending(e => e.CreatedAt).ThenByDescending(e => e.Id);
@@ -165,7 +176,12 @@ public class AuditService : IAuditService
         var items = query
             .Skip(p * s).Take(s)
             .AsEnumerable()
-            .Select(e => toItem(e) with { DealerId = e.DealerId, ClientIp = e.ClientIp })
+            .Select(e => toItem(e) with
+            {
+                DealerId = e.DealerId,
+                ClientIp = e.ClientIp,
+                ClientLocation = e.ClientLocation
+            })
             .ToList();
         return new PageResponse<AuditItem>(items, p, s, total);
     }
@@ -180,6 +196,26 @@ public class AuditService : IAuditService
             ? context.Connection.RemoteIpAddress?.ToString()
             : forwarded.Split(',')[0].Trim();
         return ip is { Length: > 45 } ? ip[..45] : ip;
+    }
+
+    /// <summary>
+    /// Place name captured with the row. A lookup error leaves the location empty and still
+    /// keeps the IP; it never fails the business action that is being audited.
+    /// </summary>
+    private string? Locate(string? ip)
+    {
+        if (string.IsNullOrWhiteSpace(ip)) return null;
+        try
+        {
+            return _geo?.Describe(ip)
+                ?? (IpAddressPrivacy.IsNonRoutable(ip) ? IpAddressPrivacy.LocalLabel : null);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(
+                "IP geolocation lookup failed errorType={ErrorType}", ex.GetType().Name);
+            return IpAddressPrivacy.IsNonRoutable(ip) ? IpAddressPrivacy.LocalLabel : null;
+        }
     }
 
     /// <summary>One record's history, newest first (AUD-06). Manager only: staff see no audit (AUD-17).</summary>

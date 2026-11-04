@@ -2630,7 +2630,7 @@ paths:
         `CUSTOMER` history also includes the `CUSTOMER_VEHICLE` link/unlink events of that customer.
         `VEHICLE` history also includes the `CUSTOMER_VEHICLE` link/unlink and `VEHICLE_PHOTO` events of that vehicle.
         `fieldSummary` has no full customer phone/email/home address.
-        Newest first. `dealerId` and `clientIp` are not returned here.
+        Newest first. `dealerId`, `clientIp`, and `clientLocation` are not returned here.
       parameters:
         - name: entityType
           in: query
@@ -2669,7 +2669,7 @@ paths:
       description: |
         Platform.Admin only (AUD-10); anyone else → **403** `FORBIDDEN`. Every audit row of the platform, newest first,
         including sign-in attempts (`APP_USER` `LOGIN`/`LOGIN_FAILED`). All filters are optional and combine with AND.
-        Unknown `entityType` or `action` → **400** `VALIDATION`. Rows carry `dealerId` and `clientIp`.
+        Unknown `entityType` or `action` → **400** `VALIDATION`. Rows carry `dealerId`, `clientIp`, and `clientLocation`.
       parameters:
         - $ref: "#/components/parameters/AuditLogEntityType"
         - $ref: "#/components/parameters/AuditLogEntityId"
@@ -2709,7 +2709,7 @@ paths:
       description: |
         Dealership manager only (AUD-11); staff and the admin → **403** `FORBIDDEN`. Every audit row of the caller's
         dealership, newest first. Same filters as `GET /api/v1/admin/audit` except `dealerId`, which is ignored.
-        Unknown `entityType` or `action` → **400** `VALIDATION`. Rows carry `dealerId` and `clientIp`.
+        Unknown `entityType` or `action` → **400** `VALIDATION`. Rows carry `dealerId`, `clientIp`, and `clientLocation`.
       parameters:
         - $ref: "#/components/parameters/AuditLogEntityType"
         - $ref: "#/components/parameters/AuditLogEntityId"
@@ -4478,6 +4478,16 @@ components:
           type: string
           nullable: true
           description: Caller address; only on the admin and dealership audit logs
+        clientLocation:
+          type: string
+          nullable: true
+          description: >
+            Place stored when the row was written, only on the admin and dealership audit logs.
+            Neighborhood when the lookup returned one, then city plus quadrant (NW, NE, SW, or SE)
+            when the postal code or district identifies one, then region and country.
+            Example: "Mission, Calgary SW, Alberta, Canada".
+            "Local or private network" for a non-routable address, which is not sent to the provider.
+            Null when the lookup was skipped or failed; the IP is still kept.
 
     PageAuditEvent:
       allOf:

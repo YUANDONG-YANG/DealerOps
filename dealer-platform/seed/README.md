@@ -22,6 +22,7 @@ least 30 rows. The seed is additive: it never touches rows that existed before i
 | `sql/07_join_requests.sql` | seed task | pending `app_user` rows and `notification` |
 | `sql/08_audit.sql` | seed task | `audit_event` history for all seeded records |
 | `images/` + `scripts/load_photos.py` | seed tasks | Vehicle photos: freely licensed Wikimedia Commons photos of the same make and model. Kijiji listing photos (`images/kijiji/`, git-ignored, `fetch_kijiji.py --photos`) are never loaded, because they carry the advertising dealerships' branding |
+| `sql/09_cloud_additions.sql` + `scripts/gen_cloud_additions.py` | generated | Rows created on the cloud demo, resolved by natural key |
 | `scripts/load-seed.sh` | integration | Runs the SQL files in order, then the photo loader |
 
 ## Natural keys
@@ -62,6 +63,12 @@ SEED_PYTHON=<python with Pillow> MYSQL_PWD=... dealer-platform/seed/scripts/load
 ```
 
 Load this seed into the local database; `./deploy/deploy.sh --apply --seed` then copies the local database, seed rows and local edits alike, to Azure. `deploy/seed/load-demo-sql.sh` still loads this seed straight into Azure MySQL without `--reset` when no local database is at hand. `terraform apply` by itself loads no data. See [deploy/README.md](../../deploy/README.md).
+
+To keep rows created on the cloud demo, generate `sql/09_cloud_additions.sql` from an Azure backup. `load-seed.sh` and `deploy/seed/export-local-data.sh` load it when it exists, so `--seed` publishes those rows too:
+
+```bash
+deploy/seed/save-cloud-to-seed.sh    # incremental Azure backup, then writes sql/09_cloud_additions.sql
+```
 
 Staff accounts sign in with their username, e-mail, or `+1` phone number from
 `contract/dealers.json`. Photos in `images/` (outside `images/kijiji/`) come from Wikimedia Commons under free licences;
