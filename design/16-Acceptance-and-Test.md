@@ -36,7 +36,7 @@ Class signs in with an email, username, or phone plus password (15 §8); self si
 | `/crm`, `/leads` | `Dealer.User` | — |
 | `/ads` | `Dealer.User` (page title **Ad compliance**) | — |
 
-Do not show `/tickets` `/dashboard` `/audit` or buyer pages. A record's history lives at the bottom of its DMS/CRM detail drawer; the platform audit log is a tab on `/admin` and the dealership audit log is on the manager's `/team` page (AUD-10, AUD-11). Record history is shown to managers only; staff see none (AUD-17). There is no separate `/audit` route.
+Do not show `/tickets` `/dashboard` `/audit` or buyer pages. A record's history lives at the bottom of its DMS/CRM detail drawer; the platform audit log is a tab on `/admin` and the dealership audit log is on the owner and manager `/team` page (AUD-10, AUD-11). Record history is shown to the owner and managers; sales members see none (AUD-17). There is no separate `/audit` route.
 
 | Account (prepare for class) | Role (`app_user.role`, JWT `roles`) | Bound dealership | Used to demo |
 |---|---|---|---|

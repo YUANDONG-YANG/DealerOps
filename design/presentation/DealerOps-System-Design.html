@@ -168,7 +168,7 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);font-si
     <div><dt>Team</dt><dd>G2 (four members)</dd></div>
     <div><dt>Active stack</dt><dd>.NET 10 · React 19 · MySQL 8</dd></div>
     <div><dt>Hosting</dt><dd>Microsoft Azure (Terraform)</dd></div>
-    <div><dt>Document date</dt><dd>2026-10-22</dd></div>
+    <div><dt>Document date</dt><dd>2026-11-03</dd></div>
     <div><dt>Status</dt><dd>Feature code complete; manual acceptance in progress</dd></div>
   </dl>
 </header>
@@ -185,52 +185,57 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);font-si
   </div>
   <h3>What the client gets</h3>
   <ul>
-    <li><b>Inventory (DMS)</b> with VIN decode from NHTSA, sale recording, sold-vehicle locks, photos with automatic enhancement, and reconditioning work orders.</li>
-    <li><b>Customers and sales (CRM + Leads)</b> with vehicle linking, lead stages and follow-up dates, a sales funnel report, a payment ledger and a printable bill of sale.</li>
+    <li><b>Inventory (DMS)</b> with VIN decode from NHTSA, sale recording that names the salesperson and the buyer, sold-vehicle locks, photos with automatic enhancement, and reconditioning work orders.</li>
+    <li><b>Customers and sales (CRM + Leads)</b> with vehicle linking, customer notes, lead stages and follow-up dates, a sales report by day, week, month or year with per-salesperson figures, a payment ledger and a printable bill of sale.</li>
     <li><b>Ad compliance</b> that checks each advertisement against the OMVIC checklist, asks a real AI model for review notes, and allows Ready / TXT export only while the latest check is passed and still current.</li>
     <li><b>Buyer site</b> that lists only ready, compliance-passed vehicles to the public and turns each inquiry into a sales lead.</li>
-    <li><b>Team management</b> with dealership managers and staff, join requests, and a dealership audit log.</li>
+    <li><b>Team management</b> with three dealership tiers — owner, manager and sales — join requests approved inside the dealership, and a dealership audit log.</li>
   </ul>
 </section>
 
 <!-- 2 -->
 <section id="users">
   <h2><span class="num">02</span>Users and roles</h2>
-  <p>Authentication issues one of only two token roles: <code>Platform.Admin</code> and <code>Dealer.User</code>. Inside a dealership, the membership row carries a second level, <code>MANAGER</code> or <code>STAFF</code>. Tenancy is always derived on the server from the signed-in user's active membership; the browser can never choose a dealership.</p>
+  <p>Authentication issues one of only two token roles: <code>Platform.Admin</code> and <code>Dealer.User</code>. Inside a dealership, the membership row carries one of three tiers, <code>OWNER</code>, <code>MANAGER</code> or <code>SALES</code>. Tenancy is always derived on the server from the signed-in user's active membership; the browser can never choose a dealership.</p>
   <div class="cards">
-    <div class="card"><h4><span class="chip purple">Platform Admin</span></h4><p>Opens and edits dealerships, creates and binds accounts, unbinds members, resets passwords, promotes or demotes managers, edits the global OMVIC rule settings, and reads the platform audit log. Receives <b>403</b> on every business endpoint.</p></div>
-    <div class="card"><h4><span class="chip blue">Dealership Manager</span></h4><p>Everything staff can do, plus: the Team page and join-request inbox, removing staff, editing the dealership profile, reading and correcting the payment ledger, and reading all audit data of the dealership (record history and the dealership audit log).</p></div>
-    <div class="card"><h4><span class="chip green">Dealership Staff</span></h4><p>Full read/write access to the dealership's daily business data: dashboard, DMS, CRM, leads, reports, ads, work orders, photos and the assistant. Can record a payment but cannot see or change the payment ledger, and sees no audit data.</p></div>
+    <div class="card"><h4><span class="chip purple">Platform Admin</span></h4><p>Opens and edits dealerships, creates accounts, binds the first owner of a new dealership and afterwards only files a join request, unbinds members, resets passwords, sets any dealership tier including transferring the owner, edits the global OMVIC rule settings, and reads the platform audit log. Receives <b>403</b> on every business endpoint.</p></div>
+    <div class="card"><h4><span class="chip blue">Dealership Owner</span></h4><p>One active owner per dealership, appointed only by the platform admin. Everything a manager can do, plus: editing the dealership profile, approving or rejecting join requests, appointing and demoting managers, and editing any member below owner.</p></div>
+    <div class="card"><h4><span class="chip blue">Dealership Manager</span></h4><p>Everything a sales member can do, plus: the Team page, the payment ledger, the dealership audit log and record history, and acting on <b>sales members only</b> — promoting one to manager, editing their name and phone, removing them.</p></div>
+    <div class="card"><h4><span class="chip green">Dealership Sales</span></h4><p>Full read/write access to the dealership's daily business data: dashboard, DMS, CRM, leads, reports, ads, work orders, photos and the assistant. Can record a payment but cannot see or change the payment ledger, has no Team access, and sees no audit data.</p></div>
     <div class="card"><h4><span class="chip gray">Unbound account</span></h4><p>Signed in but not yet approved. Sees a no-access screen and may request to join one dealership.</p></div>
     <div class="card"><h4><span class="chip amber">Public visitor</span></h4><p>No account. Uses the landing page, VIN decoder, buyer site and disclaimer, and can send an inquiry about a listed vehicle.</p></div>
   </div>
-  <h3>Permission scope: Admin, Manager, Staff</h3>
-  <p>The three working roles have deliberately separate scopes. The admin runs the platform but never sees a dealership's business data. A manager and staff share the same business data; the manager additionally governs the team and holds the money and audit oversight.</p>
+  <h3>Permission scope: Admin, Owner, Manager, Sales</h3>
+  <p>The four working roles have deliberately separate scopes. The admin runs the platform but never sees a dealership's business data. All three dealership tiers share exactly the same business data; only team administration differs. What divides the owner from a manager is the dealership profile, the join requests, and the right to act on managers.</p>
   <div class="tbl"><table>
-    <thead><tr><th>Area</th><th>Capability</th><th class="c">Admin</th><th class="c">Manager</th><th class="c">Staff</th></tr></thead>
+    <thead><tr><th>Area</th><th>Capability</th><th class="c">Admin</th><th class="c">Owner</th><th class="c">Manager</th><th class="c">Sales</th></tr></thead>
     <tbody>
-      <tr><td rowspan="5"><b>Platform</b></td><td>Create and edit dealerships</td><td class="c yes">✓</td><td class="c no">403</td><td class="c no">403</td></tr>
-      <tr><td>Create accounts, bind or unbind any account, reset passwords</td><td class="c yes">✓</td><td class="c no">403</td><td class="c no">403</td></tr>
-      <tr><td>Promote staff to manager, demote a manager</td><td class="c yes">✓</td><td class="c no">403</td><td class="c no">403</td></tr>
-      <tr><td>Global OMVIC rule editor</td><td class="c yes">✓</td><td class="c no">403</td><td class="c no">403</td></tr>
-      <tr><td>Platform audit log (all dealerships, sign-ins, admin actions)</td><td class="c yes">✓</td><td class="c no">403</td><td class="c no">403</td></tr>
-      <tr><td rowspan="5"><b>Team</b></td><td>Team page and join-request inbox; approve or reject join requests</td><td class="c no">—</td><td class="c yes">✓</td><td class="c no">403</td></tr>
-      <tr><td>Remove a staff member (not another manager, not self)</td><td class="c no">—</td><td class="c yes">✓</td><td class="c no">403</td></tr>
-      <tr><td>Edit the dealership profile (legal name, phone, email, address)</td><td class="c no">—</td><td class="c yes">✓</td><td class="c no">403</td></tr>
-      <tr><td>Dealership audit log (all rows of the dealership)</td><td class="c no">403</td><td class="c yes">✓</td><td class="c no">403</td></tr>
-      <tr><td>Record history in vehicle, customer, lead and ad detail</td><td class="c no">403</td><td class="c yes">✓</td><td class="c no">403 (hidden)</td></tr>
-      <tr><td rowspan="6"><b>Business</b></td><td>Dashboard, DMS, CRM, Leads, Sales report</td><td class="c no">403</td><td class="c yes">✓</td><td class="c yes">✓</td></tr>
-      <tr><td>Sell a vehicle, link customers, work orders, Image Studio</td><td class="c no">403</td><td class="c yes">✓</td><td class="c yes">✓</td></tr>
-      <tr><td>Ad drafts, compliance checks, Ready, TXT export</td><td class="c no">403</td><td class="c yes">✓</td><td class="c yes">✓</td></tr>
-      <tr><td>In-store AI assistant</td><td class="c no">403</td><td class="c yes">✓</td><td class="c yes">✓</td></tr>
-      <tr><td>Record a payment on a sold vehicle</td><td class="c no">403</td><td class="c yes">✓</td><td class="c yes">✓</td></tr>
-      <tr><td>View the payment ledger and balance; remove a mistaken payment</td><td class="c no">403</td><td class="c yes">✓</td><td class="c no">403</td></tr>
-      <tr><td rowspan="2"><b>Self</b></td><td>Own profile (display name, phone), delete own account</td><td class="c yes">✓</td><td class="c yes">✓</td><td class="c yes">✓</td></tr>
-      <tr><td>Data scope</td><td class="c">No business data</td><td class="c">Own dealership</td><td class="c">Own dealership</td></tr>
+      <tr><td rowspan="5"><b>Platform</b></td><td>Create, edit and delete dealerships</td><td class="c yes">✓</td><td class="c no">403</td><td class="c no">403</td><td class="c no">403</td></tr>
+      <tr><td>Create accounts; bind the first owner of an empty dealership, otherwise file a join request; unbind accounts; reset passwords</td><td class="c yes">✓</td><td class="c no">403</td><td class="c no">403</td><td class="c no">403</td></tr>
+      <tr><td>Set any dealership tier, including transferring the owner</td><td class="c yes">✓</td><td class="c no">403</td><td class="c no">403</td><td class="c no">403</td></tr>
+      <tr><td>Global OMVIC rule editor</td><td class="c yes">✓</td><td class="c no">403</td><td class="c no">403</td><td class="c no">403</td></tr>
+      <tr><td>Platform audit log (all dealerships, sign-ins, admin actions)</td><td class="c yes">✓</td><td class="c no">403</td><td class="c no">403</td><td class="c no">403</td></tr>
+      <tr><td rowspan="8"><b>Team</b></td><td>Team page with its Members tab and the header inbox</td><td class="c no">403</td><td class="c yes">✓</td><td class="c yes">✓</td><td class="c no">403</td></tr>
+      <tr><td>Approve or reject a join request</td><td class="c no">403</td><td class="c yes">✓</td><td class="c no">403</td><td class="c no">403</td></tr>
+      <tr><td>Edit the dealership profile (legal name, phone, email, address)</td><td class="c no">403</td><td class="c yes">✓</td><td class="c no">403</td><td class="c no">403</td></tr>
+      <tr><td>Promote a sales member to manager</td><td class="c no">403</td><td class="c yes">✓</td><td class="c yes">✓</td><td class="c no">403</td></tr>
+      <tr><td>Demote a manager back to sales</td><td class="c no">403</td><td class="c yes">✓</td><td class="c no">403</td><td class="c no">403</td></tr>
+      <tr><td>Edit a member's full name and phone; remove a member (never the owner, never self)</td><td class="c no">403</td><td class="c part">Any member below owner</td><td class="c part">Sales only</td><td class="c no">403</td></tr>
+      <tr><td>Dealership audit log (all rows of the dealership)</td><td class="c no">403</td><td class="c yes">✓</td><td class="c yes">✓</td><td class="c no">403</td></tr>
+      <tr><td>Record history in vehicle, customer, lead and ad detail</td><td class="c no">403</td><td class="c yes">✓</td><td class="c yes">✓</td><td class="c no">403 (hidden)</td></tr>
+      <tr><td rowspan="6"><b>Business</b></td><td>Dashboard, DMS, CRM, Leads, Sales report</td><td class="c no">403</td><td class="c yes">✓</td><td class="c yes">✓</td><td class="c yes">✓</td></tr>
+      <tr><td>Sell a vehicle, link customers, work orders, Image Studio</td><td class="c no">403</td><td class="c yes">✓</td><td class="c yes">✓</td><td class="c yes">✓</td></tr>
+      <tr><td>Ad drafts, compliance checks, Ready, TXT export</td><td class="c no">403</td><td class="c yes">✓</td><td class="c yes">✓</td><td class="c yes">✓</td></tr>
+      <tr><td>In-store AI assistant</td><td class="c no">403</td><td class="c yes">✓</td><td class="c yes">✓</td><td class="c yes">✓</td></tr>
+      <tr><td>Record a payment on a sold vehicle</td><td class="c no">403</td><td class="c yes">✓</td><td class="c yes">✓</td><td class="c yes">✓</td></tr>
+      <tr><td>View the payment ledger and balance; remove a mistaken payment</td><td class="c no">403</td><td class="c yes">✓</td><td class="c yes">✓</td><td class="c no">403</td></tr>
+      <tr><td rowspan="2"><b>Self</b></td><td>Own profile (full name, phone), delete own account</td><td class="c yes">✓</td><td class="c yes">✓</td><td class="c yes">✓</td><td class="c yes">✓</td></tr>
+      <tr><td>Data scope</td><td class="c">No business data</td><td class="c">Own dealership</td><td class="c">Own dealership</td><td class="c">Own dealership</td></tr>
     </tbody>
   </table></div>
+  <p>One active owner per dealership, and nobody inside the dealership can create a second one. Appointing an owner elsewhere <b>transfers</b> the office: the sitting owner becomes a manager in the same transaction. Demoting, unbinding or deleting a dealership's only owner is refused with <b>409</b> <code>LAST_OWNER</code> unless that owner is also its last member, in which case the dealership simply becomes empty and the next admin bind bootstraps a new owner.</p>
   <p>Signed-out visitors may use only the landing page, VIN decoder, buyer site, inquiry form and disclaimer. A signed-in account without a dealership sees the no-access screen and may request to join one dealership.</p>
-  <p>Role changes apply on the next request, because the dealership role is read from the membership on every call rather than from the token. The UI hides what a role cannot use, but the server enforces every rule on its own: a forbidden call returns <b>403</b>, and another dealership's record id returns <b>404</b>, so a response never reveals whether that record exists.</p>
+  <p>Tier changes apply on the next request, because the dealership tier is read from the membership on every call rather than from the token. The UI hides what a tier cannot use, but the server enforces every rule on its own: a forbidden call returns <b>403</b>, and another dealership's record id returns <b>404</b>, so a response never reveals whether that record exists. The member list behind the lead-owner and assignee pickers stays open to every member, but a sales member receives only usernames and full names from it.</p>
 </section>
 
 <!-- 3 -->
@@ -302,7 +307,7 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);font-si
       <rect class="d-box" x="20" y="170" width="170" height="104" rx="10"/>
       <text class="d-title" x="34" y="196">Browser</text>
       <text class="d-sub" x="34" y="216">React SPA (dealer-web)</text>
-      <text class="d-sub" x="34" y="234">Staff, admin, visitors</text>
+      <text class="d-sub" x="34" y="234">Members, admin, visitors</text>
       <text class="d-mono" x="34" y="258">:5174 local</text>
 
       <rect class="d-box acc" x="260" y="160" width="180" height="124" rx="10"/>
@@ -421,7 +426,7 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);font-si
         <li><b>Secrets</b> live in Azure Key Vault and reach apps through a managed identity; no app setting holds a secret value.</li>
         <li><b>HTTPS</b> everywhere; App Service terminates TLS; MySQL requires TLS.</li>
         <li><b>Rate limits</b> per client at the Gateway, with a separate limit of 5 buyer-site inquiries per minute per IP (<code>429 RATE_LIMITED</code>).</li>
-        <li><b>Privacy</b>: customer phone, email and address are never sent to AI, never written to application logs, and never shown by the assistant. The audit trail does record them, so it is readable only by managers and the admin. Deleted customers keep their records unchanged; nothing is anonymized or purged (<a href="#data">section 11</a>).</li>
+        <li><b>Privacy</b>: customer phone, email and address are never sent to AI, never written to application logs, and never shown by the assistant. The audit trail does record them, so it is readable only by the dealership's owner and managers and by the admin. Deleted customers keep their records unchanged; nothing is anonymized or purged (<a href="#data">section 11</a>).</li>
       </ul>
     </div>
   </div>
@@ -429,7 +434,7 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);font-si
   <div class="tbl"><table>
     <thead><tr><th>Path</th><th>How it works</th><th>Result for a new person</th></tr></thead>
     <tbody>
-      <tr><td>Local password</td><td>Register with a username, display name, password and an email and/or phone. Sign in with any of the three plus the password.</td><td rowspan="3">An unbound <code>Dealer.User</code>. The admin binds the account, or a dealership manager approves its join request.</td></tr>
+      <tr><td>Local password</td><td>Register with a username, display name, password and an email and/or phone. Sign in with any of the three plus the password.</td><td rowspan="3">An unbound <code>Dealer.User</code>. While a dealership still has no owner the admin binds the account directly as that first owner; after that the admin only files a join request, and the dealership's owner approves it, which admits the member as Sales.</td></tr>
       <tr><td>Google</td><td>Google ID token verified on the server (signature, issuer, audience, expiry, verified email).</td></tr>
       <tr><td>Firebase Auth</td><td>Firebase ID token exchanged for a DealerOps JWT; Firebase owns the password, DealerOps owns roles.</td></tr>
     </tbody>
@@ -445,24 +450,27 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);font-si
   <p>Required fields per the specification: make, model, year, VIN, car source (<code>TRADE_IN</code>, <code>AUCTION</code>, <code>PRIVATE_PURCHASE</code>, <code>OTHER</code>), purchase cost, date added, condition (<code>CERTIFIED</code>, <code>AS_IS</code>, <code>UNFIT</code>, <code>IRREPARABLE</code>). Optional: repair cost, Carfax URL, body type, stock number, mileage, exterior colour, fuel type, list price.</p>
   <ul>
     <li>VIN is upper-cased, validated (17 characters, no I/O/Q) and unique within a dealership. <b>Decode</b> fills make, model, year and body type from NHTSA; nothing saves until the user presses Save.</li>
-    <li>A sale is recorded only through the Sell action with date and price together. After the sale, purchase fields are locked (<code>SOLD_LOCKED</code>), and a vehicle cannot be sold twice.</li>
-    <li>The vehicle drawer holds work orders, Image Studio, payments, the bill of sale link, the linked customer and, for managers, the audit history.</li>
+    <li>A sale is recorded only through the Sell action. The dialog shows cost, work-order spend and list price, and requires date, price and a buyer together: either a CRM customer of the dealership, who is linked to the vehicle in the same transaction, or <b>Other</b> with a typed buyer name. The sale also stores who sold the vehicle, and it closes that vehicle's open leads — the buyer's as Won, the rest as Lost with the reason "Vehicle sold". After the sale, purchase fields are locked (<code>SOLD_LOCKED</code>), and a vehicle cannot be sold twice.</li>
+    <li>The inventory table lists <b>Sold by</b>, <b>Sold to</b> and <b>Date sold</b> alongside the open work orders and lead count of each vehicle, and its columns sort on the server across all pages.</li>
+    <li>The vehicle drawer holds work orders, Image Studio, payments, the bill of sale link, the linked customer, the vehicle's leads and, for the owner and managers, the audit history.</li>
     <li>Soft delete removes a vehicle from active lists but keeps sales, work-order and audit history. Deleted photos and removed payments are soft-deleted the same way.</li>
   </ul>
 
   <h3>Customers · CRM</h3>
   <ul>
-    <li>Required: name, email, phone, home address. A shared email inside a dealership shows a warning but saves.</li>
+    <li>Required: name, email, phone, home address; free-text notes are optional. No customer field is unique: a name, email, phone or address already used by another customer of the dealership raises a warning that the user confirms, and the record saves. Households share a phone, so the phone is no longer refused.</li>
     <li>Link a vehicle of the same dealership that has no customer yet (in stock or sold). One vehicle belongs to one customer. In-stock links can be removed (the link row is kept as history); sold links cannot.</li>
-    <li>The customer drawer shows linked vehicles, the customer's leads and, for managers, the audit history.</li>
+    <li>The customer list shows a <b>Leads</b> count where it used to show vehicles purchased; purchase history stays visible in the drawer, which shows linked vehicles, the customer's leads with a create action and, for the owner and managers, the audit history.</li>
   </ul>
 
   <h3>Sales leads and reports</h3>
   <ul>
-    <li>A lead is one sales opportunity: a customer, an optional in-stock vehicle, an owner, a stage, a next follow-up date and append-only notes.</li>
-    <li>Overdue leads (open with a follow-up date before today) can be filtered.</li>
-    <li>The Sales report shows vehicle sales (units, revenue, gross profit, days to sell), the current lead funnel with won rate, monthly stage history, and workshop settlement by month and assignee.</li>
-    <li>The Dashboard summarizes inventory, sales, pipeline and workshop KPIs from the same report endpoints.</li>
+    <li>A lead is one sales opportunity: a customer, an optional in-stock vehicle, an owner (prefilled with the person creating it, still editable), a stage, a next follow-up date and append-only notes.</li>
+    <li>Overdue leads (open with a follow-up date before today) can be filtered, and the columns sort.</li>
+    <li>Only one open lead may exist for the same customer and vehicle; a second one is refused (<code>LEAD_DUPLICATE</code>). A lead without a vehicle is never a duplicate.</li>
+    <li>A closed lead can be reopened: a lost lead always, a won lead only while its vehicle was not sold to that lead's customer. Reopening needs the vehicle to be in stock again, so no open lead can point at a sold car.</li>
+    <li>The Sales report shows vehicle sales (units, revenue, gross profit, days to sell) for the current <b>day, week, month or year</b>, a per-salesperson table (sales, revenue, gross profit, open and won leads), the current lead funnel with won rate, monthly stage history, and workshop settlement by month and assignee. The per-salesperson table is not filtered by role: an owner or a manager who sells a vehicle appears in it like anyone else.</li>
+    <li>The Dashboard summarizes inventory, sales, pipeline and workshop KPIs from the same report endpoints and offers the same period selector in its sales section.</li>
   </ul>
 
   <h3>Reconditioning work orders</h3>
@@ -479,7 +487,7 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);font-si
 
   <h3>Payments and bill of sale</h3>
   <ul>
-    <li>Record payments already taken at the dealership against a sold vehicle (cash, debit, credit card, cheque, bank transfer, financing, other). The total cannot exceed the sold price. Staff can only record a payment; a manager sees the ledger and balance due and can remove a mistaken entry.</li>
+    <li>Record payments already taken at the dealership against a sold vehicle (cash, debit, credit card, cheque, bank transfer, financing, other). The total cannot exceed the sold price. A sales member can only record a payment; the owner and managers see the ledger and balance due and can remove a mistaken entry.</li>
     <li>A printable bill of sale combines dealer, buyer, vehicle, sale price, payments and balance. It is a template, not a reviewed legal contract. No card processing takes place.</li>
   </ul>
 
@@ -493,7 +501,7 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);font-si
 
   <h3>Administration and audit</h3>
   <ul>
-    <li>The admin console manages dealerships, members, pending accounts, member roles and global OMVIC rule settings, plus a platform-wide audit log.</li>
+    <li>The admin console manages dealerships, members, pending accounts, dealership tiers (including appointing or transferring an owner) and global OMVIC rule settings, plus a platform-wide audit log. Adding a person to a dealership that already has an owner files a join request for that dealership instead of binding the account.</li>
     <li>Every sign-in attempt and every change is audited; see <a href="#audit">section 10</a>.</li>
   </ul>
 </section>
@@ -504,10 +512,11 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);font-si
 
   <h3>8.1 Dealership onboarding and access</h3>
   <div class="lanes">
-    <div class="lane"><div class="ln">Platform Admin<small>/admin</small></div><ol><li>Creates the dealership with legal name, phone, email and address (these feed the ad rules).</li><li>Creates an account and binds it, or binds a pending self-registered account without touching its password.</li><li>Promotes one member to <b>Manager</b>.</li></ol></div>
+    <div class="lane"><div class="ln">Platform Admin<small>/admin</small></div><ol><li>Creates the dealership with legal name, phone, email and address (these feed the ad rules).</li><li>While the dealership has no owner, creates an account and binds it directly as the <b>Owner</b>, or binds a pending self-registered account without touching its password. An empty dealership has nobody to approve a request, so this bootstrap cannot be a join request.</li><li>Afterwards the same action only files a join request for the dealership; the admin never binds a second member.</li><li>Keeps the right to appoint a replacement owner, which transfers the office.</li></ol></div>
     <div class="lane"><div class="ln">New employee<small>/register, /login</small></div><ol><li>Registers locally or signs in with Google / Firebase.</li><li>Lands on the no-access screen and requests to join one dealership.</li></ol></div>
-    <div class="lane"><div class="ln">Manager<small>/team</small></div><ol><li>Sees the request in the header inbox and on the Team page.</li><li>Approves (membership created as Staff, audited) or rejects.</li><li>Later may remove staff or edit the dealership profile.</li></ol></div>
-    <div class="lane"><div class="ln">Staff<small>/dms</small></div><ol><li>Next sign-in lands on DMS with full access to the dealership's data and nothing else.</li></ol></div>
+    <div class="lane"><div class="ln">Owner<small>/team</small></div><ol><li>Sees the request in the header inbox and on the Team page.</li><li>Approves (membership created as <b>Sales</b>, audited) or rejects.</li><li>Appoints managers, demotes a manager back to sales, edits or removes any member below owner, and owns the dealership profile.</li></ol></div>
+    <div class="lane"><div class="ln">Manager<small>/team</small></div><ol><li>Shares the Team page and the dealership audit log with the owner.</li><li>Acts on sales members only: promotes one to manager, edits their full name and phone, removes them. No join requests, no dealership profile, no touching the owner or another manager.</li></ol></div>
+    <div class="lane"><div class="ln">Sales<small>/dms</small></div><ol><li>Next sign-in lands on DMS with full access to the dealership's business data and nothing else; no Team item appears in the menu.</li></ol></div>
   </div>
 
   <h3>8.2 Vehicle lifecycle, from acquisition to payment</h3>
@@ -522,9 +531,9 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);font-si
     <div class="arrow">→</div>
     <div class="step"><span class="who">Buyer site</span><b>Publish</b><span>Vehicle appears on /shop; inquiries become leads.</span></div>
     <div class="arrow">→</div>
-    <div class="step"><span class="who">Leads / CRM</span><b>Sell the deal</b><span>Follow up, qualify, link the customer.</span></div>
+    <div class="step"><span class="who">Leads / CRM</span><b>Sell the deal</b><span>Follow up, qualify, settle on the buyer.</span></div>
     <div class="arrow">→</div>
-    <div class="step"><span class="who">DMS</span><b>Sell</b><span>Date + price together; purchase fields lock; needs no open work orders.</span></div>
+    <div class="step"><span class="who">DMS</span><b>Sell</b><span>Date + price together, a buyer, and the salesperson recorded; purchase fields lock; open leads close; needs no open work orders.</span></div>
     <div class="arrow">→</div>
     <div class="step"><span class="who">Payments</span><b>Collect</b><span>Record payments to zero balance; print the bill of sale.</span></div>
   </div>
@@ -538,8 +547,10 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);font-si
     <span class="chip green">WON</span>
     <span class="arrow">or</span>
     <span class="chip red">LOST (reason required)</span>
+    <span class="arrow">· Reopen →</span>
+    <span class="chip blue">NEW / CONTACTED / QUALIFIED</span>
   </div>
-  <p>While a lead is open, staff may move it to any stage. <code>WON</code> and <code>LOST</code> are final (<code>LEAD_CLOSED</code>), though notes can still be added. Winning a lead does not sell the vehicle; the sale remains the DMS Sell action. Buyer-site inquiries create a <code>NEW</code> lead due today, reusing an existing customer with the same phone.</p>
+  <p>While a lead is open, a member may move it to any stage. <code>WON</code> and <code>LOST</code> otherwise reject changes (<code>LEAD_CLOSED</code>), though notes can still be added. Reopening brings a closed lead back to an open stage: a lost lead always, a won lead only while its vehicle was not sold to that lead's customer, and in both cases only while the lead's vehicle is still in stock. Only one open lead may exist for the same customer and vehicle (<code>LEAD_DUPLICATE</code>). Winning a lead does not sell the vehicle; the sale remains the DMS Sell action, and that sale closes the vehicle's open leads. Buyer-site inquiries create a <code>NEW</code> lead due today, reusing an existing customer with the same phone.</p>
 
   <h3>8.4 Work-order states</h3>
   <div class="states">
@@ -566,7 +577,7 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);font-si
 
   <h3>9.1 Check flow</h3>
   <div class="flow">
-    <div class="step"><span class="who">Staff</span><b>Run check</b><span>POST through the Gateway with the ad's version.</span></div>
+    <div class="step"><span class="who">Member</span><b>Run check</b><span>POST through the Gateway with the ad's version.</span></div>
     <div class="arrow">→</div>
     <div class="step"><span class="who">Core</span><b>Guard</b><span>Tenant and optimistic-lock checks.</span></div>
     <div class="arrow">→</div>
@@ -625,20 +636,20 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);font-si
     <div class="arrow">→</div>
     <div class="step"><span class="who">Core</span><b>Audit row, same transaction</b><span>New values, replaced values, actor, IP, time. If either write fails, both roll back.</span></div>
     <div class="arrow">→</div>
-    <div class="step"><span class="who">Manager / Admin</span><b>Read</b><span>Record history, dealership log or platform log, newest first.</span></div>
+    <div class="step"><span class="who">Owner / Manager / Admin</span><b>Read</b><span>Record history, dealership log or platform log, newest first.</span></div>
   </div>
 
   <h3>10.2 What is recorded</h3>
   <div class="tbl"><table>
     <thead><tr><th>Area</th><th>Entity type</th><th>Audited actions</th></tr></thead>
     <tbody>
-      <tr><td>Sign-in and accounts</td><td><code>APP_USER</code></td><td>Successful sign-in (<code>LOGIN</code>), failed sign-in with method and reason (<code>LOGIN_FAILED</code>), registration by password, Google or Firebase</td></tr>
+      <tr><td>Sign-in and accounts</td><td><code>APP_USER</code></td><td>Successful sign-in (<code>LOGIN</code>), failed sign-in with method and reason (<code>LOGIN_FAILED</code>), registration by password, Google or Firebase, password reset, account deletion, and a member's full name or phone edited by the owner or a manager</td></tr>
       <tr><td>Inventory</td><td><code>VEHICLE</code></td><td>Create, edit, sell, soft delete; repair cost added by a completed work order; payment added or removed</td></tr>
       <tr><td>Customers</td><td><code>CUSTOMER</code>, <code>CUSTOMER_VEHICLE</code></td><td>Create, edit, soft delete, link and unlink a vehicle</td></tr>
       <tr><td>Sales leads</td><td><code>LEAD</code></td><td>Create, stage / owner / follow-up changes, notes; buyer-site inquiries (actor <code>buyer-site</code>)</td></tr>
       <tr><td>Work orders and photos</td><td><code>WORK_ORDER</code>, <code>VEHICLE_PHOTO</code></td><td>Create and status changes; photo upload, enhance and delete</td></tr>
       <tr><td>Advertising</td><td><code>LISTING</code></td><td>Ad edits, each compliance check run with its result (<code>CHECK</code>), each TXT export (<code>EXPORT</code>)</td></tr>
-      <tr><td>Administration</td><td><code>DEALER</code>, <code>MEMBERSHIP</code>, <code>RULE_OVERRIDE</code></td><td>Dealership create and edit; bind, unbind, role change, approved join request, staff removal; OMVIC rule changes</td></tr>
+      <tr><td>Administration</td><td><code>DEALER</code>, <code>MEMBERSHIP</code>, <code>RULE_OVERRIDE</code></td><td>Dealership create, edit and soft delete; bind, unbind, tier change (both rows when the owner is transferred), filed and approved join requests, member removal; OMVIC rule changes</td></tr>
     </tbody>
   </table></div>
   <p>Only changes are audited, not page views. A save that changes nothing writes no row.</p>
@@ -669,14 +680,14 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);font-si
 
   <h3>10.5 Who can read the audit trail</h3>
   <div class="tbl"><table>
-    <thead><tr><th>View</th><th>Where</th><th>Scope</th><th class="c">Admin</th><th class="c">Manager</th><th class="c">Staff</th></tr></thead>
+    <thead><tr><th>View</th><th>Where</th><th>Scope</th><th class="c">Admin</th><th class="c">Owner</th><th class="c">Manager</th><th class="c">Sales</th></tr></thead>
     <tbody>
-      <tr><td>Record history</td><td>Bottom of the vehicle, customer, lead and ad detail</td><td>One record, including its linked events</td><td class="c no">403</td><td class="c yes">✓</td><td class="c no">Hidden</td></tr>
-      <tr><td>Dealership audit log</td><td><code>/team</code></td><td>Every row of the manager's dealership</td><td class="c no">403</td><td class="c yes">✓</td><td class="c no">403</td></tr>
-      <tr><td>Platform audit log</td><td><code>/admin</code></td><td>Every row of every dealership, plus sign-ins and admin actions</td><td class="c yes">✓</td><td class="c no">403</td><td class="c no">403</td></tr>
+      <tr><td>Record history</td><td>Bottom of the vehicle, customer, lead and ad detail</td><td>One record, including its linked events</td><td class="c no">403</td><td class="c yes">✓</td><td class="c yes">✓</td><td class="c no">Hidden</td></tr>
+      <tr><td>Dealership audit log</td><td><code>/team</code></td><td>Every row of the caller's own dealership</td><td class="c no">403</td><td class="c yes">✓</td><td class="c yes">✓</td><td class="c no">403</td></tr>
+      <tr><td>Platform audit log</td><td><code>/admin</code></td><td>Every row of every dealership, plus sign-ins and admin actions</td><td class="c yes">✓</td><td class="c no">403</td><td class="c no">403</td><td class="c no">403</td></tr>
     </tbody>
   </table></div>
-  <p>Both logs list rows newest first and filter by entity type, record id, action, actor and date range; the platform log also filters and labels by dealership. Because audit rows carry customer contact values (old and new), staff see no audit data at all.</p>
+  <p>Both logs list rows newest first, filter by entity type, record id, action, actor (any part of the username) and date range, search the recorded change values themselves, and sort on the server across all pages; the platform log also filters and labels by dealership. Because audit rows carry customer contact values (old and new), sales members see no audit data at all.</p>
 </section>
 
 <!-- 11 -->
@@ -687,9 +698,9 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);font-si
   <div class="tbl"><table>
     <thead><tr><th>Area</th><th>Tables</th><th>Key rules</th></tr></thead>
     <tbody>
-      <tr><td>Identity and tenancy</td><td><code>dealer</code>, <code>app_user</code>, <code>membership</code>, <code>notification</code></td><td>Username is the account key and JWT subject. Exactly one active membership per user; it carries <code>MANAGER</code> / <code>STAFF</code>. Notifications hold join requests.</td></tr>
-      <tr><td>Inventory</td><td><code>vehicle</code>, <code>vehicle_photo</code>, <code>work_order</code>, <code>vehicle_payment</code></td><td>VIN unique per dealership; sold pair; sold lock; photos as original + enhanced blobs; dealership logo stored on <code>dealer</code></td></tr>
-      <tr><td>Customers and sales</td><td><code>customer</code>, <code>customer_vehicle</code>, <code>sales_lead</code>, <code>sales_lead_note</code></td><td>One active customer per vehicle (unlinked rows are kept); notes append-only</td></tr>
+      <tr><td>Identity and tenancy</td><td><code>dealer</code>, <code>app_user</code>, <code>membership</code>, <code>notification</code></td><td>Username is the account key and JWT subject. Exactly one active membership per user; it carries <code>OWNER</code> / <code>MANAGER</code> / <code>SALES</code>, with exactly one active owner per dealership. A full name is not unique. Notifications hold join requests.</td></tr>
+      <tr><td>Inventory</td><td><code>vehicle</code>, <code>vehicle_photo</code>, <code>work_order</code>, <code>vehicle_payment</code></td><td>VIN unique per dealership; sold pair; sold lock; the sale stores <code>sold_by</code> (the salesperson's username) and either the linked customer or a typed <code>sold_to_name</code>; photos as original + enhanced blobs; dealership logo stored on <code>dealer</code></td></tr>
+      <tr><td>Customers and sales</td><td><code>customer</code>, <code>customer_vehicle</code>, <code>sales_lead</code>, <code>sales_lead_note</code></td><td>One active customer per vehicle (unlinked rows are kept); no customer field is unique, name and phone included; <code>customer.notes</code> is free text; lead notes append-only; at most one open lead per customer and vehicle</td></tr>
       <tr><td>Advertising</td><td><code>listing</code>, <code>compliance_check</code>, <code>compliance_rule_override</code></td><td>Listing <code>contentVersion</code> increments on change; each check stores rule findings, AI notes, AI status and recommendation</td></tr>
       <tr><td>Audit</td><td><code>audit_event</code></td><td>Append-only; actor, entity, action, new and previous values, client IP, time</td></tr>
     </tbody>
@@ -714,6 +725,7 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);font-si
         <li>Lists: <code>{ items, page, size, total }</code>, 10 per page, newest first.</li>
         <li>Errors: <code>{ code, message }</code> with field-level errors where relevant.</li>
         <li>Writes carry <code>version</code> for optimistic locking.</li>
+        <li>Paged lists take <code>sort=field,asc|desc</code> and order the whole result on the server, not just the page on screen.</li>
         <li>Money in CAD with two decimals; dates as <code>YYYY-MM-DD</code>.</li>
         <li>Blocked ads are <b>200</b> results, not HTTP errors.</li>
       </ul>
@@ -723,7 +735,7 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);font-si
       <ul>
         <li><b>401</b> not signed in · <b>403</b> wrong role or no dealership</li>
         <li><b>404</b> missing or another dealership's record</li>
-        <li><b>409</b> business conflicts: <code>SOLD_LOCKED</code>, <code>DUP_MEMBER</code>, <code>VEHICLE_ALREADY_LINKED</code>, <code>CHECK_STALE</code>, <code>NOT_PASSED</code>, <code>WORK_ORDERS_OPEN</code>, <code>LEAD_CLOSED</code></li>
+        <li><b>409</b> business conflicts: <code>SOLD_LOCKED</code>, <code>DUP_MEMBER</code>, <code>LAST_OWNER</code>, <code>VEHICLE_ALREADY_LINKED</code>, <code>CHECK_STALE</code>, <code>NOT_PASSED</code>, <code>WORK_ORDERS_OPEN</code>, <code>LEAD_CLOSED</code>, <code>LEAD_DUPLICATE</code></li>
         <li><b>429</b> rate limited · <b>502</b> <code>AI_UNAVAILABLE</code> / <code>CATALOG_UNAVAILABLE</code></li>
       </ul>
     </div>
@@ -734,12 +746,12 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);font-si
     <tbody>
       <tr><td>Auth and self</td><td><code>POST /auth/login|register|google|firebase</code>, <code>GET|PATCH|DELETE /me</code></td><td>Anonymous / signed in</td></tr>
       <tr><td>Admin</td><td><code>/admin/dealers</code>, <code>/admin/dealers/{id}/members</code>, <code>…/role</code>, <code>…/password</code>, <code>/admin/pending-users</code>, <code>/admin/compliance-rules</code>, <code>/admin/audit</code></td><td>Platform.Admin</td></tr>
-      <tr><td>DMS</td><td><code>/vehicles</code> (filters include <code>adKind</code>, <code>medium</code>, <code>checkStatus</code>, <code>buyerSite</code>), <code>/vehicles/{id}/sell</code>, <code>/vehicles/report/sales</code>, <code>/vehicles/{id}/work-orders</code>, <code>/vehicles/{id}/photos</code>, <code>/vehicles/{id}/payments</code>, <code>/catalog/*</code></td><td>Dealer.User</td></tr>
-      <tr><td>CRM and leads</td><td><code>/customers</code>, <code>PUT|DELETE /customers/{id}/vehicles/{vehicleId}</code>, <code>/leads</code>, <code>/leads/{id}/notes</code>, <code>/leads/report/funnel</code>, <code>/members</code></td><td>Dealer.User</td></tr>
+      <tr><td>DMS</td><td><code>/vehicles</code> (filters include <code>adKind</code>, <code>medium</code>, <code>checkStatus</code>, <code>buyerSite</code>), <code>/vehicles/{id}/sell</code>, <code>/vehicles/report/sales?period=</code>, <code>/vehicles/{id}/work-orders</code>, <code>/vehicles/{id}/photos</code>, <code>/vehicles/{id}/payments</code>, <code>/catalog/*</code></td><td>Dealer.User</td></tr>
+      <tr><td>CRM and leads</td><td><code>/customers</code>, <code>/customers/duplicates</code>, <code>PUT|DELETE /customers/{id}/vehicles/{vehicleId}</code>, <code>/leads</code>, <code>/leads/{id}/notes</code>, <code>/leads/{id}/reopen</code>, <code>/leads/report/funnel</code>, <code>/members</code></td><td>Dealer.User</td></tr>
       <tr><td>Ads</td><td><code>GET|PATCH /vehicles/{id}/listing</code>, <code>POST /listings/{id}/checks|ready|exports</code></td><td>Dealer.User</td></tr>
-      <tr><td>Team</td><td><code>/dealer/join-requests</code>, <code>/dealer/members/{username}</code>, <code>/dealer/profile</code>, <code>/dealer/audit</code></td><td>Manager</td></tr>
+      <tr><td>Team</td><td><code>/dealer/profile</code> and <code>/dealer/join-requests/**</code> (owner only); <code>/dealer/members/{username}</code>, <code>…/role</code>, <code>/dealer/audit</code> (owner or manager)</td><td>Owner / Manager</td></tr>
       <tr><td>Assistant</td><td><code>POST /assistant/ask</code></td><td>Dealer.User</td></tr>
-      <tr><td>Audit</td><td><code>GET /audit?entityType=&amp;entityId=</code>, <code>GET /dealer/audit</code> (manager); <code>GET /admin/audit</code> (admin)</td><td>Manager / Admin</td></tr>
+      <tr><td>Audit</td><td><code>GET /audit?entityType=&amp;entityId=</code>, <code>GET /dealer/audit</code> (owner, manager); <code>GET /admin/audit</code> (admin)</td><td>Owner / Manager / Admin</td></tr>
       <tr><td>Public</td><td><code>GET /catalog/vin/{vin}</code>, <code>/catalog/dealers</code> (directory with slug, logo flag, in-stock and sold counts), <code>/public/dealers/{slug}/inventory</code>, <code>…/{id}/logo</code>, <code>…/photo</code>, <code>POST …/inquiries</code></td><td>Anonymous, rate-limited</td></tr>
       <tr><td>Internal</td><td><code>POST /internal/v1/ad-check</code>, <code>POST /internal/v1/assistant</code></td><td>Core only (browser gets 404)</td></tr>
     </tbody>
@@ -752,16 +764,16 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);font-si
   <div class="tbl"><table>
     <thead><tr><th>Route</th><th>Page</th><th>Who</th></tr></thead>
     <tbody>
-      <tr><td><code>/</code></td><td>Landing page with VIN decoder; signed-in users are sent to their home page</td><td>Everyone</td></tr>
+      <tr><td><code>/</code></td><td>Landing page with VIN decoder and sample ad checks that link to sign-up; no create-account button. Signed-in users are sent to their home page</td><td>Everyone</td></tr>
       <tr><td><code>/login</code>, <code>/register</code></td><td>Sign in and self sign-up (Google button when configured)</td><td>Visitors</td></tr>
       <tr><td><code>/shop</code>, <code>/shop/:dealer</code>, <code>/disclaimer</code></td><td>Buyer site (dealership pages by name) and disclaimer</td><td>Everyone</td></tr>
       <tr><td><code>/admin</code></td><td>Dealerships, members, pending accounts, rules, audit</td><td>Admin</td></tr>
-      <tr><td><code>/dashboard</code></td><td>KPI overview</td><td>Staff, Manager</td></tr>
-      <tr><td><code>/dms</code>, <code>/dms/:vehicleId/bill-of-sale</code></td><td>Inventory (post-login home) and printable bill of sale</td><td>Staff, Manager</td></tr>
-      <tr><td><code>/crm</code>, <code>/leads</code>, <code>/reports/sales-funnel</code></td><td>Customers, leads, sales report</td><td>Staff, Manager</td></tr>
-      <tr><td><code>/ads</code></td><td>Ad compliance</td><td>Staff, Manager</td></tr>
-      <tr><td><code>/team</code></td><td>Join requests, members, dealership profile, dealership audit</td><td>Manager</td></tr>
-      <tr><td><code>/profile</code></td><td>Own display name, phone, account deletion</td><td>Users with business access</td></tr>
+      <tr><td><code>/dashboard</code></td><td>KPI overview</td><td>Owner, Manager, Sales</td></tr>
+      <tr><td><code>/dms</code>, <code>/dms/:vehicleId/bill-of-sale</code></td><td>Inventory (post-login home) and printable bill of sale</td><td>Owner, Manager, Sales</td></tr>
+      <tr><td><code>/crm</code>, <code>/leads</code>, <code>/reports/sales-funnel</code></td><td>Customers, leads, sales report</td><td>Owner, Manager, Sales</td></tr>
+      <tr><td><code>/ads</code></td><td>Ad compliance</td><td>Owner, Manager, Sales</td></tr>
+      <tr><td><code>/team</code></td><td>Members and dealership audit; the owner also has join requests and the dealership profile</td><td>Owner, Manager</td></tr>
+      <tr><td><code>/profile</code></td><td>Own full name, phone, account deletion</td><td>Users with business access</td></tr>
     </tbody>
   </table></div>
   <ul>
@@ -820,7 +832,7 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);font-si
     <li>Real ad text goes through a real AI model once and missing items are identified.</li>
     <li>After a price change, the old check cannot be used to export.</li>
   </ol>
-  <p>A Playwright suite (<code>playwright/</code>) runs the API and UI cases end to end on a private stack with its own database: 353 cases passed on 2026-10-22. It includes publishing an ad end to end: write it on <code>/ads</code>, check it with the real AI, mark it ready, find it Listed and on <code>/shop/{dealer}</code>, then see a sale take it down.</p>
+  <p>A Playwright suite (<code>playwright/</code>) runs the API and UI cases end to end on a private stack with its own database, including the 2026-11-03 role, sale, lead and landing behaviour, plus a separate suite for the membership migration. It includes publishing an ad end to end: write it on <code>/ads</code>, check it with the real AI, mark it ready, find it Listed and on <code>/shop/{dealer}</code>, then see a sale take it down.</p>
 </section>
 
 <!-- 15 -->
@@ -888,7 +900,7 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);font-si
   </table></div>
 </section>
 
-<footer>DealerOps · Team G2 · System design briefing, 2026-10-22. Summarizes the documents in <code>design/</code>; where they differ, the source documents win.</footer>
+<footer>DealerOps · Team G2 · System design briefing, 2026-11-03. Summarizes the documents in <code>design/</code>; where they differ, the source documents win.</footer>
 </main>
 </div>
 </body>

@@ -63,7 +63,7 @@ A multi-tenant back office for independent dealers: each dealership has its own 
 | Languages | Backend **.NET 10 / ASP.NET Core**. Frontend **React 19 + TypeScript + Vite**. UI in English. |
 | Repositories | Current implementation is the DealerOps monorepo: `backend/dotnet/` contains Gateway, Core, AI, and shared logging; `frontend/react/` contains the SPA. |
 | Entry | Browser-to-service HTTP **only through the .NET Gateway**. Core / AI are internal. Bypassing Gateway must fail. |
-| Identity | **Email, username, or phone + password** ([SCOPE-BASELINE.md](SCOPE-BASELINE.md) errata 1). `POST /api/v1/auth/login` resolves the sign-in name and BCrypt hash on `app_user.password_hash`; dealer-core issues an HS256 JWT (`sub`=username, `name`, `roles`). Roles only `Platform.Admin`, `Dealer.User`. New accounts are created with a username and an email and/or phone, then bound to `dealer_id` by the admin (unbind = soft deactivate). Google ID-token sign-in is also accepted (`AUTH-23`); it creates the same unbound account and grants no role or dealership. No other social provider. **Authoritative design:** [15-Data-Auth-and-Gateway.md](15-Data-Auth-and-Gateway.md) §8. |
+| Identity | **Email, username, or phone + password** ([SCOPE-BASELINE.md](SCOPE-BASELINE.md) errata 1). `POST /api/v1/auth/login` resolves the sign-in name and BCrypt hash on `app_user.password_hash`; dealer-core issues an HS256 JWT (`sub`=username, `name`, `roles`). Roles only `Platform.Admin`, `Dealer.User`. New accounts are created with a username and an email and/or phone. The admin binds the first owner of an empty dealership directly; once an owner exists the same action files a join request the owner approves (design/14 §3.6). Unbind is a soft deactivate, and the only owner cannot be removed while other members remain (`409 LAST_OWNER`). Google ID-token sign-in is also accepted (`AUTH-23`); it creates the same unbound account and grants no role or dealership. No other social provider. **Authoritative design:** [15-Data-Auth-and-Gateway.md](15-Data-Auth-and-Gateway.md) §8. |
 | Data | **One MySQL** database `dealer_core`. EF Core owns the runtime schema. The AI service has no database. |
 | AI | `ai-service` embeds `YUANDONG-YANG/ai-manager` **in-process**. Synchronous REST. The adapter guarantees a **15s** timeout. |
 | Calls | Synchronous REST. |
@@ -77,7 +77,7 @@ Sign-in remains password-based; the sign-in name can be the email, username, or 
 | Page | Role | What they do | Landing |
 |---|---|---|---|
 | Login | Everyone | Email, username, or phone + password, one `Sign in` button; no sidebar | `/login` |
-| Admin | Platform.Admin only | Open dealerships; bind/unbind staff. **Zero** vehicle/customer/ad data | After sign-in → `/admin` |
+| Admin | Platform.Admin only | Open dealerships; bind the first owner, otherwise file a join request; unbind members. **Zero** vehicle/customer/ad data | After sign-in → `/admin` |
 | DMS | Dealer.User only | This-dealership vehicle create/update/read; paired sale | After sign-in with `dealerId` → `/dms` |
 | CRM | Dealer.User only | This-dealership customer create/update/read; link this-store in-stock unbound vehicles | — |
 | Ad compliance | Dealer.User only | Pick a vehicle, write an ad, rules+AI, export TXT after pass | — |
@@ -101,7 +101,7 @@ Ad “dealership name and contacts” use these four public fields; do not creat
 ### Users and members
 
 `app_user`: `username` `passwordHash` `displayName` `role`=`Platform.Admin`\|`Dealer.User` `dealerId` (null for Admin) `active`  
-`membership`: `dealerId` `username` `active` `createdBy`  
+`membership`: `dealerId` `username` `active` `dealerRole`=`OWNER`\|`MANAGER`\|`SALES` `createdBy` `createdAt` (the joined date)  
 Each staff request: JWT role + local membership. **Ignore any dealership ID sent by the frontend.**
 
 ### Vehicle DMS (specification required/optional)
@@ -115,7 +115,7 @@ Derived: `status`=`IN_STOCK`\|`SOLD` `version` `dealerId`
 | `source` | `TRADE_IN` `AUCTION` `PRIVATE_PURCHASE` `OTHER` |
 | `conditionCode` | `CERTIFIED` `AS_IS` `UNFIT` `IRREPARABLE` |
 
-Rules: VIN unique per dealership. After sale, **purchase fields cannot change** (make/model/year/vin/source/purchaseCost/addedOn/repairCost/carfax). `soldOn` and `soldPrice` **must be filled together**. Selling sets `status` to `SOLD`.
+Rules: VIN unique per dealership. After sale, **purchase fields cannot change** (make/model/year/vin/source/purchaseCost/addedOn/repairCost/carfax). `soldOn` and `soldPrice` **must be filled together**, and a buyer is required (`buyerCustomerId` or `buyerName`). The sale stores `soldBy`. Selling sets `status` to `SOLD`.
 
 ### Customer CRM
 
@@ -194,12 +194,12 @@ Unified error body: `{"code":"VIN_DUP","message":"..."}`. Cross-dealership id �
 | GET | `/admin/dealers` | Admin | — | 403 |
 | POST | `/admin/dealers` | Admin | Four contact fields required | 400 VALIDATION |
 | GET | `/admin/dealers/{id}/members` | Admin | — | 404 |
-| POST | `/admin/dealers/{id}/members` | Admin | `{username,displayName,password,email,phone}`; at least one email or phone for a new account; write `membership`+`app_user` (BCrypt hash) | 400 409 |
-| DELETE | `/admin/dealers/{id}/members/{username}` | Admin | Unbind; do not delete the `app_user` account | 404 |
+| POST | `/admin/dealers/{id}/members` | Admin | `{username,displayName,password,email,phone}`; at least one email or phone for a new account; a dealership with no active owner → write `membership`+`app_user` (BCrypt hash) and the member becomes its `OWNER`; one already has an owner → file a join request the owner approves | 400 409 |
+| DELETE | `/admin/dealers/{id}/members/{username}` | Admin | Unbind; do not delete the `app_user` account; the only active owner cannot be unbound unless they are the last active member | 404; `409 LAST_OWNER` |
 | GET | `/vehicles` | Staff | This dealership; query `q`(VIN/Make/Model) `status` `condition`; page size 10 | 403 |
 | POST | `/vehicles` | Staff | Required fields; VIN unique in this dealership | 400 VIN_DUP |
 | GET/PATCH | `/vehicles/{id}` | Staff | Sold forbids changing purchase fields | 404; `409 SOLD_LOCKED` |
-| POST | `/vehicles/{id}/sell` | Staff | `{soldOn,soldPrice,version}` as a pair | 400 SOLD_PAIR_REQUIRED |
+| POST | `/vehicles/{id}/sell` | Dealer.User | `{soldOn,soldPrice,version}` as a pair, plus a buyer (`buyerCustomerId` or `buyerName`). The dialog shows cost, work-order spend and list price | 400 SOLD_PAIR_REQUIRED; 400 VALIDATION |
 | GET | `/customers` | Staff | `q` + `linked` whether a vehicle is linked | 403 |
 | POST | `/customers` | Staff | Four fields | 400 |
 | GET/PATCH | `/customers/{id}` | Staff | This dealership | 404 |
@@ -209,8 +209,8 @@ Unified error body: `{"code":"VIN_DUP","message":"..."}`. Cross-dealership id �
 | POST | `/listings/{id}/checks` | Staff | This dealership + version; rules then AI; wait at most 15s | 404 409 502 AI_UNAVAILABLE |
 | POST | `/listings/{id}/ready` | Staff | Only current check Passed and not Stale | 409 CHECK_STALE / NOT_PASSED |
 | POST | `/listings/{id}/exports` | Staff | Same; `text/plain` TXT | 409 CHECK_STALE / NOT_PASSED |
-| GET | `/audit?entityType=&entityId=` | Manager | This dealership only, newest first; staff → 403 (AUD-17); Admin does not get business entities | 404 403 |
-| GET | `/dealer/audit` | Manager | Dealership audit log, newest first, filters (AUD-11) | 403 |
+| GET | `/audit?entityType=&entityId=` | Owner or Manager | This dealership only, newest first; a sales member → 403 (AUD-17); Admin does not get business entities | 404 403 |
+| GET | `/dealer/audit` | Owner or Manager | Dealership audit log, newest first, filters (AUD-11) | 403 |
 | GET | `/admin/audit` | Admin | Platform audit log incl. sign-ins (AUD-10, AUD-12) | 403 |
 | POST | `/assistant/ask` | Staff | `{text}`; do not write business tables | 403 |
 
@@ -269,7 +269,7 @@ Key: `AIMANAGER_API_KEY` on ai-service only (environment / Key Vault). The libra
 
 - Stack: React 19 + **TypeScript + Vite**. English. 6 pages. Do not fork an entire dealer repo.
 - Login: centered single card, one email/username/phone field + password, one `Sign in` button.
-- Others: left menu + top bar (dealership name or `Platform Admin`, role, `Sign out`). Admin sees only Admin; staff see only DMS/CRM/Ad/Assistant.  
+- Others: left menu + top bar (dealership name or `Platform Admin`, role, `Sign out`). Admin sees only Admin. Every dealership member sees the business pages; the owner and managers also see Team. A sales member has no Team page, no audit data and no payment ledger.  
 - Primary button top-right; sell/unlink require a second confirmation.  
 - **Every page must** have loading / empty / error. Failures are not empty tables. AI failure cannot show Pass.  
 - Tables: 10 rows per page. Status uses Tag. Actions column at most 3 text links. Sold rows fade; purchase fields read-only.  

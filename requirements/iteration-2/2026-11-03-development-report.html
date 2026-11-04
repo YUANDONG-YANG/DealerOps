@@ -1,0 +1,766 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DealerOps 开发汇报 · 2026-11-03 · iteration-2</title>
+<style>
+  :root {
+    --ink: #1c2128;
+    --muted: #5c6770;
+    --line: #e4e8ee;
+    --bg: #f4f6f8;
+    --card: #fff;
+    --done: #0d7a45;
+    --done-bg: #e8f6ee;
+    --partial: #8a5a00;
+    --partial-bg: #fff6df;
+    --none: #5c6770;
+    --none-bg: #eef1f4;
+    --accent: #1f4e79;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font: 16px/1.55 "Segoe UI", "Microsoft YaHei", sans-serif;
+  }
+  main { max-width: 980px; margin: 0 auto; padding: 32px 20px 64px; }
+  header.banner {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-top: 6px solid var(--accent);
+    border-radius: 10px;
+    padding: 28px 32px 22px;
+  }
+  h1 { font-size: 1.75rem; line-height: 1.3; margin: 0 0 8px; }
+  h2 { font-size: 1.35rem; margin: 36px 0 12px; }
+  h3 { font-size: 1.05rem; margin: 0 0 8px; }
+  .meta { color: var(--muted); margin: 0; }
+  .lead { margin: 16px 0 0; }
+  .counts { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 18px; }
+  .count {
+    background: var(--bg);
+    border-radius: 8px;
+    padding: 10px 14px;
+    min-width: 120px;
+  }
+  .count b { display: block; font-size: 1.4rem; }
+  table { width: 100%; border-collapse: collapse; background: var(--card); font-size: 0.92rem; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { background: #eef3f8; font-weight: 600; }
+  .wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; }
+  article {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 16px 18px 14px;
+    margin: 12px 0;
+  }
+  article p { margin: 6px 0; }
+  .k { color: var(--muted); }
+  .badge {
+    display: inline-block;
+    font-size: 0.82rem;
+    font-weight: 650;
+    padding: 2px 8px;
+    border-radius: 999px;
+    white-space: nowrap;
+  }
+  .done { color: var(--done); background: var(--done-bg); }
+  .partial { color: var(--partial); background: var(--partial-bg); }
+  .none { color: var(--none); background: var(--none-bg); }
+  code, .id { font-family: Consolas, "Cascadia Mono", "Segoe UI", monospace; font-size: 0.9em; }
+  .note {
+    background: #f8f1e3;
+    border: 1px solid #ead9b4;
+    border-radius: 10px;
+    padding: 12px 16px;
+    margin-top: 16px;
+  }
+  footer { color: var(--muted); font-size: 0.9rem; margin-top: 28px; }
+  a { color: var(--accent); }
+  @media print {
+    body { background: #fff; }
+    main { max-width: none; padding: 0; }
+    header.banner, article, .wrap, .note { break-inside: avoid; }
+    .badge { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <header class="banner">
+    <h1>DealerOps iteration-2 开发汇报</h1>
+    <p class="meta">日期：2026-11-03（星期二；本机 git 作者时间均为 -0600） · 作者：袁东阳（Robin） · 对照文档：<span class="id">requirements/iteration-2/Changes Document.docx</span></p>
+    <p class="lead">今天的工作是把该变更文档里的全部 68 条落到现行 .NET 10 后端和 React 前端。文档正文没有编号；下面的 CR-001 至 CR-068 沿用 <span class="id">requirements/iteration-2/analysis/01-change-inventory.md</span> 按正文顺序给出的编号，一条不漏。白天先完成第一轮实现和逐条核对，傍晚把带 Location 列的审计日志合并进当前分支，随后一次提交补上服务端排序、经销商 Owner / Manager / Sales 层级、VIN 与解码结果的核对，以及买家网站重复询价改为写入已有线索备注。最后一笔提交把首页示例广告指回注册页。按当前代码核对：62 条已完成，6 条部分完成，0 条今日未涉及。</p>
+    <div class="counts">
+      <div class="count"><b>68</b>需求条目</div>
+      <div class="count"><b style="color:var(--done)">62</b>已完成</div>
+      <div class="count"><b style="color:var(--partial)">6</b>部分完成</div>
+      <div class="count"><b>0</b>今日未涉及</div>
+    </div>
+  </header>
+
+  <h2>今日提交</h2>
+  <div class="wrap">
+    <table>
+      <thead><tr><th>作者时间</th><th>提交</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td>17:38</td><td><span class="id">a4006b74</span></td><td>第一轮实现：销售列与周期、角色与加入申请、首页与店铺、排序、全名与客户电话、未保存提示、审计筛选、CRM 线索与备注，以及变更分析文档。</td></tr>
+        <tr><td>18:07</td><td><span class="id">c981fbfb</span></td><td>补完线索、DMS 表单、管理员邀请与删除，并写入逐条实现核对。该核对写于后续收口之前，计数仍是 54 已实现、13 部分、1 不适用。</td></tr>
+        <tr><td>18:08</td><td><span class="id">a9fd9808</span></td><td>合并 <span class="id">origin/robin</span>。Location 列来自 2026-11-02 的 <span class="id">54b66640</span>，今天并入当前分支。</td></tr>
+        <tr><td>21:23</td><td><span class="id">2173c9c2</span></td><td>收口：Owner / Manager / Sales、服务端排序、买家网站重复询价写备注、VIN 解码核对、一次性数据补丁，并更新 API 合同与设计文档。</td></tr>
+        <tr><td>21:33</td><td><span class="id">d17858f0</span></td><td>首页展开后的示例广告改为 “Check your own ads”，打开注册页。首页创建账号按钮仍然去掉。</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="note">
+    <p style="margin:0">工作区还有未提交改动，不是新的客户功能：<span class="id">design/IMPLEMENTATION-BRIEF.md</span>、<span class="id">design/DEVELOPMENT-DESIGN.md</span>、<span class="id">design/TESTING-AND-ACCEPTANCE-GUIDE.md</span> 和演示稿把角色描述改成 Owner / Manager / Sales；<span class="id">playwright/support/env.ts</span> 与测试栈脚本拒绝把端到端测试打到共享开发端口。本汇报的完成状态以已提交代码为准。<span class="id">requirements/iteration-2/CR-Followup-2026-11-03.md</span> 第 7.5 节记录最终 Playwright 为 428 通过、0 失败、11 跳过（跳过项依赖 AI 供应商密钥）。本汇报没有重跑该套测试。</p>
+  </div>
+
+  <h2>总表</h2>
+  <div class="wrap">
+    <table>
+      <thead><tr><th>编号</th><th>要求</th><th>状态</th></tr></thead>
+      <tbody>
+        <tr><td><a href="#cr-001">CR-001</a></td><td>DMS 增加 Sold by、Sold to、Date sold</td><td><span class="badge done">已完成</span></td></tr>
+        <tr><td><a href="#cr-002">CR-002</a></td><td>出售菜单显示成本、工单花费、标价</td><td><span class="badge done">已完成</span></td></tr>
+        <tr><td><a href="#cr-003">CR-003</a></td><td>销售报表按今日、本周、本月、本年</td><td><span class="badge done">已完成</span></td></tr>
+        <tr><td><a href="#cr-004">CR-004</a></td><td>仪表盘销售区使用同样的四个周期</td><td><span class="badge done">已完成</span></td></tr>
+        <tr><td><a href="#cr-005">CR-005</a></td><td>列出销售人员及其销售指标</td><td><span class="badge done">已完成</span></td></tr>
+        <tr><td><a href="#cr-006">CR-006</a></td><td>经理可以把其他员工提升为经理</td><td><span class="badge done">已完成</span></td></tr>
+        <tr><td><a href="#cr-007">CR-007</a></td><td>经理可以编辑部分员工信息</td><td><span class="badge done">已完成</span></td></tr>
+        <tr><td><a href="#cr-008">CR-008</a></td><td>成员列表显示加入时间</td><td><span class="badge done">已完成</span></td></tr>
+        <tr><td><a href="#cr-009">CR-009</a></td><td>首页创建账号改为经销商咨询；现阶段先去掉按钮</td><td><span class="badge partial">部分完成</span></td></tr>
+        <tr><td><a href="#cr-010">CR-010</a></td><td>可选的经销商管理员 / Owner / 区域经理</td><td><span class="badge partial">部分完成</span></td></tr>
+        <tr><td><a href="#cr-011">CR-011</a></td><td>DMS 指定列可排序</td><td><span class="badge done">已完成</span></td></tr>
+        <tr><td><a href="#cr-012">CR-012</a></td><td>Leads 全部列可排序</td><td><span class="badge done">已完成</span></td></tr>
+        <tr><td><a href="#cr-013">CR-013</a></td><td>Team Members 的 Role、Source、加入日期可排序</td><td><span class="badge done">已完成</span></td></tr>
+        <tr><td><a href="#cr-014">CR-014</a></td><td>Team Activity 指定列可排序，含 Location</td><td><span class="badge done">已完成</span></td></tr>
+        <tr><td><a href="#cr-015">CR-015</a></td><td>Join Requests 的 Requested、Status、Resolved 可排序</td><td><span class="badge done">已完成</span></td></tr>
+        <tr><td><a href="#cr-016">CR-016</a></td><td>平台管理员审计日志指定列可排序，含 Location</td><td><span class="badge done">已完成</span></td></tr>
+        <tr><td><a href="#cr-017">CR-017</a></td><td>Ad Rules 的 Enabled、Severity 可排序</td><td><span class="badge done">已完成</span></td></tr>
+        <tr><td><a href="#cr-018">CR-018</a></td><td>Pending accounts 的 Registered 可排序</td><td><span class="badge done">已完成</span></td></tr>
+        <tr><td><a href="#cr-019">CR-019</a></td><td>平台管理员 Members 指定列可排序</td><td><span class="badge done">已完成</span></td></tr>
+        <tr><td><a href="#cr-020">CR-020</a></td><td>记录级审计的 Action、Actor、When 可排序</td><td><span class="badge done">已完成</span></td></tr>
+        <tr><td><a href="#cr-021">CR-021</a></td><td>全名重复仍可创建账号</td><td><span class="badge done">已完成</span></td></tr>
+        <tr><td><a href="#cr-022">CR-022</a></td><td>未保存的数据离开前要确认</td><td><span class="badge done">已完成</span></td></tr>
+        <tr><td><a href="#cr-023">CR-023</a></td><td>保存经销商资料前确认</td><td><span class="badge done">已完成</span></td></tr>
+        <tr><td><a href="#cr-024">CR-024</a></td><td>关闭线索前确认</td><td><span class="badge done">已完成</span></td></tr>
+        <tr><td><a href="#cr-025">CR-025</a></td><td>加入申请拆成待处理与历史</td><td><span class="badge done">已完成</span></td></tr>
+        <tr><td><a href="#cr-026">CR-026</a></td><td>活动日志与管理审计的日期框要有标签</td><td><span class="badge done">已完成</span></td></tr>
+        <tr><td><a href="#cr-027">CR-027</a></td><td>活动日志可按变更内容搜索</td><td><span class="badge done">已完成</span></td></tr>
+        <tr><td><a href="#cr-028">CR-028</a></td><td>活动日志筛选项与列的顺序一致</td><td><span class="badge done">已完成</span></td></tr>
+        <tr><td><a href="#cr-029">CR-029</a></td><td>去掉 DMS 的 Make、Model 筛选框</td><td><span class="badge done">已完成</span></td></tr>
+        <tr><td><a href="#cr-030">CR-030</a></td><td>DMS 年份改为可输入</td><td><span class="badge done">已完成</span></td></tr>
+        <tr><td><a href="#cr-031">CR-031</a></td><td>可按库存号搜索</td><td><span class="badge done">已完成</span></td></tr>
+        <tr><td><a href="#cr-032">CR-032</a></td><td>品牌下拉分成主要品牌与全部品牌</td><td><span class="badge done">已完成</span></td></tr>
+        <tr><td><a href="#cr-033">CR-033</a></td><td>年款下拉尽量只列该车能用的年份</td><td><span class="badge done">已完成</span></td></tr>
+        <tr><td><a href="#cr-034">CR-034</a></td><td>VIN 放到添加车辆表单顶部</td><td><span class="badge done">已完成</span></td></tr>
+        <tr><td><a href="#cr-035">CR-035</a></td><td>可筛选有未完工单的车辆</td><td><span class="badge done">已完成</span></td></tr>
+        <tr><td><a href="#cr-036">CR-036</a></td><td>新建线索的客户与意向车辆改为搜索建议</td><td><span class="badge done">已完成</span></td></tr>
+        <tr><td><a href="#cr-037">CR-037</a></td><td>按用户搜索活动日志支持部分匹配</td><td><span class="badge done">已完成</span></td></tr>
+        <tr><td><a href="#cr-038">CR-038</a></td><td>新建线索的负责人默认为当前用户且可改</td><td><span class="badge done">已完成</span></td></tr>
+        <tr><td><a href="#cr-039">CR-039</a></td><td>线索列表可按车辆搜索</td><td><span class="badge done">已完成</span></td></tr>
+        <tr><td><a href="#cr-040">CR-040</a></td><td>输入客户姓名时线索列表自动更新</td><td><span class="badge done">已完成</span></td></tr>
+        <tr><td><a href="#cr-041">CR-041</a></td><td>已关闭线索可以重新打开</td><td><span class="badge done">已完成</span></td></tr>
+        <tr><td><a href="#cr-042">CR-042</a></td><td>CRM 用线索数替换已购车辆列</td><td><span class="badge done">已完成</span></td></tr>
+        <tr><td><a href="#cr-043">CR-043</a></td><td>在客户抽屉里新建线索</td><td><span class="badge done">已完成</span></td></tr>
+        <tr><td><a href="#cr-044">CR-044</a></td><td>客户可以记备注</td><td><span class="badge done">已完成</span></td></tr>
+        <tr><td><a href="#cr-045">CR-045</a></td><td>客户资料重复时先确认</td><td><span class="badge done">已完成</span></td></tr>
+        <tr><td><a href="#cr-046">CR-046</a></td><td>客户电话不必唯一</td><td><span class="badge done">已完成</span></td></tr>
+        <tr><td><a href="#cr-047">CR-047</a></td><td>VIN 必须与车辆信息一致</td><td><span class="badge done">已完成</span></td></tr>
+        <tr><td><a href="#cr-048">CR-048</a></td><td>Carfax 链接必须真实且独占</td><td><span class="badge partial">部分完成</span></td></tr>
+        <tr><td><a href="#cr-049">CR-049</a></td><td>卖车必须指定买家，或选手填 Other</td><td><span class="badge done">已完成</span></td></tr>
+        <tr><td><a href="#cr-050">CR-050</a></td><td>DMS 车辆信息包含线索及线索数量</td><td><span class="badge done">已完成</span></td></tr>
+        <tr><td><a href="#cr-051">CR-051</a></td><td>同一客户和同一车辆不能重复建线索</td><td><span class="badge partial">部分完成</span></td></tr>
+        <tr><td><a href="#cr-052">CR-052</a></td><td>卖车后相关线索自动关闭并打上标签</td><td><span class="badge partial">部分完成</span></td></tr>
+        <tr><td><a href="#cr-053">CR-053</a></td><td>显示名标为 Full name</td><td><span class="badge done">已完成</span></td></tr>
+        <tr><td><a href="#cr-054">CR-054</a></td><td>非法用户名返回可读错误</td><td><span class="badge done">已完成</span></td></tr>
+        <tr><td><a href="#cr-055">CR-055</a></td><td>平台管理员不能直接绑定账号，只能发加入申请</td><td><span class="badge partial">部分完成</span></td></tr>
+        <tr><td><a href="#cr-056">CR-056</a></td><td>管理员可以移除待审账号</td><td><span class="badge done">已完成</span></td></tr>
+        <tr><td><a href="#cr-057">CR-057</a></td><td>管理员可以编辑待审账号</td><td><span class="badge done">已完成</span></td></tr>
+        <tr><td><a href="#cr-058">CR-058</a></td><td>管理审计日志的筛选与列对齐，且可按变更搜索</td><td><span class="badge done">已完成</span></td></tr>
+        <tr><td><a href="#cr-059">CR-059</a></td><td>管理审计搜索支持部分匹配，日期框有标签</td><td><span class="badge done">已完成</span></td></tr>
+        <tr><td><a href="#cr-060">CR-060</a></td><td>删除经销商需要额外确认</td><td><span class="badge done">已完成</span></td></tr>
+        <tr><td><a href="#cr-061">CR-061</a></td><td>删除用户需要额外确认</td><td><span class="badge done">已完成</span></td></tr>
+        <tr><td><a href="#cr-062">CR-062</a></td><td>管理员可以编辑账号邮箱或电话</td><td><span class="badge done">已完成</span></td></tr>
+        <tr><td><a href="#cr-063">CR-063</a></td><td>首页示例广告指向注册页</td><td><span class="badge done">已完成</span></td></tr>
+        <tr><td><a href="#cr-064">CR-064</a></td><td>首页明确产品是给经销商的</td><td><span class="badge done">已完成</span></td></tr>
+        <tr><td><a href="#cr-065">CR-065</a></td><td>店铺页不要写成二手车</td><td><span class="badge done">已完成</span></td></tr>
+        <tr><td><a href="#cr-066">CR-066</a></td><td>店铺可搜索经销商并展示联系方式</td><td><span class="badge done">已完成</span></td></tr>
+        <tr><td><a href="#cr-067">CR-067</a></td><td>买家站点有返回，并可搜索该店库存</td><td><span class="badge done">已完成</span></td></tr>
+        <tr><td><a href="#cr-068">CR-068</a></td><td>询价接近字数上限时显示剩余字数</td><td><span class="badge done">已完成</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2>一、客户请求</h2>
+
+  <article id="cr-001">
+    <h3>CR-001 DMS 出售列 <span class="badge done">已完成</span></h3>
+    <p><span class="k">要求。</span>DMS 库存表增加三列：谁卖的、卖给谁、哪一天卖的。</p>
+    <p><span class="k">今日。</span><span class="id">a4006b74</span> 增加 <span class="id">sold_by</span> 等字段；<span class="id">2173c9c2</span> 用一次性补丁从审计日志回填历史出售人。<span class="id">frontend/react/src/pages/DmsPage.tsx</span> 的列是 Sold by、Sold to、Date sold。</p>
+    <p><span class="k">可见行为。</span>已售车辆显示出售人、买家姓名（CRM 客户或手填姓名）和出售日期；未售车辆这三列为空。</p>
+    <p><span class="k">剩余。</span>无。文档没有指定这三列插在哪一格，当前放在线索数之后、状态之前。</p>
+  </article>
+
+  <article id="cr-002">
+    <h3>CR-002 出售菜单上的成本信息 <span class="badge done">已完成</span></h3>
+    <p><span class="k">要求。</span>点击出售时，菜单里要看到成本、工单总花费和标价。</p>
+    <p><span class="k">今日。</span><span class="id">DmsPage.tsx</span> 的出售确认框展示 Cost、Work-order spend（<span class="id">repairCost</span>）和 List price。</p>
+    <p><span class="k">可见行为。</span>确认出售前能看到这三项，再填写出售日期、售价和买家。</p>
+    <p><span class="k">剩余。</span>无。</p>
+  </article>
+
+  <article id="cr-003">
+    <h3>CR-003 销售报表的周期 <span class="badge done">已完成</span></h3>
+    <p><span class="k">要求。</span>销售报表要把今日、本周、本月、本年做成可选项。</p>
+    <p><span class="k">今日。</span><span class="id">frontend/react/src/api/reports.ts</span> 的周期为 TODAY、WEEK、MONTH、YEAR；<span class="id">SalesFunnelPage.tsx</span> 用同一组选项重新加载该周期的成交数、收入和毛利。</p>
+    <p><span class="k">可见行为。</span>报表标题随选项变成 “Sales for today / this week / this month / this year”，并显示该区间的起止日期。</p>
+    <p><span class="k">剩余。</span>无。周从周一开始，写在 <span class="id">reports.ts</span> 的注释里。</p>
+  </article>
+
+  <article id="cr-004">
+    <h3>CR-004 仪表盘销售区 <span class="badge done">已完成</span></h3>
+    <p><span class="k">要求。</span>仪表盘的销售区也要能看今日、本周、本月、本年。</p>
+    <p><span class="k">今日。</span><span class="id">DashboardPage.tsx</span> 的 Sales 区使用同一组 <span class="id">SALES_PERIODS</span>，并调用同一销售报表接口。</p>
+    <p><span class="k">可见行为。</span>切换周期后，成交数、收入和毛利按该周期刷新。</p>
+    <p><span class="k">剩余。</span>销售人员明细表只在销售报表页，不在仪表盘。文档把人员列表单独写成下一条。</p>
+  </article>
+
+  <article id="cr-005">
+    <h3>CR-005 销售人员指标 <span class="badge done">已完成</span></h3>
+    <p><span class="k">要求。</span>列出全部销售人员及其销售指标。文档没有点名指标项。</p>
+    <p><span class="k">今日。</span><span class="id">SalesFunnelPage.tsx</span> 有 “Sales by salesperson” 表。报表按实际出售人统计，不按角色过滤，Owner 或经理卖出的车也会出现。</p>
+    <p><span class="k">可见行为。</span>每人一行：成交数、收入、毛利、当前未关闭线索、赢单线索。已离开的成员若在该周期有成交，会标成 former member。</p>
+    <p><span class="k">剩余。</span>文档没写指标清单，当前这五项是今日实现时选定的。</p>
+  </article>
+
+  <article id="cr-006">
+    <h3>CR-006 经理提升其他员工 <span class="badge done">已完成</span></h3>
+    <p><span class="k">要求。</span>经理账号可以把其他员工提升为经理。</p>
+    <p><span class="k">今日。</span><span class="id">2173c9c2</span> 把店内角色改成 Owner、Manager、Sales。<span class="id">DealerRole.cs</span> 与 <span class="id">MembershipService.cs</span>：经理只能把 Sales 提升为 Manager，不能改自己的角色，也不能动 Owner 或其他经理。</p>
+    <p><span class="k">可见行为。</span>经理在 Team 成员里把销售人员设为经理。Owner 也可以任命经理。</p>
+    <p><span class="k">剩余。</span>无。权限比“任意经理改任意员工”更窄，这是今日角色决定里写明的。</p>
+  </article>
+
+  <article id="cr-007">
+    <h3>CR-007 编辑员工信息 <span class="badge done">已完成</span></h3>
+    <p><span class="k">要求。</span>经理可以编辑某些员工信息。文档没有列出字段。</p>
+    <p><span class="k">今日。</span>经理可以改 Sales 成员的全名和电话。Owner 可以改 Owner 以下成员的全名和电话。登录邮箱仍只有平台管理员能改。</p>
+    <p><span class="k">可见行为。</span>Team 成员编辑里有 Full name 和电话。</p>
+    <p><span class="k">剩余。</span>文档的 “certain employee information” 没有字段清单。今日决定只开放全名和电话。</p>
+  </article>
+
+  <article id="cr-008">
+    <h3>CR-008 加入时间 <span class="badge done">已完成</span></h3>
+    <p><span class="k">要求。</span>成员区增加一列，显示该成员何时加入。</p>
+    <p><span class="k">今日。</span><span class="id">TeamPage.tsx</span> 有 Joined 列，排序键 <span class="id">joinedAt</span>，来自成员关系的 <span class="id">created_at</span>。</p>
+    <p><span class="k">可见行为。</span>Team &gt; Members 能看到并按加入日期排序。</p>
+    <p><span class="k">剩余。</span>无。文档后文的 “Date Added (when added)” 用的就是这一列。</p>
+  </article>
+
+  <article id="cr-009">
+    <h3>CR-009 首页创建账号改为咨询 <span class="badge partial">部分完成</span></h3>
+    <p><span class="k">要求。</span>首页的创建账号要变成经销商咨询入口。作者接着写：账号的另一种创建方式还需和客户讨论，现阶段去掉首页按钮即可。</p>
+    <p><span class="k">今日。</span><span class="id">LandingPage.tsx</span> 的页头、主视觉和页脚不再放创建账号按钮。<span class="id">d17858f0</span> 仍让示例广告打开 <span class="id">/register</span>。登录页仍有 “Create account”。</p>
+    <p><span class="k">可见行为。</span>打开首页看不到创建账号按钮，可以看到登录和 “Shop vehicles”。想自助注册的人仍能从登录页或示例广告进入注册。</p>
+    <p><span class="k">剩余。</span>没有经销商“想使用本服务”的咨询表单，也没有对应接口。这是本条未完成的部分。跟进记录把“先去掉按钮”接受为这一轮的交付。</p>
+  </article>
+
+  <article id="cr-010">
+    <h3>CR-010 经销商专属管理员 <span class="badge partial">部分完成</span></h3>
+    <p><span class="k">要求。</span>讨论过一个只属于单店、又有些类似平台管理员能力的角色（admin / owner / regional manager）。文档写明该功能可选，完整实现前宜再与客户讨论。权限从高到低为：平台管理员、经销商管理员/Owner/区域经理、经销商经理、店员、未登录。</p>
+    <p><span class="k">今日。</span><span class="id">2173c9c2</span> 按 <span class="id">requirements/iteration-2/CR-Role-Hierarchy-2026-11-03.md</span> 做成一个 Owner。JWT 仍只有 Platform.Admin 与 Dealer.User，店内层级在成员行上：OWNER、MANAGER、SALES。每店一名在职 Owner；再任命 Owner 会把原 Owner 降为 Manager。最后一名 Owner 在仍有其他成员时不能被降级或移出（409 LAST_OWNER）。</p>
+    <p><span class="k">可见行为。</span>Owner 管经销商资料、加入申请，并任命经理和销售。经理能管销售人员。销售人员没有 Team 页。业务数据（DMS、CRM、线索、出售）三者都能看。</p>
+    <p><span class="k">剩余。</span>没有跨店的 regional manager。Owner 不能改成员登录邮箱、不能删除用户账号、不能处理平台待审账号。这些平台管理员能力按今日决定故意不给。中午的实现核对仍把本条标成不适用，该文件没有在晚上改过来。</p>
+  </article>
+
+  <article id="cr-011">
+    <h3>CR-011 DMS 列排序 <span class="badge done">已完成</span></h3>
+    <p><span class="k">要求。</span>任意已登录用户在 DMS 上可排序：Stock#、Body、Source、Condition、Cost、List Price、Date Added、Open WOs、Status。</p>
+    <p><span class="k">今日。</span><span class="id">DmsPage.tsx</span> 这些列都标了 <span class="id">sortable</span>。<span class="id">VehicleService.cs</span> 在分页前按 <span class="id">sort</span> 排序，经理和销售都能用。</p>
+    <p><span class="k">可见行为。</span>点表头会按整份库存重新排序，不是只排当前页。另外多排了 Sold by、Sold to、Date sold 和 Leads。</p>
+    <p><span class="k">剩余。</span>无。</p>
+  </article>
+
+  <article id="cr-012">
+    <h3>CR-012 线索列排序 <span class="badge done">已完成</span></h3>
+    <p><span class="k">要求。</span>Leads 页所有列都可排序。</p>
+    <p><span class="k">今日。</span>中午核对时排序只作用于当前 10 行。<span class="id">2173c9c2</span> 改为服务端排序：<span class="id">LeadService.cs</span> 的 <span class="id">Sorted</span>，<span class="id">LeadsPage.tsx</span> 把 <span class="id">sort</span> 传给列表接口。</p>
+    <p><span class="k">可见行为。</span>Customer、Vehicle of interest、Stage、Owner、Next follow-up 的表头点击会重新加载，排序覆盖后面的页。</p>
+    <p><span class="k">剩余。</span>无。</p>
+  </article>
+
+  <article id="cr-013">
+    <h3>CR-013 成员列排序 <span class="badge done">已完成</span></h3>
+    <p><span class="k">要求。</span>Team &gt; Members 的 Role、Source、Date Added 可排序。</p>
+    <p><span class="k">今日。</span><span class="id">TeamPage.tsx</span> 对 Role、Source 和 Joined（<span class="id">joinedAt</span>）使用可排序表头，排序作用在已加载的全部成员上。</p>
+    <p><span class="k">可见行为。</span>点这三列会按全部成员重排。</p>
+    <p><span class="k">剩余。</span>无。加入日期的列名是 Joined，不是 Date Added。</p>
+  </article>
+
+  <article id="cr-014">
+    <h3>CR-014 团队活动日志排序 <span class="badge done">已完成</span></h3>
+    <p><span class="k">要求。</span>Team &gt; Activity 可排序：When、Actor、Action、Record、Source IP、Location。</p>
+    <p><span class="k">今日。</span>Location 列在 11 月 2 日已存在，今天由 <span class="id">a9fd9808</span> 合并进来。<span class="id">AuditService.cs</span> 的排序字段含 <span class="id">clientLocation</span>；<span class="id">AuditLogPanel.tsx</span> 展示 Location，没有位置时显示 Unavailable 或 Not recorded。</p>
+    <p><span class="k">可见行为。</span>店内活动日志（Owner 与经理）可按包括 Location 在内的这些列做服务端排序。</p>
+    <p><span class="k">剩余。</span>无。销售人员打不开 Team，因此看不到这张日志。</p>
+  </article>
+
+  <article id="cr-015">
+    <h3>CR-015 加入申请排序 <span class="badge done">已完成</span></h3>
+    <p><span class="k">要求。</span>Team &gt; Join Requests 的 Requested、Status、Resolved 可排序。</p>
+    <p><span class="k">今日。</span><span class="id">TeamPage.tsx</span> 把申请分成 Pending 与 History。待处理表按 Requested 排序；历史表按 Requested、Status、Resolved 排序。</p>
+    <p><span class="k">可见行为。</span>待处理申请还没有 Resolved，所以这一列只出现在历史表，与文档列出的三列一致。</p>
+    <p><span class="k">剩余。</span>无。</p>
+  </article>
+
+  <article id="cr-016">
+    <h3>CR-016 平台审计日志排序 <span class="badge done">已完成</span></h3>
+    <p><span class="k">要求。</span>平台管理员审计日志可排序：When、Actor、Action、Record、Location。</p>
+    <p><span class="k">今日。</span>与 CR-014 同一条审计排序路径。<span class="id">AuditLogPanel.tsx</span> 在管理日志上同样提供 Location，并额外可排 Dealership 与 Source IP。</p>
+    <p><span class="k">可见行为。</span>点表头按全部匹配记录排序，不是只排当前页。</p>
+    <p><span class="k">剩余。</span>无。</p>
+  </article>
+
+  <article id="cr-017">
+    <h3>CR-017 广告规则排序 <span class="badge done">已完成</span></h3>
+    <p><span class="k">要求。</span>平台管理员的 Ad Rules 中，Enabled 和 Severity 可排序。</p>
+    <p><span class="k">今日。</span>规则表对这两列排序，范围是整份规则目录，不是单页。</p>
+    <p><span class="k">可见行为。</span>管理员可以按是否启用、按严重级别重排规则。</p>
+    <p><span class="k">剩余。</span>无。</p>
+  </article>
+
+  <article id="cr-018">
+    <h3>CR-018 待审账号的注册时间排序 <span class="badge done">已完成</span></h3>
+    <p><span class="k">要求。</span>平台管理员的 Pending accounts 中，Registered 可排序。</p>
+    <p><span class="k">今日。</span>中午只排序已加载的第一页。<span class="id">2173c9c2</span> 后，<span class="id">AdminPendingUserController.cs</span> 接受 <span class="id">sort=createdAt,asc|desc</span>，<span class="id">PendingAccounts.tsx</span> 把表头排序传给接口并回到第一页。</p>
+    <p><span class="k">可见行为。</span>点 Registered 会按注册时间重排待审账号，后续页跟着这个顺序。</p>
+    <p><span class="k">剩余。</span>无。</p>
+  </article>
+
+  <article id="cr-019">
+    <h3>CR-019 平台成员列排序 <span class="badge done">已完成</span></h3>
+    <p><span class="k">要求。</span>平台管理员 Members 的 Dealership、Role、Sign-in、Status 可排序。</p>
+    <p><span class="k">今日。</span><span class="id">AdminPage.tsx</span> 对这四列排序。列表先按所选列排完整结果，再切页。</p>
+    <p><span class="k">可见行为。</span>管理员按经销商、角色、登录名或状态重排成员。</p>
+    <p><span class="k">剩余。</span>无。</p>
+  </article>
+
+  <article id="cr-020">
+    <h3>CR-020 记录级审计排序 <span class="badge done">已完成</span></h3>
+    <p><span class="k">要求。</span>经理打开的各菜单审计里，Action、Actor、When 可排序。</p>
+    <p><span class="k">今日。</span>中午只排序已经加载的那一页。<span class="id">AuditTrail.tsx</span> 现在把排序交回调用方；DMS、线索等抽屉把 <span class="id">sort</span> 传给审计接口，服务端再分页。</p>
+    <p><span class="k">可见行为。</span>车辆、客户、线索和广告工作区里，能看审计的人可以按这三列重排该记录的审计，不限于当前 10 条。</p>
+    <p><span class="k">剩余。</span>无。今日角色决定后，店内审计给 Owner 和经理，不给 Sales。</p>
+  </article>
+
+  <h2>二、站点修复与变更</h2>
+
+  <article id="cr-021">
+    <h3>CR-021 全名可以重复 <span class="badge done">已完成</span></h3>
+    <p><span class="k">要求。</span>全名已被占用时仍要能建账号。文档点名首页注册、管理员新建店员、个人资料三处。</p>
+    <p><span class="k">今日。</span><span class="id">Program.cs</span> 的补丁执行 <span class="id">ALTER TABLE app_user DROP INDEX uk_app_user_display_name</span>。注册、新建店员和资料保存不再因为全名重复被拒绝。</p>
+    <p><span class="k">可见行为。</span>两个账号可以使用同一个全名。用户名、邮箱和账号电话仍然唯一。</p>
+    <p><span class="k">剩余。</span>无。</p>
+  </article>
+
+  <article id="cr-022">
+    <h3>CR-022 未保存内容的确认 <span class="badge done">已完成</span></h3>
+    <p><span class="k">要求。</span>表单里有未保存数据或已经改过时要确认，避免误改和丢数据。点名：经销商编辑、DMS 添加/编辑车辆、CRM 添加/编辑客户、线索添加/编辑。</p>
+    <p><span class="k">今日。</span><span class="id">unsavedChanges.ts</span> 的提示是 “Discard unsaved changes?”。上述抽屉以及后来补上的店员抽屉和成员编辑抽屉，在关闭、点遮罩、按 Esc 或离开页面时，若表单已脏会先询问。跟进决定：普通保存不逐次确认，保存确认只留给经销商资料（CR-023）和关闭线索（CR-024）。</p>
+    <p><span class="k">可见行为。</span>改了一半关掉抽屉，会问是否丢弃。直接保存则立即写入，并有成功提示。</p>
+    <p><span class="k">剩余。</span>无。若把“每次保存都再确认一次”算进本条，那一项是今日明确不做的。</p>
+  </article>
+
+  <article id="cr-023">
+    <h3>CR-023 保存经销商资料前确认 <span class="badge done">已完成</span></h3>
+    <p><span class="k">要求。</span>Team &gt; Dealership profile 这种较大的修改，保存前要确认。</p>
+    <p><span class="k">今日。</span>经销商资料保存会先打开确认框。该页现在只有 Owner 能改。</p>
+    <p><span class="k">可见行为。</span>Owner 改资料后要点确认才会写入。</p>
+    <p><span class="k">剩余。</span>无。</p>
+  </article>
+
+  <article id="cr-024">
+    <h3>CR-024 关闭线索前确认 <span class="badge done">已完成</span></h3>
+    <p><span class="k">要求。</span>把线索收成结束状态时，保存前要确认。</p>
+    <p><span class="k">今日。</span>Leads 里把阶段改成 Won 或 Lost 时，保存前会询问。</p>
+    <p><span class="k">可见行为。</span>普通阶段修改直接保存；只有收成赢单或丢单才会多一次确认。</p>
+    <p><span class="k">剩余。</span>无。</p>
+  </article>
+
+  <article id="cr-025">
+    <h3>CR-025 加入申请分表 <span class="badge done">已完成</span></h3>
+    <p><span class="k">要求。</span>加入申请不要混在一张表里：一张是待批准或拒绝的，一张是已经批准或拒绝的。</p>
+    <p><span class="k">今日。</span><span class="id">TeamPage.tsx</span> 渲染 Pending 与 History。审批权在 Owner。</p>
+    <p><span class="k">可见行为。</span>待处理行有 Approve / Reject。历史行显示结果和处理时间。</p>
+    <p><span class="k">剩余。</span>无。</p>
+  </article>
+
+  <article id="cr-026">
+    <h3>CR-026 日期框标签 <span class="badge done">已完成</span></h3>
+    <p><span class="k">要求。</span>团队活动页上没有标签的日期框要标出来，平台管理员审计日志上的日期框同样处理。</p>
+    <p><span class="k">今日。</span><span class="id">AuditLogPanel.tsx</span> 两处都使用 “From date” 和 “To date”。</p>
+    <p><span class="k">可见行为。</span>用户能看出左边是起始日、右边是结束日。</p>
+    <p><span class="k">剩余。</span>无。</p>
+  </article>
+
+  <article id="cr-027">
+    <h3>CR-027 按变更内容搜索活动 <span class="badge done">已完成</span></h3>
+    <p><span class="k">要求。</span>活动日志要能按发生过的变更搜索，例如搜 password 找到用密码登录的记录。</p>
+    <p><span class="k">今日。</span>筛选框文案是 “Search changes”。<span class="id">2173c9c2</span> 修复了自由文本搜索：JSON 列不能用会翻译成非法 CAST 的比较，改为 <span class="id">LOCATE</span>，否则每次搜索都会 500。</p>
+    <p><span class="k">可见行为。</span>输入 password 可以匹配保存下来的变更说明，包括密码登录方式。</p>
+    <p><span class="k">剩余。</span>无。</p>
+  </article>
+
+  <article id="cr-028">
+    <h3>CR-028 筛选项与列对齐 <span class="badge done">已完成</span></h3>
+    <p><span class="k">要求。</span>Team &gt; Activity 的搜索项和列按同一顺序排列。</p>
+    <p><span class="k">今日。</span>筛选顺序跟在 When、Actor、Action、Record、Changes 后面，与表头一致，Location 也在列里。</p>
+    <p><span class="k">可见行为。</span>用户从左到右看到的筛选项和表头是同一套顺序。</p>
+    <p><span class="k">剩余。</span>无。</p>
+  </article>
+
+  <article id="cr-029">
+    <h3>CR-029 去掉品牌和车型筛选框 <span class="badge done">已完成</span></h3>
+    <p><span class="k">要求。</span>DMS 单独的 Make、Model 框与 “Search VIN, make, or model” 重复，应去掉。</p>
+    <p><span class="k">今日。</span>DMS 筛选行没有这两个框。搜索框在服务端匹配 VIN、品牌和车型。</p>
+    <p><span class="k">可见行为。</span>用一个搜索框找车，不再维护两套条件。</p>
+    <p><span class="k">剩余。</span>无。</p>
+  </article>
+
+  <article id="cr-030">
+    <h3>CR-030 年份可输入 <span class="badge done">已完成</span></h3>
+    <p><span class="k">要求。</span>DMS 的 Year 下拉年份太多，改成可以打字的框。</p>
+    <p><span class="k">今日。</span>筛选区的年份是可输入的数字，作为精确的 <span class="id">modelYear</span> 发给服务端。</p>
+    <p><span class="k">可见行为。</span>输入 2020 只列出 2020 年的车，不再从长列表里点选。</p>
+    <p><span class="k">剩余。</span>无。添加车辆表单里的年款仍是下拉，那是 CR-033。</p>
+  </article>
+
+  <article id="cr-031">
+    <h3>CR-031 按库存号搜索 <span class="badge done">已完成</span></h3>
+    <p><span class="k">要求。</span>增加按 Stock # 搜索的能力。</p>
+    <p><span class="k">今日。</span>没有单独再做一个库存号框。同一个 DMS 搜索框在服务端同时匹配库存号。</p>
+    <p><span class="k">可见行为。</span>把库存号打进搜索框即可找到该车。</p>
+    <p><span class="k">剩余。</span>无。文档写的是 “adding a box”；实现并进了已有搜索框，避免和 CR-029 的“减少重复框”相反。</p>
+  </article>
+
+  <article id="cr-032">
+    <h3>CR-032 品牌分成两组 <span class="badge done">已完成</span></h3>
+    <p><span class="k">要求。</span>添加车辆的品牌下拉太长，分成主要品牌和全部品牌，类似 Autotrader。</p>
+    <p><span class="k">今日。</span><span class="id">DmsPage.tsx</span> 使用两个 <span class="id">optgroup</span>：Popular makes 和 All makes。</p>
+    <p><span class="k">可见行为。</span>打开品牌列表时，常见品牌在上面，完整列表在下面。</p>
+    <p><span class="k">剩余。</span>无。</p>
+  </article>
+
+  <article id="cr-033">
+    <h3>CR-033 年款只列该车可用的年份 <span class="badge done">已完成</span></h3>
+    <p><span class="k">要求。</span>年款下拉尽量只列出所选车型能用的年份；若做不到每一款，就只对常见车做。</p>
+    <p><span class="k">今日。</span><span class="id">vehicleRules.ts</span> 的 <span class="id">modelYearsFor</span> 对一组固定的常见品牌/车型给出生产年份；其他组合仍是完整年份列表。</p>
+    <p><span class="k">可见行为。</span>选了常见车型后，年款列表变短。不常见的组合仍可从全表里选。</p>
+    <p><span class="k">剩余。</span>无。文档允许只覆盖常见车。</p>
+  </article>
+
+  <article id="cr-034">
+    <h3>CR-034 VIN 放到最上面 <span class="badge done">已完成</span></h3>
+    <p><span class="k">要求。</span>添加车辆时把 VIN 框移到顶部。</p>
+    <p><span class="k">今日。</span>添加和编辑车辆的抽屉里，VIN 是第一个字段。</p>
+    <p><span class="k">可见行为。</span>打开抽屉先看到 VIN，可先解码再填其余项。</p>
+    <p><span class="k">剩余。</span>无。</p>
+  </article>
+
+  <article id="cr-035">
+    <h3>CR-035 筛选未完工单 <span class="badge done">已完成</span></h3>
+    <p><span class="k">要求。</span>增加一个条件，用来找有未完工单的车辆。</p>
+    <p><span class="k">今日。</span>DMS 筛选行有 “Open work orders only”。服务端只保留工单状态为 open 或 in progress 的车。</p>
+    <p><span class="k">可见行为。</span>勾选后库存表只剩还有未完成工单的车。</p>
+    <p><span class="k">剩余。</span>无。</p>
+  </article>
+
+  <article id="cr-036">
+    <h3>CR-036 线索上的客户和车辆选择 <span class="badge done">已完成</span></h3>
+    <p><span class="k">要求。</span>新建线索时的 Customer 和 Vehicle of interest 不好用，改成和线索列表里那种搜索框一样。</p>
+    <p><span class="k">今日。</span>这两个字段使用 <span class="id">SearchSuggest</span>，与列表搜索同一控件。</p>
+    <p><span class="k">可见行为。</span>输入几个字就会出建议，选中后再保存，不必在长下拉里翻。</p>
+    <p><span class="k">剩余。</span>无。</p>
+  </article>
+
+  <article id="cr-037">
+    <h3>CR-037 按用户部分匹配 <span class="badge done">已完成</span></h3>
+    <p><span class="k">要求。</span>按用户搜索团队活动时，输入用户名的一部分也要有结果。</p>
+    <p><span class="k">今日。</span>操作者筛选按用户名子串匹配，不区分大小写。</p>
+    <p><span class="k">可见行为。</span>输入名字中间的几个字母就能看到该人的活动。</p>
+    <p><span class="k">剩余。</span>无。</p>
+  </article>
+
+  <article id="cr-038">
+    <h3>CR-038 线索负责人默认值 <span class="badge done">已完成</span></h3>
+    <p><span class="k">要求。</span>新建线索时，负责人先填上当前用户，但仍可改。</p>
+    <p><span class="k">今日。</span>添加线索把 Owner 设成当前登录用户名，下拉框保持可改。</p>
+    <p><span class="k">可见行为。</span>打开新建线索就能看到自己的名字，也可以改派给同事。</p>
+    <p><span class="k">剩余。</span>无。</p>
+  </article>
+
+  <article id="cr-039">
+    <h3>CR-039 按车辆搜索线索 <span class="badge done">已完成</span></h3>
+    <p><span class="k">要求。</span>线索页增加按车辆名称搜索的框。</p>
+    <p><span class="k">今日。</span>线索列表有车辆搜索。<span class="id">vehicle</span> 匹配年款、品牌、车型，也匹配 VIN。</p>
+    <p><span class="k">可见行为。</span>输入车型名称后列表只留相关线索。</p>
+    <p><span class="k">剩余。</span>无。</p>
+  </article>
+
+  <article id="cr-040">
+    <h3>CR-040 客户姓名边输边查 <span class="badge done">已完成</span></h3>
+    <p><span class="k">要求。</span>在线索页的客户姓名框里打字时，列表应像 DMS 和 CRM 那样自动更新。</p>
+    <p><span class="k">今日。</span>姓名输入停约 300 毫秒后重新请求线索列表。</p>
+    <p><span class="k">可见行为。</span>不用再点一次搜索按钮。</p>
+    <p><span class="k">剩余。</span>无。</p>
+  </article>
+
+  <article id="cr-041">
+    <h3>CR-041 重新打开线索 <span class="badge done">已完成</span></h3>
+    <p><span class="k">要求。</span>已关闭的线索要能重新打开，以便纠正误关。</p>
+    <p><span class="k">今日。</span><span class="id">LeadsPage.tsx</span> 对已关闭线索提供 Reopen as New、Contacted 或 Qualified，并调用重新打开接口。</p>
+    <p><span class="k">可见行为。</span>误关的线索可以回到未关闭阶段，丢失原因会被清掉，并写一条审计。</p>
+    <p><span class="k">剩余。</span>两种情况会拒绝：该线索已是赢单且车辆已卖给这名客户；重新打开会造成同一客户、同一车辆的第二条未关闭线索。按钮仍会显示，拒绝出现在点击之后。这是今日记下的规则，用来不推翻已记录的成交。</p>
+  </article>
+
+  <article id="cr-042">
+    <h3>CR-042 用线索数替换已购车辆列 <span class="badge done">已完成</span></h3>
+    <p><span class="k">要求。</span>CRM 的已购车辆列用处不大，改成该客户的线索。</p>
+    <p><span class="k">今日。</span><span class="id">CrmPage.tsx</span> 的列表列是 Leads（<span class="id">leadCount</span>）。没有 Vehicles purchased 列。</p>
+    <p><span class="k">可见行为。</span>客户列表直接看到此人有多少条线索。</p>
+    <p><span class="k">剩余。</span>无。</p>
+  </article>
+
+  <article id="cr-043">
+    <h3>CR-043 从客户菜单新建线索 <span class="badge done">已完成</span></h3>
+    <p><span class="k">要求。</span>在客户菜单里就能为该客户添加线索。</p>
+    <p><span class="k">今日。</span>打开客户抽屉有 New lead，链到 <span class="id">/leads?newLeadFor=客户编号</span>，并带上该客户。</p>
+    <p><span class="k">可见行为。</span>不用先离开 CRM 再手工重选客户。</p>
+    <p><span class="k">剩余。</span>无。</p>
+  </article>
+
+  <article id="cr-044">
+    <h3>CR-044 客户备注 <span class="badge done">已完成</span></h3>
+    <p><span class="k">要求。</span>客户菜单里要能给客户记备注。</p>
+    <p><span class="k">今日。</span><span class="id">CustomerEntity</span> 有 <span class="id">notes</span>。客户抽屉有 Notes 文本框，最长 2000 字，随客户一起保存。</p>
+    <p><span class="k">可见行为。</span>备注留在这名客户上，下次打开还能看到。</p>
+    <p><span class="k">剩余。</span>无。</p>
+  </article>
+
+  <article id="cr-045">
+    <h3>CR-045 重复客户先确认 <span class="badge done">已完成</span></h3>
+    <p><span class="k">要求。</span>新建客户时，若姓名、邮箱、电话或地址与已有客户相同，先提示并询问是否仍要新建。CRM 和从线索里新建客户都要这样。文档也写了编辑。</p>
+    <p><span class="k">今日。</span><span class="id">CustomerService.Duplicates</span> 按这四项比对。<span class="id">CrmPage.tsx</span> 弹出 “Possible duplicate customer”，确认后才保存。线索里新建客户走同一检查。</p>
+    <p><span class="k">可见行为。</span>提示会说出撞上的是姓名、邮箱、电话还是地址。取消则不保存。</p>
+    <p><span class="k">剩余。</span>无。</p>
+  </article>
+
+  <article id="cr-046">
+    <h3>CR-046 客户电话可以重复 <span class="badge done">已完成</span></h3>
+    <p><span class="k">要求。</span>客户电话不要唯一，因为多人可能共用一个号码，仍要各自的客户档案。账号电话不在这条里。</p>
+    <p><span class="k">今日。</span><span class="id">CustomerEntity.Phone</span> 没有唯一约束。创建和更新接受另一名客户已经用过的电话。<span class="id">AppDbContext</span> 仍对登录账号电话保留 <span class="id">uk_app_user_phone</span>。</p>
+    <p><span class="k">可见行为。</span>两名客户可以填同一个电话。两个登录账号不行。</p>
+    <p><span class="k">剩余。</span>无。</p>
+  </article>
+
+  <article id="cr-047">
+    <h3>CR-047 VIN 与车辆信息一致 <span class="badge done">已完成</span></h3>
+    <p><span class="k">要求。</span>DMS 里的 VIN 必须和车辆信息相符。</p>
+    <p><span class="k">今日。</span>中午只校验 VIN 第 10 位是否对得上年款。<span class="id">2173c9c2</span> 在 <span class="id">VehicleService.cs</span> 于创建和修改时调用 vPIC 解码，品牌、车型或年款与解码结果不一致就拒绝。解码没有返回年款时，退回第 10 位年份码。表单在保存前做同样的年份码检查。</p>
+    <p><span class="k">可见行为。</span>VIN 和所填品牌、车型、年份对不上时，保存失败并指出哪一项不一致。</p>
+    <p><span class="k">剩余。</span>解码服务不可达或不认识该 VIN 时，只剩年份码检查。1980 年以前或不是 17 位的 VIN 不走这套年份码。跟进记录写明没有用例断言“解码不一致被拒绝”，因为结果依赖外部服务。</p>
+  </article>
+
+  <article id="cr-048">
+    <h3>CR-048 Carfax 链接 <span class="badge partial">部分完成</span></h3>
+    <p><span class="k">要求。</span>DMS 的 Carfax URL 要独占，并且必须是真实的 Carfax 链接，否则不能保存。</p>
+    <p><span class="k">今日。</span><span class="id">VehicleService.RequireCarfaxLink</span> 与表单规则：非空值必须是 <span class="id">carfax.com</span> 或 <span class="id">carfax.ca</span>（含子域）上的 https。跟进记录把 “exclusive” 读成“只接受 Carfax 链接”。</p>
+    <p><span class="k">可见行为。</span>填了别的网站会被拒。留空可以保存。两辆车可以保存同一个 Carfax 地址。</p>
+    <p><span class="k">剩余。</span>没有“一个链接只能属于一辆车”，也没有“必须填写”。若独占是指全库唯一，这一条还没有做。</p>
+  </article>
+
+  <article id="cr-049">
+    <h3>CR-049 出售必须有买家 <span class="badge done">已完成</span></h3>
+    <p><span class="k">要求。</span>卖车前必须关联一名客户；也可以选 Other 并手填买家。</p>
+    <p><span class="k">今日。</span><span class="id">VehicleService</span> 要求 CRM 客户或手填姓名，否则 400，文案是 “Choose a customer, or Other with the buyer's name.” Other 写入 <span class="id">soldToName</span>，不新建客户。</p>
+    <p><span class="k">可见行为。</span>出售框的 Buyer 为必填。不选客户也不填姓名就不能确认出售。</p>
+    <p><span class="k">剩余。</span>无。</p>
+  </article>
+
+  <article id="cr-050">
+    <h3>CR-050 车辆上的线索 <span class="badge done">已完成</span></h3>
+    <p><span class="k">要求。</span>DMS 的车辆信息里加入该车的线索，并可以加一列线索数量。</p>
+    <p><span class="k">今日。</span>库存表有 Leads 列（<span class="id">leadCount</span>）。编辑抽屉里有 <span class="id">VehicleLeadsPanel</span>，列出这辆车的线索。</p>
+    <p><span class="k">可见行为。</span>不用离开 DMS 就能看到这辆车被多少条线索跟过，以及具体是哪些。</p>
+    <p><span class="k">剩余。</span>无。</p>
+  </article>
+
+  <article id="cr-051">
+    <h3>CR-051 重复线索 <span class="badge partial">部分完成</span></h3>
+    <p><span class="k">要求。</span>同一客户、同一车辆不能再建一条重复线索。</p>
+    <p><span class="k">今日。</span>店员创建、改车辆和重新打开时，若已有一条未关闭的相同客户与车辆线索，会被拒绝并提示去打开那一条。<span class="id">2173c9c2</span> 改了买家网站：<span class="id">BuyerSiteService.cs</span> 在已有未关闭线索时，把新询价写成该线索的备注，不再插第二条，也不再发第二条未处理通知。</p>
+    <p><span class="k">可见行为。</span>店内不能同时开着两条相同客户与车辆的线索。老客户再次从店铺询价时，内容追加到原线索。</p>
+    <p><span class="k">剩余。</span>已经赢单或丢单的线索不阻止再新建一条。数据库没有“经销商 + 客户 + 车辆”的唯一索引，靠保存前查询。已关闭后再开一条，严格说仍是文档里的重复。</p>
+  </article>
+
+  <article id="cr-052">
+    <h3>CR-052 卖车后关闭线索并打标签 <span class="badge partial">部分完成</span></h3>
+    <p><span class="k">要求。</span>车辆卖给某客户后，与该销售相关的线索应自动关闭，并把相应标签加到线索所关联的客户上。</p>
+    <p><span class="k">今日。</span><span class="id">VehicleService.CloseLeadsForSale</span> 在同一事务里关闭该车的未关闭线索。买家是 CRM 客户时，该客户的线索变为 Won，其余变为 Lost，原因 “Vehicle sold”。买家是 Other 时，该车全部未关闭线索变为 Lost。跟进记录把线索阶段当作“相应标签”。</p>
+    <p><span class="k">可见行为。</span>出售成功后，这辆车上的未关闭线索自己结束，销售人员不用逐条去关。</p>
+    <p><span class="k">剩余。</span>客户档案上没有新的标签字段，仍然只有姓名、邮箱、电话、地址和备注。已经是 Won 或 Lost 的线索保持原样。没有绑定这辆车的线索不会被关。</p>
+  </article>
+
+  <article id="cr-053">
+    <h3>CR-053 显示名改为全名 <span class="badge done">已完成</span></h3>
+    <p><span class="k">要求。</span>个人资料和管理员创建店员时，显示名应标成全名。</p>
+    <p><span class="k">今日。</span><span class="id">ProfilePage.tsx</span>、<span class="id">AdminPage.tsx</span> 和 <span class="id">TeamPage.tsx</span> 的字段标签都是 Full name。底层仍是 <span class="id">displayName</span>。</p>
+    <p><span class="k">可见行为。</span>用户看到的是 Full name，不再是 Display name。</p>
+    <p><span class="k">剩余。</span>无。</p>
+  </article>
+
+  <article id="cr-054">
+    <h3>CR-054 用户名错误要可读 <span class="badge done">已完成</span></h3>
+    <p><span class="k">要求。</span>为经销商创建店员时，用户名含非法字符不应返回难读的错误。</p>
+    <p><span class="k">今日。</span>非法用户名返回普通英文的字段错误，显示在店员抽屉的 Username 下面。</p>
+    <p><span class="k">可见行为。</span>管理员能看懂该改哪一项，而不是一条原始异常。</p>
+    <p><span class="k">剩余。</span>无。</p>
+  </article>
+
+  <article id="cr-055">
+    <h3>CR-055 平台管理员改为发加入申请 <span class="badge partial">部分完成</span></h3>
+    <p><span class="k">要求。</span>平台管理员不应直接把账号绑进经销商，只能向该店发送加入申请，以免管理员自行进入客户和车辆数据。</p>
+    <p><span class="k">今日。</span><span class="id">MembershipService</span>：店里已经有在职 Owner 时，管理员的创建或绑定只提交加入申请，由 Owner 在 Team &gt; Join requests 批准。店里还没有 Owner 时，同一次调用仍直接绑定，并把该人设为第一名 Owner。</p>
+    <p><span class="k">可见行为。</span>已有 Owner 的店，管理员看到的是“已发送加入申请”。空店的第一次绑定会立刻成为 Owner，按钮在这种情况下仍是直接绑定。</p>
+    <p><span class="k">剩余。</span>空店的第一名 Owner 仍是直接绑定。文档要求的是一律只发申请。今日把这次绑定写成必要例外，因为空店没有人能批准申请。中午的核对文件仍把“第一名经理直接绑定”写成缺口，晚上改成了第一名 Owner，行为同类。</p>
+  </article>
+
+  <article id="cr-056">
+    <h3>CR-056 移除待审账号 <span class="badge done">已完成</span></h3>
+    <p><span class="k">要求。</span>管理员要能移除待审账号。</p>
+    <p><span class="k">今日。</span>平台管理员在待审列表里软删除账号，删除前有确认框。</p>
+    <p><span class="k">可见行为。</span>确认后该账号从待审列表消失，登录资料按软删除处理。</p>
+    <p><span class="k">剩余。</span>无。</p>
+  </article>
+
+  <article id="cr-057">
+    <h3>CR-057 编辑待审账号 <span class="badge done">已完成</span></h3>
+    <p><span class="k">要求。</span>管理员要能改正待审账号里填错的信息，例如邮箱、电话、用户名。文档的 “such as” 不是封闭清单。</p>
+    <p><span class="k">今日。</span>待审账号可改用户名、邮箱和电话。</p>
+    <p><span class="k">可见行为。</span>创建时填错的这三项可以在批准前改正。</p>
+    <p><span class="k">剩余。</span>无。全名不在当前编辑项里；文档没有把它列为必须项。</p>
+  </article>
+
+  <article id="cr-058">
+    <h3>CR-058 管理审计的筛选顺序与变更搜索 <span class="badge done">已完成</span></h3>
+    <p><span class="k">要求。</span>平台管理员审计日志的搜索项与列顺序一致，并且也能按变更内容搜索。</p>
+    <p><span class="k">今日。</span>筛选顺序跟着列走到 Changes。<span class="id">q</span> 搜索保存下来的变更文本，并使用 CR-027 里修好的查询。</p>
+    <p><span class="k">可见行为。</span>管理员用和活动日志相同的方式搜变更，筛选项不再和表头错位。</p>
+    <p><span class="k">剩余。</span>无。</p>
+  </article>
+
+  <article id="cr-059">
+    <h3>CR-059 管理审计的部分匹配与日期标签 <span class="badge done">已完成</span></h3>
+    <p><span class="k">要求。</span>管理审计的搜索在只输入一部分时也要有结果，日期框要有标签。</p>
+    <p><span class="k">今日。</span>操作者和变更文本都是子串匹配。日期标签与 CR-026 相同，为 From date 和 To date。</p>
+    <p><span class="k">可见行为。</span>输入用户名或变更说明的片段即可看到匹配行。</p>
+    <p><span class="k">剩余。</span>无。</p>
+  </article>
+
+  <article id="cr-060">
+    <h3>CR-060 删除经销商要多一步确认 <span class="badge done">已完成</span></h3>
+    <p><span class="k">要求。</span>平台管理员可以删除经销商，但至少要多一步确认。文档写在 Dealerships &gt; Edit 下。</p>
+    <p><span class="k">今日。</span>删除是软删除，管理员必须输入该店的法定名称才能继续。按钮在经销商列表上，不在编辑抽屉里。</p>
+    <p><span class="k">可见行为。</span>打错名称无法删除。删除后店从正常列表中退出，历史仍保留。</p>
+    <p><span class="k">剩余。</span>无。确认步骤比文档要求的“至少一步”更具体：要键入法定名称。</p>
+  </article>
+
+  <article id="cr-061">
+    <h3>CR-061 删除用户要多一步确认 <span class="badge done">已完成</span></h3>
+    <p><span class="k">要求。</span>管理员可以删除用户，且至少要多一步确认。</p>
+    <p><span class="k">今日。</span>删除成员账号是软删除，管理员必须输入该用户名。待审账号另有一次确认后删除（CR-056）。</p>
+    <p><span class="k">可见行为。</span>不能靠一次点击删掉用户。最后一名 Owner 在店里还有其他人时会被 409 LAST_OWNER 拒绝。</p>
+    <p><span class="k">剩余。</span>无。</p>
+  </article>
+
+  <article id="cr-062">
+    <h3>CR-062 编辑账号的邮箱或电话 <span class="badge done">已完成</span></h3>
+    <p><span class="k">要求。</span>管理员要能编辑账号上的部分信息，例如邮箱或电话。</p>
+    <p><span class="k">今日。</span>平台管理员可以改成员的邮箱和电话。待审账号的编辑见 CR-057。</p>
+    <p><span class="k">可见行为。</span>联系方式填错时，管理员可以改正，不必让用户自己重开账号。</p>
+    <p><span class="k">剩余。</span>无。Owner 不能改登录邮箱，那是 CR-010 的范围决定。</p>
+  </article>
+
+  <article id="cr-063">
+    <h3>CR-063 示例广告指向注册 <span class="badge done">已完成</span></h3>
+    <p><span class="k">要求。</span>首页示例广告现在指向登录页。点击的人多半是潜在用户，应指向注册页。</p>
+    <p><span class="k">今日。</span><span class="id">d17858f0</span> 把展开后的示例广告改成 “Check your own ads”，链接到 <span class="id">/register</span>。同一天早些时候曾把它留在登录页，该决定在这最后一笔提交里撤回。首页创建账号按钮仍然没有。</p>
+    <p><span class="k">可见行为。</span>从示例广告进去的是注册，不是登录。</p>
+    <p><span class="k">剩余。</span>跟进记录写明：等 CR-009 的经销商咨询做出来后，广告应改指那里，而不是继续进入自助注册。</p>
+  </article>
+
+  <article id="cr-064">
+    <h3>CR-064 首页说明受众 <span class="badge done">已完成</span></h3>
+    <p><span class="k">要求。</span>首页要用更显眼的方式说明这个页面是给经销商的，不是给买车客户的。</p>
+    <p><span class="k">今日。</span><span class="id">LandingPage.tsx</span> 在主视觉上方有一行强调文字：Dealer Ops is software for car dealerships, not a place to buy a car.</p>
+    <p><span class="k">可见行为。</span>进首页首先看到这句，下面仍有通往店铺的链接，给真正想看车的人。</p>
+    <p><span class="k">剩余。</span>无。</p>
+  </article>
+
+  <article id="cr-065">
+    <h3>CR-065 店铺不要写 used <span class="badge done">已完成</span></h3>
+    <p><span class="k">要求。</span>经销商店铺页不应写 “used”，因为店里也有新车。</p>
+    <p><span class="k">今日。</span><span class="id">ShopPage.tsx</span> 的目录标题是 “Shop vehicles.” 页面不把库存标成二手。</p>
+    <p><span class="k">可见行为。</span>访客看到的是车辆目录，不是二手车专区。</p>
+    <p><span class="k">剩余。</span>无。</p>
+  </article>
+
+  <article id="cr-066">
+    <h3>CR-066 搜索经销商并展示联系方式 <span class="badge done">已完成</span></h3>
+    <p><span class="k">要求。</span>店铺页要能搜索经销商，并在每张店卡上列出地址和一些联系方式。</p>
+    <p><span class="k">今日。</span><span class="id">/shop</span> 按店名和地址搜索。每张卡展示地址、电话和邮箱。公开接口的联系字段写在 API 合同里。</p>
+    <p><span class="k">可见行为。</span>输入城市或店名可以缩小目录，不用点进去就看得到怎么联系。</p>
+    <p><span class="k">剩余。</span>无。</p>
+  </article>
+
+  <article id="cr-067">
+    <h3>CR-067 返回与店内库存搜索 <span class="badge done">已完成</span></h3>
+    <p><span class="k">要求。</span>经销商买家站点要有返回按钮，并要能按具体车辆搜索该店库存。文档原文在 vehicle 后截断。</p>
+    <p><span class="k">今日。</span><span class="id">ShopPage.tsx</span> 有 “← Back to dealerships”，链回 <span class="id">/shop</span>。店内库存可按年份、品牌和车型搜索。</p>
+    <p><span class="k">可见行为。</span>看完一家店可以回到目录，也可以在该店里缩小到某一款车。</p>
+    <p><span class="k">剩余。</span>无。</p>
+  </article>
+
+  <article id="cr-068">
+    <h3>CR-068 询价字数提示 <span class="badge done">已完成</span></h3>
+    <p><span class="k">要求。</span>询问某辆车时，字数快到上限才需要把上限显示出来。</p>
+    <p><span class="k">今日。</span>留言上限 1000 字。<span class="id">ShopPage.tsx</span> 在剩余不超过 50 字时显示 “n of 1000 characters left”。</p>
+    <p><span class="k">可见行为。</span>刚开始打字时不显示计数；快写满时才出现剩余字数。</p>
+    <p><span class="k">剩余。</span>无。“接近”没有精确数字，50 字是今日采用的阈值。</p>
+  </article>
+
+  <h2>完成情况</h2>
+  <div class="wrap">
+    <table>
+      <thead><tr><th>状态</th><th>条数</th><th>编号</th></tr></thead>
+      <tbody>
+        <tr><td><span class="badge done">已完成</span></td><td>62</td><td>CR-001 至 CR-008，CR-011 至 CR-047，CR-049，CR-050，CR-053，CR-054，CR-056 至 CR-068</td></tr>
+        <tr><td><span class="badge partial">部分完成</span></td><td>6</td><td>CR-009 咨询入口未做；CR-010 没有区域经理，Owner 也没有平台管理员级账号权限；CR-048 Carfax 链接不唯一且可留空；CR-051 已关闭线索不阻止再开一条；CR-052 客户档案上没有标签；CR-055 空店的第一名 Owner 仍直接绑定</td></tr>
+        <tr><td><span class="badge none">今日未涉及</span></td><td>0</td><td>无。68 条都在今天的实现、核对或书面决定里处理过。</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>已完成表示当前 .NET 与 React 代码满足该条的主要行为，并已在对应文件里核对。部分完成表示主要句子里仍有一块没有落地；今日书面决定把其中几块收成可接受的边界，汇报仍按原文记为部分完成，避免把决定说成文档原文已经全部满足。</p>
+  <p>中午写入的 <span class="id">requirements/iteration-2/implementation-check/IMPLEMENTATION-CHECK-SUMMARY.md</span> 仍是收口前的 54 / 13 / 1。晚上的服务端排序、Location、VIN 解码、买家网站备注和 Owner 层级以代码和 <span class="id">requirements/iteration-2/CR-Followup-2026-11-03.md</span> 第 7 节为准，不以那份旧计数为准。</p>
+  <footer>
+    <p>现行栈是 .NET 10 后端与 React 前端。今天的功能提交没有把 Java 或 Vue 当作交付物。数据补丁说明在 <span class="id">deploy/ROLE-MIGRATION-2026-11-03.md</span>：补丁只跑一次，恢复今天之前的数据库转储会按资历重新推导 Owner。</p>
+  </footer>
+</main>
+</body>
+</html>

@@ -158,7 +158,7 @@ A requirement counts as accepted only after step 4 passes for every AT that cove
 2. Open `http://localhost:5173/login` and sign in as the seeded admin `admin` / `admin123` (the local defaults only).
 3. Create the test data. There is no seeded business data.
    - On `/admin`, create dealerships A and B, filling all four profile fields.
-   - Bind staff `a1` and `a2` to A and `b1` to B. Give each a temporary password of at least 8 characters.
+   - Bind `a1` to A and `b1` to B. Each dealership is still empty, so this first bind is the bootstrap bind and the account becomes that dealership's `OWNER`. Add `a2` to A the way a second member joins: the admin's bind files a join request, which `a1` approves from `/team`, and `a2` joins as `SALES`. Give each a temporary password of at least 8 characters.
 4. For the ad cases, sign in as `a1` and add the design/17 vehicles. Set dealership A's profile to the design/17 values, or create a third dealership with that profile.
 5. For API-level checks, use Swagger at `http://localhost:8080/swagger-ui/index.html` with the bearer token returned by login.
    - Always call through the gateway on 8080.
@@ -195,7 +195,7 @@ A requirement counts as accepted only after step 4 passes for every AT that cove
     - Server field errors appear on the matching field.
     - Sell is a separate action that takes the date and the price together.
     - After a sale, the locked fields are read-only.
-  - **CRM (UI-30..33):** the list has the right columns, search and the linked filter. The link drop-down offers only unlinked vehicles from the dealership. The duplicate-email warning shows but does not block saving (CRM-13).
+  - **CRM (UI-30..33):** the list has the right columns, search and the linked filter. The link drop-down offers only unlinked vehicles from the dealership. No customer field is unique: a duplicate name, email, phone or address asks for confirmation and saves once the user confirms, and a duplicate email also returns the non-blocking warning (CRM-13).
   - **Ads (UI-40..46):**
     - The checklist changes with kind and medium, and it has no answer fields.
     - The Check button shows a loading state for up to 15 s.
