@@ -1,0 +1,1288 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DealerOps Test Evidence</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@500;600;700&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap">
+
+<style>
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --surface-sunk: #eceff3;
+  --zone: rgba(47, 93, 124, 0.045);
+  --node: #ffffff;
+  --node-line: #4a5260;
+  --fg: #14171c;
+  --fg-dim: #555d69;
+  --fg-faint: #858d99;
+  --line: #d4d9e0;
+  --line-soft: #e5e8ed;
+  --accent: #2f5d7c;
+  --accent-soft: #e2ecf3;
+  --pass: #276a48;
+  --finding: #8c4a18;
+  --shadow: 0 1px 2px rgba(16, 22, 30, 0.05), 0 8px 24px -12px rgba(16, 22, 30, 0.12);
+
+  --font-display: "IBM Plex Sans Condensed", "Helvetica Neue", Arial, sans-serif;
+  --font-body: "IBM Plex Sans", "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f1216;
+    --surface: #171b21;
+    --surface-sunk: #1e232b;
+    --zone: rgba(127, 179, 212, 0.055);
+    --node: #1c2129;
+    --node-line: #8d97a6;
+    --fg: #e9ebef;
+    --fg-dim: #a3abb7;
+    --fg-faint: #78808d;
+    --line: #2c333d;
+    --line-soft: #232931;
+    --accent: #83b7d8;
+    --accent-soft: #1a2833;
+    --pass: #7cc9a0;
+    --finding: #dda06a;
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 10px 28px -14px rgba(0, 0, 0, 0.6);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f1216;
+  --surface: #171b21;
+  --surface-sunk: #1e232b;
+  --zone: rgba(127, 179, 212, 0.055);
+  --node: #1c2129;
+  --node-line: #8d97a6;
+  --fg: #e9ebef;
+  --fg-dim: #a3abb7;
+  --fg-faint: #78808d;
+  --line: #2c333d;
+  --line-soft: #232931;
+  --accent: #83b7d8;
+  --accent-soft: #1a2833;
+  --pass: #7cc9a0;
+  --finding: #dda06a;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 10px 28px -14px rgba(0, 0, 0, 0.6);
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-body);
+  font-size: 16px;
+  line-height: 1.62;
+  margin: 0;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+.wrap {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-bottom: 72px;
+}
+.measure { max-width: 70ch; }
+
+/* ───────── sticky contents bar ───────── */
+
+nav.toc {
+  position: sticky;
+  top: 0;
+  z-index: 8;
+  margin-left: calc(-1 * max(16px, env(safe-area-inset-left, 0px)));
+  margin-right: calc(-1 * max(16px, env(safe-area-inset-right, 0px)));
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  background: var(--bg);
+  background: color-mix(in srgb, var(--bg) 88%, transparent);
+  backdrop-filter: saturate(1.4) blur(10px);
+  -webkit-backdrop-filter: saturate(1.4) blur(10px);
+  border-bottom: 1px solid var(--line);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+nav.toc::-webkit-scrollbar { display: none; }
+nav.toc ol {
+  display: flex;
+  gap: 0;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  min-width: max-content;
+}
+nav.toc a {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--fg-dim);
+  text-decoration: none;
+  padding: 11px 15px;
+  border-bottom: 2px solid transparent;
+  white-space: nowrap;
+}
+nav.toc a:hover { color: var(--fg); border-bottom-color: var(--accent); }
+nav.toc a b { color: var(--accent); font-weight: 600; margin-right: 6px; }
+
+/* ───────── masthead ───────── */
+
+.masthead {
+  position: relative;
+  border-bottom: 1px solid var(--line);
+  padding-block: 52px 32px;
+  margin-bottom: 0;
+  overflow: hidden;
+}
+.masthead::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(circle at 1px 1px, var(--line) 1px, transparent 0);
+  background-size: 22px 22px;
+  opacity: 0.55;
+  mask-image: linear-gradient(105deg, transparent 38%, #000 100%);
+  -webkit-mask-image: linear-gradient(105deg, transparent 38%, #000 100%);
+  pointer-events: none;
+}
+.masthead > * { position: relative; }
+.kicker {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin: 0 0 18px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.kicker::before {
+  content: "";
+  width: 28px;
+  height: 2px;
+  background: var(--accent);
+  flex: none;
+}
+h1 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(2.2rem, 6.4vw, 3.7rem);
+  line-height: 1.0;
+  letter-spacing: -0.018em;
+  text-wrap: balance;
+  margin: 0 0 20px;
+  max-width: 24ch;
+}
+.standfirst {
+  font-size: clamp(1.02rem, 2.3vw, 1.17rem);
+  line-height: 1.58;
+  color: var(--fg-dim);
+  margin: 0;
+  max-width: 64ch;
+}
+.byline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0;
+  margin: 32px 0 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--line-soft);
+}
+.byline li {
+  padding: 12px 26px 0 0;
+  margin-right: 26px;
+  border-right: 1px solid var(--line-soft);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--fg-dim);
+  line-height: 1.5;
+}
+.byline li:last-child { border-right: 0; margin-right: 0; }
+.byline span {
+  display: block;
+  font-size: 9.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--fg-faint);
+}
+.byline b { color: var(--fg); font-weight: 500; }
+
+/* ───────── headings & prose ───────── */
+
+h2 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(1.5rem, 3.8vw, 2.05rem);
+  line-height: 1.1;
+  letter-spacing: -0.012em;
+  text-wrap: balance;
+  margin: 0 0 7px;
+}
+h3 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 1.14rem;
+  letter-spacing: 0.004em;
+  margin: 36px 0 9px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line-soft);
+  max-width: 70ch;
+}
+h4 { font-family: var(--font-display); margin: 0; }
+p { margin: 0 0 15px; }
+
+code, .mono { font-family: var(--font-mono); font-size: 0.855em; }
+code {
+  background: var(--surface-sunk);
+  border: 1px solid var(--line-soft);
+  border-radius: 3px;
+  padding: 0.1em 0.36em;
+  overflow-wrap: break-word;
+}
+a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+a:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+
+ul.tight { margin: 0 0 15px; padding-left: 0; list-style: none; max-width: 70ch; }
+ul.tight li {
+  position: relative;
+  padding-left: 20px;
+  margin-bottom: 10px;
+}
+ul.tight li::before {
+  content: "";
+  position: absolute;
+  left: 2px;
+  top: 0.68em;
+  width: 7px;
+  height: 1.5px;
+  background: var(--accent);
+}
+
+pre {
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  line-height: 1.6;
+  background: var(--surface-sunk);
+  border: 1px solid var(--line-soft);
+  border-left: 3px solid var(--line);
+  border-radius: 0 4px 4px 0;
+  padding: 14px 16px;
+  overflow-x: auto;
+  margin: 0 0 15px;
+}
+
+/* ───────── overview + key ───────── */
+
+.section-label {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--fg-faint);
+  margin: 0 0 14px;
+}
+
+.rail { overflow-x: auto; border-radius: 4px; }
+table { border-collapse: collapse; width: 100%; min-width: 720px; font-size: 14px; }
+th, td { text-align: left; vertical-align: top; padding: 12px 16px 12px 0; border-bottom: 1px solid var(--line-soft); }
+thead th {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--fg-faint);
+  border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+  padding-top: 0;
+}
+tbody tr:last-child td, tbody tr:last-child th { border-bottom: 0; }
+tbody th {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--accent);
+  white-space: nowrap;
+  width: 1%;
+}
+td.num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+td b { font-weight: 600; }
+
+.pill {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 2px 8px;
+  border-radius: 100px;
+  border: 1px solid currentColor;
+  white-space: nowrap;
+}
+.p-yes { color: var(--pass); }
+.p-no { color: var(--fg-faint); }
+
+.key {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 1px;
+  background: var(--line-soft);
+  border: 1px solid var(--line-soft);
+  border-radius: 4px;
+  overflow: hidden;
+  margin: 34px 0 8px;
+}
+.key > div {
+  background: var(--surface);
+  padding: 14px 16px;
+  display: flex;
+  gap: 11px;
+  align-items: flex-start;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--fg-dim);
+}
+.key svg { flex: none; margin-top: 3px; }
+.key b { color: var(--fg); font-weight: 600; display: block; font-size: 13px; }
+
+/* ───────── task sections ───────── */
+
+.task { border-top: 1px solid var(--line); padding-block: 44px 10px; scroll-margin-top: 52px; }
+.task-head { display: grid; grid-template-columns: auto 1fr; gap: 2px 22px; align-items: start; margin-bottom: 24px; }
+.ord {
+  grid-row: span 2;
+  font-family: var(--font-display);
+  font-size: clamp(2.6rem, 7vw, 3.6rem);
+  font-weight: 700;
+  line-height: 0.82;
+  letter-spacing: -0.03em;
+  color: transparent;
+  -webkit-text-stroke: 1.5px var(--accent);
+  font-variant-numeric: tabular-nums;
+  user-select: none;
+}
+.technique {
+  grid-column: 2;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin: 0;
+}
+
+.strip {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(146px, 1fr));
+  gap: 1px;
+  background: var(--line-soft);
+  border: 1px solid var(--line-soft);
+  border-radius: 4px;
+  overflow: hidden;
+  margin: 0 0 30px;
+}
+.strip div { background: var(--surface); padding: 13px 16px 14px; }
+.strip dt {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--fg-faint);
+  margin: 0 0 5px;
+}
+.strip dd {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.08rem;
+  font-weight: 600;
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+}
+.v-pass { color: var(--pass); }
+.v-find { color: var(--finding); }
+
+/* ───────── figures ───────── */
+
+figure { margin: 34px 0; padding: 0; }
+.fig-frame {
+  position: relative;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  padding: 30px 22px 24px;
+}
+.fig-no {
+  position: absolute;
+  top: 0;
+  left: 20px;
+  transform: translateY(-50%);
+  background: var(--bg);
+  padding: 0 11px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.fig-scroll { overflow-x: auto; }
+.fig-frame svg.dia { display: block; width: 100%; min-width: 640px; height: auto; color: var(--fg); }
+figcaption {
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: var(--fg-dim);
+  margin-top: 14px;
+  max-width: 72ch;
+  padding-left: 14px;
+  border-left: 2px solid var(--accent);
+}
+figcaption b { color: var(--fg); font-weight: 600; }
+
+.legend {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(176px, 1fr));
+  gap: 10px 20px;
+  list-style: none;
+  margin: 22px 0 0;
+  padding: 18px 0 0;
+  border-top: 1px solid var(--line-soft);
+}
+.legend li { display: flex; gap: 10px; font-size: 12.5px; line-height: 1.4; color: var(--fg-dim); }
+.legend i {
+  flex: none;
+  width: 21px;
+  height: 21px;
+  border-radius: 100px;
+  background: var(--accent);
+  color: var(--surface);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 600;
+  display: grid;
+  place-items: center;
+}
+.legend b { color: var(--fg); font-weight: 600; }
+
+/* ───────── finding callout ───────── */
+
+.finding {
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: var(--surface);
+  margin: 30px 0;
+  overflow: hidden;
+  max-width: 76ch;
+}
+.finding > .tag {
+  display: block;
+  background: var(--finding);
+  color: var(--bg);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  padding: 6px 18px;
+}
+.finding .body { padding: 16px 18px 18px; }
+.finding h4 { font-size: 1.04rem; font-weight: 700; margin: 0 0 9px; line-height: 1.25; }
+.finding p { margin: 0 0 11px; font-size: 15px; }
+.finding p:last-child { margin: 0; }
+
+.files {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--fg-dim);
+  border-top: 1px solid var(--line-soft);
+  padding-top: 13px;
+  margin-top: 30px;
+  line-height: 1.8;
+}
+.files b {
+  color: var(--fg-faint);
+  font-weight: 600;
+  font-size: 9.5px;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  margin-right: 10px;
+}
+
+footer { border-top: 1px solid var(--line); margin-top: 52px; padding-top: 30px; }
+footer h2 { margin-bottom: 16px; }
+footer p { font-size: 15px; color: var(--fg-dim); max-width: 70ch; }
+footer p.fine { color: var(--fg-faint); font-size: 13.5px; margin-top: 22px; padding-top: 18px; border-top: 1px solid var(--line-soft); }
+
+/* ───────── shared SVG vocabulary ───────── */
+
+svg.dia text { font-family: var(--font-body); fill: var(--fg); }
+svg.dia .t-ttl { font-family: var(--font-display); font-size: 14px; font-weight: 600; }
+svg.dia .t-sub { font-size: 10.5px; fill: var(--fg-dim); }
+svg.dia .t-mono { font-family: var(--font-mono); font-size: 11.5px; }
+svg.dia .nd { fill: var(--node); stroke: var(--node-line); stroke-width: 1.5; }
+svg.dia .nd-sunk { fill: var(--surface-sunk); stroke: var(--line); stroke-width: 1.2; }
+svg.dia .lane { fill: var(--surface-sunk); stroke: var(--line-soft); stroke-width: 1; }
+svg.dia .zone { fill: var(--zone); stroke: var(--line); stroke-width: 1.2; stroke-dasharray: 7 5; }
+svg.dia .zone-lbl { font-family: var(--font-mono); font-size: 9.5px; letter-spacing: 0.14em; fill: var(--fg-faint); }
+svg.dia .flow { stroke: var(--node-line); stroke-width: 1.6; fill: none; }
+svg.dia .flow-soft { stroke: var(--fg-faint); stroke-width: 1.4; fill: none; stroke-dasharray: 6 5; }
+svg.dia .flow-hot { stroke: var(--finding); stroke-width: 2; fill: none; }
+svg.dia .flow-ok { stroke: var(--pass); stroke-width: 1.8; fill: none; }
+svg.dia .grid { stroke: var(--line); stroke-width: 1; fill: none; stroke-dasharray: 4 4; }
+svg.dia .e, svg.dia .e-ok, svg.dia .e-hot, svg.dia .e-ac {
+  font-size: 10.5px;
+  paint-order: stroke;
+  stroke: var(--bg);
+  stroke-width: 4px;
+  stroke-linejoin: round;
+}
+svg.dia .e { fill: var(--fg-dim); }
+svg.dia .e-ok { fill: var(--pass); font-weight: 600; }
+svg.dia .e-hot { fill: var(--finding); font-weight: 600; }
+svg.dia .e-ac { fill: var(--accent); font-weight: 600; }
+svg.dia .run-chip { font-family: var(--font-mono); font-size: 10px; font-weight: 600; letter-spacing: 0.14em; fill: var(--accent); }
+svg.dia .res-ok { font-family: var(--font-display); font-size: 16px; font-weight: 700; fill: var(--pass); }
+svg.dia .res-hot { font-family: var(--font-display); font-size: 16px; font-weight: 700; fill: var(--finding); }
+svg.dia .bdg { fill: var(--accent); }
+svg.dia .bdg-t { font-family: var(--font-mono); font-size: 11px; font-weight: 600; fill: var(--surface); }
+svg.dia .ax { stroke: var(--fg-dim); stroke-width: 1.3; fill: none; }
+svg.dia .tick { font-family: var(--font-mono); font-size: 10.5px; fill: var(--fg-dim); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<!-- shared arrowhead markers, referenced by every figure on this page -->
+<svg aria-hidden="true" focusable="false" width="0" height="0" style="position:absolute;width:0;height:0;overflow:hidden">
+  <defs>
+    <marker id="ar" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="7.5" markerHeight="7.5" orient="auto-start-reverse">
+      <path d="M0.5,1 L10.5,6 L0.5,11 z" fill="var(--node-line)"/>
+    </marker>
+    <marker id="ar-soft" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0.5,1 L10.5,6 L0.5,11 z" fill="var(--fg-faint)"/>
+    </marker>
+    <marker id="ar-ok" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0.5,1 L10.5,6 L0.5,11 z" fill="var(--pass)"/>
+    </marker>
+    <marker id="ar-hot" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0.5,1 L10.5,6 L0.5,11 z" fill="var(--finding)"/>
+    </marker>
+  </defs>
+</svg>
+
+<header class="masthead">
+  <p class="kicker">CPRG-305-B &middot; Software Testing &middot; Bonus work</p>
+  <h1>Five testing tasks on a live capstone</h1>
+  <p class="standfirst">All five optional tasks from <span class="mono">ai-test.md</span>, applied to the DealerOps dealership platform. Four of the five were executed against the running system; this report explains what each task does, how it was verified, and the six defects and unstated behaviours the execution exposed.</p>
+  <ul class="byline">
+    <li><span>Author</span><b>Yuandong Yang</b></li>
+    <li><span>Student ID</span>000949205</li>
+    <li><span>Course</span>CPRG-305-B</li>
+    <li><span>Date</span>2026-11-05</li>
+  </ul>
+</header>
+
+<nav class="toc" aria-label="Contents">
+  <ol>
+    <li><a href="#sut">System under test</a></li>
+    <li><a href="#t1"><b>01</b>State &amp; decision tables</a></li>
+    <li><a href="#t2"><b>02</b>Generated test cases</a></li>
+    <li><a href="#t3"><b>03</b>Boundary values</a></li>
+    <li><a href="#t4"><b>04</b>AI chatbot</a></li>
+    <li><a href="#t5"><b>05</b>Automated tests</a></li>
+    <li><a href="#close">What they share</a></li>
+  </ol>
+</nav>
+
+<section id="sut" style="padding-top:44px;scroll-margin-top:52px">
+  <p class="section-label">Context</p>
+  <div class="measure">
+    <h2>What the system under test is</h2>
+    <p>DealerOps is a multi-tenant dealership platform: a React front end, a .NET 10 API split into three services, and MySQL. Multi-tenancy is the property most of these tests probe — one dealership's staff must never see another's vehicles, customers or leads — and it is enforced per request from a membership table rather than from the sign-in token.</p>
+    <p>The five tasks attach to that system at four different depths. One reads source code and never runs it. Two drive the public HTTP API. One reaches inside the service-to-service boundary to observe what leaves the trusted side. One compiles against a DTO to read the validation rules the product declares.</p>
+  </div>
+
+  <figure>
+    <div class="fig-frame">
+      <span class="fig-no">Fig. 1 &middot; Architecture</span>
+      <div class="fig-scroll">
+      <svg class="dia" viewBox="0 0 1000 408" role="img" aria-label="Architecture of the DealerOps services under test. The browser reaches only the gateway; the gateway routes to core, which owns MySQL and calls the AI service. Task 1 reads core's source without running it, tasks 2, 3 and 5 drive the public API through the gateway, and task 4 additionally opens the core-to-AI-service hop, which is the point where data would have to cross the trusted boundary.">
+        <!-- zones -->
+        <rect class="zone" x="200" y="56" width="600" height="304" rx="8"/>
+        <text class="zone-lbl" x="214" y="78">TRUSTED SERVER SIDE</text>
+        <text class="zone-lbl" x="824" y="230">EXTERNAL</text>
+
+        <!-- browser -->
+        <rect class="nd" x="24" y="96" width="152" height="72" rx="7"/>
+        <rect x="29" y="106" width="3" height="52" rx="1.5" fill="var(--fg-faint)"/>
+        <text class="t-ttl" x="44" y="126">Browser</text>
+        <text class="t-sub" x="44" y="145">React front end</text>
+        <text class="t-sub" x="44" y="159">:5175</text>
+
+        <!-- gateway -->
+        <rect class="nd" x="216" y="96" width="152" height="72" rx="7"/>
+        <rect x="221" y="106" width="3" height="52" rx="1.5" fill="var(--accent)"/>
+        <text class="t-ttl" x="236" y="126">Gateway</text>
+        <text class="t-sub" x="236" y="145">the only entry point</text>
+        <text class="t-sub" x="236" y="159">:18080</text>
+
+        <!-- core -->
+        <rect class="nd" x="416" y="96" width="152" height="72" rx="7"/>
+        <rect x="421" y="106" width="3" height="52" rx="1.5" fill="var(--accent)"/>
+        <text class="t-ttl" x="436" y="126">Core</text>
+        <text class="t-sub" x="436" y="145">rules and tenancy</text>
+        <text class="t-sub" x="436" y="159">:18081</text>
+
+        <!-- mysql -->
+        <rect class="nd" x="616" y="96" width="152" height="72" rx="7"/>
+        <rect x="621" y="106" width="3" height="52" rx="1.5" fill="var(--accent)"/>
+        <text class="t-ttl" x="636" y="126">MySQL</text>
+        <text class="t-mono" x="636" y="147">dealer_core_e2e</text>
+        <text class="t-sub" x="636" y="161">throwaway schema</text>
+
+        <!-- aiservice -->
+        <rect class="nd" x="416" y="248" width="152" height="72" rx="7"/>
+        <rect x="421" y="258" width="3" height="52" rx="1.5" fill="var(--accent)"/>
+        <text class="t-ttl" x="436" y="278">AiService</text>
+        <text class="t-sub" x="436" y="297">no database access</text>
+        <text class="t-sub" x="436" y="311">:8082</text>
+
+        <!-- provider -->
+        <rect class="nd-sunk" x="824" y="248" width="152" height="72" rx="7"/>
+        <text class="t-ttl" x="844" y="278" fill="var(--fg-faint)">Model provider</text>
+        <text class="t-sub" x="844" y="297" fill="var(--fg-faint)">no key in this run</text>
+        <text class="t-sub" x="844" y="311" fill="var(--fg-faint)">every call 503</text>
+
+        <!-- flows -->
+        <line class="flow" x1="176" y1="132" x2="210" y2="132" marker-end="url(#ar)"/>
+        <line class="flow" x1="368" y1="132" x2="410" y2="132" marker-end="url(#ar)"/>
+        <line class="flow" x1="568" y1="132" x2="610" y2="132" marker-end="url(#ar)"/>
+        <text class="e" x="193" y="122" text-anchor="middle">HTTPS</text>
+        <text class="e" x="389" y="122" text-anchor="middle">JWT</text>
+        <text class="e" x="589" y="122" text-anchor="middle">EF Core</text>
+
+        <line class="flow" x1="492" y1="168" x2="492" y2="242" marker-end="url(#ar)"/>
+        <line class="flow-soft" x1="568" y1="284" x2="818" y2="284" marker-end="url(#ar-soft)"/>
+        <text class="e" x="596" y="276">outbound model call — unavailable all run</text>
+
+        <!-- inspection bracket -->
+        <path class="flow-hot" d="M468,180 L454,180 L454,232 L468,232"/>
+        <text class="e-hot" x="444" y="200" text-anchor="end">inspection</text>
+        <text class="e-hot" x="444" y="214" text-anchor="end">point</text>
+
+        <!-- task badges -->
+        <circle class="bdg" cx="416" cy="96" r="13"/>
+        <text class="bdg-t" x="416" y="100" text-anchor="middle">1</text>
+
+        <circle class="bdg" cx="266" cy="208" r="12"/>
+        <text class="bdg-t" x="266" y="212" text-anchor="middle">2</text>
+        <circle class="bdg" cx="292" cy="208" r="12"/>
+        <text class="bdg-t" x="292" y="212" text-anchor="middle">3</text>
+        <circle class="bdg" cx="318" cy="208" r="12"/>
+        <text class="bdg-t" x="318" y="212" text-anchor="middle">5</text>
+        <text class="e" x="292" y="238" text-anchor="middle">drive the public API</text>
+
+        <circle class="bdg" cx="492" cy="208" r="12"/>
+        <text class="bdg-t" x="492" y="212" text-anchor="middle">4</text>
+        <text class="e" x="514" y="204">opens the service-to-service hop:</text>
+        <text class="e" x="514" y="218">the only task that does</text>
+
+        <text class="e" x="200" y="388">A browser client calling :18081 or :8082 directly gets nothing — confirmed during task 4.</text>
+      </svg>
+      </div>
+      <ul class="legend">
+        <li><i>1</i><span><b>Static reading</b>Derives tables from core's service layer; starts no process.</span></li>
+        <li><i>2</i><span><b>Register and sign-in</b>Black-box cases, five of them executed.</span></li>
+        <li><i>3</i><span><b>Field boundaries</b>All forty cases executed through the gateway.</span></li>
+        <li><i>4</i><span><b>Assistant</b>Reads both the public answer and the model payload.</span></li>
+        <li><i>5</i><span><b>Validation rule</b>Compiles against the DTO, then checks it over HTTP.</span></li>
+      </ul>
+    </div>
+    <figcaption>Where each task attaches. Tasks 2, 3 and 5 exercise the product the way a client does. Task 4 is the only one that opens the <b>core-to-AiService</b> hop, which is where a tenancy or privacy leak would actually have to travel. Task 1 never starts a process.</figcaption>
+  </figure>
+
+  <p class="section-label" style="margin-top:44px">Overview</p>
+  <div class="rail">
+  <table>
+    <thead>
+      <tr><th>#</th><th>Task</th><th>Technique</th><th>Executed</th><th>Cases</th><th>Headline result</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <th>01</th>
+        <td><b>State transition &amp; decision tables</b></td>
+        <td>Specification, no AI</td>
+        <td><span class="pill p-no">By design, no</span></td>
+        <td class="num">19 + 12</td>
+        <td>Three rules the prose never states</td>
+      </tr>
+      <tr>
+        <th>02</th>
+        <td><b>AI-generated test cases</b></td>
+        <td>Review, then verify</td>
+        <td><span class="pill p-yes">Partly</span></td>
+        <td class="num">5 of 48</td>
+        <td>One expected result wrong; the improved set inherited it</td>
+      </tr>
+      <tr>
+        <th>03</th>
+        <td><b>Boundary value testing</b></td>
+        <td>Partitions and boundaries</td>
+        <td><span class="pill p-yes">Yes</span></td>
+        <td class="num">40</td>
+        <td>Two expected results wrong; four open questions answered</td>
+      </tr>
+      <tr>
+        <th>04</th>
+        <td><b>Testing an AI chatbot</b></td>
+        <td>Compliance probing</td>
+        <td><span class="pill p-yes">Yes</span></td>
+        <td class="num">~30 asks</td>
+        <td>Two fixture VINs impossible; links filtered, prose not</td>
+      </tr>
+      <tr>
+        <th>05</th>
+        <td><b>AI-generated automated tests</b></td>
+        <td>Differential testing</td>
+        <td><span class="pill p-yes">Yes</span></td>
+        <td class="num">106</td>
+        <td>Generated tests could not fail; the obvious oracle was wrong</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+  <p class="measure" style="font-size:14px;color:var(--fg-dim);margin-top:16px">Tasks 2 to 5 are AI-related, so each carries the prompt, the unedited AI answer, and a reflection. Task 1 is not an AI task and carries none; padding it with an empty prompt file would misrepresent how it was made.</p>
+
+  <p class="section-label" style="margin-top:44px">How to read the figures</p>
+  <div class="key">
+    <div>
+      <svg width="34" height="12" aria-hidden="true" viewBox="0 0 34 12"><line x1="1" y1="6" x2="26" y2="6" stroke="var(--node-line)" stroke-width="1.6"/><path d="M26,2 L33,6 L26,10 z" fill="var(--node-line)"/></svg>
+      <span><b>Solid arrow</b>The path a request actually takes.</span>
+    </div>
+    <div>
+      <svg width="34" height="12" aria-hidden="true" viewBox="0 0 34 12"><line x1="1" y1="6" x2="26" y2="6" stroke="var(--fg-faint)" stroke-width="1.4" stroke-dasharray="6 5"/><path d="M26,2 L33,6 L26,10 z" fill="var(--fg-faint)"/></svg>
+      <span><b>Dashed arrow</b>A path not taken in this run, or a bypass.</span>
+    </div>
+    <div>
+      <svg width="34" height="12" aria-hidden="true" viewBox="0 0 34 12"><rect x="1" y="2" width="30" height="8" rx="2" fill="var(--finding)"/></svg>
+      <span><b>Amber</b>The gap or defect this task exposed.</span>
+    </div>
+    <div>
+      <svg width="34" height="12" aria-hidden="true" viewBox="0 0 34 12"><rect x="1" y="2" width="30" height="8" rx="2" fill="var(--pass)"/></svg>
+      <span><b>Green</b>A guarantee confirmed by execution.</span>
+    </div>
+    <div>
+      <svg width="34" height="14" aria-hidden="true" viewBox="0 0 34 14"><rect x="1" y="1" width="32" height="12" rx="3" fill="var(--zone)" stroke="var(--line)" stroke-width="1.2" stroke-dasharray="6 4"/></svg>
+      <span><b>Dashed panel</b>A trust boundary or a group of states.</span>
+    </div>
+  </div>
+</section>
+
+<!-- ============ TASK 1 ============ -->
+<section class="task" id="t1">
+  <div class="task-head">
+    <span class="ord" aria-hidden="true">01</span>
+    <h2>State transition and decision tables</h2>
+    <p class="technique">Specification artefact &middot; verified against source, not documents</p>
+  </div>
+
+  <dl class="strip">
+    <div><dt>Feature A</dt><dd>Sales lead stage</dd></div>
+    <div><dt>Feature B</dt><dd>Member role change</dd></div>
+    <div><dt>Transition rows</dt><dd>32 &rarr; 19 cases</dd></div>
+    <div><dt>Decision rules</dt><dd>9 of 72</dd></div>
+    <div><dt>Verdict</dt><dd class="v-pass">Complete</dd></div>
+  </dl>
+
+  <div class="measure">
+    <p>A state transition table is only worth writing when a feature has real states and guarded transitions; a decision table is only worth writing when an outcome depends on a combination of conditions. The lead pipeline and the in-dealership role change were picked because each is the strongest example of one shape.</p>
+    <p>Both tables were built by reading <code>LeadService.cs</code> and <code>MembershipService.cs</code>, not only the requirement text, so each cell traces to a specific guard and each error code comes from the one mapping that produces it. Where code and requirement disagree, the table records the code.</p>
+  </div>
+
+  <figure>
+    <div class="fig-frame">
+      <span class="fig-no">Fig. 2 &middot; Lead stage machine</span>
+      <div class="fig-scroll">
+      <svg class="dia" viewBox="0 0 1000 368" role="img" aria-label="The lead stage machine. The three open stages NEW, CONTACTED and QUALIFIED are fully interconnected in both directions, so every open-to-open move is legal including backwards. Any open stage can move to the closed stages WON or LOST, and a move to LOST requires a reason. Any other change to a closed lead returns 409 LEAD_CLOSED, while notes still append in all five states. Reopening returns a closed lead to an open stage after four guards from WON and three from LOST.">
+        <!-- OPEN zone -->
+        <rect class="zone" x="16" y="56" width="576" height="184" rx="8"/>
+        <text class="zone-lbl" x="30" y="78">OPEN &mdash; 3 STAGES</text>
+
+        <rect class="nd" x="40" y="104" width="144" height="64" rx="7"/>
+        <text class="t-ttl" x="112" y="142" text-anchor="middle">NEW</text>
+        <rect class="nd" x="224" y="104" width="144" height="64" rx="7"/>
+        <text class="t-ttl" x="296" y="142" text-anchor="middle">CONTACTED</text>
+        <rect class="nd" x="408" y="104" width="144" height="64" rx="7"/>
+        <text class="t-ttl" x="480" y="142" text-anchor="middle">QUALIFIED</text>
+
+        <line class="flow" x1="186" y1="122" x2="220" y2="122" marker-end="url(#ar)"/>
+        <line class="flow" x1="222" y1="150" x2="188" y2="150" marker-end="url(#ar)"/>
+        <line class="flow" x1="370" y1="122" x2="404" y2="122" marker-end="url(#ar)"/>
+        <line class="flow" x1="406" y1="150" x2="372" y2="150" marker-end="url(#ar)"/>
+
+        <path class="flow" d="M112,170 C112,212 480,212 480,170" marker-start="url(#ar)" marker-end="url(#ar)"/>
+        <text class="e" x="296" y="226" text-anchor="middle">every open-to-open move is legal, including backwards and same-stage</text>
+
+        <!-- CLOSED zone -->
+        <rect class="zone" x="688" y="40" width="280" height="248" rx="8"/>
+        <text class="zone-lbl" x="702" y="62">CLOSED &mdash; 2 STAGES</text>
+
+        <rect class="nd" x="720" y="72" width="216" height="64" rx="7"/>
+        <text class="t-ttl" x="828" y="110" text-anchor="middle">WON</text>
+        <rect class="nd" x="720" y="200" width="216" height="64" rx="7"/>
+        <text class="t-ttl" x="828" y="238" text-anchor="middle">LOST</text>
+
+        <text class="e-hot" x="728" y="160">any other PATCH &rarr; 409 LEAD_CLOSED</text>
+        <text class="e" x="728" y="178">notes still append in all five states</text>
+
+        <path class="flow" d="M552,124 C622,124 650,104 714,104" marker-end="url(#ar)"/>
+        <path class="flow" d="M552,150 C642,150 660,232 714,232" marker-end="url(#ar)"/>
+        <text class="e" x="636" y="96" text-anchor="middle">PATCH stage</text>
+        <text class="e" x="598" y="206">requires a reason</text>
+
+        <path class="flow-soft" d="M828,288 L828,320 L572,320 L572,246" marker-end="url(#ar-soft)"/>
+        <text class="e" x="700" y="340" text-anchor="middle">reopen: the target must be an open stage &mdash; WON passes four guards, LOST passes three</text>
+      </svg>
+      </div>
+    </div>
+    <figcaption>The three open stages are <b>fully connected</b> — the usual funnel order is a convention, not a constraint — and the two closed stages are recoverable, but asymmetrically: <code>WON</code> carries one guard more than <code>LOST</code>.</figcaption>
+  </figure>
+
+  <div>
+    <h3>What the tables exposed</h3>
+    <ul class="tight">
+      <li><b>Closing a lead relaxes a constraint.</b> The one-open-lead-per-customer-and-vehicle rule applies only while the lead stays open, so the same request succeeds or fails depending only on the <em>target</em> stage.</li>
+      <li><b>Two guards overlap, and the overlap is the point.</b> The sold-to-this-customer check can only fire when the vehicle is already sold, which also fails the in-stock check. It never decides whether a reopen succeeds — only which error comes back. A suite that tests the in-stock case and the sold-to-this-customer case, but not sold-to-someone-else, would still pass if the guard were deleted.</li>
+      <li><b>Condition order outranks specificity.</b> In the role-change table, asking to make someone an owner is refused before the target is even loaded, so requesting <code>OWNER</code> for a username that does not exist returns 403 rather than 404. Good behaviour — it declines to confirm whether a username exists — but accidental rather than specified.</li>
+      <li><b>One rule is wider than its requirement.</b> <code>AUTH-27</code> describes a manager as able to promote a sales member; the implementation also lets a manager set a sales member back to sales. Harmless and idempotent, so it is recorded as a documentation gap, not raised as a defect.</li>
+    </ul>
+    <p class="measure">The nine decision rules cover all 72 input combinations because evaluation short-circuits: the first four rules absorb 66 of them.</p>
+  </div>
+
+  <p class="files"><b>Files</b> README.md &nbsp;&middot;&nbsp; tables.md</p>
+</section>
+
+<!-- ============ TASK 2 ============ -->
+<section class="task" id="t2">
+  <div class="task-head">
+    <span class="ord" aria-hidden="true">02</span>
+    <h2>AI-generated test cases</h2>
+    <p class="technique">Generate, evaluate, improve &middot; then verify the improvement</p>
+  </div>
+
+  <dl class="strip">
+    <div><dt>Feature</dt><dd>Register &amp; login</dd></div>
+    <div><dt>Generated</dt><dd>48 cases</dd></div>
+    <div><dt>Oracles</dt><dd>2 browser specs</dd></div>
+    <div><dt>Executed</dt><dd>5 login cases</dd></div>
+    <div><dt>Verdict</dt><dd class="v-find">1 wrong result</dd></div>
+  </dl>
+
+  <div class="measure">
+    <p>The model was given the registration and login rules — username shape, the contact requirement, the phone normalisation, the three conflict codes and the identifier resolution order — and asked for black-box cases. Its output was then checked for correctness, coverage and duplication against the requirement IDs and the two existing browser specs, and an improved, deduplicated set was written with the gaps named.</p>
+    <p>That review was done by reading. It caught several real gaps. It also passed over an expected result that is wrong, and the improved set copied the error forward — which is the most useful thing this task produced.</p>
+  </div>
+
+  <div class="finding">
+    <span class="tag">Finding</span>
+    <div class="body">
+      <h4>Username sign-in ignores case, and both reviewers said it would not</h4>
+      <p>The generated case expected <code>Pat</code> against an account named <code>pat</code> to return <b>401</b>, reasoning that "username match is exact". Executed: registering <code>CaseProbeX</code> then <code>caseprobex</code> returns <b>409 USERNAME_TAKEN</b>, and signing in as <code>caseprobex</code> or <code>CASEPROBEX</code> both return <b>200</b> for the same account.</p>
+      <p>So the case is not merely wrong on its status code — it is not a separate equivalence class at all.</p>
+    </div>
+  </div>
+
+  <figure>
+    <div class="fig-frame">
+      <span class="fig-no">Fig. 3 &middot; Where the comparison happens</span>
+      <div class="fig-scroll">
+      <svg class="dia" viewBox="0 0 1000 288" role="img" aria-label="Why the case-sensitivity expectation was wrong. The C# equality expression in AuthService is never executed by .NET; LINQ translates it to SQL and MySQL performs the comparison under the utf8mb4_0900_ai_ci collation, which ignores case and accents. The rule therefore lives in the schema, not in the requirement text and not in the C# source.">
+        <text class="e-hot" x="24" y="42">expected: usernames compare case-sensitively</text>
+        <line class="flow-soft" x1="272" y1="38" x2="474" y2="38"/>
+        <text class="e-hot" x="500" y="45" text-anchor="middle" font-size="17">&ne;</text>
+        <line class="flow-soft" x1="526" y1="38" x2="748" y2="38"/>
+        <text class="e-ac" x="976" y="42" text-anchor="end">observed: case- and accent-insensitive</text>
+
+        <rect class="nd" x="24" y="88" width="296" height="96" rx="7"/>
+        <rect x="29" y="100" width="3" height="72" rx="1.5" fill="var(--finding)"/>
+        <text class="t-ttl" x="46" y="116">Application code</text>
+        <text class="t-mono" x="46" y="142">u.Username == identifier</text>
+        <text class="t-sub" x="46" y="164">AuthService.cs — the only username lookup</text>
+
+        <rect class="nd" x="376" y="88" width="232" height="96" rx="7"/>
+        <rect x="381" y="100" width="3" height="72" rx="1.5" fill="var(--accent)"/>
+        <text class="t-ttl" x="398" y="116">LINQ &rarr; SQL</text>
+        <text class="t-sub" x="398" y="140">the expression is never</text>
+        <text class="t-sub" x="398" y="156">evaluated by .NET at all</text>
+
+        <rect class="nd" x="664" y="88" width="312" height="96" rx="7"/>
+        <rect x="669" y="100" width="3" height="72" rx="1.5" fill="var(--accent)"/>
+        <text class="t-ttl" x="686" y="116">MySQL comparison</text>
+        <text class="t-mono" x="686" y="142">utf8mb4_0900_ai_ci</text>
+        <text class="t-sub" x="686" y="164">_ci case-insensitive &middot; _ai accent-insensitive</text>
+
+        <line class="flow" x1="320" y1="136" x2="370" y2="136" marker-end="url(#ar)"/>
+        <line class="flow" x1="608" y1="136" x2="658" y2="136" marker-end="url(#ar)"/>
+        <text class="e" x="345" y="126" text-anchor="middle">translated</text>
+        <text class="e" x="633" y="126" text-anchor="middle">executed</text>
+
+        <rect class="nd-sunk" x="24" y="208" width="952" height="60" rx="5"/>
+        <text class="e" x="44" y="232">Consequence — the rule lives in the schema, not in the requirement text and not in the C# source.</text>
+        <text class="e" x="44" y="252">Username uniqueness is case-insensitive too, so registering a case variant returns 409 USERNAME_TAKEN.</text>
+      </svg>
+      </div>
+    </div>
+    <figcaption>A careful reading of the only line that implements username lookup gives the <b>wrong answer</b>, because the comparison happens in the database under a case- and accent-insensitive collation. No amount of re-reading the sources would have found it.</figcaption>
+  </figure>
+
+  <p class="files"><b>Files</b> prompt.md &nbsp;&middot;&nbsp; ai-response.md &nbsp;&middot;&nbsp; reflection.md &nbsp;&middot;&nbsp; improved-test-cases.md &nbsp;&middot;&nbsp; verification-run.md</p>
+</section>
+
+<!-- ============ TASK 3 ============ -->
+<section class="task" id="t3">
+  <div class="task-head">
+    <span class="ord" aria-hidden="true">03</span>
+    <h2>Boundary value testing with AI</h2>
+    <p class="technique">Equivalence partitions and off-by-one points &middot; all 40 cases executed</p>
+  </div>
+
+  <dl class="strip">
+    <div><dt>Fields</dt><dd>4</dd></div>
+    <div><dt>Cases run</dt><dd>40 of 40</dd></div>
+    <div><dt>Corrected</dt><dd>2</dd></div>
+    <div><dt>Newly classified</dt><dd>4</dd></div>
+    <div><dt>Verdict</dt><dd class="v-find">2 wrong results</dd></div>
+  </dl>
+
+  <div class="measure">
+    <p>Four fields with documented limits: the registration username (3–64 characters, a restricted character set, at least one letter), a work-order task (1–200), a completion note (1–500), a cost of at least zero, and the lead list's page size. For each closed range the model listed the six off-by-one points and held every other input valid, so each row has a single cause.</p>
+    <p>Every row was then run against the live API. All forty numbered cases behaved as predicted. The two mistakes were in prose the model wrote <em>beside</em> the tables, which is exactly where a review stops looking.</p>
+  </div>
+
+  <div class="finding">
+    <span class="tag">Finding</span>
+    <div class="body">
+      <h4>A whitespace-only value is rejected, and for two different reasons</h4>
+      <p>The model argued that any string of length 1–200 is a valid task, "including a string of spaces", since the requirement never says non-blank. The review agreed. Both were wrong: a one-space task returns <b>400</b> with <code>fieldErrors.task</code> set to "The Task field is required", because <code>[Required]</code> tests <code>IsNullOrWhiteSpace</code> and a single space never reaches the length check.</p>
+      <p>A one-space completion note is also rejected — but by the service, not by model validation, because a note is only required when the status becomes <code>DONE</code>. The service trims it to null first. That 400 carries <b>no <code>fieldErrors</code> object at all</b>, so an assertion written on <code>fieldErrors.completionNote</code> fails on a correct rejection.</p>
+    </div>
+  </div>
+
+  <figure>
+    <div class="fig-frame">
+      <span class="fig-no">Fig. 4 &middot; The page-size clamp</span>
+      <div class="fig-scroll">
+      <svg class="dia" viewBox="0 0 800 468" role="img" aria-label="Effective page size plotted against requested page size. A requested size of zero or less is used as ten; sizes from one to one hundred are used as requested, following the identity line; above one hundred the effective size saturates at one hundred. Every point on this curve returns 200 OK, so the parameter clamps rather than rejects. Only a non-integer size such as abc or 2.5 is rejected with 400 VALIDATION, and it has no point on the curve.">
+        <!-- gridlines -->
+        <line class="grid" x1="104" y1="329" x2="720" y2="329"/>
+        <line class="grid" x1="104" y1="119" x2="720" y2="119"/>
+
+        <!-- axes -->
+        <line class="ax" x1="104" y1="64" x2="104" y2="352"/>
+        <line class="ax" x1="104" y1="352" x2="732" y2="352" marker-end="url(#ar)"/>
+
+        <!-- axis ticks -->
+        <text class="tick" x="94" y="356" text-anchor="end">0</text>
+        <text class="tick" x="94" y="333" text-anchor="end">10</text>
+        <text class="tick" x="94" y="123" text-anchor="end">100</text>
+        <line class="ax" x1="181" y1="352" x2="181" y2="358"/>
+        <text class="tick" x="181" y="372" text-anchor="middle">0</text>
+        <line class="ax" x1="219" y1="352" x2="219" y2="358"/>
+        <text class="tick" x="219" y="372" text-anchor="middle">10</text>
+        <line class="ax" x1="566" y1="352" x2="566" y2="358"/>
+        <text class="tick" x="566" y="372" text-anchor="middle">100</text>
+
+        <text class="e-ok" x="720" y="60" text-anchor="end">every point on this curve returns 200 OK</text>
+
+        <!-- segment A: <= 0 -> 10 -->
+        <line class="flow-ok" x1="104" y1="329" x2="181" y2="329"/>
+        <circle cx="181" cy="329" r="4.5" fill="var(--pass)"/>
+        <text class="e-ok" x="112" y="318">requested &le; 0 &rarr; 10</text>
+
+        <!-- segment B: identity -->
+        <line class="flow-ok" x1="185" y1="350" x2="566" y2="119"/>
+        <circle cx="185" cy="350" r="4.5" fill="var(--pass)"/>
+        <text class="e-ok" x="318" y="266">1 … 100 &rarr; used as requested</text>
+
+        <!-- segment C: clamp -->
+        <line class="flow-ok" x1="566" y1="119" x2="720" y2="119"/>
+        <circle cx="566" cy="119" r="4.5" fill="var(--pass)"/>
+        <text class="e-ok" x="566" y="104">requested &gt; 100 &rarr; 100 (clamped)</text>
+
+        <!-- the default -->
+        <circle cx="219" cy="329" r="6" fill="none" stroke="var(--accent)" stroke-width="2"/>
+        <text class="e-ac" x="236" y="318">10 — the default the screens send</text>
+
+        <!-- axis titles -->
+        <text class="tick" x="416" y="396" text-anchor="middle">requested page size</text>
+        <text class="tick" x="40" y="212" text-anchor="middle" transform="rotate(-90 40 212)">effective page size</text>
+
+        <!-- reject card -->
+        <rect class="nd-sunk" x="104" y="412" width="616" height="48" rx="5" stroke="var(--finding)"/>
+        <text class="t-mono" x="122" y="432">size=abc&#160;&#160;&#160;size=2.5</text>
+        <text class="e-hot" x="122" y="450">400 VALIDATION — the only rejection in this group; no point on this curve</text>
+      </svg>
+      </div>
+    </div>
+    <figcaption>The assignment brief described this size as fixed at 10; the contract describes a <b>clamp</b>. The curve never terminates — it saturates — so requesting 9 returns 200 and echoes 9, and requesting 500 returns 200 with 100 rows. Had the brief been followed over the documents, two correct behaviours would have been reported as defects.</figcaption>
+  </figure>
+
+  <div class="measure">
+    <p>Four questions the model had declined to answer — correctly, since its sources did not cover them — now have answers: a non-numeric or fractional page size is the group's only rejection; a cost with a third decimal is <em>accepted</em> and echoed, even though the column stores two; a cost sent as the JSON string <code>"0"</code> is coerced rather than refused; and a non-ASCII letter does not count as a letter in a username.</p>
+  </div>
+
+  <p class="files"><b>Files</b> README.md &nbsp;&middot;&nbsp; prompt.md &nbsp;&middot;&nbsp; ai-response.md &nbsp;&middot;&nbsp; reflection.md &nbsp;&middot;&nbsp; improved-test-cases.md</p>
+</section>
+
+<!-- ============ TASK 4 ============ -->
+<section class="task" id="t4">
+  <div class="task-head">
+    <span class="ord" aria-hidden="true">04</span>
+    <h2>Testing an AI chatbot</h2>
+    <p class="technique">Accuracy, consistency, unclear input, instruction compliance &middot; executed</p>
+  </div>
+
+  <dl class="strip">
+    <div><dt>Questions asked</dt><dd>~30</dd></div>
+    <div><dt>Configurations</dt><dd>2</dd></div>
+    <div><dt>Canary leaks</dt><dd class="v-pass">0</dd></div>
+    <div><dt>Findings</dt><dd>3</dd></div>
+    <div><dt>Verdict</dt><dd class="v-find">Expectation wrong</dd></div>
+  </dl>
+
+  <div class="measure">
+    <p>The chatbot under test is the product's own in-dealership assistant. The suite covers the four qualities the task names, with hard compliance checks: lead data must never be sent to a model, one dealership's data must never reach another's user, contact fields must not leave the trusted side, and the conversation must not write business data.</p>
+    <p>Two configurations were used. First the real AI service with no provider key, which returned <b>503</b> to all 21 internal calls and produced the genuine degraded path. Then a recording stand-in on the same port, so the model payload could be captured and a deliberately misbehaving reply could be fed back. The stand-in is an instrument, not a model: it makes no accuracy claim.</p>
+    <p>Across roughly thirty questions, <b>no forbidden value ever appeared</b> at either inspection point — not the lead-note canary, not either dealership's phone, email or address, not the rival vehicle's VIN. The payload's resource objects carry exactly four keys, so a contact field cannot travel in one.</p>
+  </div>
+
+  <figure>
+    <div class="fig-frame">
+      <span class="fig-no">Fig. 5 &middot; The assistant request path</span>
+      <div class="fig-scroll">
+      <svg class="dia" viewBox="0 0 1000 520" role="img" aria-label="The assistant request path. Core retrieves at most five tenant-scoped resources and sends only the question plus four-key resource summaries across the boundary to the model. On the way back, core filters the cards down to ids the summary names, but returns the summary text unchanged, so an invented id or path in the prose reaches the user. Counting questions bypass the model entirely: core computes the total itself and no payload is produced.">
+        <!-- trusted zone -->
+        <rect class="zone" x="200" y="56" width="600" height="408" rx="8"/>
+        <text class="zone-lbl" x="214" y="78">TRUSTED SIDE &mdash; CORE</text>
+        <text class="zone-lbl" x="840" y="78">MODEL</text>
+
+        <!-- question -->
+        <rect class="nd" x="24" y="96" width="152" height="72" rx="7"/>
+        <rect x="29" y="106" width="3" height="52" rx="1.5" fill="var(--fg-faint)"/>
+        <text class="t-ttl" x="44" y="126">Question</text>
+        <text class="t-sub" x="44" y="145">a signed-in member</text>
+        <text class="t-sub" x="44" y="159">of one dealership</text>
+
+        <!-- retrieval -->
+        <rect class="nd" x="216" y="96" width="208" height="72" rx="7"/>
+        <rect x="221" y="106" width="3" height="52" rx="1.5" fill="var(--accent)"/>
+        <text class="t-ttl" x="236" y="126">Retrieval</text>
+        <text class="t-sub" x="236" y="145">this dealership only</text>
+        <text class="t-sub" x="236" y="159">at most five rows</text>
+
+        <!-- payload -->
+        <rect class="nd" x="464" y="96" width="288" height="72" rx="7"/>
+        <rect x="469" y="106" width="3" height="52" rx="1.5" fill="var(--accent)"/>
+        <text class="t-ttl" x="484" y="124">Model payload</text>
+        <text class="t-mono" x="484" y="145">{ question, resources[] }</text>
+        <text class="t-sub" x="484" y="161">kind &middot; id &middot; label &middot; status — four keys, no more</text>
+
+        <!-- model -->
+        <rect class="nd" x="840" y="96" width="136" height="72" rx="7"/>
+        <rect x="845" y="106" width="3" height="52" rx="1.5" fill="var(--fg-faint)"/>
+        <text class="t-ttl" x="860" y="126">Model</text>
+        <text class="t-sub" x="860" y="145">returns one</text>
+        <text class="t-sub" x="860" y="159">summary string</text>
+
+        <!-- outbound flows -->
+        <line class="flow" x1="176" y1="132" x2="210" y2="132" marker-end="url(#ar)"/>
+        <line class="flow" x1="424" y1="132" x2="458" y2="132" marker-end="url(#ar)"/>
+        <line class="flow" x1="752" y1="132" x2="834" y2="132" marker-end="url(#ar)"/>
+
+        <!-- boundary annotation -->
+        <text class="e-ok" x="816" y="300" text-anchor="middle" transform="rotate(-90 816 300)">boundary: only the question and the four-key summaries cross</text>
+
+        <!-- verified guarantee under the payload -->
+        <text class="e-ok" x="464" y="190">verified at this point: no lead note, no phone, email or address, no other dealership's rows</text>
+
+        <!-- return -->
+        <path class="flow" d="M908,168 L908,300 L758,300" marker-end="url(#ar)"/>
+        <text class="e" x="920" y="236">summary</text>
+        <text class="e" x="920" y="250">string</text>
+
+        <rect class="nd" x="464" y="264" width="288" height="72" rx="7"/>
+        <rect x="469" y="274" width="3" height="52" rx="1.5" fill="var(--accent)"/>
+        <text class="t-ttl" x="484" y="292">CardsNamedBy</text>
+        <text class="t-sub" x="484" y="311">keeps only the cards the</text>
+        <text class="t-sub" x="484" y="325">summary actually names</text>
+
+        <!-- bypass -->
+        <path class="flow-soft" d="M320,168 L320,208 L688,208 L688,258" marker-end="url(#ar-soft)"/>
+        <text class="e" x="336" y="200">"how many …": core computes the total itself — no model call, no payload recorded</text>
+
+        <!-- outputs -->
+        <path class="flow-ok" d="M520,336 C520,368 320,360 320,386" marker-end="url(#ar-ok)"/>
+        <line class="flow-hot" x1="620" y1="336" x2="620" y2="386" marker-end="url(#ar-hot)"/>
+
+        <rect class="nd" x="216" y="392" width="208" height="64" rx="7" stroke="var(--pass)"/>
+        <rect x="221" y="402" width="3" height="44" rx="1.5" fill="var(--pass)"/>
+        <text class="t-ttl" x="236" y="418" fill="var(--pass)">Links — filtered</text>
+        <text class="t-sub" x="236" y="436">a card can only be a row</text>
+        <text class="t-sub" x="236" y="450">core itself retrieved</text>
+
+        <rect class="nd" x="464" y="392" width="288" height="64" rx="7" stroke="var(--finding)"/>
+        <rect x="469" y="402" width="3" height="44" rx="1.5" fill="var(--finding)"/>
+        <text class="t-ttl" x="484" y="418" fill="var(--finding)">Summary text — verbatim</text>
+        <text class="t-sub" x="484" y="436">a rival id, a fabricated id and /admin</text>
+        <text class="t-sub" x="484" y="450">all reached the user unchanged</text>
+
+        <text class="e" x="200" y="496">Checked unchanged after every question: vehicle status and version, customer contact values, and all business row counts.</text>
+      </svg>
+      </div>
+    </div>
+    <figcaption>The finding that changes a compliance expectation. The model <b>cannot inject a link</b>, because a card can only come from core's own tenant-scoped retrieval. But the summary string is returned exactly as received, so the guarantee covers the links and not the prose. A case asserting "the answer text contains no rival id" is asserting something the system does not promise.</figcaption>
+  </figure>
+
+  <div>
+    <h3>Two more findings</h3>
+    <ul class="tight">
+      <li><b>Counting questions never reach the model.</b> Asking how many vehicles are in stock returned a true total of six computed from all matching rows, with the links still capped at five, a sentence generated from a template — and no payload recorded at all. The response still reported a summary as available, so that flag does not mean the model answered. It also means consistency can be asserted strictly for this class of question, which the suite had explicitly ruled out.</li>
+      <li><b>The degraded path follows the API contract, not the older design note.</b> A real 503 produced a 200 with a null summary and the cards intact. The sentence the older document requires appears nowhere in the response; the wording is a front-end concern. This is also the one case the existing browser suite cannot cover honestly, because it forces the unavailable flag onto an otherwise successful response rather than taking the model down.</li>
+    </ul>
+
+    <h3>The fixture could not be built as designed</h3>
+    <p class="measure">Two of the three VINs the suite specifies cannot exist in this product, because a VIN decode is checked against the entered make and model:</p>
+    <pre>1HGCM82633A004352  as "Toyota Camry"    &rarr;  400   the VIN decodes to "HONDA"
+4T1B11HK0KU000002  as "Toyota RAV4"     &rarr;  400   the VIN decodes to "Camry"
+2T1BURHE0JC000001  as "Toyota Corolla"  &rarr;  201   valid: Toyota, and position 10 is 2018</pre>
+    <p class="measure">The VINs are plausible-looking and were never checked against the rule that validates them. The run substituted the project's own convention for test VINs and recorded the mapping. A customer field name was wrong in the same way.</p>
+
+    <h3>What this task does not cover</h3>
+    <p class="measure">No language model was ever invoked, because no provider key was available. Compliance, the handling of unclear input, and the consistency of core-generated answers are covered; the correctness of a model's explanation is not. The report states this rather than filling the cells.</p>
+  </div>
+
+  <p class="files"><b>Files</b> README.md &nbsp;&middot;&nbsp; prompt.md &nbsp;&middot;&nbsp; ai-response.md &nbsp;&middot;&nbsp; reflection.md &nbsp;&middot;&nbsp; actual-results.md</p>
+</section>
+
+<!-- ============ TASK 5 ============ -->
+<section class="task" id="t5">
+  <div class="task-head">
+    <span class="ord" aria-hidden="true">05</span>
+    <h2>AI-generated automated tests</h2>
+    <p class="technique">Differential testing &middot; three oracles, four runs</p>
+  </div>
+
+  <dl class="strip">
+    <div><dt>Rule under test</dt><dd>Username shape</dd></div>
+    <div><dt>Generated</dt><dd>41 tests</dd></div>
+    <div><dt>Final</dt><dd>106 passing</dd></div>
+    <div><dt>Live requests</dt><dd>12</dd></div>
+    <div><dt>Verdict</dt><dd class="v-find">Oracle was wrong</dd></div>
+  </dl>
+
+  <div class="measure">
+    <p>The model was asked for one xUnit file covering a single validation rule: the username accepted by the registration endpoint. It produced 41 tests, and all 41 passed on the first run. That result is worthless on its own, and the interesting work was proving why.</p>
+  </div>
+
+  <figure>
+    <div class="fig-frame">
+      <span class="fig-no">Fig. 6 &middot; Three oracles, four runs</span>
+      <div class="fig-scroll">
+      <svg class="dia" viewBox="0 0 1000 440" role="img" aria-label="Three test oracles compared. In run one the 41 generated tests compare against a copy of the pattern declared in the test file itself, so all 41 pass and the suite cannot fail. In run two the same inputs are checked with Validator.TryValidateObject, which walks the type's properties and finds nothing because a positional record binds the attribute to the constructor parameter; 38 tests fail, which is a defect in the test rather than in the product. In runs three and four the tests read the declared attribute by reflection and confirm it with 12 live requests through the gateway; 106 tests pass and the file holds no copy of the rule, so a change to the product now fails the suite.">
+        <!-- lane 1 -->
+        <rect class="lane" x="16" y="56" width="968" height="96" rx="6"/>
+        <text class="run-chip" x="32" y="88">RUN 1</text>
+        <text class="t-sub" x="32" y="106">as generated</text>
+        <rect class="nd" x="120" y="72" width="176" height="64" rx="7"/>
+        <text class="t-ttl" x="138" y="98">41 tests</text>
+        <text class="t-sub" x="138" y="116">model-written</text>
+        <line class="flow" x1="296" y1="104" x2="362" y2="104" marker-end="url(#ar)"/>
+        <text class="e" x="330" y="94" text-anchor="middle">compares to</text>
+        <rect class="nd" x="368" y="72" width="256" height="64" rx="7"/>
+        <rect x="373" y="82" width="3" height="44" rx="1.5" fill="var(--finding)"/>
+        <text class="t-ttl" x="388" y="98">A copy of the pattern</text>
+        <text class="t-sub" x="388" y="116">declared in the test file itself</text>
+        <line class="flow" x1="624" y1="104" x2="676" y2="104" marker-end="url(#ar)"/>
+        <text class="res-ok" x="688" y="98">41 pass</text>
+        <text class="e" x="688" y="118">the copy agrees with itself; delete the</text>
+        <text class="e" x="688" y="132">product's rule and the file stays green</text>
+
+        <!-- lane 2 -->
+        <rect class="lane" x="16" y="176" width="968" height="120" rx="6"/>
+        <text class="run-chip" x="32" y="208">RUN 2</text>
+        <text class="t-sub" x="32" y="226">the obvious API</text>
+        <rect class="nd" x="120" y="192" width="176" height="64" rx="7"/>
+        <text class="t-ttl" x="138" y="218">Same 41 inputs</text>
+        <text class="t-sub" x="138" y="236">new oracle</text>
+        <line class="flow" x1="296" y1="224" x2="362" y2="224" marker-end="url(#ar)"/>
+        <rect class="nd" x="368" y="192" width="256" height="64" rx="7"/>
+        <rect x="373" y="202" width="3" height="44" rx="1.5" fill="var(--finding)"/>
+        <text class="t-ttl" x="388" y="216">Validator.TryValidateObject</text>
+        <text class="t-sub" x="388" y="236">walks the type's properties</text>
+        <line class="flow" x1="624" y1="224" x2="676" y2="224" marker-end="url(#ar)"/>
+        <text class="res-hot" x="688" y="218">38 fail</text>
+        <text class="e" x="688" y="238">every malformed username reported valid —</text>
+        <text class="e" x="688" y="252">a defect in the test, not in the product</text>
+        <text class="e" x="32" y="262">a positional record binds</text>
+        <text class="e" x="32" y="276">the attribute to the</text>
+        <text class="e" x="32" y="290">constructor parameter</text>
+        <rect class="nd-sunk" x="236" y="262" width="692" height="30" rx="4"/>
+        <text class="t-mono" x="252" y="282" font-size="11">reflection probe &rarr; PROPERTY = [ ]&#160;&#160;&#160;&#160;PARAMETER = [ Required, RegularExpression ]</text>
+
+        <!-- lane 3 -->
+        <rect class="lane" x="16" y="320" width="968" height="96" rx="6"/>
+        <text class="run-chip" x="32" y="352">RUNS 3&ndash;4</text>
+        <text class="t-sub" x="32" y="370">corrected</text>
+        <rect class="nd" x="120" y="336" width="176" height="64" rx="7"/>
+        <text class="t-ttl" x="138" y="362">106 tests</text>
+        <text class="t-sub" x="138" y="380">44 inputs, one rule</text>
+        <line class="flow" x1="296" y1="368" x2="362" y2="368" marker-end="url(#ar)"/>
+        <rect class="nd" x="368" y="336" width="256" height="64" rx="7" stroke="var(--pass)"/>
+        <rect x="373" y="346" width="3" height="44" rx="1.5" fill="var(--pass)"/>
+        <text class="t-ttl" x="388" y="358" fill="var(--pass)">The declared attribute</text>
+        <text class="t-sub" x="388" y="376">read by reflection, plus 12 live</text>
+        <text class="t-sub" x="388" y="390">requests through the gateway</text>
+        <line class="flow" x1="624" y1="368" x2="676" y2="368" marker-end="url(#ar)"/>
+        <text class="res-ok" x="688" y="362">106 pass</text>
+        <text class="e" x="688" y="382">holds no copy of the rule, so a change</text>
+        <text class="e" x="688" y="396">to the product now fails the suite</text>
+      </svg>
+      </div>
+    </div>
+    <figcaption>What each oracle can detect. Run 1 is a tautology: delete the product's validation and the file stays green. Run 2 was a defect <b>in the test</b>, not in the product — and it would have been easy to report as a product bug.</figcaption>
+  </figure>
+
+  <div class="measure">
+    <p>The corrected oracle reads the validation attributes the product actually declares and applies them, so the test file holds no copy of the pattern. Twelve live requests then confirmed the product is fine: every malformed username is rejected with <b>400</b> and the message text in <code>fieldErrors.username</code> matches the attribute character for character.</p>
+    <p>One real disagreement survived. The generated answer claims a whitespace-only username produces two messages. At the attribute level it does. At the API level only the first is visible, because the response envelope keeps one message per field — so an assertion written against attribute metadata cannot predict what the client sees.</p>
+    <p>The runner project is coursework: it sits outside the product solution, holds one project reference so the tests can read the real DTO, and changes no product file.</p>
+  </div>
+
+  <p class="files"><b>Files</b> README.md &nbsp;&middot;&nbsp; prompt.md &nbsp;&middot;&nbsp; UsernameValidationTests.cs &nbsp;&middot;&nbsp; reflection.md &nbsp;&middot;&nbsp; execution-results.md &nbsp;&middot;&nbsp; corrections.md &nbsp;&middot;&nbsp; runner/</p>
+</section>
+
+<footer id="close">
+  <p class="section-label">Conclusion</p>
+  <h2>What the five tasks have in common</h2>
+  <p>Four of the six defects found were in the tests, not in the product: two impossible fixture VINs, a wrong oracle, a case-sensitivity expectation, and two whitespace partitions argued from the requirement text alone. Each was produced by careful reading and survived a careful review. Each was caught by running the thing.</p>
+  <p>The product held up. Across every executed case, no tenancy boundary leaked, no question wrote business data, and no validation rule behaved differently from its contract. The two behaviours worth raising — that model prose is passed through unfiltered, and that counting questions never reach the model — are unstated rather than wrong, and both are now written down.</p>
+  <p class="fine">All work was carried out on the project's private end-to-end stack against a throwaway database. No product source file, existing specification, design document or configuration file was modified.</p>
+</footer>
+
+</div>
+</body>
+</html>
