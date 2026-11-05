@@ -177,6 +177,9 @@ public class WorkOrderService
                     order.Id, order.VehicleId, tenant, TenantContext.ActorUsername());
                 throw new ApiException(ErrorCode.Validation, "A finished work order needs a completion note and a cost.");
             }
+            // The cost is added to the vehicle's two-decimal repairCost below, so it follows the
+            // same money rule as the vehicle's own amounts (WO-04, design/14 §4.2).
+            MoneyRules.RequireCents("cost", body.Cost);
             repairCost = body.Cost.Value;
             // An open order has no cost or note yet, so both previous values are always null.
             changed["cost"] = true;

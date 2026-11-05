@@ -190,9 +190,9 @@ public class VehicleService
     {
         var tenant = TenantGuard.RequireTenantId();
         RequireModelYearInRange(body.ModelYear);
-        RequireCents("purchaseCost", body.PurchaseCost);
-        RequireCents("repairCost", body.RepairCost);
-        RequireCents("listPrice", body.ListPrice);
+        MoneyRules.RequireCents("purchaseCost", body.PurchaseCost);
+        MoneyRules.RequireCents("repairCost", body.RepairCost);
+        MoneyRules.RequireCents("listPrice", body.ListPrice);
         var vin = NormalizeVin(body.Vin);
         await RequireVinMatchesVehicle(vin, body.Make.Trim(), body.Model.Trim(), body.ModelYear);
         RequireCarfaxLink(body.CarfaxUrl);
@@ -362,9 +362,9 @@ public class VehicleService
             throw new ApiException(ErrorCode.VersionConflict, "Version conflict.");
 
         RequireModelYearInRange(body.ModelYear);
-        RequireCents("purchaseCost", body.PurchaseCost);
-        RequireCents("repairCost", body.RepairCost);
-        RequireCents("listPrice", body.ListPrice);
+        MoneyRules.RequireCents("purchaseCost", body.PurchaseCost);
+        MoneyRules.RequireCents("repairCost", body.RepairCost);
+        MoneyRules.RequireCents("listPrice", body.ListPrice);
 
         // A null value-type field means "not supplied": keep what is stored. The optional
         // fields (repair cost, Carfax link, listing details) are replaced, so null clears them.
@@ -479,7 +479,7 @@ public class VehicleService
         if (body.SoldOn == null || body.SoldPrice == null || body.SoldPrice <= 0)
             throw new ApiException(ErrorCode.SoldPairRequired,
                 "Sold date and a sold price greater than 0 are both required.");
-        RequireCents("soldPrice", body.SoldPrice);
+        MoneyRules.RequireCents("soldPrice", body.SoldPrice);
 
         var vehicle = LoadThisDealer(id);
 
@@ -989,17 +989,6 @@ public class VehicleService
     {
         host = host.ToLowerInvariant();
         return host is "carfax.com" or "carfax.ca" || host.EndsWith(".carfax.com") || host.EndsWith(".carfax.ca");
-    }
-
-    // Money is stored with two decimals, so a third decimal is refused rather than rounded away.
-    private static void RequireCents(string field, decimal? amount)
-    {
-        if (amount is decimal value && decimal.Round(value, 2) != value)
-        {
-            const string message = "Use at most 2 decimals.";
-            throw new ApiException(ErrorCode.Validation, message,
-                new Dictionary<string, string> { [field] = message });
-        }
     }
 
     // Stock numbers are the dealership's own lot labels, so two active vehicles cannot share one.

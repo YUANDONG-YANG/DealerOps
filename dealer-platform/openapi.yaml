@@ -1628,8 +1628,8 @@ paths:
       summary: Change a work order (full editable state)
       description: |
         Transitions OPEN → IN_PROGRESS | DONE | CANCELLED; IN_PROGRESS → DONE | CANCELLED; the same status edits fields.
-        DONE requires `completionNote` and `cost` ≥ 0, sets `completedOn`, and adds `cost` to the vehicle `repairCost`
-        in the same transaction. Closed → **409** `WORK_ORDER_CLOSED`; other transitions → **400** `VALIDATION`;
+        DONE requires `completionNote` and `cost` ≥ 0 with at most 2 decimals, sets `completedOn`, and adds `cost`
+        to the vehicle `repairCost` in the same transaction. Closed → **409** `WORK_ORDER_CLOSED`; other transitions → **400** `VALIDATION`;
         sold vehicle → **409** `SOLD_LOCKED`.
       parameters:
         - name: id
@@ -4693,7 +4693,7 @@ components:
         task: { type: string, minLength: 1, maxLength: 200 }
         assigneeUsername: { type: string, nullable: true, maxLength: 64 }
         dueOn: { type: string, format: date, nullable: true }
-        cost: { type: number, minimum: 0, nullable: true, description: Read only when status is DONE }
+        cost: { type: number, minimum: 0, nullable: true, description: Read only when status is DONE; at most 2 decimals }
         completionNote: { type: string, nullable: true, maxLength: 500, description: Required when status is DONE }
         version: { type: integer }
 
