@@ -168,8 +168,9 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);font-si
     <div><dt>Team</dt><dd>G2 (four members)</dd></div>
     <div><dt>Active stack</dt><dd>.NET 10 · React 19 · MySQL 8</dd></div>
     <div><dt>Hosting</dt><dd>Microsoft Azure (Terraform)</dd></div>
-    <div><dt>Document date</dt><dd>2026-11-03</dd></div>
+    <div><dt>Document date</dt><dd>2026-11-06</dd></div>
     <div><dt>Status</dt><dd>Feature code complete; manual acceptance in progress</dd></div>
+    <div><dt>Verified against</dt><dd>Source of the four running services on branch V2</dd></div>
   </dl>
 </header>
 
@@ -201,7 +202,7 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);font-si
     <div class="card"><h4><span class="chip purple">Platform Admin</span></h4><p>Opens and edits dealerships, creates accounts, binds the first owner of a new dealership and afterwards only files a join request, unbinds members, resets passwords, sets any dealership tier including transferring the owner, edits the global OMVIC rule settings, and reads the platform audit log. Receives <b>403</b> on every business endpoint.</p></div>
     <div class="card"><h4><span class="chip blue">Dealership Owner</span></h4><p>One active owner per dealership, appointed only by the platform admin. Everything a manager can do, plus: editing the dealership profile, approving or rejecting join requests, appointing and demoting managers, and editing any member below owner.</p></div>
     <div class="card"><h4><span class="chip blue">Dealership Manager</span></h4><p>Everything a sales member can do, plus: the Team page, the payment ledger, the dealership audit log and record history, and acting on <b>sales members only</b> — promoting one to manager, editing their name and phone, removing them.</p></div>
-    <div class="card"><h4><span class="chip green">Dealership Sales</span></h4><p>Full read/write access to the dealership's daily business data: dashboard, DMS, CRM, leads, reports, ads, work orders, photos and the assistant. Can record a payment but cannot see or change the payment ledger, has no Team access, and sees no audit data.</p></div>
+    <div class="card"><h4><span class="chip green">Dealership Sales</span></h4><p>Full read/write access to the dealership's daily business data: dashboard, DMS, CRM, leads, reports, ads, work orders, photos and the assistant. Can record a payment but cannot see or change the payment ledger, has no Team access, and sees no audit data. The header inbox still delivers the dealership's buyer-site inquiries, so a web lead reaches the floor.</p></div>
     <div class="card"><h4><span class="chip gray">Unbound account</span></h4><p>Signed in but not yet approved. Sees a no-access screen and may request to join one dealership.</p></div>
     <div class="card"><h4><span class="chip amber">Public visitor</span></h4><p>No account. Uses the landing page, VIN decoder, buyer site and disclaimer, and can send an inquiry about a listed vehicle.</p></div>
   </div>
@@ -215,7 +216,9 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);font-si
       <tr><td>Set any dealership tier, including transferring the owner</td><td class="c yes">✓</td><td class="c no">403</td><td class="c no">403</td><td class="c no">403</td></tr>
       <tr><td>Global OMVIC rule editor</td><td class="c yes">✓</td><td class="c no">403</td><td class="c no">403</td><td class="c no">403</td></tr>
       <tr><td>Platform audit log (all dealerships, sign-ins, admin actions)</td><td class="c yes">✓</td><td class="c no">403</td><td class="c no">403</td><td class="c no">403</td></tr>
-      <tr><td rowspan="8"><b>Team</b></td><td>Team page with its Members tab and the header inbox</td><td class="c no">403</td><td class="c yes">✓</td><td class="c yes">✓</td><td class="c no">403</td></tr>
+      <tr><td rowspan="10"><b>Team</b></td><td>Team page with its Members tab</td><td class="c no">403</td><td class="c yes">✓</td><td class="c yes">✓</td><td class="c no">403</td></tr>
+      <tr><td>Header inbox: buyer-site inquiries of the dealership</td><td class="c no">403</td><td class="c yes">✓</td><td class="c yes">✓</td><td class="c yes">✓</td></tr>
+      <tr><td>Header inbox: join requests to approve</td><td class="c no">403</td><td class="c yes">✓</td><td class="c no">Hidden</td><td class="c no">Hidden</td></tr>
       <tr><td>Approve or reject a join request</td><td class="c no">403</td><td class="c yes">✓</td><td class="c no">403</td><td class="c no">403</td></tr>
       <tr><td>Edit the dealership profile (legal name, phone, email, address)</td><td class="c no">403</td><td class="c yes">✓</td><td class="c no">403</td><td class="c no">403</td></tr>
       <tr><td>Promote a sales member to manager</td><td class="c no">403</td><td class="c yes">✓</td><td class="c yes">✓</td><td class="c no">403</td></tr>
@@ -290,6 +293,7 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);font-si
 <section id="arch">
   <h2><span class="num">04</span>System architecture</h2>
   <p>DealerOps is four independently deployable services. The browser talks to exactly one of them, the Gateway. Core owns every business rule and the only database. The AI service holds no data and is reachable only from Core with a shared internal credential. All calls are synchronous REST; there is no message queue and no second database.</p>
+  <p>The shape is deliberate and can be stated in one sentence: <b>one front door, one rule keeper, one record book, and one replaceable AI opinion</b>. Everything a dealership types is checked and stored by Core; the AI service is asked for advice and can be switched off or swapped without touching a business rule.</p>
   <figure>
     <svg viewBox="0 0 920 440" role="img" aria-label="Service architecture: browser to gateway to core to MySQL; core to AI service to model provider; direct browser access to core and AI is refused.">
       <defs>
@@ -297,7 +301,7 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);font-si
         <marker id="ahA" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="d-arrow acc" d="M0,0 L10,5 L0,10 z"/></marker>
         <marker id="ahB" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="d-arrow bad" d="M0,0 L10,5 L0,10 z"/></marker>
       </defs>
-      <rect class="d-zone" x="470" y="130" width="440" height="296" rx="12"/>
+      <rect class="d-zone" x="470" y="130" width="250" height="296" rx="12"/>
       <text class="d-sub" x="482" y="150">Internal services (not browser-reachable)</text>
 
       <rect class="d-box gray" x="20" y="20" width="170" height="64" rx="10"/>
@@ -328,9 +332,13 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);font-si
       <text class="d-title" x="774" y="68">MySQL 8</text>
       <text class="d-sub" x="774" y="88">dealer_core (one DB)</text>
 
-      <rect class="d-box gray" x="760" y="190" width="140" height="64" rx="10"/>
-      <text class="d-title" x="774" y="216">NHTSA vPIC</text>
-      <text class="d-sub" x="774" y="236">VIN decode, makes</text>
+      <rect class="d-box gray" x="760" y="180" width="140" height="64" rx="10"/>
+      <text class="d-title" x="774" y="206">NHTSA vPIC</text>
+      <text class="d-sub" x="774" y="226">VIN decode, makes</text>
+
+      <rect class="d-box gray" x="760" y="262" width="140" height="64" rx="10"/>
+      <text class="d-title" x="774" y="288">IP place lookup</text>
+      <text class="d-sub" x="774" y="308">Audit row location</text>
 
       <rect class="d-box purple" x="510" y="330" width="190" height="80" rx="10"/>
       <text class="d-title" x="524" y="356">ai-service</text>
@@ -346,9 +354,13 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);font-si
       <text class="d-lbl" x="196" y="212">HTTPS</text>
       <text class="d-lbl" x="196" y="240">+ JWT</text>
       <line class="d-line acc" x1="440" y1="222" x2="506" y2="222" marker-end="url(#ahA)"/>
-      <text class="d-lbl" x="446" y="212">proxy</text>
+      <text class="d-lbl" x="444" y="208">proxy</text>
+      <text class="d-lbl" x="444" y="242">+ internal</text>
       <line class="d-line" x1="700" y1="180" x2="758" y2="100" marker-end="url(#ah)"/>
-      <line class="d-line" x1="700" y1="222" x2="756" y2="222" marker-end="url(#ah)"/>
+      <line class="d-line" x1="700" y1="206" x2="756" y2="206" marker-end="url(#ah)"/>
+      <line class="d-line" x1="700" y1="258" x2="756" y2="286" marker-end="url(#ah)"/>
+      <path class="d-line" d="M560,160 L560,52 L196,52" marker-end="url(#ah)"/>
+      <text class="d-lbl" x="320" y="44">verify the sign-in token server-side</text>
       <line class="d-line acc" x1="605" y1="284" x2="605" y2="326" marker-end="url(#ahA)"/>
       <text class="d-lbl" x="612" y="310">X-Dealer-Internal</text>
       <line class="d-line" x1="700" y1="370" x2="756" y2="370" marker-end="url(#ah)"/>
@@ -356,21 +368,63 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);font-si
       <path class="d-line bad" d="M105,274 L105,420 L470,420" marker-end="url(#ahB)"/>
       <text class="d-bad" x="118" y="410">Direct calls to :8081 / :8082 are refused (404)</text>
     </svg>
-    <figcaption>Figure 1 · Service boundaries. Solid blue arrows are the only allowed request path; the red dashed path must fail. Hand-authored source figures also live in <code>design/diagrams/</code>.</figcaption>
+    <figcaption>Figure 1 · Service boundaries. Solid blue arrows are the only allowed request path, and both of its hops carry the internal credential the Gateway adds: Core and the AI service answer <b>404</b> to anyone who reaches them without it, which is what makes the red dashed path fail. Grey arrows are outbound calls the services make themselves — the browser obtains a Google or Firebase ID token, and Core then verifies it against the provider before issuing a DealerOps token of its own. Hand-authored source figures also live in <code>design/diagrams/</code>.</figcaption>
   </figure>
 
-  <h3>Service responsibilities</h3>
+  <h3>4.1 What each service owns</h3>
   <div class="tbl"><table>
     <thead><tr><th>Service</th><th>Owns</th><th>Must not</th></tr></thead>
     <tbody>
-      <tr><td><b>dealer-web</b><br><span class="chip gray">React SPA</span></td><td>All screens, route guards, form validation, the floating assistant panel, printing the bill of sale</td><td>Call Core or AI directly; hold any secret or internal token</td></tr>
-      <tr><td><b>dealer-gateway</b><br><span class="chip blue">Entry point</span></td><td>Routing, JWT validation, CORS, per-client rate limits, downstream health and release checks, blocking <code>/internal/**</code> from browsers</td><td>Contain business logic or touch the database</td></tr>
-      <tr><td><b>dealer-core</b><br><span class="chip blue">Business</span></td><td>Sign-in and JWT issuance, tenancy, authorization, every business rule, OMVIC fixed rules, persistence, audit, assistant retrieval</td><td>Accept browser traffic directly; send customer contact data to AI</td></tr>
-      <tr><td><b>ai-service</b><br><span class="chip purple">AI</span></td><td>Model-provider integration for ad review and assistant answers, timeouts and failure codes</td><td>Access the database; know about users or tenants</td></tr>
+      <tr><td><b>dealer-web</b><br><span class="chip gray">React SPA</span></td><td>All screens, route guards, form validation, the floating assistant panel, printing the bill of sale. It resolves the Gateway address from the first allowed source available — a value set by the host page, an optional <code>/config.json</code>, then the value the build was given — and the cloud deployment builds it against the Gateway URL</td><td>Call Core or AI directly; hold any secret or internal token. The browser client refuses any URL that names port 8081, port 8082 or <code>/internal</code> before the request leaves the page</td></tr>
+      <tr><td><b>dealer-gateway</b><br><span class="chip blue">Entry point</span></td><td>Routing, JWT signature/issuer/audience/expiry validation, the role gate, CORS for one configured origin, four per-client rate-limit budgets, the single merged API document, downstream health and release checks, blocking <code>/internal/**</code> from browsers, and deciding the caller's IP address once</td><td>Contain business logic or touch the database</td></tr>
+      <tr><td><b>dealer-core</b><br><span class="chip blue">Business</span></td><td>Sign-in and JWT issuance, tenancy, authorization, every business rule, the OMVIC fixed rules, persistence, the audit trail, and the assistant's record retrieval</td><td>Accept browser traffic directly; send customer contact data to AI</td></tr>
+      <tr><td><b>ai-service</b><br><span class="chip purple">AI</span></td><td>Model-provider integration for ad review and assistant answers, the fixed system prompts, time budgets, a concurrency cap and failure codes</td><td>Access the database; know about users or tenants; log a prompt, an ad text, an answer or the API key</td></tr>
     </tbody>
   </table></div>
 
-  <h3>Key architecture decisions</h3>
+  <h3>4.2 One request, from click to answer</h3>
+  <p>This is the path every staff action takes. Reading it once explains most of the security and audit sections that follow.</p>
+  <div class="lanes">
+    <div class="lane"><div class="ln">1 · Browser<small>dealer-web</small></div><ol><li>The screen calls one API client, which attaches the signed-in user's token and sends the request to the Gateway address it resolved at start-up.</li><li>A request that names an internal service or path is refused in the browser before it is sent.</li></ol></div>
+    <div class="lane"><div class="ln">2 · Gateway<small>dealer-gateway</small></div><ol><li>Checks the token's signature, issuer, audience and expiry. Missing or bad: <b>401</b>, and the token itself is never written to a log.</li><li>Checks the token's role. A platform-admin token on a business path is stopped here with <b>403</b>, before Core is involved.</li><li>Applies the rate-limit budget for that caller and that kind of call.</li><li>Decides the caller's IP address from the one hop the Azure front end adds, so a caller cannot claim a different address.</li><li>Adds the internal service credential and forwards the call to Core. A browser that tries to send that credential itself gets <b>404</b>.</li></ol></div>
+    <div class="lane"><div class="ln">3 · Core<small>dealer-core</small></div><ol><li>Reloads the account by username. Inactive: <b>401</b>.</li><li>Reads the account's one active membership. That dealership becomes the request's tenant, and the dealership tier (owner, manager, sales) is read fresh from that row, not from the token.</li><li>Applies the business rule for the action, including every refusal in <a href="#api">section 12</a>.</li><li>Writes the change and its audit row in a single database transaction. If either fails, both are rolled back.</li></ol></div>
+    <div class="lane"><div class="ln">4 · Answer<small>back to the screen</small></div><ol><li>Success returns the saved record, or the list page, with the new version number for the next edit.</li><li>A refusal returns a short code and a sentence the screen shows in place, with per-field messages on a form.</li><li>Every request carries a request id that appears in each service's log line, so one reported problem can be followed across all three services.</li></ol></div>
+  </div>
+
+  <h3>4.3 What the system talks to outside itself</h3>
+  <div class="tbl"><table>
+    <thead><tr><th>Outside service</th><th>Used for</th><th>If it is unavailable</th></tr></thead>
+    <tbody>
+      <tr><td>NHTSA vPIC</td><td>Decoding a VIN into make, model, year and body type, and the make/model lists behind the add-vehicle form. Answers are cached in memory</td><td>The form still saves; the user types the fields. The public landing page waits at most 5 seconds (<code>CATALOG_UNAVAILABLE</code>)</td></tr>
+      <tr><td>LLM provider</td><td>The advisory ad review and the assistant's wording. One of five configured endpoints (Groq, OpenAI, DeepSeek, xAI, Anthropic); an unrecognized name falls back to the default rather than calling an arbitrary host</td><td>Ad checks end as <b>AI&nbsp;unavailable</b> and never as a pass; the assistant still lists the matching records</td></tr>
+      <tr><td>Google / Firebase</td><td>Optional sign-in. The identity provider proves who the person is; DealerOps still owns roles and dealership membership</td><td>Local password sign-in is unaffected</td></tr>
+      <tr><td>IP place lookup</td><td>Turning an audit row's IP address into a readable place. Private and local addresses are labelled locally and never sent out; results are cached for six hours</td><td>The audit row keeps the IP address and omits the place</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>4.4 Time budgets, limits and what happens when something fails</h3>
+  <div class="tbl"><table>
+    <thead><tr><th>Guard</th><th>Setting</th><th>Visible effect</th></tr></thead>
+    <tbody>
+      <tr><td>AI call budget</td><td>2 s to connect plus 13 s to answer, and at most 16 model calls in flight at once</td><td>Over budget or too busy: the check is stored as <code>AI_UNAVAILABLE</code>. Core deliberately waits longer than the AI service's own budget (18 s), so the failure comes back and is recorded instead of Core abandoning the call and leaving an older pass in place</td></tr>
+      <tr><td>Rate limits, per one-minute window</td><td>Signed-in user 600 calls, anonymous caller 60 per IP, AI-backed calls (ad check, assistant) 30, buyer-site inquiries 5</td><td><b>429</b> <code>RATE_LIMITED</code> with a <code>Retry-After</code> of one minute. Defaults, confirmable before production</td></tr>
+      <tr><td>VIN catalog</td><td>5-second timeout, in-memory cache</td><td>Decode reports unavailable; manual entry continues</td></tr>
+      <tr><td>Photos</td><td>2 MB per file, 10 per vehicle, type read from the file's bytes</td><td>A rejected upload names the limit it broke</td></tr>
+      <tr><td>Concurrent edits</td><td>Every write carries the version it is editing</td><td><b>409</b> <code>VERSION_CONFLICT</code>; the screen reloads and the user re-applies the change, so no edit is silently overwritten</td></tr>
+      <tr><td>Concurrent payments</td><td>The vehicle row is locked for the duration of the payment transaction</td><td>Two payments recorded at the same instant cannot together exceed the sold price</td></tr>
+      <tr><td>An unreachable service</td><td>Gateway health check per downstream app</td><td>A failed downstream call returns <b>502</b> in the same error shape as every other failure, never a blank page</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>4.5 Logging and traceability of the running system</h3>
+  <ul>
+    <li>Each service writes a dated log file per service name, plus Azure Application Insights telemetry in the cloud. A single request id joins the three services' lines.</li>
+    <li>Log lines carry ids, outcomes and durations. They deliberately never carry a token, a password, an API key, a prompt, an ad body, a model answer, or a customer's phone, email or address.</li>
+    <li>Refused attempts are logged as well as successful ones: a rejected token, a forbidden role, a rate-limited caller, a payment refused for exceeding the balance. That is how an operator sees a problem that the audit trail, which records only accepted changes, does not show.</li>
+    <li>The footer of every screen shows the release time of all four apps, read from the Gateway, so a demo can prove which build is running.</li>
+  </ul>
+
+  <h3>4.6 Key architecture decisions</h3>
   <div class="tbl"><table>
     <thead><tr><th>Decision</th><th>Reason</th></tr></thead>
     <tbody>
@@ -379,6 +433,11 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);font-si
       <tr><td>Rules before AI</td><td>A deterministic hard block is cheaper, explainable, and guarantees the AI can never "approve" an ad the checklist already rejected.</td></tr>
       <tr><td>Stateless AI service</td><td>The model provider can be swapped by configuration, and AI never sees the database or another tenant.</td></tr>
       <tr><td>Gateway as the only public origin</td><td>One place for CORS, token checks and rate limits; internal services stay private.</td></tr>
+      <tr><td>The role is in the token, the dealership is not</td><td>A promotion or a removal takes effect on the member's next request instead of waiting for their token to expire, because Core reads the membership row on every call.</td></tr>
+      <tr><td>Authorization enforced twice</td><td>The Gateway stops a platform-admin token on a business path, and Core stops it again. Neither layer relies on the other, and the UI hiding a button is never the control.</td></tr>
+      <tr><td>Nothing is hard-deleted</td><td>A dealership keeps sales and financial records. Deleting a vehicle, customer, link, photo or payment marks it deleted and keeps the row for history and audit.</td></tr>
+      <tr><td>The database schema is created and patched at start-up</td><td>Core creates missing tables and adds missing columns itself, each step safe to repeat, with a marker row for the one-time role migration. A classroom or demo database can be started, upgraded and re-seeded without a separate migration tool.</td></tr>
+      <tr><td>The buyer site reuses the export rule</td><td>A vehicle is public on <code>/shop</code> under exactly the condition that allows a TXT export: in stock, ad marked Ready, latest check passed and still current. There is no second notion of "published" to keep in step.</td></tr>
     </tbody>
   </table></div>
 </section>
@@ -389,7 +448,7 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);font-si
   <div class="tbl"><table>
     <thead><tr><th>Layer</th><th>Technology</th><th>Notes</th></tr></thead>
     <tbody>
-      <tr><td>Frontend</td><td>React 19, TypeScript, Vite, React Router, Zustand</td><td>Single-page app; one HTTP client pointed at the Gateway URL from configuration</td></tr>
+      <tr><td>Frontend</td><td>React 19, TypeScript, Vite, React Router 7, Zustand, Axios</td><td>Single-page app; one HTTP client pointed at the Gateway URL from configuration. Built once and served as static files by Node 20 with SPA fallback</td></tr>
       <tr><td>Gateway</td><td>.NET 10 / ASP.NET Core with YARP</td><td>Reverse proxy, JWT bearer validation, rate limiting, health aggregation</td></tr>
       <tr><td>Core service</td><td>.NET 10 / ASP.NET Core, EF Core</td><td>Controllers, services and entities grouped by business area (Vehicle, Customer, Lead, WorkOrder, Photo, Payment, Listing, Compliance, Audit, Dealer, BuyerSite, Assistant)</td></tr>
       <tr><td>AI service</td><td>.NET 10 / ASP.NET Core</td><td>Provider client supporting Groq, OpenAI, DeepSeek, xAI and Anthropic endpoints; provider, model and key come from configuration</td></tr>
@@ -397,7 +456,7 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);font-si
       <tr><td>Identity</td><td>Local password (BCrypt), Google ID token, Firebase Auth</td><td>DealerOps always issues its own JWT; identity providers never grant roles or dealerships</td></tr>
       <tr><td>Infrastructure</td><td>Terraform, Azure Linux App Service, Key Vault, Application Insights</td><td>No containers; services deploy as .NET 10 app packages</td></tr>
       <tr><td>CI</td><td>GitHub Actions, one workflow per service plus Terraform</td><td>Build and validate on every pull request and on <code>main</code></td></tr>
-      <tr><td>External data</td><td>NHTSA vPIC</td><td>VIN decode and make/model catalog, cached in memory</td></tr>
+      <tr><td>External data</td><td>NHTSA vPIC; an IP place-lookup service</td><td>VIN decode and make/model catalog, cached in memory; the readable location on an audit row, cached for six hours and skipped for private addresses</td></tr>
     </tbody>
   </table></div>
 </section>
@@ -420,12 +479,14 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);font-si
     <div>
       <h3>Security controls</h3>
       <ul>
-        <li><b>Passwords</b> are stored only as salted BCrypt hashes. Tokens expire after one hour.</li>
-        <li><b>One login, one dealership</b>: a second active binding returns <code>409 DUP_MEMBER</code>.</li>
-        <li><b>Internal header</b> <code>X-Dealer-Internal</code> protects Core and AI; it is never forwarded from a browser and never given to frontend code.</li>
+        <li><b>Passwords</b> are stored only as salted BCrypt hashes. Tokens expire after one hour and carry the username, display name and platform role only — never a dealership, a tier or a permission.</li>
+        <li><b>A sign-in attempt for an unknown username</b> still performs a password comparison against a throwaway hash, so the response time does not reveal which usernames exist.</li>
+        <li><b>One login, one dealership</b>: a second active binding returns <code>409 DUP_MEMBER</code>. Were two ever to exist, Core refuses the request rather than guessing a tenant.</li>
+        <li><b>Internal header</b> <code>X-Dealer-Internal</code> protects Core and AI. The Gateway strips any copy a caller sends, adds its own on the way out, and compares it in constant time. A browser request carrying that header is answered <b>404</b>, and a non-default value is required before the services will start outside classroom mode.</li>
         <li><b>Secrets</b> live in Azure Key Vault and reach apps through a managed identity; no app setting holds a secret value.</li>
-        <li><b>HTTPS</b> everywhere; App Service terminates TLS; MySQL requires TLS.</li>
-        <li><b>Rate limits</b> per client at the Gateway, with a separate limit of 5 buyer-site inquiries per minute per IP (<code>429 RATE_LIMITED</code>).</li>
+        <li><b>HTTPS</b> everywhere; App Service terminates TLS; MySQL requires TLS. The API documentation UI is served only in classroom/local mode and answers <b>404</b> otherwise.</li>
+        <li><b>Rate limits</b> at the Gateway, in four one-minute budgets per caller: 600 API calls for a signed-in user (keyed by username), 60 for an anonymous caller (keyed by IP), 30 for AI-backed calls, and 5 buyer-site inquiries (<code>429 RATE_LIMITED</code>).</li>
+        <li><b>Ad copy sent to the AI is fenced as untrusted input</b>, and the model is instructed to analyse it and never obey it, so advertising text cannot be used to give the model instructions.</li>
         <li><b>Privacy</b>: customer phone, email and address are never sent to AI, never written to application logs, and never shown by the assistant. The audit trail does record them, so it is readable only by the dealership's owner and managers and by the admin. Deleted customers keep their records unchanged; nothing is anonymized or purged (<a href="#data">section 11</a>).</li>
       </ul>
     </div>
@@ -509,6 +570,7 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);font-si
 <!-- 8 -->
 <section id="flows">
   <h2><span class="num">08</span>Business process flows</h2>
+  <p>This section walks through the dealership's working day in the order it happens: getting people into the system, taking a vehicle from the auction lane to a paid invoice, advertising it legally, turning a buyer's phone call into a tracked opportunity, and closing the money. Each flow names the step, who does it, and the rule that stops the step being done wrongly, so the flows can be checked against the running system during acceptance.</p>
 
   <h3>8.1 Dealership onboarding and access</h3>
   <div class="lanes">
@@ -516,7 +578,7 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);font-si
     <div class="lane"><div class="ln">New employee<small>/register, /login</small></div><ol><li>Registers locally or signs in with Google / Firebase.</li><li>Lands on the no-access screen and requests to join one dealership.</li></ol></div>
     <div class="lane"><div class="ln">Owner<small>/team</small></div><ol><li>Sees the request in the header inbox and on the Team page.</li><li>Approves (membership created as <b>Sales</b>, audited) or rejects.</li><li>Appoints managers, demotes a manager back to sales, edits or removes any member below owner, and owns the dealership profile.</li></ol></div>
     <div class="lane"><div class="ln">Manager<small>/team</small></div><ol><li>Shares the Team page and the dealership audit log with the owner.</li><li>Acts on sales members only: promotes one to manager, edits their full name and phone, removes them. No join requests, no dealership profile, no touching the owner or another manager.</li></ol></div>
-    <div class="lane"><div class="ln">Sales<small>/dms</small></div><ol><li>Next sign-in lands on DMS with full access to the dealership's business data and nothing else; no Team item appears in the menu.</li></ol></div>
+    <div class="lane"><div class="ln">Sales<small>/dms</small></div><ol><li>Next sign-in lands on DMS with full access to the dealership's business data and nothing else; no Team item appears in the menu.</li><li>The header inbox still works, showing the dealership's buyer-site inquiries so a web lead reaches whoever is on the floor. Join requests are not shown, because only the owner acts on them.</li></ol></div>
   </div>
 
   <h3>8.2 Vehicle lifecycle, from acquisition to payment</h3>
@@ -538,8 +600,47 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);font-si
     <div class="step"><span class="who">Payments</span><b>Collect</b><span>Record payments to zero balance; print the bill of sale.</span></div>
   </div>
   <p>Every step writes an audit row in the same transaction as the change. Changing the vehicle's condition, or the ad's text, type or medium, makes a previously passed check <b>Stale</b>, which removes the vehicle from the buyer site until it is checked again.</p>
+  <div class="tbl"><table>
+    <thead><tr><th>Step</th><th>What the staff member does</th><th>What the system guarantees</th></tr></thead>
+    <tbody>
+      <tr><td><b>Acquire</b></td><td>Types or decodes the VIN, then fills make, model, year, source, purchase cost, date added and condition. Mileage, colour, fuel, body type, stock number, list price, repair cost and a Carfax link are optional.</td><td>The VIN is upper-cased, must be 17 characters without I, O or Q, and must be unique inside the dealership. Decoding fills fields but saves nothing until the user presses Save, so a wrong decode is never stored. Money amounts are refused with more than two decimals rather than quietly rounded.</td></tr>
+      <tr><td><b>Recondition</b></td><td>Adds tasks, optionally with an assignee and a due date, moves them along, and finishes each with a note and a cost.</td><td>An assignee must be a member of the same dealership. A finished task requires both the note and the cost, and that cost is added to the vehicle's repair cost in the same transaction, so the profit figure cannot drift from the workshop record. A finished or cancelled task can no longer be edited.</td></tr>
+      <tr><td><b>Photograph</b></td><td>Uploads up to ten JPEG or PNG photos and optionally applies Auto fix, Brighten or Sharpen.</td><td>The file type is read from the file's bytes, not its name. An enhancement creates a copy and always keeps the original. Photos live in the dealership's own database rows and are never sent to the AI.</td></tr>
+      <tr><td><b>Advertise</b></td><td>Writes the ad title and body, picks cash, finance or lease and online or broadcast, fills the salesperson's disclosure checklist, runs the check, then marks it Ready.</td><td>See <a href="#compliance">section 9</a>. Ready and TXT export are possible only while the latest check passed on exactly the text now on screen.</td></tr>
+      <tr><td><b>Publish</b></td><td>Nothing further: a Ready, passed vehicle appears on the dealership's public page.</td><td>The public page shows no VIN, no purchase or repair cost, no sold price and no customer data.</td></tr>
+      <tr><td><b>Sell the deal</b></td><td>Works the leads, calls the customer, records notes and follow-up dates.</td><td>Only one open opportunity can exist per customer and vehicle, so two salespeople cannot work the same deal twice over.</td></tr>
+      <tr><td><b>Sell</b></td><td>Opens the Sell dialog, which shows purchase cost, workshop spend and list price, and enters the sold date, the price and the buyer.</td><td>The sale is refused if the vehicle has open work orders, if it is already sold, if the date is before the date added or later than today, or if the price is missing or not positive. A CRM buyer is linked to the vehicle in the same transaction; a walk-in buyer can be recorded as <b>Other</b> with a typed name. The sale records who sold it, locks the purchase fields, and closes the vehicle's open leads — the buyer's as Won and the rest as Lost with the reason "Vehicle sold".</td></tr>
+      <tr><td><b>Collect</b></td><td>Records each payment taken at the dealership and prints the bill of sale.</td><td>Payments are only possible after the sale is recorded, cannot exceed the balance due, and cannot be dated before the sale or in the future. The vehicle row is locked while a payment is recorded, so simultaneous entries cannot overdraw the balance.</td></tr>
+    </tbody>
+  </table></div>
 
-  <h3>8.3 Lead pipeline</h3>
+  <h3>8.3 Advertising a vehicle and taking it down again</h3>
+  <p>This is the flow the client's compliance requirement turns on, so it is worth following end to end. The ad lives with the vehicle: one draft per vehicle, edited on the Ads page.</p>
+  <div class="flow">
+    <div class="step"><span class="who">Ads page</span><b>Write the draft</b><span>Title, body, cash / finance / lease, online or broadcast, plus the disclosure checklist: prior use, extended-warranty terms, annual kilometre allowance.</span></div>
+    <div class="arrow">→</div>
+    <div class="step"><span class="who">Core</span><b>Run the check</b><span>Fixed OMVIC rules first; the AI review only if no rule blocks.</span></div>
+    <div class="arrow">→</div>
+    <div class="step"><span class="who">Member</span><b>Fix and recheck</b><span>Blocked items are listed with the reason; advisory notes are shown but do not stop the ad.</span></div>
+    <div class="arrow">→</div>
+    <div class="step"><span class="who">Ads page</span><b>Mark Ready</b><span>Allowed only while the passed check matches the text on screen.</span></div>
+    <div class="arrow">→</div>
+    <div class="step"><span class="who">Channels</span><b>Publish</b><span>The vehicle appears on <code>/shop/{dealership}</code>; the TXT export carries the same copy for an external channel.</span></div>
+    <div class="arrow">→</div>
+    <div class="step"><span class="who">Any later edit</span><b>Back to draft</b><span>A real text change raises the ad's content version, returns it to Draft, marks the passed check Stale and removes the vehicle from the public page.</span></div>
+    <div class="arrow">→</div>
+    <div class="step"><span class="who">Sale</span><b>Taken down</b><span>Selling the vehicle removes it from the public page; the Ads page shows it as Taken down after a sale.</span></div>
+  </div>
+  <p>Two details matter in a demo. First, saving the same text again does <b>not</b> invalidate a passed check — only a genuine change does, so a passed ad cannot be lost by reopening the editor. Second, the exported TXT file always ends with the line that this check is not legal advice and not an OMVIC approval; the system is a disclosure aid, not a regulator.</p>
+
+  <h3>8.4 A buyer's inquiry becomes a tracked opportunity</h3>
+  <div class="lanes">
+    <div class="lane"><div class="ln">Public visitor<small>/shop/{dealership}</small></div><ol><li>Browses the listed vehicles, opens one, and sends an inquiry with a name, a phone number and a message.</li><li>At most five inquiries a minute from one address are accepted.</li><li>A vehicle that has just been sold or taken down answers that it is no longer listed, rather than filing an inquiry nobody can honour.</li></ol></div>
+    <div class="lane"><div class="ln">Core<small>buyer-site actor</small></div><ol><li>Matches the buyer to an existing customer of that dealership only when <b>both</b> the phone number and the name match, so a household that shares a phone keeps separate profiles. Otherwise a customer record is created.</li><li>If that customer already has an open opportunity on that vehicle, the inquiry is appended to it as a note instead of creating a second one.</li><li>Otherwise a new opportunity is created at stage NEW with today as the follow-up date and the inquiry as its first note.</li><li>Each row written this way is audited with the actor <code>buyer-site</code>, so staff can tell web inquiries from their own entries.</li></ol></div>
+    <div class="lane"><div class="ln">Sales staff<small>header inbox, /leads</small></div><ol><li>A new opportunity posts a message to the dealership's inbox, visible to every member.</li><li>The message clears itself once someone takes the opportunity — gives it an owner or moves it past NEW — so the inbox is a to-do list, not a log.</li><li>If the vehicle is sold to someone else first, the sale closes the opportunity and clears its inbox message as taken.</li></ol></div>
+  </div>
+
+  <h3>8.5 Lead pipeline</h3>
   <div class="states">
     <span class="chip blue">NEW</span><span class="arrow">→</span>
     <span class="chip blue">CONTACTED</span><span class="arrow">→</span>
@@ -550,9 +651,9 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);font-si
     <span class="arrow">· Reopen →</span>
     <span class="chip blue">NEW / CONTACTED / QUALIFIED</span>
   </div>
-  <p>While a lead is open, a member may move it to any stage. <code>WON</code> and <code>LOST</code> otherwise reject changes (<code>LEAD_CLOSED</code>), though notes can still be added. Reopening brings a closed lead back to an open stage: a lost lead always, a won lead only while its vehicle was not sold to that lead's customer, and in both cases only while the lead's vehicle is still in stock. Only one open lead may exist for the same customer and vehicle (<code>LEAD_DUPLICATE</code>). Winning a lead does not sell the vehicle; the sale remains the DMS Sell action, and that sale closes the vehicle's open leads. Buyer-site inquiries create a <code>NEW</code> lead due today, reusing an existing customer with the same phone.</p>
+  <p>While a lead is open, a member may move it to any stage. <code>WON</code> and <code>LOST</code> otherwise reject changes (<code>LEAD_CLOSED</code>), though notes can still be added. Reopening brings a closed lead back to an open stage: a lost lead always, a won lead only while its vehicle was not sold to that lead's customer, and in both cases only while the lead's vehicle is still in stock. Only one open lead may exist for the same customer and vehicle (<code>LEAD_DUPLICATE</code>). Winning a lead does not sell the vehicle; the sale remains the DMS Sell action, and that sale closes the vehicle's open leads. Buyer-site inquiries enter the same pipeline as described in 8.4.</p>
 
-  <h3>8.4 Work-order states</h3>
+  <h3>8.6 Work-order states</h3>
   <div class="states">
     <span class="chip blue">OPEN</span><span class="arrow">→</span>
     <span class="chip amber">IN_PROGRESS</span><span class="arrow">→</span>
@@ -562,12 +663,45 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);font-si
     <span class="arrow">·</span>
     <span class="chip blue">OPEN / IN_PROGRESS</span><span class="arrow">→</span><span class="chip gray">CANCELLED</span>
   </div>
+  <p>A task cannot move backwards, and a Done or Cancelled task cannot be edited at all; a mistake is corrected by cancelling and raising a new task, which leaves both in the history. Work orders cannot be added to a sold vehicle. The workshop settlement part of the Sales report totals finished work by month and by assignee, which is what pays an outside detailer or mechanic.</p>
 
-  <h3>8.5 Vehicle states</h3>
+  <h3>8.7 Vehicle states</h3>
   <div class="states">
     <span class="chip blue">IN_STOCK</span><span class="arrow">→ Sell (date + price) →</span><span class="chip green">SOLD</span>
     <span class="arrow">·</span><span class="chip gray">Soft-deleted</span><span class="arrow">kept for history</span>
   </div>
+
+  <h3>8.8 Money: payments and the bill of sale</h3>
+  <div class="flow">
+    <div class="step"><span class="who">Any member</span><b>Record a payment</b><span>Amount, method (cash, debit, credit card, cheque, bank transfer, financing, other), date and an optional note.</span></div>
+    <div class="arrow">→</div>
+    <div class="step"><span class="who">Core</span><b>Check against the sale</b><span>Sale recorded, two decimals at most, not more than the balance due, date between the sale date and today.</span></div>
+    <div class="arrow">→</div>
+    <div class="step"><span class="who">Owner / Manager</span><b>Read the ledger</b><span>Every payment, the total taken and the balance due. A sales member sees only the entry they just recorded.</span></div>
+    <div class="arrow">→</div>
+    <div class="step"><span class="who">Owner / Manager</span><b>Correct a mistake</b><span>Removing an entry keeps the row and records the removed amount, method and date in the audit trail.</span></div>
+    <div class="arrow">→</div>
+    <div class="step"><span class="who">DMS</span><b>Print the bill of sale</b><span>Dealer, buyer, vehicle, sale price, payments and balance on one printable page.</span></div>
+  </div>
+  <p>No card is ever processed and no bank is contacted: this is a record of money already taken at the dealership, and the bill of sale is a template rather than a lawyer-reviewed contract. Every accepted payment, and every refused attempt, is recorded — the accepted ones in the vehicle's audit history, the refused ones in the service log with the reason.</p>
+
+  <h3>8.9 Refusals a user will actually meet</h3>
+  <p>These are the deliberate stops built into the flows above. Each one is shown on the screen as a sentence, not as a technical error.</p>
+  <div class="tbl"><table>
+    <thead><tr><th>The user tries to…</th><th>Result</th><th>Why</th></tr></thead>
+    <tbody>
+      <tr><td>Sell a vehicle with unfinished workshop tasks</td><td><code>WORK_ORDERS_OPEN</code></td><td>The sale would record a profit figure the workshop is about to change.</td></tr>
+      <tr><td>Sell a vehicle twice, or edit a sold vehicle's purchase fields</td><td><code>SOLD_LOCKED</code></td><td>A completed sale is a financial record.</td></tr>
+      <tr><td>Sell a vehicle to a buyer other than the customer already linked to it</td><td><code>VEHICLE_ALREADY_LINKED</code></td><td>One vehicle has one owner; the link must be corrected first.</td></tr>
+      <tr><td>Mark Ready or export an ad whose text changed since it passed</td><td><code>CHECK_STALE</code> / <code>NOT_PASSED</code></td><td>Only the exact text that was checked may be published.</td></tr>
+      <tr><td>Open a second opportunity for the same customer and vehicle</td><td><code>LEAD_DUPLICATE</code></td><td>One live opportunity per customer and car keeps the pipeline figures honest.</td></tr>
+      <tr><td>Change a won or lost opportunity</td><td><code>LEAD_CLOSED</code></td><td>Closed outcomes are history; notes may still be added, or it can be reopened.</td></tr>
+      <tr><td>Save a record someone else changed meanwhile</td><td><code>VERSION_CONFLICT</code></td><td>No edit is silently overwritten; the screen reloads the current values.</td></tr>
+      <tr><td>Remove or demote a dealership's only owner</td><td><code>LAST_OWNER</code></td><td>Somebody must be able to approve join requests and own the profile.</td></tr>
+      <tr><td>Bind one account to a second dealership</td><td><code>DUP_MEMBER</code></td><td>One login belongs to one dealership, which is what keeps the data separated.</td></tr>
+      <tr><td>Open another dealership's record by its id</td><td><b>404</b></td><td>The answer must not even reveal that the record exists.</td></tr>
+    </tbody>
+  </table></div>
 </section>
 
 <!-- 9 -->
@@ -581,14 +715,17 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);font-si
     <div class="arrow">→</div>
     <div class="step"><span class="who">Core</span><b>Guard</b><span>Tenant and optimistic-lock checks.</span></div>
     <div class="arrow">→</div>
-    <div class="step"><span class="who">Core</span><b>Fixed OMVIC rules</b><span>Uses ad text, public vehicle fields and the dealer profile.</span></div>
+    <div class="step"><span class="who">Core</span><b>Fixed OMVIC rules</b><span>Uses the ad text, the salesperson's disclosure checklist, the vehicle's public fields and the dealership profile.</span></div>
+    <div class="arrow">→</div>
+    <div class="step"><span class="who">Core</span><b>Apply rule settings</b><span>A rule the admin disabled is dropped; a changed severity or message replaces the built-in one.</span></div>
     <div class="arrow">→</div>
     <div class="step"><span class="who">Decision</span><b>Any BLOCK?</b><span>Yes: save <code>BLOCKED</code>, AI not called. No: continue.</span></div>
     <div class="arrow">→</div>
-    <div class="step"><span class="who">ai-service</span><b>AI review</b><span>15 s budget (2 s connect + 13 s response).</span></div>
+    <div class="step"><span class="who">ai-service</span><b>AI review</b><span>15 s budget (2 s connect + 13 s response), at most 16 calls at once.</span></div>
     <div class="arrow">→</div>
-    <div class="step"><span class="who">Core</span><b>Persist</b><span>Success: <code>PASSED</code>. Failure: <code>AI_UNAVAILABLE</code>, never a pass.</span></div>
+    <div class="step"><span class="who">Core</span><b>Persist</b><span>Success: <code>PASSED</code>. Failure: <code>AI_UNAVAILABLE</code>, never a pass. The check, the ad's pointer to it and the audit row commit together.</span></div>
   </div>
+  <p>Every run is kept, not just the last one: each check row stores the findings, the AI notes, the AI outcome and the exact content version it judged. That is what lets the system say later whether a published ad had been checked, and under which text.</p>
 
   <h3>9.2 Check states shown to the user</h3>
   <div class="tbl"><table>
@@ -602,22 +739,44 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);font-si
     </tbody>
   </table></div>
 
-  <h3>9.3 Rule coverage</h3>
+  <h3>9.3 The salesperson's disclosure checklist</h3>
+  <p>Some OMVIC disclosures are facts about the deal that no amount of reading can find in the ad copy. The ad draft therefore carries three fields the salesperson fills in beside the text, and the rules compare them against what the copy actually says:</p>
+  <div class="tbl"><table>
+    <thead><tr><th>Checklist field</th><th>What it records</th><th>What the rules do with it</th></tr></thead>
+    <tbody>
+      <tr><td>Prior use</td><td>Former police or emergency vehicle, taxi or limousine, daily rental, another prior use, or none</td><td>A recorded prior use that the copy does not disclose is flagged for review, with the wording expected for that kind of use. Copy that hints at a prior use without disclosing it is flagged too.</td></tr>
+      <tr><td>Extended warranty terms</td><td>The terms the dealership is offering, if any</td><td>Recorded terms that do not appear in the copy are flagged, so a warranty cannot be implied in the ad and defined only in the back office.</td></tr>
+      <tr><td>Annual kilometre allowance</td><td>The lease allowance agreed for this vehicle</td><td>An allowance missing from the copy, or printed differently from the checklist, is flagged. The stricter of the two figures decides whether the excess-kilometre fee becomes mandatory, so an ad printing 16,000 km must disclose the fee even if the checklist recorded 24,000.</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>9.4 Rule coverage</h3>
   <div class="tbl"><table>
     <thead><tr><th>Ad type</th><th>BLOCK (hard) rules</th><th>REVIEW (advisory) rules</th></tr></thead>
     <tbody>
-      <tr><td>All ads</td><td>Price missing; dealer name missing; all dealer contact missing; "certified" claimed on a non-certified vehicle; as-is / unfit / irreparable not disclosed</td><td>Contact incomplete; year not in copy; new/used contradiction or not stated; prior use unclear; warranty claim; certified vehicle not described as certified</td></tr>
-      <tr><td>FINANCE</td><td>APR missing; no cash price or cost of borrowing</td><td>APR not near the payment (online only; broadcast exempt); term missing</td></tr>
-      <tr><td>LEASE</td><td>Not stated as a lease; APR missing; allowance under 20,000 km without an excess-km charge</td><td>Lease term, payment or down payment missing; allowance not stated</td></tr>
+      <tr><td>All ads</td><td>No price in the copy; dealership legal name missing; none of the dealership's own phone, email or address present; "certified" claimed on a non-certified vehicle; an as-is, unfit or irreparable vehicle whose condition is not disclosed</td><td>Only part of the dealership's own contact details present; model year not in the copy; copy implying a new vehicle on an older model year; neither "new" nor "used" stated; prior use unclear; recorded warranty terms missing from the copy; a warranty boast that needs a human read; a certified vehicle not described as certified</td></tr>
+      <tr><td>FINANCE<br><span class="chip gray">also any cash ad that quotes a rate or a monthly payment</span></td><td>APR missing; neither a cash price nor the cost of borrowing stated</td><td>Term missing; the APR not printed within reach of the payment amount, so it is not as prominent as the payment (online ads only; broadcast is exempt)</td></tr>
+      <tr><td>LEASE</td><td>APR missing; the ad never states that it is a lease; an allowance under 20,000 km a year with no excess-kilometre charge</td><td>Lease term, payment amount or down payment not stated; allowance not stated, missing from the copy, or different from the checklist</td></tr>
     </tbody>
   </table></div>
-  <p>The platform admin can enable or disable a rule, switch it between BLOCK and REVIEW, and change its message. Any change marks every existing check Stale so ads are rechecked under the new rules.</p>
+  <p>A contact detail only counts when it is the <b>dealership's own</b> phone, email or address: another phone number in the copy does not satisfy the rule. The rules are also written to avoid false alarms that would train staff to ignore them — "not certified" is not read as a certification claim, and a price such as $32,019 is not read as stating a 2019 model year.</p>
+  <p>The platform admin can enable or disable a rule, switch it between BLOCK and REVIEW, and change the message a user sees. Any such change marks every existing check Stale, so every ad is rechecked under the new rules rather than relying on a verdict given under the old ones.</p>
 
-  <h3>9.4 What the AI receives</h3>
+  <h3>9.5 How the AI review is kept safe and honest</h3>
+  <ul>
+    <li><b>It cannot approve anything.</b> The AI returns at most eight notes, each marked only as advisory, and is instructed never to claim that an ad is OMVIC approved or legally cleared. A pass comes from the rules, not from the model.</li>
+    <li><b>It cannot be given orders through an ad.</b> The title and body are passed inside explicit untrusted-input markers, and the model is told to analyse that text and never obey it — and to report the attempt if the copy tries to steer the review.</li>
+    <li><b>It is set up to be repeatable, not creative</b>: a low temperature, a fixed token budget, and a fixed system prompt that is part of the build rather than something a user can edit.</li>
+    <li><b>It never sees what it does not need</b>: no customer details, no purchase or repair cost, no sold price, no photos, nothing from another dealership.</li>
+    <li><b>It is replaceable.</b> Provider, model and key are configuration. An unrecognized provider name falls back to the default rather than calling an arbitrary host, and a missing key is reported as unavailable instead of silently skipping the review.</li>
+    <li><b>Nothing of it is logged</b> beyond the provider name, the model name, the duration and the outcome.</li>
+  </ul>
+
+  <h3>9.6 What the AI receives</h3>
   <ul>
     <li>Ad title and body, ad type and medium, the vehicle's public fields (no purchase cost, repair cost or sold price) and the dealership's public profile.</li>
     <li>Never: customer contact details, leads, notes, photos or anything from another dealership.</li>
-    <li>The assistant receives the question plus up to five pre-filtered records of the user's own dealership. Any record id the model invents is dropped. If the model is down, the assistant still shows the matching records with "Smart explanation is temporarily unavailable."</li>
+    <li>The assistant receives the question plus up to five pre-filtered records of the user's own dealership. Any record id the model invents is dropped. A counting question ("how many vehicles are in stock?") is answered from the database without calling the model at all, so a number is never guessed from a truncated list. If the model is down, the assistant still shows the matching records with "Smart explanation is temporarily unavailable."</li>
   </ul>
 </section>
 
@@ -652,7 +811,7 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);font-si
       <tr><td>Administration</td><td><code>DEALER</code>, <code>MEMBERSHIP</code>, <code>RULE_OVERRIDE</code></td><td>Dealership create, edit and soft delete; bind, unbind, tier change (both rows when the owner is transferred), filed and approved join requests, member removal; OMVIC rule changes</td></tr>
     </tbody>
   </table></div>
-  <p>Only changes are audited, not page views. A save that changes nothing writes no row.</p>
+  <p>Only changes are audited, not page views. A save that changes nothing writes no row. Where a value is free text a buyer or user typed, the row records that the field was set rather than copying the text: a walk-in buyer's name, for instance, is marked as recorded without being duplicated into the trail.</p>
 
   <h3>10.3 Contents of an audit row</h3>
   <div class="tbl"><table>
@@ -664,7 +823,8 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);font-si
       <tr><td>New values</td><td>Each changed field with its new value</td></tr>
       <tr><td>Previous values</td><td>The same fields with the values they replaced</td></tr>
       <tr><td>Dealership</td><td>The dealership the record belongs to</td></tr>
-      <tr><td>Client IP</td><td>The caller's address (IPv4 or IPv6)</td></tr>
+      <tr><td>Client IP</td><td>The caller's address (IPv4 or IPv6), decided by the Gateway and not by anything the caller sends</td></tr>
+      <tr><td>Client location</td><td>A readable place for that address — country, region, city and, where the postal or district data identifies one, the city quadrant. A private or local address is labelled "Local or private network" and is never sent to the lookup service; a public address whose lookup is unavailable simply has no place recorded</td></tr>
       <tr><td>Time</td><td>Stored in UTC, shown in the viewer's local time</td></tr>
     </tbody>
   </table></div>
@@ -701,7 +861,7 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);font-si
       <tr><td>Identity and tenancy</td><td><code>dealer</code>, <code>app_user</code>, <code>membership</code>, <code>notification</code></td><td>Username is the account key and JWT subject. Exactly one active membership per user; it carries <code>OWNER</code> / <code>MANAGER</code> / <code>SALES</code>, with exactly one active owner per dealership. A full name is not unique. Notifications hold join requests.</td></tr>
       <tr><td>Inventory</td><td><code>vehicle</code>, <code>vehicle_photo</code>, <code>work_order</code>, <code>vehicle_payment</code></td><td>VIN unique per dealership; sold pair; sold lock; the sale stores <code>sold_by</code> (the salesperson's username) and either the linked customer or a typed <code>sold_to_name</code>; photos as original + enhanced blobs; dealership logo stored on <code>dealer</code></td></tr>
       <tr><td>Customers and sales</td><td><code>customer</code>, <code>customer_vehicle</code>, <code>sales_lead</code>, <code>sales_lead_note</code></td><td>One active customer per vehicle (unlinked rows are kept); no customer field is unique, name and phone included; <code>customer.notes</code> is free text; lead notes append-only; at most one open lead per customer and vehicle</td></tr>
-      <tr><td>Advertising</td><td><code>listing</code>, <code>compliance_check</code>, <code>compliance_rule_override</code></td><td>Listing <code>contentVersion</code> increments on change; each check stores rule findings, AI notes, AI status and recommendation</td></tr>
+      <tr><td>Advertising</td><td><code>listing</code>, <code>compliance_check</code>, <code>compliance_rule_override</code></td><td>One listing per vehicle, holding the copy, the ad type and medium, the disclosure checklist (prior use, warranty terms, annual kilometre allowance) and a Draft/Ready status. <code>contentVersion</code> increments on a real content change; each check stores its rule findings, AI notes, AI status, recommendation and the content version it judged</td></tr>
       <tr><td>Audit</td><td><code>audit_event</code></td><td>Append-only; actor, entity, action, new and previous values, client IP, time</td></tr>
     </tbody>
   </table></div>
@@ -712,6 +872,8 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);font-si
     <li><b>dealer</b> 1—n <b>customer</b> 1—n <b>customer_vehicle</b> 1—1 <b>vehicle</b></li>
     <li><b>customer</b> 1—n <b>sales_lead</b> 1—n <b>sales_lead_note</b>; a lead optionally points at one vehicle</li>
   </ul>
+  <h3>How the schema is created and upgraded</h3>
+  <p>Core brings the database to the shape it needs when it starts: it creates any missing table, adds any missing column, and repeats each step safely if it has already been applied. One-time data migrations — such as the move to the three dealership tiers — claim a marker row first, so they run once per database and not again on the next restart. The practical benefit for the client is that a demo, classroom or cloud database can be created, upgraded and re-seeded with one deployment command and no separate migration tooling.</p>
 </section>
 
 <!-- 12 -->
@@ -723,10 +885,11 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);font-si
       <h3>Conventions</h3>
       <ul>
         <li>Lists: <code>{ items, page, size, total }</code>, 10 per page, newest first.</li>
-        <li>Errors: <code>{ code, message }</code> with field-level errors where relevant.</li>
+        <li>Errors: <code>{ code, message, requestId, fieldErrors }</code>. Every failure uses this one shape — including an unknown route, a wrong method, a non-JSON body and a downstream failure — so a screen never has to guess how to show a problem, and the request id ties the message to the server logs.</li>
+        <li>Internal wording never reaches the browser: a parser's own message is replaced with a plain "Invalid value." on that field.</li>
         <li>Writes carry <code>version</code> for optimistic locking.</li>
         <li>Paged lists take <code>sort=field,asc|desc</code> and order the whole result on the server, not just the page on screen.</li>
-        <li>Money in CAD with two decimals; dates as <code>YYYY-MM-DD</code>.</li>
+        <li>Money in CAD with at most two decimals; a third decimal is refused on its own field rather than rounded, so no amount is ever stored that the user was not shown. Dates as <code>YYYY-MM-DD</code>.</li>
         <li>Blocked ads are <b>200</b> results, not HTTP errors.</li>
       </ul>
     </div>
@@ -749,7 +912,8 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);font-si
       <tr><td>DMS</td><td><code>/vehicles</code> (filters include <code>adKind</code>, <code>medium</code>, <code>checkStatus</code>, <code>buyerSite</code>), <code>/vehicles/{id}/sell</code>, <code>/vehicles/report/sales?period=</code>, <code>/vehicles/{id}/work-orders</code>, <code>/vehicles/{id}/photos</code>, <code>/vehicles/{id}/payments</code>, <code>/catalog/*</code></td><td>Dealer.User</td></tr>
       <tr><td>CRM and leads</td><td><code>/customers</code>, <code>/customers/duplicates</code>, <code>PUT|DELETE /customers/{id}/vehicles/{vehicleId}</code>, <code>/leads</code>, <code>/leads/{id}/notes</code>, <code>/leads/{id}/reopen</code>, <code>/leads/report/funnel</code>, <code>/members</code></td><td>Dealer.User</td></tr>
       <tr><td>Ads</td><td><code>GET|PATCH /vehicles/{id}/listing</code>, <code>POST /listings/{id}/checks|ready|exports</code></td><td>Dealer.User</td></tr>
-      <tr><td>Team</td><td><code>/dealer/profile</code> and <code>/dealer/join-requests/**</code> (owner only); <code>/dealer/members/{username}</code>, <code>…/role</code>, <code>/dealer/audit</code> (owner or manager)</td><td>Owner / Manager</td></tr>
+      <tr><td>Work orders</td><td><code>/vehicles/{id}/work-orders</code>, <code>PATCH /work-orders/{id}</code>, <code>/work-orders/report/settlement</code></td><td>Dealer.User</td></tr>
+      <tr><td>Team</td><td><code>/dealer/profile</code> and <code>/dealer/join-requests/**</code> (owner only); <code>/dealer/members/{username}</code>, <code>…/role</code>, <code>/dealer/audit</code> (owner or manager); <code>/dealer/notifications</code> (the header inbox, every member)</td><td>Owner / Manager</td></tr>
       <tr><td>Assistant</td><td><code>POST /assistant/ask</code></td><td>Dealer.User</td></tr>
       <tr><td>Audit</td><td><code>GET /audit?entityType=&amp;entityId=</code>, <code>GET /dealer/audit</code> (owner, manager); <code>GET /admin/audit</code> (admin)</td><td>Owner / Manager / Admin</td></tr>
       <tr><td>Public</td><td><code>GET /catalog/vin/{vin}</code>, <code>/catalog/dealers</code> (directory with slug, logo flag, in-stock and sold counts), <code>/public/dealers/{slug}/inventory</code>, <code>…/{id}/logo</code>, <code>…/photo</code>, <code>POST …/inquiries</code></td><td>Anonymous, rate-limited</td></tr>
@@ -841,7 +1005,7 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);font-si
   <div class="rg">
     <div class="lbl">Azure resource group · created by Terraform</div>
     <div class="cards">
-      <div class="card"><h4>App Service plan (Linux)</h4><p>Hosts four Linux Web Apps: <b>web</b> (built SPA served with SPA fallback), <b>gateway</b>, <b>core</b>, <b>ai</b> (.NET 10 packages).</p></div>
+      <div class="card"><h4>App Service plan (Linux)</h4><p>Hosts four Linux Web Apps: <b>web</b> (the built SPA served as static files with SPA fallback on Node 20), <b>gateway</b>, <b>core</b>, <b>ai</b> (.NET 10 packages). HTTPS only; the three API apps run health-check eviction and always-on.</p></div>
       <div class="card"><h4>MySQL Flexible Server</h4><p>Database <code>dealer_core</code>, TLS required, firewall limited to Azure services and named operator addresses, 7-day automatic backups.</p></div>
       <div class="card"><h4>Key Vault + managed identity</h4><p>Internal token, MySQL password, JWT signing secret, AI key and admin password, resolved as app-setting references.</p></div>
       <div class="card"><h4>Log Analytics + Application Insights</h4><p>Logs and telemetry for all services.</p></div>
@@ -852,6 +1016,7 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);font-si
     <li><b>Release</b>: one command, <code>./deploy/deploy.sh --apply --seed</code>, run from a clean checkout of the pushed branch. It checks the checkout first, exports the local database, applies Terraform, publishes the three .NET apps and the SPA built against the Gateway URL (each upload retried up to three times), and waits for the health checks.</li>
     <li><b>Demo data</b>: the local database is the demo data. <code>--seed</code> replaces the Azure rows with it, dealership logos and vehicle photos included: it stops if the data has a column the deployed Core lacks, backs the Azure rows up to <code>deploy/seed/azure-backup-*.sql.gz</code>, imports in one transaction, restarts Core, and succeeds only when the Gateway lists every dealership. A backup file restores the previous data.</li>
     <li><b>Health</b>: the Gateway exposes <code>/actuator/health</code> (aggregating downstream services) and <code>/actuator/release</code> (release time of all four apps).</li>
+    <li><b>Custom hostname</b>: the dealership's own domain is an opt-in setting. Once the domain's CNAME points at the web app, Terraform binds the hostname and Azure issues and renews a managed TLS certificate for it. Left empty, the default Azure host names are used.</li>
     <li><b>Restore</b>: point-in-time restore to a new MySQL server within the 7-day window, then repoint Core through Key Vault.</li>
     <li><b>Local development</b>: the four apps run as plain processes against local MySQL 8, started in order MySQL → Core → AI → Gateway → web (ports 8081, 8082, 8080, 5174).</li>
   </ul>
@@ -871,7 +1036,7 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);font-si
       <tr><td>Containerization</td><td><span class="chip amber">Changed</span></td><td>Replaced by Terraform + Azure Linux App Service packages.</td></tr>
       <tr><td>Automated production deployment</td><td><span class="chip amber">Partial</span></td><td>CI builds and validates; the production release is run by an operator because CI holds no Azure credential.</td></tr>
       <tr><td>Bill of sale</td><td><span class="chip blue">Template</span></td><td>Printable document, not a lawyer-reviewed contract.</td></tr>
-      <tr><td>Custom domain</td><td><span class="chip gray">Pending</span></td><td>Default Azure host names are used.</td></tr>
+      <tr><td>Custom domain</td><td><span class="chip blue">Supported, opt-in</span></td><td>Terraform binds a customer-owned hostname and an Azure-managed TLS certificate once the DNS record points at the web app. Not yet switched on: the default Azure host names are in use, and the dealership supplies the domain when it wants one.</td></tr>
       <tr><td>Manual acceptance</td><td><span class="chip amber">In progress</span></td><td>Feature code is complete; acceptance cases are being walked through.</td></tr>
     </tbody>
   </table></div>
@@ -900,7 +1065,7 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);font-si
   </table></div>
 </section>
 
-<footer>DealerOps · Team G2 · System design briefing, 2026-11-03. Summarizes the documents in <code>design/</code>; where they differ, the source documents win.</footer>
+<footer>DealerOps · Team G2 · System design briefing, 2026-11-06, verified against the source of the four running services. Summarizes the documents in <code>design/</code>; where they differ, the source documents win.</footer>
 </main>
 </div>
 </body>
