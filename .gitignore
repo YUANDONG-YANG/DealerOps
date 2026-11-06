@@ -10,6 +10,7 @@
 # Node / frontend build output
 **/node_modules/
 **/dist/
+.pnpm-store/
 
 # Local secrets (keep *.example)
 .env
@@ -36,6 +37,7 @@ Thumbs.db
 # Personal/working files that must not be published (incident: accidentally committed/pushed 2026-10-05, see deploy/README.md discussion)
 /review/industry-contracts-*/
 /screen/
+/tmp/
 
 # Terraform working files (deploy/terraform). The provider lock file is committed.
 **/.terraform/
