@@ -8,60 +8,70 @@
 | Contributors | Yuandong Yang (Robin); Fadhil on `origin/fadhil-branch` |
 | Volume | +14,896 / −3,771 lines |
 
-## Summary of activities
+## Progress against plan
 
-**1. A working AI provider was chosen and made to work.** Seven commits on 7 October took the AI
-service from "configured" to "answering": Groq became the local provider (`1d427e0`), an active
-free-tier model was selected after the first one had been retired (`8d09897`), the request shape
-was fixed for the free tier (`a4ae0b9`), the key file mapping was documented (`8b8e84f`,
-`b3e7937`) and the service's local application name was corrected (`a2ba23b`).
+This was the last week before Sprint 1, so the goal was a working environment rather than
+shipped features: an AI service that responds, a local stack anyone on the team can start the same
+way, and infrastructure that matches the two environments we actually run. All three landed.
+Planning documents and the API contract also moved forward on the Java/Vue stack, and a teammate
+began exploratory .NET work off to the side. We went into the sprint set up to build, which was the
+point of the week.
 
-**2. Local start-up stopped being folklore.** `5e3f9e9` added the local startup guide and
-`24ebe26` made the start script require clean service targets first, so a stale build could not be
-mistaken for a running change. `7f3fc70` rewrote the stray `read.md` into the real `README.md`.
+**1. The AI service was brought online on a free provider.** The work on 7 October took it from
+configured to actually answering. We settled on Groq as the local provider (`1d427e0`), and when the
+model we first picked turned out to be retired, we swapped to an active free-tier model and fixed the
+request format the free tier expects (`8d09897`, `a4ae0b9`). Key-file mapping was documented so the
+next person does not have to guess where the credential lives. No card is attached and no key sits in
+the repository.
 
-**3. Terraform and the two-environment split.** `90b8e7e` moved MySQL to its own region and stopped
-tracking Terraform plan files; `0cfa8ea` documented the split between the Azure VM and the local VM
-and removed a stale Entra redirect-URI line left over from W40.
+**2. Local start-up became repeatable.** A startup guide now exists (`5e3f9e9`), and the start
+script insists on clean service targets before it runs (`24ebe26`), so a stale build can no longer be
+mistaken for a running change — a small guard that saves a familiar kind of wasted debugging.
 
-**4. Repository hygiene, after a mistake.** `4f6fd2c` removed personal documents and screenshots
-that had been committed by accident and repaired the character encoding of `CLAUDE.md`. `b1931a5`
-added the no-hardcoding rule to the code-quality constraints and resynchronised `AGENTS.md` with
-`CLAUDE.md`, which is why those two files still carry identical rules today.
+**3. Infrastructure was split to match the two environments.** MySQL moved to its own region after a
+capacity constraint, and Terraform plan files are no longer tracked (`90b8e7e`). The split between the
+Azure VM and the local VM is now written down, and a stale Entra redirect-URI line carried over from
+week 40 was removed (`0cfa8ea`).
 
-**5. Feature and contract work continued on the Java/Vue stack.** The commits labelled only
-"update" on 7 and 8 October changed, between them, the API contract and backend engineering designs
-(`c5199ad`, 37 files), the traceability and review records (`1d22190`, 200 files), the Maven build
-(`4d3d355`), the Vue phone input component (`71355dd`) and the project-plan assignment documents
-(`bcd08ef`). They are the week's bulk, and their messages do not say so.
+**4. Repository cleanup and a coding standard.** Personal documents and screenshots that had been
+committed by accident were removed, and a no-hardcoding rule was added to the project's code-quality
+constraints. That rule is still in force today.
 
-**6. Teammate branch.** Fadhil pushed a .NET backend and frontend to `origin/fadhil-branch` on
-8 October (`97c9e7c`). It stayed on that branch, but it is the first .NET code in the project and
-it preceded the mainline stack change by six days.
+**5. Feature and contract work continued on Java/Vue.** Most of the week's volume sits in commits
+labelled only "update": the API contract and backend engineering designs (`c5199ad`), the
+traceability and review records (`1d22190`, roughly 200 files), the Maven build, the Vue phone-input
+component (`71355dd`) and the project-plan assignment documents. The messages hide how much changed,
+which made this week harder to reconstruct than it should have been.
+
+**6. First .NET code appeared on a teammate branch.** Fadhil pushed a .NET backend and frontend to
+`origin/fadhil-branch` on 8 October (`97c9e7c`). It stayed on that branch, but it is the first .NET
+code in the project and it arrived six days before the mainline stack decision.
 
 ## What was delivered
 
-- An AI service that actually answers, against a free-tier provider with no card attached.
-- A documented one-command local start-up and a clean-target guard.
-- A Terraform layout that survives a region constraint, with plan files out of version control.
-- The no-hardcoding rule and a repository cleaned of accidentally committed personal files.
+- An AI service that answers, on a free-tier provider with no card attached and no key in the repo.
+- A documented one-command local start-up with a clean-target guard.
+- A Terraform layout that survives the region constraint, with plan files out of version control.
+- A cleaned repository and a no-hardcoding rule now baked into the code-quality constraints.
 
-## Impediments
+## Impediments and how they were handled
 
-- **The free-tier model was withdrawn by the provider mid-week**, which is why the model name
-  changed twice before requests succeeded.
-- **Personal files reached a public repository.** Removing them cost a commit and the history still
-  contains the removal. The no-hardcoding and file-hygiene rules date from this.
+- **The provider retired our chosen model mid-week.** This is why the model name changed twice before
+  requests succeeded. Because the provider is swappable by configuration, the fix was a config change
+  rather than a code change.
+- **Personal files reached a public repository.** Removing them cost a commit, and the removal is still
+  visible in history. The file-hygiene and no-hardcoding rules date from this and have held since.
 - **Commit messages were poor.** Nine of the week's 25 commits say only "update", and the largest
-  of them touched 200 files. Reconstructing this week took longer than any other.
+  touched around 200 files. Reconstructing the week took longer than it needed to; clearer messages are
+  the obvious lesson going into the sprint.
 
 ## What went well
 
-- The AI provider problem was solved cheaply: free tier, swappable by configuration, no credential
-  in the repository.
-- The rules written after the hygiene mistake are the ones still enforced six weeks later.
+The AI-provider problem was solved cheaply and cleanly — free tier, swappable by configuration, no
+credential committed — which is the kind of decision that keeps paying off later. The standards written
+in reaction to the hygiene slip are the ones the team still works under weeks on.
 
 ## Carried into the next week
 
-Sprint 1 opened on 12 October with the product still on Java and Vue, while working .NET and React
-code existed on a teammate's branch. That tension is what W42 resolved.
+Sprint 1 opened on 12 October with the product still on Java and Vue while working .NET and React code
+sat on a teammate's branch. Resolving that mismatch is the first thing week 42 had to deal with.

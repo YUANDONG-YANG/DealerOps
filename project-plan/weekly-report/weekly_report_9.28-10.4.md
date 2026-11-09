@@ -10,52 +10,59 @@
 
 ## Summary of activities
 
-**1. The week's one real decision: authentication was reversed.** The design had been built on
-Microsoft Entra. Reading it back against the client specification showed the client had asked for
-dealership accounts the platform itself issues and controls. Four commits carried the reversal
-through: `4a24836` turned the design back to username and password, `b546a7e` implemented
-admin-issued username/password sign-in in place of Entra, and `7686be7` and `ff40dfd` swept the
-README and the remaining documents so no instruction still pointed at Entra.
+This was a setup week ahead of Sprint 1, and the plan was to lock down the foundation
+decisions — authentication, hosting, and the engineering ground rules — before any feature work
+started. We got through all three, though not the way I expected: most of the capacity went into
+undoing an authentication choice rather than building on it. Three working days, one contributor,
+and a late pivot that was better caught now than mid-sprint.
 
-Two commits earlier in the same week had still been trying to make Entra workable — `d26da40`
-documented signing in with a personal Microsoft account as a hosting alternative, and `495a1b9`
-kept Security Defaults on and used Authenticator MFA instead. Those are the attempts that led to
-the reversal rather than contradictions of it.
+**1. Authentication was moved back to the client-specified model.** The design had been carrying
+Microsoft Entra federated sign-in. Re-reading it against the written client specification, it was
+clear the client had actually asked for dealership accounts that the platform issues and controls
+itself. So we reversed it: the design went back to admin-issued username/password, the
+implementation followed, and a documentation sweep removed the stale Entra references so nobody
+on the team would be working from the old assumption later (`4a24836`, `b546a7e`). Two earlier
+commits that week (`d26da40`, `495a1b9`) were still trying to make Entra viable — a personal
+Microsoft account workaround and keeping Security Defaults with Authenticator MFA. Those were the
+dead ends that forced the decision, not leftovers from it.
 
-**2. Hosting was settled, for the moment.** `a208c7e` made Cloudflare the DevOps and demo path,
-kept Azure as the backup and dropped the automatic Railway deploys for good. `a3a01ec` recorded
-that the Azure student VM was the only demo host actually available to the team.
+**2. Hosting was narrowed to a single demo path.** We had three half-working options and no clear
+answer. Cloudflare became the DevOps and demo path, Azure stayed as the backup, and the automatic
+Railway deploys were dropped (`a208c7e`). The practical constraint behind this is that the Azure
+student VM is currently the only demo host the team actually has access to, so the plan now matches
+what we can run.
 
-**3. Review material and team rules were filed.** `5b1ce86` added the code-review notes, the
-architecture diagrams and the Cursor team rules; `fef7200` put the same standing agent rules in
-front of Codex and Claude so all three assistants work to one set of instructions; `d30c7f0` moved
-setup and reuse notes out of the repository root.
-
-**4. Requirements verification was realigned** with the fixed workflows (`fe79a00`).
+**3. Engineering ground rules and review material were put in place.** Code-review notes,
+architecture diagrams, and a shared agent rule set went into the repo, with the same standing rules
+applied across the three coding tools the team uses so everyone works to one standard (`5b1ce86`).
+Setup and reuse notes were moved out of the repository root, and requirements verification was
+realigned with the corrected workflows (`fe79a00`).
 
 ## What was delivered
 
-- Username/password authentication issued and controlled by the platform, replacing Entra end to
-  end — design, implementation and documentation in the same week.
+- Platform-issued username/password authentication — design, implementation, and docs all brought
+  into line in the same week — in place of Entra.
 - One documented hosting path (Cloudflare for the demo, Azure in reserve) instead of three
-  half-working ones.
-- One shared rule set for the three coding assistants used on this project.
+  unfinished ones.
+- A single shared rule set governing the coding tools used on the project.
 
-## Impediments
+## Impediments and how they were handled
 
-- **The Entra work from W39 was thrown away.** The sign-in hardening, the app registration
-  documentation and the MFA setup were all sunk cost. The cause was choosing a technology before
-  checking it against the client's written requirement.
-- **A short week.** Three working days, and most of their capacity went to the reversal rather than
-  to new scope.
+The Entra work from the prior week (sign-in hardening, app-registration docs, MFA setup) was
+effectively sunk cost. Root cause: a technology was chosen before it was checked against the
+client's written requirement. I'd rather absorb that loss in a setup week than discover it after
+sprint features depend on it, so the fix was to reverse cleanly and in one pass rather than patch
+around it. The other constraint was simply a short week — three active days — so new scope took a
+back seat to getting the foundation right.
 
 ## What went well
 
-- The reversal was complete in one pass. The sweep commits exist precisely so that no stale Entra
-  instruction was left behind to confuse a teammate later, and none was.
-- Deciding against the clever option (federated identity) in favour of the specified one kept the
-  authentication model simple enough that it has not needed changing since.
+The reversal landed in a single pass. Because the documentation sweep went in alongside the code,
+no stale Entra instruction was left behind to trip up a teammate later. Choosing the specified
+option over the more elaborate federated-identity approach also kept the auth model simple enough
+that it hasn't needed to change since.
 
 ## Carried into the next week
 
-Running the stack locally was still awkward, and the AI provider was unresolved. W41 took both on.
+Running the stack locally was still awkward and the AI provider was unresolved. Both are the
+priority for W41.

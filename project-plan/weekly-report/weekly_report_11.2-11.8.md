@@ -85,65 +85,72 @@ recorded here for the instructor to weigh.
 
 ## Summary of activities
 
-**1. The client review arrived and was implemented in two days.** Jackson's change document of
-3 November listed nine themes. `a4006b7`, `c981fbf` and `2173c9c` put them into the .NET 10 and
-React build: Sold by / Sold to / Date sold on the inventory; cost, work-order spend and list price
-shown in the sell dialog; day, week, month and year periods with per-salesperson figures; the
-Owner / Manager / Sales tier split; server-side column sorting; leads, customers and the sale tied
-together; safer admin deletes and split join requests; and the home page with the sign-up button
-removed, its sample ad pointed at sign-up instead (`d17858f`). Seven of the nine themes are done,
-VIN matching is partial and the dealership inquiry that would replace sign-up is not started.
+Sprint 2 was planned as a hardening sprint. That plan held for two days. Jackson's client change
+document landed on 3 November with nine themes the client wanted ahead of the next review, and the
+sprint pivoted to absorbing it. Status Report 3 went out the same afternoon, reporting against the
+review instead of the polish we had scheduled.
 
-**2. The audit trail gained a location.** `54b6664` records a readable place beside the IP address
-on each audit row, with private addresses labelled locally and never sent to the lookup service.
+Most of the nine themes are now in the .NET 10 and React build (`a4006b7`, `c981fbf`, `2173c9c`):
+the Sold by / Sold to / Date sold fields on inventory, cost and work-order spend and list price in
+the sell dialog, per-salesperson reporting across day, week, month and year, the Owner / Manager /
+Sales tier split, server-side sorting, and the leads-customers-sale linkage. Admin deletes are
+safer and join requests are split. The home page lost its sign-up button, and its sample ad now
+points at sign-up instead (`d17858f`). Two items are still open, and I have flagged both with the
+client: VIN matching only returns when the decoder answers, and the dealership inquiry meant to
+replace public sign-up has not been started.
 
-**3. Cloud data handling was made repeatable.** Demo data was saved into the seed before each
-Terraform destroy (`bb2c78e`, `b9ae46f`, `ebc6056`); `911b9b9` made the cloud-additions seed safe to
-load twice; `24db08d` picked a MySQL client that can actually authenticate to Azure; and `4218f4c`
-reports an account bound to two dealerships after a seed import instead of letting it through.
+Two smaller pieces closed alongside the change request. The audit log now shows a readable location
+next to each IP, with private addresses resolved locally and never sent to the lookup service
+(`54b6664`). And the money rule was tightened to reject any cost carrying more than two decimals
+rather than rounding it — a rounded value would be stored as a figure the user never typed
+(`273fa1f`) — now applied to purchase cost, repair cost, list price and sold price alike.
 
-**4. A business rule was tightened.** `273fa1f` refuses a work-order cost with more than two
-decimals rather than rounding it, because every amount is stored to two decimals and rounding would
-persist a figure the user never saw. The same rule now covers purchase cost, repair cost, list
-price and sold price.
+Cloud data handling took real effort, because state drift from an earlier portal deletion keeps a
+plain `terraform apply` from being reliable. The working mitigation is to fold demo data back into
+the seed before each destroy (`bb2c78e`, `b9ae46f`, `ebc6056`). On top of that, the cloud-additions
+seed is now safe to load twice (`911b9b9`), the MySQL client we use can authenticate to Azure
+(`24db08d`), and a seed import that would leave an account bound to two dealerships is now reported
+rather than waved through (`4218f4c`).
 
-**5. Reporting and documentation.** The 3 November client-change review was recorded for the sprint
-presentation (`1378090`), the development report was translated to English with its review findings
-fixed (`e108829`), and the system design briefing was verified line by line against the running
-code and expanded on architecture and business flows (`a3e07e4`).
+Review documentation was finished with the code: the client-change review captured for the
+presentation (`1378090`), the development report brought into English with its findings fixed
+(`e108829`), and the system design briefing checked against the running code (`a3e07e4`). The
+CPRG-305-B course deliverables also went in (`a7d5d7a`).
 
-**6. Course work.** `a7d5d7a` added the CPRG-305-B bonus testing tasks — five options with prompts,
-AI responses, corrected test cases and reflections.
-
-**7. Teammate branch.** Logan pushed Windows compatibility work to `origin/logan-robin` on
-4 November (`20e5ce6`, `0e06b7d`). Not merged into `V2`.
+On the team, Logan pushed Windows local-run scripts and docs to `origin/logan-robin` on 4 November;
+the commit messages note login is not yet working there, and the branch is not merged into `V2`.
+Fadhil and Logan also exercised the live demo on Azure — the per-person section above has the detail,
+and Fadhil's end-to-end acceptance walkthrough is the most business activity any teammate account
+recorded this week.
 
 ## What was delivered
 
-- Seven of the nine client themes from the 3 November review, in the build, within two days.
-- Client location on every audit row, with private addresses kept private.
-- A seed and backup path that survives being run twice and names its own failures.
-- Status Report 3 and its deck, and a design briefing that matches the code.
+- The bulk of the nine client themes from the 3 November review, built into .NET 10 + React within
+  two days of receiving the change document.
+- A readable client location on every audit row, with private addresses kept local.
+- A repeatable cloud seed-and-backup path that survives a second run and reports its own failures.
+- Status Report 3 and its deck, plus a design briefing that matches the running code.
 
 ## Impediments
 
-- **Sprint 2 was planned as hardening and became a change request.** The plan written at sprint
-  start was overtaken on day two; the report presented on 3 November covers the review rather than
-  the planned polish.
-- **Two themes are not finished.** VIN matching works only when the decoder answers, and the
-  dealership inquiry that should replace public sign-up has not been started. Both are named
-  openly in the Status Report 3 deck rather than being reported as done.
-- **Azure state drift** from an earlier portal deletion still makes a plain `terraform apply`
-  unreliable, which is why demo data is saved to the seed before each destroy.
+- The sprint plan did not survive contact with the client. Hardening was the stated goal; the change
+  request on day two took priority, and Status Report 3 reports against that. Not a fire to put out,
+  but worth naming so the plan-versus-actual gap is on the record.
+- Two themes are unfinished — VIN matching is decoder-dependent, and the dealership inquiry that
+  replaces sign-up has not been started. Both are called out in the deck as open, not dressed up as
+  done.
+- Azure state drift is the standing risk to the cloud environment. The seed-before-destroy habit is
+  the mitigation and it held three times this week, but it is a workaround, not a fix.
 
 ## What went well
 
-- The change request was answered in the client's own terms — nine themes, three statuses — rather
-  than as a list of commits.
-- Backing up the cloud data before every destroy, established in W44, paid off three times this week.
+- Framing the response in the client's own nine themes, each with a plain status, turned the review
+  into a conversation about outcomes rather than a commit list.
+- The W44 habit of backing up cloud data before every destroy earned its keep: three clean restores
+  this week, no data lost.
 
 ## Next
 
-- Finish VIN matching and decide with the client on the dealership inquiry that replaces sign-up.
-- Confirm the rate-limit values and service-level targets that currently ship as defaults.
-- Complete the manual acceptance pass; the feature code is complete and acceptance is in progress.
+- Close VIN matching and settle the dealership-inquiry design with the client.
+- Confirm the rate-limit and service-level values currently shipping as defaults.
+- Finish the manual acceptance pass; feature code is complete and acceptance is underway.

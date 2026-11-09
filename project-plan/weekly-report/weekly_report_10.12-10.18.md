@@ -8,67 +8,41 @@
 | Contributors | Yuandong Yang (Robin) |
 | Volume | +89,850 / −36,984 lines |
 
+## Progress against the plan
+
+Sprint 1 opened with a decision that reshaped the rest of the plan: we moved the product onto a .NET 10 backend and a React frontend, retiring the Java and Vue implementations we had been carrying. The week's goal then became straightforward to state and hard to finish — stand the new stack up, get it deploying and running, and bring the existing feature set across so we lose no ground. By Thursday that was done. The stack runs locally with one command, deploys to Azure, and carries the authentication, compliance and public-dealer flows it replaced. It was the heaviest week of the project by volume, and it landed on plan.
+
 ## Summary of activities
 
-**1. The stack changed.** `0fc204c` restructured the repository and added the .NET backend and the
-React frontend beside the existing Java and Vue code. `3232953` switched the Azure deployment from
-Java to .NET and React, `5599f91` corrected the documented runtime from .NET 8 to .NET 10 and
-`c17ea2a` set the App Service runtime to match. This is the decision the rest of the project rests
-on: Java and Vue became legacy the same week and have not been changed since.
+**1. Committed to the .NET 10 + React stack.** The restructure (`0fc204c`) brought the .NET backend and React frontend into the repository and the Azure deployment was repointed off Java (`3232953`). I chose this over continuing on Java/Vue because the two were drifting apart in maintenance cost and the .NET stack fit the tenancy and gateway design better. The one rough edge was the runtime target: we shipped the switch before pinning it, so the version had to be corrected to .NET 10 and then matched in App Service (`5599f91`, `c17ea2a`). Java and Vue have been frozen since and are not being touched.
 
-**2. Deployment became something a teammate could run.** `5aa3e90` auto-generates every Terraform
-secret so an apply needs no manual configuration, `e808b78` and `52b1e9c` cut the deploy README down
-to an apply plus pause/resume instructions, `58381c6` reduced `deploy/` to Terraform files only, and
-`4b43347` shared the Terraform state and variables so any team member can apply or destroy.
-`390289a` fixed the Azure ports and pinned the SPA to a fixed hostname.
+**2. Made the Azure deploy something a teammate can run.** The deployment was mine to run and nobody else's, which is a risk on a four-person team. Terraform now generates its own secrets so an apply needs no hand-configuration (`5aa3e90`), the state and variables are shared (`4b43347`), and the README is down to an apply plus pause/resume. Ports and the SPA hostname were pinned so the deployed app resolves predictably (`390289a`).
 
-**3. The .NET services were fitted out.** A shared file-logging project and OpenAPI filters
-(`dd079c3`), gateway configuration keys renamed to camelCase (`e84e3eb`), the core AI timeout raised
-and the gateway's core-swagger route dropped (`61d6baf`), and hardcoded AI credentials removed in
-favour of configuration (`54e5313`, after `2dd4279` documented start-up without credential files).
+**3. Configured and secured the .NET services.** Shared file logging and OpenAPI filters went in (`dd079c3`), gateway config keys and timeouts were tidied, and — importantly — hardcoded AI credentials were pulled out and moved to configuration the same week they appeared (`54e5313`). I did not want secrets sitting in history any longer than they had to.
 
-**4. Authentication, compliance and the public flow were completed on the new stack**
-(`542e758`, `cf0837d`), together with team join requests and notifications (`7070014`), the profile
-page and vehicle body type (`5e6e060`), and a fix for the DMS edit drawer not repopulating its
-fields (`4bf6de1`).
+**4. Rebuilt the product features on the new stack.** Authentication, compliance and the public dealer flow were completed on .NET/React (`542e758`, `cf0837d`), along with team join requests and notifications (`7070014`) and the profile page and vehicle body type (`5e6e060`). A DMS edit drawer that was not repopulating its fields was fixed while the area was open (`4bf6de1`).
 
-**5. Testing and demo data arrived.** `4aeac4b` added the Playwright end-to-end suite, fixed the
-contract defects it found and seeded demo data; `04d05e0` added admin member password reset and the
-sign-in method and adapted the tests; `dc7ad55` verified web and backend health after a deploy and
-added seed scripts and vehicle filters.
+**5. Stood up automated tests and demo data.** The Playwright end-to-end suite was built from nothing, and running it surfaced real contract defects that were fixed in the same pass (`4aeac4b`). Admin member password reset and a sign-in method followed (`04d05e0`), and a post-deploy health check plus seed scripts and vehicle filters closed the week (`dc7ad55`).
 
-**6. Documentation was rewritten for the new stack** — backend and frontend READMEs, the stack and
-requirements-fit notes (`8907005`), the .NET local start-up guide (`f1c3748`, `a6a6edd`), one-command
-local development (`3f4388a`) and finally the root README (`2c1a215`).
-
-**7. Before the pivot, on 12 October**, `a50cf24` enforced the platform administrator's
-business-data boundary — the rule that an admin never reads a dealership's records — and `813fd58`
-stopped the app deploy early when Maven was not on JDK 21.
+**6. Refreshed documentation and closed early-week compliance work.** Backend, frontend and root READMEs were rewritten for the new stack (`8907005`, `2c1a215`). Earlier in the week, before the pivot, I enforced the platform administrator's data boundary — an admin must never read a dealership's records (`a50cf24`) — and added a guard that stops the app deploy early when Maven is not on JDK 21 (`813fd58`).
 
 ## What was delivered
 
 - A .NET 10 + React product that builds, deploys to Azure and runs locally with one command.
-- An end-to-end Playwright suite and seed data, from nothing.
-- Zero-configuration Terraform: secrets generated, state shared, apply and destroy documented.
+- An end-to-end Playwright suite and seed data, built from nothing.
+- Zero-configuration Terraform, with state shared and apply/destroy documented for any team member.
 - The admin/dealership data boundary, enforced in code.
 
-## Impediments
+## Impediments and how they were handled
 
-- **Two stacks in one repository.** For most of the week the Java and Vue code was still present and
-  changing (693 and 156 files touched), so the same feature existed twice. The rule that Java and
-  Vue are retired and must not be edited was written to end exactly that cost.
-- **The .NET version was wrong twice** — documented as .NET 8, then corrected to 10, then matched in
-  App Service — because the switch was made before the target runtime was confirmed.
-- **Route mismatches between the new frontend and backend** only appeared at deploy time
-  (`db19de3`).
+- **Two stacks in one repository.** For most of the week Java and Vue were still present and changing (693 and 156 files touched), so features effectively existed twice and every change risked being done in the wrong place. We ended it by declaring Java and Vue retired and off-limits, which is now a standing rule.
+- **Runtime pinned late.** The .NET version was documented as 8, corrected to 10, then matched in App Service, because the switch went ahead before the target runtime was confirmed. Avoidable; next infrastructure change pins the target first.
+- **Route mismatches between the new frontend and backend** only showed up at deploy time and were fixed there (`db19de3`).
 
 ## What went well
 
-- The pivot took five days from first commit to a rewritten README, with the cloud deployment
-  carried along rather than left behind.
-- Credentials were taken out of the code in the same week they appeared (`54e5313`), not later.
+The pivot took five days from the first commit to a rewritten README, and the cloud deployment came along with it rather than being left to catch up. Taking the credentials out of code in the same week they went in (`54e5313`) kept a small problem from becoming a habit.
 
 ## Carried into the next week
 
-The new stack was running but thin on delivered scope. W43 was spent filling it in and proving it,
-with Status Report 2 due at the end of it.
+The new stack runs but is still thin on delivered scope. Week 43 goes to filling it in and proving it out, with Status Report 2 due at the end of the week.
