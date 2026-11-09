@@ -20,17 +20,20 @@ FORBIDDEN_RE='^(playwright/|deploy/|\.github/|dealer-platform/\.env|.*appsetting
 command -v claude >/dev/null || { echo "claude CLI not found"; exit 1; }
 mkdir -p "$WORK_DIR"
 
-# Content fingerprint of every modified or untracked file, so changes made by the
-# agent can be told apart from other people's uncommitted work.
+# Fingerprint tracked and non-ignored untracked files, including initially clean files.
+# Comparing both sides detects deletions and restores of pre-existing user changes too.
 snapshot() {
-  (cd "$REPO_DIR" && { git diff --name-only HEAD; git ls-files -o --exclude-standard; } \
-    | sort -u | while read -r f; do
-        [[ -f "$f" ]] && printf '%s %s\n' "$(shasum "$f" | cut -d' ' -f1)" "$f"
-      done)
+  (cd "$REPO_DIR" && git -c core.quotepath=false ls-files --cached --others --exclude-standard \
+    | LC_ALL=C sort -u | while IFS= read -r f; do
+        if [[ -f "$f" ]]; then
+          hash=$(shasum "$f") || exit 1
+          printf '%s %s\n' "${hash%% *}" "$f"
+        fi
+      done | LC_ALL=C sort)
 }
 
 run_tests() {
-  (cd "$E2E_DIR" && npx playwright test ${SPECS[@]+"${SPECS[@]}"} --reporter=line) >"$WORK_DIR/e2e.log" 2>&1
+  (cd "$E2E_DIR" && npx playwright test ${SPECS[@]+"${SPECS[@]}"}) >"$WORK_DIR/e2e.log" 2>&1
 }
 
 bash "$E2E_DIR/scripts/e2e-stack.sh" start || { echo "Private stack failed to start"; exit 1; }
@@ -43,7 +46,7 @@ for round in $(seq 1 "$MAX_ROUNDS"); do
   fi
   grep -E "passed|failed|flaky" "$WORK_DIR/e2e.log" | tail -3
 
-  snapshot >"$WORK_DIR/before.txt"
+  snapshot >"$WORK_DIR/before.txt" || { echo "Could not snapshot files before the fix"; exit 3; }
 
   echo "== Round $round: asking Claude to fix"
   (cd "$REPO_DIR" && claude -p "$(cat <<EOF
@@ -72,8 +75,9 @@ EOF
       "Bash(git commit:*)" "Bash(git push:*)" "Bash(git checkout:*)" "Bash(git reset:*)" \
   ) | tee "$WORK_DIR/claude-round-$round.md"
 
-  snapshot >"$WORK_DIR/after.txt"
-  touched=$(comm -13 "$WORK_DIR/before.txt" "$WORK_DIR/after.txt" | cut -d' ' -f2- | sort -u)
+  snapshot >"$WORK_DIR/after.txt" || { echo "Could not snapshot files after the fix"; exit 3; }
+  touched=$(LC_ALL=C comm -3 "$WORK_DIR/before.txt" "$WORK_DIR/after.txt" | sed 's/^\t//' | cut -d' ' -f2- | LC_ALL=C sort -u) \
+    || { echo "Could not compare file snapshots"; exit 3; }
 
   if [[ -z "$touched" ]]; then
     echo "Claude made no change. Stopping; see $WORK_DIR/claude-round-$round.md"

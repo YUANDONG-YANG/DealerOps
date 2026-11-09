@@ -1,8 +1,20 @@
 // Every value can be overridden through the environment. The defaults target the private stack
 // started by scripts/e2e-stack.sh (its own database), so test data never lands in the shared
 // development database; the account defaults are local-only and never valid elsewhere.
-const webUrl = (process.env.E2E_WEB_URL ?? 'http://localhost:5175').replace(/\/$/, '');
-const gatewayUrl = (process.env.E2E_GATEWAY_URL ?? 'http://127.0.0.1:18080').replace(/\/$/, '');
+const webUrl = (process.env.E2E_WEB_URL ?? `http://localhost:${process.env.E2E_WEB_PORT || '5175'}`).replace(/\/$/, '');
+const gatewayUrl = (process.env.E2E_GATEWAY_URL ?? `http://127.0.0.1:${process.env.E2E_GATEWAY_PORT || '18080'}`).replace(/\/$/, '');
+
+// Fail during configuration loading, before setup or any spec can write to the shared stack.
+// Remote-seed opt-in must not bypass this local development safeguard.
+const sharedPorts = new Set(['5174', '8080', '8081', '8082']);
+for (const value of [webUrl, gatewayUrl]) {
+  const url = new URL(value);
+  const local = url.hostname === 'localhost' || url.hostname.endsWith('.localhost')
+    || url.hostname.startsWith('127.') || url.hostname === '[::1]';
+  if (local && sharedPorts.has(url.port)) {
+    throw new Error(`E2E target uses a shared development port: ${url.origin}. Use the private test stack.`);
+  }
+}
 
 function isLocalUrl(url: string) {
   return /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(url);

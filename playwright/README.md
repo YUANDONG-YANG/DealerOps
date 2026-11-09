@@ -31,6 +31,10 @@ The script refuses to start if it would use the shared ports or database. The de
 `dealer_core_e2e` database is recreated on each stack start so runs begin with clean data. A
 custom `E2E_DB_NAME` is preserved unless `E2E_RESET_DB=1` is set. Logs are in `.stack/logs/`.
 Override with `E2E_CORE_PORT`, `E2E_GATEWAY_PORT`, `E2E_WEB_PORT`, `E2E_DB_NAME`.
+The test client derives its default URLs from `E2E_WEB_PORT` and `E2E_GATEWAY_PORT`.
+Explicit `E2E_WEB_URL` and `E2E_GATEWAY_URL` values take precedence; keep them aligned with
+the stack when running locally. Test configuration rejects local targets on shared development
+ports (5174, 8080, 8081, 8082), even when remote seeding is enabled.
 
 ## Running
 
@@ -147,8 +151,10 @@ Never commit real credentials; pass them through the environment.
 run it calls `claude -p` with the failure log and artifacts and asks for the smallest fix in
 application source. Guard rails:
 
-- The agent may not edit `playwright/` or configuration files; the script also verifies this
-  after each round by comparing file fingerprints and stops with exit code 3 on a violation.
+- The agent may not edit `playwright/` or configuration files; the script also verifies tracked
+  and non-ignored untracked files after each round, including deletions and restored changes,
+  by comparing file fingerprints and stops with exit code 3 on a violation. Ignored local files
+  are not covered by this fingerprint check.
 - It never commits, pushes or resets. Review the diff yourself before committing.
 - When backend source changes, the script rebuilds and restarts the private stack before the
   next round; the shared development stack is never restarted.

@@ -111,7 +111,7 @@ wait_ready() {
 start() {
   mkdir -p "$STACK/logs"
   load_env
-  if [[ "$STACK_DB_NAME" == "dealer_core" || "$STACK_CORE_PORT" == "8081" || "$STACK_GATEWAY_PORT" == "8080" ]]; then
+  if [[ "$STACK_DB_NAME" == "dealer_core" || "$STACK_CORE_PORT" == "8081" || "$STACK_GATEWAY_PORT" == "8080" || "$STACK_WEB_PORT" == "5174" ]]; then
     say "refusing to start: the E2E stack must not use the shared core, gateway or database"
     return 1
   fi
