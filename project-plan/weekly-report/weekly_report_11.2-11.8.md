@@ -5,9 +5,83 @@
 | Phase | Sprint 2 |
 | Active days | 2, 3, 4, 5, 6 November (report written 6 November; the week is not finished) |
 | Commits | 18 so far (`bb2c78e` … `a3e07e4`) |
-| Contributors | Yuandong Yang (Robin); Logan on `origin/logan-robin` |
+| Contributors | See **Per-person contributions** below (Who → Branch → Code → Platform) |
 | Volume | +26,926 / −4,148 lines |
 | Milestones | Client change document 3 November; Status Report 3 presented 3 November |
+
+## Team members (authors)
+
+- **Yuandong Yang ("Robin")** — full-stack developer; sole commit author on `V2` this week.
+- **Jackson Warga (JW)** — authored the 3 November client change document (the nine themes).
+- **Logan Jones** — Windows local-run scripts on an unmerged side branch.
+- **Bedgel Fadhil Ndam Woukouo (BW)** — live-demo acceptance / data entry on the Azure deployment.
+
+## Per-person contributions (Who → Branch → Code → Platform)
+
+> **Instructor note.** Each member's work is reported along two independent evidence trails: **Git
+> history** (who committed code, on which branch) and the **Azure live-demo audit log** (who did what
+> on the deployed application). A member can contribute on one trail and not the other — a
+> requirements document or a live acceptance pass leaves no Git commit, and a code commit is not the
+> same as exercising the running app. Both are shown so effort is visible wherever it actually landed.
+> Git window ~2–8 November 2026; audit evidence from the Azure backup `azure-backup-20261101-221747`
+> (DB timestamps in UTC; backup taken 2026-11-01 ~22:17 local time).
+
+### 1. Yuandong Yang ("Robin")
+
+- **Branch:** `V2` / `origin/V2` — **sole commit author this week** (recorded under two Git
+  identities, `YUANDONG-YANG` and `robin`; same person).
+- **Code (Git):** 18 of 18 weekly commits; +27,194 / -4,359 lines. Client change request into
+  .NET 10 + React (`a4006b7`, `c981fbf`, `2173c9c`), home-page sign-up change (`d17858f`), audit
+  location (`54b6664`), cloud/seed hygiene (`bb2c78e`, `b9ae46f`, `ebc6056`, `911b9b9`, `24db08d`,
+  `4218f4c`), money-decimal rule (`273fa1f`), and documentation/course commits (`1378090`,
+  `e108829`, `a3e07e4`, `a7d5d7a`).
+- **Platform (Azure live demo):** accounts `lafe` and Google-login `yuandongyang061903` (plus test
+  accounts `test` / `test1` / `test3`); ~20 audit events — logins, account/profile setup and
+  environment self-test. `client_ip` 75.159.157.164 / .39 (test accounts from 68.146.239.134).
+
+### 2. Bedgel Fadhil Ndam Woukouo (BW)
+
+- **Branch:** `origin/fadhil-branch` — **no commits in this week's window** (his only Git commits are
+  historical: `97c9e7c` 8 Oct, `c1b3485` 20 Oct).
+- **Code (Git):** none this week.
+- **Platform (Azure live demo):** account `Fadhil` (dealer 31); **18 audit events, the most live
+  business activity of any teammate account** — created 2 vehicles, created/updated a listing,
+  created a customer, linked customer to vehicle, created a lead with a note, ran 2 listing/VIN
+  compliance checks, 6 logins. Span 01:30–03:14 UTC on 2 November. `client_ip` 75.159.157.39. This
+  is a genuine end-to-end acceptance walkthrough that leaves no Git trace.
+
+### 3. Logan Jones
+
+- **Branch:** `origin/logan-robin` and `origin/V2-Windows-Test` — **not merged into `V2`**.
+- **Code (Git):** 6 commits on 4 November — Windows local-run docs and scripts (`README-windows.md`,
+  `start-local.ps1`): `0e06b7d`, `20e5ce6`, `0fbf677`, plus ports `4853f21`, `7055884`, `a17a1d1`;
+  +724 / -325 lines across both side branches. Commit messages note login not yet working.
+- **Platform (Azure live demo):** account `Logan` (dealer 32); 4 audit events — 2 logins plus
+  account/profile setup, **no business data created**. `client_ip` 75.159.157.39.
+
+### 4. Jackson Warga (JW)
+
+- **Branch:** none — **no Git identity or commit on any branch**.
+- **Code (Git):** none.
+- **Platform (Azure live demo):** **no account on the Azure deployment; 0 audit events.**
+- **Contribution is off both trails:** he authored the 3 November client change document that defined
+  the nine themes Robin then implemented. Credit for that is the document, not code or platform
+  activity.
+
+### Audit activity summary (Azure live demo)
+
+| Member | Account(s) | Audit events | Business data created? | client_ip | When (UTC, 2 Nov) |
+| --- | --- | --- | --- | --- | --- |
+| Yuandong Yang (Robin) | `lafe`, `yuandongyang061903` (+3 test) | ~20 | Setup / self-test | 75.159.157.164 / .39 | 01:21–04:16 |
+| Bedgel Fadhil (BW) | `Fadhil` | **18** | **Yes** — vehicles, listing, customer, lead, checks | 75.159.157.39 | 01:30–03:14 |
+| Logan Jones | `Logan` | 4 | No | 75.159.157.39 | 02:07–03:13 |
+| Jackson Warga (JW) | — | 0 | — | — | — |
+
+**Audit fact on shared IP (stated, not interpreted).** The live sessions for `Fadhil` and `Logan`
+and one of Robin's addresses all originate from `75.159.157.39`, all within the same ~2-hour window
+on the evening of 1 November (local). The most likely reading is a single joint demo/acceptance
+session on one network; each account's events are attributed above to its named owner. The fact is
+recorded here for the instructor to weigh.
 
 ## Summary of activities
 

@@ -1,0 +1,867 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Weekly report — 2–8 November 2026 (ISO week 45)</title>
+  <style>
+    :root {
+      --ink: #1a2332;
+      --muted: #5a6577;
+      --line: #d8dee8;
+      --surface: #ffffff;
+      --page: #f0f3f7;
+      --accent: #1f4e79;
+      --accent-soft: #e8eef5;
+      --good: #1b5e3b;
+      --good-bg: #e8f5ee;
+      --warn: #8a5a00;
+      --warn-bg: #fff6e5;
+      --next: #1f4e79;
+      --next-bg: #eef3f9;
+      --radius: 10px;
+      --shadow: 0 1px 2px rgba(26, 35, 50, 0.06), 0 8px 24px rgba(26, 35, 50, 0.06);
+      --font: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+      --mono: "Cascadia Code", "Consolas", "Courier New", monospace;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: var(--font);
+      color: var(--ink);
+      background:
+        radial-gradient(1200px 500px at 10% -10%, #dce6f2 0%, transparent 55%),
+        radial-gradient(900px 400px at 100% 0%, #e4ebe4 0%, transparent 50%),
+        var(--page);
+      line-height: 1.55;
+      font-size: 16px;
+    }
+
+    .wrap {
+      max-width: 920px;
+      margin: 0 auto;
+      padding: 2.5rem 1.25rem 3.5rem;
+    }
+
+    header.hero {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: calc(var(--radius) + 2px);
+      box-shadow: var(--shadow);
+      padding: 1.75rem 1.75rem 1.35rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .eyebrow {
+      display: inline-block;
+      font-size: 0.75rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--accent);
+      font-weight: 650;
+      margin-bottom: 0.5rem;
+    }
+
+    h1 {
+      margin: 0 0 0.35rem;
+      font-size: clamp(1.45rem, 2.4vw, 1.85rem);
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      line-height: 1.25;
+    }
+
+    .subtitle {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+
+    .meta {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 0.75rem;
+      margin-top: 1.25rem;
+    }
+
+    .meta-item {
+      background: var(--accent-soft);
+      border-radius: 8px;
+      padding: 0.7rem 0.85rem;
+    }
+
+    .meta-item .label {
+      display: block;
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--muted);
+      font-weight: 650;
+      margin-bottom: 0.2rem;
+    }
+
+    .meta-item .value {
+      font-size: 0.92rem;
+      font-weight: 600;
+      color: var(--ink);
+      word-break: break-word;
+    }
+
+    .meta-item code {
+      font-family: var(--mono);
+      font-size: 0.84em;
+      font-weight: 600;
+    }
+
+    .note {
+      margin-top: 1rem;
+      padding: 0.75rem 0.9rem;
+      border-left: 3px solid var(--accent);
+      background: #f7f9fc;
+      color: var(--muted);
+      font-size: 0.9rem;
+      border-radius: 0 8px 8px 0;
+    }
+
+    section {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 1.35rem 1.5rem 1.45rem;
+      margin-bottom: 1.15rem;
+    }
+
+    h2 {
+      margin: 0 0 1rem;
+      font-size: 1.15rem;
+      letter-spacing: -0.01em;
+      color: var(--accent);
+      border-bottom: 1px solid var(--line);
+      padding-bottom: 0.55rem;
+    }
+
+    h3 {
+      margin: 0 0 0.4rem;
+      font-size: 1rem;
+      font-weight: 650;
+    }
+
+    p { margin: 0 0 0.85rem; }
+    p:last-child { margin-bottom: 0; }
+
+    .activity {
+      padding: 0.95rem 0;
+      border-top: 1px solid var(--line);
+    }
+
+    .activity:first-of-type { border-top: none; padding-top: 0; }
+
+    .activity-num {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 1.55rem;
+      height: 1.55rem;
+      border-radius: 50%;
+      background: var(--accent);
+      color: #fff;
+      font-size: 0.78rem;
+      font-weight: 700;
+      margin-right: 0.45rem;
+      vertical-align: middle;
+      flex-shrink: 0;
+    }
+
+    .activity h3 {
+      display: inline;
+      vertical-align: middle;
+    }
+
+    .activity p {
+      margin-top: 0.45rem;
+      color: #2a3444;
+    }
+
+    code, .sha {
+      font-family: var(--mono);
+      font-size: 0.86em;
+      background: #eef1f6;
+      padding: 0.08em 0.35em;
+      border-radius: 4px;
+      color: #243247;
+    }
+
+    ul.delivered {
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    ul.delivered li {
+      position: relative;
+      padding: 0.55rem 0.55rem 0.55rem 2rem;
+      border-bottom: 1px solid var(--line);
+    }
+
+    ul.delivered li:last-child { border-bottom: none; }
+
+    ul.delivered li::before {
+      content: "";
+      position: absolute;
+      left: 0.35rem;
+      top: 0.85rem;
+      width: 0.7rem;
+      height: 0.7rem;
+      border-radius: 50%;
+      background: var(--good);
+      box-shadow: inset 0 0 0 2px var(--good-bg);
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.15rem;
+    }
+
+    @media (max-width: 700px) {
+      .grid-2 { grid-template-columns: 1fr; }
+      .wrap { padding: 1.5rem 0.85rem 2.5rem; }
+      header.hero, section { padding-left: 1.1rem; padding-right: 1.1rem; }
+    }
+
+    .callout {
+      border-radius: 8px;
+      padding: 0.9rem 1rem;
+      margin-bottom: 0.75rem;
+    }
+
+    .callout:last-child { margin-bottom: 0; }
+
+    .callout.warn {
+      background: var(--warn-bg);
+      border: 1px solid #f0d9a8;
+    }
+
+    .callout.warn h3 { color: var(--warn); }
+
+    .callout.good {
+      background: var(--good-bg);
+      border: 1px solid #b7dfc8;
+    }
+
+    .callout.good h3 { color: var(--good); }
+
+    .callout.next {
+      background: var(--next-bg);
+      border: 1px solid #c5d4e8;
+    }
+
+    .callout.next h3 { color: var(--next); }
+
+    .callout p { color: #2a3444; font-size: 0.95rem; }
+
+    ol.next-list {
+      margin: 0;
+      padding-left: 1.2rem;
+    }
+
+    ol.next-list li {
+      margin-bottom: 0.55rem;
+      padding-left: 0.2rem;
+    }
+
+    ol.next-list li:last-child { margin-bottom: 0; }
+
+    footer {
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.8rem;
+      margin-top: 0.5rem;
+    }
+
+    /* Teacher-facing contributor cards: Who → Branch → What */
+    .contrib-banner {
+      margin: 0 0 1rem;
+      padding: 0.75rem 0.95rem;
+      border-radius: 8px;
+      background: #fff8e8;
+      border: 1px solid #f0d9a8;
+      color: #5a4500;
+      font-size: 0.92rem;
+    }
+
+    .contrib-banner strong { color: var(--warn); }
+
+    .branch-block {
+      margin-bottom: 1.25rem;
+      padding-bottom: 0.25rem;
+    }
+
+    .branch-block:last-child { margin-bottom: 0; }
+
+    .branch-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      margin: 0 0 0.75rem;
+      padding: 0.35rem 0.7rem;
+      border-radius: 6px;
+      background: var(--accent);
+      color: #fff;
+      font-size: 0.82rem;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+    }
+
+    .branch-label.side {
+      background: #5a6577;
+    }
+
+    .branch-label code {
+      background: rgba(255, 255, 255, 0.18);
+      color: #fff;
+      font-weight: 650;
+    }
+
+    .person-card {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 1rem 1.1rem 0.95rem;
+      margin-bottom: 0.85rem;
+      background: #fafbfd;
+    }
+
+    .person-card:last-child { margin-bottom: 0; }
+
+    .person-card.teammate {
+      border-color: #f0d9a8;
+      background: #fffdf7;
+      box-shadow: inset 4px 0 0 #d4a017;
+    }
+
+    .person-who {
+      margin: 0 0 0.35rem;
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: var(--ink);
+    }
+
+    .person-branch {
+      margin: 0 0 0.65rem;
+      font-size: 0.9rem;
+      color: var(--muted);
+    }
+
+    .person-branch strong {
+      color: var(--ink);
+      font-weight: 650;
+    }
+
+    .person-what {
+      margin: 0;
+      padding-left: 1.15rem;
+    }
+
+    .person-what li {
+      margin-bottom: 0.4rem;
+      color: #2a3444;
+    }
+
+    .person-what li:last-child { margin-bottom: 0; }
+
+    .status-pill {
+      display: inline-block;
+      margin-left: 0.35rem;
+      padding: 0.12rem 0.45rem;
+      border-radius: 999px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      vertical-align: middle;
+    }
+
+    .status-pill.unmerged {
+      background: var(--warn-bg);
+      color: var(--warn);
+      border: 1px solid #f0d9a8;
+    }
+
+    .status-pill.only-author {
+      background: var(--accent-soft);
+      color: var(--accent);
+      border: 1px solid #c5d4e8;
+    }
+
+    .person-plat {
+      margin: 0.55rem 0 0;
+      padding: 0.5rem 0.7rem;
+      border-radius: 6px;
+      background: var(--accent-soft);
+      font-size: 0.88rem;
+      color: #2a3444;
+    }
+
+    .person-plat strong { color: var(--accent); }
+
+    .audit-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.85rem;
+      margin: 0.4rem 0 0.9rem;
+    }
+
+    .audit-table th, .audit-table td {
+      border: 1px solid var(--line);
+      padding: 0.45rem 0.6rem;
+      text-align: left;
+      vertical-align: top;
+    }
+
+    .audit-table th {
+      background: var(--accent-soft);
+      color: var(--accent);
+      font-size: 0.76rem;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+
+    .audit-table tr:nth-child(even) td { background: #fafbfd; }
+
+    .authors {
+      margin-top: 1rem;
+      padding: 0.75rem 0.9rem;
+      border-left: 3px solid var(--good);
+      background: var(--good-bg);
+      border-radius: 0 8px 8px 0;
+      font-size: 0.9rem;
+      color: #26402f;
+    }
+
+    .authors strong { color: var(--good); }
+
+    @media print {
+      body { background: #fff; }
+      .wrap { max-width: none; padding: 0; }
+      header.hero, section {
+        box-shadow: none;
+        break-inside: avoid;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="hero">
+      <div class="eyebrow">DealerOps · Sprint 2</div>
+      <h1>Weekly report — 2–8 November 2026</h1>
+      <p class="subtitle">ISO week 45</p>
+
+      <div class="meta" role="list">
+        <div class="meta-item" role="listitem">
+          <span class="label">Phase</span>
+          <span class="value">Sprint 2</span>
+        </div>
+        <div class="meta-item" role="listitem">
+          <span class="label">Active days</span>
+          <span class="value">2, 3, 4, 5, 6 November</span>
+        </div>
+        <div class="meta-item" role="listitem">
+          <span class="label">Commits</span>
+          <span class="value">18 so far (<code>bb2c78e</code> … <code>a3e07e4</code>)</span>
+        </div>
+        <div class="meta-item" role="listitem">
+          <span class="label">Main branch</span>
+          <span class="value"><code>V2</code> / <code>origin/V2</code></span>
+        </div>
+        <div class="meta-item" role="listitem">
+          <span class="label">Contributors</span>
+          <span class="value">See <a href="#branch-contributions">Branch contributions</a> (Who → Branch → What)</span>
+        </div>
+        <div class="meta-item" role="listitem">
+          <span class="label">Volume</span>
+          <span class="value">+26,926 / −4,148 lines</span>
+        </div>
+        <div class="meta-item" role="listitem">
+          <span class="label">Milestones</span>
+          <span class="value">Client change document 3 Nov; Status Report 3 presented 3 Nov</span>
+        </div>
+      </div>
+
+      <p class="note">
+        Report written 6 November; the calendar week (through 8 November) was not finished at writing time.
+        Active work days covered: 2–6 November. Git evidence below also includes commits through 6 November on
+        <code>V2</code> (tip at writing/update includes later same-day docs commits).
+      </p>
+
+      <p class="authors">
+        <strong>Team members (authors):</strong>
+        Yuandong Yang (“Robin”) · Jackson Warga (JW) · Logan Jones · Bedgel Fadhil Ndam Woukouo (BW).
+        Individual contributions are broken down in
+        <a href="#branch-contributions">Per-person contributions</a> below.
+      </p>
+    </header>
+
+    <section aria-labelledby="branch-contributions">
+      <h2 id="branch-contributions">Per-person contributions (Who → Branch → Code → Platform)</h2>
+
+      <p class="contrib-banner">
+        <strong>Instructor note — V2 teammates:</strong>
+        Git history for <code>V2</code> / <code>origin/V2</code> in this weekly window shows
+        <strong>only Yuandong Yang (Robin)</strong> as commit author (recorded as both
+        <code>YUANDONG-YANG</code> and <code>robin</code>).
+        No commits from Bedgel (BW), Jackson (JW), or Logan appear on <code>V2</code> this week.
+        Logan’s work is on a separate, <strong>unmerged</strong> branch below — not buried in the activity narrative.
+        Two evidence trails are reported for each member: <strong>Git history</strong> (code commits) and the
+        <strong>Azure live-demo audit log</strong> (what they did on the deployed app). A member can contribute on
+        one trail and not the other — a requirements document or a live acceptance pass leaves no Git commit.
+      </p>
+
+      <div class="branch-block">
+        <div class="branch-label">Main development · <code>V2</code> / <code>origin/V2</code></div>
+
+        <article class="person-card">
+          <h3 class="person-who">1. Who: Yuandong Yang (Robin)</h3>
+          <p class="person-branch">
+            <strong>2. Branch:</strong> <code>V2</code> / <code>origin/V2</code>
+            <span class="status-pill only-author">Sole V2 committer this week</span>
+          </p>
+          <p style="margin:0 0 0.45rem;font-size:0.9rem;color:var(--muted);"><strong>3. What they did:</strong></p>
+          <ul class="person-what">
+            <li>
+              Implemented the 3 November client change request into the .NET 10 + React build
+              (<code>a4006b7</code>, <code>c981fbf</code>, <code>2173c9c</code>): inventory sold fields;
+              sell-dialog cost / work-order / list price; day–week–month–year salesperson reporting;
+              Owner / Manager / Sales tiers; server-side sorting; leads–customers–sale linkage;
+              safer admin deletes and split join requests. Seven of nine themes done (VIN partial;
+              dealership inquiry not started).
+            </li>
+            <li>
+              Home-page sample ad pointed at sign-up; sign-up button removed from home
+              (<code>d17858f</code>).
+            </li>
+            <li>
+              Audit log location beside IP, with private addresses kept local
+              (<code>54b6664</code>).
+            </li>
+            <li>
+              Cloud/demo seed hygiene: save demo data before Terraform destroy
+              (<code>bb2c78e</code>, <code>b9ae46f</code>, <code>ebc6056</code>); idempotent cloud-additions seed
+              (<code>911b9b9</code>); Azure-capable MySQL client (<code>24db08d</code>); reject dual-dealership
+              account after seed import (<code>4218f4c</code>).
+            </li>
+            <li>
+              Money rule: refuse &gt;2 decimal places on work-order (and related) costs instead of rounding
+              (<code>273fa1f</code>).
+            </li>
+            <li>
+              Docs / course: client-change review for Status Report 3 (<code>1378090</code>); English
+              development-report translation and review fixes (<code>e108829</code>); system design briefing
+              verified against running code (<code>a3e07e4</code>); CPRG-305-B bonus testing tasks
+              (<code>a7d5d7a</code>); weekly-report backfill (<code>c37a2ce</code>); Sprint 1 status PDF
+              (<code>d61f404</code>).
+            </li>
+          </ul>
+          <p class="person-plat">
+            <strong>4. Platform (Azure live demo):</strong> accounts <code>lafe</code> and Google-login
+            <code>yuandongyang061903</code> (plus test accounts <code>test</code> / <code>test1</code> /
+            <code>test3</code>); ~20 audit events — logins, account/profile setup and environment self-test.
+            <code>client_ip</code> 75.159.157.164 / .39 (test accounts from 68.146.239.134).
+          </p>
+        </article>
+
+        <article class="person-card teammate">
+          <h3 class="person-who">Other teammates on V2 this week</h3>
+          <p class="person-branch">
+            <strong>2. Branch:</strong> <code>V2</code> / <code>origin/V2</code>
+          </p>
+          <p style="margin:0 0 0.45rem;font-size:0.9rem;color:var(--muted);"><strong>3. What they did:</strong></p>
+          <ul class="person-what">
+            <li>
+              <strong>No git commits on <code>V2</code></strong> from Bedgel Fadhil Ndam Woukouo (BW),
+              Jackson Warga (JW), or Logan Jones in ~2–8 November 2026
+              (authors checked: only <code>YUANDONG-YANG</code> / <code>robin</code>).
+            </li>
+            <li>
+              <em>Report context (not a V2 commit):</em> Jackson’s 3 November client change document is
+              named as the source of the nine themes Robin implemented; that document itself is not a
+              <code>V2</code> commit by Jackson.
+            </li>
+          </ul>
+        </article>
+      </div>
+
+      <div class="branch-block">
+        <div class="branch-label side">Non-V2 / side branches</div>
+
+        <article class="person-card teammate">
+          <h3 class="person-who">2. Who: Logan Jones</h3>
+          <p class="person-branch">
+            <strong>2. Branch:</strong> <code>origin/logan-robin</code>
+            <span class="status-pill unmerged">Not merged into V2</span>
+          </p>
+          <p style="margin:0 0 0.45rem;font-size:0.9rem;color:var(--muted);"><strong>3. What they did:</strong></p>
+          <ul class="person-what">
+            <li>
+              Windows local-run docs and scripts (4 November):
+              <code>0e06b7d</code> added <code>README-windows.md</code>;
+              <code>20e5ce6</code> added <code>start-local.ps1</code> and reshaped the Windows README;
+              <code>0fbf677</code> continued Windows <code>.ps1</code> work (commit message notes login still
+              not working) and touched <code>start-local.sh</code> / lockfile.
+            </li>
+            <li>
+              Related (also <strong>not</strong> on <code>V2</code>): same-day ports onto
+              <code>origin/V2-Windows-Test</code> (<code>4853f21</code>, <code>7055884</code>, <code>a17a1d1</code>) —
+              Windows README / <code>start-local.ps1</code> only; still unmerged into <code>V2</code>.
+            </li>
+          </ul>
+          <p class="person-plat">
+            <strong>4. Platform (Azure live demo):</strong> account <code>Logan</code> (dealer 32);
+            4 audit events — 2 logins plus account/profile setup, <strong>no business data created</strong>.
+            <code>client_ip</code> 75.159.157.39.
+          </p>
+        </article>
+
+        <article class="person-card teammate">
+          <h3 class="person-who">3. Who: Bedgel Fadhil Ndam Woukouo (BW)</h3>
+          <p class="person-branch">
+            <strong>2. Branch:</strong> <code>origin/fadhil-branch</code>
+            <span class="status-pill unmerged">No commit this week</span>
+          </p>
+          <p style="margin:0 0 0.45rem;font-size:0.9rem;color:var(--muted);"><strong>3. What they did (Git):</strong></p>
+          <ul class="person-what">
+            <li>
+              <strong>No commits in this week’s window.</strong> Only historical commits exist on
+              <code>origin/fadhil-branch</code>: <code>97c9e7c</code> (8 Oct), <code>c1b3485</code> (20 Oct).
+            </li>
+          </ul>
+          <p class="person-plat">
+            <strong>4. Platform (Azure live demo):</strong> account <code>Fadhil</code> (dealer 31);
+            <strong>18 audit events — the most live business activity of any teammate account</strong> —
+            created 2 vehicles, created/updated a listing, created a customer, linked customer to vehicle,
+            created a lead with a note, ran 2 listing/VIN compliance checks, 6 logins.
+            Span 01:30–03:14 UTC on 2 November. <code>client_ip</code> 75.159.157.39.
+            This is a genuine end-to-end acceptance walkthrough that leaves no Git trace.
+          </p>
+        </article>
+
+        <article class="person-card teammate">
+          <h3 class="person-who">4. Who: Jackson Warga (JW)</h3>
+          <p class="person-branch">
+            <strong>2. Branch:</strong> none
+            <span class="status-pill unmerged">No Git identity on any branch</span>
+          </p>
+          <p style="margin:0 0 0.45rem;font-size:0.9rem;color:var(--muted);"><strong>3. What they did:</strong></p>
+          <ul class="person-what">
+            <li><strong>No commit on any branch; no account on the Azure deployment (0 audit events).</strong></li>
+            <li>
+              Contribution is off both trails: he authored the <strong>3 November client change document</strong>
+              that defined the nine themes Robin implemented. Credit for that is the document itself, not code
+              or platform activity.
+            </li>
+          </ul>
+        </article>
+      </div>
+
+      <div class="branch-block">
+        <div class="branch-label side">Platform activity — Azure live demo (audit log)</div>
+        <table class="audit-table">
+          <thead>
+            <tr>
+              <th>Member</th><th>Account(s)</th><th>Audit events</th>
+              <th>Business data?</th><th>client_ip</th><th>When (UTC, 2 Nov)</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Yuandong Yang (Robin)</td>
+              <td><code>lafe</code>, <code>yuandongyang061903</code> (+3 test)</td>
+              <td>~20</td><td>Setup / self-test</td>
+              <td>75.159.157.164 / .39</td><td>01:21–04:16</td>
+            </tr>
+            <tr>
+              <td>Bedgel Fadhil (BW)</td><td><code>Fadhil</code></td>
+              <td><strong>18</strong></td>
+              <td><strong>Yes</strong> — vehicles, listing, customer, lead, checks</td>
+              <td>75.159.157.39</td><td>01:30–03:14</td>
+            </tr>
+            <tr>
+              <td>Logan Jones</td><td><code>Logan</code></td>
+              <td>4</td><td>No</td>
+              <td>75.159.157.39</td><td>02:07–03:13</td>
+            </tr>
+            <tr>
+              <td>Jackson Warga (JW)</td><td>—</td>
+              <td>0</td><td>—</td><td>—</td><td>—</td>
+            </tr>
+          </tbody>
+        </table>
+        <p class="contrib-banner">
+          <strong>Audit fact on shared IP (stated, not interpreted).</strong>
+          The live sessions for <code>Fadhil</code> and <code>Logan</code> and one of Robin’s addresses all
+          originate from <code>75.159.157.39</code>, all within the same ~2-hour window on the evening of
+          1 November (local). The most likely reading is a single joint demo/acceptance session on one
+          network; each account’s events are attributed above to its named owner. Recorded for the
+          instructor to weigh. Source: Azure backup <code>azure-backup-20261101-221747</code>
+          (DB timestamps UTC; backup taken 2026-11-01 ~22:17 local).
+        </p>
+      </div>
+    </section>
+
+    <section aria-labelledby="activities">
+      <h2 id="activities">Summary of activities</h2>
+
+      <article class="activity">
+        <span class="activity-num" aria-hidden="true">1</span>
+        <h3>Client review arrived and was implemented in two days</h3>
+        <p>
+          Jackson's change document of 3 November listed nine themes.
+          Commits <code>a4006b7</code>, <code>c981fbf</code>, and <code>2173c9c</code> put them into the .NET 10 and React build:
+          Sold by / Sold to / Date sold on the inventory; cost, work-order spend and list price shown in the sell dialog;
+          day, week, month and year periods with per-salesperson figures; the Owner / Manager / Sales tier split;
+          server-side column sorting; leads, customers and the sale tied together; safer admin deletes and split join requests;
+          and the home page with the sign-up button removed, its sample ad pointed at sign-up instead (<code>d17858f</code>).
+          Seven of the nine themes are done; VIN matching is partial and the dealership inquiry that would replace sign-up is not started.
+        </p>
+      </article>
+
+      <article class="activity">
+        <span class="activity-num" aria-hidden="true">2</span>
+        <h3>Audit trail gained a location</h3>
+        <p>
+          <code>54b6664</code> records a readable place beside the IP address on each audit row,
+          with private addresses labelled locally and never sent to the lookup service.
+        </p>
+      </article>
+
+      <article class="activity">
+        <span class="activity-num" aria-hidden="true">3</span>
+        <h3>Cloud data handling was made repeatable</h3>
+        <p>
+          Demo data was saved into the seed before each Terraform destroy (<code>bb2c78e</code>, <code>b9ae46f</code>, <code>ebc6056</code>);
+          <code>911b9b9</code> made the cloud-additions seed safe to load twice;
+          <code>24db08d</code> picked a MySQL client that can actually authenticate to Azure;
+          and <code>4218f4c</code> reports an account bound to two dealerships after a seed import instead of letting it through.
+        </p>
+      </article>
+
+      <article class="activity">
+        <span class="activity-num" aria-hidden="true">4</span>
+        <h3>A business rule was tightened</h3>
+        <p>
+          <code>273fa1f</code> refuses a work-order cost with more than two decimals rather than rounding it,
+          because every amount is stored to two decimals and rounding would persist a figure the user never saw.
+          The same rule now covers purchase cost, repair cost, list price and sold price.
+        </p>
+      </article>
+
+      <article class="activity">
+        <span class="activity-num" aria-hidden="true">5</span>
+        <h3>Reporting and documentation</h3>
+        <p>
+          The 3 November client-change review was recorded for the sprint presentation (<code>1378090</code>),
+          the development report was translated to English with its review findings fixed (<code>e108829</code>),
+          and the system design briefing was verified line by line against the running code and expanded on
+          architecture and business flows (<code>a3e07e4</code>).
+        </p>
+      </article>
+
+      <article class="activity">
+        <span class="activity-num" aria-hidden="true">6</span>
+        <h3>Course work</h3>
+        <p>
+          <code>a7d5d7a</code> added the CPRG-305-B bonus testing tasks — five options with prompts,
+          AI responses, corrected test cases and reflections.
+        </p>
+      </article>
+
+      <article class="activity">
+        <span class="activity-num" aria-hidden="true">7</span>
+        <h3>Teammate branch (not on V2)</h3>
+        <p>
+          Logan pushed Windows compatibility work to <code>origin/logan-robin</code> on 4 November
+          (<code>0e06b7d</code>, <code>20e5ce6</code>, <code>0fbf677</code>). Not merged into <code>V2</code>.
+          See <a href="#branch-contributions">Branch contributions</a> for the Who → Branch → What detail.
+        </p>
+      </article>
+    </section>
+
+    <section aria-labelledby="delivered">
+      <h2 id="delivered">What was delivered</h2>
+      <ul class="delivered">
+        <li>Seven of the nine client themes from the 3 November review, in the build, within two days.</li>
+        <li>Client location on every audit row, with private addresses kept private.</li>
+        <li>A seed and backup path that survives being run twice and names its own failures.</li>
+        <li>Status Report 3 and its deck, and a design briefing that matches the code.</li>
+      </ul>
+    </section>
+
+    <div class="grid-2">
+      <section aria-labelledby="impediments">
+        <h2 id="impediments">Impediments</h2>
+
+        <div class="callout warn">
+          <h3>Sprint 2 planned as hardening, became a change request</h3>
+          <p>
+            The plan written at sprint start was overtaken on day two; the report presented on 3 November
+            covers the review rather than the planned polish.
+          </p>
+        </div>
+
+        <div class="callout warn">
+          <h3>Two themes are not finished</h3>
+          <p>
+            VIN matching works only when the decoder answers, and the dealership inquiry that should replace
+            public sign-up has not been started. Both are named openly in the Status Report 3 deck rather
+            than being reported as done.
+          </p>
+        </div>
+
+        <div class="callout warn">
+          <h3>Azure state drift</h3>
+          <p>
+            Drift from an earlier portal deletion still makes a plain <code>terraform apply</code> unreliable,
+            which is why demo data is saved to the seed before each destroy.
+          </p>
+        </div>
+      </section>
+
+      <section aria-labelledby="went-well">
+        <h2 id="went-well">What went well</h2>
+
+        <div class="callout good">
+          <h3>Client-facing framing</h3>
+          <p>
+            The change request was answered in the client's own terms — nine themes, three statuses —
+            rather than as a list of commits.
+          </p>
+        </div>
+
+        <div class="callout good">
+          <h3>Cloud backup habit paid off</h3>
+          <p>
+            Backing up the cloud data before every destroy, established in W44, paid off three times this week.
+          </p>
+        </div>
+      </section>
+    </div>
+
+    <section aria-labelledby="next">
+      <h2 id="next">Next</h2>
+      <div class="callout next">
+        <ol class="next-list">
+          <li>Finish VIN matching and decide with the client on the dealership inquiry that replaces sign-up.</li>
+          <li>Confirm the rate-limit values and service-level targets that currently ship as defaults.</li>
+          <li>Complete the manual acceptance pass; the feature code is complete and acceptance is in progress.</li>
+        </ol>
+      </div>
+    </section>
+
+    <footer>
+      Source: <code>weekly_report_11.2-11.8.md</code> · Generated for browser viewing
+    </footer>
+  </div>
+</body>
+</html>
