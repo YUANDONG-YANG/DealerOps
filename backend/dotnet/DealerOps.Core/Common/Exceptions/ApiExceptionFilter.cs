@@ -42,6 +42,12 @@ public class ApiExceptionFilter : IExceptionFilter
 
         var statusCode = ex.Code.HttpStatus();
         var requestId = context.HttpContext.Items["RequestId"] as string ?? "";
+        // One line per rejected request, so every 4xx in the log carries its reason. Field names only:
+        // submitted values can hold personal data.
+        _logger.LogWarning(
+            "Request rejected code={Code} status={Status} method={Method} path={Path} fields={Fields} message={Message} [{RequestId}]",
+            ex.Code.ToWireCode(), statusCode, context.HttpContext.Request.Method, context.HttpContext.Request.Path,
+            ex.FieldErrors == null ? "" : string.Join(",", ex.FieldErrors.Keys), ex.Message, requestId);
 
         context.Result = new ObjectResult(new ErrorBody(ex.Code.ToWireCode(), ex.Message, requestId, ex.FieldErrors))
         {

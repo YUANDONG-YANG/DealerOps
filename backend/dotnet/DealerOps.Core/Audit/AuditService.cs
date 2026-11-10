@@ -92,7 +92,11 @@ public class AuditService : IAuditService
         var user = _db.AppUsers.Local.FirstOrDefault(u => u.Username == username)
                    ?? _db.AppUsers.FirstOrDefault(u => u.Username == username);
         if (user == null)
+        {
+            _logger.LogDebug("Audit snapshot has no account for actor={Actor} dealerId={DealerId} action={Action}",
+                username, dealerId, entity.Action);
             return;
+        }
         entity.ActorDisplayName = user.DisplayName;
         if (user.Role == AppRole.PlatformAdmin)
         {

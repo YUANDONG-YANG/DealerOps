@@ -199,7 +199,7 @@ public class VehicleService
     public List<string> SourceOtherOptions()
     {
         var tenant = TenantGuard.RequireTenantId();
-        return _db.Vehicles.AsNoTracking()
+        var options = _db.Vehicles.AsNoTracking()
             .Where(v => v.DealerId == tenant && v.Source == VehicleSource.Other && v.SourceOther != null)
             .OrderByDescending(v => v.CreatedAt)
             .Select(v => v.SourceOther!)
@@ -207,6 +207,8 @@ public class VehicleService
             .DistinctBy(s => s.ToLowerInvariant())
             .Order(StringComparer.OrdinalIgnoreCase)
             .ToList();
+        _logger.LogDebug("Vehicle source-other options listed count={Count} dealerId={DealerId}", options.Count, tenant);
+        return options;
     }
 
     /// <summary>Adds a vehicle to this dealer's inventory as IN_STOCK; the VIN must be unique in the dealership.</summary>
@@ -401,7 +403,7 @@ public class VehicleService
             NormalizeVin(body.Vin),
             source,
             // An OTHER vehicle saved before DMS-19 without a custom source stays editable as it is.
-            SourceOtherFor(source, body.SourceOther,
+            SourceOtherFor(source, body.SourceOther, vehicle.Id,
                 allowBlank: vehicle.Source == VehicleSource.Other && vehicle.SourceOther == null),
             body.PurchaseCost ?? vehicle.PurchaseCost,
             body.AddedOn ?? vehicle.AddedOn,
@@ -921,12 +923,16 @@ public class VehicleService
     /// DMS-19: the custom source name stored with a source. Only OTHER keeps one, trimmed; it is
     /// required unless <paramref name="allowBlank"/> lets an older OTHER vehicle saved without it stay as it is.
     /// </summary>
-    private static string? SourceOtherFor(VehicleSource source, string? sourceOther, bool allowBlank = false)
+    private string? SourceOtherFor(VehicleSource source, string? sourceOther, long? vehicleId = null,
+        bool allowBlank = false)
     {
         if (source != VehicleSource.Other) return null;
         var value = TrimToNull(sourceOther);
         if (value == null && !allowBlank)
         {
+            _logger.LogWarning(
+                "Vehicle save rejected because source Other has no custom source vehicleId={VehicleId} dealerId={DealerId} by {Actor}",
+                vehicleId, TenantGuard.RequireTenantId(), TenantContext.ActorUsername());
             const string message = "Enter the source when Other is selected.";
             throw new ApiException(ErrorCode.Validation, message,
                 new Dictionary<string, string> { ["sourceOther"] = message });

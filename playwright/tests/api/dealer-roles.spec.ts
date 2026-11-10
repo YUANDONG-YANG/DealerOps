@@ -427,5 +427,7 @@ test('AUDIT / rows keep the actor name, role and dealership name of the moment t
   await expectStatus(adminLog, 200);
   const adminLogin = ((await adminLog.json()) as { items: LogRow[] }).items
     .find((r) => r.actorUsername === env.admin.identifier);
-  expect(adminLogin).toMatchObject({ actorRole: 'PLATFORM_ADMIN', dealerName: null });
+  expect(adminLogin).toMatchObject({ actorRole: 'PLATFORM_ADMIN' });
+  // The API omits null fields, so a missing dealerName means none.
+  expect(adminLogin?.dealerName ?? null).toBeNull();
 });
