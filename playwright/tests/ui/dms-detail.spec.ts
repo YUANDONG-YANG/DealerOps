@@ -14,11 +14,19 @@ type AuditItem = { action: string; actorUsername: string; createdAt: string };
 const dealer = env.dealerA;
 const contacts = `${dealer.contactPhone}, ${dealer.contactEmail}, ${dealer.contactAddress}`;
 
-/** Same formatting as dateTimeLocal in frontend/react/src/format.ts (browser and runner share a timezone). */
-function localDateTime(iso: string) {
-  const d = new Date(iso);
+/**
+ * Same formatting as dateTimeLocal in frontend/react/src/format.ts, but shifted by the offset the
+ * BROWSER reports for that instant: the runner and Chromium carry their own copies of the time zone
+ * rules and can disagree on when daylight saving ends, which would fail this assertion by an hour
+ * because of the machine rather than the app. The instant still comes from the API string, so a
+ * timestamp that reaches the browser without its UTC marker is still caught.
+ */
+async function localDateTime(page: Page, iso: string) {
+  const offsetMinutes = await page.evaluate((value) => new Date(value).getTimezoneOffset(), iso);
+  const d = new Date(Date.parse(iso) - offsetMinutes * 60_000);
   const pad = (n: number) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}`
+    + ` ${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}`;
 }
 
 async function vehicleAudit(api: Api, vehicleId: number) {
@@ -92,7 +100,7 @@ async function expectHistory(drawer: Locator, api: Api, vehicleId: number, expec
     // Rows of related records (work order, photo, vehicle link) are prefixed with their label.
     await expect(cells.nth(0)).toHaveText(new RegExp(`(^|· )${action}$`));
     await expect(cells.nth(1)).toHaveText(actor);
-    await expect(cells.nth(2)).toHaveText(localDateTime(items[i].createdAt));
+    await expect(cells.nth(2)).toHaveText(await localDateTime(drawer.page(), items[i].createdAt));
   }
 }
 
