@@ -23,7 +23,8 @@ least 30 rows. The seed is additive: it never touches rows that existed before i
 | `sql/08_audit.sql` | seed task | `audit_event` history for all seeded records |
 | `images/` + `scripts/load_photos.py` | seed tasks | Vehicle photos: freely licensed Wikimedia Commons photos of the same make and model. Kijiji listing photos (`images/kijiji/`, git-ignored, `fetch_kijiji.py --photos`) are never loaded, because they carry the advertising dealerships' branding |
 | `sql/09_cloud_additions.sql` + `scripts/gen_cloud_additions.py` | generated | Rows created on the cloud demo, resolved by natural key |
-| `scripts/load-seed.sh` | integration | Runs the SQL files in order, then the photo loader |
+| `sql/10_vehicle_sources.sql` + `scripts/gen_vehicle_sources.py` | generated | Custom source and acquired-from name and address for the seed vehicles (DMS-19, DMS-20; two Other vehicles stay blank as records saved before DMS-19), plus two more in-stock vehicles per dealership from unused Kijiji listings with their `VEHICLE CREATE` audit rows. Names and addresses are fictional |
+| `scripts/load-seed.sh` | integration | Runs 01–07, the photo loader, 08, then 09 and 10 when present |
 
 ## Natural keys
 
