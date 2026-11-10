@@ -1,8 +1,18 @@
 # DealerOps AI Log
 
-Updated: 2026-10-12
+Updated: 2026-11-09
 
 Each member records their own AI use: the task, the affected artifact, which output was accepted or rejected, and how it was checked. Jackson publishes or links this log on the team site by 2026-10-31. Never include passwords, tokens, or private customer records.
+
+## Process decisions
+
+### 2026-11-09 · AI collaboration roles
+
+Withdrawn: the human only verifies and records issues while Cursor writes the code.
+
+In force: **Claude** writes and implements code; **Cursor** provides opinions, review, and audit. Canonical wording is in `AGENTS.md` / `CLAUDE.md` (kept aligned) and `.cursor/rules/ai-collaboration.mdc`.
+
+## AI use log
 
 | Team Member | AI Tool | Purpose | Date | Output and human review |
 |---|---|---|---|---|

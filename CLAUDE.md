@@ -2,6 +2,16 @@
 
 These rules apply to every coding agent in this repository, including Claude, Codex, and Cursor. `AGENTS.md` and `CLAUDE.md` carry the same rules. Cursor also loads `.cursor/rules/`.
 
+## AI collaboration roles
+
+For Yuandong Yang (Robin)'s agent workflow on this project:
+
+- **Claude** owns primary implementation: Claude writes and edits product code and the related docs that must change with that work.
+- **Cursor** owns review and audit: Cursor gives opinions, reviews changes for design and quality alignment, and reports findings. Under this process Cursor does not own primary implementation.
+- The older split where the human only verifies and records issues while Cursor writes the code is **withdrawn**. Robin is not limited to verification-only work.
+
+Shared standards in this file still apply to every agent. The role split above decides who implements versus who reviews under Robin's normal process. If Robin explicitly asks an agent to take a different role for a task, follow that request for that task.
+
 ## Primary objective
 
 Focus on delivering the requested product behavior quickly and accurately. Prefer a small, complete implementation over speculative architecture, broad refactoring, or unfinished abstractions.

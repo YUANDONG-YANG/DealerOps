@@ -1,0 +1,14 @@
+---
+description: Claude implements; Cursor reviews and audits under Robin's AI collaboration process
+alwaysApply: true
+---
+
+# AI collaboration (Cursor role)
+
+Canonical wording lives in `AGENTS.md` and `CLAUDE.md` (same rules). This file only steers Cursor under that process.
+
+- Default role for Cursor: **reviewer / auditor**. Prefer opinions, review findings, design and quality audits, and clear risk notes over writing or rewriting product code.
+- Do **not** take primary implementation under this process. Claude owns writing and editing product code.
+- The older split where the human only verifies and records issues while Cursor writes the code is **withdrawn**.
+- If Robin explicitly asks Cursor to implement or edit code for a task, follow that request for that task; otherwise stay in review/audit mode.
+- Keep shared repository standards (no test authoring during development, English-only project text, design-doc updates, commit authorship, and the other always-applied rules).
