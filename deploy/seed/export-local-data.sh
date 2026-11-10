@@ -44,6 +44,23 @@ while IFS= read -r t; do tables+=("$t"); done < <(
     ORDER BY table_name")
 [ "${#tables[@]}" -gt 0 ] || { echo "No tables found in ${db}" >&2; exit 1; }
 
+# The local database can be running an older Core build when deploy.sh is first run. Core applies
+# these patches on startup, but --seed loads the cloud additions before the new app is started.
+# Bring the three columns used by the V3 seed forward here as well, without duplicating existing
+# columns or hiding other ALTER TABLE errors.
+for column_definition in \
+  "source_other VARCHAR(100) NULL" \
+  "acquired_from_name VARCHAR(120) NULL" \
+  "acquired_from_address VARCHAR(255) NULL"; do
+  column="${column_definition%% *}"
+  present="$(mysql "${conn[@]}" -N -e "SELECT COUNT(*) FROM information_schema.columns
+    WHERE table_schema='${db}' AND table_name='vehicle' AND column_name='${column}'")"
+  if [ "${present}" -eq 0 ]; then
+    echo "==> adding vehicle.${column} to ${db}"
+    mysql "${conn[@]}" -e "ALTER TABLE vehicle ADD COLUMN ${column_definition}"
+  fi
+done
+
 # Rows created on the cloud demo, then the vehicle source details, must survive --seed. Both files
 # are safe to load more than once.
 for additions in "${repo}/dealer-platform/seed/sql/09_cloud_additions.sql" \
