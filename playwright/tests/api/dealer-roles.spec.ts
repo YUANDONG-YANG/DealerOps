@@ -382,3 +382,50 @@ test('ROLE / cardinality: the only owner who is also the last active member stil
   const soloOwner = await bindOwner(request, adminApi, solo.id);
   await expectStatus(await soloOwner.api.delete('/api/v1/me'), 204);
 });
+
+test('AUDIT / rows keep the actor name, role and dealership name of the moment they were written', async ({
+  request, adminApi,
+}) => {
+  const created = await createDealership(adminApi, 'E2E Roles Dealer');
+  const owner = await bindOwner(request, adminApi, created.id);
+  const successor = await addMember(request, adminApi, created.id, owner, 'MANAGER');
+
+  // The owner's sign-in in bindOwner was written while it held OWNER under the first name.
+  type LogRow = { action: string; actorUsername: string; actorDisplayName: string | null;
+    actorRole: string | null; dealerName: string | null };
+  const logins = async () => {
+    const res = await adminApi.get('/api/v1/admin/audit',
+      { dealerId: created.id, actor: owner.username, action: 'LOGIN', size: 50 });
+    await expectStatus(res, 200);
+    return ((await res.json()) as { items: LogRow[] }).items.filter((r) => r.actorUsername === owner.username);
+  };
+  const before = await logins();
+  expect(before.length, JSON.stringify(before)).toBeGreaterThan(0);
+  for (const row of before) {
+    expect(row).toMatchObject({ actorDisplayName: owner.displayName, actorRole: 'OWNER', dealerName: created.legalName });
+  }
+
+  // Rename the dealership and hand the office over; then the former owner signs in again.
+  const current = (await (await adminApi.get(`/api/v1/admin/dealers/${created.id}`)).json()) as Dealer;
+  const renamed = `${created.legalName} Renamed`;
+  await expectStatus(await adminApi.patch(`/api/v1/admin/dealers/${created.id}`, {
+    legalName: renamed, contactPhone: current.contactPhone, contactEmail: current.contactEmail,
+    contactAddress: current.contactAddress, version: current.version, active: true, logoDataUrl: current.logoDataUrl,
+  }), 200);
+  await expectStatus(await setRole(adminApi, created.id, successor.username, 'OWNER'), 204);
+  await apiLogin(request, owner.username, owner.password);
+
+  // History is not rewritten: the earlier rows keep the old name and role, the new row has the new ones.
+  const after = await logins();
+  expect(after.length, JSON.stringify(after)).toBe(before.length + 1);
+  expect(after[0]).toMatchObject({ actorRole: 'MANAGER', dealerName: renamed });
+  for (const row of after.slice(1)) expect(row).toMatchObject({ actorRole: 'OWNER', dealerName: created.legalName });
+
+  // The platform admin's own sign-in carries its role and no dealership.
+  // The actor filter matches any part of the username, so pick the admin's own row.
+  const adminLog = await adminApi.get('/api/v1/admin/audit', { actor: env.admin.identifier, action: 'LOGIN', size: 50 });
+  await expectStatus(adminLog, 200);
+  const adminLogin = ((await adminLog.json()) as { items: LogRow[] }).items
+    .find((r) => r.actorUsername === env.admin.identifier);
+  expect(adminLogin).toMatchObject({ actorRole: 'PLATFORM_ADMIN', dealerName: null });
+});

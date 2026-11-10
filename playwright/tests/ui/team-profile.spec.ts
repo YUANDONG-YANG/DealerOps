@@ -874,7 +874,7 @@ test.describe('/team activity log', () => {
     // The dealership log holds one dealership, so it has neither the column nor the filter.
     // Text content, not innerText: the stylesheet renders the headers in capitals.
     const headers = (await page.locator('table.table thead th').allTextContents()).map((t) => t.trim());
-    expect(headers).toEqual(['When', 'Actor', 'Action', 'Record', 'Changes', 'Source IP', 'Location']);
+    expect(headers).toEqual(['When', 'Actor', 'Role', 'Action', 'Record', 'Changes', 'Source IP', 'Location']);
 
     const filters = page.locator('.filters');
     await expect(filters.getByLabel('From date')).toBeVisible();
@@ -939,7 +939,8 @@ test.describe('/team activity log', () => {
 
     const cells = actorCells(page);
     await expect(cells).not.toHaveCount(0);
-    for (const text of await cells.allInnerTexts()) expect(text.trim()).toBe(owner.username);
+    // The cell reads `username (display name)`; the display name is the one stored with the row.
+    for (const text of await cells.allInnerTexts()) expect(text.trim()).toBe(`${owner.username} (${owner.displayName})`);
   });
 
   test('CR-027 / the free-text change search finds the password sign-ins', async ({
