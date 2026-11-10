@@ -259,7 +259,14 @@ export default function DmsPage() {
 
   // A failure only leaves the second-level filter with "All other" and the form without suggestions.
   function loadSourceOtherOptions() {
-    vehiclesApi.sourceOtherOptions().then(r => setSourceOtherOptions(r.data)).catch(() => setSourceOtherOptions([]));
+    vehiclesApi.sourceOtherOptions().then(r => {
+      setSourceOtherOptions(r.data);
+      // Deleting or renaming the last vehicle of the selected custom source drops that name from
+      // the list. The select then falls back to "All other" while the query would still send the
+      // old name, so the table would look empty although other Other-source vehicles remain.
+      // Clear it like any other filter change (UI-20).
+      if (filters.sourceOther && !r.data.includes(filters.sourceOther)) changeFilter({ sourceOther: '' });
+    }).catch(() => setSourceOtherOptions([]));
   }
 
   useEffect(() => {

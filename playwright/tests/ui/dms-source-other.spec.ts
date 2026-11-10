@@ -190,3 +190,37 @@ test('DMS-19 / SRC-17: changing the Source filter on a later page goes back to t
   await expect(rows).toHaveCount(10);
   await expect(pagination.getByRole('button', { name: '1', exact: true })).toHaveClass(/active/);
 });
+
+test('DMS-19 / SRC-06: deleting the last vehicle of the selected custom source clears that filter', async ({
+  staffPage: page, staffApi,
+}) => {
+  const removed = `Lease return ${uniqueSuffix()}`;
+  const doomed = await staffApi.createVehicle({ source: 'OTHER', sourceOther: removed });
+
+  await page.goto('/dms');
+  await page.getByRole('combobox', { name: 'Source', exact: true }).selectOption('OTHER');
+  const otherFilter = page.getByRole('combobox', { name: 'Other source' });
+  const filtered = page.waitForResponse((r) => new URL(r.url()).searchParams.get('sourceOther') === removed);
+  await otherFilter.selectOption(removed);
+  await filtered;
+  const rows = page.locator('.page tbody tr');
+  await expect(rows.filter({ hasText: doomed.vin })).toHaveCount(1);
+
+  // Deleting the only vehicle that carries the name drops it from the options. The select would
+  // fall back to "All other" while the query still sent the old name, so the table would look
+  // empty although the dealership's other Other-source vehicles remain.
+  const cleared = page.waitForResponse((r) => {
+    const p = new URL(r.url()).searchParams;
+    return r.request().method() === 'GET' && p.get('source') === 'OTHER' && !p.get('sourceOther');
+  });
+  await rows.filter({ hasText: doomed.vin }).getByRole('button', { name: 'Edit' }).click();
+  const drawer = page.getByRole('dialog', { name: 'Edit vehicle' });
+  await expect(drawer).toBeVisible();
+  page.once('dialog', (d) => void d.accept());
+  await drawer.getByRole('button', { name: 'Delete vehicle' }).click();
+
+  expect(new URL((await cleared).url()).searchParams.get('page') ?? '0').toBe('0');
+  await expect(otherFilter.locator('option', { hasText: removed })).toHaveCount(0);
+  await expect(otherFilter).toHaveValue('');
+  await expect(rows.filter({ hasText: doomed.vin })).toHaveCount(0);
+});
