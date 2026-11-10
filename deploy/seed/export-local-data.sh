@@ -57,7 +57,7 @@ for column_definition in \
     WHERE table_schema='${db}' AND table_name='vehicle' AND column_name='${column}'")"
   if [ "${present}" -eq 0 ]; then
     echo "==> adding vehicle.${column} to ${db}"
-    mysql "${conn[@]}" -e "ALTER TABLE vehicle ADD COLUMN ${column_definition}"
+    mysql "${conn[@]}" -e "ALTER TABLE \`${db}\`.\`vehicle\` ADD COLUMN ${column_definition}"
   fi
 done
 
