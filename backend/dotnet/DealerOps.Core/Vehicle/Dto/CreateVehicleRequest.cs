@@ -30,4 +30,6 @@ public record CreateVehicleRequest(
     [MaxLength(40, ErrorMessage = "At most 40 characters.")] string? ExteriorColor = null,
     FuelType? FuelType = null,
     [MaxLength(20, ErrorMessage = "At most 20 characters.")] string? StockNumber = null,
-    [Range(0, double.MaxValue)] decimal? ListPrice = null);
+    [Range(0, double.MaxValue)] decimal? ListPrice = null,
+    // Required when Source is OTHER, ignored otherwise (DMS-19).
+    [MaxLength(100, ErrorMessage = "At most 100 characters.")] string? SourceOther = null);

@@ -48,7 +48,10 @@ type Validation = Record<string, string>;
 
 // `stored` is the vehicle as loaded for edit: its VIN/year and Carfax link are re-checked only when
 // changed, as on the server, so a record saved before those rules can still be edited.
-function validateForm(form: VehicleForm, isSold: boolean, stored?: { vin?: string; modelYear?: number; carfaxUrl?: string | null }): Validation {
+function validateForm(
+  form: VehicleForm, isSold: boolean,
+  stored?: { vin?: string; modelYear?: number; carfaxUrl?: string | null; source?: string; sourceOther?: string | null },
+): Validation {
   const e: Validation = {};
   if (isSold) {
     if (!form.conditionCode) e.conditionCode = 'Required';
@@ -81,13 +84,19 @@ function validateForm(form: VehicleForm, isSold: boolean, stored?: { vin?: strin
     e.carfaxUrl = 'Must be an https link on carfax.com or carfax.ca, at most 500 characters';
   }
   if (!form.source) e.source = 'Required';
+  // DMS-19: Other needs the user's own source, except on an Other vehicle saved before the field existed.
+  if (form.source === 'OTHER') {
+    const legacyBlank = stored?.source === 'OTHER' && !stored.sourceOther;
+    if (!form.sourceOther.trim() && !legacyBlank) e.sourceOther = 'Enter the source when Other is selected';
+    else if (form.sourceOther.trim().length > 100) e.sourceOther = 'At most 100 characters';
+  }
   if (!form.conditionCode) e.conditionCode = 'Required';
   return e;
 }
 
 interface VehicleForm {
   make: string; model: string; modelYear: string; vin: string;
-  source: string; purchaseCost: string; addedOn: string;
+  source: string; sourceOther: string; purchaseCost: string; addedOn: string;
   conditionCode: string; bodyType: string; repairCost: string; carfaxUrl: string;
   stockNumber: string; mileageKm: string; exteriorColor: string; fuelType: string; listPrice: string;
 }
@@ -95,11 +104,13 @@ interface VehicleForm {
 // The search box covers make and model, so there are no separate make and model filters (D-1).
 interface Filters {
   q: string; modelYear: string; status: string; condition: string; bodyType: string;
+  // sourceOther narrows source OTHER to one custom source name (DMS-19).
+  source: string; sourceOther: string;
   openWorkOrdersOnly: boolean;
 }
 
 function blankFilters(): Filters {
-  return { q: '', modelYear: '', status: '', condition: '', bodyType: '', openWorkOrdersOnly: false };
+  return { q: '', modelYear: '', status: '', condition: '', bodyType: '', source: '', sourceOther: '', openWorkOrdersOnly: false };
 }
 
 // Filters the user types rather than picks; they are held as a draft until typing pauses.
@@ -114,7 +125,7 @@ function draftsPending(drafts: TextFilters, filters: Filters) {
 }
 
 const ALL_TOUCHED: Record<string, boolean> = {
-  make: true, model: true, modelYear: true, vin: true, source: true,
+  make: true, model: true, modelYear: true, vin: true, source: true, sourceOther: true,
   purchaseCost: true, addedOn: true, conditionCode: true, bodyType: true, repairCost: true, carfaxUrl: true,
   stockNumber: true, mileageKm: true, exteriorColor: true, fuelType: true, listPrice: true,
 };
@@ -124,7 +135,7 @@ const FILTER_DEBOUNCE_MS = 350;
 
 function blankForm(): VehicleForm {
   return {
-    make: '', model: '', modelYear: '', vin: '', source: '', purchaseCost: '', addedOn: '', conditionCode: '', bodyType: '', repairCost: '', carfaxUrl: '',
+    make: '', model: '', modelYear: '', vin: '', source: '', sourceOther: '', purchaseCost: '', addedOn: '', conditionCode: '', bodyType: '', repairCost: '', carfaxUrl: '',
     stockNumber: '', mileageKm: '', exteriorColor: '', fuelType: '', listPrice: '',
   };
 }
@@ -132,7 +143,7 @@ function blankForm(): VehicleForm {
 function vehicleToForm(data: any): VehicleForm {
   return {
     make: data.make ?? '', model: data.model ?? '', modelYear: data.modelYear != null ? String(data.modelYear) : '',
-    vin: data.vin ?? '', source: data.source ?? '', purchaseCost: data.purchaseCost != null ? String(data.purchaseCost) : '',
+    vin: data.vin ?? '', source: data.source ?? '', sourceOther: data.sourceOther ?? '', purchaseCost: data.purchaseCost != null ? String(data.purchaseCost) : '',
     addedOn: data.addedOn ?? '', conditionCode: data.conditionCode ?? '', bodyType: data.bodyType ?? 'OTHER',
     repairCost: data.repairCost != null ? String(data.repairCost) : '', carfaxUrl: data.carfaxUrl ?? '',
     stockNumber: data.stockNumber ?? '', mileageKm: data.mileageKm != null ? String(data.mileageKm) : '',
@@ -177,6 +188,8 @@ export default function DmsPage() {
   const [drafts, setDrafts] = useState<TextFilters>(blankDrafts());
   const [makeOptions, setMakeOptions] = useState<string[]>([]);
   const [catalogError, setCatalogError] = useState('');
+  // Custom source names already entered for Other (DMS-19): the second-level filter and form suggestions.
+  const [sourceOtherOptions, setSourceOtherOptions] = useState<string[]>([]);
 
   const [drawer, setDrawer] = useState(false);
   const [edit, setEdit] = useState<any>(null);
@@ -234,7 +247,13 @@ export default function DmsPage() {
 
   useEffect(() => {
     catalogApi.makes().then(r => setMakeOptions(r.data)).catch(() => setCatalogError('Vehicle catalog unavailable; type a make and model instead.'));
+    loadSourceOtherOptions();
   }, []);
+
+  // A failure only leaves the second-level filter with "All other" and the form without suggestions.
+  function loadSourceOtherOptions() {
+    vehiclesApi.sourceOtherOptions().then(r => setSourceOtherOptions(r.data)).catch(() => setSourceOtherOptions([]));
+  }
 
   useEffect(() => {
     if (!draftsPending(drafts, filters)) return;
@@ -394,6 +413,7 @@ export default function DmsPage() {
         setDrawer(false);
         setSaveNotice('Vehicle added.');
       }
+      if (form.source === 'OTHER') loadSourceOtherOptions();
       await load();
     } catch (e) {
       if (seq !== detailSeqRef.current) return;
@@ -560,7 +580,7 @@ export default function DmsPage() {
     { key: 'vin', label: 'VIN' },
     { key: 'stockNumber', label: 'Stock #', sortable: true, render: (row: any) => row.stockNumber || <span className="muted">Not set</span> },
     { key: 'bodyType', label: 'Body', sortable: true, render: (row: any) => enumLabel(row.bodyType) },
-    { key: 'source', label: 'Source', sortable: true, render: (row: any) => enumLabel(row.source) },
+    { key: 'source', label: 'Source', sortable: true, render: (row: any) => row.sourceOther ? `${enumLabel(row.source)}: ${row.sourceOther}` : enumLabel(row.source) },
     { key: 'conditionCode', label: 'Condition', sortable: true, render: (row: any) => enumLabel(row.conditionCode) },
     { key: 'purchaseCost', label: 'Cost', sortable: true, render: (row: any) => cad(row.purchaseCost) },
     { key: 'listPrice', label: 'List price', sortable: true, render: (row: any) => row.listPrice != null ? cad(row.listPrice) : <span className="muted">Not set</span> },
@@ -638,6 +658,16 @@ export default function DmsPage() {
             <option value="">Body type</option>
             {BODY_TYPES.map(b => <option key={b} value={b}>{enumLabel(b)}</option>)}
           </select>
+          <select className="select" aria-label="Source" value={filters.source} onChange={e => changeFilter({ source: e.target.value, sourceOther: '' })}>
+            <option value="">Source</option>
+            {SOURCES.map(s => <option key={s} value={s}>{enumLabel(s)}</option>)}
+          </select>
+          {filters.source === 'OTHER' && (
+            <select className="select" aria-label="Other source" value={filters.sourceOther} onChange={e => changeFilter({ sourceOther: e.target.value })}>
+              <option value="">All other</option>
+              {sourceOtherOptions.map(s => <option key={s} value={s}>{s}</option>)}
+            </select>
+          )}
           <label className="checkbox-label">
             <input type="checkbox" checked={filters.openWorkOrdersOnly}
               onChange={e => changeFilter({ openWorkOrdersOnly: e.target.checked })} />
@@ -746,6 +776,20 @@ export default function DmsPage() {
             </select>
             {(validationErrors.source || serverErrors.source) && <div className="form-error">{validationErrors.source || serverErrors.source}</div>}
           </div>
+
+          {form.source === 'OTHER' && (
+            <div className="form-item">
+              <label className="form-label form-required" htmlFor="vehicle-source-other">Other source</label>
+              {/* Suggests names already used so the second-level list filter stays short (DMS-19). */}
+              <input id="vehicle-source-other" className="input" list="vehicle-source-other-options" maxLength={100}
+                placeholder="e.g. Lease return" value={form.sourceOther}
+                onChange={e => updateForm('sourceOther', e.target.value)} onBlur={() => blurForm('sourceOther')} disabled={isSold} />
+              <datalist id="vehicle-source-other-options">
+                {sourceOtherOptions.map(s => <option key={s} value={s} />)}
+              </datalist>
+              {(validationErrors.sourceOther || serverErrors.sourceOther) && <div className="form-error">{validationErrors.sourceOther || serverErrors.sourceOther}</div>}
+            </div>
+          )}
 
           <div className="form-item">
             <label className="form-label form-required">Condition</label>

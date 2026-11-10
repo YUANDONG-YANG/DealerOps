@@ -312,6 +312,9 @@ using (var scope = app.Services.CreateScope())
         "ALTER TABLE audit_event ADD COLUMN previous_values JSON NULL",
         "ALTER TABLE audit_event ADD COLUMN client_ip VARCHAR(45) NULL",
         "ALTER TABLE audit_event ADD COLUMN client_location VARCHAR(255) NULL",
+        "ALTER TABLE audit_event ADD COLUMN actor_display_name VARCHAR(120) NULL",
+        "ALTER TABLE audit_event ADD COLUMN actor_role VARCHAR(16) NULL",
+        "ALTER TABLE audit_event ADD COLUMN dealer_name VARCHAR(255) NULL",
         // Existing rows get the catch-all body type so the NOT NULL column needs no backfill;
         // the add-vehicle form chooses an explicit value for new rows.
         "ALTER TABLE vehicle ADD COLUMN body_type VARCHAR(16) NOT NULL DEFAULT 'other'",
@@ -323,6 +326,7 @@ using (var scope = app.Services.CreateScope())
         "ALTER TABLE vehicle ADD COLUMN deleted_at DATETIME(6) NULL",
         "ALTER TABLE vehicle ADD COLUMN sold_by VARCHAR(64) NULL",
         "ALTER TABLE vehicle ADD COLUMN sold_to_name VARCHAR(120) NULL",
+        "ALTER TABLE vehicle ADD COLUMN source_other VARCHAR(100) NULL",
         "ALTER TABLE customer ADD COLUMN deleted_at DATETIME(6) NULL",
         "ALTER TABLE dealer ADD COLUMN deleted_at DATETIME(6) NULL",
         "ALTER TABLE customer ADD COLUMN notes VARCHAR(2000) NULL",

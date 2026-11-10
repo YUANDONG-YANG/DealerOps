@@ -1,0 +1,1379 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>DealerOps Iteration 2 Report</title>
+<style>
+
+:root{
+  --bg:#f5f6f8;--surface:#ffffff;--fg:#1b2230;--muted:#5b6475;--line:#dde1e8;
+  --accent:#1f4e9c;--accent-soft:#e7eefa;
+  --block:#b42318;--block-soft:#fdecea;--review:#a15c07;--review-soft:#fdf3e2;
+  --pass:#1d7a46;--pass-soft:#e5f4ec;--neutral:#6b7280;--neutral-soft:#eef0f3;
+  --purple:#6941c6;--purple-soft:#f1ecfb;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#11151c;--surface:#181e28;--fg:#e4e8ef;--muted:#9aa4b5;--line:#2b3442;
+    --accent:#8db4f5;--accent-soft:#1d2b44;
+    --block:#f19790;--block-soft:#3a1d1b;--review:#f0b866;--review-soft:#3a2c14;
+    --pass:#7fd3a0;--pass-soft:#16301f;--neutral:#a3aab6;--neutral-soft:#242b36;
+    --purple:#bba4f5;--purple-soft:#2a2240;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#11151c;--surface:#181e28;--fg:#e4e8ef;--muted:#9aa4b5;--line:#2b3442;
+  --accent:#8db4f5;--accent-soft:#1d2b44;
+  --block:#f19790;--block-soft:#3a1d1b;--review:#f0b866;--review-soft:#3a2c14;
+  --pass:#7fd3a0;--pass-soft:#16301f;--neutral:#a3aab6;--neutral-soft:#242b36;
+  --purple:#bba4f5;--purple-soft:#2a2240;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:Inter,system-ui,sans-serif;font-size:15px;line-height:1.7}
+.page{display:grid;grid-template-columns:240px minmax(0,1fr);gap:48px;max-width:1220px;margin:auto;padding:40px 24px 80px}
+nav{position:sticky;top:24px;align-self:start;font-size:13px;max-height:calc(100vh - 48px);overflow:auto}
+nav strong{color:var(--muted);font-size:12px;letter-spacing:.12em}
+nav ol{list-style:none;padding:0;margin:8px 0}
+nav a{display:block;padding:4px 10px;color:var(--muted);text-decoration:none;border-left:2px solid transparent}
+nav a:hover{color:var(--accent);border-color:var(--accent)}
+main{min-width:0}
+header{border-bottom:1px solid var(--line);padding-bottom:28px}
+.eyebrow{color:var(--accent);font-size:12px;letter-spacing:.14em;text-transform:uppercase;font-weight:600}
+h1,h2{font-family:"Source Serif 4",Georgia,serif}
+h1{font-size:38px;line-height:1.2;margin:8px 0 10px}
+.subtitle{color:var(--muted);margin:0 0 22px;max-width:78ch}
+dl.meta{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px 24px;margin:0}
+dl.meta dt{font-size:12px;color:var(--muted);letter-spacing:.05em}
+dl.meta dd{margin:0;font-weight:500}
+section{padding-top:44px}
+h2{font-size:26px;margin:0 0 14px;display:flex;gap:12px;align-items:baseline}
+h2 .num{font:600 15px "JetBrains Mono",monospace;color:var(--accent)}
+h3{font-size:17px;margin:28px 0 10px}
+h4{font-size:15px;margin:18px 0 6px}
+p{max-width:80ch;margin:0 0 12px}
+ul,ol.list{max-width:80ch;margin:0 0 14px;padding-left:1.3em}
+li{margin:3px 0}
+a{color:var(--accent)}
+code,.mono{font:.86em "JetBrains Mono",monospace;background:var(--accent-soft);color:var(--accent);padding:1px 5px;border-radius:4px;overflow-wrap:anywhere}
+.tbl{overflow-x:auto;margin:8px 0 18px;border:1px solid var(--line);border-radius:8px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;font-size:13.5px;line-height:1.55}
+th,td{text-align:left;vertical-align:top;padding:8px 10px;border-bottom:1px solid var(--line)}
+th{font-size:12px;color:var(--muted);background:var(--bg);white-space:nowrap}
+tr:last-child td{border-bottom:0}
+td.c,th.c{text-align:center}
+.yes{color:var(--pass);font-weight:700}.no{color:var(--block);font-weight:700}.part{color:var(--review);font-weight:700}
+.chip{display:inline-block;font-size:11.5px;font-weight:600;padding:1px 8px;border-radius:999px;white-space:nowrap;border:1px solid transparent}
+.chip.blue{background:var(--accent-soft);color:var(--accent)}
+.chip.red{background:var(--block-soft);color:var(--block)}
+.chip.amber{background:var(--review-soft);color:var(--review)}
+.chip.green{background:var(--pass-soft);color:var(--pass)}
+.chip.gray{background:var(--neutral-soft);color:var(--neutral)}
+.chip.purple{background:var(--purple-soft);color:var(--purple)}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px;margin:12px 0 18px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px 16px}
+.card h4{margin:0 0 4px;font-size:15px}
+.card p{font-size:13.5px;color:var(--muted);margin:0}
+.card .k{font:600 24px "Source Serif 4",serif;color:var(--accent);display:block;line-height:1.2}
+.callout{background:var(--accent-soft);border-left:3px solid var(--accent);border-radius:6px;padding:12px 16px;margin:12px 0 18px;max-width:84ch}
+.callout.warn{background:var(--review-soft);border-color:var(--review)}
+.callout p:last-child{margin:0}
+figure{margin:12px 0 22px;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px}
+figure svg{width:100%;height:auto;display:block}
+figcaption{font-size:13px;color:var(--muted);margin-top:10px}
+/* diagram tokens */
+.d-box{fill:var(--surface);stroke:var(--line);stroke-width:1.5}
+.d-box.acc{fill:var(--accent-soft);stroke:var(--accent)}
+.d-box.green{fill:var(--pass-soft);stroke:var(--pass)}
+.d-box.purple{fill:var(--purple-soft);stroke:var(--purple)}
+.d-box.gray{fill:var(--neutral-soft);stroke:var(--neutral)}
+.d-title{fill:var(--fg);font:600 14px Inter,sans-serif}
+.d-sub{fill:var(--muted);font:12px Inter,sans-serif}
+.d-mono{fill:var(--accent);font:600 11.5px "JetBrains Mono",monospace}
+.d-line{stroke:var(--muted);stroke-width:1.6;fill:none}
+.d-line.acc{stroke:var(--accent)}
+.d-line.bad{stroke:var(--block);stroke-dasharray:6 5}
+.d-lbl{fill:var(--muted);font:11.5px Inter,sans-serif}
+.d-bad{fill:var(--block);font:600 11.5px Inter,sans-serif}
+.d-arrow{fill:var(--muted)}
+.d-arrow.acc{fill:var(--accent)}
+.d-arrow.bad{fill:var(--block)}
+.d-zone{fill:none;stroke:var(--line);stroke-width:1.2;stroke-dasharray:4 4}
+/* flows */
+.flow{display:flex;flex-wrap:wrap;align-items:stretch;gap:6px;margin:10px 0 18px}
+.step{flex:1 1 150px;background:var(--surface);border:1px solid var(--line);border-radius:9px;padding:10px 12px;position:relative;min-width:140px}
+.step b{display:block;font-size:13.5px}
+.step span{font-size:12.5px;color:var(--muted);display:block;line-height:1.45}
+.step .who{font:600 10.5px "JetBrains Mono",monospace;color:var(--accent);letter-spacing:.04em;text-transform:uppercase}
+.arrow{align-self:center;color:var(--muted);font-size:18px;flex:0 0 auto}
+.states{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:8px 0 16px;font-size:13px}
+.states .arrow{font-size:14px}
+.lanes{display:grid;gap:10px;margin:10px 0 18px}
+.lane{display:grid;grid-template-columns:150px minmax(0,1fr);gap:12px;align-items:start;background:var(--surface);border:1px solid var(--line);border-radius:9px;padding:10px 12px}
+.lane .ln{font-weight:600;font-size:13px}
+.lane .ln small{display:block;color:var(--muted);font-weight:400}
+.lane ol{margin:0;padding-left:1.2em;font-size:13.5px}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px}
+.rg{border:1.5px dashed var(--accent);border-radius:12px;padding:16px;margin:12px 0 18px;background:var(--surface)}
+.rg > .lbl{font:600 12px "JetBrains Mono",monospace;color:var(--accent);margin-bottom:10px}
+.rg .cards{margin:0}
+footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);font-size:13px;color:var(--muted)}
+@media (max-width:900px){
+  .page{grid-template-columns:1fr;gap:16px;padding:24px 16px 60px}
+  nav{position:static;max-height:none;border:1px solid var(--line);border-radius:8px;padding:10px;background:var(--surface)}
+  h1{font-size:30px}
+  .lane{grid-template-columns:1fr}
+}
+@media print{
+  nav{display:none}.page{grid-template-columns:1fr}
+  section{break-inside:avoid-page}
+}
+
+.muted{color:var(--muted);font-size:13px}
+article.cr{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px 16px;margin:10px 0}
+article.cr h4{margin:0 0 8px;font-size:15px;display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}
+article.cr h4 .id{font:600 12px "JetBrains Mono",monospace;color:var(--accent)}
+article.cr h4 .chip{margin-left:auto}
+dl.cr-dl{display:grid;grid-template-columns:130px minmax(0,1fr);gap:6px 16px;margin:0;font-size:14px}
+dl.cr-dl dt{color:var(--muted);font-size:12px;letter-spacing:.04em;text-transform:uppercase;padding-top:2px}
+dl.cr-dl dd{margin:0}
+dl.cr-dl blockquote{margin:0;padding:6px 12px;border-left:3px solid var(--accent);background:var(--accent-soft);border-radius:4px;font-style:italic}
+@media(max-width:700px){dl.cr-dl{grid-template-columns:1fr}}
+@media print{article.cr{break-inside:avoid}}
+</style></head><body>
+<div class="page"><nav><strong>CONTENTS</strong><ol>
+<li><a href="#s1">01 Overview</a></li>
+<li><a href="#s2">02 Inventory, the sale and sales reporting</a></li>
+<li><a href="#s3">03 Roles, team and account administration</a></li>
+<li><a href="#s4">04 Leads, CRM and the audit log</a></li>
+<li><a href="#s5">05 Architecture impact, sorting, public site and verification</a></li>
+<li><a href="#trace">06 Client requests, item by item</a></li>
+</ol></nav>
+<main><header><div class="eyebrow">Iteration report · First client review</div><h1>DealerOps Iteration 2 Report</h1><p class="subtitle">How the 68 client change requests were analysed, decided, implemented and checked, and what changed in the architecture.</p>
+<dl class="meta"><div><dt>Product</dt><dd>DealerOps</dd></div><div><dt>Branch</dt><dd>V2</dd></div><div><dt>Iteration</dt><dd>2 · first client review</dd></div><div><dt>Period</dt><dd>2026-11-03 to 2026-11-09</dd></div><div><dt>Source</dt><dd>Changes Document, 68 change requests</dd></div></dl></header>
+<section id="s1">
+<h2><span class="num">01</span> Overview</h2>
+
+<p>This section covers how iteration 2 began, what the client asked for, the nine decisions that closed the open questions, and the outcome. The current status is 62 Done, 6 Partial, 0 Not addressed. Terms used below: DMS is the dealer management system (the inventory screens), CRM is customer relationship management (customers and leads), and VIN is the vehicle identification number.</p>
+
+<h3>How iteration 2 began</h3>
+<p>Iteration 1 produced the first working version of DealerOps from the baseline requirements (<code>requirements/iteration-1/DealerOps-Requirements.md</code>). The client reviewed that version and recorded comments in a Word document, <code>requirements/iteration-2/Changes Document.docx</code>, written by Jackson Warga on 2026-11-03. It is the first formal client review and starts iteration 2. The baseline stays in force; the document lists what the client wanted changed.</p>
+<p>The document has two parts:</p>
+<div class="cards">
+  <div class="card"><h4>Section 1: client requests</h4><p>Changes the client asked for after the first version. These are urgent and were done first.</p></div>
+  <div class="card"><h4>Section 2: site fixes and suggestions</h4><p>Lower urgency. Many lines read "I suggest" or "I believe". Where a section 2 suggestion conflicts with a section 1 request, the request wins.</p></div>
+</div>
+<p>The document body is not numbered, so the team numbered every requested change <b>CR-001 to CR-068</b> in document order (<code>requirements/iteration-2/analysis/01-change-inventory.md</code>). All reporting in this iteration uses those 68 identifiers. Only the document's text was analysed; its 69 embedded screenshots were not reviewed.</p>
+
+<h3>What the client asked for</h3>
+<p>The 68 requests fall into nine themes and cover most areas of the product. Most refine existing screens. Three are larger: the dealership Owner role, the invitation-based account flow and the lead lifecycle rules.</p>
+<div class="tbl"><table>
+<thead><tr><th>Theme</th><th>CRs</th><th>Count</th><th>What the client asked for</th></tr></thead>
+<tbody>
+<tr><td>DMS inventory and sale</td><td>001, 002, 029-035, 047-050</td><td>13</td><td>Sold by / Sold to / Date sold columns; cost, work-order spend and list price in the sell dialog; filter clean-up (no Make/Model boxes, typeable Year, open-work-order filter); VIN first in the form; make list split into popular and all; VIN and Carfax (vehicle history report) validation; a buyer is required to sell; leads shown on the vehicle.</td></tr>
+<tr><td>Sales reporting</td><td>003-005</td><td>3</td><td>Today / week / month / year periods on the report and the dashboard; a per-salesperson metrics table.</td></tr>
+<tr><td>Sortable columns</td><td>011-020</td><td>10</td><td>Sorting on DMS, Leads, Team Members / Activity / Join Requests, and the admin Audit log, Ad Rules, Pending accounts, Members and manager audit menus.</td></tr>
+<tr><td>Team, roles and activity log</td><td>006-008, 010, 025-028, 037</td><td>9</td><td>Manager promotes staff and edits member details; joined date; optional dealership admin / owner role; Pending vs History join requests; labelled date pickers, change-text search, column-ordered filters, partial actor match.</td></tr>
+<tr><td>Forms, confirmations and accounts</td><td>021-024, 053, 054</td><td>6</td><td>Repeated full names allowed; unsaved-change and save confirmations; "Full name" wording; readable username error.</td></tr>
+<tr><td>Leads</td><td>036, 038-041, 051, 052</td><td>7</td><td>Owner prefilled; vehicle and live customer search; reopen a closed lead; no duplicate open lead; a sale closes related leads.</td></tr>
+<tr><td>CRM</td><td>042-046</td><td>5</td><td>Leads count instead of "Vehicles purchased"; new lead from a customer; customer notes; duplicate warning instead of a block; shared phone allowed.</td></tr>
+<tr><td>Platform admin</td><td>055-062</td><td>8</td><td>Admin sends join invitations instead of binding accounts directly; delete and edit pending accounts; audit-log search; delete dealerships and users; edit user email and phone.</td></tr>
+<tr><td>Public site and shop</td><td>009, 063-068</td><td>7</td><td>Remove the home-page Create account button; sample-ad link; "for dealerships" banner; no "used" wording; dealership search and contact details; back link and inventory search; enquiry character counter.</td></tr>
+<tr><td><b>Total</b></td><td></td><td><b>68</b></td><td></td></tr>
+</tbody></table></div>
+<p class="muted">Theme grouping is this report's own; the CR numbers and statuses come from the implementation check.</p>
+
+<h3>How the work was run</h3>
+<div class="flow">
+  <div class="step"><span class="who">1</span><b>Analyse</b><span>Check every request against the .NET backend and React frontend (<code>CR-Analysis-2026-11-03.md</code>); review the document itself for conflicts and ambiguities (<code>CR-Source-Review-2026-11-03.md</code>).</span></div>
+  <span class="arrow">→</span>
+  <div class="step"><span class="who">2</span><b>Decide</b><span>Resolve the open design questions as decisions D1-D9 (below).</span></div>
+  <span class="arrow">→</span>
+  <div class="step"><span class="who">3</span><b>Implement</b><span>Land the changes in the active .NET 10 and React stack; update the design documents where roles, contracts or tenancy changed.</span></div>
+  <span class="arrow">→</span>
+  <div class="step"><span class="who">4</span><b>Check item by item</b><span>Twenty check files cover CR-001 to CR-068 against the code (<code>implementation-check/</code>); a follow-up note decides every partial item (<code>CR-Followup-2026-11-03.md</code>).</span></div>
+</div>
+<p>The analysis assessed the requests and left the decisions open. The source review found problems in the Word document itself, for example two sentences that looked contradictory but were not (see D4). It recorded each problem with the default used, so no meaning was guessed silently. The follow-up applied one rule: client requests come first, and where the client left an item open the documented default stands.</p>
+
+<h3>Decisions D1-D9</h3>
+<p>Nine decisions closed the open questions. Each is recorded with its rationale in <code>requirements/iteration-2/CR-Analysis-2026-11-03.md</code> section 6.</p>
+<div class="tbl"><table>
+<thead><tr><th>ID</th><th>Decision</th><th>Rationale</th></tr></thead>
+<tbody>
+<tr><td>D1</td><td>User full name and customer phone are no longer unique. A duplicate customer name, email, phone or address warns, and the user confirms to continue.</td><td>People share names and households share phones; a login is identified by username and email, and a CRM duplicate check should warn rather than block.</td></tr>
+<tr><td>D2</td><td>A dealership manager can set another member to Manager or Staff, not themselves, and edit that member's full name and phone.</td><td>The dealership runs its own team; blocking self-changes stops it losing its last manager by accident.</td></tr>
+<tr><td>D3</td><td>The platform admin binds an account directly only while the dealership has no active manager. After that, create-staff and bind create a pending join request that the dealership approves.</td><td>The client does not want platform staff reaching dealer data; the dealership controls who joins, with first-manager onboarding as the single exception.</td></tr>
+<tr><td>D4 <span class="chip amber">reversed</span></td><td>The home-page Create account buttons stay removed, and the expanded sample ad links to <code>/register</code> ("Check your own ads").</td><td>Re-reading showed the two statements concern different elements (a header button versus an ad link), so they never conflicted. The earlier decision that rejected the ad link was withdrawn on the same day.</td></tr>
+<tr><td>D5 <span class="chip gray">superseded</span></td><td>The optional "admin / owner / regional manager" role is built as one dealership Owner role: Owner, Manager, Sales. No cross-dealership regional manager.</td><td>The client described one person running one dealership. It replaced the first recommendation of "not planned" (<code>CR-Role-Hierarchy-2026-11-03.md</code>).</td></tr>
+<tr><td>D6</td><td>Every remaining item is implemented minimally (client-side sort plus a server <code>sort</code> parameter on paged lists, soft delete of dealerships, a static year list for common makes).</td><td>The project follows a minimum-spec rule: the smallest change that satisfies the request.</td></tr>
+<tr><td>D7</td><td>Lead lifecycle: a Lost lead can always reopen; a Won lead only if its vehicle was not sold to that customer; one open lead per customer and vehicle; a sale closes the buyer's lead as Won and other open leads as Lost.</td><td>Reopening a Won lead would contradict a recorded sale.</td></tr>
+<tr><td>D8</td><td>A sale requires a CRM customer, or "Other" with a typed buyer name.</td><td>The bill of sale and the Sold to column need a buyer, and a CRM link keeps purchase history visible.</td></tr>
+<tr><td>D9</td><td>On create and edit, the server decodes the VIN through the existing vPIC catalog client and refuses a save when decoded make, model or year disagree. If the decoder is unavailable, it falls back to the VIN's model-year character check.</td><td>Make, model and year are the vehicle information the VIN must match; the fallback means a third-party outage can never block adding a vehicle. It supersedes the year-only check noted under D6.</td></tr>
+</tbody></table></div>
+
+<h3>Outcome and which number is current</h3>
+<p>The status was reported three times on 2026-11-03, and the numbers differ because the work and its interpretation changed between reports. All three are in the repository. Quote the latest.</p>
+<div class="tbl"><table>
+<thead><tr><th>Snapshot</th><th>Source</th><th>Result</th><th>Status</th></tr></thead>
+<tbody>
+<tr><td>First item-by-item check</td><td><code>implementation-check/IMPLEMENTATION-CHECK-SUMMARY.md</code></td><td>54 implemented, 13 partial, 1 not applicable, 0 not implemented, 0 contradicted</td><td><span class="chip gray">superseded</span> Written after the first implementation pass and before the evening work.</td></tr>
+<tr><td>Client summary</td><td><code>CR-Client-Summary-2026-11-03.md</code></td><td>61 finished, 7 finished in part</td><td><span class="chip gray">intermediate</span></td></tr>
+<tr><td>Development report</td><td><code>2026-11-03-development-report.html</code></td><td><b>62 Done, 6 Partial, 0 Not addressed</b></td><td><span class="chip green">latest</span> Reflects the final code review after the evening commits.</td></tr>
+</tbody></table></div>
+<p>The jump from 54/13/1 to 62/6/0 came from the follow-up fixes and the later commits: server-side sorting on the paged lists, merging the audit log with its Location column, the Owner / Manager / Sales hierarchy, the decode-based VIN check (D9), the buyer-site inquiry that adds a note to an existing open lead instead of failing, and finally pointing the sample ad at sign-up (CR-063).</p>
+<p>The development report still counts six items as partial:</p>
+<ul>
+<li>CR-009: the dealership inquiry flow is not built.</li>
+<li>CR-010: no cross-dealership regional manager is built, only the single dealership Owner role (<code>requirements/iteration-2/CR-Role-Hierarchy-2026-11-03.md</code>).</li>
+<li>CR-048: the Carfax URL is checked but not unique across vehicles.</li>
+<li>CR-051 and CR-052: see the note below.</li>
+<li>CR-055: the first manager is still bound directly.</li>
+</ul>
+<div class="callout"><b>Read "partial" carefully.</b> <code>requirements/iteration-2/CLIENT-DELIVERY-NOTE.md</code> records that the eight items once listed as partial or contradicted are now <b>accepted decisions</b>, not open defects. CR-022 confirms the dealership profile and closing a lead, as the document asked, but not every ordinary save. CR-041 never reopens a lead whose vehicle was sold. CR-051 allows a new lead once the old one is closed. CR-052 uses Won and Lost as the label. CR-047 is bounded by an external decoder. CR-063 was reopened and is implemented as written. Four questions remain for the client: the dealership inquiry flow, what "VIN matches" should compare, what Carfax "exclusive" means, and whether two customers may share a phone.</div>
+
+<h3>What changed compared with iteration 1</h3>
+<div class="cards">
+  <div class="card"><h4>Sales and DMS</h4><p>Sold by / Sold to / Date sold are stored (<code>VehicleEntity.SoldBy</code>, <code>SoldToName</code>) and shown; the sell dialog shows margin inputs; the sales report and dashboard share four periods and list each salesperson.</p></div>
+  <div class="card"><h4>Three-tier dealership roles</h4><p>Owner, Manager, Sales replace the two membership roles; managers can promote and edit members.</p></div>
+  <div class="card"><h4>Invitation-based onboarding</h4><p>After the first manager, the platform admin files a join request that the dealership approves instead of binding accounts directly.</p></div>
+  <div class="card"><h4>Lead lifecycle</h4><p>One open lead per customer and vehicle, reopen rules, and automatic Won / Lost closing when a vehicle is sold.</p></div>
+  <div class="card"><h4>VIN, Carfax and buyer validation</h4><p>The server decodes the VIN and compares make, model and year, with a fallback when the decoder is down. Carfax links must use a Carfax host. A sale needs a buyer.</p></div>
+  <div class="card"><h4>Usability</h4><p>Sorting across lists, search by change text, labelled date pickers, discard and save confirmations, Pending / History join requests.</p></div>
+  <div class="card"><h4>Platform admin controls</h4><p>Edit and delete pending accounts, members and dealerships; deletes are soft and need the name typed to confirm, so sale and audit history survive.</p></div>
+  <div class="card"><h4>Public site</h4><p>The home page has no Create account button. It gains a "for dealerships" banner, a searchable dealership directory with contact details, and a sample ad that links to sign-up.</p></div>
+</div>
+<p>Changes to roles, tenancy (each dealership's data kept separate), API contracts or the admin flow updated the matching document under <code>design/</code> in the same change. Later sections describe each area.</p>
+</section>
+
+<section id="s2">
+<h2><span class="num">02</span> Inventory, the sale and sales reporting</h2>
+
+<p>This section covers CR-001 to CR-005 (sale visibility and sales reporting), CR-029 to CR-035 (inventory search, filters and form) and CR-047 to CR-050 (VIN and Carfax validation, and the buyer of a sale). A sale is now one transaction that records the seller and buyer, closes the vehicle's leads and writes the audit rows. The work is in the .NET 10 backend (<code>DealerOps.Core</code>, <code>Vehicle</code> module) and the React pages <code>DmsPage</code>, <code>DashboardPage</code> and <code>SalesFunnelPage</code>. The gateway and the AI service are unchanged, and the browser still reaches everything through <code>dealer-gateway</code>.</p>
+<p>Terms: DMS is the dealer management system (the inventory screens), CRM is customer relationship management (customers and leads), VIN is the vehicle identification number, Carfax is a vehicle history report service, and vPIC is the public US vehicle-data service that decodes a VIN.</p>
+
+<h3>What iteration 1 left missing</h3>
+<p>In iteration 1 a sale was a status change. A vehicle became SOLD with a date and price, but the inventory did not say <em>who</em> sold it or <em>to whom</em>. The sell dialog showed nothing about what the car had cost the dealership, and a sale could be saved with no buyer. Leads still open on the car stayed open.</p>
+<p>The sales report gave all-time and monthly totals and no per-salesperson figures. Inventory search could not find a stock number, and a VIN could be saved against a make, model or year it does not belong to.</p>
+
+<h3>Iteration 1 and iteration 2 compared</h3>
+<div class="tbl"><table>
+<thead><tr><th>Area</th><th>Iteration 1</th><th>Iteration 2</th></tr></thead>
+<tbody>
+<tr><td>Inventory columns</td><td>Sold date and price only</td><td>Sold by, Sold to and Date sold columns, all sortable (<code>soldBy</code>, <code>soldToName</code>, <code>soldOn</code>)</td></tr>
+<tr><td>Sell dialog</td><td>Date and price</td><td>Read-only Cost, Work-order spend (<code>repairCost</code>) and List price, then date, price and a mandatory buyer</td></tr>
+<tr><td>Buyer</td><td>Optional separate link call</td><td>CRM customer, or "Other" with a typed name; the customer link is made inside the sale</td></tr>
+<tr><td>Leads on a sold car</td><td>Left open</td><td>Buyer's leads become Won, all other open leads become Lost ("Vehicle sold")</td></tr>
+<tr><td>Sales report</td><td>All-time totals and last twelve months</td><td>Adds Today / This week / This month / This year, and one row per salesperson</td></tr>
+<tr><td>DMS search and filters</td><td>Make, Model and Year select boxes; search on VIN, make, model</td><td>Make and Model boxes removed (search covers them); search also matches stock number; typeable Year; "Open work orders only" checkbox</td></tr>
+<tr><td>Add/Edit vehicle</td><td>VIN anywhere in the form, one make list, full year list</td><td>VIN first; "Popular makes" then "All makes"; model-year list limited to production years for common make/model pairs</td></tr>
+<tr><td>VIN and Carfax</td><td>VIN format only; Carfax any http(s) URL</td><td>VIN must decode to the saved make, model and year; Carfax must be https on carfax.com or carfax.ca</td></tr>
+</tbody></table></div>
+
+<h3>The sell transaction</h3>
+<p><code>VehicleService.Sell</code> runs as a single transaction. It validates the request, records who sold the car, links the buyer, closes the leads and writes the audit trail together, so inventory, CRM and report agree.</p>
+
+<figure>
+<svg viewBox="0 0 900 360" role="img" aria-label="Sell transaction flow">
+<defs><marker id="s2a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#64748b"/></marker></defs>
+<rect class="d-zone" x="10" y="10" width="880" height="340" rx="10"/>
+<text class="d-title" x="24" y="34">POST /api/v1/vehicles/{id}/sell  (DealerOps.Core, one transaction)</text>
+
+<rect class="d-box" x="24" y="56" width="150" height="62" rx="6"/>
+<text class="d-title" x="99" y="82" text-anchor="middle">DMS sell dialog</text>
+<text class="d-sub" x="99" y="102" text-anchor="middle">date, price, buyer</text>
+
+<rect class="d-box gray" x="214" y="56" width="190" height="62" rx="6"/>
+<text class="d-title" x="309" y="82" text-anchor="middle">1. Validate</text>
+<text class="d-sub" x="309" y="102" text-anchor="middle">pair, version, locked</text>
+
+<rect class="d-box gray" x="444" y="56" width="190" height="62" rx="6"/>
+<text class="d-title" x="539" y="82" text-anchor="middle">2. Business rules</text>
+<text class="d-sub" x="539" y="102" text-anchor="middle">no open work orders, buyer</text>
+
+<rect class="d-box green" x="674" y="56" width="200" height="62" rx="6"/>
+<text class="d-title" x="774" y="82" text-anchor="middle">3. Mark SOLD</text>
+<text class="d-sub" x="774" y="102" text-anchor="middle">soldOn, soldPrice, soldBy</text>
+
+<line class="d-line" x1="174" y1="87" x2="212" y2="87" marker-end="url(#s2a)"/>
+<line class="d-line" x1="404" y1="87" x2="442" y2="87" marker-end="url(#s2a)"/>
+<line class="d-line" x1="634" y1="87" x2="672" y2="87" marker-end="url(#s2a)"/>
+
+<line class="d-line" x1="774" y1="118" x2="774" y2="172" marker-end="url(#s2a)"/>
+
+<rect class="d-box green" x="674" y="174" width="200" height="62" rx="6"/>
+<text class="d-title" x="774" y="200" text-anchor="middle">4. Link CRM buyer</text>
+<text class="d-sub" x="774" y="220" text-anchor="middle">CUSTOMER_VEHICLE row</text>
+
+<line class="d-line" x1="674" y1="205" x2="636" y2="205" marker-end="url(#s2a)"/>
+
+<rect class="d-box green" x="444" y="174" width="190" height="62" rx="6"/>
+<text class="d-title" x="539" y="200" text-anchor="middle">5. Close leads</text>
+<text class="d-sub" x="539" y="220" text-anchor="middle">Won (buyer) / Lost (rest)</text>
+
+<line class="d-line" x1="444" y1="205" x2="406" y2="205" marker-end="url(#s2a)"/>
+
+<rect class="d-box purple" x="214" y="174" width="190" height="62" rx="6"/>
+<text class="d-title" x="309" y="200" text-anchor="middle">6. Audit rows</text>
+<text class="d-sub" x="309" y="220" text-anchor="middle">VEHICLE/SELL, LINK, LEAD</text>
+
+<line class="d-line" x1="214" y1="205" x2="176" y2="205" marker-end="url(#s2a)"/>
+
+<rect class="d-box acc" x="24" y="174" width="150" height="62" rx="6"/>
+<text class="d-title" x="99" y="200" text-anchor="middle">Commit</text>
+<text class="d-sub" x="99" y="220" text-anchor="middle">all or nothing</text>
+
+<line class="d-line" x1="99" y1="236" x2="99" y2="274" marker-end="url(#s2a)"/>
+<rect class="d-box gray" x="24" y="276" width="420" height="58" rx="6"/>
+<text class="d-title" x="234" y="300" text-anchor="middle">After commit: resolve buyer-inquiry notifications</text>
+<text class="d-sub" x="234" y="320" text-anchor="middle">NotificationService.ResolveByCorrelation(leadId, "TAKEN")</text>
+
+<text class="d-lbl" x="480" y="276">Errors: SOLD_PAIR_REQUIRED, VALIDATION (soldOn, buyerName,</text>
+<text class="d-lbl" x="480" y="296">buyerCustomerId), SOLD_LOCKED, WORK_ORDERS_OPEN,</text>
+<text class="d-lbl" x="480" y="316">VEHICLE_ALREADY_LINKED, VERSION_CONFLICT</text>
+</svg>
+<figcaption>The sell transaction. Steps 3 to 6 are committed together; notifications are resolved only after the commit succeeds.</figcaption>
+</figure>
+
+<h4>Who sold it, and to whom</h4>
+<p><strong>Sold by.</strong> A new column <code>vehicle.sold_by</code> stores the acting username, taken from the authenticated tenant context, never from the request body. The column is added by the existing start-up migration code in <code>DealerOps.Core/Program.cs</code>.</p>
+<p>Sales made before the change had no value, so the per-salesperson rows would have disagreed with the headline totals. The same migration therefore <em>backfills</em> <code>sold_by</code> for SOLD vehicles from the most recent <code>VEHICLE</code>/<code>SELL</code> audit row (<code>actor_username</code>). The sale already wrote that row, so nothing is guessed. A sold vehicle with no SELL audit row stays blank and is left out of the salesperson breakdown.</p>
+<p><strong>Sold to.</strong> Decision D8 makes the buyer mandatory: either <code>buyerCustomerId</code> (a customer of this dealership) or "Other" with a typed <code>buyerName</code> (up to 120 characters, stored as <code>sold_to_name</code>). A bill of sale needs a buyer, and the CRM link keeps purchase history visible on the customer record. A CRM buyer is linked to the vehicle inside the same transaction, which replaces the separate link call.</p>
+<p>A vehicle has one owner link, so a car already linked to a different customer is refused with <code>409 VEHICLE_ALREADY_LINKED</code>. The typed name is not copied into the audit log, which only records <code>soldToName: true</code>. The Sold to column shows the linked customer name, else the typed name.</p>
+
+<h4>Sell dialog: cost, work-order spend, list price</h4>
+<p><code>DmsPage</code> loads the vehicle with <code>vehiclesApi.get</code> before opening the dialog and shows <em>Cost</em> (<code>purchaseCost</code>), <em>Work-order spend</em> (<code>repairCost</code>) and <em>List price</em> read-only above the date, price and buyer fields. <code>repairCost</code> is the stored running total: when a work order is completed, <code>WorkOrderService.Patch</code> calls <code>VehicleService.AddRepairCost</code>. Open work orders still block the sale (<code>409 WORK_ORDERS_OPEN</code>), so the figure is final when the dialog is used. <code>repairCost</code> can also be typed on the vehicle form, so it is a stored total and not a live sum of work-order rows.</p>
+
+<h4>Closing the vehicle's leads</h4>
+<p><code>CloseLeadsForSale</code> finds every lead on the vehicle that is not already Won or Lost. Leads belonging to the buyer customer become <code>WON</code>; all others become <code>LOST</code> with the reason "Vehicle sold". Each change writes a <code>LEAD</code>/<code>UPDATE</code> audit row. This clears dead follow-ups from the CRM and keeps the Won/Lost counts used in reporting accurate.</p>
+
+<h3>Sales reporting</h3>
+<p><code>GET /api/v1/vehicles/report/sales</code> accepts an optional <code>period</code> of <code>TODAY</code>, <code>WEEK</code>, <code>MONTH</code> or <code>YEAR</code>. Periods are calendar periods ending today on the UTC date; the week starts on Monday. With a period the response adds a <code>period</code> block (<code>from</code>, <code>to</code>, <code>soldCount</code>, <code>revenue</code>, <code>grossProfit</code>). Without one, <code>period</code> is <code>null</code> and the original all-time and monthly figures are unchanged.</p>
+<p>The Sales Funnel report page and the dashboard Sales section share one period selector (default Month) and call the same endpoint, so both screens show the same numbers.</p>
+<p>The response also carries <code>salespeople</code>: one row per active dealership member, plus any former member recorded as <code>soldBy</code> in the period (flagged <code>activeMember: false</code>). Each row has sold count, revenue, gross profit, current open leads, and leads last updated as Won in the period. Sales are attributed through <code>sold_by</code>, which is why the backfill above matters. Rows are ordered by revenue, then name. Gross profit is sold price minus purchase cost and repair cost.</p>
+
+<h3>DMS search, filters and the add-vehicle form</h3>
+<ul>
+<li><strong>Search.</strong> The existing <code>q</code> parameter now also matches <code>stockNumber</code>, so no second Stock # box was added. The Make and Model boxes were removed because <code>q</code> already matches make and model.</li>
+<li><strong>Year.</strong> The Year filter is a typeable number sent as the exact <code>modelYear</code> parameter.</li>
+<li><strong>Open work orders.</strong> A checkbox sends <code>openWorkOrdersOnly=true</code>. The server uses the same count as the <code>openWorkOrders</code> column (work orders in <code>OPEN</code> or <code>IN_PROGRESS</code>).</li>
+<li><strong>Sorting.</strong> The list accepts <code>sort=field,asc|desc</code>, applied before paging so all pages are ordered, with blanks last.</li>
+<li><strong>Form.</strong> VIN is the first field. Make is split into "Popular makes" and "All makes". The model-year list shows production years for a fixed set of common make/model pairs and the full list for every other pair (decision D6: a static list for common vehicles only, to stay within the minimum-spec scope).</li>
+</ul>
+
+<h3>VIN and Carfax validation</h3>
+<p><strong>VIN must match the vehicle (CR-047, decision D9).</strong> The first approach only compared the VIN's 10th character with the model year, which left the requirement partly met. On create, and on edit when <code>vin</code>, <code>make</code>, <code>model</code> or <code>modelYear</code> changes, the server now decodes the VIN through the existing vPIC catalog client and compares the decoded make, model and year with the values being saved. A mismatch returns <code>400 VALIDATION</code> with a readable message under <code>fieldErrors.make</code>, <code>fieldErrors.model</code> or <code>fieldErrors.modelYear</code>. Make and model are compared on letters and digits only, so "Mercedes Benz" matches "Mercedes-Benz", and a field the decoder leaves blank is skipped.</p>
+<div class="callout"><strong>Decoder outage.</strong> vPIC is an external service, and an outage must not stop a dealership adding stock. If vPIC is unreachable, times out (5 seconds), returns malformed data or does not know the VIN, the server logs a warning and falls back to the older model-year check. The write endpoints therefore never return <code>CATALOG_UNAVAILABLE</code>. During an outage a mismatched make or model can be saved. The add-vehicle form's existing Decode button already fills make, model and year, so those three fields stand for "the vehicle information".</div>
+<p><strong>Carfax link (CR-048).</strong> A non-empty Carfax URL must be https on <code>carfax.com</code> or <code>carfax.ca</code> (or a subdomain), checked only when the URL changes so older records stay editable.</p>
+<div class="callout warn"><strong>Known gap.</strong> CR-048 also asked for the Carfax URL to be <em>exclusive</em>. The implementation check marks it partial: the host rule is enforced, but the same URL can be used on more than one vehicle, and a blank URL still saves.</div>
+
+<h3>API and contract changes</h3>
+<p>The changes are additive and documented in <code>design/14-Backend-API-Contract.md</code> (§4.2 to §4.5), so existing callers keep working. The exception is that sell now requires a buyer.</p>
+<div class="tbl"><table>
+<thead><tr><th>Endpoint</th><th>Change</th><th>Notes</th></tr></thead>
+<tbody>
+<tr><td><code>POST /api/v1/vehicles/{id}/sell</code></td><td>Request gains <code>buyerCustomerId</code> or <code>buyerName</code>; one is required</td><td>Server sets <code>soldBy</code>; links buyer; closes leads. New errors: <code>VEHICLE_ALREADY_LINKED</code>, field errors on <code>buyerName</code> and <code>buyerCustomerId</code></td></tr>
+<tr><td>Vehicle responses (list, detail, create, patch, sell)</td><td>New <code>soldBy</code>, <code>soldToName</code>; <code>openWorkOrders</code> and <code>leadCount</code> present</td><td><code>null</code> until sold</td></tr>
+<tr><td><code>GET /api/v1/vehicles</code></td><td><code>q</code> also matches stock number; new <code>openWorkOrdersOnly</code>, <code>modelYear</code>, <code>sort</code></td><td>Invalid sort field or direction is <code>400 VALIDATION</code> on <code>sort</code></td></tr>
+<tr><td><code>POST</code> and <code>PATCH /api/v1/vehicles</code></td><td>VIN decode check; Carfax host rule</td><td>Errors under <code>fieldErrors.make/model/modelYear/carfaxUrl</code>; vPIC outage falls back, never fails the save</td></tr>
+<tr><td><code>GET /api/v1/vehicles/report/sales</code></td><td>Optional <code>period</code>; response adds <code>period</code> and <code>salespeople</code></td><td>Unknown period is <code>400 VALIDATION</code>; without a period <code>period</code> is <code>null</code></td></tr>
+</tbody></table></div>
+
+<h3>Where the logic lives</h3>
+<p>Business rules sit in <code>DealerOps.Core</code>, which owns persistence and tenancy (each dealership's data kept separate). The UI is a form over the one sell transaction. Storing <code>sold_by</code> on the vehicle lets reporting use a simple query instead of a join into the audit log, which was read once to backfill history. The change reuses the existing <code>q</code> search, the existing vPIC client and one shared report endpoint, so no parallel implementation was added.</p>
+</section>
+
+<section id="s3">
+<h2><span class="num">03</span> Roles, team and account administration</h2>
+
+<p>This section covers the new Owner role, how people join a dealership, and what the platform admin can still do to accounts. The point to remember: the platform admin no longer adds people to a dealership that already has an owner.</p>
+
+<h3>Problem and decision</h3>
+<p>Before this iteration a dealership had one in-dealership tier above sales staff, <code>MANAGER</code>. The client asked for an "admin / owner / regional manager" who runs one dealership, and for the platform administrator to stop reaching into dealership data. The change document called the role optional and flagged it for discussion. The decision (<code>requirements/iteration-2/CR-Role-Hierarchy-2026-11-03.md</code>, replacing decision D5) kept it narrow: all three names mean one <strong>Owner</strong> role, no cross-dealership regional manager is built, and the dealership gains a third tier.</p>
+
+<h3>Three-tier dealership role</h3>
+<p><code>DealerRole</code> is now <code>{ Owner, Manager, Sales }</code>, stored on <code>membership.dealer_role</code> as <code>OWNER</code>, <code>MANAGER</code> and <code>SALES</code> (<code>EnumSnakeCaseConverter</code> upper-cases what it writes). The JWT roles are unchanged, still <code>Platform.Admin</code> and <code>Dealer.User</code>, so the gateway role gate and the token format stay as they were.</p>
+<p>Core, which owns authorization and tenancy, enforces every in-dealership difference. <code>TenantGuard.RequireManager</code> was split into <code>RequireOwner</code> (dealership profile, join requests) and <code>RequireTeamAccess</code> (owner or manager: Team page, dealership audit log). Each dealership has exactly one active owner.</p>
+
+<h4>Permission matrix</h4>
+<div class="tbl"><table>
+<thead><tr><th>Capability</th><th>Owner</th><th>Manager</th><th>Sales</th></tr></thead>
+<tbody>
+<tr><td>DMS, CRM, Leads, work orders, sell a vehicle</td><td>yes</td><td>yes</td><td>yes</td></tr>
+<tr><td>Open Team</td><td>yes</td><td>yes</td><td>no</td></tr>
+<tr><td>Dealership profile</td><td>yes</td><td>no</td><td>no</td></tr>
+<tr><td>Approve or reject join requests</td><td>yes</td><td>no</td><td>no</td></tr>
+<tr><td>Dealership audit log</td><td>yes</td><td>yes</td><td>no</td></tr>
+<tr><td>Set a sales member to manager</td><td>yes</td><td>yes</td><td>no</td></tr>
+<tr><td>Set a manager to sales</td><td>yes</td><td>no</td><td>no</td></tr>
+<tr><td>Edit a member's full name and phone</td><td>any member below owner</td><td>sales only</td><td>no</td></tr>
+<tr><td>Remove a member from the dealership</td><td>manager and sales</td><td>sales only</td><td>no</td></tr>
+<tr><td>Change the owner</td><td>no</td><td>no</td><td>no</td></tr>
+</tbody></table></div>
+<p>The two upper tiers differ in three powers: the dealership profile, join requests and acting on managers. Without those the roles would collapse back into the old single manager. Business data is not partitioned. All three roles see the same dealership data, and the sales report counts anyone who sold a vehicle, whatever their role.</p>
+
+<h4>Appointment rules</h4>
+<ul>
+<li><strong>First owner:</strong> only the platform admin appoints it, by binding an account directly.</li>
+<li><strong>Owner transfer:</strong> the platform admin keeps <code>SetRole</code> (<code>PUT /api/v1/admin/dealers/{id}/members/{username}/role</code>). Setting <code>OWNER</code> demotes the sitting owner to <code>MANAGER</code> and promotes the target in one transaction, with an audit row for both memberships.</li>
+<li><strong>Last-owner protection:</strong> demoting, unbinding or deleting the only active owner is refused with <strong>409 <code>LAST_OWNER</code></strong> (<code>RequireOwnerRemains</code> in <code>MembershipService</code>), so a successor must be named first. If the owner is also the last active member, removal is allowed and the next admin bind creates a new owner.</li>
+<li><strong>Manager scope:</strong> a manager acts on sales members only (promote to manager; edit full name and phone). A manager cannot touch the owner or another manager, and nobody changes their own role.</li>
+</ul>
+
+<h3>Join requests replace the direct admin bind</h3>
+<p><strong>Problem.</strong> The platform admin could bind any account straight into any dealership, so an administrator outside the business could add people to dealership data. <strong>Solution.</strong> Once a dealership has an active owner, the admin can only file a join request on the account's behalf, and the owner approves it. This extends the existing Google self-service request (<code>JoinRequestService</code>, <code>AppUser.RequestedDealerId</code>), so both routes end in the same owner decision. Approval always creates a <code>SALES</code> membership.</p>
+<p><strong>Bootstrap exception.</strong> An empty dealership has nobody to approve a request. While there is no active owner, <code>MembershipService.AddMember</code> binds the account directly as <code>OWNER</code>. It first takes <code>SELECT ... FOR UPDATE</code> on the <code>dealer</code> row inside the transaction, so two simultaneous binds cannot both see "no owner" and create two owners.</p>
+
+<figure>
+<svg viewBox="0 0 960 350" role="img" aria-label="Join request flow: the platform admin and a Google user reach Core, which either binds the first owner directly or leaves a pending request that the owner approves">
+<defs><marker id="s3a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" class="d-arrow"/></marker></defs>
+<rect class="d-zone" x="10" y="10" width="240" height="330" rx="8"/>
+<text class="d-lbl" x="22" y="28">ENTRY</text>
+<rect class="d-zone" x="320" y="10" width="260" height="330" rx="8"/>
+<text class="d-lbl" x="332" y="28">DEALEROPS.CORE</text>
+<rect class="d-zone" x="720" y="10" width="230" height="330" rx="8"/>
+<text class="d-lbl" x="732" y="28">RESULT</text>
+
+<rect class="d-box purple" x="30" y="95" width="200" height="64" rx="6"/>
+<text class="d-title" x="130" y="121" text-anchor="middle">Platform admin</text>
+<text class="d-sub" x="130" y="140" text-anchor="middle">adds a member to a dealer</text>
+<rect class="d-box gray" x="30" y="190" width="200" height="64" rx="6"/>
+<text class="d-title" x="130" y="216" text-anchor="middle">Google user</text>
+<text class="d-sub" x="130" y="235" text-anchor="middle">picks a dealership</text>
+
+<rect class="d-box" x="340" y="87" width="220" height="80" rx="6"/>
+<text class="d-title" x="450" y="114" text-anchor="middle">AddMember</text>
+<text class="d-sub" x="450" y="134" text-anchor="middle">locks the dealer row,</text>
+<text class="d-sub" x="450" y="150" text-anchor="middle">checks for an active owner</text>
+
+<rect class="d-box green" x="740" y="44" width="200" height="64" rx="6"/>
+<text class="d-title" x="840" y="70" text-anchor="middle">Direct bind as OWNER</text>
+<text class="d-sub" x="840" y="89" text-anchor="middle">only if no owner exists</text>
+<rect class="d-box acc" x="740" y="150" width="200" height="64" rx="6"/>
+<text class="d-title" x="840" y="176" text-anchor="middle">Pending join request</text>
+<text class="d-sub" x="840" y="195" text-anchor="middle">requested_dealer_id set</text>
+<rect class="d-box green" x="740" y="262" width="200" height="64" rx="6"/>
+<text class="d-title" x="840" y="288" text-anchor="middle">Owner approves</text>
+<text class="d-sub" x="840" y="307" text-anchor="middle">SALES membership created</text>
+
+<line class="d-line" x1="230" y1="127" x2="338" y2="127" marker-end="url(#s3a)"/>
+<polyline class="d-line" points="560,127 650,127 650,76 738,76" marker-end="url(#s3a)"/>
+<polyline class="d-line" points="650,127 650,170 738,170" marker-end="url(#s3a)"/>
+<polyline class="d-line" points="230,222 700,222 700,198 738,198" marker-end="url(#s3a)"/>
+<line class="d-line" x1="840" y1="214" x2="840" y2="260" marker-end="url(#s3a)"/>
+<text class="d-lbl" x="694" y="68" text-anchor="middle">no owner</text>
+<text class="d-lbl" x="694" y="162" text-anchor="middle">owner exists</text>
+<text class="d-lbl" x="450" y="214" text-anchor="middle">self-service request</text>
+<text class="d-lbl" x="852" y="242">owner decides</text>
+</svg>
+<figcaption>Both routes into a dealership end at the owner's decision. The only direct bind is the first owner.</figcaption>
+</figure>
+
+<h4>Pending and History</h4>
+<p>The owner's Team page (<code>TeamPage.tsx</code>) reads join requests from the notifications inbox (<code>GET /api/v1/dealer/notifications?includeResolved=true</code>) and splits them into two tables. <strong>Pending</strong> lists unresolved requests with Approve and Reject buttons and is always shown in full. <strong>History</strong> lists resolved ones (Approved, Rejected and cancelled) and pages.</p>
+<p>Approval writes the membership, the account binding and their audit rows, and resolves the notification, all in one transaction, so the inbox cannot disagree with the data. Join-request notifications are hidden from everyone except the owner.</p>
+
+<h3>One-time data patch</h3>
+<p>The schema is owned by <code>EnsureCreated</code> plus an idempotent DDL list in <code>backend/dotnet/DealerOps.Core/Program.cs</code>, so renaming roles needed a data patch there. It runs five steps:</p>
+<ol>
+<li>Upper-case every <code>dealer_role</code> to the canonical spelling, which also makes later comparisons independent of column collation.</li>
+<li>Map any unknown legacy value (such as <code>staff</code>) to <code>SALES</code>.</li>
+<li>For each dealership with no active owner, promote the earliest active manager to <code>OWNER</code>.</li>
+<li>For each dealership still without an owner or manager but with active members, promote the earliest active member, so every dealership has someone who can open Team and approve requests.</li>
+<li>Backfill the new <code>vehicle.sold_by</code> from the latest <code>VEHICLE</code>/<code>SELL</code> audit event, so the per-salesperson sales report adds up to its totals on historical sales.</li>
+</ol>
+<div class="callout warn"><strong>The patch must run once.</strong> Steps 3 and 4 overwrite roles an administrator may have set since. Running them on every restart would promote the earliest manager after an owner was unbound for replacement. The patch therefore claims the id <code>dealer_role_hierarchy_2026_11_03</code> in a <code>schema_patch (patch_id, applied_at)</code> table with <code>INSERT IGNORE</code> and runs only if that insert claimed the row. The marker and all five statements share one transaction, so a transient MySQL failure rolls the marker back and leaves no half-migrated data. <strong>Revert note:</strong> restoring old data also requires deleting the marker row. Otherwise a roll-forward skips the migration and the new build cannot parse the old spellings (<code>deploy/ROLE-MIGRATION-2026-11-03.md</code> section 5). Take a fresh backup before the first start with this patch, because the rename cannot be reversed without loss.</div>
+
+<h3>Account administration changes</h3>
+<ul>
+<li><strong>Full name no longer unique.</strong> People share names, and sign-in is identified by username and email. The DDL patch list drops the unique index <code>uk_app_user_display_name</code> (<code>ALTER TABLE app_user DROP INDEX</code>) and the <code>DISPLAY_NAME_TAKEN</code> check was removed with it. The UI label now reads "Full name".</li>
+<li><strong>Soft delete with typed confirmation.</strong> The admin can delete a dealership and delete a member account (<code>DELETE .../members/{username}/account</code>). For a dealership, <code>DealerAdminService</code> sets <code>deleted_at</code>, marks it inactive, softly unbinds its members and clears pending requests to it. Vehicles, sales, customers and audit rows are kept for history. In <code>AdminPage.tsx</code> the dialog enables its button only after the admin types the dealership legal name or the account username exactly, which guards against a click on the wrong row.</li>
+<li><strong>Pending accounts are editable.</strong> The admin's Pending accounts view (<code>PendingAccounts</code> component) can edit an unbound account's username, email and phone (at least one of email or phone is required) or delete it, so a typo at registration no longer needs a new account.</li>
+</ul>
+
+<h3>Scope boundary</h3>
+<p>The decision of 2026-11-03 was to meet the change document and no more. The owner edits a member's full name and phone and nothing further. These powers stay with the platform admin:</p>
+<div class="tbl"><table>
+<thead><tr><th>Platform-admin power</th><th>Why the owner does not get it</th></tr></thead>
+<tbody>
+<tr><td>Edit a member's sign-in email</td><td>It is a credential. An owner who could change it could take over a member's account.</td></tr>
+<tr><td>Delete a user account</td><td>The owner removes a member from the dealership, but the account survives so sale and audit history stay intact.</td></tr>
+<tr><td>Edit or remove pending accounts</td><td>The owner's equivalent is approving or rejecting a join request.</td></tr>
+</tbody></table></div>
+<div class="callout">Widening this table requires a client discussion first, as the change document states. Design references: <code>design/15-Data-Auth-and-Gateway.md</code> sections 2.5 and 8, and <code>design/14-Backend-API-Contract.md</code> section 3.7b.</div>
+</section>
+
+<section id="s4">
+<h2><span class="num">04</span> Leads, CRM and the audit log</h2>
+
+<p>This section covers three areas that sales staff and managers use daily: lead lifecycle, customer records (CRM) and the audit log. The old behavior let data contradict itself, with two open leads for one car or a Won lead that no longer matched a recorded sale. It also slowed routine work, with dropdowns where a search was needed and an audit log filtered only by exact text. The logic lives in <code>DealerOps.Core</code>, and the React pages reach it only through the gateway.</p>
+
+<h3>4.1 Lead lifecycle rules (decision D7)</h3>
+
+<p><strong>Problem.</strong> A Won or Lost lead was final, the same customer could hold several open leads for one vehicle, and selling a vehicle left every other lead on it open. In each case the pipeline disagreed with the stock list.</p>
+
+<p><strong>Solution.</strong> Decision D7 in <code>requirements/iteration-2/CR-Analysis-2026-11-03.md</code> sets the rules below. <code>LeadService</code> (<code>backend/dotnet/DealerOps.Core/Lead</code>) enforces them on the server, so no screen can bypass them.</p>
+
+<figure>
+<div class="states">
+<span class="chip blue">New</span> <span class="arrow">→</span>
+<span class="chip blue">Contacted</span> <span class="arrow">→</span>
+<span class="chip blue">Qualified</span> <span class="arrow">→</span>
+<span class="chip green">Won</span>
+<span class="chip red">Lost (reason required)</span>
+<span class="chip amber">Reopen → New / Contacted / Qualified</span>
+</div>
+<figcaption>Lead stages (<code>LeadStage</code>). Won and Lost are closed. A closed lead is reopened to an open stage; the reopen has its own endpoint and version check.</figcaption>
+</figure>
+
+<div class="tbl"><table>
+<thead><tr><th>Rule</th><th>Mechanism</th></tr></thead>
+<tbody>
+<tr><td>A Lost lead can always be reopened</td><td><code>LeadService.Reopen</code> accepts New, Contacted or Qualified as the target, clears <code>LostReason</code>, and writes an <code>UPDATE</code> audit row flagged <code>reopened</code>. It still requires the lead's vehicle to be in stock, because an open lead on a sold vehicle is a state that creation already forbids.</td></tr>
+<tr><td>A Won lead can be reopened only if its vehicle was not sold to that lead's customer</td><td><code>SoldToLeadCustomer</code> checks for a Sold vehicle linked to the same customer through <code>CustomerVehicles</code>. If true, reopen fails with <code>LEAD_CLOSED</code>, because a reopened Won lead would contradict a recorded sale.</td></tr>
+<tr><td>One open lead per customer and vehicle</td><td><code>RequireNoOpenDuplicate</code> runs on create, on changing a lead's vehicle, and on reopen, and raises <code>LEAD_DUPLICATE</code>. A lead with no vehicle is never a duplicate, and a closed lead does not block a new one.</td></tr>
+<tr><td>A sale closes the vehicle's open leads</td><td><code>VehicleService.CloseLeadsForSale</code>, in the same transaction as the sale: the buyer's lead becomes Won, every other open lead becomes Lost with the reason "Vehicle sold". Each change is written to the audit log, and the matching website-inquiry inbox messages are resolved.</td></tr>
+<tr><td>A repeat website inquiry adds a note, not a lead</td><td><code>BuyerSiteService.Inquire</code> looks for an open lead for the matched customer and vehicle. If one exists the inquiry text is written as a <code>LeadNoteEntity</code> on it; otherwise a New lead is created and only then is the <code>BUYER_INQUIRY</code> inbox message sent.</td></tr>
+</tbody></table></div>
+
+<div class="callout"><strong>Verified against source.</strong> The earlier implementation check (CR-051) recorded the buyer-site duplicate path as missing. The current <code>BuyerSiteService.Inquire</code> contains the open-lead lookup and the note fallback.</div>
+
+<h3>4.2 Lead screen usability</h3>
+<p><strong>Problem.</strong> Staff had to pick a customer and a vehicle from long dropdowns, set the owner by hand every time, and could not find a lead by car.</p>
+<p><strong>How.</strong> On <code>LeadsPage</code> the Add lead drawer uses the shared <code>SearchSuggest</code> component for Customer and Vehicle of interest, the same control as the list filters, so a few typed letters narrow the choice (CR-036). The Owner select is prefilled with the signed-in username and stays changeable (CR-038).</p>
+<p>The list gained a Vehicle search box matching year, make, model and VIN (CR-039). The Customer name filter reloads the list after a 300 ms pause, as DMS and CRM already do (CR-040). For a closed lead the drawer shows Reopen with a "Reopen as" stage choice, and notes can still be added.</p>
+
+<h3>4.3 CRM changes</h3>
+<p><strong>Problem.</strong> The customer list showed "Vehicles purchased" and no pipeline. Uniqueness rules on phone, email and similar fields blocked legitimate cases such as family members sharing a phone number.</p>
+<ul>
+<li><strong>Leads column.</strong> The list now shows <code>leadCount</code>, computed by <code>CustomerService</code> from the customer's leads. The drawer lists the customer's leads (paged) with a <strong>New lead</strong> button that opens <code>/leads?newLeadFor=&lt;customerId&gt;</code>, which <code>LeadsPage</code> reads to open Add lead with that customer already chosen.</li>
+<li><strong>Notes.</strong> <code>CustomerEntity.Notes</code> (up to 2000 characters, blank stored as null) is edited in the customer drawer and recorded in the audit trail.</li>
+<li><strong>Duplicate warning.</strong> Create and update no longer reject a repeated phone, name, email or address. <code>GET /customers/duplicates</code> (<code>CustomerService.Duplicates</code>) returns which of those four fields match another customer in the same dealership. Phones are compared on digits only, so formatting differences do not hide a match. The CRM page and the Leads "new customer" path show a "Possible duplicate customer" <code>ConfirmDialog</code> and the user decides. Account phone numbers (the login identity) stay unique. Only CRM customers were relaxed.</li>
+</ul>
+
+<h3>4.4 Audit log improvements</h3>
+<p><strong>Problem.</strong> The team activity page and the platform audit log had unlabeled date pickers, filter boxes in a different order from the table columns, exact-match actor search, and no search on what changed. A manager could not, for example, find every sign-in made with a password.</p>
+<p><strong>How.</strong> Both screens share one component, <code>AuditLogPanel</code>, and one query path, <code>AuditService.Filtered</code>, so each change applies to Team &gt; Activity and the admin audit log together.</p>
+<div class="tbl"><table>
+<thead><tr><th>Change</th><th>Before</th><th>After</th></tr></thead>
+<tbody>
+<tr><td>Search by change</td><td>No free-text search</td><td>"Search changes" sends <code>q</code>, matched case-insensitively as a substring of the stored new and previous values and of action and record-type names. The typed password is never stored. The sign-in method (<code>password</code>) is, so searching "password" finds those logins.</td></tr>
+<tr><td>Actor</td><td>Exact username</td><td>Case-insensitive substring of <code>actor_username</code></td></tr>
+<tr><td>Dates</td><td>Unlabeled pickers</td><td>Visible "From date" and "To date"; From is inclusive, To is exclusive (start of the next day)</td></tr>
+<tr><td>Filter order</td><td>Not aligned with columns</td><td>From, To, Actor, Action, Record, (Dealership on admin only), Changes, matching the column order</td></tr>
+<tr><td>Location</td><td>Source IP only</td><td>Location column resolved from the source IP</td></tr>
+</tbody></table></div>
+<p><strong>Location from source IP.</strong> <code>AuditService</code> reads the caller's address from the gateway's <code>X-Forwarded-For</code> header, falls back to the socket peer, and stores it with the row. At write time it calls <code>IpGeolocator</code> (configured through <code>IpGeo:BaseUrl</code> and an optional key, cached for six hours) and saves the place name in <code>ClientLocation</code>. Private addresses get a local label.</p>
+<p>The place is captured once with the row, so history never shifts. A lookup failure leaves the location empty and does not fail the business action being audited. The page shows "Unavailable" or "Not recorded" when no place exists.</p>
+
+<h3>4.5 Unsaved changes and confirm-before-save</h3>
+<p><strong>Problem.</strong> Closing a form by accident lost typed data, and two high-impact actions, editing the dealership profile and closing a lead, saved with one click.</p>
+<div class="grid2">
+<div class="card"><h4>Dirty-form guard</h4>
+<p><code>FormDrawer</code> takes a <code>dirty</code> flag. Overlay click, the close button and Escape open a ConfirmDialog "Unsaved changes" (Discard / stay). <code>useFormBaseline</code> marks a form dirty only when it differs from its loaded baseline, and <code>useLeaveWarning</code> also warns on tab close and in-app link clicks. Wired into dealership edit, DMS vehicle, CRM customer and Leads add and edit.</p></div>
+<div class="card"><h4>Confirm before save</h4>
+<p>Two actions ask first: <strong>Team &gt; Dealership profile</strong> ("Save changes to the dealership profile?") and <strong>closing a lead</strong> as Won or Lost ("Won and lost leads are locked until someone reopens them"). Lost also requires a reason before the dialog appears. Reopen is not confirmed.</p></div>
+</div>
+<div class="callout warn"><strong>Limit on save confirmation.</strong> Ordinary saves (a new vehicle, an edited customer, a lead edit that does not close it) are not confirmed. The change document asked for confirmation "before changes are lost or saved" without naming screens. The team chose the discard guard on every form and a save confirmation only where the change is large or hard to undo, so users do not learn to click through a prompt on every save. The implementation check recorded this as a partial item (CR-022).</div>
+
+<h3>4.6 Why it is built this way</h3>
+<p>Lifecycle rules sit in the services because the same lead can be changed from the Leads page, the sale flow and the public buyer site, and a rule held in one screen would leave the others free to break it. A duplicate customer is a warning because dealerships have legitimate repeats. A duplicate open lead is an error because it is never legitimate. The two audit logs share one panel and one query so they cannot drift apart.</p>
+</section>
+
+<section id="s5">
+<h2><span class="num">05</span> Architecture impact, sorting, public site and verification</h2>
+
+<p>This section covers what the 68 change requests did to the architecture and the database, the sorting contract, the public-site edits, and how the work was checked. The architecture kept its four parts; only the frontend, Core and the MySQL schema changed.</p>
+
+<h3>5.1 Architecture footprint</h3>
+<p>Iteration 2 added behaviour, not services. The deployable parts are the same: the React frontend, <code>DealerOps.Gateway</code>, <code>DealerOps.Core</code> and <code>DealerOps.AiService</code>. The browser still talks only to the gateway, and Core owns authentication, tenancy, business rules and persistence. Across the iteration-2 commits, all 64 backend source files touched are in <code>DealerOps.Core</code>; the gateway and AI service projects have no edits. The gateway forwards query strings unchanged, so the new <code>sort</code> parameter needed no routing change.</p>
+
+<figure>
+<svg viewBox="0 0 960 600" role="img" aria-label="Service map showing which components iteration 2 changed">
+<defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path class="d-arrow" d="M0,0 L10,5 L0,10 z"/></marker><marker id="ab" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path class="d-arrow bad" d="M0,0 L10,5 L0,10 z"/></marker></defs>
+<text class="d-title" x="10" y="20">Service map: components changed in iteration 2</text>
+<rect class="d-zone" x="10" y="36" width="940" height="110" rx="8"/>
+<text class="d-lbl" x="24" y="54" letter-spacing="1.2">CLIENT</text>
+<rect class="d-zone" x="10" y="156" width="940" height="110" rx="8"/>
+<text class="d-lbl" x="24" y="174" letter-spacing="1.2">EDGE</text>
+<rect class="d-zone" x="10" y="286" width="940" height="110" rx="8"/>
+<text class="d-lbl" x="24" y="304" letter-spacing="1.2">APPLICATION SERVICES</text>
+<rect class="d-zone" x="10" y="416" width="940" height="110" rx="8"/>
+<text class="d-lbl" x="24" y="434" letter-spacing="1.2">DATA AND EXTERNAL SERVICES</text>
+<rect class="d-box acc" x="300" y="64" width="360" height="72" rx="6"/>
+<text class="d-title" x="480" y="86" text-anchor="middle">Browser: React frontend</text>
+<text class="d-sub" x="480" y="104" text-anchor="middle">Sortable headers, banner, shop search, Team/Admin</text>
+<text class="d-mono" x="480" y="122" text-anchor="middle">frontend/react</text>
+<rect class="d-box gray" x="300" y="184" width="360" height="72" rx="6"/>
+<text class="d-title" x="480" y="206" text-anchor="middle">DealerOps.Gateway</text>
+<text class="d-sub" x="480" y="224" text-anchor="middle">Routing, JWT check, CORS; passes sort through</text>
+<text class="d-mono" x="480" y="242" text-anchor="middle">no code change</text>
+<rect class="d-box acc" x="250" y="314" width="240" height="72" rx="6"/>
+<text class="d-title" x="370" y="336" text-anchor="middle">DealerOps.Core</text>
+<text class="d-sub" x="370" y="354" text-anchor="middle">Auth, tenancy, rules, persistence</text>
+<text class="d-mono" x="370" y="372" text-anchor="middle">64 files changed</text>
+<rect class="d-box gray" x="730" y="314" width="200" height="72" rx="6"/>
+<text class="d-title" x="830" y="336" text-anchor="middle">DealerOps.AiService</text>
+<text class="d-sub" x="830" y="354" text-anchor="middle">AI provider calls only</text>
+<text class="d-mono" x="830" y="372" text-anchor="middle">no code change</text>
+<rect class="d-box acc" x="250" y="444" width="240" height="72" rx="6"/>
+<text class="d-title" x="370" y="466" text-anchor="middle">MySQL</text>
+<text class="d-sub" x="370" y="484" text-anchor="middle">Added columns, schema_patch table</text>
+<text class="d-mono" x="370" y="502" text-anchor="middle">startup DDL patches</text>
+<rect class="d-box " x="530" y="444" width="190" height="72" rx="6"/>
+<text class="d-title" x="625" y="466" text-anchor="middle">NHTSA vPIC</text>
+<text class="d-sub" x="625" y="484" text-anchor="middle">Makes, models, VIN decode</text>
+<text class="d-mono" x="625" y="502" text-anchor="middle">external</text>
+<rect class="d-box " x="730" y="444" width="200" height="72" rx="6"/>
+<text class="d-title" x="830" y="466" text-anchor="middle">AI provider</text>
+<text class="d-sub" x="830" y="484" text-anchor="middle">Model calls for ad checks</text>
+<text class="d-mono" x="830" y="502" text-anchor="middle">external</text>
+<path class="d-line" d="M480,136 V184" marker-end="url(#a)"/>
+<text class="d-lbl" x="490" y="164">HTTPS + JWT</text>
+<path class="d-line" d="M480,256 V276 H370 V314" marker-end="url(#a)"/>
+<path class="d-line" d="M480,276 H830 V314" marker-end="url(#a)"/>
+<text class="d-lbl" x="380" y="300">REST + internal header</text>
+<text class="d-lbl" x="820" y="300" text-anchor="end">REST + internal header</text>
+<path class="d-line" d="M370,386 V444" marker-end="url(#a)"/>
+<text class="d-lbl" x="380" y="420">SQL</text>
+<path class="d-line" d="M490,350 H625 V444" marker-end="url(#a)"/>
+<text class="d-lbl" x="500" y="343">HTTPS</text>
+<path class="d-line" d="M830,386 V444" marker-end="url(#a)"/>
+<text class="d-lbl" x="840" y="420">HTTPS</text>
+<rect class="d-box acc" x="40" y="552" width="22" height="14" rx="3"/><text class="d-lbl" x="70" y="564">Changed in iteration 2</text>
+<rect class="d-box gray" x="230" y="552" width="22" height="14" rx="3"/><text class="d-lbl" x="260" y="564">No code change</text>
+<rect class="d-box" x="400" y="552" width="22" height="14" rx="3"/><text class="d-lbl" x="430" y="564">External service</text>
+<path class="d-line" d="M590,559 H625" marker-end="url(#a)"/><text class="d-lbl" x="635" y="564">Request path</text>
+</svg>
+<figcaption>Figure 5.1. Blue components changed in iteration 2; grey ones did not. Gateway and AI service have no code change, so the browser-to-gateway-only rule is intact.</figcaption>
+</figure>
+
+<div class="tbl"><table>
+<thead><tr><th>Layer</th><th>Touched</th><th>Typical change</th></tr></thead>
+<tbody>
+<tr><td>Frontend (<code>frontend/react</code>)</td><td><span class="chip green">yes</span></td><td>Sortable headers on <code>DataTable</code>, landing banner, shop search, drawer guards, new DMS/CRM/Team columns</td></tr>
+<tr><td>Gateway</td><td><span class="chip gray">no code</span></td><td>Forwards the new query parameter as is</td></tr>
+<tr><td>Core</td><td><span class="chip green">yes</span></td><td>List services accept <code>sort</code>; Owner tier; sale and lead rules; audit Location</td></tr>
+<tr><td>AI service</td><td><span class="chip gray">no</span></td><td>None; it never reads the application database</td></tr>
+<tr><td>Database</td><td><span class="chip green">yes</span></td><td>Additive columns, two dropped unique indexes, <code>schema_patch</code></td></tr>
+<tr><td>Docs</td><td><span class="chip green">yes</span></td><td>Updated in the same change, as the repository rules require</td></tr>
+</tbody></table></div>
+
+<h3>5.2 Data-model changes</h3>
+<h4>New and changed columns, indexes and tables</h4>
+<div class="tbl"><table>
+<thead><tr><th>Change</th><th>Problem it solved</th></tr></thead>
+<tbody>
+<tr><td><code>vehicle.sold_by</code>, <code>vehicle.sold_to_name</code></td><td>DMS shows Sold by and Sold to. A sale records the seller and, for a non-CRM buyer ("Other"), the typed name.</td></tr>
+<tr><td><code>customer.notes</code> (up to 2000 characters)</td><td>Free-text customer notes in the CRM.</td></tr>
+<tr><td><code>membership.dealer_role</code> now <code>OWNER</code>, <code>MANAGER</code>, <code>SALES</code></td><td>Replaces MANAGER/STAFF. Former STAFF rows become SALES; each dealership keeps one owner.</td></tr>
+<tr><td>Dropped unique index <code>uk_app_user_display_name</code></td><td>Full names are no longer unique; two people can share a name.</td></tr>
+<tr><td>Dropped unique index <code>uk_cv_vehicle</code>, replaced by <code>uk_cv_active_vehicle</code> on a generated column</td><td>Unlinked rows are kept, so "one link per vehicle" applies to active rows only.</td></tr>
+<tr><td><code>deleted_at</code> on <code>vehicle</code>, <code>customer</code>, <code>dealer</code>, <code>vehicle_photo</code>, <code>vehicle_payment</code>, <code>customer_vehicle</code></td><td>Soft delete: hides the record, keeps sale and audit history.</td></tr>
+<tr><td><code>audit_event.client_ip</code>, <code>client_location</code></td><td>Source IP and place shown in activity and audit logs (from the merged <code>robin</code> branch).</td></tr>
+<tr><td><code>schema_patch</code> table</td><td>Marker rows: a one-time data patch never runs twice.</td></tr>
+</tbody></table></div>
+
+<h4>Schema evolution without a migration framework</h4>
+
+<figure>
+<svg viewBox="0 0 960 400" role="img" aria-label="Startup schema evolution and one-time data patch">
+<defs><marker id="b" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path class="d-arrow" d="M0,0 L10,5 L0,10 z"/></marker><marker id="bb" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path class="d-arrow bad" d="M0,0 L10,5 L0,10 z"/></marker></defs>
+<text class="d-title" x="10" y="20">Core startup: from an empty or older database to the current schema</text>
+<rect class="d-zone" x="10" y="36" width="940" height="120" rx="8"/>
+<text class="d-lbl" x="24" y="54" letter-spacing="1.2">STRUCTURE: RUNS ON EVERY START</text>
+<rect class="d-zone" x="10" y="176" width="940" height="210" rx="8"/>
+<text class="d-lbl" x="24" y="194" letter-spacing="1.2">DATA: RUNS ONCE PER DATABASE</text>
+<rect class="d-box acc" x="30" y="70" width="200" height="72" rx="6"/>
+<text class="d-title" x="130" y="92" text-anchor="middle">1. EnsureCreated()</text>
+<text class="d-sub" x="130" y="110" text-anchor="middle">Builds all tables if none exist</text>
+<text class="d-mono" x="130" y="128" text-anchor="middle">Program.cs</text>
+<rect class="d-box acc" x="280" y="70" width="200" height="72" rx="6"/>
+<text class="d-title" x="380" y="92" text-anchor="middle">2. DDL patch list</text>
+<text class="d-sub" x="380" y="110" text-anchor="middle">Idempotent ALTER/DROP in order</text>
+<text class="d-mono" x="380" y="128" text-anchor="middle">existing tables</text>
+<rect class="d-box acc" x="530" y="70" width="200" height="72" rx="6"/>
+<text class="d-title" x="630" y="92" text-anchor="middle">3. Error filter</text>
+<text class="d-sub" x="630" y="110" text-anchor="middle">Swallows already-exists codes</text>
+<text class="d-mono" x="630" y="128" text-anchor="middle">1060 1061 1022 1826 1091</text>
+<rect class="d-box purple" x="740" y="70" width="200" height="72" rx="6"/>
+<text class="d-title" x="840" y="92" text-anchor="middle">4. Claim marker</text>
+<text class="d-sub" x="840" y="110" text-anchor="middle">Inserts a schema_patch row</text>
+<text class="d-mono" x="840" y="128" text-anchor="middle">one transaction</text>
+<path class="d-line" d="M230,106 H280" marker-end="url(#b)"/>
+<path class="d-line" d="M480,106 H530" marker-end="url(#b)"/>
+<path class="d-line" d="M730,106 H740" marker-end="url(#b)"/>
+<rect class="d-box green" x="530" y="214" width="200" height="72" rx="6"/>
+<text class="d-title" x="630" y="236" text-anchor="middle">1 row: updates run</text>
+<text class="d-sub" x="630" y="254" text-anchor="middle">Roles, OWNER, sold_by backfill</text>
+<text class="d-mono" x="630" y="272" text-anchor="middle">marker commits with data</text>
+<rect class="d-box gray" x="740" y="214" width="200" height="72" rx="6"/>
+<text class="d-title" x="840" y="236" text-anchor="middle">0 rows: skip</text>
+<text class="d-sub" x="840" y="254" text-anchor="middle">Database already patched</text>
+<text class="d-mono" x="840" y="272" text-anchor="middle">no changes</text>
+<path class="d-line" d="M840,142 V176 H630 V214" marker-end="url(#b)"/>
+<path class="d-line" d="M840,176 V214" marker-end="url(#b)"/>
+<text class="d-lbl" x="640" y="170">1 row</text><text class="d-lbl" x="850" y="200">0 rows</text>
+<rect class="d-box " x="280" y="214" width="200" height="72" rx="6"/>
+<text class="d-title" x="380" y="236" text-anchor="middle">Warn and continue</text>
+<text class="d-sub" x="380" y="254" text-anchor="middle">Existing rows block a constraint</text>
+<text class="d-mono" x="380" y="272" text-anchor="middle">1452 1138 1265</text>
+<path class="d-line bad" d="M380,142 V214" marker-end="url(#bb)"/>
+<text class="d-bad" x="390" y="186">logged, Core starts</text>
+<text class="d-sub" x="30" y="324">Marker id for the role patch: dealer_role_hierarchy_2026_11_03. A failed update rolls the marker back, so the patch retries on the next start.</text>
+<text class="d-sub" x="30" y="346">Patch updates: upper-case roles, map unknown values (old STAFF) to SALES, promote the earliest manager to OWNER, backfill sold_by.</text>
+<text class="d-sub" x="30" y="368">The DDL list is append-only. A future one-time data patch needs its own marker row.</text>
+</svg>
+<figcaption>Figure 5.2. Startup order in <code>Program.cs</code>. Structure patches may run on every start; the data patch runs once per database because the marker insert decides.</figcaption>
+</figure>
+
+<h4>Error handling in the DDL list</h4>
+<p>Each statement is wrapped so MySQL's "already exists" codes are swallowed: duplicate column 1060, duplicate key 1061, 1022, 1826, and 1091 for an index already dropped. Errors that mean existing rows block a constraint (1452, 1138, 1265) are logged as a warning naming the statement, and Core still starts. Re-running the list on a migrated database changes nothing.</p>
+
+<h4>One-time role hierarchy patch</h4>
+<p>Data fixes must not repeat, so they are claimed with a marker. The role hierarchy patch is claimed with <code>INSERT IGNORE INTO schema_patch</code> using the marker <code>dealer_role_hierarchy_2026_11_03</code>, inside one transaction with all its updates. A result of one row means this database has not had the patch and the updates run; zero rows means skip. A failure rolls the marker back with the data. The patch upper-cases role spellings, maps unknown values (the old STAFF) to SALES, promotes each dealership's earliest active manager to OWNER (or its earliest active member when there is no manager), and backfills <code>vehicle.sold_by</code> on earlier sales from the <code>SELL</code> audit rows. Its operating procedure, including read-only pre-flight queries and the lossy revert, is in <code>deploy/ROLE-MIGRATION-2026-11-03.md</code>; the schema rationale is in <code>design/15-Data-Auth-and-Gateway.md</code>.</p>
+<div class="callout"><b>Why this design.</b> For a classroom system with one MySQL instance and a seed workflow, a startup patch list is the smallest mechanism that upgrades a fresh database and the existing cloud demo. The cost: the list is append-only and a one-shot data patch cannot be re-run.</div>
+
+<h3>5.3 The sorting contract</h3>
+<p>The client asked for sortable columns on the DMS, Leads, Team, Admin and audit tables. Before iteration 2 no list accepted a sort and the table component had no sort support. The rule: a paged list sorts on the server, an unpaged list sorts in the browser.</p>
+
+<figure>
+<svg viewBox="0 0 960 360" role="img" aria-label="Server-side sort versus client-side sort hook">
+<defs><marker id="c" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path class="d-arrow" d="M0,0 L10,5 L0,10 z"/></marker><marker id="cb" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path class="d-arrow bad" d="M0,0 L10,5 L0,10 z"/></marker></defs>
+<text class="d-title" x="10" y="20">Where a column sort happens</text>
+<rect class="d-zone" x="10" y="36" width="940" height="170" rx="8"/>
+<text class="d-lbl" x="24" y="54" letter-spacing="1.2">PAGED LISTS: THE SERVER SORTS, THEN CUTS THE PAGE</text>
+<rect class="d-zone" x="10" y="226" width="940" height="120" rx="8"/>
+<text class="d-lbl" x="24" y="244" letter-spacing="1.2">UNPAGED LISTS: THE BROWSER SORTS A COPY</text>
+<rect class="d-box acc" x="30" y="64" width="190" height="72" rx="6"/>
+<text class="d-title" x="125" y="86" text-anchor="middle">DataTable header</text>
+<text class="d-sub" x="125" y="104" text-anchor="middle">Reports a click via onSort</text>
+<text class="d-mono" x="125" y="122" text-anchor="middle">frontend</text>
+<rect class="d-box acc" x="270" y="64" width="190" height="72" rx="6"/>
+<text class="d-title" x="365" y="86" text-anchor="middle">sortParam()</text>
+<text class="d-sub" x="365" y="104" text-anchor="middle">Builds sort=field,asc|desc</text>
+<text class="d-mono" x="365" y="122" text-anchor="middle">frontend</text>
+<rect class="d-box purple" x="510" y="64" width="190" height="72" rx="6"/>
+<text class="d-title" x="605" y="86" text-anchor="middle">Paging.ParseSort</text>
+<text class="d-sub" x="605" y="104" text-anchor="middle">Checks field against a whitelist</text>
+<text class="d-mono" x="605" y="122" text-anchor="middle">Core, via gateway</text>
+<rect class="d-box purple" x="750" y="64" width="190" height="72" rx="6"/>
+<text class="d-title" x="845" y="86" text-anchor="middle">Order, then page</text>
+<text class="d-sub" x="845" y="104" text-anchor="middle">OrderByDirectionBlanksLast</text>
+<text class="d-mono" x="845" y="122" text-anchor="middle">Core</text>
+<path class="d-line" d="M220,100 H270" marker-end="url(#c)"/>
+<path class="d-line" d="M460,100 H510" marker-end="url(#c)"/>
+<path class="d-line" d="M700,100 H750" marker-end="url(#c)"/>
+<path class="d-line bad" d="M605,136 V176" marker-end="url(#cb)"/>
+<text class="d-bad" x="615" y="172">refused: 400 VALIDATION on sort</text>
+<rect class="d-box purple" x="30" y="254" width="190" height="72" rx="6"/>
+<text class="d-title" x="125" y="276" text-anchor="middle">All rows loaded</text>
+<text class="d-sub" x="125" y="294" text-anchor="middle">Core returns the full list</text>
+<text class="d-mono" x="125" y="312" text-anchor="middle">Team, Admin members, Ads</text>
+<rect class="d-box acc" x="270" y="254" width="190" height="72" rx="6"/>
+<text class="d-title" x="365" y="276" text-anchor="middle">useSort</text>
+<text class="d-sub" x="365" y="294" text-anchor="middle">Sorts a copy; blanks last</text>
+<text class="d-mono" x="365" y="312" text-anchor="middle">TableSort.tsx</text>
+<rect class="d-box acc" x="510" y="254" width="190" height="72" rx="6"/>
+<text class="d-title" x="605" y="276" text-anchor="middle">DataTable</text>
+<text class="d-sub" x="605" y="294" text-anchor="middle">Renders the rows it is given</text>
+<text class="d-mono" x="605" y="312" text-anchor="middle">never sorts itself</text>
+<path class="d-line" d="M220,290 H270" marker-end="url(#c)"/>
+<path class="d-line" d="M460,290 H510" marker-end="url(#c)"/>
+</svg>
+<figcaption>Figure 5.3. Paged lists sort on the server before the page is cut. Lists that load every row sort in <code>useSort</code>.</figcaption>
+</figure>
+
+<div class="cards"><div class="card"><h4>Paged lists: the server sorts</h4>
+<p>The list endpoint takes <code>sort=field,asc|desc</code>. <code>Paging.ParseSort</code> checks the field against a whitelist for that list and returns a <code>400 VALIDATION</code> on <code>sort</code> for an unknown field or direction. The query is ordered before paging, and columns that can be blank use <code>OrderByDirectionBlanksLast</code> so empty values stay at the bottom in both directions. The frontend builds the value with <code>sortParam()</code> and reloads the page when a header is clicked.</p></div>
+<div class="card"><h4>Unpaged lists: the client sorts</h4>
+<p>When every row is already loaded, <code>useSort</code> in <code>TableSort.tsx</code> sorts a copy of the rows in the browser. Blank values go last, numbers compare numerically, and text compares case-insensitively with embedded numbers in order. <code>DataTable</code> itself never sorts; it renders what the caller passes and reports header clicks through <code>onSort</code>.</p></div>
+</div>
+<h4>Why sorting only the current page fails</h4>
+<p>A header on a table that shows 10 of several hundred rows suggests "this column, ordered". If only the visible 10 are reordered, the first row is not the highest value overall, and a user can believe a record is missing because it sits on page 4. For a paged list the order must be decided before the page is cut, so only the server can do it.</p>
+
+<h4>Sort location by list</h4>
+
+<div class="tbl"><table>
+<thead><tr><th>List</th><th>Where sorted</th><th>Source</th></tr></thead>
+<tbody>
+<tr><td>DMS vehicles (CR-011)</td><td>Server, <code>GET</code> vehicles <code>sort</code></td><td><code>VehicleController</code></td></tr>
+<tr><td>Leads (CR-012)</td><td>Server after follow-up; first check found page-only</td><td><code>LeadController</code></td></tr>
+<tr><td>Team Activity and Admin Audit log (CR-014, CR-016)</td><td>Server, fields include <code>clientIp</code> and <code>clientLocation</code></td><td><code>AuditService.SortFields</code></td></tr>
+<tr><td>Pending accounts (CR-018)</td><td>Server after follow-up, <code>createdAt</code></td><td><code>AdminPendingUserController</code></td></tr>
+<tr><td>Record audit panels: customer, vehicle, lead, listing (CR-020)</td><td>Server after follow-up: <code>createdAt</code>, <code>actorUsername</code>, <code>action</code> over the whole history</td><td><code>AuditService.RecordSortFields</code></td></tr>
+<tr><td>Team members and join requests (CR-013, CR-015); Admin members (CR-019); Ad rules (CR-017)</td><td>Client, full list loaded</td><td><code>useSort</code></td></tr>
+</tbody></table></div>
+<p>The original item-by-item check (written before the follow-up pass) marked CR-012, CR-018 and CR-020 as Partial because they sorted one page, and CR-014 and CR-016 as Partial because Location was absent. The follow-up pass fixed those five (see 5.5). The source now shows the sort parameter on each of those lists and <code>clientLocation</code> in the audit sort whitelist, so those five are closed in code even though the older check files still show their first-pass status.</p>
+
+<h3>5.4 Public site changes</h3>
+<ul>
+<li><b>Home banner (CR-064).</b> A banner above the landing hero states that Dealer Ops is software for car dealerships and not a place to buy a car.</li>
+<li><b>Create-account buttons removed from the home page (CR-009).</b> This is what the client asked for "for now". The <code>/register</code> route itself still exists.</li>
+<li><b>Sample-ad link (CR-063).</b> Each opened sample ad ends in "Check your own ads" and links to <code>/register</code>. This looked like a conflict with the button removal, but the client asked only to remove the button; the sample-ad destination was an author suggestion. The earlier decision to point it at <code>/login</code> was reversed (decision D4 in <code>requirements/iteration-2/CR-Analysis-2026-11-03.md</code>).</li>
+<li><b>Shop directory (CR-065, CR-066).</b> The heading reads "Shop vehicles". One search box on <code>/shop</code> matches dealership name and address (the address holds the city), and each card shows address, phone and email.</li>
+<li><b>Dealership page (CR-067, CR-068).</b> <code>/shop/:dealer</code> has a "Back to dealerships" link and a search by make, model or year in which every word must match, so "2021 civic" narrows to that vehicle. The inquiry message box has a character counter driven by <code>INQUIRY_MESSAGE_MAX</code>, which is also the <code>maxLength</code> of the field.</li>
+</ul>
+<p>These are frontend-only edits; the public shop still reads dealership and inventory data through the gateway, like every other page.</p>
+
+<h3>5.5 Verification</h3>
+<ol>
+<li><b>Item-by-item implementation check.</b> Twenty check files under <code>requirements/iteration-2/implementation-check/</code> assessed CR-001 to CR-068 against the .NET and React code. Result: 54 implemented, 13 partial, 1 not applicable, 0 not implemented, 0 contradicted.</li>
+<li><b>Follow-up pass.</b> <code>requirements/iteration-2/CR-Followup-2026-11-03.md</code> assigned each Partial item a decision. Client requests take priority over author suggestions. Fixes were made for the page-only sorts, Location, dirty-form guards (CR-022) and the buyer-inquiry duplicate case (CR-051).</li>
+<li><b>Builds.</b> <code>dotnet build backend/dotnet/DealerOps.Core.sln</code> and <code>npm run build</code> in <code>frontend/react</code> both succeeded with no errors (a pre-existing NuGet advisory and a chunk-size advisory only).</li>
+<li><b>No new tests.</b> Under the project's development-only rule no tests were authored for this work. The existing Playwright suite was run as a regression check and ended at 428 passed, 0 failed, 11 skipped; all skips depend on an AI provider key.</li>
+</ol>
+
+<h3>5.6 Remaining limitations</h3>
+<h4>Items not fully closed</h4>
+<div class="tbl"><table>
+<thead><tr><th>Item</th><th>Status</th><th>Why</th></tr></thead>
+<tbody>
+<tr><td>CR-009 dealership-use inquiry</td><td><span class="chip amber">pending</span></td><td>The client said removing the button "will suffice for now"; the inquiry waits for a client discussion and <code>/register</code> still exists.</td></tr>
+<tr><td>CR-012, 014, 016, 018, 020</td><td><span class="chip green">fixed</span></td><td>Closed by the follow-up pass: server sort and Location. The first-pass check files still list them as Partial.</td></tr>
+<tr><td>CR-022 save confirmation</td><td><span class="chip blue">by design</span></td><td>Confirmation only on discard, the dealership profile and closing a lead; confirming every save would add a click to routine work.</td></tr>
+<tr><td>CR-041 reopen a lead</td><td><span class="chip blue">by design</span></td><td>A won lead sold to that customer, or one that would duplicate an open lead, cannot be reopened (decision D7).</td></tr>
+<tr><td>CR-047 VIN must match vehicle data</td><td><span class="chip amber">partial</span></td><td>Later decision D9 compares the decoded make, model and year through vPIC. If that external service is down or does not know the VIN, the save falls back to the model-year character check.</td></tr>
+<tr><td>CR-048 Carfax URL</td><td><span class="chip amber">partial</span></td><td>Must be https on carfax.com or carfax.ca when present; blank is allowed and the URL is not unique across vehicles.</td></tr>
+<tr><td>CR-051 duplicate leads</td><td><span class="chip amber">partial</span></td><td>Staff-created leads are checked. A closed lead does not block a new one; a repeat shopper inquiry becomes a note on the existing open lead.</td></tr>
+<tr><td>CR-052 customer label on sale</td><td><span class="chip amber">partial</span></td><td>The lead stage (Won or Lost) is the label; nothing extra is written on the customer.</td></tr>
+<tr><td>CR-055 admin bind</td><td><span class="chip amber">partial</span></td><td>With no manager yet, the platform admin still binds the first one directly; afterwards it files a join request.</td></tr>
+</tbody></table></div>
+<div class="callout warn"><b>Environment limitation.</b> The test stack has no AI provider key, so ad checks return an AI-unavailable error. No ad can pass, no vehicle can be publicly listed, and the buyer-inquiry path could not be exercised end to end there. That needs a stack with a provider key, not a code change.</div>
+
+<h4>Open questions for the client</h4>
+<ul>
+<li>Should the "contact us about dealership use" inquiry replace the removed create-account button, and should <code>/register</code> stay open?</li>
+<li>Is "exclusive" for the Carfax link meant as "accept only Carfax links", as assumed, or "one link per vehicle"?</li>
+<li>Should a buyer-site inquiry on a vehicle with a closed lead start a new lead?</li>
+<li>Is the single Owner role the intended reading of "admin", "owner" and "regional manager", with no cross-dealership regional role?</li>
+</ul>
+
+<h3>5.7 Next steps</h3>
+<ol>
+<li>Run the role-migration pre-flight queries against the target database before the next cloud deploy.</li>
+<li>Re-run the check files for the five fixed sorting items so the written record matches the code.</li>
+<li>Test the buyer-inquiry and ad-publish flows on a stack that has an AI provider key.</li>
+<li>Get client answers to the open questions above, starting with the dealership-use inquiry.</li>
+<li>Keep the DDL patch list append-only, and add a new marker row for any future one-time data patch.</li>
+</ol>
+</section>
+
+<section id="trace"><h2><span class="num">06</span> Client requests, item by item</h2>
+<p>The Changes Document (Jackson Warga, 2026-11-03) has no numbering. CR-001 to CR-068 follow the body order recorded in the change inventory. Each block quotes the client's words, then gives our reading, the implementation and the current status.</p>
+<p>68 items: 60 green, 3 amber, 5 gray (decision, scope change or out of scope).</p>
+<h3>Client requests: DMS and sales</h3>
+
+<article class="cr" id="cr-001"><h4><span class="id">CR-001</span> Sold by, Sold to and Date sold on DMS <span class="chip green">Done</span></h4>
+<dl class="cr-dl"><dt>Client said</dt><dd><blockquote>The client has requested that the DMS page contain more columns. Sold by – this column should list who sold the vehicle. Sold to – this column should list the customer who bought the vehicle. Date sold – this column should list the day the vehicle was sold</blockquote></dd>
+<dt>Our reading</dt><dd>Three new columns on the DMS (dealer management system) inventory table. The "Where columns should go" screenshot carries no marks, so the position was our choice.</dd>
+<dt>What we did</dt><dd>The DMS table in <code>DmsPage.tsx</code> now has Sold by (<code>soldBy</code>), Sold to (<code>soldToName</code>) and Date sold (<code>soldOn</code>), after Leads and before Status. Core stores <code>sold_by</code> (the username of whoever recorded the sale) and <code>sold_to_name</code> on the vehicle, and <code>VehicleResponse</code> returns them. Sold to shows the linked CRM customer's name, or the typed buyer for an "Other" sale.</dd>
+<dt>Why it solves the problem</dt><dd>Staff see who sold each vehicle, to whom and when, without opening the record or its audit trail.</dd>
+<dt>Status</dt><dd>Done. Sold by shows the username, not the full name.</dd></dl></article>
+
+<article class="cr" id="cr-002"><h4><span class="id">CR-002</span> More information in the sell-vehicle menu <span class="chip green">Done</span></h4>
+<dl class="cr-dl"><dt>Client said</dt><dd><blockquote>When the sell vehicle action is clicked, the client has asked that more information be presented in that menu. The client wants the following added; cost, total number spend on work orders, and list price.</blockquote></dd>
+<dt>Our reading</dt><dd>"Total number spend on work orders" was read as a money total, not a count of work orders.</dd>
+<dt>What we did</dt><dd>The sell dialog in <code>DmsPage.tsx</code> shows three read-only figures above sold date, sold price and buyer: Cost (purchase cost), Work-order spend (the vehicle's <code>repairCost</code>) and List price. Completed work orders add their cost to <code>repairCost</code> through <code>WorkOrderService</code> and <code>VehicleService.AddRepairCost</code>.</dd>
+<dt>Why it solves the problem</dt><dd>The seller sees what the vehicle cost and what was spent on it before choosing a sold price.</dd>
+<dt>Status</dt><dd>Done. The figure is the stored repair total, so a repair cost typed on the vehicle form is included in it.</dd></dl></article>
+
+<h3>Client requests: sales report and dashboard</h3>
+
+<article class="cr" id="cr-003"><h4><span class="id">CR-003</span> Sales report by day, week, month and year <span class="chip green">Done</span></h4>
+<dl class="cr-dl"><dt>Client said</dt><dd><blockquote>The client has requested that the sales report page contain more information. The client would like to be able to see sales information for the current day, week, month, year and have each listed as options</blockquote></dd>
+<dt>Our reading</dt><dd>One period selector with four options. The document names no measures, week start or time zone, so we used Monday and UTC.</dd>
+<dt>What we did</dt><dd><code>SalesFunnelPage.tsx</code> has a "Sales period" select (Today, This week, This month, This year) that calls <code>GET /api/v1/vehicles/report/sales?period=</code>. <code>VehicleService.SalesReport</code> returns vehicles sold, revenue and gross profit for the period, next to the existing all-time totals and monthly rows.</dd>
+<dt>Why it solves the problem</dt><dd>Management reads current-period sales directly instead of adding up the monthly table.</dd>
+<dt>Status</dt><dd>Done. "Current" follows the UTC calendar, and the four options are one selector, not four panels.</dd></dl></article>
+
+<article class="cr" id="cr-004"><h4><span class="id">CR-004</span> Same sales periods on the dashboard <span class="chip green">Done</span></h4>
+<dl class="cr-dl"><dt>Client said</dt><dd><blockquote>the client would also like to see this in the sales section of the dashboard.</blockquote></dd>
+<dt>Our reading</dt><dd>"This" is the day, week, month and year sales information from CR-003.</dd>
+<dt>What we did</dt><dd>The Sales section of <code>DashboardPage.tsx</code> uses the same <code>SALES_PERIODS</code> select and the same <code>reportsApi.sales(period)</code> call. It shows Vehicles sold, Revenue and Gross profit for the chosen period, with a link to the full sales report.</dd>
+<dt>Why it solves the problem</dt><dd>The numbers the client asked for appear on the first screen after sign-in.</dd>
+<dt>Status</dt><dd>Done. The Avg. days to sell card stays all-time, and the salesperson table is on the sales report only.</dd></dl></article>
+
+<article class="cr" id="cr-005"><h4><span class="id">CR-005</span> Sales employees and their metrics <span class="chip green">Done</span></h4>
+<dl class="cr-dl"><dt>Client said</dt><dd><blockquote>The client would also like a list of all sales employees and their sales metrics.</blockquote></dd>
+<dt>Our reading</dt><dd>The client named no metrics, so we chose the sales and lead figures the data supports. Any member can sell, so every active member is listed.</dd>
+<dt>What we did</dt><dd>The sales report has a "Sales by salesperson" table with Salesperson, Vehicles sold, Revenue, Gross profit, Open leads and Won leads for the selected period. <code>VehicleService.Salespeople</code> builds one row per active member, plus former members who sold in the period, marked "(former member)".</dd>
+<dt>Why it solves the problem</dt><dd>A manager compares employees on one screen instead of piecing it together from vehicle records.</dd>
+<dt>Status</dt><dd>Done. The metric set is our choice.</dd></dl></article>
+
+<h3>Client requests: team management and account creation</h3>
+
+<article class="cr" id="cr-006"><h4><span class="id">CR-006</span> Managers promote staff to manager <span class="chip green">Done</span></h4>
+<dl class="cr-dl"><dt>Client said</dt><dd><blockquote>The client has requested that manager accounts be allowed to promote other staff to managers</blockquote></dd>
+<dt>Our reading</dt><dd>A dealership manager can raise another member to manager (decision D2). Once the owner role existed (CR-010), the rule became: a manager promotes sales members only, and nobody changes their own role.</dd>
+<dt>What we did</dt><dd>On Team &gt; Members, <code>TeamPage.tsx</code> shows "Make manager" on a sales row and asks for confirmation. It calls <code>PUT /api/v1/dealer/members/{username}/role</code>, handled by <code>MembershipService.SetRoleInOwnDealership</code>. That method checks <code>TenantGuard.RequireTeamAccess</code>, refuses a change to your own role and writes an audit row.</dd>
+<dt>Why it solves the problem</dt><dd>The dealership appoints its own managers without asking the platform administrator.</dd>
+<dt>Status</dt><dd>Done. A manager cannot demote another manager or touch the owner. Only the owner can set a manager back to sales.</dd></dl></article>
+
+<article class="cr" id="cr-007"><h4><span class="id">CR-007</span> Managers edit certain employee information <span class="chip green">Done</span></h4>
+<dl class="cr-dl"><dt>Client said</dt><dd><blockquote>as well as being able to edit certain employee information.</blockquote></dd>
+<dt>Our reading</dt><dd>The document lists no fields, so we limited it to full name and phone (decision D2). Email and username are sign-in credentials and stay with the platform admin.</dd>
+<dt>What we did</dt><dd>Team &gt; Members has an Edit drawer with Full name and Phone, saved through <code>PATCH /api/v1/dealer/members/{username}</code> (<code>PatchMemberRequest</code>, <code>MembershipService.UpdateInOwnDealership</code>). A phone already used by another account is refused, and the change is audited.</dd>
+<dt>Why it solves the problem</dt><dd>Managers correct a team member's details themselves instead of filing a request with the platform admin.</dd>
+<dt>Status</dt><dd>Done. A manager edits sales members only. The owner edits any member below owner.</dd></dl></article>
+
+<article class="cr" id="cr-008"><h4><span class="id">CR-008</span> Joined column in Members <span class="chip green">Done</span></h4>
+<dl class="cr-dl"><dt>Client said</dt><dd><blockquote>The client has also requested a column in the members section listing when the member joined</blockquote></dd>
+<dt>Our reading</dt><dd>A column on Team &gt; Members showing when the membership was created. We treated it as the "Date Added (when added)" column named in CR-013.</dd>
+<dt>What we did</dt><dd>The Members table in <code>TeamPage.tsx</code> has a Joined column. <code>MemberDirectoryService.ActiveMembers</code> returns <code>MemberOption.JoinedAt</code>, taken from the membership row's <code>CreatedAt</code>.</dd>
+<dt>Why it solves the problem</dt><dd>Managers see how long each person has been on the team.</dd>
+<dt>Status</dt><dd>Done. The header reads "Joined", not "Date Added", and the platform-admin Members tab has no join date.</dd></dl></article>
+
+<article class="cr" id="cr-009"><h4><span class="id">CR-009</span> Home-page create account becomes a dealership inquiry <span class="chip amber">Decision</span></h4>
+<dl class="cr-dl"><dt>Client said</dt><dd><blockquote>The client has requested that the create account functionality on the home page be converted into a way for dealerships wanting to inquire and potentially use the service … For now, removing the button to create account from the home page will suffice.</blockquote></dd>
+<dt>Our reading</dt><dd>The inquiry flow still needs a client discussion, and the document says the interim removal "will suffice". We built only the interim.</dd>
+<dt>What we did</dt><dd>The header, hero and closing call to action of <code>LandingPage.tsx</code> no longer carry a Create account control. They offer Sign in, Decode a VIN and Shop vehicles. The <code>/register</code> route still exists for other entry points.</dd>
+<dt>Why it solves the problem</dt><dd>The home page no longer invites visitors to self-register, which the client wants to replace with a dealership enquiry.</dd>
+<dt>Status</dt><dd>Accepted decision. No dealership inquiry form exists yet, and the sample-ad link "Check your own ads" still goes to <code>/register</code> as an interim (CR-063).</dd></dl></article>
+
+<article class="cr" id="cr-010"><h4><span class="id">CR-010</span> Dealership owner tier and privilege order <span class="chip amber">Decision</span></h4>
+<dl class="cr-dl"><dt>Client said</dt><dd><blockquote>What was also discussed with the client was the potentiality of a dealership specific admin/owner/regional manger account that has some admin capabilities to change things with the dealership, like the platform admin account, but is exclusive to a single dealership. This functionality is optional and should likely be discussed further with the client before full implementation occurs. From most to least privilege: Platform admin; Dealership admin/owner/regional manager; Dealership manager; Dealership staff; User not logged in</blockquote></dd>
+<dt>Our reading</dt><dd>Admin, owner and regional manager were read as one person who runs a single dealership (decision D5, which replaced the earlier "not planned" call). No cross-dealership regional manager was built.</dd>
+<dt>What we did</dt><dd><code>DealerRole</code> is now <code>Owner</code>, <code>Manager</code>, <code>Sales</code>, stored as <code>OWNER</code>, <code>MANAGER</code>, <code>SALES</code>. The platform admin binds the first owner directly. The owner alone has the Dealership profile tab and Join requests (<code>TenantGuard.RequireOwner</code>). A manager has Members and Activity (<code>RequireTeamAccess</code>), and sales members have no Team page (<code>TeamGuard</code> in <code>router.tsx</code>). Each dealership has one active owner, and removing the last one returns <code>409 LAST_OWNER</code>.</dd>
+<dt>Why it solves the problem</dt><dd>The dealership gets its own administrator in the privilege order the client listed, without platform-wide reach.</dd>
+<dt>Status</dt><dd>Accepted decision. The owner cannot edit sign-in emails, delete accounts or edit pending accounts; those stay with the platform admin until the client says otherwise.</dd></dl></article>
+
+<h3>Sortable columns</h3>
+
+<article class="cr" id="cr-011"><h4><span class="id">CR-011</span> Sortable columns on DMS <span class="chip green">Done</span></h4>
+<dl class="cr-dl"><dt>Client said</dt><dd><blockquote>When logged in as any user account &gt; DMS. Sortable Columns: Stock#, Body, Source, Condition, Cost, List Price, Date Added, Open WOS, Status</blockquote></dd>
+<dt>Our reading</dt><dd>Click-to-sort headers on the DMS inventory. The document allows extra sortable columns, so we also sorted the new ones.</dd>
+<dt>What we did</dt><dd>All nine named columns in <code>DmsPage.tsx</code> sort, as do Leads, Sold by, Sold to and Date sold. A header click reloads <code>GET /api/v1/vehicles</code> with <code>sort=field,asc|desc</code>, and <code>VehicleService.Sorted</code> orders the whole filtered list before paging.</dd>
+<dt>Why it solves the problem</dt><dd>Staff order the inventory across every page, not only the page on screen.</dd>
+<dt>Status</dt><dd>Done. Year Make Model and VIN do not sort; they are not in the named list.</dd></dl></article>
+
+<article class="cr" id="cr-012"><h4><span class="id">CR-012</span> Sortable columns on Leads <span class="chip green">Done</span></h4>
+<dl class="cr-dl"><dt>Client said</dt><dd><blockquote>When logged in as any user account &gt; Leads. Sortable Columns: All</blockquote></dd>
+<dt>Our reading</dt><dd>Every data column of the Leads table. The Actions column holds a button, not data.</dd>
+<dt>What we did</dt><dd>Customer, Vehicle of interest, Stage, Owner and Next follow-up sort in <code>LeadsPage.tsx</code>. The first version sorted only the loaded page of 10. The follow-up pass added a server <code>sort</code> parameter (<code>leadsApi.list</code>, <code>LeadService.Sorted</code>), so the sort covers all pages.</dd>
+<dt>Why it solves the problem</dt><dd>A sort that reorders ten rows misleads. This one orders the whole lead list.</dd>
+<dt>Status</dt><dd>Done.</dd></dl></article>
+
+<article class="cr" id="cr-013"><h4><span class="id">CR-013</span> Sortable columns on Team &gt; Members <span class="chip green">Done</span></h4>
+<dl class="cr-dl"><dt>Client said</dt><dd><blockquote>When logged in as any user account &gt; Team &gt; Members. Sortable Columns: Role, Source, Date Added (when added)</blockquote></dd>
+<dt>Our reading</dt><dd>"Date Added (when added)" is the join date from CR-008. "Any user account" cannot include sales members, who have no Team page under the role hierarchy.</dd>
+<dt>What we did</dt><dd>The Members table in <code>TeamPage.tsx</code> has sortable Role (<code>dealerRole</code>), Source (<code>source</code>) and Joined (<code>joinedAt</code>) headers. The list is not paged, so <code>useSort</code> orders every member.</dd>
+<dt>Why it solves the problem</dt><dd>Owners and managers group the team by role, sign-in source or seniority.</dd>
+<dt>Status</dt><dd>Done. The date header reads "Joined", and only owners and managers see the page.</dd></dl></article>
+
+<article class="cr" id="cr-014"><h4><span class="id">CR-014</span> Sortable columns on Team &gt; Activity <span class="chip green">Done</span></h4>
+<dl class="cr-dl"><dt>Client said</dt><dd><blockquote>When logged in as any user account &gt; Team &gt; Activity. Sortable Columns: When, Actor, Action, Record (type followed by number), Source IP, Location</blockquote></dd>
+<dt>Our reading</dt><dd>Six sortable columns on the dealership activity log. The document does not define Location, so it is the place name looked up from the source IP.</dd>
+<dt>What we did</dt><dd><code>AuditLogPanel.tsx</code> has sortable When, Actor, Action, Record, Source IP and Location headers, sent as <code>sort</code> to <code>GET /api/v1/dealer/audit</code>. <code>AuditService.SortFields</code> includes <code>clientIp</code> and <code>clientLocation</code> (stored on <code>AuditEventEntity.ClientLocation</code>), and sorting runs before paging.</dd>
+<dt>Why it solves the problem</dt><dd>Managers order the whole activity history by any column the client named, including where an action came from.</dd>
+<dt>Status</dt><dd>Done. Location comes from an IP lookup, so rows with a private or unresolved address show "Unavailable".</dd></dl></article>
+
+<article class="cr" id="cr-015"><h4><span class="id">CR-015</span> Sortable columns on Team &gt; Join Requests <span class="chip green">Done</span></h4>
+<dl class="cr-dl"><dt>Client said</dt><dd><blockquote>When logged in as any user account &gt; Team &gt; Join Requests. Sortable Columns: Requested, Status, Resolved</blockquote></dd>
+<dt>Our reading</dt><dd>The list is split into a pending table and a history table (CR-025), so Status and Resolved apply to the history table, where those values exist.</dd>
+<dt>What we did</dt><dd>In <code>TeamPage.tsx</code> the pending table sorts on Requested. The history table sorts on Requested, Status and Resolved. The sort runs over every row before the history is cut into pages of 10.</dd>
+<dt>Why it solves the problem</dt><dd>Owners find the oldest waiting request or review past decisions in any order.</dd>
+<dt>Status</dt><dd>Done. The pending table has no Status or Resolved column, since every pending row is unresolved.</dd></dl></article>
+
+<article class="cr" id="cr-016"><h4><span class="id">CR-016</span> Sortable columns on the platform-admin Audit log <span class="chip green">Done</span></h4>
+<dl class="cr-dl"><dt>Client said</dt><dd><blockquote>When logged in as platform admin &gt; Audit log. Sortable Columns: When, Actor, Action, Record (type followed by number), Location</blockquote></dd>
+<dt>Our reading</dt><dd>The same log panel as Team &gt; Activity, with the Dealership column shown.</dd>
+<dt>What we did</dt><dd>The Audit log tab in <code>AdminPage.tsx</code> renders the shared <code>AuditLogPanel</code> over <code>GET /api/v1/admin/audit</code>. When, Actor, Action, Record and Location sort on the server. Dealership and Source IP sort as well.</dd>
+<dt>Why it solves the problem</dt><dd>The platform admin orders the full cross-dealership log instead of scanning it page by page.</dd>
+<dt>Status</dt><dd>Done. Dealership and Source IP go beyond the client's list, which the document allows.</dd></dl></article>
+
+<article class="cr" id="cr-017"><h4><span class="id">CR-017</span> Sortable columns on platform-admin Ad Rules <span class="chip green">Done</span></h4>
+<dl class="cr-dl"><dt>Client said</dt><dd><blockquote>When logged in as platform admin &gt; Ad Rules. Sortable Columns: Enabled, Severity</blockquote></dd>
+<dt>Our reading</dt><dd>Two sortable headers on the compliance rule list.</dd>
+<dt>What we did</dt><dd><code>ComplianceRulesPanel</code> in <code>AdminPage.tsx</code> loads every rule from <code>GET /api/v1/admin/compliance-rules</code> (not paged), and <code>useSort</code> orders them by <code>enabled</code> or <code>severity</code> (BLOCK or REVIEW).</dd>
+<dt>Why it solves the problem</dt><dd>The admin groups enabled and disabled rules, or the blocking ones, together.</dd>
+<dt>Status</dt><dd>Done.</dd></dl></article>
+
+<h3>Sortable columns on platform admin and manager screens</h3>
+
+<article class="cr" id="cr-018"><h4><span class="id">CR-018</span> Pending accounts: sort by Registered <span class="chip green">Done</span></h4>
+<dl class="cr-dl"><dt>Client said</dt><dd><blockquote>When logged in as platform admin &gt; Pending accounts. Sortable Columns: Registered</blockquote></dd>
+<dt>Our reading</dt><dd>The platform admin wants to order the pending-account queue by registration date. No ambiguity.</dd>
+<dt>What we did</dt><dd>The Registered header in <code>PendingAccounts.tsx</code> is sortable and sends <code>sort=createdAt,asc|desc</code> to the pending-users endpoint (<code>AdminPendingUserController</code>). <code>MembershipService.Pending</code> orders the whole queue before it pages. The first version sorted only the visible page of 10, and the follow-up pass moved the sort to the server.</dd>
+<dt>Why it solves the problem</dt><dd>The admin can bring the oldest or newest registrations to the top of the whole queue, not just the page on screen.</dd>
+<dt>Status</dt><dd>Done. Registered is the only sortable column here, as the client listed.</dd></dl></article>
+
+<article class="cr" id="cr-019"><h4><span class="id">CR-019</span> Admin Members: sortable columns <span class="chip green">Done</span></h4>
+<dl class="cr-dl"><dt>Client said</dt><dd><blockquote>When logged in as platform admin &gt; Members. Sortable Columns: Dealership, Role, Sign-in, Status</blockquote></dd>
+<dt>Our reading</dt><dd>Four columns on the platform-admin Members tab should be sortable.</dd>
+<dt>What we did</dt><dd>In <code>AdminPage.tsx</code> the Members table marks <code>legalName</code> (Dealership), <code>dealerRole</code> (Role), <code>signInMethod</code> (Sign-in) and <code>active</code> (Status) as sortable. The <code>useSort</code> helper sorts the full member list, then the page of 10 is cut from the sorted result.</dd>
+<dt>Why it solves the problem</dt><dd>The admin can group members by dealership, role, sign-in type or status without paging through the list by hand.</dd>
+<dt>Status</dt><dd>Done. The sort runs in the browser over the loaded member list, not on the server.</dd></dl></article>
+
+<article class="cr" id="cr-020"><h4><span class="id">CR-020</span> Manager audit menus: sortable columns <span class="chip green">Done</span></h4>
+<dl class="cr-dl"><dt>Client said</dt><dd><blockquote>When logged in as manager account &gt; Any menu with audit. Sortable Columns: Action, Actor, When</blockquote></dd>
+<dt>Our reading</dt><dd>Every per-record history table (on a vehicle, a customer, an ad listing) should sort by Action, Actor and When.</dd>
+<dt>What we did</dt><dd>The history panels in <code>DmsPage.tsx</code>, <code>CrmPage.tsx</code> and <code>AdsPage.tsx</code> pass <code>sortParam(sort)</code> to <code>auditApi.list</code>. <code>AuditService.List</code> applies <code>RecordSortFields</code> (<code>createdAt</code>, <code>actorUsername</code>, <code>action</code>) in the query. The first version sorted only the loaded page, and the follow-up moved it to the server.</dd>
+<dt>Why it solves the problem</dt><dd>A manager checking who changed a record can order the whole history, not only the ten rows on screen.</dd>
+<dt>Status</dt><dd>Done. The team-wide Activity log has its own sortable columns, covered under CR-014 and CR-016.</dd></dl></article>
+
+<h3>Site fixes: duplicate names and unsaved changes</h3>
+
+<article class="cr" id="cr-021"><h4><span class="id">CR-021</span> Full name no longer has to be unique <span class="chip green">Done</span></h4>
+<dl class="cr-dl"><dt>Client said</dt><dd><blockquote>FIX: Currently an account is unable to be created if the full name is already used. Many people have the same name and would be unable to have an account with the current system. I have found three places where this occurs but there may be more.</blockquote></dd>
+<dt>Our reading</dt><dd>People share names, so a used full name must not block account creation on the home-page register, the admin staff-create form or Profile. The old uniqueness rule was intentional, so decision D1 dropped it together with its database index.</dd>
+<dt>What we did</dt><dd><code>NewAccountRules.RequireAvailable</code> in <code>DealerOps.Core</code> now rejects only a taken username, email or phone. The unique full-name index and the <code>DISPLAY_NAME_TAKEN</code> response are gone. Register, admin create-staff and profile save accept a name another account already uses.</dd>
+<dt>Why it solves the problem</dt><dd>Two people with the same name can each have an account.</dd>
+<dt>Status</dt><dd>Done. The client said there may be other places; we checked the three named flows and found no other full-name check in the backend.</dd></dl></article>
+
+<article class="cr" id="cr-022"><h4><span class="id">CR-022</span> Confirm before losing unsaved changes <span class="chip gray">Decision</span></h4>
+<dl class="cr-dl"><dt>Client said</dt><dd><blockquote>Fix: Many menus give no confirmation when there is unsaved data or when changes are made, this can cause many issues such as, accidental changes, loss of data, frustration, … screenshots (Platform admin &gt; Dealerships &gt; Edit; DMS &gt; Add vehicle + Edit; CRM &gt; Add customer + Edit; Leads &gt; Add lead + Edit)</blockquote></dd>
+<dt>Our reading</dt><dd>The text mentions "unsaved data" and "changes are made" without saying whether every save needs a prompt. We read it as a discard warning on the four named menus (DMS is the vehicle inventory, CRM the customer records), plus a save prompt only where the client asks for one (CR-023, CR-024). A prompt on every routine save would add a click to daily CRM and DMS work.</dd>
+<dt>What we did</dt><dd><code>FormDrawer</code> takes a <code>dirty</code> flag and asks before closing a form with unsaved edits. It is wired into the dealership and member drawers in <code>AdminPage.tsx</code>, the vehicle drawer in <code>DmsPage.tsx</code>, the customer drawer in <code>CrmPage.tsx</code>, the Add lead drawer in <code>LeadsPage.tsx</code>, and the member-edit drawer in <code>TeamPage.tsx</code>. The last two were added in the follow-up pass.</dd>
+<dt>Why it solves the problem</dt><dd>Closing a form by accident no longer throws away typed data.</dd>
+<dt>Status</dt><dd>Accepted decision. Ordinary saves on these menus are not confirmed on purpose, as recorded in the client delivery note. The client can ask for it.</dd></dl></article>
+
+<article class="cr" id="cr-023"><h4><span class="id">CR-023</span> Confirm before saving the dealership profile <span class="chip green">Done</span></h4>
+<dl class="cr-dl"><dt>Client said</dt><dd><blockquote>Logged in as manager account &gt; Team &gt; Dealership profile. A larger change like this should require a confirmation before it is saved.</blockquote></dd>
+<dt>Our reading</dt><dd>Saving the dealership profile is a bigger change and needs an explicit confirm step.</dd>
+<dt>What we did</dt><dd><code>TeamPage.tsx</code> opens a <code>ConfirmDialog</code> titled "Save dealership profile" with a Save button. The profile is written only after the user confirms. Under the later role hierarchy (D5) the profile tab is visible to the owner only.</dd>
+<dt>Why it solves the problem</dt><dd>Dealership details cannot be overwritten by one stray click.</dd>
+<dt>Status</dt><dd>Done.</dd></dl></article>
+
+<article class="cr" id="cr-024"><h4><span class="id">CR-024</span> Confirm before closing a lead <span class="chip green">Done</span></h4>
+<dl class="cr-dl"><dt>Client said</dt><dd><blockquote>Logged in as any user account &gt; Leads &gt; Open. When closing a lead, confirm before saving</blockquote></dd>
+<dt>Our reading</dt><dd>Setting a lead to a closed outcome should ask first.</dd>
+<dt>What we did</dt><dd>In <code>LeadsPage.tsx</code>, saving a lead whose stage is Won or Lost opens a "Close lead" <code>ConfirmDialog</code>. It names the outcome and says the lead stays locked until someone reopens it (reopening is CR-041).</dd>
+<dt>Why it solves the problem</dt><dd>An accidental closure is caught before it is saved.</dd>
+<dt>Status</dt><dd>Done. Lead edits that do not close the lead save without a prompt.</dd></dl></article>
+
+<h3>Team activity and audit log</h3>
+
+<article class="cr" id="cr-025"><h4><span class="id">CR-025</span> Join requests split into Pending and History <span class="chip green">Done</span></h4>
+<dl class="cr-dl"><dt>Client said</dt><dd><blockquote>Change: Currently join requests lists every single request, I feel this should be split into to tables, one for current requests that need to be approved or rejected and one for all past requests that have been approved or rejected.</blockquote></dd>
+<dt>Our reading</dt><dd>One table for open requests and one for resolved ones. No ambiguity.</dd>
+<dt>What we did</dt><dd>The Join requests tab in <code>TeamPage.tsx</code> has a "Pending" table with Approve and Reject actions, always shown in full. A "History" table lists resolved requests, 10 per page. Both read the dealer notifications endpoint with <code>includeResolved=true</code>.</dd>
+<dt>Why it solves the problem</dt><dd>Requests that need a decision are no longer mixed in with old ones.</dd>
+<dt>Status</dt><dd>Done.</dd></dl></article>
+
+<article class="cr" id="cr-026"><h4><span class="id">CR-026</span> Label the day pickers <span class="chip green">Done</span></h4>
+<dl class="cr-dl"><dt>Client said</dt><dd><blockquote>Change: The day pickers in the team activity page are unlabelled, and it may be difficult for a user to figure out their functionality. Additionally there are day pickers in the admin audit log that should also be changed accordingly.</blockquote></dd>
+<dt>Our reading</dt><dd>Both date inputs on Team &gt; Activity and on the platform-admin Audit log need visible captions.</dd>
+<dt>What we did</dt><dd>Both screens use the shared <code>AuditLogPanel.tsx</code>. Its two date inputs sit inside <code>filter-date</code> labels reading "From date" and "To date".</dd>
+<dt>Why it solves the problem</dt><dd>A user can see what each date box filters without guessing.</dd>
+<dt>Status</dt><dd>Done. One shared component meant both logs changed together.</dd></dl></article>
+
+<article class="cr" id="cr-027"><h4><span class="id">CR-027</span> Search the activity log by the change made <span class="chip green">Done</span></h4>
+<dl class="cr-dl"><dt>Client said</dt><dd><blockquote>Change: There should be a way to search the activity log based on the change made, such as searching the word “password” to find all login requests made with passwords.</blockquote></dd>
+<dt>Our reading</dt><dd>A free-text search over what each log entry says changed, including the sign-in method.</dd>
+<dt>What we did</dt><dd><code>AuditLogPanel.tsx</code> has a "Search changes" box that sends <code>q</code>. <code>AuditService</code> matches it, ignoring case, against the action and record names and the stored <code>FieldSummary</code> and <code>PreviousValues</code> text. A later audit found this search returned a server error on every query. It now uses <code>IndexOf</code>, which MySQL accepts for these JSON columns.</dd>
+<dt>Why it solves the problem</dt><dd>A manager can type "password" and see every sign-in that used one.</dd>
+<dt>Status</dt><dd>Done.</dd></dl></article>
+
+<article class="cr" id="cr-028"><h4><span class="id">CR-028</span> Activity filters in column order <span class="chip green">Done</span></h4>
+<dl class="cr-dl"><dt>Client said</dt><dd><blockquote>Change: The search options and columns should be in the same order to improve the look of the page. (Logged in as any manager account &gt; Team &gt; Activity)</blockquote></dd>
+<dt>Our reading</dt><dd>The filter row should follow the left-to-right order of the table columns.</dd>
+<dt>What we did</dt><dd>In <code>AuditLogPanel.tsx</code> the inputs run When (From and To dates), Actor, Action, Record, then Changes, matching the table. The platform-admin log adds a Dealership filter in the same relative position as its column.</dd>
+<dt>Why it solves the problem</dt><dd>Each filter sits in the same order as the column it affects, so the page reads cleanly.</dd>
+<dt>Status</dt><dd>Done.</dd></dl></article>
+
+<h3>DMS search boxes and the Add Vehicle form</h3>
+
+<article class="cr" id="cr-029"><h4><span class="id">CR-029</span> Remove the DMS Make and Model boxes <span class="chip green">Done</span></h4>
+<dl class="cr-dl"><dt>Client said</dt><dd><blockquote>The “Make” and “Model” Boxes in DMS are redundant as the “Search VIN, make, or model” provides the same functionality in a better format. I suggest the “Make” and “Model” boxes be removed.</blockquote></dd>
+<dt>Our reading</dt><dd>Delete the two filters. The search field already covers them.</dd>
+<dt>What we did</dt><dd>The DMS filter row in <code>DmsPage.tsx</code> has no Make or Model boxes. The remaining search field, "Search VIN, stock #, make or model", is served by <code>VehicleService</code>.</dd>
+<dt>Why it solves the problem</dt><dd>One search box does the job and the filter row is shorter.</dd>
+<dt>Status</dt><dd>Done.</dd></dl></article>
+
+<article class="cr" id="cr-030"><h4><span class="id">CR-030</span> Year filter becomes a typeable box <span class="chip green">Done</span></h4>
+<dl class="cr-dl"><dt>Client said</dt><dd><blockquote>The “Year” box in DMS is difficult to use as there are many years listed. I suggest that this box be turned into a typeable box.</blockquote></dd>
+<dt>Our reading</dt><dd>Replace the year dropdown in the DMS filter bar with an input the user types in.</dd>
+<dt>What we did</dt><dd>The filter is now a number input (<code>type="number"</code>, 1900 to next year, placeholder "Year"). Its value goes to the vehicle list as an exact <code>modelYear</code>.</dd>
+<dt>Why it solves the problem</dt><dd>The user types 2019 instead of scrolling a long list.</dd>
+<dt>Status</dt><dd>Done. It matches one exact year, not a range.</dd></dl></article>
+
+<article class="cr" id="cr-031"><h4><span class="id">CR-031</span> Search by Stock # <span class="chip green">Done</span></h4>
+<dl class="cr-dl"><dt>Client said</dt><dd><blockquote>Additionally, I suggest adding a box to be able to search based on Stock #</blockquote></dd>
+<dt>Our reading</dt><dd>The client wants stock-number search. We added it to the existing search field instead of adding another box, which keeps the filter row short.</dd>
+<dt>What we did</dt><dd>The DMS search field sends <code>q</code>, and <code>VehicleService</code> matches it against <code>StockNumber</code> with a partial <code>LIKE</code>, next to VIN, make and model. Suggestions show the stock number as a hint, and the Stock # column is sortable.</dd>
+<dt>Why it solves the problem</dt><dd>Staff can find a car by the number on its tag.</dd>
+<dt>Status</dt><dd>Done. There is no separate Stock # box.</dd></dl></article>
+
+<article class="cr" id="cr-032"><h4><span class="id">CR-032</span> Add Vehicle make list: major brands and all brands <span class="chip green">Done</span></h4>
+<dl class="cr-dl"><dt>Client said</dt><dd><blockquote>The “Add Vehicle” drop down menu is difficult to use because of its size, I suggest splitting the drop down into two sections, one listing major brands and one listing every brand. Similar to that seen on Autotrader (see screenshots).</blockquote></dd>
+<dt>Our reading</dt><dd>The make dropdown on Add vehicle gets a short "popular" group on top and the full list below.</dd>
+<dt>What we did</dt><dd><code>DmsPage.tsx</code> renders the make select as two <code>optgroup</code>s, "Popular makes" and "All makes". <code>groupMakes</code> in <code>vehicleRules.ts</code> builds the popular group from a fixed <code>POPULAR_MAKES</code> list.</dd>
+<dt>Why it solves the problem</dt><dd>Common brands sit at the top, so the user does not scroll the whole catalog.</dd>
+<dt>Status</dt><dd>Done. Which brands count as popular is our own fixed list.</dd></dl></article>
+
+<article class="cr" id="cr-033"><h4><span class="id">CR-033</span> Model year limited to the selected vehicle <span class="chip green">Done</span></h4>
+<dl class="cr-dl"><dt>Client said</dt><dd><blockquote>The “model Year” drop down menu is difficult to use because of its size. If possible, I suggest only listing model years that the selected vehicle can be used with. If this is too hard to implement for every vehicle I suggest only implementing it for common vehicles.</blockquote></dd>
+<dt>Our reading</dt><dd>The client offered a fallback of covering only common vehicles. We took it (decision D6).</dd>
+<dt>What we did</dt><dd><code>modelYearsFor(make, model, fallback)</code> in <code>vehicleRules.ts</code> looks up a static <code>MODEL_YEARS</code> table of production-year ranges for common make and model pairs. The Add and Edit vehicle forms use it for the Model year list. Any other pair keeps the full year list.</dd>
+<dt>Why it solves the problem</dt><dd>For common cars the list shrinks to years the car was built.</dd>
+<dt>Status</dt><dd>Done within the client's fallback. Uncommon vehicles still show every year, and the table is static, not decoded live.</dd></dl></article>
+
+<article class="cr" id="cr-034"><h4><span class="id">CR-034</span> VIN box moved to the top <span class="chip green">Done</span></h4>
+<dl class="cr-dl"><dt>Client said</dt><dd><blockquote>Additionally, I suggest that the VIN box should be moved to the top.</blockquote></dd>
+<dt>Our reading</dt><dd>The sentence gives no page path. It follows the Add Vehicle model-year note, so we read it as the Add and Edit vehicle form.</dd>
+<dt>What we did</dt><dd>In <code>DmsPage.tsx</code> the vehicle form field list starts with <code>vin</code> (required), followed by make, model, model year and the rest. The decode button next to it fills make, model and year from the VIN.</dd>
+<dt>Why it solves the problem</dt><dd>Staff enter the VIN first and can derive the other fields from it.</dd>
+<dt>Status</dt><dd>Done. If the client meant the DMS list filter, VIN search is already part of the first search field there.</dd></dl></article>
+
+<h3>DMS and lead search boxes</h3>
+
+<article class="cr" id="cr-035"><h4><span class="id">CR-035</span> Search for vehicles with open work orders <span class="chip green">Done</span></h4>
+<dl class="cr-dl"><dt>Client said</dt><dd><blockquote>I would also suggest that a box be created to search for vehicles with open work orders</blockquote></dd>
+<dt>Our reading</dt><dd>A filter that narrows the inventory to vehicles still being worked on. The document names no page. The sentence sits in the DMS (dealer management system, the vehicle inventory) search-box passage, so we put it on DMS.</dd>
+<dt>What we did</dt><dd>The DMS filter row has an "Open work orders only" checkbox. It sends <code>openWorkOrdersOnly</code> to the vehicle list endpoint, and <code>VehicleService</code> keeps vehicles with at least one open or in-progress work order, the same count shown in the "Open WOs" column.</dd>
+<dt>Why it solves the problem</dt><dd>Staff no longer scan the whole table to find vehicles with unfinished repair work.</dd>
+<dt>Status</dt><dd>Done. It is a checkbox, not a typed text box, because the question is yes or no.</dd></dl></article>
+
+<h3>Leads: Add lead form and filters</h3>
+
+<article class="cr" id="cr-036"><h4><span class="id">CR-036</span> Customer and Vehicle of interest pickers <span class="chip green">Done</span></h4>
+<dl class="cr-dl"><dt>Client said</dt><dd><blockquote>The “Customer” and “Vehicle of interest” boxes are confusing and difficult to use, I suggest making the boxes similar to that seen in the leads menu (see screenshot).</blockquote></dd>
+<dt>Our reading</dt><dd>Replace the long dropdowns on the Add lead form with the type-ahead search already on the Leads list. The screenshots show only that comparison, so we reused that control.</dd>
+<dt>What we did</dt><dd>In <code>LeadsPage.tsx</code> the Add lead drawer uses the shared <code>SearchSuggest</code> component for Customer ("Search customers") and Vehicle of interest ("Search vehicles (blank for none)"). It is the same component as the list filter boxes. The user types, picks a suggestion, and may leave the vehicle blank.</dd>
+<dt>Why it solves the problem</dt><dd>Typing and picking replaces scrolling a long list, and the form behaves like the Leads list users already know.</dd>
+<dt>Status</dt><dd>Done.</dd></dl></article>
+
+<article class="cr" id="cr-037"><h4><span class="id">CR-037</span> Partial-name search in team activity <span class="chip green">Done</span></h4>
+<dl class="cr-dl"><dt>Client said</dt><dd><blockquote>When searching team activity by users results are not shown on partial searches, I suggest searches being able to work with partial searches</blockquote></dd>
+<dt>Our reading</dt><dd>Typing part of a username in the Team &gt; Activity actor filter should still find matching rows.</dd>
+<dt>What we did</dt><dd><code>AuditService</code> matches the actor filter as a case-insensitive "contains" on the actor username (<code>ActorUsername.ToLower().Contains(actor)</code>) instead of an exact match. The platform-admin audit log uses the same service, so partial actor search works there too (CR-059).</dd>
+<dt>Why it solves the problem</dt><dd>A manager who remembers only part of a name gets results instead of an empty table.</dd>
+<dt>Status</dt><dd>Done.</dd></dl></article>
+
+<article class="cr" id="cr-038"><h4><span class="id">CR-038</span> Owner pre-filled with the creator <span class="chip green">Done</span></h4>
+<dl class="cr-dl"><dt>Client said</dt><dd><blockquote>In the leads page, I suggest that the owner field be already filled in, but changeable, to the individual creating a lead.</blockquote></dd>
+<dt>Our reading</dt><dd>When Add lead opens, Owner defaults to the signed-in user, and another member can still be picked.</dd>
+<dt>What we did</dt><dd>When the Add lead form opens, <code>LeadsPage.tsx</code> sets <code>ownerUsername</code> to <code>session.username</code>. Owner remains a select of the dealership's members, so the user can change it before saving.</dd>
+<dt>Why it solves the problem</dt><dd>Most leads belong to the person who creates them, so the usual case needs no extra click.</dd>
+<dt>Status</dt><dd>Done.</dd></dl></article>
+
+<article class="cr" id="cr-039"><h4><span class="id">CR-039</span> Vehicle search box on Leads <span class="chip green">Done</span></h4>
+<dl class="cr-dl"><dt>Client said</dt><dd><blockquote>Additionally, I suggest that a search box be added for vehicle name.</blockquote></dd>
+<dt>Our reading</dt><dd>A second filter on the Leads list that finds leads by the vehicle they are about.</dd>
+<dt>What we did</dt><dd>The Leads filter row has a "Vehicle" box (a <code>SearchSuggest</code>) that sends <code>vehicle</code> to the lead list. The server matches year, make and model, and also VIN, so a name or a VIN finds the lead.</dd>
+<dt>Why it solves the problem</dt><dd>Staff can list every lead for one car without opening each customer.</dd>
+<dt>Status</dt><dd>Done.</dd></dl></article>
+
+<article class="cr" id="cr-040"><h4><span class="id">CR-040</span> Customer name box updates as you type <span class="chip green">Done</span></h4>
+<dl class="cr-dl"><dt>Client said</dt><dd><blockquote>I also suggest that when a name is typed into the “customer name” box the list should auto update, similar to the DMS and CRM pages.</blockquote></dd>
+<dt>Our reading</dt><dd>The Leads list refreshes while the user types, with no Search button.</dd>
+<dt>What we did</dt><dd><code>LeadsPage.tsx</code> reloads the list 300 ms after typing stops (<code>FILTER_DEBOUNCE_MS</code>) and skips the reload when the filters match the last request.</dd>
+<dt>Why it solves the problem</dt><dd>The list narrows as the user types, as DMS and CRM do, without a request on every keystroke.</dd>
+<dt>Status</dt><dd>Done.</dd></dl></article>
+
+<h3>Leads: reopening a closed lead</h3>
+
+<article class="cr" id="cr-041"><h4><span class="id">CR-041</span> Reopen a closed lead <span class="chip gray">Decision</span></h4>
+<dl class="cr-dl"><dt>Client said</dt><dd><blockquote>Change: There should be a way to reopen leads that are closed, this can be useful in the case of something like an accidental closure.</blockquote></dd>
+<dt>Our reading</dt><dd>Won and lost leads should be recoverable, mainly after a mis-click. The document does not say whether a lead closed by a real sale may reopen. We decided it may not (D7).</dd>
+<dt>What we did</dt><dd>Opening a won or lost lead shows Reopen with a stage choice of New, Contacted or Qualified. <code>LeadService.Reopen</code> moves the lead to that stage, clears the lost reason and writes an audit row. A lost lead can always reopen. A won lead cannot reopen if its vehicle was sold to that lead's customer. Reopen is also refused when it would create a second open lead for the same customer and vehicle, or when the vehicle is no longer in stock.</dd>
+<dt>Why it solves the problem</dt><dd>An accidental Won or Lost no longer strands the lead, and a recorded sale cannot be contradicted.</dd>
+<dt>Status</dt><dd>Accepted decision (D7). The drawer still shows Reopen on a sold-won lead, and the refusal appears after the click.</dd></dl></article>
+
+<h3>CRM customers</h3>
+
+<article class="cr" id="cr-042"><h4><span class="id">CR-042</span> Leads column replaces Vehicles purchased <span class="chip green">Done</span></h4>
+<dl class="cr-dl"><dt>Client said</dt><dd><blockquote>Changes: The vehicles purchased column in CRM feels unnecessary as many people will only purchase a handful of vehicles in their life, so being able to see how many they have bought is not as useful information. I would suggest replacing this with the leads for the customer.</blockquote></dd>
+<dt>Our reading</dt><dd>In CRM (the customer list), replace the purchase count with lead information. The list shows a lead count, and the customer's individual leads are reachable from the drawer (CR-043).</dd>
+<dt>What we did</dt><dd><code>CustomerListItem</code> carries <code>LeadCount</code>, and the CRM table shows a Leads column. There is no Vehicles purchased column. Linked purchases stay visible in the customer detail (D8).</dd>
+<dt>Why it solves the problem</dt><dd>The list shows current sales activity per customer instead of a count that rarely changes.</dd>
+<dt>Status</dt><dd>Done.</dd></dl></article>
+
+<article class="cr" id="cr-043"><h4><span class="id">CR-043</span> Add a lead from the customer menu <span class="chip green">Done</span></h4>
+<dl class="cr-dl"><dt>Client said</dt><dd><blockquote>Changes: Being able to add a lead inside of the customer menu would provide extra functionality and usefulness</blockquote></dd>
+<dt>Our reading</dt><dd>A shortcut from an open customer to a new lead for that customer.</dd>
+<dt>What we did</dt><dd>The open-customer drawer on the CRM page has a "New lead" action that opens Add lead with that customer selected.</dd>
+<dt>Why it solves the problem</dt><dd>Staff stay on the customer instead of finding the same customer again on the Leads page.</dd>
+<dt>Status</dt><dd>Done, per the implementation check file. I did not re-read the button wiring in source.</dd></dl></article>
+
+<article class="cr" id="cr-044"><h4><span class="id">CR-044</span> Notes on customers <span class="chip green">Done</span></h4>
+<dl class="cr-dl"><dt>Client said</dt><dd><blockquote>Changes: There should be a way to add notes about customers in the customer menu</blockquote></dd>
+<dt>Our reading</dt><dd>A free-text notes field on each customer, edited in the customer drawer.</dd>
+<dt>What we did</dt><dd>Customers have a <code>Notes</code> field of up to 2000 characters in <code>CreateCustomerRequest</code>, <code>PatchCustomerRequest</code> and <code>CustomerDetail</code>. The CRM drawer shows it as a "Notes" textarea that saves with the rest of the customer.</dd>
+<dt>Why it solves the problem</dt><dd>Preferences and past conversations are kept on the customer record.</dd>
+<dt>Status</dt><dd>Done. It is one notes field per customer, not a list of dated notes.</dd></dl></article>
+
+<article class="cr" id="cr-045"><h4><span class="id">CR-045</span> Warn before creating a duplicate customer <span class="chip green">Done</span></h4>
+<dl class="cr-dl"><dt>Client said</dt><dd><blockquote>Changes: When creating a new customer if the name, email, phone, or address are the same, I suggest that a notification pop up saying something similar to “a customer with this name/email/phone/address (based on what it is) already exists, are you sure you would like to create a new customer” before allowing creation. … This both in the regular customer creation and customer creation through the leads page</blockquote></dd>
+<dt>Our reading</dt><dd>Warn, then let the user confirm and continue (D1). It applies to CRM add and edit and to the new-customer path inside Add lead.</dd>
+<dt>What we did</dt><dd><code>GET /customers/duplicates</code> (<code>CustomerService.Duplicates</code>) returns which of name, email, phone and home address match another customer. The CRM page and the Add lead form call it before saving and show a confirm message naming the matching fields. The user can proceed or cancel.</dd>
+<dt>Why it solves the problem</dt><dd>Accidental double entries are caught, and real look-alikes such as shared names can still be created.</dd>
+<dt>Status</dt><dd>Done.</dd></dl></article>
+
+<article class="cr" id="cr-046"><h4><span class="id">CR-046</span> Customer phone numbers may be shared <span class="chip green">Done</span></h4>
+<dl class="cr-dl"><dt>Client said</dt><dd><blockquote>Additionally, phone numbers are exclusive for customers, I feel they shouldn’t be as some people share a phone number and may want separate customer profile.</blockquote></dd>
+<dt>Our reading</dt><dd>Remove the per-dealership phone uniqueness for customers (D1). Login accounts are separate and keep unique phones.</dd>
+<dt>What we did</dt><dd><code>CustomerService</code> create and update no longer reject a phone that another customer has. A matching phone triggers only the confirm prompt from CR-045. Account phone uniqueness is unchanged.</dd>
+<dt>Why it solves the problem</dt><dd>Family members or colleagues who share a phone can each have a customer profile.</dd>
+<dt>Status</dt><dd>Done.</dd></dl></article>
+
+<h3>DMS vehicle rules and leads</h3>
+
+<article class="cr" id="cr-047"><h4><span class="id">CR-047</span> VIN must match vehicle information <span class="chip green">Done</span></h4>
+<dl class="cr-dl"><dt>Client said</dt><dd><blockquote>Changes: VINs should be forced to match vehicle information in DMS page</blockquote></dd>
+<dt>Our reading</dt><dd>The document gives no rule. Under D9, "vehicle information" means make, model and model year, the three fields the Decode button already fills.</dd>
+<dt>What we did</dt><dd>On create, and on edit when the VIN, make, model or year changes, <code>VehicleService.RequireVinMatchesVehicle</code> decodes the VIN through the existing vPIC (NHTSA vehicle data) catalog client. It refuses the save with a field error on <code>make</code>, <code>model</code> or <code>modelYear</code> when they disagree with the decode. Make and model compare ignoring case, spacing and punctuation, and a field the decoder leaves blank is not checked.</dd>
+<dt>Why it solves the problem</dt><dd>A mistyped VIN, or a wrong make, model or year, can no longer be saved together.</dd>
+<dt>Status</dt><dd>Done (D9). If vPIC is down, times out or does not know the VIN, the save falls back to checking the VIN's model-year character, so a vehicle can always be added. The older check file and delivery note still describe the year-code-only version.</dd></dl></article>
+
+<article class="cr" id="cr-048"><h4><span class="id">CR-048</span> Carfax URL must be a real Carfax link <span class="chip amber">Partial</span></h4>
+<dl class="cr-dl"><dt>Client said</dt><dd><blockquote>Changes: I suggest that the “Carfax URL” box in DMS should be exclusive and require an actual Carfax link before the information is saved.</blockquote></dd>
+<dt>Our reading</dt><dd>"Exclusive" can mean one URL per vehicle or Carfax links only. We read it as Carfax links only and have asked the client which they meant.</dd>
+<dt>What we did</dt><dd><code>VehicleService.RequireCarfaxLink</code> runs on create and edit. It rejects a non-empty value that is not an https link on carfax.com, carfax.ca or a subdomain of either, with a message on <code>carfaxUrl</code>. The DMS form repeats the check before saving.</dd>
+<dt>Why it solves the problem</dt><dd>Arbitrary text or non-Carfax links can no longer be stored in the report link field.</dd>
+<dt>Status</dt><dd>Partial. The same URL can be saved on two vehicles, and a blank URL is allowed because Carfax is optional. A unique-per-vehicle rule is not built.</dd></dl></article>
+
+<article class="cr" id="cr-049"><h4><span class="id">CR-049</span> A sale must name a buyer <span class="chip green">Done</span></h4>
+<dl class="cr-dl"><dt>Client said</dt><dd><blockquote>Changes: When selling a vehicle, I suggest that the vehicle sale is required to link to a customer before it can be sold, with the option to pick “other” and manually type in a buyer.</blockquote></dd>
+<dt>Our reading</dt><dd>The sell dialog needs a CRM customer, or Other plus a typed buyer name (D8).</dd>
+<dt>What we did</dt><dd><code>VehicleService</code> refuses a sale with neither a customer nor a typed buyer ("Choose a customer, or Other with the buyer's name"). A chosen customer is linked to the vehicle. With Other, the typed name is stored as <code>SoldToName</code> and no customer link is made. The DMS "Sold to" column shows whichever applies.</dd>
+<dt>Why it solves the problem</dt><dd>Every sale has a recorded buyer, so the Sold to column and the customer's purchase history agree.</dd>
+<dt>Status</dt><dd>Done.</dd></dl></article>
+
+<article class="cr" id="cr-050"><h4><span class="id">CR-050</span> Leads shown in DMS vehicle information <span class="chip green">Done</span></h4>
+<dl class="cr-dl"><dt>Client said</dt><dd><blockquote>Changes: I suggest that leads be added to vehicle information in DMS, with the possible addition of a column for the amount of leads a vehicle has this would help unify the systems available for the site.</blockquote></dd>
+<dt>Our reading</dt><dd>Show a vehicle's leads in its detail view. The lead-count column is optional in the document, and we added it.</dd>
+<dt>What we did</dt><dd>The DMS edit drawer renders <code>VehicleLeadsPanel</code>, which lists that vehicle's leads. The inventory table has a sortable "Leads" column from <code>leadCount</code> in <code>VehicleResponse</code>.</dd>
+<dt>Why it solves the problem</dt><dd>Staff see interest in a vehicle without leaving DMS.</dd>
+<dt>Status</dt><dd>Done.</dd></dl></article>
+
+<article class="cr" id="cr-051"><h4><span class="id">CR-051</span> No duplicate leads <span class="chip gray">Decision</span></h4>
+<dl class="cr-dl"><dt>Client said</dt><dd><blockquote>Changes: Duplicate leads, with the same customer and vehicle, should not be able to be created, in order to avoid redundancy.</blockquote></dd>
+<dt>Our reading</dt><dd>One open lead per customer and vehicle (D7). A closed lead does not block a returning customer from starting a new one.</dd>
+<dt>What we did</dt><dd><code>LeadService</code> raises <code>LEAD_DUPLICATE</code> (HTTP 409, "open that lead instead of adding another") on staff create, when the vehicle of an open lead changes, and on reopen. A buyer-site inquiry from a customer who already has an open lead on that vehicle is added as a note on that lead in <code>BuyerSiteService</code>, and no second lead is created.</dd>
+<dt>Why it solves the problem</dt><dd>The pipeline stops collecting repeated leads for the same customer and car.</dd>
+<dt>Status</dt><dd>Accepted decision (D7). The rule is a query before insert, not a database unique index, and a closed lead does not block a new one.</dd></dl></article>
+
+<h3>Leads tied to vehicle sales</h3>
+
+<article class="cr" id="cr-052"><h4><span class="id">CR-052</span> Sale closes related leads <span class="chip gray">Decision</span></h4>
+<dl class="cr-dl"><dt>Client said</dt><dd><blockquote>Changes: Leads should be tied to vehicle sales. When a vehicle is sold to a customer, they should be automatically closed with the appropriate label applied to the customers tied to the lead. This will increase integration between the systems of the site.</blockquote></dd>
+<dt>Our reading</dt><dd>A sale should close the leads on that vehicle without staff doing it by hand. The document does not name "the appropriate label" or say whether it sits on the lead or the customer, so the lead stage itself was taken as the label (decision D7).</dd>
+<dt>What we did</dt><dd><code>VehicleService.Sell</code> now calls <code>CloseLeadsForSale</code> in the same transaction as the sale. Open leads on that vehicle whose customer is the CRM buyer become Won; every other open lead becomes Lost with the reason "Vehicle sold". Each change is written to the audit log, and the Leads table shows the new stage.</dd>
+<dt>Why it solves the problem</dt><dd>Sold vehicles no longer leave stale open leads behind. Selling in the DMS (dealer management system) page now updates the Leads page, as the client asked.</dd>
+<dt>Status</dt><dd>Accepted decision: Won and Lost are the label, and no separate tag is written on the customer record; a sale to "Other" (no CRM customer) closes every open lead on the vehicle as Lost.</dd></dl></article>
+
+<h3>Profile and staff accounts</h3>
+
+<article class="cr" id="cr-053"><h4><span class="id">CR-053</span> "Full name" label <span class="chip green">Done</span></h4>
+<dl class="cr-dl"><dt>Client said</dt><dd><blockquote>Fix: Display name should be listed as full name in Profile and when creating a staff account through the admin page.</blockquote></dd>
+<dt>Our reading</dt><dd>A visible label change only; the stored field stays as it is.</dd>
+<dt>What we did</dt><dd>The edit field in <code>ProfilePage</code> and the create field in the staff drawer of <code>AdminPage</code> are both labelled "Full name"; the empty-field message reads "Enter the full name." The JSON and database property is still <code>displayName</code>.</dd>
+<dt>Why it solves the problem</dt><dd>Users are no longer asked for a vague "display name" and now enter their real full name.</dd>
+<dt>Status</dt><dd>Done; the staff table column header in that drawer still reads "Name".</dd></dl></article>
+
+<article class="cr" id="cr-054"><h4><span class="id">CR-054</span> Readable username error <span class="chip green">Done</span></h4>
+<dl class="cr-dl"><dt>Client said</dt><dd><blockquote>Fix: When creating a staff account for a dealership, typing the username with incorrect characters returns a difficult to read error.</blockquote></dd>
+<dt>Our reading</dt><dd>The platform admin should see a plain sentence under the Username box instead of a technical message. The document gives neither the wording nor the allowed characters.</dd>
+<dt>What we did</dt><dd><code>CreateMemberRequest.Username</code> carries a plain-English rule: "Username must be 3-64 characters: letters, digits, dot, underscore or hyphen, with at least one letter." Core returns it as a <code>400 VALIDATION</code> field error, and the staff drawer in <code>AdminPage</code> shows it directly under the Username input.</dd>
+<dt>Why it solves the problem</dt><dd>The admin sees which field is wrong and what characters are allowed.</dd>
+<dt>Status</dt><dd>Done; the staff form does not pre-check the rule before submit (the public Register page does), so the message appears after the request.</dd></dl></article>
+
+<h3>Platform admin: binding and pending accounts</h3>
+
+<article class="cr" id="cr-055"><h4><span class="id">CR-055</span> Admin sends join request, not direct bind <span class="chip gray">Decision</span></h4>
+<dl class="cr-dl"><dt>Client said</dt><dd><blockquote>Changes: The platform admin should not be able to directly bind accounts to dealerships, instead they should only be able to send the join request to the dealerships. This will improve security and prevent a platform admin from being able to create an account to go and access a dealerships customer and vehicle database, something the client asked platform admins to not be able to do.</blockquote></dd>
+<dt>Our reading</dt><dd>The dealership, not the platform admin, controls who joins. The document does not say how a brand-new dealership with nobody in it gets its first user, so we allowed one exception (decision D3).</dd>
+<dt>What we did</dt><dd>In <code>MembershipService.Add</code>, once a dealership has an active Owner, the admin's create-staff and bind actions only file a join request (<code>RequestJoin</code>, <code>JoinRequestService.SetRequested</code>) and return <code>202</code>. The dealership approves it in Team > Join Requests. Only while the dealership has no active owner is the login bound directly, as its first Owner.</dd>
+<dt>Why it solves the problem</dt><dd>After onboarding, a platform admin cannot place an account inside a dealership to reach its customers and vehicles.</dd>
+<dt>Status</dt><dd>Accepted decision: the first-owner bootstrap bind remains. <code>RequestJoin</code> still stores the temporary password the admin types, and the admin password-reset for active members still exists, so the security outcome is only partly closed.</dd></dl></article>
+
+<article class="cr" id="cr-056"><h4><span class="id">CR-056</span> Remove pending accounts <span class="chip green">Done</span></h4>
+<dl class="cr-dl"><dt>Client said</dt><dd><blockquote>Changes: Admins should be able to remove pending accounts.</blockquote></dd>
+<dt>Our reading</dt><dd>The platform admin needs a way to clear unwanted sign-ups from the pending queue; hard versus soft delete was not specified.</dd>
+<dt>What we did</dt><dd>Each row in the <code>PendingAccounts</code> component (Admin > Pending accounts and the dealership staff drawer) has a Delete button that opens a "Delete pending account" <code>ConfirmDialog</code>. It calls <code>DELETE /api/v1/admin/pending-users/{username}</code> (<code>AdminPendingUserController.Delete</code>, <code>MembershipService.DeletePending</code>), which retires the login and writes an audit row.</dd>
+<dt>Why it solves the problem</dt><dd>Mistaken or junk registrations no longer sit in the queue forever.</dd>
+<dt>Status</dt><dd>Done; removal is a soft delete, and the screen loads one page of 10 pending accounts with no pager.</dd></dl></article>
+
+<article class="cr" id="cr-057"><h4><span class="id">CR-057</span> Edit pending accounts <span class="chip green">Done</span></h4>
+<dl class="cr-dl"><dt>Client said</dt><dd><blockquote>Changes: Pending accounts should be able to be edited in some way by admin, such as email, phone, username, in the event that account creation information was accidentally input incorrectly.</blockquote></dd>
+<dt>Our reading</dt><dd>The "such as" list was read as the three fields the admin most needs to correct: username, email and phone.</dd>
+<dt>What we did</dt><dd>Each pending row has Edit, which opens a dialog with username, login email and login phone and calls <code>PATCH /api/v1/admin/pending-users/{username}</code> (<code>AdminPendingUserController.Update</code>, <code>MembershipService.UpdatePending</code>). Contact rules and uniqueness are checked, so a value already used by another account is refused.</dd>
+<dt>Why it solves the problem</dt><dd>A typo at sign-up can be fixed by the admin instead of deleting and re-creating the account.</dd>
+<dt>Status</dt><dd>Done; display name is shown but not editable in this dialog.</dd></dl></article>
+
+<h3>Admin audit log</h3>
+
+<article class="cr" id="cr-058"><h4><span class="id">CR-058</span> Audit log order and change search <span class="chip green">Done</span></h4>
+<dl class="cr-dl"><dt>Client said</dt><dd><blockquote>Changes: Admin audit log should have search options and columns should be in the same order. Additionally admin should also be able to search based on changes.</blockquote></dd>
+<dt>Our reading</dt><dd>Filters should follow the table's column sequence, and a free-text box should search what was changed (for example "password"). No exact order was given.</dd>
+<dt>What we did</dt><dd><code>AuditLogPanel</code> lists the filters in column order: From date, To date, Actor, Action, Record type, Dealership, then a "Search changes" box. The columns are When, Actor, Action, Record, Dealership, Changes, Source IP. "Search changes" sends <code>q</code> to <code>GET /api/v1/admin/audit</code>, where <code>AuditService.Filtered</code> matches it against action names, record types and the stored change text, including the login method recorded on sign-in rows.</dd>
+<dt>Why it solves the problem</dt><dd>The page reads consistently, and an admin can find events by what changed rather than only by who or when.</dd>
+<dt>Status</dt><dd>Done; Source IP is a column with no search control, so filters and columns are not exactly the same length.</dd></dl></article>
+
+<article class="cr" id="cr-059"><h4><span class="id">CR-059</span> Audit partial search and date labels <span class="chip green">Done</span></h4>
+<dl class="cr-dl"><dt>Client said</dt><dd><blockquote>Changes: Searches in admin audit log should return results when partial searches are entered. Additionally, as mentioned earlier the day picker boxes are unlabeled.</blockquote></dd>
+<dt>Our reading</dt><dd>Typing part of a name or word should find matches, and the two date boxes need visible captions (same request as CR-026 for the team log).</dd>
+<dt>What we did</dt><dd><code>AuditService.Filtered</code> uses a case-insensitive contains match on the actor username and on the changes text. In <code>AuditLogPanel</code> each date input sits inside a <code>label.filter-date</code> reading "From date" or "To date".</dd>
+<dt>Why it solves the problem</dt><dd>Admins no longer need an exact username, and the date boxes explain themselves.</dd>
+<dt>Status</dt><dd>Done; Action and Record type stay exact dropdowns, and a display name typed without picking a suggestion is not matched.</dd></dl></article>
+
+<h3>Dealership and user administration</h3>
+
+<article class="cr" id="cr-060"><h4><span class="id">CR-060</span> Delete a dealership <span class="chip green">Done</span></h4>
+<dl class="cr-dl"><dt>Client said</dt><dd><blockquote>Changes: Dealerships should be able to be deleted by platform admin; however, this should be a more complex decision requiring at least one extra step to confirm.</blockquote></dd>
+<dt>Our reading</dt><dd>Platform admin may remove a dealership, guarded by an extra confirmation. Hard versus soft delete was not stated, so history is kept (decision D6).</dd>
+<dt>What we did</dt><dd>The Dealerships table in <code>AdminPage</code> has a Delete action that opens a <code>ConfirmDialog</code>; the button stays disabled until the dealership's legal name is typed. It calls <code>DELETE /api/v1/admin/dealers/{id}</code> (<code>DealerAdminService.Delete</code>, platform admin only), which soft-deletes the dealership, unbinds active members and removes it from the admin list and the public shop directory.</dd>
+<dt>Why it solves the problem</dt><dd>Dealerships that should no longer exist can be removed, and the typed-name step prevents accidental deletion.</dd>
+<dt>Status</dt><dd>Done; the action is on the Dealerships row beside Edit, not inside the Edit drawer, and vehicles, sales and audit history are kept.</dd></dl></article>
+
+<article class="cr" id="cr-061"><h4><span class="id">CR-061</span> Delete a user <span class="chip green">Done</span></h4>
+<dl class="cr-dl"><dt>Client said</dt><dd><blockquote>Changes: Admins should be able to delete users; however, this should be a more complex decision requiring at least one extra step to confirm.</blockquote></dd>
+<dt>Our reading</dt><dd>The platform admin deletes a login, with an extra confirmation. We read "admins" as the platform admin on the Members screen.</dd>
+<dt>What we did</dt><dd>On the Members tab of <code>AdminPage</code>, Delete account opens a <code>ConfirmDialog</code> that requires the username to be typed, then calls <code>DELETE /api/v1/admin/dealers/{id}/members/{username}/account</code> (<code>MembershipService.DeleteAccount</code>). It deactivates memberships and retires the login, and the user disappears from lists. Pending accounts have their own confirm-and-delete (CR-056).</dd>
+<dt>Why it solves the problem</dt><dd>Accounts that should not exist can be removed safely, with a deliberate second step.</dd>
+<dt>Status</dt><dd>Done; this is a soft delete (the username and audit rows stay), a platform-admin login cannot be deleted this way, and dealership managers have no delete-account route.</dd></dl></article>
+
+<article class="cr" id="cr-062"><h4><span class="id">CR-062</span> Edit account email and phone <span class="chip green">Done</span></h4>
+<dl class="cr-dl"><dt>Client said</dt><dd><blockquote>Additionally, admin should be able to edit some information on accounts, such as email or phone number.</blockquote></dd>
+<dt>Our reading</dt><dd>The platform admin should be able to correct contact details on existing member accounts; email and phone were taken as the fields in scope.</dd>
+<dt>What we did</dt><dd>The Members tab has Edit contact, with login email and login phone fields, calling <code>PATCH /api/v1/admin/dealers/{id}/members/{username}</code> (<code>AdminMemberController.UpdateContact</code>, <code>MembershipService.UpdateContact</code>). It checks uniqueness and writes an audit row. Pending accounts are edited through the separate path in CR-057.</dd>
+<dt>Why it solves the problem</dt><dd>Wrong or changed contact details can be fixed without recreating the account.</dd>
+<dt>Status</dt><dd>Done; the member dialog edits email and phone only, not username or full name.</dd></dl></article>
+
+<h3>Home page and buyer site</h3>
+
+<article class="cr" id="cr-063"><h4><span class="id">CR-063</span> Sample ads link to sign-up <span class="chip green">Done</span></h4>
+<dl class="cr-dl"><dt>Client said</dt><dd><blockquote>Changes: The sample ads on the home page link to the sign in page. I believe most people who are clicking on the ads are potential users and this should link to the sign-up page.</blockquote></dd>
+<dt>Our reading</dt><dd>Sample-ad visitors are prospects, so the ad should lead to sign-up. This first looked like a conflict with removing the create-account button (CR-009); decision D4 found them compatible, because the button and the ad are different elements.</dd>
+<dt>What we did</dt><dd>On <code>LandingPage</code>, tapping a sample ad row opens the sample check in place, and its only link reads "Check your own ads" and goes to <code>/register</code>. No sample-ad control points to sign-in. The header, hero and closing "Sign in" buttons are separate and unchanged.</dd>
+<dt>Why it solves the problem</dt><dd>A dealership that is interested in the ads reaches the sign-up page rather than a login it has no account for.</dd>
+<dt>Status</dt><dd>Done; once the dealership inquiry page from CR-009 exists, this link is intended to point there instead.</dd></dl></article>
+
+<article class="cr" id="cr-064"><h4><span class="id">CR-064</span> Home page says it is for dealerships <span class="chip green">Done</span></h4>
+<dl class="cr-dl"><dt>Client said</dt><dd><blockquote>Changes: I feel like there should be something bigger on the home page saying that that page is for dealerships and not customers.</blockquote></dd>
+<dt>Our reading</dt><dd>A clear, prominent notice that the site is a dealership tool; the exact wording and size were left to us.</dd>
+<dt>What we did</dt><dd><code>LandingPage</code> shows a <code>div.landing-audience</code> callout (<code>role="note"</code>) directly under the nav and above the hero: "Dealer Ops is software for car dealerships, not a place to buy a car." It also points vehicle shoppers to <code>/shop</code>.</dd>
+<dt>Why it solves the problem</dt><dd>Car buyers who land on the page learn immediately that it is not a place to buy, and are sent to the shop instead.</dd>
+<dt>Status</dt><dd>Done; the notice is a banner above the hero and the page title is unchanged.</dd></dl></article>
+
+<article class="cr" id="cr-065"><h4><span class="id">CR-065</span> Shop page does not say "used" <span class="chip green">Done</span></h4>
+<dl class="cr-dl"><dt>Client said</dt><dd><blockquote>Changes: The dealership shop page shouldn’t say “used” as many dealerships hold and sell new vehicles.</blockquote></dd>
+<dt>Our reading</dt><dd>This is a wording fix on the shop pages, not a new new-versus-used field.</dd>
+<dt>What we did</dt><dd>The <code>/shop</code> directory in <code>ShopPage</code> is headed "Shop vehicles" with the line "Choose a dealership to see the vehicles it has listed." The per-dealership page uses the dealership's legal name as its heading. No "used" wording is generated by the shop code.</dd>
+<dt>Why it solves the problem</dt><dd>Dealerships that sell new cars are not mislabelled.</dd>
+<dt>Status</dt><dd>Done; a dealership can still type "Used" into its own ad text, and the three sample ads on the home page still begin with "Used".</dd></dl></article>
+
+<article class="cr" id="cr-066"><h4><span class="id">CR-066</span> Search dealerships, show address and contact <span class="chip green">Done</span></h4>
+<dl class="cr-dl"><dt>Client said</dt><dd><blockquote>Changes: I suggest that there should be a way to search for dealerships on the dealership shop page. Additionally, I believe it would be good to list dealerships address and some contact information on each of the dealerships on the page</blockquote></dd>
+<dt>Our reading</dt><dd>Visitors need to find a dealership and see where it is and how to reach it. The document does not name the search fields or which contact details, so we chose name and address for search and address, phone and email for display.</dd>
+<dt>What we did</dt><dd><code>DealerDirectory</code> in <code>ShopPage</code> has a "Search dealerships" box ("Search by dealership name or city") that filters the loaded list by <code>legalName</code> plus <code>contactAddress</code>, with a "No dealerships match your search." message. Each card shows <code>contactAddress</code>, <code>contactPhone</code> and <code>contactEmail</code> when present, supplied by <code>PublicDealerController.Dealers</code> via <code>GET /api/v1/catalog/dealers</code>.</dd>
+<dt>Why it solves the problem</dt><dd>A visitor can find the right dealership and contact it without opening every page.</dd>
+<dt>Status</dt><dd>Done; the filter runs in the browser over the loaded list, with no server-side search parameter.</dd></dl></article>
+
+<article class="cr" id="cr-067"><h4><span class="id">CR-067</span> Back button and inventory search <span class="chip green">Done</span></h4>
+<dl class="cr-dl"><dt>Client said</dt><dd><blockquote>Changes: There should be a back button in the dealership buyer site. Additionally there should be a way to search a dealerships inventory for a specific vehicl</blockquote></dd>
+<dt>Our reading</dt><dd>The final word is cut off in the document; we read it as "vehicle". Back goes to the dealership list; search covers the vehicle's basic identity.</dd>
+<dt>What we did</dt><dd><code>DealerInventory</code> (<code>/shop/:dealer</code>) shows a "← Back to dealerships" link to <code>/shop</code>, and a "Search this dealership's vehicles" box (placeholder "Search by make, model or year") once at least one vehicle is listed. Every typed word must occur in the vehicle's model year, make and model. No match shows "No vehicles match your search."</dd>
+<dt>Why it solves the problem</dt><dd>Buyers can return to the list in one click and narrow a long inventory quickly.</dd>
+<dt>Status</dt><dd>Done; search does not cover title, colour, body type or ad text, and VIN is not on the public payload.</dd></dl></article>
+
+<article class="cr" id="cr-068"><h4><span class="id">CR-068</span> Character limit visible on inquiries <span class="chip green">Done</span></h4>
+<dl class="cr-dl"><dt>Client said</dt><dd><blockquote>Changes: When asking about a vehicle, the character limit should be visible when it becomes closer.</blockquote></dd>
+<dt>Our reading</dt><dd>Show the remaining count only as the limit approaches. The document gives neither the limit nor the threshold, so we used the existing 1000-character message rule and a 50-character threshold.</dd>
+<dt>What we did</dt><dd>In the "Ask about this vehicle" <code>FormDrawer</code> of <code>ShopPage</code>, the message box has <code>maxLength</code> set to <code>INQUIRY_MESSAGE_MAX</code> (1000). When 50 or fewer characters remain it shows "{n} of 1000 characters left" (<code>aria-live="polite"</code>). The server enforces the same ceiling in <code>InquiryRequest.Message</code> (<code>[MaxLength(1000)]</code>).</dd>
+<dt>Why it solves the problem</dt><dd>Buyers see the remaining count before the message is cut off, and the counter stays hidden until then.</dd>
+<dt>Status</dt><dd>Done; the 50-character threshold is our choice, as the document does not define "closer".</dd></dl></article>
+
+</section>
+
+<footer>DealerOps iteration report. Claims were checked against the .NET 10 and React source in the V2 working copy; this iteration was developed on branch V2.</footer>
+</main></div></body></html>

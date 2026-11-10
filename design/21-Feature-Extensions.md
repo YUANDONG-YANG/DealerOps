@@ -327,6 +327,7 @@ The user asked for every feasible item from the earlier out-of-scope list: buyer
 | ID | Requirement | Priority |
 |---|---|---|
 | DMS-18 | A vehicle has optional `mileageKm` (0–2,000,000), `exteriorColor` (≤ 40), `fuelType` (`GASOLINE`, `DIESEL`, `HYBRID`, `PLUGIN_HYBRID`, `ELECTRIC`, `OTHER`), `stockNumber` (≤ 20, unique among the dealership's active vehicles, else **400** `VALIDATION` on `stockNumber`), and `listPrice` (≥ 0, two decimals). Patch replaces them (null clears). They are audited like other vehicle fields, locked on a sold vehicle (**409** `SOLD_LOCKED`), and the list search `q` also matches the stock number. The DMS list shows Stock # and List price | Must |
+| DMS-19 | Client review 2026-11-09 (requirements/iteration-3). Choosing source `OTHER` on the add or edit form shows a required **Other source** box (≤ 100, trimmed) for the user's own source name, with the names already used offered as suggestions; any other source stores none (`sourceOther` null). The DMS list gets a **Source** filter; choosing `Other` shows a second dropdown of the dealership's own custom source names (`GET /api/v1/vehicles/source-other-options`, case-insensitive, in-stock and sold) with **All other** first, and the Source column reads `Other: <name>`. Audited, and locked on a sold vehicle (**409** `SOLD_LOCKED`) | Must |
 | PAY-01 | `POST /api/v1/vehicles/{id}/payments` records `amount` (> 0, two decimals), `method` (`CASH`, `DEBIT`, `CREDIT_CARD`, `CHEQUE`, `BANK_TRANSFER`, `FINANCING`, `OTHER`), `paidOn`, and an optional `note` (≤ 200) on a sold vehicle. An in-stock vehicle → **400** `VALIDATION` | Must |
 | PAY-02 | The paid total cannot exceed the sold price, and `paidOn` must be between the sold date and today; each violation → **400** `VALIDATION` with the field | Must |
 | PAY-03 | `GET` returns `soldPrice`, `paidTotal`, `balanceDue`, and the payments newest first; `DELETE …/payments/{paymentId}` removes a mistaken payment from the ledger by soft-deleting it (row kept; design/15 §8.6) | Must |
@@ -345,7 +346,7 @@ The user asked for every feasible item from the earlier out-of-scope list: buyer
 
 ### Data
 
-`vehicle` gains `mileage_km INT NULL`, `exterior_color VARCHAR(40) NULL`, `fuel_type VARCHAR(16) NULL`, `stock_number VARCHAR(20) NULL`, `list_price DECIMAL(12,2) NULL`. New table `vehicle_payment (id, dealer_id, vehicle_id, amount DECIMAL(12,2), method VARCHAR(16), paid_on DATE, note VARCHAR(200) NULL, recorded_by VARCHAR(64), created_at)` with `idx_vehicle_payment_vehicle (dealer_id, vehicle_id)` and foreign keys to `dealer` and `vehicle`. Core adds both at start-up with the idempotent schema patches in `Program.cs`.
+`vehicle` gains `mileage_km INT NULL`, `exterior_color VARCHAR(40) NULL`, `fuel_type VARCHAR(16) NULL`, `stock_number VARCHAR(20) NULL`, `list_price DECIMAL(12,2) NULL`, and (DMS-19, 2026-11-09) `source_other VARCHAR(100) NULL`. New table `vehicle_payment (id, dealer_id, vehicle_id, amount DECIMAL(12,2), method VARCHAR(16), paid_on DATE, note VARCHAR(200) NULL, recorded_by VARCHAR(64), created_at)` with `idx_vehicle_payment_vehicle (dealer_id, vehicle_id)` and foreign keys to `dealer` and `vehicle`. Core adds both at start-up with the idempotent schema patches in `Program.cs`.
 
 ### Acceptance
 

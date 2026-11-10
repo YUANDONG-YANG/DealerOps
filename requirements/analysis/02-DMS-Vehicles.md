@@ -25,11 +25,12 @@ System fields (not in the source, needed to build): `id`, `dealerId`, `status` (
 
 **No extra required fields**: mileage, exterior colour, fuel type, stock number and list price exist only as **optional** listing details (design/21 DMS-18, added 2026-10-21); the specification's required set is unchanged.
 
-Two stored additions come from SCOPE-BASELINE errata 7–8, not from this document:
+These stored additions come from SCOPE-BASELINE errata 7–8 and later client reviews, not from this document:
 
 | Field | Code | Required | Notes |
 |---|---|---|---|
 | Body type | `bodyType` | ❌ | Optional, defaults to `OTHER`; prefilled by the vPIC decode and offered as a list filter (erratum 8, design/21 VIN-03) |
+| Other source | `sourceOther` | Only when source is `OTHER` | ≤ 100 chars; the user's own source name, offered as a second-level list filter (client review 2026-11-09, design/21 DMS-19) |
 | Photos | — | ❌ | Image Studio upload and enhancement, stored in MySQL (`IMG-01–05`) |
 
 ## 3. Vehicle status
@@ -63,6 +64,7 @@ Two stored additions come from SCOPE-BASELINE errata 7–8, not from this docume
 | DMS-15 | Changing vehicle condition turns the vehicle's passed ad check Stale; other vehicle/profile fields are outside the demo invalidation scope (deferred A5) | SCOPE | Must |
 | DMS-16 | Derived values such as profit (sold price − purchase cost − repair cost) may be shown on detail, not stored | Derived | Could |
 | DMS-17 | Soft-delete vehicles from active inventory while retaining sales, work-order, listing, and audit history | Derived / adopted delivery goal | Must |
+| DMS-19 | Source `OTHER` takes a required custom source name; the list filters by source and, under Other, by the custom names already entered (design/21 DMS-19) | Client review 2026-11-09 | Must |
 
 ## 5. Edge cases
 

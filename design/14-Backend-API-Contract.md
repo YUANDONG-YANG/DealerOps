@@ -444,7 +444,7 @@ Platform.Admin only; dealer users and unbound accounts receive **403**. `GET /ap
 
 Admin hitting any URL in this section → **403** `FORBIDDEN` (same as CRM/ads/assistant; the body must not contain vin/cost or other business fields). Staff sees this dealership only. Staff with no valid membership → **403** (see §1.3).
 
-List query: `q` (substring of VIN / make / model / stock number), `make` and `model` (exact match, ignoring case), `modelYear` (exact), `status`=`IN_STOCK`\|`SOLD`, `condition` (that is `conditionCode`), `bodyType` (exact), `unlinkedOnly`=`true` (exclude vehicles linked to any customer), `openWorkOrdersOnly`=`true` (only vehicles with at least one `OPEN` or `IN_PROGRESS` work order, the same count as `openWorkOrders`; D-4), the Ad compliance filters `adKind`=`CASH`\|`FINANCE`\|`LEASE`, `medium`=`ONLINE`\|`RADIO_TV_BILLBOARD`, `checkStatus` (one of the five §8 values, derived exactly as there; anything else → `400 VALIDATION`) and `buyerSite`=`LISTED`\|`NOT_LISTED`\|`TAKEN_DOWN` (`LISTED` by the §12a listing rule; `TAKEN_DOWN` is a sold vehicle whose ad is `READY`; `NOT_LISTED` is the rest), `page`, `size`. A vehicle with no saved ad counts as its virtual draft (§7.1): `CASH`, `ONLINE`, `NEEDS_AI`, not listed. Blank values are ignored and the filters combine with AND. Default `createdAt` descending. Optional `sort=field,asc|desc` (direction defaults to `asc`; CR C7) orders the whole result before paging, with newest first breaking ties; `field` is one of `stockNumber`, `bodyType`, `source`, `conditionCode`, `purchaseCost`, `listPrice`, `addedOn`, `openWorkOrders`, `leadCount`, `status`, `soldOn`, `soldBy`, `soldToName` (the linked customer's name, else the typed buyer name). Any other field or direction → `400 VALIDATION` with a `sort` field error. Blank values (null or empty) sort last in both directions.
+List query: `q` (substring of VIN / make / model / stock number), `make` and `model` (exact match, ignoring case), `modelYear` (exact), `status`=`IN_STOCK`\|`SOLD`, `condition` (that is `conditionCode`), `bodyType` (exact), `source` (exact), `sourceOther` (only `OTHER`-source vehicles whose custom source equals the value, ignoring case; design/21 DMS-19), `unlinkedOnly`=`true` (exclude vehicles linked to any customer), `openWorkOrdersOnly`=`true` (only vehicles with at least one `OPEN` or `IN_PROGRESS` work order, the same count as `openWorkOrders`; D-4), the Ad compliance filters `adKind`=`CASH`\|`FINANCE`\|`LEASE`, `medium`=`ONLINE`\|`RADIO_TV_BILLBOARD`, `checkStatus` (one of the five §8 values, derived exactly as there; anything else → `400 VALIDATION`) and `buyerSite`=`LISTED`\|`NOT_LISTED`\|`TAKEN_DOWN` (`LISTED` by the §12a listing rule; `TAKEN_DOWN` is a sold vehicle whose ad is `READY`; `NOT_LISTED` is the rest), `page`, `size`. A vehicle with no saved ad counts as its virtual draft (§7.1): `CASH`, `ONLINE`, `NEEDS_AI`, not listed. Blank values are ignored and the filters combine with AND. Default `createdAt` descending. Optional `sort=field,asc|desc` (direction defaults to `asc`; CR C7) orders the whole result before paging, with newest first breaking ties; `field` is one of `stockNumber`, `bodyType`, `source`, `conditionCode`, `purchaseCost`, `listPrice`, `addedOn`, `openWorkOrders`, `leadCount`, `status`, `soldOn`, `soldBy`, `soldToName` (the linked customer's name, else the typed buyer name). Any other field or direction → `400 VALIDATION` with a `sort` field error. Blank values (null or empty) sort last in both directions.
 
 ### 4.1 `GET /api/v1/vehicles`
 
@@ -458,6 +458,7 @@ List query: `q` (substring of VIN / make / model / stock number), `make` and `mo
       "model": "Accord",
       "modelYear": 2003,
       "source": "AUCTION",
+      "sourceOther": null,
       "purchaseCost": 14200.00,
       "addedOn": "2026-09-01",
       "conditionCode": "AS_IS",
@@ -492,7 +493,13 @@ Every vehicle response (list, detail, create, patch, sell) also carries `openWor
 
 The listing details (design/21 DMS-18) are optional and nullable: `mileageKm` (integer 0–2,000,000), `exteriorColor` (≤ 40), `fuelType` (`GASOLINE`\|`DIESEL`\|`HYBRID`\|`PLUGIN_HYBRID`\|`ELECTRIC`\|`OTHER`), `stockNumber` (≤ 20, unique among the dealership's active vehicles, else `400 VALIDATION` on `stockNumber`), and `listPrice` (≥ 0, at most two decimals). The list search `q` also matches `stockNumber`.
 
+`sourceOther` (design/21 DMS-19) is the user's own name for an `OTHER` source, for example `Lease return`: on create and PATCH it is required (non-blank, at most 100 characters, trimmed) when `source` is `OTHER`, else `400 VALIDATION` on `sourceOther`; for any other source it is ignored and stored as `null`. PATCH lets an `OTHER` vehicle saved before DMS-19 without one keep it blank. It is audited with the vehicle and locked on a sold vehicle like `source`.
+
 Errors: `401`, `403` (not staff).
+
+### 4.1a `GET /api/v1/vehicles/source-other-options`
+
+Dealer.User; admin or unbound → 403. Returns a JSON array of the `sourceOther` values of this dealership's `OTHER`-source vehicles (in stock or sold, not deleted), for the DMS second-level source filter and the form's suggestions. Values that differ only in case are one entry, spelled as on the most recently added vehicle, sorted ignoring case. Example: `["Fleet sale", "Lease return"]`.
 
 ### 4.2 `POST /api/v1/vehicles` → 201
 
@@ -548,7 +555,7 @@ Response matches a list item. Cross-dealership / no such vehicle → **404**.
 ```
 
 Whitelist is the fields above only, plus `bodyType` and the listing details of §4.1; all are required except `bodyType`, `repairCost`, `carfaxUrl`, and the listing details (full replacement, same rules as 4.2: an omitted or null listing detail clears it). Do not use PATCH to change `status` / `soldOn` / `soldPrice` (use `/sell`). Ignore `dealerId`.  
-Changing purchase fields on a sold vehicle (make/model/year/vin/source/purchaseCost/addedOn/repairCost/carfax, body type, or a listing detail) → **409** `SOLD_LOCKED`.  
+Changing purchase fields on a sold vehicle (make/model/year/vin/source/sourceOther/purchaseCost/addedOn/repairCost/carfax, body type, or a listing detail) → **409** `SOLD_LOCKED`.  
 Changing VIN while unsold is still unique per dealership → `400 VIN_DUP`.  
 Changing `vin`, `make`, `model` or `modelYear` re-runs the CR-047 VIN decode match of §4.2 (with the same fallback when the decoder is unavailable).  
 Changing `conditionCode` (handbook: a condition change voids the old check) → increment the corresponding listing `contentVersion++` (if a listing exists). Changing purchase cost alone does not void the ad.  
@@ -1086,11 +1093,11 @@ Contact fields (`email`, `phone`, `address`, `homeAddress`, `contact*`) are reco
 
 Platform audit log (AUD-10). `Platform.Admin` only; any other caller → **403** `FORBIDDEN`. Returns every audit row across dealerships, including sign-ins and admin operations.
 
-Query (all optional): `entityType`, `entityId`, `action`, `actor` (any part of the username, ignoring case; `anonymous` for unknown sign-in identifiers), `dealerId`, `q` (free text, ignoring case, matched against the action, the record type and the stored change values in `fieldSummary` and `previous`, for example `password`; spaces match the underscores of wire names such as `WORK_ORDER`; CR T3, T5), `from` (inclusive) and `to` (exclusive) as ISO 8601 instants, so the UI can filter by the viewer's local days, `sort=field,asc|desc` with `field` one of `createdAt`, `actorUsername`, `action`, `entityType` (then `entityId`), `dealerId`, `clientIp`, `clientLocation` (default newest first, which also breaks ties; CR C7; blank values sort last in both directions), `page`, `size` (default **20**, at most 100). An unknown `entityType`, `action` or `sort` → `400 VALIDATION`. Each item carries `dealerId`, `clientIp`, and `clientLocation`. Sign-ins (`LOGIN`, `LOGIN_FAILED`) and other operations are the same rows; filter `action` to separate them.
+Query (all optional): `entityType`, `entityId`, `action`, `actor` (any part of the username, ignoring case; `anonymous` for unknown sign-in identifiers), `dealerId`, `q` (free text, ignoring case, matched against the action, the record type and the stored change values in `fieldSummary` and `previous`, for example `password`; spaces match the underscores of wire names such as `WORK_ORDER`; CR T3, T5), `from` (inclusive) and `to` (exclusive) as ISO 8601 instants, so the UI can filter by the viewer's local days, `sort=field,asc|desc` with `field` one of `createdAt`, `actorUsername`, `action`, `entityType` (then `entityId`), `dealerId`, `clientIp`, `clientLocation` (default newest first, which also breaks ties; CR C7; blank values sort last in both directions), `page`, `size` (default **20**, at most 100). An unknown `entityType`, `action` or `sort` → `400 VALIDATION`. Each item carries `dealerId`, `clientIp`, and `clientLocation`, plus `actorDisplayName`, `actorRole` (`PLATFORM_ADMIN`, `OWNER`, `MANAGER`, `SALES`, or `null`), and `dealerName`: the actor's name and role and the dealership's legal name stored when the row was written (design/15 §8.8), `null` on rows written before 2026-11-09. Sign-ins (`LOGIN`, `LOGIN_FAILED`) and other operations are the same rows; filter `action` to separate them.
 
 ### 9.3 `GET /api/v1/dealer/audit`
 
-Dealership audit log (AUD-11). The dealership owner or a manager (§5.8) only; a sales member → **403** `FORBIDDEN` (`Only a dealership owner or manager can do this.`); Admin → **403**. Returns every row whose `dealerId` is the caller's dealership. Same query as §9.2 except that `dealerId` is ignored. Each item carries `dealerId`, `clientIp`, and `clientLocation`.
+Dealership audit log (AUD-11). The dealership owner or a manager (§5.8) only; a sales member → **403** `FORBIDDEN` (`Only a dealership owner or manager can do this.`); Admin → **403**. Returns every row whose `dealerId` is the caller's dealership. Same query as §9.2 except that `dealerId` is ignored. Each item carries the same fields as §9.2.
 
 ---
 

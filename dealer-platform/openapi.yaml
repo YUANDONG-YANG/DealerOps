@@ -1196,6 +1196,16 @@ paths:
             type: boolean
             default: false
           description: When true, excludes vehicles linked to any customer
+        - name: source
+          in: query
+          schema:
+            $ref: "#/components/schemas/VehicleSource"
+          description: Exact source match
+        - name: sourceOther
+          in: query
+          schema:
+            type: string
+          description: Only OTHER-source vehicles whose custom source equals this value, ignoring case (DMS-19); values come from `GET /api/v1/vehicles/source-other-options`
         - name: openWorkOrdersOnly
           in: query
           schema:
@@ -2509,6 +2519,23 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
 
+  /api/v1/vehicles/source-other-options:
+    get:
+      tags: [Vehicles]
+      operationId: listVehicleSourceOtherOptions
+      summary: Custom source names this dealership entered for OTHER-source vehicles (DMS-19)
+      description: In-stock and sold vehicles, not deleted. Names that differ only in case are one entry, spelled as on the most recently added vehicle; sorted ignoring case.
+      responses:
+        "200":
+          description: Custom source names
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { type: string }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
   /api/v1/vehicles/report/sales:
     get:
       tags: [Vehicles]
@@ -2732,7 +2759,7 @@ paths:
         `VEHICLE` history also includes the `CUSTOMER_VEHICLE` link/unlink and `VEHICLE_PHOTO` events of that vehicle.
         `fieldSummary` has no full customer phone/email/home address.
         Newest first unless `sort` is given; the sort orders the whole history before paging (CR-020).
-        `dealerId`, `clientIp`, and `clientLocation` are not returned here.
+        `dealerId`, `clientIp`, `clientLocation`, `actorDisplayName`, `actorRole`, and `dealerName` are not returned here.
       parameters:
         - name: entityType
           in: query
@@ -2779,7 +2806,7 @@ paths:
       description: |
         Platform.Admin only (AUD-10); anyone else → **403** `FORBIDDEN`. Every audit row of the platform, newest first,
         including sign-in attempts (`APP_USER` `LOGIN`/`LOGIN_FAILED`). All filters are optional and combine with AND.
-        Unknown `entityType` or `action` → **400** `VALIDATION`. Rows carry `dealerId`, `clientIp`, and `clientLocation`.
+        Unknown `entityType` or `action` → **400** `VALIDATION`. Rows carry `dealerId`, `clientIp`, `clientLocation`, and the `actorDisplayName`, `actorRole`, `dealerName` snapshots.
       parameters:
         - $ref: "#/components/parameters/AuditLogEntityType"
         - $ref: "#/components/parameters/AuditLogEntityId"
@@ -2819,7 +2846,7 @@ paths:
       description: |
         Dealership owner or manager (AUD-11); a sales member and the admin → **403** `FORBIDDEN`. Every audit row of the caller's
         dealership, newest first. Same filters as `GET /api/v1/admin/audit` except `dealerId`, which is ignored.
-        Unknown `entityType` or `action` → **400** `VALIDATION`. Rows carry `dealerId`, `clientIp`, and `clientLocation`.
+        Unknown `entityType` or `action` → **400** `VALIDATION`. Rows carry `dealerId`, `clientIp`, `clientLocation`, and the `actorDisplayName`, `actorRole`, `dealerName` snapshots.
       parameters:
         - $ref: "#/components/parameters/AuditLogEntityType"
         - $ref: "#/components/parameters/AuditLogEntityId"
@@ -3835,6 +3862,11 @@ components:
           type: integer
         source:
           $ref: "#/components/schemas/VehicleSource"
+        sourceOther:
+          type: string
+          nullable: true
+          maxLength: 100
+          description: The custom source name when `source` is OTHER, else null (DMS-19)
         purchaseCost:
           type: number
         addedOn:
@@ -3927,6 +3959,11 @@ components:
           description: 17 characters without I, O, or Q; stored upper-cased. From model year 1980 on, the 10th character (model-year code, 30-year cycle) must match `modelYear`, else 400 VALIDATION on `vin`; PATCH re-checks it only when `vin` or `modelYear` changes. CR-047 also decodes the VIN, and the decoded make, model and model year must agree with `make`, `model` and `modelYear`, else 400 VALIDATION on that field; if the decoder is unavailable only the model-year character is checked.
         source:
           $ref: "#/components/schemas/VehicleSource"
+        sourceOther:
+          type: string
+          nullable: true
+          maxLength: 100
+          description: Required (non-blank, trimmed) when `source` is OTHER, else 400 VALIDATION on `sourceOther`; ignored and stored as null for any other source (DMS-19)
         purchaseCost:
           type: number
           minimum: 0
@@ -3998,6 +4035,11 @@ components:
           description: 17 characters without I, O, or Q; stored upper-cased. From model year 1980 on, the 10th character (model-year code, 30-year cycle) must match `modelYear`, else 400 VALIDATION on `vin`; PATCH re-checks it only when `vin` or `modelYear` changes. CR-047 also decodes the VIN, and the decoded make, model and model year must agree with `make`, `model` and `modelYear`, else 400 VALIDATION on that field; if the decoder is unavailable only the model-year character is checked.
         source:
           $ref: "#/components/schemas/VehicleSource"
+        sourceOther:
+          type: string
+          nullable: true
+          maxLength: 100
+          description: As on create; an OTHER vehicle saved before DMS-19 without one may keep it blank. Locked on a sold vehicle (409 SOLD_LOCKED)
         purchaseCost:
           type: number
           minimum: 0
@@ -4601,6 +4643,21 @@ components:
             Example: "Mission, Calgary SW, Alberta, Canada".
             "Local or private network" for a non-routable address, which is not sent to the provider.
             Null when the lookup was skipped or failed; the IP is still kept.
+        actorDisplayName:
+          type: string
+          nullable: true
+          description: Actor's display name stored when the row was written; only on the admin and dealership audit logs
+        actorRole:
+          type: string
+          nullable: true
+          enum: [PLATFORM_ADMIN, OWNER, MANAGER, SALES, null]
+          description: >
+            Actor's role stored when the row was written, only on the admin and dealership audit logs.
+            Null for an unbound or unknown actor and for rows written before 2026-11-09.
+        dealerName:
+          type: string
+          nullable: true
+          description: Dealership legal name stored when the row was written; only on the admin and dealership audit logs
 
     PageAuditEvent:
       allOf:

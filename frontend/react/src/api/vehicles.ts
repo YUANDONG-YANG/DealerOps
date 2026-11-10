@@ -8,6 +8,8 @@ function vehicleWriteBody(b: any) {
     modelYear: b.modelYear === '' || b.modelYear == null ? b.modelYear : Number(b.modelYear),
     vin: b.vin,
     source: b.source,
+    // Only an OTHER source carries the user's own source name (DMS-19).
+    sourceOther: b.source === 'OTHER' && b.sourceOther?.trim() ? b.sourceOther.trim() : null,
     purchaseCost: b.purchaseCost === '' || b.purchaseCost == null ? b.purchaseCost : Number(b.purchaseCost),
     addedOn: b.addedOn,
     conditionCode: b.conditionCode,
@@ -32,6 +34,8 @@ export const vehiclesApi = {
     if (p.status) params.status = p.status;
     if (p.condition) params.condition = p.condition;
     if (p.bodyType) params.bodyType = p.bodyType;
+    if (p.source) params.source = p.source;
+    if (p.sourceOther) params.sourceOther = p.sourceOther;
     if (p.make) params.make = p.make;
     if (p.model) params.model = p.model;
     if (p.modelYear) params.modelYear = p.modelYear;
@@ -45,6 +49,8 @@ export const vehiclesApi = {
     if (p.sort) params.sort = p.sort;
     return http.get('/api/v1/vehicles', { params });
   },
+  /** The custom source names the dealership has entered for OTHER-source vehicles (DMS-19). */
+  sourceOtherOptions: () => http.get<string[]>('/api/v1/vehicles/source-other-options'),
   get: (id: number) => http.get(`/api/v1/vehicles/${id}`),
   create: (b: object) => http.post('/api/v1/vehicles', vehicleWriteBody(b)),
   update: (id: number, b: object & { version?: number }) =>

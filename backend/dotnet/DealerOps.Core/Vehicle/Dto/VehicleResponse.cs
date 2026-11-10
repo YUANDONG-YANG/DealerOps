@@ -7,6 +7,7 @@ public record VehicleResponse(
     string Model,
     int ModelYear,
     VehicleSource Source,
+    string? SourceOther,
     decimal PurchaseCost,
     DateOnly AddedOn,
     ConditionCode ConditionCode,

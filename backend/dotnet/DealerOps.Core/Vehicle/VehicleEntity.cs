@@ -36,6 +36,11 @@ public class VehicleEntity : ITenantOwned
     [Column("source")]
     public VehicleSource Source { get; set; }
 
+    /// <summary>The user's own source name when <see cref="Source"/> is Other (DMS-19); null otherwise.</summary>
+    [Column("source_other")]
+    [MaxLength(100)]
+    public string? SourceOther { get; set; }
+
     [Column("purchase_cost", TypeName = "decimal(12,2)")]
     public decimal PurchaseCost { get; set; }
 

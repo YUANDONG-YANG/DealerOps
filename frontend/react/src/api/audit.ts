@@ -1,9 +1,13 @@
 import { http } from './http';
 import type { AuditRow } from '../components/AuditTrail';
 
-/** A row of the admin or dealership audit log; those logs also carry the dealership, source IP, and place. */
+/**
+ * A row of the admin or dealership audit log; those logs also carry the dealership, source IP, and place,
+ * plus the actor's name and role and the dealership's name as they were when the row was written.
+ */
 export type AuditLogRow = AuditRow & {
   id: number; entityId: number; dealerId?: number | null; clientIp?: string | null; clientLocation?: string | null;
+  actorDisplayName?: string | null; actorRole?: string | null; dealerName?: string | null;
 };
 
 /**

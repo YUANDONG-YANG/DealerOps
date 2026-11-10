@@ -48,7 +48,7 @@ export default function AuditLogPanel({ load, showDealer = false, suggestActors 
 
   return (
     <>
-      {/* Inputs follow the column order: When, Actor, Action, Record, Dealership, Changes. */}
+      {/* Inputs follow the column order: When, Actor, Role, Action, Record, Dealership, Changes. */}
       <div className="filters">
         <label className="filter-date">From date
           <input className="input" type="date" lang="en" value={draft.from ?? ''} onChange={(e) => set('from', e.target.value)} />
@@ -85,10 +85,12 @@ export default function AuditLogPanel({ load, showDealer = false, suggestActors 
           sort={sort} onSort={(key, dir) => { setSort({ key, dir }); setPage(0); }}
           columns={[
             { key: 'createdAt', label: 'When', sortable: true, render: (r) => dateTimeLocal(r.createdAt) },
-            { label: 'Actor', key: 'actorUsername', sortable: true },
+            { label: 'Actor', key: 'actorUsername', sortable: true,
+              render: (r) => r.actorDisplayName ? `${r.actorUsername} (${r.actorDisplayName})` : r.actorUsername },
+            { label: 'Role', render: (r) => r.actorRole ?? '—' },
             { key: 'action', label: 'Action', sortable: true, render: (r) => actionText(r) },
             { key: 'entityType', label: 'Record', sortable: true, render: (r) => `${r.entityType} #${r.entityId}` },
-            ...(showDealer ? [{ key: 'dealerId', label: 'Dealership', sortable: true, render: (r: AuditLogRow) => r.dealerId == null ? 'Platform' : String(r.dealerId) }] : []),
+            ...(showDealer ? [{ key: 'dealerId', label: 'Dealership', sortable: true, render: (r: AuditLogRow) => r.dealerId == null ? 'Platform' : (r.dealerName ?? `#${r.dealerId}`) }] : []),
             { label: 'Changes', render: (r) => summaryText(r.fieldSummary, r.previous) },
             { key: 'clientIp', label: 'Source IP', sortable: true, render: (r) => r.clientIp ?? 'Not recorded' },
             { key: 'clientLocation', label: 'Location', sortable: true, render: (r) => r.clientLocation ?? (r.clientIp ? 'Unavailable' : 'Not recorded') },

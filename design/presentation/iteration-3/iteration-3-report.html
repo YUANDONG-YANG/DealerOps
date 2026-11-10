@@ -1,0 +1,333 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>DealerOps Iteration 3 Report</title>
+<style>
+
+:root{
+  --bg:#f5f6f8;--surface:#ffffff;--fg:#1b2230;--muted:#5b6475;--line:#dde1e8;
+  --accent:#1f4e9c;--accent-soft:#e7eefa;
+  --block:#b42318;--block-soft:#fdecea;--review:#a15c07;--review-soft:#fdf3e2;
+  --pass:#1d7a46;--pass-soft:#e5f4ec;--neutral:#6b7280;--neutral-soft:#eef0f3;
+  --purple:#6941c6;--purple-soft:#f1ecfb;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#11151c;--surface:#181e28;--fg:#e4e8ef;--muted:#9aa4b5;--line:#2b3442;
+    --accent:#8db4f5;--accent-soft:#1d2b44;
+    --block:#f19790;--block-soft:#3a1d1b;--review:#f0b866;--review-soft:#3a2c14;
+    --pass:#7fd3a0;--pass-soft:#16301f;--neutral:#a3aab6;--neutral-soft:#242b36;
+    --purple:#bba4f5;--purple-soft:#2a2240;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#11151c;--surface:#181e28;--fg:#e4e8ef;--muted:#9aa4b5;--line:#2b3442;
+  --accent:#8db4f5;--accent-soft:#1d2b44;
+  --block:#f19790;--block-soft:#3a1d1b;--review:#f0b866;--review-soft:#3a2c14;
+  --pass:#7fd3a0;--pass-soft:#16301f;--neutral:#a3aab6;--neutral-soft:#242b36;
+  --purple:#bba4f5;--purple-soft:#2a2240;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:Inter,system-ui,sans-serif;font-size:15px;line-height:1.7}
+.page{display:grid;grid-template-columns:240px minmax(0,1fr);gap:48px;max-width:1220px;margin:auto;padding:40px 24px 80px}
+nav{position:sticky;top:24px;align-self:start;font-size:13px;max-height:calc(100vh - 48px);overflow:auto}
+nav strong{color:var(--muted);font-size:12px;letter-spacing:.12em}
+nav ol{list-style:none;padding:0;margin:8px 0}
+nav a{display:block;padding:4px 10px;color:var(--muted);text-decoration:none;border-left:2px solid transparent}
+nav a:hover{color:var(--accent);border-color:var(--accent)}
+main{min-width:0}
+header{border-bottom:1px solid var(--line);padding-bottom:28px}
+.eyebrow{color:var(--accent);font-size:12px;letter-spacing:.14em;text-transform:uppercase;font-weight:600}
+h1,h2{font-family:"Source Serif 4",Georgia,serif}
+h1{font-size:38px;line-height:1.2;margin:8px 0 10px}
+.subtitle{color:var(--muted);margin:0 0 22px;max-width:78ch}
+dl.meta{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px 24px;margin:0}
+dl.meta dt{font-size:12px;color:var(--muted);letter-spacing:.05em}
+dl.meta dd{margin:0;font-weight:500}
+section{padding-top:44px}
+h2{font-size:26px;margin:0 0 14px;display:flex;gap:12px;align-items:baseline}
+h2 .num{font:600 15px "JetBrains Mono",monospace;color:var(--accent)}
+h3{font-size:17px;margin:28px 0 10px}
+h4{font-size:15px;margin:18px 0 6px}
+p{max-width:80ch;margin:0 0 12px}
+ul,ol.list{max-width:80ch;margin:0 0 14px;padding-left:1.3em}
+li{margin:3px 0}
+a{color:var(--accent)}
+code,.mono{font:.86em "JetBrains Mono",monospace;background:var(--accent-soft);color:var(--accent);padding:1px 5px;border-radius:4px;overflow-wrap:anywhere}
+.tbl{overflow-x:auto;margin:8px 0 18px;border:1px solid var(--line);border-radius:8px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;font-size:13.5px;line-height:1.55}
+th,td{text-align:left;vertical-align:top;padding:8px 10px;border-bottom:1px solid var(--line)}
+th{font-size:12px;color:var(--muted);background:var(--bg);white-space:nowrap}
+tr:last-child td{border-bottom:0}
+td.c,th.c{text-align:center}
+.yes{color:var(--pass);font-weight:700}.no{color:var(--block);font-weight:700}.part{color:var(--review);font-weight:700}
+.chip{display:inline-block;font-size:11.5px;font-weight:600;padding:1px 8px;border-radius:999px;white-space:nowrap;border:1px solid transparent}
+.chip.blue{background:var(--accent-soft);color:var(--accent)}
+.chip.red{background:var(--block-soft);color:var(--block)}
+.chip.amber{background:var(--review-soft);color:var(--review)}
+.chip.green{background:var(--pass-soft);color:var(--pass)}
+.chip.gray{background:var(--neutral-soft);color:var(--neutral)}
+.chip.purple{background:var(--purple-soft);color:var(--purple)}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px;margin:12px 0 18px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px 16px}
+.card h4{margin:0 0 4px;font-size:15px}
+.card p{font-size:13.5px;color:var(--muted);margin:0}
+.card .k{font:600 24px "Source Serif 4",serif;color:var(--accent);display:block;line-height:1.2}
+.callout{background:var(--accent-soft);border-left:3px solid var(--accent);border-radius:6px;padding:12px 16px;margin:12px 0 18px;max-width:84ch}
+.callout.warn{background:var(--review-soft);border-color:var(--review)}
+.callout p:last-child{margin:0}
+figure{margin:12px 0 22px;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px}
+figure svg{width:100%;height:auto;display:block}
+figcaption{font-size:13px;color:var(--muted);margin-top:10px}
+/* diagram tokens */
+.d-box{fill:var(--surface);stroke:var(--line);stroke-width:1.5}
+.d-box.acc{fill:var(--accent-soft);stroke:var(--accent)}
+.d-box.green{fill:var(--pass-soft);stroke:var(--pass)}
+.d-box.purple{fill:var(--purple-soft);stroke:var(--purple)}
+.d-box.gray{fill:var(--neutral-soft);stroke:var(--neutral)}
+.d-title{fill:var(--fg);font:600 14px Inter,sans-serif}
+.d-sub{fill:var(--muted);font:12px Inter,sans-serif}
+.d-mono{fill:var(--accent);font:600 11.5px "JetBrains Mono",monospace}
+.d-line{stroke:var(--muted);stroke-width:1.6;fill:none}
+.d-line.acc{stroke:var(--accent)}
+.d-line.bad{stroke:var(--block);stroke-dasharray:6 5}
+.d-lbl{fill:var(--muted);font:11.5px Inter,sans-serif}
+.d-bad{fill:var(--block);font:600 11.5px Inter,sans-serif}
+.d-arrow{fill:var(--muted)}
+.d-arrow.acc{fill:var(--accent)}
+.d-arrow.bad{fill:var(--block)}
+.d-zone{fill:none;stroke:var(--line);stroke-width:1.2;stroke-dasharray:4 4}
+/* flows */
+.flow{display:flex;flex-wrap:wrap;align-items:stretch;gap:6px;margin:10px 0 18px}
+.step{flex:1 1 150px;background:var(--surface);border:1px solid var(--line);border-radius:9px;padding:10px 12px;position:relative;min-width:140px}
+.step b{display:block;font-size:13.5px}
+.step span{font-size:12.5px;color:var(--muted);display:block;line-height:1.45}
+.step .who{font:600 10.5px "JetBrains Mono",monospace;color:var(--accent);letter-spacing:.04em;text-transform:uppercase}
+.arrow{align-self:center;color:var(--muted);font-size:18px;flex:0 0 auto}
+.states{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:8px 0 16px;font-size:13px}
+.states .arrow{font-size:14px}
+.lanes{display:grid;gap:10px;margin:10px 0 18px}
+.lane{display:grid;grid-template-columns:150px minmax(0,1fr);gap:12px;align-items:start;background:var(--surface);border:1px solid var(--line);border-radius:9px;padding:10px 12px}
+.lane .ln{font-weight:600;font-size:13px}
+.lane .ln small{display:block;color:var(--muted);font-weight:400}
+.lane ol{margin:0;padding-left:1.2em;font-size:13.5px}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px}
+.rg{border:1.5px dashed var(--accent);border-radius:12px;padding:16px;margin:12px 0 18px;background:var(--surface)}
+.rg > .lbl{font:600 12px "JetBrains Mono",monospace;color:var(--accent);margin-bottom:10px}
+.rg .cards{margin:0}
+footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);font-size:13px;color:var(--muted)}
+@media (max-width:900px){
+  .page{grid-template-columns:1fr;gap:16px;padding:24px 16px 60px}
+  nav{position:static;max-height:none;border:1px solid var(--line);border-radius:8px;padding:10px;background:var(--surface)}
+  h1{font-size:30px}
+  .lane{grid-template-columns:1fr}
+}
+@media print{
+  nav{display:none}.page{grid-template-columns:1fr}
+  section{break-inside:avoid-page}
+}
+
+.muted{color:var(--muted);font-size:13px}
+
+</style></head><body>
+<div class="page"><nav><strong>CONTENTS</strong><ol>
+<li><a href="#s2">01 Today's code: audit log and vehicle source changes</a></li>
+</ol></nav>
+<main><header><div class="eyebrow">Iteration report · Code changes of 2026-11-09</div><h1>DealerOps Iteration 3 Report</h1><p class="subtitle">What changed in the code today, which problem each change solves, how it works, and what it does to the API contract and the database.</p>
+<dl class="meta"><div><dt>Product</dt><dd>DealerOps</dd></div><div><dt>Branch</dt><dd>V3</dd></div><div><dt>Date</dt><dd>2026-11-09</dd></div><div><dt>Scope</dt><dd>Code changes of 2026-11-09 only</dd></div></dl></header>
+<section id="s2">
+<h2><span class="num">01</span> Today's code: audit log and vehicle source changes</h2>
+
+<p><strong>Scope.</strong> This report covers only the changes made on 2026-11-09, developed in the V2 working tree and committed to branch <code>V3</code>. The vehicle source change (DMS-19) comes from the second client review filed under <code>requirements/iteration-3</code>. The audit log change has no client document; its requirement text is the analysis note <code>requirements/analysis/17-Audit-Log-Dealership-Name-and-Role-2026-11-09.md</code>, the code comments and the design documents edited in the same change. Commits and operations work from earlier days are left out.</p>
+<p>There are two changes. The audit log now stores the actor's name and role and the dealership's name as they were when each event happened. The vehicle form gets an "Other source" name, with a Source filter on the inventory list. Both touch the .NET 10 service <code>DealerOps.Core</code>, the React frontend, <code>dealer-platform/openapi.yaml</code> and the <code>design/</code> documents. The gateway and the AI service are unchanged.</p>
+
+<div class="callout"><b>Not validated in this report.</b> The diff shows no build or smoke-check record. The checks listed in note 17 (build of <code>DealerOps.Core</code> and <code>frontend/react</code>, an upgrade run against a database that predates the columns, a rename-then-reload check) are still to be run and recorded before the commit.</div>
+
+<h3>Files in the working-tree diff</h3>
+<div class="tbl"><table>
+<thead><tr><th>Layer</th><th>Files</th><th>Change</th></tr></thead>
+<tbody>
+<tr><td>Backend, audit</td><td><code>Audit/AuditEventEntity.cs</code>, <code>AuditService.cs</code>, <code>Dto/AuditItem.cs</code></td><td>Three snapshot columns, filled on write, returned on the admin and dealership logs</td></tr>
+<tr><td>Backend, vehicle</td><td><code>VehicleEntity.cs</code>, <code>VehicleService.cs</code>, <code>VehicleController.cs</code>, <code>Dto/CreateVehicleRequest.cs</code>, <code>PatchVehicleRequest.cs</code>, <code>VehicleFilter.cs</code>, <code>VehicleResponse.cs</code></td><td><code>source_other</code> column, validation, two list filters, one new endpoint</td></tr>
+<tr><td>Backend, startup</td><td><code>Program.cs</code></td><td>Four <code>ALTER TABLE ... ADD COLUMN</code> statements in the schema patch</td></tr>
+<tr><td>Frontend</td><td><code>api/audit.ts</code>, <code>components/AuditLogPanel.tsx</code>, <code>api/vehicles.ts</code>, <code>pages/DmsPage.tsx</code></td><td>Role column, name display, Source filters, Other source input</td></tr>
+<tr><td>Contract and design</td><td><code>dealer-platform/openapi.yaml</code>, <code>design/14</code>, <code>design/15</code>, <code>design/21</code>, <code>requirements/analysis/02</code> and <code>17</code></td><td>New fields, endpoint, columns and requirement DMS-19</td></tr>
+</tbody></table></div>
+
+<h3>Change A: audit rows keep the actor and dealership as they were</h3>
+<h4>Problem</h4>
+<p>The platform admin's audit log showed the dealership as a bare id such as <code>285</code> and had no role column. <code>audit_event</code> stored only <code>dealer_id</code> and <code>actor_username</code>. Resolving a name at read time would let a later rename or role change rewrite history, so the values have to be stored when the row is written.</p>
+
+<h4>What the user sees</h4>
+<p>In the admin log and the dealership log (opened by an owner or manager) the Actor cell reads <code>lafe (Lafe Smith)</code>, a new Role column follows it, and the Dealership cell shows the dealership's legal name. Rows written before the change have no snapshot, so they show the username alone, <code>—</code> as the role and <code>#285</code> as the dealership. They are not backfilled, because current values would be presented as historical ones.</p>
+<div class="tbl"><table>
+<thead><tr><th>Column</th><th>Before</th><th>After</th></tr></thead>
+<tbody>
+<tr><td>Actor</td><td><code>lafe</code></td><td><code>lafe (Lafe Smith)</code>; username only when no name is stored</td></tr>
+<tr><td>Role</td><td>No column</td><td>New, not sortable: <code>PLATFORM_ADMIN</code>, <code>OWNER</code>, <code>MANAGER</code>, <code>SALES</code>, or <code>—</code></td></tr>
+<tr><td>Dealership</td><td><code>285</code>, or <code>Platform</code> when null</td><td><code>Platform</code> when <code>dealerId</code> is null, else <code>dealerName</code>, else <code>#285</code> for old rows</td></tr>
+<tr><td>Sorting and filters</td><td>Sort and filter on <code>dealerId</code></td><td>Unchanged; the Role column is not sortable</td></tr>
+</tbody></table></div>
+
+<h4>How it works</h4>
+<ol>
+<li>Every audit row is written by one method, <code>AuditService.Record</code>, inside the same transaction as the business change. Its signature is unchanged, so no caller was edited.</li>
+<li>Before the entity is added, the new private method <code>SnapshotActorAndDealer</code> fills three fields. <code>DealerName</code> comes from <code>_db.Dealers.Find(dealerId)?.LegalName</code>. <code>ActorDisplayName</code> comes from the <code>AppUsers</code> row with the actor's username. <code>ActorRole</code> is <code>PLATFORM_ADMIN</code> when <code>user.Role == AppRole.PlatformAdmin</code>, otherwise the actor's membership role at that <code>dealer_id</code> (<code>EnumWireName.Of(membership.DealerRole)</code>). Active memberships sort first.</li>
+<li>The lookups read <code>.Local</code> (entities already tracked in the unit of work) before querying the database. A row written together with a rename or role change therefore records the state that change produced.</li>
+<li>If the username matches no <code>AppUsers</code> row (<code>anonymous</code>), all actor fields stay null. If the actor has no membership at the row's dealership, only the role stays null.</li>
+<li>On read, <code>PageOfLog</code> copies the stored values into <code>AuditItem</code> (<code>ActorDisplayName</code>, <code>ActorRole</code>, <code>DealerName</code>). Nothing is looked up again. The record-history endpoint does not return the three fields, the same rule already used for <code>dealerId</code> and <code>clientIp</code>.</li>
+<li>In the browser, <code>AuditLogRow</code> in <code>api/audit.ts</code> gains the three optional fields and <code>AuditLogPanel.tsx</code> renders them through the gateway as before.</li>
+</ol>
+
+<figure>
+<svg viewBox="0 0 960 400" role="img" aria-label="Audit row snapshot on write and display on read">
+<defs>
+<marker id="i3a-acc" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path class="d-arrow acc" d="M0 0L10 5L0 10z"/></marker>
+<marker id="i3a-gr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path class="d-arrow" d="M0 0L10 5L0 10z"/></marker>
+</defs>
+<text class="d-title" x="20" y="20">Audit row: snapshot on write, stored values on read</text>
+
+<rect class="d-zone" x="20" y="34" width="920" height="140" rx="8"/>
+<text class="d-lbl" x="34" y="52">WRITE, SAME TRANSACTION AS THE BUSINESS CHANGE</text>
+<rect class="d-zone" x="20" y="204" width="920" height="140" rx="8"/>
+<text class="d-lbl" x="34" y="222">READ, ADMIN AND DEALERSHIP LOGS</text>
+
+<!-- row 1 -->
+<rect class="d-box" x="40" y="66" width="240" height="92" rx="8"/>
+<text class="d-title" x="56" y="90">Business service</text>
+<text class="d-sub" x="56" y="109">VehicleService and others</text>
+<text class="d-mono" x="56" y="128">Record(dealerId, actor)</text>
+<circle class="d-box acc" cx="258" cy="84" r="11"/><text class="d-mono" x="258" y="88" text-anchor="middle">1</text>
+
+<rect class="d-box acc" x="360" y="66" width="240" height="92" rx="8"/>
+<text class="d-title" x="376" y="90">SnapshotActorAndDealer</text>
+<text class="d-sub" x="376" y="109">tracked entities first, then DB</text>
+<text class="d-mono" x="376" y="128">app_user, membership, dealer</text>
+<circle class="d-box acc" cx="578" cy="84" r="11"/><text class="d-mono" x="578" y="88" text-anchor="middle">2</text>
+
+<rect class="d-box green" x="680" y="66" width="240" height="92" rx="8"/>
+<text class="d-title" x="696" y="90">audit_event row</text>
+<text class="d-sub" x="696" y="109">three new nullable columns</text>
+<text class="d-mono" x="696" y="128">actor_display_name, actor_role</text>
+<text class="d-mono" x="696" y="145">dealer_name</text>
+<circle class="d-box acc" cx="898" cy="84" r="11"/><text class="d-mono" x="898" y="88" text-anchor="middle">3</text>
+
+<line class="d-line acc" x1="280" y1="112" x2="358" y2="112" marker-end="url(#i3a-acc)"/>
+<line class="d-line acc" x1="600" y1="112" x2="678" y2="112" marker-end="url(#i3a-acc)"/>
+<text class="d-lbl" x="640" y="104" text-anchor="middle">INSERT</text>
+
+<!-- vertical -->
+<line class="d-line" x1="800" y1="158" x2="800" y2="236" marker-end="url(#i3a-gr)"/>
+<text class="d-lbl" x="812" y="190">SELECT</text>
+
+<!-- row 2 -->
+<rect class="d-box" x="680" y="236" width="240" height="92" rx="8"/>
+<text class="d-title" x="696" y="260">AuditService.PageOfLog</text>
+<text class="d-sub" x="696" y="279">copies stored values, no lookup</text>
+<text class="d-mono" x="696" y="298">AuditItem(..., DealerName)</text>
+<circle class="d-box acc" cx="898" cy="254" r="11"/><text class="d-mono" x="898" y="258" text-anchor="middle">4</text>
+
+<rect class="d-box purple" x="360" y="236" width="240" height="92" rx="8"/>
+<text class="d-title" x="376" y="260">AuditItem JSON</text>
+<text class="d-sub" x="376" y="279">three nullable strings</text>
+<text class="d-mono" x="376" y="298">actorDisplayName, actorRole</text>
+<text class="d-mono" x="376" y="315">dealerName</text>
+<circle class="d-box acc" cx="578" cy="254" r="11"/><text class="d-mono" x="578" y="258" text-anchor="middle">5</text>
+
+<rect class="d-box" x="40" y="236" width="240" height="92" rx="8"/>
+<text class="d-title" x="56" y="260">AuditLogPanel.tsx</text>
+<text class="d-sub" x="56" y="279">Actor, Role, Dealership cells</text>
+<text class="d-mono" x="56" y="298">GET /admin/audit, /dealer/audit</text>
+<circle class="d-box acc" cx="258" cy="254" r="11"/><text class="d-mono" x="258" y="258" text-anchor="middle">6</text>
+
+<line class="d-line" x1="680" y1="282" x2="602" y2="282" marker-end="url(#i3a-gr)"/>
+<text class="d-lbl" x="641" y="274" text-anchor="middle">DTO</text>
+<line class="d-line" x1="360" y1="282" x2="282" y2="282" marker-end="url(#i3a-gr)"/>
+<text class="d-lbl" x="321" y="274" text-anchor="middle">HTTPS</text>
+
+<!-- legend -->
+<line class="d-line acc" x1="40" y1="372" x2="76" y2="372" marker-end="url(#i3a-acc)"/>
+<text class="d-lbl" x="86" y="376">write path (values captured once)</text>
+<line class="d-line" x1="330" y1="372" x2="366" y2="372" marker-end="url(#i3a-gr)"/>
+<text class="d-lbl" x="376" y="376">read path (stored values only)</text>
+</svg>
+<figcaption>The three values are captured at step 2 and never recomputed. A rename or role change after step 3 affects only later rows.</figcaption>
+</figure>
+
+<h4>Limits and open points</h4>
+<ul>
+<li>Existing rows keep null snapshots permanently. Old and new rows therefore look different in the same log.</li>
+<li><code>actor_role</code> is a membership role, so an actor without a membership at the row's dealership has a null role even though the account exists (for example an unbound account).</li>
+<li>The snapshot adds up to three small queries per audit row. This is not measured; audit rows are written once per business operation.</li>
+<li>The Actor and Dealership text filters still work on <code>actorUsername</code> and <code>dealerId</code>. Searching by display name or dealership name is not part of this change.</li>
+</ul>
+
+<h3>Change B: custom source name for vehicles (DMS-19)</h3>
+<h4>Problem</h4>
+<p>A vehicle's <code>source</code> is one of four values (<code>TRADE_IN</code>, <code>AUCTION</code>, <code>PRIVATE_PURCHASE</code>, <code>OTHER</code>). <code>OTHER</code> says nothing about where the car came from, and the inventory list had no source filter. design/21 records the requirement as DMS-19 and attributes it to the client review of 2026-11-09 filed under <code>requirements/iteration-3</code> (<code>CR-Vehicle-Source-Other-2026-11-09.md</code>).</p>
+
+<h4>What the user sees</h4>
+<ul>
+<li>Choosing source Other on the add or edit form shows a required "Other source" box (up to 100 characters, placeholder "Lease return"). Names already used by the dealership appear as suggestions.</li>
+<li>The inventory list has a Source filter. Picking Other adds a second dropdown with "All other" first, then the dealership's custom names.</li>
+<li>The Source column reads <code>Other: Lease return</code> when a custom name exists.</li>
+<li>On a sold vehicle the box is disabled, like the other locked fields.</li>
+</ul>
+
+<h4>How it works</h4>
+<ol>
+<li><strong>Storage.</strong> <code>VehicleEntity.SourceOther</code> maps to <code>vehicle.source_other VARCHAR(100) NULL</code>.</li>
+<li><strong>Validation.</strong> <code>VehicleService.SourceOtherFor</code> returns null for any source except Other. For Other it trims the value and throws <code>ApiException(ErrorCode.Validation)</code> keyed on <code>sourceOther</code> ("Enter the source when Other is selected.") when it is blank. On PATCH, <code>allowBlank</code> is true only if the stored vehicle is already Other with no name, so records saved before DMS-19 stay editable. The browser repeats the rule in <code>validateForm</code> and sends <code>sourceOther: null</code> unless the source is <code>OTHER</code> (<code>vehicleWriteBody</code>).</li>
+<li><strong>Audit.</strong> Create writes <code>sourceOther</code> into the field summary when present. PATCH records a changed <code>sourceOther</code> with its previous value, and the key counts as a purchase field, so it follows the same rules as <code>source</code>.</li>
+<li><strong>Filters.</strong> <code>GET /api/v1/vehicles</code> accepts <code>source</code> (exact) and <code>sourceOther</code> (Other vehicles only, compared ignoring case). Both flow through <code>VehicleFilter</code> into <code>VehicleService.List</code>.</li>
+<li><strong>Options.</strong> The new <code>GET /api/v1/vehicles/source-other-options</code> calls <code>VehicleService.SourceOtherOptions</code>. It reads the caller's tenant only, merges names that differ in case (spelled as on the newest vehicle) and sorts them ignoring case. <code>DmsPage</code> loads the list on mount and again after a save with source Other.</li>
+</ol>
+
+<h4>Limits and open points</h4>
+<ul>
+<li>The options endpoint returns every distinct name and has no paging. A dealership with many free-text sources gets a long dropdown.</li>
+<li>Two spellings that differ beyond case (for example "Lease return" and "Lease-return") stay separate options.</li>
+<li>The list query lower-cases <code>SourceOther</code> in SQL, which prevents use of an index on that column. This is acceptable at the current data size and is not changed.</li>
+</ul>
+
+<h3>Contract changes</h3>
+<div class="tbl"><table>
+<thead><tr><th>Endpoint or schema</th><th>Change</th><th>Documented in</th></tr></thead>
+<tbody>
+<tr><td><code>GET /api/v1/admin/audit</code></td><td>Items add <code>actorDisplayName</code>, <code>actorRole</code>, <code>dealerName</code> (nullable)</td><td>openapi, design/14 §9.2, design/15 §8.8</td></tr>
+<tr><td><code>GET /api/v1/dealer/audit</code></td><td>Same three fields; design/14 §9.3 now points to §9.2</td><td>openapi, design/14 §9.3</td></tr>
+<tr><td>Record history endpoint</td><td>No change; text states the three fields are not returned</td><td>openapi</td></tr>
+<tr><td><code>AuditEvent</code> schema</td><td><code>actorRole</code> enum <code>PLATFORM_ADMIN, OWNER, MANAGER, SALES, null</code></td><td>openapi</td></tr>
+<tr><td><code>GET /api/v1/vehicles</code></td><td>New query parameters <code>source</code> and <code>sourceOther</code></td><td>openapi, design/14</td></tr>
+<tr><td><code>GET /api/v1/vehicles/source-other-options</code></td><td>New; returns <code>string[]</code>, 401 and 403 documented</td><td>openapi, design/21</td></tr>
+<tr><td>Vehicle response, create and patch bodies</td><td>New nullable <code>sourceOther</code> (max 100); required when <code>source</code> is <code>OTHER</code>, 400 <code>VALIDATION</code> otherwise; locked on a sold vehicle (409 <code>SOLD_LOCKED</code>)</td><td>openapi, design/14</td></tr>
+</tbody></table></div>
+<p>All changes are additive. Old clients that ignore the new fields keep working, except that a create or patch with source <code>OTHER</code> and no <code>sourceOther</code> is now rejected with 400 (a patch on an old blank Other vehicle is the one exception).</p>
+
+<h3>Schema patch at startup</h3>
+<p>Core adds columns to existing databases through the <code>ALTER TABLE</code> list in <code>Program.cs</code>, and <code>EnsureCreated</code> covers new databases. Four statements were added:</p>
+<div class="tbl"><table>
+<thead><tr><th>Statement</th><th>Effect on existing data</th></tr></thead>
+<tbody>
+<tr><td><code>audit_event ADD COLUMN actor_display_name VARCHAR(120) NULL</code></td><td>Old rows get <code>NULL</code></td></tr>
+<tr><td><code>audit_event ADD COLUMN actor_role VARCHAR(16) NULL</code></td><td>Old rows get <code>NULL</code></td></tr>
+<tr><td><code>audit_event ADD COLUMN dealer_name VARCHAR(255) NULL</code></td><td>Old rows get <code>NULL</code></td></tr>
+<tr><td><code>vehicle ADD COLUMN source_other VARCHAR(100) NULL</code></td><td>Old rows get <code>NULL</code>; old Other vehicles stay valid through the PATCH exception above</td></tr>
+</tbody></table></div>
+<p>All four columns are nullable with no default, so no backfill is needed and the statements are cheap on a populated table. They follow the existing pattern used for <code>client_ip</code> and <code>client_location</code>. The cloud database is upgraded the next time the new Core build starts against it. No data is removed or rewritten.</p>
+
+<h3>Summary of before and after</h3>
+<div class="tbl"><table>
+<thead><tr><th>Area</th><th>Before 2026-11-09</th><th>Working tree, uncommitted</th></tr></thead>
+<tbody>
+<tr><td>Audit actor</td><td>Username only</td><td>Username, display name and role at event time</td></tr>
+<tr><td>Audit dealership</td><td>Numeric id</td><td>Legal name at event time; id as fallback for old rows</td></tr>
+<tr><td>Vehicle source</td><td>Four fixed values</td><td>Other takes a required custom name, shown in the list</td></tr>
+<tr><td>Inventory filters</td><td>No source filter</td><td>Source filter, plus a second dropdown of custom names under Other</td></tr>
+<tr><td><code>audit_event</code> columns</td><td>Ends at <code>client_location</code></td><td>Three snapshot columns added</td></tr>
+<tr><td><code>vehicle</code> columns</td><td>No custom source</td><td><code>source_other</code> added</td></tr>
+</tbody></table></div>
+</section>
+
+<footer>DealerOps iteration report. Based on the code changes of 2026-11-09; no build or smoke check is recorded for these changes.</footer>
+</main></div></body></html>

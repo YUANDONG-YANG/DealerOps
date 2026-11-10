@@ -601,16 +601,20 @@ Limits of this setup: backups stay in the server's region (no geo-redundant copy
 
 ### 8.8 Audit trail storage (AUD-10 to AUD-16, decided 2026-10-21)
 
-DealerOps handles vehicle sales and payments, so the audit trail is held to a finance standard: every sign-in attempt and every create, update, delete and other state change writes one `audit_event` row in the same transaction as the business change (AUD-07). Core's startup schema patch adds two columns to `audit_event`:
+DealerOps handles vehicle sales and payments, so the audit trail is held to a finance standard: every sign-in attempt and every create, update, delete and other state change writes one `audit_event` row in the same transaction as the business change (AUD-07). Core's startup schema patch adds these columns to `audit_event`:
 
 | Column | Type | Content |
 |---|---|---|
 | `previous_values` | `JSON NULL` | changed field → replaced value, same keys and formatting as `field_summary` (which holds the new values). Set on updates and other state changes where the old value is known, so each row is one version step of the record (AUD-13). Contact fields are included (AUD-04) |
 | `client_ip` | `VARCHAR(45) NULL` | the caller's IP (IPv6 fits). the gateway decides it once (its socket peer; outside `Development` the forwarded-headers middleware trusts only the single hop the Azure App Service front end appends), YARP's default `Set` transform forwards exactly that value, and Core reads it from `X-Forwarded-For`, falling back to the socket peer. A caller-supplied `X-Forwarded-For` never reaches Core; it is `NULL` for rows written outside a request, such as `CustomerRetention` (AUD-16) |
 | `client_location` | `VARCHAR(255) NULL` | place name resolved from `client_ip` when the row is written. Reads never call the geolocation service again. `Local or private network` for a non-routable address. `NULL` when the address is missing or the lookup did not return a place |
+| `actor_display_name` | `VARCHAR(120) NULL` | the actor's `app_user.display_name` when the row is written. `NULL` for `anonymous` or an unknown username |
+| `actor_role` | `VARCHAR(16) NULL` | the actor's role when the row is written: `PLATFORM_ADMIN` for the platform admin, else the actor's `membership.dealer_role` (`OWNER`, `MANAGER`, `SALES`) at `dealer_id`. `NULL` when the actor has no membership there (an unbound account) or is unknown |
+| `dealer_name` | `VARCHAR(255) NULL` | `dealer.legal_name` of `dealer_id` when the row is written; `NULL` when `dealer_id` is `NULL` |
 
 Rules:
 
+- **Snapshots (decided 2026-11-09).** `actor_display_name`, `actor_role` and `dealer_name` record the state at the time of the event, so a later rename or role change never rewrites history. Core fills them in `AuditService.Record` and reads entities changed in the same unit of work first, so a rename or role change records the values it produced. Reads return the stored values and never re-resolve them. Rows written before 2026-11-09 have no snapshot and are not backfilled; the UI shows the dealership as `#<dealerId>` and the role as `—` for them.
 - **Append-only.** No API or service updates or deletes an `audit_event` row; rows are kept under §8.6 and are covered by the 7-day backups of §8.7.
 - **Closed vocabularies.** `entity_type` and `action` accept only the values listed in [14](14-Backend-API-Contract.md) §9; Core throws on any other value, so a wrong row is never written (AUD-16).
 - **Sign-ins.** `LOGIN` / `LOGIN_FAILED` rows use `entity_type = APP_USER`. An identifier that matches no account is stored as actor `anonymous` with `entity_id = 0`; the typed identifier is never stored (AUD-12).

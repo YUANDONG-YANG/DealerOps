@@ -36,13 +36,19 @@ public class VehicleController : ControllerBase
         [FromQuery] BuyerSiteFilter? buyerSite = null,
         [FromQuery] string? sort = null,
         [FromQuery] bool openWorkOrdersOnly = false,
+        [FromQuery] VehicleSource? source = null,
+        [FromQuery] string? sourceOther = null,
         [FromQuery] int page = 0,
         [FromQuery] int size = 10)
     {
         return _vehicleService.List(
             new VehicleFilter(q, status, condition, bodyType, make, model, modelYear, unlinkedOnly,
-                adKind, medium, checkStatus, buyerSite, sort, openWorkOrdersOnly), page, size);
+                adKind, medium, checkStatus, buyerSite, sort, openWorkOrdersOnly, source, sourceOther), page, size);
     }
+
+    /// <summary>The custom source names this dealership has entered for OTHER-source vehicles, sorted.</summary>
+    [HttpGet("source-other-options")]
+    public List<string> SourceOtherOptions() => _vehicleService.SourceOtherOptions();
 
     /// <summary>Adds a vehicle and returns 201 with the created record.</summary>
     [HttpPost]

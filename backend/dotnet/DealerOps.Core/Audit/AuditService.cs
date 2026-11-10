@@ -4,6 +4,7 @@ using DealerOps.Core.Common;
 using DealerOps.Core.Common.Exceptions;
 using DealerOps.Core.Common.Tenant;
 using DealerOps.Core.Data;
+using DealerOps.Core.Dealer;
 using Microsoft.EntityFrameworkCore;
 
 namespace DealerOps.Core.Audit;
@@ -72,7 +73,42 @@ public class AuditService : IAuditService
             ClientIp = clientIp,
             ClientLocation = Locate(clientIp)
         };
+        SnapshotActorAndDealer(entity);
         _db.AuditEvents.Add(entity);
+    }
+
+    /// <summary>
+    /// Stores who the actor was and the dealership's name as of this write, so a later rename or
+    /// role change never rewrites history. Entities tracked in this unit of work are read first,
+    /// so a row written with a rename or role change records the state that change produced.
+    /// </summary>
+    private void SnapshotActorAndDealer(AuditEventEntity entity)
+    {
+        var username = entity.ActorUsername;
+        var dealerId = entity.DealerId;
+        if (dealerId != null)
+            entity.DealerName = _db.Dealers.Find(dealerId.Value)?.LegalName;
+
+        var user = _db.AppUsers.Local.FirstOrDefault(u => u.Username == username)
+                   ?? _db.AppUsers.FirstOrDefault(u => u.Username == username);
+        if (user == null)
+            return;
+        entity.ActorDisplayName = user.DisplayName;
+        if (user.Role == AppRole.PlatformAdmin)
+        {
+            entity.ActorRole = "PLATFORM_ADMIN";
+            return;
+        }
+        if (dealerId == null)
+            return;
+        var membership = _db.Memberships.Local
+                             .Where(m => m.Username == username && m.DealerId == dealerId)
+                             .OrderByDescending(m => m.Active).FirstOrDefault()
+                         ?? _db.Memberships
+                             .Where(m => m.Username == username && m.DealerId == dealerId)
+                             .OrderByDescending(m => m.Active).FirstOrDefault();
+        if (membership != null)
+            entity.ActorRole = EnumWireName.Of(membership.DealerRole);
     }
 
     /// <summary>Platform audit log for the admin: every row, newest first, with optional filters.</summary>
@@ -188,7 +224,10 @@ public class AuditService : IAuditService
             {
                 DealerId = e.DealerId,
                 ClientIp = e.ClientIp,
-                ClientLocation = e.ClientLocation
+                ClientLocation = e.ClientLocation,
+                ActorDisplayName = e.ActorDisplayName,
+                ActorRole = e.ActorRole,
+                DealerName = e.DealerName
             })
             .ToList();
         return new PageResponse<AuditItem>(items, p, s, total);

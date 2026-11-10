@@ -52,6 +52,24 @@ public class AuditEventEntity
     [MaxLength(255)]
     public string? ClientLocation { get; set; }
 
+    /// <summary>The actor's display name when the row was written; null for unknown actors.</summary>
+    [Column("actor_display_name")]
+    [MaxLength(120)]
+    public string? ActorDisplayName { get; set; }
+
+    /// <summary>
+    /// The actor's role when the row was written: PLATFORM_ADMIN, or the OWNER, MANAGER or SALES
+    /// membership role at <see cref="DealerId"/>. Null when the actor had neither.
+    /// </summary>
+    [Column("actor_role")]
+    [MaxLength(16)]
+    public string? ActorRole { get; set; }
+
+    /// <summary>The dealership's legal name when the row was written; null when DealerId is null.</summary>
+    [Column("dealer_name")]
+    [MaxLength(255)]
+    public string? DealerName { get; set; }
+
     [Column("created_at")]
     public DateTime CreatedAt { get; set; }
 }

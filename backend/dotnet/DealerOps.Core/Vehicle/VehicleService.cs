@@ -143,6 +143,7 @@ public class VehicleService
         var q = TrimToNull(filter.Q);
         var make = TrimToNull(filter.Make);
         var model = TrimToNull(filter.Model);
+        var sourceOther = TrimToNull(filter.SourceOther);
 
         IQueryable<VehicleEntity> query = _db.Vehicles.Where(v => v.DealerId == tenant);
 
@@ -159,6 +160,11 @@ public class VehicleService
             query = query.Where(v => v.ConditionCode == filter.Condition.Value);
         if (filter.BodyType.HasValue)
             query = query.Where(v => v.BodyType == filter.BodyType.Value);
+        if (filter.Source.HasValue)
+            query = query.Where(v => v.Source == filter.Source.Value);
+        // DMS-19: one custom source name, ignoring case, as SourceOtherOptions merges them.
+        if (sourceOther != null)
+            query = query.Where(v => v.Source == VehicleSource.Other && v.SourceOther!.ToLower() == sourceOther.ToLower());
         if (make != null)
             query = query.Where(v => v.Make.ToLower() == make.ToLower());
         if (model != null)
@@ -183,6 +189,24 @@ public class VehicleService
             .ToList();
 
         return new PageResponse<VehicleResponse>(items, p, s, total);
+    }
+
+    /// <summary>
+    /// DMS-19: the custom source names of this dealer's OTHER-source vehicles, in stock or sold, for
+    /// the list's second-level source filter and the form's suggestions. Names that differ only in
+    /// case are one option, spelled as on the most recently added vehicle.
+    /// </summary>
+    public List<string> SourceOtherOptions()
+    {
+        var tenant = TenantGuard.RequireTenantId();
+        return _db.Vehicles.AsNoTracking()
+            .Where(v => v.DealerId == tenant && v.Source == VehicleSource.Other && v.SourceOther != null)
+            .OrderByDescending(v => v.CreatedAt)
+            .Select(v => v.SourceOther!)
+            .ToList()
+            .DistinctBy(s => s.ToLowerInvariant())
+            .Order(StringComparer.OrdinalIgnoreCase)
+            .ToList();
     }
 
     /// <summary>Adds a vehicle to this dealer's inventory as IN_STOCK; the VIN must be unique in the dealership.</summary>
@@ -218,6 +242,7 @@ public class VehicleService
             ModelYear = body.ModelYear,
             Vin = vin,
             Source = body.Source!.Value,
+            SourceOther = SourceOtherFor(body.Source!.Value, body.SourceOther),
             PurchaseCost = body.PurchaseCost!.Value,
             AddedOn = addedOn,
             ConditionCode = body.ConditionCode!.Value,
@@ -368,12 +393,16 @@ public class VehicleService
 
         // A null value-type field means "not supplied": keep what is stored. The optional
         // fields (repair cost, Carfax link, listing details) are replaced, so null clears them.
+        var source = body.Source ?? vehicle.Source;
         var next = new PatchedVehicleValues(
             body.Make.Trim(),
             body.Model.Trim(),
             body.ModelYear,
             NormalizeVin(body.Vin),
-            body.Source ?? vehicle.Source,
+            source,
+            // An OTHER vehicle saved before DMS-19 without a custom source stays editable as it is.
+            SourceOtherFor(source, body.SourceOther,
+                allowBlank: vehicle.Source == VehicleSource.Other && vehicle.SourceOther == null),
             body.PurchaseCost ?? vehicle.PurchaseCost,
             body.AddedOn ?? vehicle.AddedOn,
             body.ConditionCode ?? vehicle.ConditionCode,
@@ -425,6 +454,7 @@ public class VehicleService
         vehicle.ModelYear = next.ModelYear;
         vehicle.Vin = next.Vin;
         vehicle.Source = next.Source;
+        vehicle.SourceOther = next.SourceOther;
         vehicle.PurchaseCost = next.PurchaseCost;
         vehicle.AddedOn = next.AddedOn;
         vehicle.ConditionCode = next.ConditionCode;
@@ -728,6 +758,7 @@ public class VehicleService
             vehicle.Model,
             vehicle.ModelYear,
             vehicle.Source,
+            vehicle.SourceOther,
             vehicle.PurchaseCost,
             vehicle.AddedOn,
             vehicle.ConditionCode,
@@ -757,6 +788,7 @@ public class VehicleService
         int ModelYear,
         string Vin,
         VehicleSource Source,
+        string? SourceOther,
         decimal PurchaseCost,
         DateOnly AddedOn,
         ConditionCode ConditionCode,
@@ -781,6 +813,7 @@ public class VehicleService
             ["bodyType"] = vehicle.BodyType.ToString(),
             ["status"] = "IN_STOCK"
         };
+        if (vehicle.SourceOther != null) fields["sourceOther"] = vehicle.SourceOther;
         if (vehicle.RepairCost != null) fields["repairCost"] = vehicle.RepairCost;
         if (vehicle.CarfaxUrl != null) fields["carfaxUrl"] = vehicle.CarfaxUrl;
         if (vehicle.MileageKm != null) fields["mileageKm"] = vehicle.MileageKm;
@@ -809,6 +842,7 @@ public class VehicleService
         if (vehicle.ModelYear != next.ModelYear) Add("modelYear", vehicle.ModelYear, next.ModelYear);
         if (vehicle.Vin != next.Vin) Add("vin", vehicle.Vin, next.Vin);
         if (vehicle.Source != next.Source) Add("source", vehicle.Source.ToString(), next.Source.ToString());
+        if (vehicle.SourceOther != next.SourceOther) Add("sourceOther", vehicle.SourceOther, next.SourceOther);
         if (vehicle.PurchaseCost != next.PurchaseCost) Add("purchaseCost", vehicle.PurchaseCost, next.PurchaseCost);
         if (vehicle.AddedOn != next.AddedOn)
             Add("addedOn", vehicle.AddedOn.ToString("yyyy-MM-dd"), next.AddedOn.ToString("yyyy-MM-dd"));
@@ -854,7 +888,7 @@ public class VehicleService
     private static bool PurchaseFieldsChanged(Dictionary<string, object> changed) =>
         changed.ContainsKey("make") || changed.ContainsKey("model") ||
         changed.ContainsKey("modelYear") || changed.ContainsKey("vin") ||
-        changed.ContainsKey("source") || changed.ContainsKey("purchaseCost") ||
+        changed.ContainsKey("source") || changed.ContainsKey("sourceOther") || changed.ContainsKey("purchaseCost") ||
         changed.ContainsKey("addedOn") || changed.ContainsKey("bodyType") ||
         changed.ContainsKey("repairCost") || changed.ContainsKey("carfaxUrl") ||
         changed.ContainsKey("mileageKm") || changed.ContainsKey("exteriorColor") ||
@@ -882,6 +916,23 @@ public class VehicleService
 
     private static string? TrimToNull(string? value) =>
         string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
+    /// <summary>
+    /// DMS-19: the custom source name stored with a source. Only OTHER keeps one, trimmed; it is
+    /// required unless <paramref name="allowBlank"/> lets an older OTHER vehicle saved without it stay as it is.
+    /// </summary>
+    private static string? SourceOtherFor(VehicleSource source, string? sourceOther, bool allowBlank = false)
+    {
+        if (source != VehicleSource.Other) return null;
+        var value = TrimToNull(sourceOther);
+        if (value == null && !allowBlank)
+        {
+            const string message = "Enter the source when Other is selected.";
+            throw new ApiException(ErrorCode.Validation, message,
+                new Dictionary<string, string> { ["sourceOther"] = message });
+        }
+        return value;
+    }
 
     private static void RequireModelYearInRange(int modelYear)
     {

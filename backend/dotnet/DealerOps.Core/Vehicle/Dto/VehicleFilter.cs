@@ -16,4 +16,6 @@ public record VehicleFilter(
     string? CheckStatus = null,
     BuyerSiteFilter? BuyerSite = null,
     string? Sort = null,
-    bool OpenWorkOrdersOnly = false);
+    bool OpenWorkOrdersOnly = false,
+    VehicleSource? Source = null,
+    string? SourceOther = null);
