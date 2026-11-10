@@ -459,6 +459,8 @@ List query: `q` (substring of VIN / make / model / stock number), `make` and `mo
       "modelYear": 2003,
       "source": "AUCTION",
       "sourceOther": null,
+      "acquiredFromName": "Metro Auto Auction",
+      "acquiredFromAddress": "120 Industrial Rd, Hamilton, ON",
       "purchaseCost": 14200.00,
       "addedOn": "2026-09-01",
       "conditionCode": "AS_IS",
@@ -493,13 +495,15 @@ Every vehicle response (list, detail, create, patch, sell) also carries `openWor
 
 The listing details (design/21 DMS-18) are optional and nullable: `mileageKm` (integer 0–2,000,000), `exteriorColor` (≤ 40), `fuelType` (`GASOLINE`\|`DIESEL`\|`HYBRID`\|`PLUGIN_HYBRID`\|`ELECTRIC`\|`OTHER`), `stockNumber` (≤ 20, unique among the dealership's active vehicles, else `400 VALIDATION` on `stockNumber`), and `listPrice` (≥ 0, at most two decimals). The list search `q` also matches `stockNumber`.
 
-`sourceOther` (design/21 DMS-19) is the user's own name for an `OTHER` source, for example `Lease return`: on create and PATCH it is required (non-blank, at most 100 characters, trimmed) when `source` is `OTHER`, else `400 VALIDATION` on `sourceOther`; for any other source it is ignored and stored as `null`. PATCH lets an `OTHER` vehicle saved before DMS-19 without one keep it blank. It is audited with the vehicle and locked on a sold vehicle like `source`.
+`sourceOther` (design/21 DMS-19) is the user's own category-style name for an `OTHER` source, for example `Lease return`. The value is trimmed first and its length is checked after trimming: at most 100 characters, else `400 VALIDATION` "At most 100 characters." on `sourceOther` (a 100-character value wrapped in spaces is accepted and stored as 100 characters). When `source` is `OTHER` it is required: omitted, `null`, empty and whitespace-only all count as missing → `400 VALIDATION` "Enter the source when Other is selected." on `sourceOther`. For any other source it is ignored and stored as `null`. PATCH replaces the field, so a caller editing a named `OTHER` vehicle must resend `sourceOther`; omitting it is the missing-value error above. The one exception is a legacy record: an `OTHER` vehicle stored without a custom source (saved before DMS-19) may keep it blank on PATCH while it stays `OTHER`. The exception depends only on the stored vehicle: once a custom source is saved it cannot be cleared while the source stays `OTHER`, and after a change to another source is saved, a later change back to `OTHER` requires a custom source. It is audited with the vehicle and locked on a sold vehicle like `source`. Clients show a blank legacy record as `Other` (no colon), and the list filter `source=OTHER` without `sourceOther` ("All other") includes it.
+
+`acquiredFromName` (≤ 120) and `acquiredFromAddress` (≤ 255) (design/21 DMS-20) record who the vehicle was acquired from (a person or business) and their address, for any source. Both are optional and nullable, trimmed first and length-checked after trimming (else `400 VALIDATION` "At most 120 characters." / "At most 255 characters." on that field), and a blank value is stored as `null`. PATCH replaces them like the other optional fields: omitted, `null`, empty or whitespace-only clears the stored value. They are audited on create and PATCH and locked on a sold vehicle like `source`.
 
 Errors: `401`, `403` (not staff).
 
 ### 4.1a `GET /api/v1/vehicles/source-other-options`
 
-Dealer.User; admin or unbound → 403. Returns a JSON array of the `sourceOther` values of this dealership's `OTHER`-source vehicles (in stock or sold, not deleted), for the DMS second-level source filter and the form's suggestions. Values that differ only in case are one entry, spelled as on the most recently added vehicle, sorted ignoring case. Example: `["Fleet sale", "Lease return"]`.
+Dealer.User; admin or unbound → 403. Returns a JSON array of the `sourceOther` values of this dealership's `OTHER`-source vehicles (in stock or sold, not deleted; blank values are left out; independent of the `status` filter), for the DMS second-level source filter and the form's suggestions. Values that differ only in case are one entry, spelled as on the most recently added vehicle, sorted ignoring case. Example: `["Fleet sale", "Lease return"]`.
 
 ### 4.2 `POST /api/v1/vehicles` → 201
 
@@ -554,8 +558,8 @@ Response matches a list item. Cross-dealership / no such vehicle → **404**.
 }
 ```
 
-Whitelist is the fields above only, plus `bodyType` and the listing details of §4.1; all are required except `bodyType`, `repairCost`, `carfaxUrl`, and the listing details (full replacement, same rules as 4.2: an omitted or null listing detail clears it). Do not use PATCH to change `status` / `soldOn` / `soldPrice` (use `/sell`). Ignore `dealerId`.  
-Changing purchase fields on a sold vehicle (make/model/year/vin/source/sourceOther/purchaseCost/addedOn/repairCost/carfax, body type, or a listing detail) → **409** `SOLD_LOCKED`.  
+Whitelist is the fields above only, plus `bodyType`, the listing details, `sourceOther`, `acquiredFromName` and `acquiredFromAddress` of §4.1 (the last three follow the PATCH rules stated there); all are required except `bodyType`, `repairCost`, `carfaxUrl`, and the listing details (full replacement, same rules as 4.2: an omitted or null listing detail clears it). Do not use PATCH to change `status` / `soldOn` / `soldPrice` (use `/sell`). Ignore `dealerId`.  
+Changing purchase fields on a sold vehicle (make/model/year/vin/source/sourceOther/acquiredFromName/acquiredFromAddress/purchaseCost/addedOn/repairCost/carfax, body type, or a listing detail) → **409** `SOLD_LOCKED`.  
 Changing VIN while unsold is still unique per dealership → `400 VIN_DUP`.  
 Changing `vin`, `make`, `model` or `modelYear` re-runs the CR-047 VIN decode match of §4.2 (with the same fallback when the decoder is unavailable).  
 Changing `conditionCode` (handbook: a condition change voids the old check) → increment the corresponding listing `contentVersion++` (if a listing exists). Changing purchase cost alone does not void the ad.  

@@ -8,6 +8,8 @@ public record VehicleResponse(
     int ModelYear,
     VehicleSource Source,
     string? SourceOther,
+    string? AcquiredFromName,
+    string? AcquiredFromAddress,
     decimal PurchaseCost,
     DateOnly AddedOn,
     ConditionCode ConditionCode,

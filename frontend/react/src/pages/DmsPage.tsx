@@ -90,13 +90,16 @@ function validateForm(
     if (!form.sourceOther.trim() && !legacyBlank) e.sourceOther = 'Enter the source when Other is selected';
     else if (form.sourceOther.trim().length > 100) e.sourceOther = 'At most 100 characters';
   }
+  if (form.acquiredFromName.trim().length > 120) e.acquiredFromName = 'At most 120 characters';
+  if (form.acquiredFromAddress.trim().length > 255) e.acquiredFromAddress = 'At most 255 characters';
   if (!form.conditionCode) e.conditionCode = 'Required';
   return e;
 }
 
 interface VehicleForm {
   make: string; model: string; modelYear: string; vin: string;
-  source: string; sourceOther: string; purchaseCost: string; addedOn: string;
+  source: string; sourceOther: string; acquiredFromName: string; acquiredFromAddress: string;
+  purchaseCost: string; addedOn: string;
   conditionCode: string; bodyType: string; repairCost: string; carfaxUrl: string;
   stockNumber: string; mileageKm: string; exteriorColor: string; fuelType: string; listPrice: string;
 }
@@ -126,6 +129,7 @@ function draftsPending(drafts: TextFilters, filters: Filters) {
 
 const ALL_TOUCHED: Record<string, boolean> = {
   make: true, model: true, modelYear: true, vin: true, source: true, sourceOther: true,
+  acquiredFromName: true, acquiredFromAddress: true,
   purchaseCost: true, addedOn: true, conditionCode: true, bodyType: true, repairCost: true, carfaxUrl: true,
   stockNumber: true, mileageKm: true, exteriorColor: true, fuelType: true, listPrice: true,
 };
@@ -135,7 +139,8 @@ const FILTER_DEBOUNCE_MS = 350;
 
 function blankForm(): VehicleForm {
   return {
-    make: '', model: '', modelYear: '', vin: '', source: '', sourceOther: '', purchaseCost: '', addedOn: '', conditionCode: '', bodyType: '', repairCost: '', carfaxUrl: '',
+    make: '', model: '', modelYear: '', vin: '', source: '', sourceOther: '', acquiredFromName: '', acquiredFromAddress: '',
+    purchaseCost: '', addedOn: '', conditionCode: '', bodyType: '', repairCost: '', carfaxUrl: '',
     stockNumber: '', mileageKm: '', exteriorColor: '', fuelType: '', listPrice: '',
   };
 }
@@ -143,7 +148,9 @@ function blankForm(): VehicleForm {
 function vehicleToForm(data: any): VehicleForm {
   return {
     make: data.make ?? '', model: data.model ?? '', modelYear: data.modelYear != null ? String(data.modelYear) : '',
-    vin: data.vin ?? '', source: data.source ?? '', sourceOther: data.sourceOther ?? '', purchaseCost: data.purchaseCost != null ? String(data.purchaseCost) : '',
+    vin: data.vin ?? '', source: data.source ?? '', sourceOther: data.sourceOther ?? '',
+    acquiredFromName: data.acquiredFromName ?? '', acquiredFromAddress: data.acquiredFromAddress ?? '',
+    purchaseCost: data.purchaseCost != null ? String(data.purchaseCost) : '',
     addedOn: data.addedOn ?? '', conditionCode: data.conditionCode ?? '', bodyType: data.bodyType ?? 'OTHER',
     repairCost: data.repairCost != null ? String(data.repairCost) : '', carfaxUrl: data.carfaxUrl ?? '',
     stockNumber: data.stockNumber ?? '', mileageKm: data.mileageKm != null ? String(data.mileageKm) : '',
@@ -413,7 +420,8 @@ export default function DmsPage() {
         setDrawer(false);
         setSaveNotice('Vehicle added.');
       }
-      if (form.source === 'OTHER') loadSourceOtherOptions();
+      // Saving to or away from Other can add or drop a custom source name.
+      if (form.source === 'OTHER' || edit?.source === 'OTHER') loadSourceOtherOptions();
       await load();
     } catch (e) {
       if (seq !== detailSeqRef.current) return;
@@ -432,6 +440,7 @@ export default function DmsPage() {
       await vehiclesApi.delete(edit.id);
       setDrawer(false);
       setEdit(null);
+      loadSourceOtherOptions();
       await load();
     } catch (e) {
       setFormError(describeError(e, 'delete vehicle'));
@@ -789,6 +798,26 @@ export default function DmsPage() {
               </datalist>
               {(validationErrors.sourceOther || serverErrors.sourceOther) && <div className="form-error">{validationErrors.sourceOther || serverErrors.sourceOther}</div>}
             </div>
+          )}
+
+          {/* Optional name and address of where the vehicle was acquired, for any source (DMS-20). */}
+          {form.source !== '' && (
+            <>
+              <div className="form-item">
+                <label className="form-label" htmlFor="vehicle-acquired-from-name">Acquired from</label>
+                <input id="vehicle-acquired-from-name" className="input" maxLength={120}
+                  placeholder="Person or business name" value={form.acquiredFromName}
+                  onChange={e => updateForm('acquiredFromName', e.target.value)} onBlur={() => blurForm('acquiredFromName')} disabled={isSold} />
+                {(validationErrors.acquiredFromName || serverErrors.acquiredFromName) && <div className="form-error">{validationErrors.acquiredFromName || serverErrors.acquiredFromName}</div>}
+              </div>
+              <div className="form-item">
+                <label className="form-label" htmlFor="vehicle-acquired-from-address">Acquired from address</label>
+                <input id="vehicle-acquired-from-address" className="input" maxLength={255}
+                  placeholder="Street, city, province" value={form.acquiredFromAddress}
+                  onChange={e => updateForm('acquiredFromAddress', e.target.value)} onBlur={() => blurForm('acquiredFromAddress')} disabled={isSold} />
+                {(validationErrors.acquiredFromAddress || serverErrors.acquiredFromAddress) && <div className="form-error">{validationErrors.acquiredFromAddress || serverErrors.acquiredFromAddress}</div>}
+              </div>
+            </>
           )}
 
           <div className="form-item">

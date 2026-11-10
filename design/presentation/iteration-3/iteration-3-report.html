@@ -131,17 +131,18 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);font-si
 
 </style></head><body>
 <div class="page"><nav><strong>CONTENTS</strong><ol>
-<li><a href="#s2">01 Today's code: audit log and vehicle source changes</a></li>
+<li><a href="#s2">01 Code of 2026-11-09: audit log and vehicle source</a></li>
+<li><a href="#s3">02 Code of 2026-11-10: review follow-up, acquired-from fields, logging</a></li>
 </ol></nav>
-<main><header><div class="eyebrow">Iteration report · Code changes of 2026-11-09</div><h1>DealerOps Iteration 3 Report</h1><p class="subtitle">What changed in the code today, which problem each change solves, how it works, and what it does to the API contract and the database.</p>
-<dl class="meta"><div><dt>Product</dt><dd>DealerOps</dd></div><div><dt>Branch</dt><dd>V3</dd></div><div><dt>Date</dt><dd>2026-11-09</dd></div><div><dt>Scope</dt><dd>Code changes of 2026-11-09 only</dd></div></dl></header>
+<main><header><div class="eyebrow">Iteration report · Code changes of 2026-11-09 and 2026-11-10</div><h1>DealerOps Iteration 3 Report</h1><p class="subtitle">What changed in the code, which problem each change solves, how it works, and what it does to the API contract and the database.</p>
+<dl class="meta"><div><dt>Product</dt><dd>DealerOps</dd></div><div><dt>Branch</dt><dd>V3</dd></div><div><dt>Dates</dt><dd>2026-11-09 to 2026-11-10</dd></div><div><dt>Scope</dt><dd>Code changes of 2026-11-09 and 2026-11-10</dd></div></dl></header>
 <section id="s2">
-<h2><span class="num">01</span> Today's code: audit log and vehicle source changes</h2>
+<h2><span class="num">01</span> Code of 2026-11-09: audit log and vehicle source</h2>
 
-<p><strong>Scope.</strong> This report covers only the changes made on 2026-11-09, developed in the V2 working tree and committed to branch <code>V3</code>. The vehicle source change (DMS-19) comes from the second client review filed under <code>requirements/iteration-3</code>. The audit log change has no client document; its requirement text is the analysis note <code>requirements/analysis/17-Audit-Log-Dealership-Name-and-Role-2026-11-09.md</code>, the code comments and the design documents edited in the same change. Commits and operations work from earlier days are left out.</p>
+<p><strong>Scope.</strong> This section covers the changes made on 2026-11-09, developed in the V2 working tree and committed to branch <code>V3</code>. The vehicle source change (DMS-19) comes from the second client review filed under <code>requirements/iteration-3</code>. The audit log change has no client document; its requirement text is the analysis note <code>requirements/analysis/17-Audit-Log-Dealership-Name-and-Role-2026-11-09.md</code>, the code comments and the design documents edited in the same change. Commits and operations work from earlier days are left out.</p>
 <p>There are two changes. The audit log now stores the actor's name and role and the dealership's name as they were when each event happened. The vehicle form gets an "Other source" name, with a Source filter on the inventory list. Both touch the .NET 10 service <code>DealerOps.Core</code>, the React frontend, <code>dealer-platform/openapi.yaml</code> and the <code>design/</code> documents. The gateway and the AI service are unchanged.</p>
 
-<div class="callout"><b>Validation status.</b> <code>DealerOps.Core</code> and <code>frontend/react</code> build, and the DMS-19 Playwright cases pass. One new audit case still fails (see "Validation and commits"). The upgrade run against a database that predates the columns and the rename-then-reload check from note 17 are not recorded yet.</div>
+<div class="callout"><b>Validation status.</b> <code>DealerOps.Core</code> and <code>frontend/react</code> build, and the full Playwright suite passes after the 2026-11-10 follow-up (section 02). The audit case that failed on 2026-11-09 was a test defect and is fixed. The upgrade run against a database that predates the columns and the rename-then-reload check from note 17 are not recorded yet.</div>
 
 <h3>Files changed</h3>
 <div class="tbl"><table>
@@ -325,7 +326,7 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);font-si
 <tr><td>DMS-19 API cases</td><td><code>playwright/tests/api/vehicle-source-other.spec.ts</code></td><td>5 of 5 pass: required and trimmed value (SRC-01), filter and case-insensitive options (SRC-02), switching away clears the value (SRC-03), sold lock (SRC-05), dealership isolation</td></tr>
 <tr><td>DMS-19 UI cases</td><td><code>playwright/tests/ui/dms-source-other.spec.ts</code></td><td>2 of 2 pass: the Other source box on the form (SRC-01, SRC-03) and the second-level filter (SRC-02, SRC-04)</td></tr>
 <tr><td>Full Playwright suite</td><td><code>npx playwright test --workers=10</code> on the private e2e stack</td><td>434 passed, 10 skipped, 3 failed. Two <code>roles.spec.ts</code> cases timed out under the 10-worker load and pass when re-run. The third is listed below.</td></tr>
-<tr><td>Audit snapshot case</td><td><code>dealer-roles.spec.ts</code>, "AUDIT / rows keep the actor name, role and dealership name"</td><td>Fails on a re-run as well: the admin's own sign-in row has no <code>dealerName</code> field where the case expects <code>null</code>. The cause has not been investigated yet; it is open work for Change A.</td></tr>
+<tr><td>Audit snapshot case</td><td><code>dealer-roles.spec.ts</code>, "AUDIT / rows keep the actor name, role and dealership name"</td><td>Failed on 2026-11-09. Cause found on 2026-11-10: the API omits null fields, so the admin row has no <code>dealerName</code> key at all; the case expected the key with value <code>null</code>. The product behaves as designed; the case now reads the field with <code>?? null</code> and passes (section 02).</td></tr>
 </tbody></table></div>
 <p>Commits on <code>V3</code>, which was branched from <code>V2</code>:</p>
 <div class="tbl"><table>
@@ -335,6 +336,7 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);font-si
 <tr><td><code>5280ca9</code></td><td>Playwright coverage for DMS-19</td></tr>
 <tr><td><code>3e90a62</code></td><td>AI collaboration roles in <code>AGENTS.md</code>, <code>CLAUDE.md</code>, <code>.cursor/rules</code> and the AI log</td></tr>
 <tr><td><code>71d11c8</code></td><td>Playwright coverage for the audit snapshot and the Role column; branch name in the iteration 1 report</td></tr>
+<tr><td><code>8431078</code></td><td>Validation results and commit list in this report</td></tr>
 </tbody></table></div>
 
 <h3>Summary of before and after</h3>
@@ -350,5 +352,89 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);font-si
 </tbody></table></div>
 </section>
 
-<footer>DealerOps iteration report. Based on the code changes of 2026-11-09; validated by the builds and Playwright runs listed under "Validation and commits".</footer>
+<section id="s3">
+<h2><span class="num">02</span> Code of 2026-11-10: review follow-up, acquired-from fields, logging</h2>
+
+<p><strong>Scope.</strong> Cursor reviewed DMS-19 in <code>requirements/iteration-3/REVIEW-Vehicle-Source-Other-2026-11-10.md</code> (findings R1 to R6). Robin decided on 2026-11-10 to implement all of them, including the client's original request for two boxes, the name and the address of where the vehicle was acquired. The same day the team rules changed: every change ships with Playwright coverage and with enough logging to troubleshoot a bug from the logs. All work is on branch <code>V3</code>.</p>
+
+<h3>Change C: review findings and DMS-20</h3>
+<div class="tbl"><table>
+<thead><tr><th>Finding</th><th>Decision</th><th>Effect</th></tr></thead>
+<tbody>
+<tr><td>R1 Client asked for name and address</td><td>Build both: keep DMS-19, add DMS-20</td><td>Two optional fields for every source, <code>acquiredFromName</code> (120) and <code>acquiredFromAddress</code> (255). Client acceptance of the earlier reduced scope is not recorded.</td></tr>
+<tr><td>R2 SRC-02 contradicted the contract</td><td>Keep the contract</td><td>The merged option uses the spelling of the most recently added vehicle; SRC-02 now states the creation order and expects "lease return".</td></tr>
+<tr><td>R3 Legacy blank values</td><td>Document the rules the code already follows</td><td>An Other vehicle saved before DMS-19 may stay blank while other fields change; a saved name cannot be cleared; returning to Other after another source needs a name; blank rows show "Other".</td></tr>
+<tr><td>R4 PATCH semantics</td><td>PATCH replaces the field</td><td>Omitted, <code>null</code>, empty and blank all mean "no value", so editing a named Other vehicle must resend <code>sourceOther</code>; the React client always does.</td></tr>
+<tr><td>R5 Trim before length</td><td>Trim first, then check</td><td>The request DTOs no longer carry <code>MaxLength</code> for the three text fields; <code>VehicleService.LimitedText</code> trims and checks 100, 120 and 255.</td></tr>
+<tr><td>R6 Acceptance coverage</td><td>Automate it</td><td>Acceptance cases SRC-01 to SRC-20 and ACQ-01 to ACQ-06, covered in the two Playwright specs.</td></tr>
+</tbody></table></div>
+
+<h4>What the user sees</h4>
+<ul>
+<li>Once a Source is chosen on the add or edit form, two optional boxes appear for any source: "Acquired from" (person or business name) and "Acquired from address". They save, reopen with the vehicle, and are disabled on a sold vehicle.</li>
+<li>The "Other source" box behaves as before. The second-level filter's options now reload after any save of a vehicle that was Other and after a delete, so an unused name drops out.</li>
+</ul>
+
+<h4>How it works</h4>
+<ul>
+<li><strong>Storage.</strong> <code>VehicleEntity.AcquiredFromName</code> and <code>AcquiredFromAddress</code> map to two new nullable columns.</li>
+<li><strong>Validation.</strong> <code>LimitedText</code> trims a value to null and rejects a longer one with 400 <code>VALIDATION</code> keyed on the field ("At most N characters."). <code>SourceOtherFor</code> uses it for the 100-character limit.</li>
+<li><strong>Audit and lock.</strong> Both fields are written into the create summary and the patch change set, and count as purchase fields, so a change on a sold vehicle returns 409 <code>SOLD_LOCKED</code>.</li>
+<li><strong>Frontend.</strong> <code>DmsPage</code> adds both fields to the form state and validation; <code>vehicleWriteBody</code> sends the trimmed value or <code>null</code>.</li>
+</ul>
+
+<h3>Change D: logging for troubleshooting</h3>
+<ul>
+<li><code>ApiExceptionFilter</code> writes one Warning for every handled rejection: code, status, method, path, the names of the failing fields, the message and the request id. Field values are never logged.</li>
+<li><code>VehicleService</code> logs a Warning with vehicle id, dealership and actor before rejecting a missing custom source or an over-long text field, and a Debug line when the option list is read.</li>
+<li><code>AuditService</code> logs a Debug line when an audit row's actor has no account to snapshot.</li>
+</ul>
+
+<h3>Change E: team rules</h3>
+<ul>
+<li><code>AGENTS.md</code>, <code>CLAUDE.md</code> and the Cursor rules replace "no test authoring during development" with "Playwright tests with every change", and add a logging standard. <code>project-plan/AI-Log.md</code> records both decisions.</li>
+</ul>
+
+<h3>Contract and schema changes</h3>
+<div class="tbl"><table>
+<thead><tr><th>Item</th><th>Change</th><th>Documented in</th></tr></thead>
+<tbody>
+<tr><td>Vehicle response, create and patch bodies</td><td>New nullable <code>acquiredFromName</code> and <code>acquiredFromAddress</code>; trimmed, then length-checked; PATCH replaces them; locked on a sold vehicle</td><td>openapi, design/14 §4.1 and §4.4, design/21 DMS-20</td></tr>
+<tr><td><code>sourceOther</code></td><td>Trimmed before the 100-character check; omitted, null, empty and blank count as missing; legacy blank rules written down</td><td>openapi, design/14 §4.1, design/21 DMS-19</td></tr>
+<tr><td><code>vehicle ADD COLUMN acquired_from_name VARCHAR(120) NULL</code></td><td>Old rows get <code>NULL</code></td><td><code>Program.cs</code> schema patch</td></tr>
+<tr><td><code>vehicle ADD COLUMN acquired_from_address VARCHAR(255) NULL</code></td><td>Old rows get <code>NULL</code></td><td><code>Program.cs</code> schema patch</td></tr>
+</tbody></table></div>
+<p>The new fields are optional, so existing clients keep working. The request schemas in openapi give the limits in the descriptions rather than as <code>maxLength</code>, because a value wrapped in spaces may be longer before trimming.</p>
+
+<h3>Validation</h3>
+<div class="tbl"><table>
+<thead><tr><th>Check</th><th>Result</th></tr></thead>
+<tbody>
+<tr><td><code>dotnet build</code> on <code>DealerOps.Core</code></td><td>Pass</td></tr>
+<tr><td><code>npm run build</code> in <code>frontend/react</code></td><td>Pass</td></tr>
+<tr><td><code>playwright/tests/api/vehicle-source-other.spec.ts</code></td><td>18 cases pass. SRC-06 (legacy blank vehicle) needs a vehicle that cannot be created through the API; it skips on an empty e2e database and passed when one was prepared in <code>dealer_core_e2e</code>.</td></tr>
+<tr><td><code>playwright/tests/ui/dms-source-other.spec.ts</code></td><td>4 cases pass, including the acquired-from boxes (ACQ-01, ACQ-06) and the return to page 1 when the Source filter changes (SRC-17)</td></tr>
+<tr><td>Full Playwright suite, 6 workers, private e2e stack</td><td>451 passed, 10 skipped, 0 failed</td></tr>
+<tr><td>Logging</td><td>The e2e Core log shows lines such as <code>Request rejected code=VALIDATION status=400 ... fields=sourceOther</code></td></tr>
+</tbody></table></div>
+<p>Commits on <code>V3</code> for this section: <code>60c513d</code> (logging and the audit case fix), <code>7e98492</code> (team rules), <code>a55b90d</code> (the review file), and the commit that carries DMS-20, the review follow-up and this report.</p>
+
+<h4>Limits and open points</h4>
+<ul>
+<li>The acquired-from fields are free text: no address validation, no filter, and they are not shown in the list.</li>
+<li>No Playwright case shows a legacy blank record in the UI, because the e2e database starts without one.</li>
+</ul>
+
+<h3>Summary of before and after</h3>
+<div class="tbl"><table>
+<thead><tr><th>Area</th><th>After 2026-11-09</th><th>After 2026-11-10</th></tr></thead>
+<tbody>
+<tr><td>Where a vehicle came from</td><td>Source, plus a custom name for Other</td><td>Also the seller's name and address, for any source</td></tr>
+<tr><td><code>sourceOther</code> length</td><td>Raw value checked</td><td>Checked after trimming</td></tr>
+<tr><td>Rejected requests in the log</td><td>Status line only</td><td>Code, field names, message and request id</td></tr>
+<tr><td>Tests</td><td>Not written during development</td><td>Playwright coverage with every change</td></tr>
+</tbody></table></div>
+</section>
+
+<footer>DealerOps iteration report. Based on the code changes of 2026-11-09 and 2026-11-10; validated by the builds and Playwright runs listed in each section.</footer>
 </main></div></body></html>

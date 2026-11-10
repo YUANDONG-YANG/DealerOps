@@ -10,6 +10,9 @@ function vehicleWriteBody(b: any) {
     source: b.source,
     // Only an OTHER source carries the user's own source name (DMS-19).
     sourceOther: b.source === 'OTHER' && b.sourceOther?.trim() ? b.sourceOther.trim() : null,
+    // Where the vehicle was acquired, for any source (DMS-20); blank clears it.
+    acquiredFromName: b.acquiredFromName?.trim() || null,
+    acquiredFromAddress: b.acquiredFromAddress?.trim() || null,
     purchaseCost: b.purchaseCost === '' || b.purchaseCost == null ? b.purchaseCost : Number(b.purchaseCost),
     addedOn: b.addedOn,
     conditionCode: b.conditionCode,

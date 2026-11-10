@@ -1,7 +1,7 @@
 # Vehicle source "Other" requirement review
 
 Date: 2026-11-10  
-Status: Pending Robin's review  
+Status: Resolved (Robin, 2026-11-10; see §6)  
 Requirement: DMS-19  
 Reviewed document: [CR-Vehicle-Source-Other-2026-11-09.md](CR-Vehicle-Source-Other-2026-11-09.md)
 
@@ -112,3 +112,16 @@ The additional cases below are proposed manual acceptance scenarios, not a reque
 5. Approve the relevant acceptance additions and any required UI refresh/pagination behavior (R6).
 
 After these decisions, update the existing requirement and relevant canonical design/API documents together where necessary. Keep product changes limited to the approved decisions.
+
+## 6. Resolution (2026-11-10)
+
+Robin reviewed the findings on 2026-11-10 and decided to implement all of them, including the client's original request. Sections 1–5 above are the reviewer's original text and are kept unchanged.
+
+| Finding | Decision | Documented / implemented in |
+|---|---|---|
+| R1 | Build the client's original request as **DMS-20**: optional `acquiredFromName` (≤ 120) and `acquiredFromAddress` (≤ 255) on every vehicle, for any source, shown as **Acquired from** and **Acquired from address** once a Source is selected; audited and locked on a sold vehicle. `sourceOther` stays the category-style custom source for Other (DMS-19). Client acceptance of the earlier reduced scope is not recorded. | CR §2, §3 DMS-20.1–20.5, D4; `design/21-Feature-Extensions.md` §9 DMS-20; `design/14-Backend-API-Contract.md` §4.1; `dealer-platform/openapi.yaml`; `requirements/analysis/02-DMS-Vehicles.md`; `VehicleService`, vehicle DTOs, `VehicleEntity`, and the Core schema patch in `Program.cs` |
+| R2 | Keep the contract: the merged option uses the latest-created spelling. SRC-02 now states the creation order and expects "lease return"; choosing it lists both vehicles. | CR §4 D2, §5 SRC-02 |
+| R3 | Approve the proposed legacy rules. The exception depends only on the stored vehicle, so an unsaved Other → Auction → Other toggle still allows blank. Blank records display as "Other" and are included in **All other**. | CR §3 DMS-19.6–19.8, D5, SRC-06–09, SRC-15; `design/14-Backend-API-Contract.md` §4.1; `dealer-platform/openapi.yaml` (VehiclePatch) |
+| R4 | Omitted, null, empty and whitespace-only `sourceOther` all mean "no value". PATCH replaces the field, so callers editing a named Other vehicle must resend it; omitting it → 400 `VALIDATION` (except the legacy case). | CR §3 DMS-19.9, D6, SRC-10; `design/14-Backend-API-Contract.md` §4.1; `dealer-platform/openapi.yaml` |
+| R5 | Trim first, then check length, for `sourceOther` (100), `acquiredFromName` (120) and `acquiredFromAddress` (255). The request DTOs no longer carry `MaxLength` for these fields; `VehicleService` checks them. | CR §3 DMS-19.10, DMS-20.2, D7, SRC-11, ACQ-03; `design/14-Backend-API-Contract.md` §4.1; `dealer-platform/openapi.yaml`; `VehicleService` |
+| R6 | Add the proposed scenarios as acceptance cases and automate them in Playwright (`playwright/tests/api/vehicle-source-other.spec.ts`, `playwright/tests/ui/dms-source-other.spec.ts`). Confirmed behavior: changing the Source filter returns to page 1; options reload after saves and deletes; suggestions do not restrict input; admin or unbound → 403; filters combine with AND and the options do not depend on Status. | CR §3 DMS-19.4–19.5, D8, §5 SRC-01–20 and ACQ-01–06; `design/21-Feature-Extensions.md` §9 DMS-19 |

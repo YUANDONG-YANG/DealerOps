@@ -2524,7 +2524,7 @@ paths:
       tags: [Vehicles]
       operationId: listVehicleSourceOtherOptions
       summary: Custom source names this dealership entered for OTHER-source vehicles (DMS-19)
-      description: In-stock and sold vehicles, not deleted. Names that differ only in case are one entry, spelled as on the most recently added vehicle; sorted ignoring case.
+      description: In-stock and sold vehicles, not deleted; blank custom sources are left out, and the list does not depend on the Status filter. Names that differ only in case are one entry, spelled as on the most recently added vehicle; sorted ignoring case.
       responses:
         "200":
           description: Custom source names
@@ -3866,7 +3866,17 @@ components:
           type: string
           nullable: true
           maxLength: 100
-          description: The custom source name when `source` is OTHER, else null (DMS-19)
+          description: The custom source name when `source` is OTHER, else null (DMS-19). An OTHER vehicle saved before DMS-19 may have null
+        acquiredFromName:
+          type: string
+          nullable: true
+          maxLength: 120
+          description: Person or business the vehicle was acquired from, for any source (DMS-20)
+        acquiredFromAddress:
+          type: string
+          nullable: true
+          maxLength: 255
+          description: Address of the person or business the vehicle was acquired from (DMS-20)
         purchaseCost:
           type: number
         addedOn:
@@ -3962,8 +3972,15 @@ components:
         sourceOther:
           type: string
           nullable: true
-          maxLength: 100
-          description: Required (non-blank, trimmed) when `source` is OTHER, else 400 VALIDATION on `sourceOther`; ignored and stored as null for any other source (DMS-19)
+          description: Trimmed first, then at most 100 characters (else 400 VALIDATION "At most 100 characters." on `sourceOther`), so surrounding spaces do not count. Required when `source` is OTHER; omitted, null, empty and whitespace-only all count as missing → 400 VALIDATION "Enter the source when Other is selected." on `sourceOther`. Ignored and stored as null for any other source (DMS-19)
+        acquiredFromName:
+          type: string
+          nullable: true
+          description: Optional for any source. Trimmed first, then at most 120 characters (else 400 VALIDATION "At most 120 characters." on `acquiredFromName`); blank is stored as null (DMS-20)
+        acquiredFromAddress:
+          type: string
+          nullable: true
+          description: Optional for any source. Trimmed first, then at most 255 characters (else 400 VALIDATION "At most 255 characters." on `acquiredFromAddress`); blank is stored as null (DMS-20)
         purchaseCost:
           type: number
           minimum: 0
@@ -4038,8 +4055,15 @@ components:
         sourceOther:
           type: string
           nullable: true
-          maxLength: 100
-          description: As on create; an OTHER vehicle saved before DMS-19 without one may keep it blank. Locked on a sold vehicle (409 SOLD_LOCKED)
+          description: As on create (trimmed, then at most 100 characters). PATCH replaces this field, so a caller editing a named OTHER vehicle must resend it; omitted, null, empty and whitespace-only all count as missing → 400 VALIDATION on `sourceOther`. Exception - an OTHER vehicle stored without one (saved before DMS-19) may keep it blank while it stays OTHER; once a value is saved it cannot be cleared while the source stays OTHER. Locked on a sold vehicle (409 SOLD_LOCKED)
+        acquiredFromName:
+          type: string
+          nullable: true
+          description: As on create (trimmed, then at most 120 characters). Replaced like the other optional fields - omitted, null, empty or whitespace-only clears the stored value. Locked on a sold vehicle (409 SOLD_LOCKED) (DMS-20)
+        acquiredFromAddress:
+          type: string
+          nullable: true
+          description: As on create (trimmed, then at most 255 characters). Replaced like the other optional fields - omitted, null, empty or whitespace-only clears the stored value. Locked on a sold vehicle (409 SOLD_LOCKED) (DMS-20)
         purchaseCost:
           type: number
           minimum: 0

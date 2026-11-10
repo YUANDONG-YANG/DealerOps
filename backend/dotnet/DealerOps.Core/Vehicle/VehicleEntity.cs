@@ -41,6 +41,16 @@ public class VehicleEntity : ITenantOwned
     [MaxLength(100)]
     public string? SourceOther { get; set; }
 
+    /// <summary>Name of the person or business the vehicle was acquired from, for any source (DMS-20).</summary>
+    [Column("acquired_from_name")]
+    [MaxLength(120)]
+    public string? AcquiredFromName { get; set; }
+
+    /// <summary>Address of the person or business the vehicle was acquired from (DMS-20).</summary>
+    [Column("acquired_from_address")]
+    [MaxLength(255)]
+    public string? AcquiredFromAddress { get; set; }
+
     [Column("purchase_cost", TypeName = "decimal(12,2)")]
     public decimal PurchaseCost { get; set; }
 

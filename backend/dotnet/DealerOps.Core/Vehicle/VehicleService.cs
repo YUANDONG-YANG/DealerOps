@@ -245,6 +245,8 @@ public class VehicleService
             Vin = vin,
             Source = body.Source!.Value,
             SourceOther = SourceOtherFor(body.Source!.Value, body.SourceOther),
+            AcquiredFromName = LimitedText(body.AcquiredFromName, AcquiredFromNameMax, "acquiredFromName"),
+            AcquiredFromAddress = LimitedText(body.AcquiredFromAddress, AcquiredFromAddressMax, "acquiredFromAddress"),
             PurchaseCost = body.PurchaseCost!.Value,
             AddedOn = addedOn,
             ConditionCode = body.ConditionCode!.Value,
@@ -405,6 +407,8 @@ public class VehicleService
             // An OTHER vehicle saved before DMS-19 without a custom source stays editable as it is.
             SourceOtherFor(source, body.SourceOther, vehicle.Id,
                 allowBlank: vehicle.Source == VehicleSource.Other && vehicle.SourceOther == null),
+            LimitedText(body.AcquiredFromName, AcquiredFromNameMax, "acquiredFromName", vehicle.Id),
+            LimitedText(body.AcquiredFromAddress, AcquiredFromAddressMax, "acquiredFromAddress", vehicle.Id),
             body.PurchaseCost ?? vehicle.PurchaseCost,
             body.AddedOn ?? vehicle.AddedOn,
             body.ConditionCode ?? vehicle.ConditionCode,
@@ -457,6 +461,8 @@ public class VehicleService
         vehicle.Vin = next.Vin;
         vehicle.Source = next.Source;
         vehicle.SourceOther = next.SourceOther;
+        vehicle.AcquiredFromName = next.AcquiredFromName;
+        vehicle.AcquiredFromAddress = next.AcquiredFromAddress;
         vehicle.PurchaseCost = next.PurchaseCost;
         vehicle.AddedOn = next.AddedOn;
         vehicle.ConditionCode = next.ConditionCode;
@@ -761,6 +767,8 @@ public class VehicleService
             vehicle.ModelYear,
             vehicle.Source,
             vehicle.SourceOther,
+            vehicle.AcquiredFromName,
+            vehicle.AcquiredFromAddress,
             vehicle.PurchaseCost,
             vehicle.AddedOn,
             vehicle.ConditionCode,
@@ -791,6 +799,8 @@ public class VehicleService
         string Vin,
         VehicleSource Source,
         string? SourceOther,
+        string? AcquiredFromName,
+        string? AcquiredFromAddress,
         decimal PurchaseCost,
         DateOnly AddedOn,
         ConditionCode ConditionCode,
@@ -816,6 +826,8 @@ public class VehicleService
             ["status"] = "IN_STOCK"
         };
         if (vehicle.SourceOther != null) fields["sourceOther"] = vehicle.SourceOther;
+        if (vehicle.AcquiredFromName != null) fields["acquiredFromName"] = vehicle.AcquiredFromName;
+        if (vehicle.AcquiredFromAddress != null) fields["acquiredFromAddress"] = vehicle.AcquiredFromAddress;
         if (vehicle.RepairCost != null) fields["repairCost"] = vehicle.RepairCost;
         if (vehicle.CarfaxUrl != null) fields["carfaxUrl"] = vehicle.CarfaxUrl;
         if (vehicle.MileageKm != null) fields["mileageKm"] = vehicle.MileageKm;
@@ -845,6 +857,10 @@ public class VehicleService
         if (vehicle.Vin != next.Vin) Add("vin", vehicle.Vin, next.Vin);
         if (vehicle.Source != next.Source) Add("source", vehicle.Source.ToString(), next.Source.ToString());
         if (vehicle.SourceOther != next.SourceOther) Add("sourceOther", vehicle.SourceOther, next.SourceOther);
+        if (vehicle.AcquiredFromName != next.AcquiredFromName)
+            Add("acquiredFromName", vehicle.AcquiredFromName, next.AcquiredFromName);
+        if (vehicle.AcquiredFromAddress != next.AcquiredFromAddress)
+            Add("acquiredFromAddress", vehicle.AcquiredFromAddress, next.AcquiredFromAddress);
         if (vehicle.PurchaseCost != next.PurchaseCost) Add("purchaseCost", vehicle.PurchaseCost, next.PurchaseCost);
         if (vehicle.AddedOn != next.AddedOn)
             Add("addedOn", vehicle.AddedOn.ToString("yyyy-MM-dd"), next.AddedOn.ToString("yyyy-MM-dd"));
@@ -890,7 +906,9 @@ public class VehicleService
     private static bool PurchaseFieldsChanged(Dictionary<string, object> changed) =>
         changed.ContainsKey("make") || changed.ContainsKey("model") ||
         changed.ContainsKey("modelYear") || changed.ContainsKey("vin") ||
-        changed.ContainsKey("source") || changed.ContainsKey("sourceOther") || changed.ContainsKey("purchaseCost") ||
+        changed.ContainsKey("source") || changed.ContainsKey("sourceOther") ||
+        changed.ContainsKey("acquiredFromName") || changed.ContainsKey("acquiredFromAddress") ||
+        changed.ContainsKey("purchaseCost") ||
         changed.ContainsKey("addedOn") || changed.ContainsKey("bodyType") ||
         changed.ContainsKey("repairCost") || changed.ContainsKey("carfaxUrl") ||
         changed.ContainsKey("mileageKm") || changed.ContainsKey("exteriorColor") ||
@@ -919,15 +937,35 @@ public class VehicleService
     private static string? TrimToNull(string? value) =>
         string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 
+    private const int SourceOtherMax = 100;
+    private const int AcquiredFromNameMax = 120;
+    private const int AcquiredFromAddressMax = 255;
+
+    /// <summary>
+    /// Trims an optional text field to null and checks its length after trimming, so surrounding
+    /// spaces never count toward the limit (DMS-19, DMS-20).
+    /// </summary>
+    private string? LimitedText(string? raw, int max, string field, long? vehicleId = null)
+    {
+        var value = TrimToNull(raw);
+        if (value == null || value.Length <= max) return value;
+        _logger.LogWarning(
+            "Vehicle save rejected because {Field} is longer than {Max} characters length={Length} vehicleId={VehicleId} dealerId={DealerId} by {Actor}",
+            field, max, value.Length, vehicleId, TenantGuard.RequireTenantId(), TenantContext.ActorUsername());
+        var message = $"At most {max} characters.";
+        throw new ApiException(ErrorCode.Validation, message, new Dictionary<string, string> { [field] = message });
+    }
+
     /// <summary>
     /// DMS-19: the custom source name stored with a source. Only OTHER keeps one, trimmed; it is
     /// required unless <paramref name="allowBlank"/> lets an older OTHER vehicle saved without it stay as it is.
+    /// Omitted, null, empty and blank values all count as missing.
     /// </summary>
     private string? SourceOtherFor(VehicleSource source, string? sourceOther, long? vehicleId = null,
         bool allowBlank = false)
     {
         if (source != VehicleSource.Other) return null;
-        var value = TrimToNull(sourceOther);
+        var value = LimitedText(sourceOther, SourceOtherMax, "sourceOther", vehicleId);
         if (value == null && !allowBlank)
         {
             _logger.LogWarning(

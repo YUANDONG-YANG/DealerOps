@@ -32,4 +32,8 @@ public record CreateVehicleRequest(
     [MaxLength(20, ErrorMessage = "At most 20 characters.")] string? StockNumber = null,
     [Range(0, double.MaxValue)] decimal? ListPrice = null,
     // Required when Source is OTHER, ignored otherwise (DMS-19).
-    [MaxLength(100, ErrorMessage = "At most 100 characters.")] string? SourceOther = null);
+    // Text fields below are trimmed before VehicleService checks their length (DMS-19, DMS-20).
+    string? SourceOther = null,
+    // Optional for every source; null or blank clears the stored value (DMS-20).
+    string? AcquiredFromName = null,
+    string? AcquiredFromAddress = null);
