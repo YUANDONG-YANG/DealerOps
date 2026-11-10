@@ -1,6 +1,6 @@
 # DealerOps AI Log
 
-Updated: 2026-11-09
+Updated: 2026-11-10
 
 Each member records their own AI use: the task, the affected artifact, which output was accepted or rejected, and how it was checked. Jackson publishes or links this log on the team site by 2026-10-31. Never include passwords, tokens, or private customer records.
 
@@ -11,6 +11,12 @@ Each member records their own AI use: the task, the affected artifact, which out
 Withdrawn: the human only verifies and records issues while Cursor writes the code.
 
 In force: **Claude** writes and implements code; **Cursor** provides opinions, review, and audit. Canonical wording is in `AGENTS.md` / `CLAUDE.md` (kept aligned) and `.cursor/rules/ai-collaboration.mdc`.
+
+### 2026-11-10 · Playwright tests with every change
+
+Withdrawn: no test authoring during feature development.
+
+In force: every new or changed feature ships with matching Playwright specs in `playwright/`, run before the change is declared complete. Canonical wording is in `AGENTS.md` / `CLAUDE.md` and `.cursor/rules/`.
 
 ## AI use log
 

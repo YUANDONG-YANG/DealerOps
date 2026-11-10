@@ -25,14 +25,15 @@ The active implementation is the .NET 10 backend and React frontend. Java and Vu
 - Identify the affected service and its callers before changing a public API, DTO, route, database table, or shared type.
 - Keep the change within the requested scope. Do not fix unrelated issues unless they block the requested feature.
 
-## Development-only workflow
+## Playwright tests with every change
 
-This project is currently focused on feature development. Do not author tests as part of normal feature work.
+Every new or changed feature ships with matching Playwright coverage in `playwright/`.
 
-- Do not create, expand, modify, or refactor unit, integration, end-to-end, or test-only code, including fixtures, mocks, assertions, test helpers, test configuration, or empty test classes.
-- Preserve existing tests and test fixtures. Do not delete, disable, or weaken them to make a change pass.
-- You may inspect or run existing checks when useful, but do not change test code or spend implementation time increasing test coverage unless the user explicitly switches the task to test work.
-- Validate feature work with source review, compilation/builds, API inspection, and focused manual smoke checks as appropriate.
+- In the same change, add or update the specs under `playwright/tests/api` and `playwright/tests/ui` that cover the new behavior and its acceptance cases.
+- Reuse the helpers in `playwright/support/` and name cases after the requirement ID (for example `DMS-19 / SRC-01`).
+- When a change alters existing behavior on purpose, update the affected specs. Do not delete, disable, or weaken tests to make a change pass.
+- Run the affected specs against the e2e stack (`playwright/scripts/e2e-stack.sh`) before declaring the change complete, and report the results.
+- Do not add unit or integration test projects for the .NET or React code unless the user asks; the Playwright suite is the project's test layer.
 
 ## Implementation standards
 
@@ -43,6 +44,7 @@ This project is currently focused on feature development. Do not author tests as
 - Protect user configuration: do not delete, reset, blank, overwrite, or otherwise change user-owned configuration files or values unless the user explicitly requests that specific configuration change. Do not stage configuration files as a side effect of another task. If a task appears to require changing one, preserve existing values and ask the user before editing.
 - Preserve existing public behavior unless the requested change requires a contract change. When a contract changes, update all affected callers in the same change.
 - Keep error handling, validation, authorization, pagination, and response envelopes consistent with the existing module and API contract.
+- Log enough to troubleshoot a bug from the logs alone. Use the module's structured `ILogger<T>` style with record ids, the dealership id, and the actor. Log at Information for each successful write, at Warning for each rejection before it is thrown and for each failed external call, and at Debug for reads and fallbacks. Never log passwords, tokens, or personal field values; log ids and field names instead.
 - Do not make broad formatting-only changes or unrelated renames.
 
 ## Service boundaries
