@@ -939,8 +939,8 @@ test.describe('/team activity log', () => {
 
     const cells = actorCells(page);
     await expect(cells).not.toHaveCount(0);
-    // The cell reads `username (display name)`; the display name is the one stored with the row.
-    for (const text of await cells.allInnerTexts()) expect(text.trim()).toBe(`${owner.username} (${owner.displayName})`);
+    // The cell reads the username alone; the Role column carries the rest of the actor's identity.
+    for (const text of await cells.allInnerTexts()) expect(text.trim()).toBe(owner.username);
   });
 
   test('CR-027 / the free-text change search finds the password sign-ins', async ({

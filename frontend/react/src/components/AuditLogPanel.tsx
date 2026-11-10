@@ -85,8 +85,7 @@ export default function AuditLogPanel({ load, showDealer = false, suggestActors 
           sort={sort} onSort={(key, dir) => { setSort({ key, dir }); setPage(0); }}
           columns={[
             { key: 'createdAt', label: 'When', sortable: true, render: (r) => dateTimeLocal(r.createdAt) },
-            { label: 'Actor', key: 'actorUsername', sortable: true,
-              render: (r) => r.actorDisplayName ? `${r.actorUsername} (${r.actorDisplayName})` : r.actorUsername },
+            { label: 'Actor', key: 'actorUsername', sortable: true, render: (r) => r.actorUsername },
             { label: 'Role', render: (r) => r.actorRole ?? '—' },
             { key: 'action', label: 'Action', sortable: true, render: (r) => actionText(r) },
             { key: 'entityType', label: 'Record', sortable: true, render: (r) => `${r.entityType} #${r.entityId}` },

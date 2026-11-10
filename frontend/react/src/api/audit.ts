@@ -3,11 +3,12 @@ import type { AuditRow } from '../components/AuditTrail';
 
 /**
  * A row of the admin or dealership audit log; those logs also carry the dealership, source IP, and place,
- * plus the actor's name and role and the dealership's name as they were when the row was written.
+ * plus the actor's role and the dealership's name as they were when the row was written. The API also
+ * returns the actor's display name; the table shows the username alone, so it is not read here.
  */
 export type AuditLogRow = AuditRow & {
   id: number; entityId: number; dealerId?: number | null; clientIp?: string | null; clientLocation?: string | null;
-  actorDisplayName?: string | null; actorRole?: string | null; dealerName?: string | null;
+  actorRole?: string | null; dealerName?: string | null;
 };
 
 /**
