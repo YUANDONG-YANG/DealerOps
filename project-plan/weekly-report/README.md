@@ -13,12 +13,13 @@ is a clean seven-day block.
 | 19 – 25 Oct | [weekly_report_10.19-10.25](weekly_report_10.19-10.25.md) | Sprint 1 | 32 | Delivery extensions, manual bug hunt, one-command deploy, Status Report 2 |
 | 26 Oct – 1 Nov | [weekly_report_10.26-11.1](weekly_report_10.26-11.1.md) | Sprint 1 close | 8 | Observability, English-only sweep, Azure deployment fixes |
 | 2 – 8 Nov | [weekly_report_11.2-11.8](weekly_report_11.2-11.8.md) | Sprint 2 | 18 | The 3 November client change request, Status Report 3, seed tooling |
+| 9 – 15 Nov | [weekly_report_11.9-11.15](weekly_report_11.9-11.15.md) | Sprint 2 / Iteration 3 | 16 | DMS-19 and DMS-20, audit snapshots, acceptance coverage, seed refresh |
 
 ## How these reports were produced
 
 They are reconstructed from the repository's own record — commits, their changed files and the
 dated artefacts under `design/`, `requirements/`, `review/` and `project-plan/` — and were written
-on 6 November 2026, after the fact. Three limits follow from that and apply to every week:
+on 16 November 2026, after the fact. Three limits follow from that and apply to every week:
 
 - **The record shows what was done, not what was planned.** Where a report says what carried into
   the following week, that is read from the next week's commits, not from a plan written at the time.
@@ -29,4 +30,6 @@ on 6 November 2026, after the fact. Three limits follow from that and apply to e
 - **Some commit messages are only "update".** Those commits are described here by the files they
   changed. The habit stops after 16 October; from Sprint 1 onwards every message names its change.
 
-Counts are commits reachable from `V2` on 6 November 2026.
+Counts are commits reachable from the relevant report branch at the time of reconstruction. The
+11–15 November report uses `V3` through 16 November 2026; no commits were recorded on 11–15
+November after the 10 November changes.

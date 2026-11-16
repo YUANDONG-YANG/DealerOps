@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Weekly report — 9–15 November 2026 (ISO week 46)</title>
+  <style>
+    :root { --ink:#1a2332; --muted:#5a6577; --line:#d8dee8; --surface:#fff; --page:#f0f3f7; --accent:#1f4e79; --accent-soft:#e8eef5; --good:#1b5e3b; --good-bg:#e8f5ee; --warn:#8a5a00; --warn-bg:#fff6e5; --next-bg:#eef3f9; }
+    * { box-sizing:border-box; }
+    body { margin:0; color:var(--ink); background:var(--page); font:16px/1.55 "Segoe UI","Helvetica Neue",Arial,sans-serif; }
+    .wrap { max-width:920px; margin:0 auto; padding:2.5rem 1.25rem 3.5rem; }
+    header, section { background:var(--surface); border:1px solid var(--line); border-radius:10px; box-shadow:0 8px 24px rgba(26,35,50,.06); padding:1.5rem 1.6rem; margin-bottom:1.15rem; }
+    .eyebrow { color:var(--accent); font-size:.75rem; font-weight:700; letter-spacing:.08em; text-transform:uppercase; }
+    h1 { margin:.35rem 0; font-size:clamp(1.45rem,2.4vw,1.85rem); line-height:1.25; }
+    h2 { margin:0 0 1rem; padding-bottom:.55rem; border-bottom:1px solid var(--line); color:var(--accent); font-size:1.15rem; }
+    h3 { margin:0 0 .4rem; font-size:1rem; }
+    p { margin:0 0 .85rem; }
+    .subtitle { margin:0; color:var(--muted); font-size:.95rem; }
+    .meta { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:.75rem; margin-top:1.25rem; }
+    .meta-item { padding:.7rem .85rem; border-radius:8px; background:var(--accent-soft); }
+    .label { display:block; margin-bottom:.2rem; color:var(--muted); font-size:.72rem; font-weight:700; letter-spacing:.06em; text-transform:uppercase; }
+    .value { font-size:.92rem; font-weight:600; }
+    .note { margin-top:1rem; padding:.75rem .9rem; border-left:3px solid var(--accent); border-radius:0 8px 8px 0; background:#f7f9fc; color:var(--muted); font-size:.9rem; }
+    .activity { padding:.95rem 0; border-top:1px solid var(--line); }
+    .activity:first-of-type { border-top:0; padding-top:0; }
+    .activity-num { display:inline-flex; align-items:center; justify-content:center; width:1.55rem; height:1.55rem; margin-right:.45rem; border-radius:50%; background:var(--accent); color:#fff; font-size:.78rem; font-weight:700; vertical-align:middle; }
+    .activity h3 { display:inline; vertical-align:middle; }
+    .activity p { margin-top:.45rem; color:#2a3444; }
+    code { padding:.08em .35em; border-radius:4px; background:#eef1f6; color:#243247; font: .86em "Cascadia Code",Consolas,"Courier New",monospace; }
+    ul { margin:0; padding-left:1.25rem; }
+    li { margin:.5rem 0; }
+    .callout { margin-bottom:.75rem; padding:.9rem 1rem; border-radius:8px; }
+    .callout:last-child { margin-bottom:0; }
+    .good { border:1px solid #b7dfc8; background:var(--good-bg); }
+    .good h3 { color:var(--good); }
+    .warn { border:1px solid #f0d9a8; background:var(--warn-bg); }
+    .warn h3 { color:var(--warn); }
+    .next { border:1px solid #c5d4e8; background:var(--next-bg); }
+    .next h3 { color:var(--accent); }
+    footer { margin-top:.5rem; color:var(--muted); font-size:.8rem; text-align:center; }
+    @media (max-width:700px) { .wrap { padding:1.5rem .85rem 2.5rem; } header,section { padding-left:1.1rem; padding-right:1.1rem; } }
+    @media print { body { background:#fff; } .wrap { max-width:none; padding:0; } header,section { box-shadow:none; break-inside:avoid; } }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div class="eyebrow">DealerOps · Sprint 2 / Iteration 3</div>
+      <h1>Weekly report — 9–15 November 2026</h1>
+      <p class="subtitle">ISO week 46</p>
+      <div class="meta" role="list">
+        <div class="meta-item"><span class="label">Phase</span><span class="value">Sprint 2 / Iteration 3</span></div>
+        <div class="meta-item"><span class="label">Active days</span><span class="value">9 and 10 November</span></div>
+        <div class="meta-item"><span class="label">Commits</span><span class="value">16 (<code>53be389</code> … <code>8c36f2b</code>)</span></div>
+        <div class="meta-item"><span class="label">Branch</span><span class="value"><code>V3</code> / <code>origin/V3</code></span></div>
+        <div class="meta-item"><span class="label">Contributors</span><span class="value">Yuandong Yang (Robin)</span></div>
+        <div class="meta-item"><span class="label">Volume</span><span class="value">+5,973 / −332 lines</span></div>
+        <div class="meta-item"><span class="label">Milestones</span><span class="value">Iteration 3 review resolved 10 November; no commits 11–15 November</span></div>
+      </div>
+      <p class="note">The report is reconstructed from Git and repository artefacts. Work stopped after 10 November; no further commits were recorded during the remainder of the calendar week.</p>
+    </header>
+
+    <section>
+      <h2>Progress against the plan</h2>
+      <p>The previous week ended with two client themes still open: the vehicle-source clarification and the original request to record who a vehicle was acquired from. This week converted both into explicit requirements and delivered them in the active .NET 10 and React stack. The review findings also became executable acceptance coverage, and the cloud seed was refreshed for the new data.</p>
+    </section>
+
+    <section>
+      <h2>Summary of activities</h2>
+      <div class="activity"><span class="activity-num">1</span><h3>Closed DMS-19 and delivered DMS-20.</h3><p>The vehicle source <code>OTHER</code> now has a dealership-scoped custom source name, trim-before-length validation, legacy blank-value rules, source filtering, option deduplication and the agreed PATCH semantics (<code>26b7eb5</code>, <code>1ebb62b</code>). DMS-20 adds optional acquired-from name and address fields for every vehicle, audited and locked after sale. The API contract, OpenAPI, requirements, feature design and implementation were updated together.</p></div>
+      <div class="activity"><span class="activity-num">2</span><h3>Strengthened audit evidence.</h3><p>Audit events now carry the dealership snapshot and actor identity; rejected requests are logged before they are returned (<code>26b7eb5</code>, <code>60c513d</code>). The UI shows the username alone in the Actor column, and audit times are checked against the browser timezone (<code>8c36f2b</code>, <code>daf1b3e</code>).</p></div>
+      <div class="activity"><span class="activity-num">3</span><h3>Added acceptance coverage.</h3><p>API and UI Playwright cases cover source options, filtering, legacy records, permissions, audit behavior and page reset rules (<code>5280ca9</code>, <code>71d11c8</code>, <code>c439e4f</code>). Project rules now require Playwright coverage and troubleshooting records with every changed feature (<code>7e98492</code>).</p></div>
+      <div class="activity"><span class="activity-num">4</span><h3>Refreshed demo data and export tooling.</h3><p>Cloud additions were refreshed from the 9 November backup, 60 more vehicles and vehicle-source seed data were added, and the export script prepares V3 vehicle columns before export (<code>2bda07e</code>, <code>0e77d25</code>, <code>9fdd320</code>). The backup-before-destroy workflow was repeated (<code>53be389</code>).</p></div>
+      <div class="activity"><span class="activity-num">5</span><h3>Aligned iteration reporting with the code.</h3><p>Validation results, the V3 commit list and the iteration reports were recorded (<code>8431078</code>, <code>26b7eb5</code>). The DMS-19 review records decisions for findings R1–R6, including the decision to implement the original acquisition-details request as DMS-20 (<code>a55b90d</code>, <code>1ebb62b</code>).</p></div>
+    </section>
+
+    <section>
+      <h2>What was delivered</h2>
+      <div class="callout good"><h3>Completed</h3><ul><li>DMS-19 custom vehicle-source behavior, validation, filtering and acceptance cases.</li><li>DMS-20 acquired-from name and address fields across the vehicle lifecycle.</li><li>Dealership-scoped audit actor and snapshot evidence, with rejected requests logged safely.</li><li>Playwright coverage and a rule requiring coverage with every change.</li><li>Refreshed V3 seed/export tooling and 60 additional demo vehicles.</li><li>Updated iteration reports and resolved DMS-19 review findings.</li></ul></div>
+    </section>
+
+    <section>
+      <h2>Impediments and how they were handled</h2>
+      <div class="callout warn"><h3>Scope mismatch</h3><p>The first DMS-19 interpretation captured only a custom category for <code>OTHER</code>, while the original client request also asked for the acquisition party and address. The work split these into DMS-19 and DMS-20 and implemented both.</p></div>
+      <div class="callout warn"><h3>Acceptance coverage lag</h3><p>Several review scenarios had been written but were not automated. The missing API/UI cases were added in the same change, and the project rule was updated to prevent the gap recurring.</p></div>
+      <div class="callout warn"><h3>Cloud state drift</h3><p>The backup-before-destroy workflow was used again, and the seed/export path was refreshed so the new vehicle data can be restored consistently.</p></div>
+    </section>
+
+    <section>
+      <h2>What went well</h2>
+      <p>The review findings became explicit product decisions and were carried through requirements, API contract, implementation, tests and demo data in two active days. The client request and its edge cases now have one traceable path.</p>
+    </section>
+
+    <section>
+      <h2>Carried into the next week</h2>
+      <div class="callout next"><ol><li>Run the full manual acceptance pass against DMS-19 and DMS-20.</li><li>Confirm the remaining Sprint 2 hardening and service-level defaults.</li><li>Keep the Azure backup and seed-refresh procedure in place before the next destructive deployment.</li></ol></div>
+    </section>
+
+    <footer>DealerOps weekly reports · reconstructed from repository evidence · 16 November 2026</footer>
+  </div>
+</body>
+</html>
