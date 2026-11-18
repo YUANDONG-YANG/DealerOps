@@ -171,7 +171,8 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);font-si
     <li><a href="#deploy">15 · Deployment and operations</a></li>
     <li><a href="#scope">16 · Scope and limitations</a></li>
     <li><a href="#features">17 · Feature deep-dives</a></li>
-    <li><a href="#docs">18 · Document map</a></li>
+    <li><a href="#manual">18 · User manual</a></li>
+    <li><a href="#docs">19 · Document map</a></li>
   </ol>
 </nav>
 
@@ -179,7 +180,7 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);font-si
 <header>
   <div class="eyebrow">Client briefing · Detailed design</div>
   <h1>DealerOps System Design</h1>
-  <p class="subtitle">A multi-tenant dealership operations platform for Ontario used-car dealers: inventory (DMS), customers (CRM), sales leads, reconditioning, payments, a public buyer site, and OMVIC advertising compliance checked by fixed rules plus a real AI review. This page explains how the system is organized, how it is built, and how each business process runs. It is written against the shipped system on branch V3: every section describes a decision that is already visible in the code, the diagrams, the screenshots and the sprint deliverables listed in §16.1, with each major feature pulled apart into its business logic and architecture in §17 and every supporting document indexed in §18.</p>
+  <p class="subtitle">A multi-tenant dealership operations platform for Ontario used-car dealers: inventory (DMS), customers (CRM), sales leads, reconditioning, payments, a public buyer site, and OMVIC advertising compliance checked by fixed rules plus a real AI review. This page explains how the system is organized, how it is built, and how each business process runs. It is written against the shipped system on branch V3: every section describes a decision that is already visible in the code, the diagrams, the screenshots and the sprint deliverables listed in §16.1, with each major feature pulled apart into its business logic and architecture in §17, a click-by-click task manual for every role in §18, and every supporting document indexed in §19.</p>
   <dl class="meta">
     <div><dt>Product</dt><dd>DealerOps</dd></div>
     <div><dt>Team</dt><dd>G2 (four members)</dd></div>
@@ -214,8 +215,8 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);font-si
   <h3>Reader's guide, by role</h3>
   <p>This page is the single source of truth for every role that touches the system. The cards below say where each role should start and which sections answer that role's usual questions, so a tester, an operator or an incoming developer does not have to read the whole document before being useful.</p>
   <div class="cards">
-    <div class="card"><h4><span class="chip blue">Dealership staff</span> (owner, manager, sales)</h4><p>Start with <a href="#users">§02</a> (what your tier can and cannot do), <a href="#modules">§07</a> (each business module), <a href="#flows">§08</a> (the day as a sequence of flows) and <a href="#frontend">§13</a> (which page serves which action). <a href="#flows">§8.14</a> is the per-role reading guide of the daily system.</p></div>
-    <div class="card"><h4><span class="chip gray">Public buyer</span> (<code>/shop</code>)</h4><p><a href="#modules">§07</a> "Buyer site" and <a href="#flows">§8.4</a> describe what the public pages show, what an inquiry turns into, and how a vehicle is taken down after a sale. No account, no login.</p></div>
+    <div class="card"><h4><span class="chip blue">Dealership staff</span> (owner, manager, sales)</h4><p>Start with <a href="#users">§02</a> (what your tier can and cannot do), <a href="#modules">§07</a> (each business module), <a href="#flows">§08</a> (the day as a sequence of flows) and <a href="#frontend">§13</a> (which page serves which action). The step-by-step user manual at <a href="#manual">§18.2–18.4</a> is the "how do I do this" view; <a href="#flows">§8.14</a> is the per-role reading guide.</p></div>
+    <div class="card"><h4><span class="chip gray">Public buyer</span> (<code>/shop</code>)</h4><p><a href="#modules">§07</a> "Buyer site" and <a href="#flows">§8.4</a> describe what the public pages show, what an inquiry turns into, and how a vehicle is taken down after a sale. <a href="#manual">§18.1</a> is the public-buyer walkthrough. No account, no login.</p></div>
     <div class="card"><h4><span class="chip purple">Client / product owner</span></h4><p><a href="#summary">§01</a> gives the whole shape in one page; <a href="#org">§03</a> is the team and delivery rhythm; <a href="#scope">§16</a> states scope and accepted deliverables; <a href="#features">§17</a> is a feature-by-feature answer to "how does X work" without needing code.</p></div>
     <div class="card"><h4><span class="chip blue">Architect</span></h4><p><a href="#arch">§04</a> service boundaries (with Figures 1, 1a and the C4 figure 1b), <a href="#stack">§05</a> technology stack, <a href="#security">§06</a> security and tenancy, <a href="#data">§11</a> data model and <a href="#deploy">§15</a> deployment and cost. <a href="#features">§17</a> is the per-feature architecture reference.</p></div>
     <div class="card"><h4><span class="chip blue">Backend developer</span></h4><p><a href="#arch">§04</a> request path (4.2), <a href="#modules">§07</a> modules, <a href="#compliance">§09</a> compliance pipeline, <a href="#audit">§10</a> audit rules, <a href="#data">§11</a> tables, <a href="#api">§12</a> API conventions. <a href="#features">§17</a> names which service, transaction and endpoint owns each feature end to end.</p></div>
@@ -225,7 +226,7 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);font-si
     <div class="card"><h4><span class="chip red">Security reviewer</span></h4><p><a href="#security">§06</a> authentication, authorization and secrets; <a href="#compliance">§9.5</a> how the AI review is kept safe and honest; <a href="#audit">§10</a> audit guarantees; <a href="#deploy">§15</a> Azure boundary and Key Vault. <a href="#features">§17.2</a> and <a href="#features">§17.9</a> isolate the sign-in and audit paths.</p></div>
     <div class="card"><h4><span class="chip blue">Data / reporting user</span></h4><p><a href="#data">§11</a> table catalogue and relationships, <a href="#modules">§07</a> "Sales leads and reports" for the figures the Sales report and Dashboard compute, <a href="#api">§12</a> for the paged list conventions. Nothing is hard-deleted, so historical rows are always readable.</p></div>
     <div class="card"><h4><span class="chip purple">Platform admin / integrator</span></h4><p><a href="#users">§02</a> admin capabilities, <a href="#modules">§07</a> "Administration and audit", <a href="#compliance">§9.4</a> rule overrides and their effect on existing checks, <a href="#api">§12</a> admin endpoint family. <a href="#features">§17.2</a> covers how admin tokens are refused on business routes.</p></div>
-    <div class="card"><h4><span class="chip gray">Incoming contributor</span></h4><p>Read <a href="#summary">§01</a>, <a href="#arch">§04</a> and <a href="#dev">§14</a>, then pick one feature in <a href="#features">§17</a> and follow its endpoint through <a href="#api">§12</a> into the code paths named in <a href="#deploy">§15.4</a>. The <a href="#docs">§18</a> document map lists every source document the page summarises.</p></div>
+    <div class="card"><h4><span class="chip gray">Incoming contributor</span></h4><p>Read <a href="#summary">§01</a>, <a href="#arch">§04</a> and <a href="#dev">§14</a>, then pick one feature in <a href="#features">§17</a> and follow its endpoint through <a href="#api">§12</a> into the code paths named in <a href="#deploy">§15.4</a>. The <a href="#docs">§19</a> document map lists every source document the page summarises.</p></div>
   </div>
 </section>
 
@@ -2704,8 +2705,231 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);font-si
 </section>
 
 <!-- 18 -->
+<section id="manual">
+  <h2><span class="num">18</span>User manual: step-by-step tasks</h2>
+  <p>Every walkthrough below names the screen, the field or button, what the system does on success and what it refuses. Where a refusal can happen, the code the user sees on the page (for example <code>WORK_ORDERS_OPEN</code>) is listed in the <b>If it refuses</b> line, so a trainee can match the screen to §8.9 and §17 without decoding a technical message. Role names in parentheses — Sales, Manager, Owner, Admin, Public buyer — match the tiers defined in §02.</p>
+
+  <h3>18.1 Public buyer tasks (no account)</h3>
+
+  <h4>18.1.1 Browse listed vehicles at a dealership</h4>
+  <ol class="list">
+    <li>Open <code>/shop</code>. Each active dealership is a card with its logo and in-stock and sold counts.</li>
+    <li>Click a card (or open <code>/shop/{dealership}</code> directly, for example <code>/shop/mazda</code>).</li>
+    <li>The page shows only the vehicles whose ad is Ready and whose latest check is Passed and current. No VIN, cost or customer data is shown anywhere.</li>
+  </ol>
+  <p><b>If it refuses.</b> A vehicle that has just been sold or whose ad was taken down disappears between loads; that is deliberate.</p>
+
+  <h4>18.1.2 Send an inquiry about a vehicle</h4>
+  <ol class="list">
+    <li>Open a vehicle's detail page on <code>/shop/{dealership}</code>.</li>
+    <li>Fill the inquiry form: name, phone, a short message.</li>
+    <li>Press <b>Send</b>. The confirmation says the dealership has received the inquiry; no account is created and no password is set.</li>
+  </ol>
+  <p><b>If it refuses.</b> More than five inquiries in one minute from the same address → <code>RATE_LIMITED</code>, wait a minute. Vehicle no longer listed → the message says so; the staff do not receive a dead inquiry. Missing name or phone → inline per-field error.</p>
+
+  <h4>18.1.3 Decode a VIN from the landing page</h4>
+  <ol class="list">
+    <li>Open <code>/</code>. Paste or type a 17-character VIN into the decoder; the field upper-cases the value.</li>
+    <li>Press <b>Decode</b>. Make, model, year and body type appear below the input.</li>
+    <li>Follow the <b>Sign up to track this vehicle</b> link to register if you want to save it into a dealership's stock.</li>
+  </ol>
+  <p><b>If it refuses.</b> VIN contains I, O or Q, or is not 17 characters → the field highlights the problem. NHTSA unavailable → <code>CATALOG_UNAVAILABLE</code>; retry later.</p>
+
+  <h3>18.2 Sales member daily tasks</h3>
+
+  <h4>18.2.1 Register and sign in</h4>
+  <ol class="list">
+    <li>Open <code>/register</code>. Enter a username, display name, password and at least an email or a phone number.</li>
+    <li>Press <b>Create account</b>. The browser lands on the no-access screen: the account is signed in but has no dealership yet.</li>
+    <li>Press <b>Request to join a dealership</b>, pick the dealership and submit. Wait for the owner's approval.</li>
+    <li>On the next sign-in at <code>/login</code>, use any of username, email or phone plus the password. (Google and Firebase sign-in are available when the dealership has configured them.)</li>
+  </ol>
+  <p><b>If it refuses.</b> Wrong password or unknown username → <code>INVALID_CREDENTIALS</code>; the response time is the same so you cannot tell which one was wrong by waiting. Two active dealership memberships → never happens through the UI; if seen, <code>DUP_MEMBER</code>.</p>
+
+  <h4>18.2.2 Add a vehicle to inventory</h4>
+  <ol class="list">
+    <li>On <code>/dms</code>, press <b>Add vehicle</b>.</li>
+    <li>Type the VIN and press <b>Decode</b>. Make, model, year and body type fill in.</li>
+    <li>Pick the <b>Source</b>. If you pick <b>Other</b>, type an Other source name (up to 100 characters; the dealership's past custom names are offered as suggestions).</li>
+    <li>Fill the required fields: purchase cost, date added, condition. Optionally add mileage, colour, fuel, stock number, list price, repair cost, a Carfax link, and the Acquired-from name and address.</li>
+    <li>Press <b>Save</b>. The vehicle appears on the inventory list as <code>IN_STOCK</code>.</li>
+  </ol>
+  <p><b>If it refuses.</b> VIN already in the dealership → <code>VIN_DUPLICATE</code>. Money field with three decimals → inline field error; nothing is rounded silently. VIN format wrong → field error.</p>
+
+  <h4>18.2.3 Record work orders on a vehicle</h4>
+  <ol class="list">
+    <li>Open the vehicle drawer on <code>/dms</code> and switch to the <b>Work orders</b> tab.</li>
+    <li>Press <b>Add task</b>, type a title, optionally pick an assignee from the dealership's members and a due date, then <b>Save</b>.</li>
+    <li>Move the task to <b>In progress</b> when you start, and <b>Done</b> when finished; Done requires a note and a cost. The cost is added to the vehicle's repair cost on commit.</li>
+    <li>Use <b>Cancel</b> for tasks that will not be done. Finished or cancelled tasks cannot be edited again.</li>
+  </ol>
+  <p><b>If it refuses.</b> Finish without note or cost → inline errors on those fields. Edit a Done or Cancelled task → <code>LEAD_CLOSED</code>-style refusal (409). Add a task on a sold vehicle → <code>SOLD_LOCKED</code>.</p>
+
+  <h4>18.2.4 Upload and enhance photos (Image Studio)</h4>
+  <ol class="list">
+    <li>In the vehicle drawer, switch to <b>Image Studio</b>.</li>
+    <li>Drag up to 10 JPEG or PNG files, each up to 2 MB. The file type is checked from the bytes, not the name.</li>
+    <li>For a photo, pick a preset — Auto fix, Brighten or Sharpen — to create an enhanced copy. The original is always kept.</li>
+  </ol>
+  <p><b>If it refuses.</b> File too large or wrong type → the limit is named in the message. Eleventh photo → <code>400</code> with the 10-photo cap. Corrupt image → enhancement refused; original stays.</p>
+
+  <h4>18.2.5 Create a customer and link a vehicle</h4>
+  <ol class="list">
+    <li>Open <code>/crm</code> and press <b>Add customer</b>. Fill name, email, phone, home address and optionally notes.</li>
+    <li>Press <b>Save</b>. If any field matches another customer of the dealership, a warning appears — confirm and the record still saves (no customer field is unique).</li>
+    <li>In the customer drawer, press <b>Link vehicle</b> and pick any vehicle of the dealership that has no customer yet (in stock or sold).</li>
+  </ol>
+  <p><b>If it refuses.</b> Trying to link a vehicle that already has a customer → <code>VEHICLE_ALREADY_LINKED</code>. Unlinking a sold vehicle → refused; sold links cannot be removed.</p>
+
+  <h4>18.2.6 Work a lead through to Won</h4>
+  <ol class="list">
+    <li>On <code>/leads</code>, press <b>New lead</b>, pick a customer and (optionally) a vehicle, set a follow-up date, type the first note. The owner field pre-fills with your username; change it if the lead is someone else's.</li>
+    <li>Move the lead along the stages NEW → CONTACTED → QUALIFIED as you make contact; add notes any time.</li>
+    <li>When the deal closes, mark it <b>Won</b> or <b>Lost</b> (Lost requires a reason). Winning a lead does not sell the vehicle — recording the sale in DMS (§18.2.9) does, and that step closes the lead as Won automatically.</li>
+  </ol>
+  <p><b>If it refuses.</b> Second open lead for the same customer and vehicle → <code>LEAD_DUPLICATE</code>. Trying to change a Won or Lost lead → <code>LEAD_CLOSED</code>; you can still add notes or reopen it while the vehicle is in stock.</p>
+
+  <h4>18.2.7 Write an ad and run the compliance check</h4>
+  <ol class="list">
+    <li>On <code>/ads</code>, open the vehicle's row.</li>
+    <li>Fill the ad: title, body, type (CASH / FINANCE / LEASE), medium (ONLINE / RADIO_TV_BILLBOARD), and the disclosure checklist (prior use, warranty terms, annual kilometre allowance).</li>
+    <li>Press <b>Run check</b>. Hard rules run first. If any of them blocks, the result is BLOCKED and the AI was not called. Fix the items the panel lists and re-check.</li>
+    <li>If the rules pass, the AI review runs and shows up to eight advisory notes. Advisory notes do not stop you from marking the ad Ready.</li>
+  </ol>
+  <p><b>If it refuses.</b> Rate limited (30 AI-backed calls per minute per user) → <code>RATE_LIMITED</code>. AI down → the result reads <b>AI unavailable</b>; this is not a pass.</p>
+
+  <h4>18.2.8 Mark the ad Ready and export the TXT</h4>
+  <ol class="list">
+    <li>Once the check is PASSED on the current text, the <b>Mark Ready</b> button becomes active. Pressing it publishes the vehicle on <code>/shop/{dealership}</code>.</li>
+    <li>Press <b>Export TXT</b> to download the ad body for an external channel; the file ends with the OMVIC-disclaimer line.</li>
+    <li>Any later real text change bumps the content version, returns the ad to Draft, marks the pass Stale and removes the vehicle from the public page until you re-check.</li>
+  </ol>
+  <p><b>If it refuses.</b> Ad text changed since the last check → <code>CHECK_STALE</code> or <code>NOT_PASSED</code>; re-run the check.</p>
+
+  <h4>18.2.9 Record a sale</h4>
+  <ol class="list">
+    <li>In the vehicle drawer on <code>/dms</code>, press <b>Sell</b>. The dialog shows purchase cost, workshop spend and list price.</li>
+    <li>Pick the buyer: either a CRM customer of the dealership (they are linked to the vehicle in the same step) or <b>Other</b> with a typed buyer name.</li>
+    <li>Enter the sold date (between the date added and today) and the sold price (positive, at most two decimals).</li>
+    <li>Press <b>Confirm</b>. The vehicle becomes SOLD; purchase fields lock; open leads on the vehicle close (the buyer's lead as Won, the rest as Lost with reason "Vehicle sold"); the salesperson is recorded as you.</li>
+  </ol>
+  <p><b>If it refuses.</b> Open work orders → <code>WORK_ORDERS_OPEN</code>; finish or cancel them first. Vehicle already linked to another customer → <code>VEHICLE_ALREADY_LINKED</code>. Already sold → <code>SOLD_LOCKED</code>. Record changed since you opened the dialog → <code>VERSION_CONFLICT</code>; re-open and retry.</p>
+
+  <h4>18.2.10 Record a payment and print the bill of sale</h4>
+  <ol class="list">
+    <li>In the vehicle drawer, switch to <b>Payments</b>. Press <b>Record payment</b>.</li>
+    <li>Enter amount, method (cash, debit, credit card, cheque, bank transfer, financing, other), date (between the sale date and today) and an optional note.</li>
+    <li>Press <b>Save</b>. Your entry is confirmed; as a Sales member you see this entry only, not the ledger or the balance due.</li>
+    <li>When the balance reaches zero, open <b>Print bill of sale</b> from the drawer; the <code>/dms/{vehicleId}/bill-of-sale</code> page prints on one sheet.</li>
+  </ol>
+  <p><b>If it refuses.</b> Amount larger than the remaining balance → <code>409</code>; the message carries the current balance. Three decimals → inline field error. Date before the sale → field error.</p>
+
+  <h4>18.2.11 Ask the AI assistant</h4>
+  <ol class="list">
+    <li>Click the floating <b>Assistant</b> button at the bottom-right of any staff page.</li>
+    <li>Type a plain question such as "Which Toyota vehicles are in stock?" or "How many customers do we have?".</li>
+    <li>The panel shows up to five of the dealership's own records, each with a link, plus a one-paragraph plain-language summary.</li>
+  </ol>
+  <p><b>If it refuses.</b> AI provider down → the records are still shown with "Smart explanation is temporarily unavailable." Counts are answered without calling the model, so they are reliable even in that case.</p>
+
+  <h4>18.2.12 Read the sales report and the dashboard</h4>
+  <ol class="list">
+    <li>Open <code>/reports/sales-funnel</code>. Pick a period: <b>Day</b>, <b>Week</b>, <b>Month</b> or <b>Year</b>.</li>
+    <li>Read the units, revenue, gross profit and average days-to-sell; the per-salesperson table lists every member who sold in that period.</li>
+    <li>Below, the lead funnel shows current open stages, the win rate, and the stage history by month; the workshop-settlement section totals finished work by month and assignee.</li>
+    <li>The Dashboard (<code>/dashboard</code>) summarises inventory, sales, pipeline and workshop KPIs at a glance using the same period selector.</li>
+  </ol>
+
+  <h3>18.3 Dealership Manager tasks</h3>
+
+  <h4>18.3.1 Promote a sales member to manager</h4>
+  <ol class="list">
+    <li>Open <code>/team</code> → <b>Members</b>.</li>
+    <li>Find the sales member, open the row menu, press <b>Promote to manager</b>.</li>
+    <li>The change is audited and applies on their next request.</li>
+  </ol>
+  <p><b>If it refuses.</b> Target is already a manager or owner → the menu item is hidden. Acting on a fellow manager or the owner → <code>403</code> (a manager can act on sales members only).</p>
+
+  <h4>18.3.2 Edit a sales member's name or phone, or remove them</h4>
+  <ol class="list">
+    <li>In <code>/team</code> → <b>Members</b>, open the sales member's row.</li>
+    <li>Press <b>Edit</b> to change the full name or phone; press <b>Remove</b> to detach them (their audit history stays).</li>
+  </ol>
+  <p><b>If it refuses.</b> Acting on a manager or the owner → <code>403</code>. Removing yourself → refused; use the admin to unbind.</p>
+
+  <h4>18.3.3 Read the ledger and remove a mistaken payment</h4>
+  <ol class="list">
+    <li>Open a sold vehicle on <code>/dms</code>, switch to <b>Payments</b>. As a manager you see every payment, the total taken and the balance due.</li>
+    <li>Open a payment's row and press <b>Remove</b>. The row is soft-deleted and the removal is itself audited.</li>
+  </ol>
+
+  <h4>18.3.4 Read the dealership audit log</h4>
+  <ol class="list">
+    <li>Open <code>/team</code> → <b>Audit</b>. Rows are newest first; every column (When, Actor, Role, Action, Record, Changes, Source IP, Location) sorts on the server.</li>
+    <li>Filter by entity type, record id, action, actor, date range, or search inside the recorded change values.</li>
+    <li>Press <b>Details</b> to open a drawer with the full new and replaced values.</li>
+  </ol>
+
+  <h3>18.4 Dealership Owner tasks (manager tasks plus these)</h3>
+
+  <h4>18.4.1 Approve or reject a join request</h4>
+  <ol class="list">
+    <li>Open the header inbox or <code>/team</code>: pending requests are listed with the requester's username, display name, requested at, and any note.</li>
+    <li>Press <b>Approve</b> to admit as Sales (audited), or <b>Reject</b>.</li>
+  </ol>
+
+  <h4>18.4.2 Edit the dealership profile (legal name, phone, email, address, logo)</h4>
+  <ol class="list">
+    <li>Open <code>/team</code> → <b>Profile</b> (owner-only tab).</li>
+    <li>Edit the legal name, phone, email, mailing address and upload a logo. Fields feed the OMVIC rule engine — the dealership's own contact details are what the ad is checked against.</li>
+    <li>Changing any such field marks every existing compliance check Stale; re-run the checks from <code>/ads</code>.</li>
+  </ol>
+
+  <h4>18.4.3 Appoint or demote a manager</h4>
+  <ol class="list">
+    <li>In <code>/team</code> → <b>Members</b>, use the row menu to <b>Promote to manager</b> or <b>Demote to sales</b>.</li>
+  </ol>
+  <p><b>If it refuses.</b> Demoting or removing the dealership's only owner (yourself) → <code>LAST_OWNER</code>; ask the admin to appoint a replacement, which transfers the office.</p>
+
+  <h3>18.5 Platform Admin tasks</h3>
+
+  <h4>18.5.1 Open a new dealership and bind the first owner</h4>
+  <ol class="list">
+    <li>Open <code>/admin</code> → <b>Dealerships</b> and press <b>New dealership</b>. Enter legal name, phone, email, mailing address.</li>
+    <li>In the dealership's Members tab, create an account (or pick a pending self-registered one) and press <b>Bind as owner</b>. This bootstrap only works while the dealership has no owner.</li>
+    <li>After an owner exists, the same button files a join request to that dealership instead; the owner approves it from <code>/team</code>.</li>
+  </ol>
+
+  <h4>18.5.2 Transfer a dealership's owner</h4>
+  <ol class="list">
+    <li>Open the target dealership in <code>/admin</code>. Open an existing member's row.</li>
+    <li>Press <b>Set as owner</b>. In the same transaction, the sitting owner is demoted to manager.</li>
+  </ol>
+  <p><b>If it refuses.</b> No other dealership member exists → <code>LAST_OWNER</code>; create or admit someone first.</p>
+
+  <h4>18.5.3 Reset a user's password</h4>
+  <ol class="list">
+    <li>In <code>/admin</code> → <b>Accounts</b>, open the user row and press <b>Reset password</b>.</li>
+    <li>Enter the new password (the admin never sees the old one). The action is audited, and the account's existing tokens remain valid until they expire; the user signs in with the new password next time.</li>
+  </ol>
+
+  <h4>18.5.4 Edit the global OMVIC rule settings</h4>
+  <ol class="list">
+    <li>Open <code>/admin</code> → <b>Compliance rules</b>.</li>
+    <li>For any rule, disable it, switch between BLOCK and REVIEW, or override the message shown to the user.</li>
+    <li>Saving any change marks every existing compliance check Stale across the platform, so every ad is rechecked under the new rules.</li>
+  </ol>
+
+  <h4>18.5.5 Read the platform audit log</h4>
+  <ol class="list">
+    <li>Open <code>/admin</code> → <b>Audit</b>. Rows cover every dealership plus sign-ins and admin actions.</li>
+    <li>Filter by dealership, entity type, actor, date range, or search inside the recorded change values.</li>
+  </ol>
+</section>
+
+<!-- 19 -->
 <section id="docs">
-  <h2><span class="num">18</span>Document map</h2>
+  <h2><span class="num">19</span>Document map</h2>
   <div class="tbl"><table>
     <thead><tr><th>Topic</th><th>Document</th></tr></thead>
     <tbody>
