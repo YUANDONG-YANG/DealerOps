@@ -177,7 +177,7 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);font-si
 <header>
   <div class="eyebrow">Client briefing · Detailed design</div>
   <h1>DealerOps System Design</h1>
-  <p class="subtitle">A multi-tenant dealership operations platform for Ontario used-car dealers: inventory (DMS), customers (CRM), sales leads, reconditioning, payments, a public buyer site, and OMVIC advertising compliance checked by fixed rules plus a real AI review. This page explains how the system is organized, how it is built, and how each business process runs.</p>
+  <p class="subtitle">A multi-tenant dealership operations platform for Ontario used-car dealers: inventory (DMS), customers (CRM), sales leads, reconditioning, payments, a public buyer site, and OMVIC advertising compliance checked by fixed rules plus a real AI review. This page explains how the system is organized, how it is built, and how each business process runs. It is written against the shipped system on branch V3: every section describes a decision that is already visible in the code, the diagrams, the screenshots and the sprint deliverables listed in §16.1 and §17.</p>
   <dl class="meta">
     <div><dt>Product</dt><dd>DealerOps</dd></div>
     <div><dt>Team</dt><dd>G2 (four members)</dd></div>
@@ -186,6 +186,7 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);font-si
     <div><dt>Document date</dt><dd>2026-11-18</dd></div>
     <div><dt>Status</dt><dd>Feature code complete; implementation accepted 2026-10-23</dd></div>
     <div><dt>Verified against</dt><dd>Source of the four running services on branch V3</dd></div>
+    <div><dt>Downloads</dt><dd><a href="../../output/pdf/DealerOps-System-Design.pdf">System design PDF</a> · <a href="../../output/pdf/DealerOps-Capstone-Poster.pdf">Capstone poster PDF</a> · <a href="../../project-plan/prototype/DealerOps-Prototype.html">Interactive prototype</a></dd></div>
   </dl>
 </header>
 
@@ -386,6 +387,7 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);font-si
     <figcaption>Figure 1 · Service boundaries. Solid blue arrows are the only allowed request path, and both of its hops carry the internal credential the Gateway adds: Core and the AI service answer <b>404</b> to anyone who reaches them without it, which is what makes the red dashed path fail. Grey arrows are outbound calls the services make themselves — the browser obtains a Google or Firebase ID token, and Core then verifies it against the provider before issuing a DealerOps token of its own. Hand-authored source figures also live in <code>design/diagrams/</code>.</figcaption>
   </figure>
   <details><summary>Figure 1a · Printable version of the service boundaries (<code>design/diagrams/architecture/01-service-boundaries.svg</code>)</summary><figure class="img"><img src="../diagrams/architecture/01-service-boundaries.svg" alt="Service boundaries and request paths, with trust zones" loading="lazy"><figcaption>Figure 1a · The same boundaries drawn with trust zones and every request path. This file is the source figure kept in <code>design/diagrams/</code>.</figcaption></figure></details>
+  <details><summary>Figure 1b · C4 container diagram (<code>design/assets/dealerops-c4-container-diagram.svg</code>)</summary><figure class="img"><img src="../assets/dealerops-c4-container-diagram.svg" alt="DealerOps as a C4 container diagram: browser, gateway, core, AI service, MySQL and external systems" loading="lazy"><figcaption>Figure 1b · The same services drawn in the standard C4 container notation. The design was sketched this way first and the source file is kept in <code>design/assets/</code>; put beside Figure 1, it is the proof that the shipped topology still matches the intent.</figcaption></figure></details>
 
   <h3>4.1 What each service owns</h3>
   <div class="tbl"><table>
@@ -996,6 +998,12 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);font-si
     <li><b>API layer</b>: all calls go through one client pointed at the configured Gateway URL, which attaches the bearer token. Pages never build service URLs.</li>
     <li>The footer shows the release time of web, gateway, core and ai, read from the Gateway's release endpoint.</li>
   </ul>
+  <h3>The design as it actually looks</h3>
+  <p>These are screenshots taken from the running system on branch V3. Each one is the finished page the role tables in §02 and the module descriptions in §07 ask for, so a reader can compare the design to the delivery without starting the stack.</p>
+  <figure class="img"><img src="../../requirements/backup-data/01-southgate-dashboard.png" alt="Sales dashboard at Southgate dealership" loading="lazy"><figcaption>Figure 13.1 · A sales member's dashboard at Southgate: KPI tiles, period selector, and no Team item in the menu — the §02 "Dealership Sales" scope on screen (<code>requirements/backup-data/01-southgate-dashboard.png</code>).</figcaption></figure>
+  <figure class="img"><img src="../../requirements/backup-data/02-lakeshore-dms.png" alt="DMS inventory table at Lakeshore" loading="lazy"><figcaption>Figure 13.2 · The DMS inventory list at Lakeshore, showing Sold by, Sold to, Date sold, open work orders and lead counts side by side — the exact columns the §07 DMS text calls for (<code>requirements/backup-data/02-lakeshore-dms.png</code>).</figcaption></figure>
+  <figure class="img"><img src="../../requirements/backup-data/03-platform-admin-dealerships.png" alt="Platform admin dealerships page" loading="lazy"><figcaption>Figure 13.3 · The platform admin's Dealerships page — the only page shape an admin ever sees besides rules and audit. Every business URL answers 403 behind it, so this image is the evidence that the §02 role boundary is real, not a hidden button (<code>requirements/backup-data/03-platform-admin-dealerships.png</code>).</figcaption></figure>
+  <figure class="img"><img src="../../project-plan/StatusReports3/img.png" alt="Sprint 3 delivery screenshot" loading="lazy"><figcaption>Figure 13.4 · Delivery screenshot captured for the Sprint 3 status report — the state of the accepted implementation on 2026-10-23 (<code>project-plan/StatusReports3/img.png</code>).</figcaption></figure>
 </section>
 
 <!-- 14 -->
@@ -1178,6 +1186,25 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);font-si
     </tbody>
   </table></div>
   <div class="callout warn"><p>Rate-limit values and SLO targets ship with configurable defaults. They await the dealership's confirmation before production use.</p></div>
+
+  <h3>16.1 Design verification: shipped artefacts against the design</h3>
+  <p>This design was written against a system that was already running, so each claim in the preceding sections is backed by an artefact already in the repository. The table below pairs each claim with the file that stands for it — the code, the diagram, the screenshot or the sprint deliverable — so a reader can confirm the design without starting the stack or taking the authors at their word.</p>
+  <div class="tbl"><table>
+    <thead><tr><th>Design claim</th><th>Section</th><th>Shipped evidence</th></tr></thead>
+    <tbody>
+      <tr><td>Four services, browser touches only the Gateway</td><td>§04</td><td>The C4 container diagram <code>design/assets/dealerops-c4-container-diagram.svg</code> and the service-boundary SVGs in <code>design/diagrams/architecture/</code> drawn before the build still match the four running apps on branch V3 (Figures 1, 1a, 1b)</td></tr>
+      <tr><td>Role scopes are enforced on screen, not only by permission tables</td><td>§02, §07, §13</td><td>The three screenshots in §13 — Sales dashboard, Manager/Owner DMS, Platform Admin dealerships — taken from the running system show the exact separation the §02 table claims (<code>requirements/backup-data/*.png</code>)</td></tr>
+      <tr><td>OMVIC rules fire before the AI, all three ad kinds covered</td><td>§09</td><td>The rule source <code>references/02-omvic.md</code>, the fixture catalogue <code>design/17-Ad-Check-Fixtures.md</code> and the Playwright specs under <code>playwright/tests/</code></td></tr>
+      <tr><td>Scope and change control honoured</td><td>§03, §16</td><td>Each scope move has its own record: iteration-2 role hierarchy CR (2026-11-03) and iteration-3 Other-source CR (2026-11-09) under <code>requirements/iteration-2/</code> and <code>requirements/iteration-3/</code>, each merged with the matching design update</td></tr>
+      <tr><td>Agile delivery with three sprints</td><td>§03</td><td>Sprint 1–3 reports and presentation decks under <code>project-plan/StatusReports1/</code>, <code>StatusReports2/</code>, <code>StatusReports3/</code>, plus eight weekly reports in <code>project-plan/weekly-report/</code> covering 2026-09-21 to 2026-11-15</td></tr>
+      <tr><td>Implementation accepted</td><td>§16</td><td><code>project-plan/Implementation-Delivery-Status.md</code> records the 2026-10-23 acceptance; the Sprint 3 pack (<code>project-plan/StatusReports3/DealerOps_Status_Report_3_Completed.docx</code> and the final technical presentation) is the client-facing confirmation</td></tr>
+      <tr><td>External sources recorded</td><td>§03</td><td><code>project-plan/Research-Log.md</code> lists every external source consulted during the build</td></tr>
+      <tr><td>Reuse policy applied before building</td><td>§03</td><td><code>references/00-reuse-policy.md</code>, <code>references/REQUIREMENTS-FIT.md</code> and <code>references/REUSE-PLAN.md</code> state what was reused from <code>references/car-dealer-crm/</code> and <code>references/carventory/</code> and what was written fresh</td></tr>
+      <tr><td>Independent design review</td><td>§14</td><td>The backend and frontend design reviews from 2026-09-28 under <code>design/reviews/</code></td></tr>
+      <tr><td>Design iteration preserved</td><td>§03</td><td>The three iteration reports <code>design/presentation/iteration-1-report.html</code>, <code>iteration-2-report.html</code>, <code>iteration-3-report.html</code>; superseded one-pagers kept under <code>design/archive/</code> rather than deleted</td></tr>
+      <tr><td>Client-facing deliverables</td><td>§16</td><td>Capstone poster <code>project-plan/poster/DealerOps-Poster.html</code> (PDF <code>output/pdf/DealerOps-Capstone-Poster.pdf</code>), interactive prototype <code>project-plan/prototype/DealerOps-Prototype.html</code>, this system-design page as <code>output/pdf/DealerOps-System-Design.pdf</code>, Sprint task list <code>project-plan/Sampletasklist.xlsx</code></td></tr>
+    </tbody>
+  </table></div>
 </section>
 
 <!-- 17 -->
@@ -1186,18 +1213,31 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);font-si
   <div class="tbl"><table>
     <thead><tr><th>Topic</th><th>Document</th></tr></thead>
     <tbody>
-      <tr><td>Delivery scope and errata</td><td><code>design/SCOPE-BASELINE.md</code></td></tr>
-      <tr><td>Requirement IDs</td><td><code>requirements/iteration-1/DealerOps-Requirements.md</code></td></tr>
-      <tr><td>Architecture and diagrams</td><td><code>design/07-Azure-Microservices-Architecture.md</code>, <code>design/diagrams/</code> (<code>architecture/</code>: service boundaries, Azure release path, ad-check flow; <code>business/</code>: one flow per module; <code>integration/</code>: all modules connected, business data flow, data matrix; the SVG files are loaded by relative path, so keep the <code>design/diagrams/</code> folders alongside this page; see <code>design/diagrams/README.md</code>)</td></tr>
+      <tr><td>Delivery scope and errata</td><td><code>design/SCOPE-BASELINE.md</code>, with the 2026-10-23 acceptance recorded in <code>project-plan/Implementation-Delivery-Status.md</code></td></tr>
+      <tr><td>Client source (original)</td><td><code>requirements/iteration-1/DealerOps-Specification.pdf</code>, <code>requirements/iteration-1/Dos Car dealership.docx</code> and <code>Dos Car dealership2.docx</code>, Chinese transcription at <code>requirements/backup-data/需求原文.md</code></td></tr>
+      <tr><td>Requirement IDs and analysis</td><td><code>requirements/iteration-1/DealerOps-Requirements.md</code>, and the analysis set 01–10 under the same folder: Roles &amp; Tenancy, DMS, CRM, Ad Compliance, Cross-Cutting, Pages &amp; Acceptance, Open Questions, Design Review, Verification Checklist, Change Review</td></tr>
+      <tr><td>Change requests (iterations 2 and 3)</td><td>Iteration 2: <code>requirements/iteration-2/CR-Role-Hierarchy-2026-11-03.md</code>, <code>CR-Analysis-2026-11-03.md</code>, <code>CR-Source-Review-2026-11-03.md</code>, <code>CR-Followup-2026-11-03.md</code>, <code>CR-Client-Summary-2026-11-03.md</code>, <code>CLIENT-DELIVERY-NOTE.md</code>, <code>ANALYSIS-SUMMARY.md</code>, <code>2026-11-03-development-report.html</code>, <code>Changes Document.docx</code>. Iteration 3: <code>requirements/iteration-3/CR-Vehicle-Source-Other-2026-11-09.md</code>, <code>REVIEW-Vehicle-Source-Other-2026-11-10.md</code></td></tr>
+      <tr><td>Architecture and diagrams</td><td><code>design/07-Azure-Microservices-Architecture.md</code>, <code>design/diagrams/</code> (<code>architecture/</code>: service boundaries, Azure release path, ad-check flow; <code>business/</code>: one flow per module; <code>integration/</code>: all modules connected, business data flow, data matrix; the SVG files are loaded by relative path, so keep the <code>design/diagrams/</code> folders alongside this page; see <code>design/diagrams/README.md</code>). The standard C4 container view is <code>design/assets/dealerops-c4-container-diagram.svg</code> (PNG beside it)</td></tr>
       <tr><td>Technology baseline</td><td><code>design/TECHNOLOGY-STACK.md</code></td></tr>
-      <tr><td>Backend design</td><td><code>design/DEVELOPMENT-DESIGN.md</code></td></tr>
+      <tr><td>Backend design</td><td><code>design/DEVELOPMENT-DESIGN.md</code>, <code>design/18-Backend-Core-Engineering.md</code>, <code>design/19-Gateway-and-AI-Engineering.md</code></td></tr>
       <tr><td>API contract</td><td><code>design/14-Backend-API-Contract.md</code>, <code>dealer-platform/openapi.yaml</code></td></tr>
       <tr><td>Data, authentication, gateway, cloud</td><td><code>design/15-Data-Auth-and-Gateway.md</code></td></tr>
-      <tr><td>Frontend</td><td><code>design/12-Frontend-UI-Conventions.md</code>, <code>design/13-Frontend-Engineering.md</code></td></tr>
+      <tr><td>Frontend</td><td><code>design/12-Frontend-UI-Conventions.md</code>, <code>design/13-Frontend-Engineering.md</code>. UI pattern references: <code>references/04-uiux-patterns.md</code></td></tr>
       <tr><td>Feature extensions</td><td><code>design/21-Feature-Extensions.md</code></td></tr>
-      <tr><td>Acceptance</td><td><code>design/16-Acceptance-and-Test.md</code>, <code>design/17-Ad-Check-Fixtures.md</code>, <code>design/TESTING-AND-ACCEPTANCE-GUIDE.md</code></td></tr>
+      <tr><td>Acceptance and test</td><td><code>design/16-Acceptance-and-Test.md</code>, <code>design/17-Ad-Check-Fixtures.md</code>, <code>design/TESTING-AND-ACCEPTANCE-GUIDE.md</code></td></tr>
+      <tr><td>Observability</td><td><code>design/20-Observability.md</code></td></tr>
+      <tr><td>Requirements governance</td><td><code>design/11-Requirements-Governance-and-Agile.md</code>, <code>design/IMPLEMENTATION-BRIEF.md</code>, <code>design/PREP-CHECKLIST.md</code></td></tr>
+      <tr><td>Reuse policy and references</td><td><code>references/00-reuse-policy.md</code>, <code>references/REQUIREMENTS-FIT.md</code>, <code>references/REUSE-PLAN.md</code>, with the OMVIC rule source <code>references/02-omvic.md</code>, the AI manager reference <code>references/03-ai-manager.md</code>, the UI/UX patterns <code>references/04-uiux-patterns.md</code>, and the two studied repositories under <code>references/car-dealer-crm/</code> (Laravel) and <code>references/carventory/</code></td></tr>
+      <tr><td>Design reviews</td><td><code>design/reviews/2026-09-28-backend-review.md</code>, <code>design/reviews/2026-09-28-frontend-review.md</code></td></tr>
+      <tr><td>Design archive</td><td>Six superseded one-pagers under <code>design/archive/</code>: Scope and Acceptance, Workflows and Screens, Architecture and Data, API Contract, Compliance and AI, Delivery and Test Plan</td></tr>
+      <tr><td>Iteration reports</td><td><code>design/presentation/iteration-1-report.html</code>, <code>iteration-2-report.html</code>, <code>iteration-3-report.html</code></td></tr>
+      <tr><td>Sprint deliverables</td><td><code>project-plan/StatusReports1/</code> (project plan + Sprint template), <code>project-plan/StatusReports2/</code> (Sprint 1 report + deck), <code>project-plan/StatusReports3/</code> (Sprint 2 and Sprint 3 decks, Sprint 3 completed report and final technical presentation), task list <code>project-plan/Sampletasklist.xlsx</code></td></tr>
+      <tr><td>Weekly progress</td><td><code>project-plan/weekly-report/</code>: eight weekly reports from 2026-09-21 through 2026-11-15, plus HTML digests under <code>project-plan/weekly-report/html/</code></td></tr>
+      <tr><td>Research log</td><td><code>project-plan/Research-Log.md</code></td></tr>
       <tr><td>Team</td><td><code>design/TEAM.md</code></td></tr>
       <tr><td>Deployment</td><td><code>deploy/README.md</code></td></tr>
+      <tr><td>Poster and prototype</td><td><code>project-plan/poster/DealerOps-Poster.html</code> (PDF <code>output/pdf/DealerOps-Capstone-Poster.pdf</code>) and <code>project-plan/prototype/DealerOps-Prototype.html</code></td></tr>
+      <tr><td>This page</td><td>Source: <code>design/presentation/DealerOps-System-Design.html</code>. PDF export: <code>output/pdf/DealerOps-System-Design.pdf</code></td></tr>
     </tbody>
   </table></div>
 </section>
