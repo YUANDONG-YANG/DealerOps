@@ -18,19 +18,19 @@ Three figures, in [diagrams/](diagrams/). They are hand-authored SVG: plain text
 
 **Figure 1 — service boundaries and request paths.** Which process owns what, which hop carries which credential, and the one path that must fail.
 
-![Service boundaries: the browser reaches only dealer-gateway, which is the single API origin; the gateway routes browser calls to dealer-core; dealer-core calls ai-service directly with the internal header; direct browser access to 8081 and 8082 is refused.](diagrams/01-service-boundaries.svg)
+![Service boundaries: the browser reaches only dealer-gateway, which is the single API origin; the gateway routes browser calls to dealer-core; dealer-core calls ai-service directly with the internal header; direct browser access to 8081 and 8082 is refused.](diagrams/architecture/01-service-boundaries.svg)
 
 core and ai-service are not public. A browser that bypasses the Gateway must fail. Sprint 1 must be able to walk through this figure. Each of the four boxes is a separately deployable unit with its own folder and its own CI workflow, which is what "microservices, not a monolith" means in this one-repository checkout.
 
 **Figure 2 — Azure deployment and release path.** What each service is deployed *as*, what creates the infrastructure, and where secrets enter.
 
-![Azure release path: a push to main runs compile and terraform validate in GitHub Actions, which holds no Azure credentials; an operator runs terraform apply and deploy-apps.sh, which create the resource group and upload three .NET 10 apps and the React bundle to Linux App Service; secrets stay in Key Vault and are read through a user-assigned identity.](diagrams/02-azure-deployment.svg)
+![Azure release path: a push to main runs compile and terraform validate in GitHub Actions, which holds no Azure credentials; an operator runs terraform apply and deploy-apps.sh, which create the resource group and upload three .NET 10 apps and the React bundle to Linux App Service; secrets stay in Key Vault and are read through a user-assigned identity.](diagrams/architecture/02-azure-deployment.svg)
 
 The red cross is not decoration: CI deliberately holds no Azure credential, so the only path to production is the operator machine. That is a known deviation — see the coverage table below.
 
 **Figure 3 — AI ad-check workflow.** The deterministic rules run before the model, and every failure mode has a defined state.
 
-![AI ad-check flow: a check posted through the gateway is guarded by dealer-core, then the deterministic OMVIC rule engine runs first; a hard block is persisted without calling the model, otherwise core calls ai-service directly with the internal header, the model runs under a 13 second budget, and a failure returns 502 AI_UNAVAILABLE; core persists the result in one transaction and export unlocks only while the latest check is PASSED and not STALE.](diagrams/03-ai-ad-check-flow.svg)
+![AI ad-check flow: a check posted through the gateway is guarded by dealer-core, then the deterministic OMVIC rule engine runs first; a hard block is persisted without calling the model, otherwise core calls ai-service directly with the internal header, the model runs under a 13 second budget, and a failure returns 502 AI_UNAVAILABLE; core persists the result in one transaction and export unlocks only while the latest check is PASSED and not STALE.](diagrams/architecture/03-ai-ad-check-flow.svg)
 
 Rules first is a cost and correctness decision, not an optimisation detail: an ad with a hard OMVIC block never reaches the model, so the demo cannot be mistaken for a model that "approves" something the checklist already rejected.
 
