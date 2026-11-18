@@ -40,6 +40,14 @@ nav strong{color:var(--muted);font-size:12px;letter-spacing:.12em}
 nav ol{list-style:none;padding:0;margin:8px 0}
 nav a{display:block;padding:4px 10px;color:var(--muted);text-decoration:none;border-left:2px solid transparent}
 nav a:hover{color:var(--accent);border-color:var(--accent)}
+nav details{margin:2px 0}
+nav details>summary{list-style:none;cursor:pointer;color:var(--accent);font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;padding:6px 10px 6px 4px;border-radius:4px;user-select:none;display:flex;align-items:center;gap:6px}
+nav details>summary::-webkit-details-marker{display:none}
+nav details>summary::before{content:"▸";display:inline-block;width:10px;color:var(--muted);font-size:10px;transition:transform .15s}
+nav details[open]>summary::before{transform:rotate(90deg)}
+nav details>summary:hover{background:var(--accent-soft)}
+nav details>summary small{color:var(--muted);font-weight:400;font-size:10.5px;letter-spacing:0;text-transform:none;margin-left:4px}
+nav details ol{margin:2px 0 6px 0}
 main{min-width:0}
 header{border-bottom:1px solid var(--line);padding-bottom:28px}
 .eyebrow{color:var(--accent);font-size:12px;letter-spacing:.14em;text-transform:uppercase;font-weight:600}
@@ -153,27 +161,45 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);font-si
 <div class="page">
 <nav aria-label="Contents">
   <strong>CONTENTS</strong>
-  <ol>
-    <li><a href="#summary">1 · Executive summary</a></li>
-    <li><a href="#users">2 · Users and roles</a></li>
-    <li><a href="#org">3 · Project organization</a></li>
-    <li><a href="#arch">4 · System architecture</a></li>
-    <li><a href="#stack">5 · Technology stack</a></li>
-    <li><a href="#security">6 · Security and tenancy</a></li>
-    <li><a href="#modules">7 · Business modules</a></li>
-    <li><a href="#flows">8 · Business process flows</a></li>
-    <li><a href="#compliance">9 · Ad compliance and AI</a></li>
-    <li><a href="#audit">10 · Audit and traceability</a></li>
-    <li><a href="#data">11 · Data model</a></li>
-    <li><a href="#api">12 · API design</a></li>
-    <li><a href="#frontend">13 · Frontend design</a></li>
-    <li><a href="#dev">14 · Development process</a></li>
-    <li><a href="#deploy">15 · Deployment and operations</a></li>
-    <li><a href="#scope">16 · Scope and limitations</a></li>
-    <li><a href="#features">17 · Feature deep-dives</a></li>
-    <li><a href="#manual">18 · User manual</a></li>
-    <li><a href="#docs">19 · Document map</a></li>
-  </ol>
+  <details open>
+    <summary>Development <small>code, API, process</small></summary>
+    <ol>
+      <li><a href="#org">3 · Project organization</a></li>
+      <li><a href="#api">12 · API design</a></li>
+      <li><a href="#frontend">13 · Frontend design</a></li>
+      <li><a href="#dev">14 · Development process</a></li>
+    </ol>
+  </details>
+  <details open>
+    <summary>Operations <small>deploy, audit, docs</small></summary>
+    <ol>
+      <li><a href="#audit">10 · Audit and traceability</a></li>
+      <li><a href="#deploy">15 · Deployment and operations</a></li>
+      <li><a href="#docs">19 · Document map</a></li>
+    </ol>
+  </details>
+  <details open>
+    <summary>Architecture <small>services, data, security</small></summary>
+    <ol>
+      <li><a href="#arch">4 · System architecture</a></li>
+      <li><a href="#stack">5 · Technology stack</a></li>
+      <li><a href="#security">6 · Security and tenancy</a></li>
+      <li><a href="#compliance">9 · Ad compliance and AI</a></li>
+      <li><a href="#data">11 · Data model</a></li>
+      <li><a href="#features">17 · Feature deep-dives</a></li>
+    </ol>
+  </details>
+  <details open>
+    <summary>Product <small>users, business, scope</small></summary>
+    <ol>
+      <li><a href="#summary">1 · Executive summary</a></li>
+      <li><a href="#users">2 · Users and roles</a></li>
+      <li><a href="#modules">7 · Business modules</a></li>
+      <li><a href="#flows">8 · Business process flows</a></li>
+      <li><a href="#scope">16 · Scope and limitations</a></li>
+      <li><a href="#manual">18 · User manual</a></li>
+    </ol>
+  </details>
 </nav>
 
 <main>
