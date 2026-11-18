@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Unit 12 - Deployment Case Study</title><style>
+@page { size: Letter; margin: 0.75in 0.7in; }
+:root { color-scheme: light; }
+body { font-family: Georgia, 'Times New Roman', serif; font-size: 10.5pt; line-height: 1.45; color: #111; background: #fff; max-width: 7.1in; margin: 24px auto; padding: 0 16px; }
+h1 { font-size: 19pt; margin: 0 0 8px; }
+h2 { font-size: 14pt; margin: 22px 0 6px; border-bottom: 1px solid #999; padding-bottom: 2px; }
+h3 { font-size: 11.5pt; margin: 16px 0 4px; }
+table { border-collapse: collapse; width: 100%; margin: 6px 0 10px; font-size: 9.3pt; }
+th, td { border: 1px solid #333; padding: 4px 6px; vertical-align: top; text-align: left; }
+th { background: #eee; }
+tr { break-inside: avoid; }
+table.id th { width: 18%; }
+.phase th { width: 14%; }
+code { font-family: Menlo, Consolas, monospace; font-size: 9pt; }
+ul, ol { margin: 4px 0 10px; padding-left: 20px; }
+li { margin-bottom: 4px; }
+h2, h3 { break-after: avoid; }
+@media print { body { margin: 0; padding: 0; max-width: none; } }
+</style></head>
+<body>
+
+<h1>Deployment Plan &mdash; E-Commerce Website, New Release</h1>
+<table class="id">
+<tr><th>Student</th><td>Yuandong Yang</td><th>Student ID</th><td>000949205</td></tr>
+<tr><th>Email</th><td>Yuandong.Yang@edu.sait.ca</td><th>Course</th><td>CPRG-305-B, Unit 12 Activity</td></tr>
+<tr><th>Date</th><td>November 16, 2026</td><th>Release</th><td>New functionality + bug fixes, to live production</td></tr>
+</table>
+
+<h2>1. Chosen Strategy and Justification</h2>
+<p><strong>Blue/Green deployment, with a canary ramp on the green environment before the full cut-over.</strong></p>
+<p>The decisive constraint in the scenario is that the rollout must not affect the ongoing operations of the live system. An e-commerce site takes revenue continuously; a checkout outage costs money and customer trust immediately, and a bad release that is only discovered after everyone is on it is worse than a slow release. Blue/Green answers both:</p>
+<ul>
+<li><strong>No downtime.</strong> The current version (blue) keeps serving every request while the new version (green) is built, deployed and verified alongside it. The switch is a change of traffic routing, not a restart of the application.</li>
+<li><strong>Rollback is instant and cheap.</strong> If anything is wrong after the cut-over, traffic is pointed back at blue, which is still running and still warm. Recovery is seconds, not a redeploy.</li>
+<li><strong>Production verification before exposure.</strong> Green runs on real production infrastructure with real configuration, so smoke tests exercise the environment that will actually serve customers &mdash; something a staging environment can only approximate.</li>
+</ul>
+<p>The canary ramp is added on top because Blue/Green on its own is still a single moment where 100 % of customers move at once. Sending 5 %, then 25 %, then 50 % of traffic to green first means a defect that only shows up under real user behaviour &mdash; a payment edge case, a slow query under load &mdash; is caught while it affects a small fraction of shoppers, and the blast radius stays small.</p>
+
+<h3>Why not the alternatives</h3>
+<table>
+<tr><th>Strategy</th><th>Why it was not chosen</th></tr>
+<tr><td>Basic (big-bang)</td><td>Requires stopping the running version. Guaranteed downtime, all users exposed at once, and rollback means redeploying the old build under pressure. Directly violates the "without affecting ongoing operations" requirement.</td></tr>
+<tr><td>Rolling</td><td>No downtime, but both versions serve live traffic for the whole rollout with no clean boundary, and rollback means rolling back instance by instance. Mixed-version behaviour is awkward for a session-based checkout flow.</td></tr>
+<tr><td>A/B testing</td><td>A product-experiment technique for comparing variants against a business metric, not a release-safety technique. Useful later for the new features, not for shipping the release itself.</td></tr>
+<tr><td>Shadow</td><td>Excellent for validating performance with mirrored traffic, but it never serves real users, so it cannot complete the release. It is worth using for the riskiest services as a pre-step, not as the strategy.</td></tr>
+</table>
+
+<h2>2. Deployment Plan</h2>
+
+<h3>Phase 0 &mdash; Preparation (before release day)</h3>
+<ul>
+<li>Freeze the release branch; tag the release in Git (semantic version, e.g. <code>v2.4.0</code>).</li>
+<li>Agree the <strong>go/no-go criteria</strong> in advance and in numbers: error rate below baseline + 0.5 %, p95 checkout latency within 10 % of baseline, payment success rate unchanged, no new severity-1 defects.</li>
+<li>Confirm the database migration is <strong>backward compatible</strong> (expand/contract: add columns and tables now, remove nothing until the old version is retired), so blue and green can share one database safely.</li>
+<li>Verify a restorable database backup and rehearse the rollback on staging.</li>
+<li>Pick a low-traffic window and notify support and operations &mdash; not because downtime is expected, but so the people answering customers know a release is live.</li>
+</ul>
+
+<h3>Phase 1 &mdash; Development to artifact</h3>
+<table class="phase">
+<tr><th>Step</th><th>Action</th></tr>
+<tr><td>1</td><td>Feature work merges to <code>main</code> only through a pull request with review and a green pipeline.</td></tr>
+<tr><td>2</td><td>CI on every commit: lint, unit tests, integration tests, dependency and container vulnerability scan.</td></tr>
+<tr><td>3</td><td>Build <strong>one</strong> immutable Docker image, tagged with the Git commit SHA. The same artifact is promoted through every environment; nothing is rebuilt per environment.</td></tr>
+<tr><td>4</td><td>Push the image to the registry; configuration comes from environment variables and a secret store, never baked into the image.</td></tr>
+</table>
+
+<h3>Phase 2 &mdash; Test and staging verification</h3>
+<table class="phase">
+<tr><th>Step</th><th>Action</th></tr>
+<tr><td>5</td><td>Deploy the artifact automatically to a test environment provisioned from the same infrastructure code as production.</td></tr>
+<tr><td>6</td><td>Run the automated regression suite (API + end-to-end UI), plus performance tests against the checkout path.</td></tr>
+<tr><td>7</td><td>Run the database migration against a production-sized copy and measure how long it takes.</td></tr>
+<tr><td>8</td><td>UAT sign-off on staging for the new functionality and confirmation of the bug fixes in this release.</td></tr>
+</table>
+
+<h3>Phase 3 &mdash; Production rollout (Blue/Green + canary)</h3>
+<table class="phase">
+<tr><th>Step</th><th>Action</th></tr>
+<tr><td>9</td><td>Apply the backward-compatible database migration while blue is still serving all traffic. Blue ignores the new columns; green will use them.</td></tr>
+<tr><td>10</td><td>Provision the <strong>green</strong> environment from infrastructure code and deploy the tagged image to it. Green receives no customer traffic yet.</td></tr>
+<tr><td>11</td><td>Smoke-test green directly on an internal hostname: health checks, login, product search, add to cart, a real checkout against the payment provider's sandbox or a low-value test order, and the specific bug fixes in this release.</td></tr>
+<tr><td>12</td><td>Warm green: pre-load caches and connection pools so the first real customers do not pay the cold-start cost.</td></tr>
+<tr><td>13</td><td><strong>Canary:</strong> route 5 % of traffic to green via weighted load-balancer targets. Hold 15&ndash;30 minutes and watch the go/no-go metrics.</td></tr>
+<tr><td>14</td><td>Ramp 25 % &rarr; 50 % &rarr; 100 %, pausing at each step and re-checking the same metrics. Any breach stops the ramp.</td></tr>
+<tr><td>15</td><td>Cut over fully: green is now production. <strong>Keep blue running and untouched for 24 hours.</strong></td></tr>
+</table>
+
+<h3>Phase 4 &mdash; Post-deployment</h3>
+<table class="phase">
+<tr><th>Step</th><th>Action</th></tr>
+<tr><td>16</td><td>Monitor dashboards and alerts for the first hour with the release team on hand; track orders per minute, payment success, error rate, latency and infrastructure saturation.</td></tr>
+<tr><td>17</td><td>Run post-deployment verification: a scripted real-order check, and a reconciliation of order and payment records.</td></tr>
+<tr><td>18</td><td>After the 24-hour soak, decommission blue and release its resources. Run the contract phase of the migration (drop now-unused columns) in a <em>later</em> release.</td></tr>
+<tr><td>19</td><td>Release notes published; retrospective held; any manual step encountered during the rollout is turned into a pipeline task.</td></tr>
+</table>
+
+<h3>Rollback procedure</h3>
+<p>Trigger: any go/no-go criterion breached, or a severity-1 defect reported from production.</p>
+<ol>
+<li>Shift the load-balancer weight back to 100 % blue &mdash; the only action needed, and it takes seconds because blue never stopped running.</li>
+<li>Disable the new features behind their feature flags if the problem is feature-specific rather than release-wide.</li>
+<li>Leave the database alone. Because the migration was additive, blue runs correctly against the migrated schema; no data restore is needed, which is what makes this rollback safe.</li>
+<li>Capture logs, traces and metrics from green before tearing it down, then diagnose off the critical path.</li>
+</ol>
+
+<h2>3. Tooling</h2>
+<table>
+<tr><th>Purpose</th><th>Tool</th><th>Role in this plan</th></tr>
+<tr><td>Version control</td><td>Git + GitHub</td><td>Single source of truth for application code, infrastructure code and pipeline definitions; pull requests enforce review.</td></tr>
+<tr><td>CI/CD</td><td>GitHub Actions (Jenkins as an equivalent)</td><td>Build, test, scan, publish the image, then drive the staged production rollout.</td></tr>
+<tr><td>Packaging</td><td>Docker</td><td>One immutable, environment-independent artifact promoted from test to production.</td></tr>
+<tr><td>Orchestration</td><td>Kubernetes (or AWS ECS)</td><td>Runs blue and green side by side, handles health checks, restarts and autoscaling.</td></tr>
+<tr><td>Traffic control</td><td>Application load balancer with weighted targets (or a service mesh)</td><td>Implements the canary percentages and the instant cut-over and rollback.</td></tr>
+<tr><td>Infrastructure as code</td><td>Terraform</td><td>Creates the green environment as an exact, reviewed, version-controlled copy of blue.</td></tr>
+<tr><td>Configuration/secrets</td><td>Ansible, AWS Secrets Manager / Vault</td><td>Keeps credentials out of the image and out of Git.</td></tr>
+<tr><td>Continuous delivery to the cluster</td><td>Argo CD (GitOps)</td><td>The cluster state matches a Git commit; a rollback is reverting to the previous commit.</td></tr>
+<tr><td>Database migrations</td><td>Flyway or Liquibase</td><td>Versioned, repeatable, reviewable schema changes run by the pipeline, not by hand.</td></tr>
+<tr><td>Automated testing</td><td>Jest, Playwright, k6</td><td>Unit and integration tests in CI; end-to-end smoke tests against green; load tests before the ramp.</td></tr>
+<tr><td>Feature flags</td><td>LaunchDarkly or an in-house flag service</td><td>Decouples "deployed" from "released"; new functionality can be switched off without a redeploy.</td></tr>
+<tr><td>Monitoring and logging</td><td>Prometheus + Grafana, ELK stack, Sentry</td><td>Supplies the numbers the go/no-go decision is made on, and the alerts that trigger rollback.</td></tr>
+</table>
+
+<h2>4. Potential Challenges and How the Plan Addresses Them</h2>
+<table>
+<tr><th>Challenge</th><th>Mitigation in this plan</th></tr>
+<tr><td><strong>Downtime risk</strong></td><td>Blue serves every request until green is verified; the cut-over is a routing change. Health checks gate the switch, and rollback is a weight change back to blue.</td></tr>
+<tr><td><strong>Inefficient resource utilisation</strong> (Blue/Green doubles capacity)</td><td>Keep the overlap short &mdash; green is created at step 10 and blue is retired 24 hours after cut-over. Provision green with Terraform on autoscaling (and spot/preemptible capacity where the workload tolerates it) so the duplicate cost is hourly rather than permanent. Green starts sized for the canary slice and scales as the ramp proceeds, so full double capacity exists only briefly.</td></tr>
+<tr><td><strong>Database schema changes shared by both versions</strong></td><td>Expand/contract migrations: additive only during the release, destructive changes deferred to a later release once blue is gone. This is what keeps rollback free of a data restore.</td></tr>
+<tr><td><strong>Defects that only appear under real traffic</strong></td><td>The canary ramp exposes 5 % of users first, with hold periods and explicit numeric go/no-go criteria at every step.</td></tr>
+<tr><td><strong>In-flight customer sessions and carts</strong></td><td>Sessions and carts are stored externally (Redis/database), not in application memory, so a customer moved from blue to green keeps their cart. Connection draining lets blue finish in-flight requests.</td></tr>
+<tr><td><strong>Cold caches and slow first requests</strong></td><td>Green is warmed at step 12 before any customer traffic reaches it.</td></tr>
+<tr><td><strong>Configuration drift between environments</strong></td><td>Every environment is built from the same Terraform modules and the same image; differences are limited to declared variables.</td></tr>
+<tr><td><strong>Human error during the rollout</strong></td><td>No manual production steps. The pipeline performs the deployment, the ramp and the rollback; a human approves, the automation executes.</td></tr>
+<tr><td><strong>Third-party dependencies (payment, shipping)</strong></td><td>Smoke tests include a real payment path against the provider's sandbox, and the release is scheduled outside the provider's own maintenance windows.</td></tr>
+</table>
+
+<h2>5. The Role of DevOps and CI/CD</h2>
+<p>CI/CD is what makes this plan executable rather than aspirational. <strong>Continuous integration</strong> means defects are caught at commit time by tests and scans, so the artifact reaching release day has already been validated many times. <strong>Continuous delivery</strong> means the exact artifact that passed those checks is the one promoted to production &mdash; one build, many environments, no "it worked in staging" mystery caused by rebuilding. The pipeline also owns the rollout itself: provisioning green, running smoke tests, moving traffic weights, and rolling back. The riskiest and most error-prone parts of a release are therefore scripted, reviewed and repeatable instead of typed into a terminal at the end of a long day.</p>
+<p>DevOps supplies the surrounding practice. Development and operations share one pipeline, one set of dashboards and one definition of done, so "ready to deploy" is a measured state rather than a handover. The same people who write the feature watch its metrics during the canary ramp, which shortens feedback from days to minutes. The plan's alignment with core DevOps principles:</p>
+<table>
+<tr><th>Principle</th><th>Where it appears</th></tr>
+<tr><td>Automation</td><td>CI pipeline, Terraform-provisioned green environment, automated smoke tests, scripted traffic ramp and rollback, Flyway migrations.</td></tr>
+<tr><td>Collaboration and shared ownership</td><td>Pull-request review across dev and ops, agreed go/no-go criteria set before release day, joint monitoring during the ramp, blameless retrospective afterwards.</td></tr>
+<tr><td>Continuous feedback and measurement</td><td>Metrics and alerts gate every ramp step; monitoring is a release control, not just an after-the-fact dashboard.</td></tr>
+<tr><td>Continuous improvement</td><td>Every manual step found during a rollout becomes a pipeline task; every incident adds a test or an alert. Deployment gets cheaper and safer with each release.</td></tr>
+<tr><td>Small, frequent, reversible changes</td><td>Feature flags separate deploy from release, and instant rollback keeps the cost of being wrong low &mdash; which is what lets the team ship more often rather than less.</td></tr>
+</table>
+
+<h2>6. Reflection</h2>
+
+<h3>6.1 What was the most challenging part of creating this plan, and why?</h3>
+<p>The database. Blue/Green is easy to describe for stateless web servers and hard to make true for the data behind them, because blue and green share one database and a schema change cannot be in two states at once. A naive migration would make rollback worthless: traffic could be pointed back at blue in seconds, but blue would then be running against a schema it does not understand. Resolving it meant designing the migration as expand/contract &mdash; additive changes during this release, destructive changes deferred to the next one &mdash; which spreads a single logical change across two releases and requires the application to tolerate both shapes in between. That is more discipline than it first appears to need.</p>
+<p>The second difficulty was making the go/no-go criteria objective. "Looks fine" is not a criterion; under pressure, with revenue flowing, someone will always argue for continuing. Committing to numbers before release day &mdash; and agreeing that breaching them means rolling back, not debating &mdash; is as much an organisational decision as a technical one.</p>
+
+<h3>6.2 How would the process differ with a Basic deployment?</h3>
+<table>
+<tr><th>Aspect</th><th>Blue/Green + canary (chosen)</th><th>Basic deployment</th></tr>
+<tr><td>Availability</td><td>No downtime; blue serves throughout.</td><td>A planned outage window with a maintenance page while the old version is stopped and the new one started.</td></tr>
+<tr><td>Timing</td><td>Any time; a low-traffic window is a convenience, not a requirement.</td><td>Must be scheduled off-peak, typically overnight, with staff awake for it.</td></tr>
+<tr><td>Exposure</td><td>5 % of users first, ramped deliberately.</td><td>100 % of users the moment the site comes back.</td></tr>
+<tr><td>Rollback</td><td>Shift traffic weights back to blue; seconds.</td><td>Redeploy the previous build and possibly restore the database; minutes to hours, performed during an active outage.</td></tr>
+<tr><td>Verification</td><td>Smoke tests on real production infrastructure before any customer sees it.</td><td>Verification happens after the site is already live, with customers on it.</td></tr>
+<tr><td>Resource cost</td><td>Temporarily double infrastructure during the overlap.</td><td>Single environment; cheapest to run and simplest to set up.</td></tr>
+<tr><td>Suitable for</td><td>Revenue-critical systems that must stay available.</td><td>Internal tools, low-traffic sites, or a first release with no live users to protect.</td></tr>
+</table>
+<p>In short, Basic deployment trades availability and recoverability for simplicity and cost. For an internal admin tool that is a reasonable trade. For a live e-commerce site, the downtime is lost revenue and the slow rollback turns a small defect into a long incident, so the extra infrastructure cost of Blue/Green is cheap insurance.</p>
+
+<h3>6.3 How do infrastructure as code and microservices fit in?</h3>
+<p><strong>Infrastructure as code</strong> is what makes Blue/Green practical rather than theoretical. Green has to be a faithful copy of blue; if it is built by hand it will not be, and the smoke tests will be validating an environment that differs from the one customers use. With Terraform, green is produced from the same reviewed modules as blue, in minutes, as often as needed. It also makes the environment disposable &mdash; it can be destroyed after the release and recreated identically for the next one, which is what keeps the duplicate-resource cost temporary. And because the infrastructure lives in Git alongside the application, an infrastructure change goes through the same review, the same history and the same rollback path as a code change. Configuration drift, the usual reason a release behaves differently in production, largely stops being possible.</p>
+<p><strong>Microservices</strong> change the granularity of the whole plan. If the new functionality touches only the catalogue service, only that service is deployed; the checkout and payment services are not redeployed and not put at risk. Releases become smaller, more frequent and faster to verify, and the blast radius of a bad release shrinks to one service. A canary can target the single service that changed instead of the whole site. The costs are real, though: services must stay backward compatible with each other, which means versioned APIs and contract tests in CI, and debugging a failed canary across service boundaries needs distributed tracing. Microservices also multiply the number of pipelines and environments to manage &mdash; which is precisely why they depend on the automation and infrastructure as code described above. Taken together, the three reinforce each other: IaC makes environments reproducible, microservices make changes small, and CI/CD makes shipping them routine.</p>
+
+</body></html>

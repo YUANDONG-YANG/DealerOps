@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Unit 11 - Analyzing Test Results</title><style>
+@page { size: Letter; margin: 0.75in 0.7in; }
+:root { color-scheme: light; }
+body { font-family: Georgia, 'Times New Roman', serif; font-size: 10.5pt; line-height: 1.45; color: #111; background: #fff; max-width: 7.1in; margin: 24px auto; padding: 0 16px; }
+h1 { font-size: 19pt; margin: 0 0 8px; }
+h2 { font-size: 14pt; margin: 22px 0 6px; border-bottom: 1px solid #999; padding-bottom: 2px; }
+h3 { font-size: 11.5pt; margin: 16px 0 4px; }
+table { border-collapse: collapse; width: 100%; margin: 6px 0 10px; font-size: 9.3pt; }
+th, td { border: 1px solid #333; padding: 4px 6px; vertical-align: top; text-align: left; }
+th { background: #eee; }
+tr { break-inside: avoid; }
+table.id th { width: 18%; }
+td.n, th.n { text-align: right; }
+.hot { background: #fdeaea; }
+.tot { font-weight: bold; background: #f3f3f3; }
+code { font-family: Menlo, Consolas, monospace; font-size: 9pt; }
+.bar { display: inline-block; height: 9px; background: #555; vertical-align: middle; }
+ul, ol { margin: 4px 0 10px; padding-left: 20px; }
+li { margin-bottom: 4px; }
+.kpi td { font-size: 10pt; }
+.kpi th { width: 42%; }
+h2, h3 { break-after: avoid; }
+@media print { body { margin: 0; padding: 0; max-width: none; } }
+</style></head>
+<body>
+
+<h1>Analyzing Test Results &mdash; Hope Haven Donation Tracking Module</h1>
+<table class="id">
+<tr><th>Student</th><td>Yuandong Yang</td><th>Student ID</th><td>000949205</td></tr>
+<tr><th>Email</th><td>Yuandong.Yang@edu.sait.ca</td><th>Course</th><td>CPRG-305-B, Unit 11 Activity</td></tr>
+<tr><th>Date</th><td>November 16, 2026</td><th>Reporting period</th><td>Weeks 1&ndash;2 (5 July &ndash; 15 July)</td></tr>
+</table>
+
+<p>This report analyses the first two weeks of test execution for the Hope Haven donation tracking module. It covers the calculated metrics, an interpretation of progress and defect patterns, and a short reflection. All figures are derived from the supplied Test Case Execution Schedule and Defect Tracking Log.</p>
+
+<h2>1. Calculated Metrics</h2>
+
+<h3>1.1 Test case progress</h3>
+<table class="kpi">
+<tr><th>Metric</th><th>Value</th></tr>
+<tr><td>Test cases planned for this phase</td><td>50</td></tr>
+<tr><td>Test cases attempted (HH-001 &ndash; HH-020)</td><td>20</td></tr>
+<tr><td><strong>Percentage attempted</strong></td><td><strong>20 &divide; 50 = 40.0 %</strong></td></tr>
+<tr><td>Test cases not yet attempted</td><td>30 (60.0 %)</td></tr>
+</table>
+
+<h3>1.2 Success rate</h3>
+<table>
+<tr><th>Outcome</th><th class="n">Week 1</th><th class="n">Week 2</th><th class="n">Total</th><th class="n">% of attempted</th></tr>
+<tr><td>Successful</td><td class="n">6</td><td class="n">5</td><td class="n">11</td><td class="n">55.0 %</td></tr>
+<tr><td>Unsuccessful</td><td class="n">4</td><td class="n">5</td><td class="n">9</td><td class="n">45.0 %</td></tr>
+<tr class="tot"><td>Attempted</td><td class="n">10</td><td class="n">10</td><td class="n">20</td><td class="n">100 %</td></tr>
+</table>
+<p>Measured against the whole phase rather than against what has been attempted, only <strong>11 of 50 planned test cases (22.0 %) have passed</strong> so far. The week-on-week trend is the wrong way round: the failure rate rose from 40.0 % in week 1 to 50.0 % in week 2.</p>
+
+<h3>1.3 Defect severity distribution</h3>
+<table>
+<tr><th>Severity</th><th class="n">Defects</th><th class="n">% of total</th><th>Defect IDs</th><th>Distribution</th></tr>
+<tr class="hot"><td>1 (highest)</td><td class="n">5</td><td class="n">55.6 %</td><td>HH-D001, HH-D003, HH-D004, HH-D006, HH-D008</td><td><span class="bar" style="width:111px"></span></td></tr>
+<tr><td>2</td><td class="n">3</td><td class="n">33.3 %</td><td>HH-D002, HH-D005, HH-D009</td><td><span class="bar" style="width:67px"></span></td></tr>
+<tr><td>3</td><td class="n">1</td><td class="n">11.1 %</td><td>HH-D007</td><td><span class="bar" style="width:22px"></span></td></tr>
+<tr class="tot"><td>Total</td><td class="n">9</td><td class="n">100 %</td><td>&mdash;</td><td></td></tr>
+</table>
+
+<h3>1.4 Defect rate and execution rate</h3>
+<p>Testing took place on nine working days (5&ndash;8 July and 11&ndash;15 July; no activity at the weekend).</p>
+<table>
+<tr><th>Date</th><th class="n">5 Jul</th><th class="n">6 Jul</th><th class="n">7 Jul</th><th class="n">8 Jul</th><th class="n">11 Jul</th><th class="n">12 Jul</th><th class="n">13 Jul</th><th class="n">14 Jul</th><th class="n">15 Jul</th><th class="n tot">Total</th></tr>
+<tr><td>Cases attempted</td><td class="n">3</td><td class="n">3</td><td class="n">2</td><td class="n">2</td><td class="n">2</td><td class="n">2</td><td class="n">2</td><td class="n">2</td><td class="n">2</td><td class="n tot">20</td></tr>
+<tr><td>Defects found</td><td class="n">1</td><td class="n">1</td><td class="n">1</td><td class="n">1</td><td class="n">1</td><td class="n">1</td><td class="n">1</td><td class="n">1</td><td class="n">1</td><td class="n tot">9</td></tr>
+</table>
+<table class="kpi">
+<tr><th>Metric</th><th>Value</th></tr>
+<tr><td>Test case attempt rate</td><td>20 cases &divide; 9 days = <strong>2.22 cases per day</strong> (week 1: 2.50 /day, week 2: 2.00 /day)</td></tr>
+<tr><td>Defect discovery rate</td><td>9 defects &divide; 9 days = <strong>1.00 defect per day</strong></td></tr>
+<tr><td>Defect density per test case</td><td>9 defects &divide; 20 cases = <strong>0.45 defects per test case attempted</strong></td></tr>
+<tr><td>Defects raised per failed case</td><td>9 &divide; 9 = <strong>1.00</strong> &mdash; every failure was logged, none twice</td></tr>
+<tr><td>Defects closed (Date Corrected populated)</td><td><strong>0 of 9 &mdash; 0 % closure, 9 defects open</strong></td></tr>
+<tr><td>Projected completion at current rate</td><td>30 remaining &divide; 2.22 = <strong>~13.5 more working days (&asymp; 2.7 weeks)</strong>, excluding any retesting</td></tr>
+</table>
+
+<h2>2. Analysis and Interpretation</h2>
+
+<h3>2.1 Is the team on schedule?</h3>
+<p><strong>No.</strong> Two weeks into a 50-case phase, 40 % of the cases have been attempted and only 22 % have passed. If the phase was scoped to these two weeks, the team is roughly 2.7 weeks behind. Three signals say the gap is widening rather than closing:</p>
+<ul>
+<li><strong>Velocity is falling.</strong> 2.50 cases/day in week 1 against 2.00 cases/day in week 2, a 20 % drop, even though week 2 had one more working day.</li>
+<li><strong>Quality is not improving.</strong> The failure rate went up, from 40 % to 50 %. Later test cases are not benefiting from earlier fixes.</li>
+<li><strong>Nothing is being closed.</strong> The <em>Date Corrected</em> column is empty for all nine defects and for all twenty test cases. Defects are being assigned promptly &mdash; usually the same day or the next day &mdash; but none has been confirmed fixed and no failed case has been retested.</li>
+</ul>
+<p>That last point also makes the 55 % success rate optimistic. The nine failing cases will each need at least one retest, so the real remaining effort is 30 new cases <em>plus</em> 9 reruns, and any of those reruns may fail again.</p>
+
+<h3>2.2 Patterns in the defects</h3>
+<table>
+<tr><th>Code earmark</th><th class="n">Defects</th><th class="n">% of total</th><th>Severities</th><th>Defect IDs</th></tr>
+<tr class="hot"><td>Tracking-GL</td><td class="n">4</td><td class="n">44.4 %</td><td>1, 1, 1, 1</td><td>HH-D001, HH-D003, HH-D004, HH-D008</td></tr>
+<tr><td>Data-AP</td><td class="n">3</td><td class="n">33.3 %</td><td>2, 1, 2</td><td>HH-D002, HH-D006, HH-D009</td></tr>
+<tr><td>UI-PY</td><td class="n">1</td><td class="n">11.1 %</td><td>2</td><td>HH-D005</td></tr>
+<tr><td>Reporting-AR</td><td class="n">1</td><td class="n">11.1 %</td><td>3</td><td>HH-D007</td></tr>
+</table>
+<p><strong>Tracking-GL is the clear hotspot.</strong> It accounts for 44 % of all defects and for four of the five severity-1 defects (80 %). Every single defect earmarked Tracking-GL is severity 1 &mdash; no other area shows that concentration. The dates make it worse: Tracking-GL produced defects on 5, 7, 8 <em>and</em> 14 July. A fourth severity-1 defect appearing in the same component nine days after the first one means the earlier fixes either have not landed or have not addressed the underlying cause. This looks less like isolated coding slips and more like a systemic problem in the donation tracking logic, which is the core of the module.</p>
+<p><strong>Data-AP is the second concern.</strong> Three defects spread across both weeks (6, 12 and 15 July), one of them severity 1. Like Tracking-GL, it keeps producing defects rather than tailing off.</p>
+<p><strong>UI-PY and Reporting-AR look incidental</strong> &mdash; one defect each, neither severity 1, both appearing once. They are not currently a risk to the release.</p>
+<p>Two areas therefore produce <strong>78 % of all defects and 100 % of the severity-1 defects</strong>. There is no evidence that failures are spread evenly across the module; they are concentrated, which is useful news because it tells the team where to look.</p>
+
+<h3>2.3 Which defects are most critical?</h3>
+<ol>
+<li><strong>The Tracking-GL severity-1 cluster: HH-D001, HH-D003, HH-D004 and HH-D008</strong> (test cases HH-003, HH-007, HH-008, HH-018). Highest severity, in the component the module exists for, recurring across both weeks. These should be root-caused together rather than fixed one at a time &mdash; four severity-1 defects in one earmark usually share one cause.</li>
+<li><strong>HH-D008 specifically.</strong> It is the latest Tracking-GL defect (14 July) and the strongest evidence that the area is still unstable at the end of the reporting period. It is the defect that should decide whether testing continues into new cases or pauses for a fix-and-retest cycle.</li>
+<li><strong>HH-D006 (Data-AP, severity 1, 12 July).</strong> The only severity-1 defect outside Tracking-GL; it shows the data layer can also break critically, not just cosmetically.</li>
+<li><strong>HH-D002, HH-D005 and HH-D009 (severity 2)</strong> matter but can follow the severity-1 work. <strong>HH-D007 (Reporting-AR, severity 3)</strong> is the lowest priority of the nine.</li>
+</ol>
+
+<h3>2.4 Recommendations for the test manager</h3>
+<ul>
+<li>Pause the push for new test cases long enough to run a <strong>root cause analysis on Tracking-GL</strong>; treat the four severity-1 defects as one investigation.</li>
+<li><strong>Start closing the loop.</strong> Populate <em>Date Corrected</em>, retest the nine failed cases, and report an open/closed defect count each week. Without it, progress cannot be measured and the pass rate cannot be trusted.</li>
+<li><strong>Re-baseline the schedule.</strong> At 2.22 cases/day the remaining 30 cases plus 9 retests will take about three more weeks. Either the date or the scope has to move, and stakeholders should hear that now rather than at the end.</li>
+<li><strong>Add a code review or extra developer attention on Tracking-GL and Data-AP</strong> before more test cases touching those areas are executed, so that testing stops re-discovering the same class of defect.</li>
+</ul>
+
+<h2>3. Reflection</h2>
+
+<h3>3.1 How did analysing both sources together give a fuller picture?</h3>
+<p>Each source answers a question the other cannot. The execution schedule gives volume and velocity &mdash; how many cases, how fast, pass or fail &mdash; but it says nothing about <em>where</em> in the product the failures are; its severity column is just a number with no address. The defect log carries the <em>Code Earmark</em>, which is what turns nine scattered failures into "44 % of defects and 80 % of severity-1 defects live in one component", the single most actionable finding in this report. Read alone, the defect log in turn has no denominator: nine defects could be excellent or alarming depending on whether 20 or 200 cases were run.</p>
+<p>Cross-checking the two also validates the process itself. Every unsuccessful test case maps to exactly one defect, with matching dates and severities &mdash; nothing was missed and nothing was double-logged, so the data can be trusted. And the comparison exposes what neither source states outright: both documents have an empty <em>Date Corrected</em> column, so the defect backlog has only grown for two weeks. Looking at either document alone, that could be dismissed as a missing field; seeing it in both makes it a finding.</p>
+
+<h3>3.2 What was difficult to interpret, and how could that be fixed?</h3>
+<ul>
+<li><strong>The <em>Date Corrected</em> column is empty everywhere.</strong> It is impossible to tell whether fixes are slow, or simply not being recorded. Cycle time, closure rate and retest status all become unmeasurable. <em>Fix:</em> make the field mandatory in the defect workflow, with an explicit state (Open / Fixed / Retested / Closed) rather than a blank date.</li>
+<li><strong>No severity definitions were supplied.</strong> "Severity 1" was read as the most critical because the sole severity-3 defect is in Reporting, but that is an inference. <em>Fix:</em> publish a severity scale with examples in the test plan, and separate severity from priority.</li>
+<li><strong>No planned baseline.</strong> The 50-case total is given, but not how those cases were meant to be distributed over the two weeks, so "behind schedule" had to be derived from an assumed even spread. <em>Fix:</em> record planned-versus-actual cases per day and track it as an S-curve.</li>
+<li><strong>"Defect rate" is ambiguous.</strong> It can mean defects per day, defects per test case, or defects per module, and the three tell different stories. <em>Fix:</em> define the metric set once, with formulas, in the test plan. All three are reported in section 1.4 for that reason.</li>
+<li><strong>No tester, effort or environment data.</strong> The drop from 2.50 to 2.00 cases per day could be fatigue, harder test cases, a team member on leave or environment downtime; the data cannot distinguish them. <em>Fix:</em> capture tester, effort and blocked time against each execution.</li>
+<li><strong>The earmarks are not mapped to the untested 30 cases.</strong> Knowing Tracking-GL is fragile is only half useful without knowing how many remaining cases touch it. <em>Fix:</em> tag every test case with the component it exercises, so risk can be projected forward instead of only described backwards.</li>
+</ul>
+
+</body></html>

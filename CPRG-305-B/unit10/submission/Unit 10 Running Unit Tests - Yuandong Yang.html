@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Unit 10 - Running Unit Tests</title><style>
+@page { size: Letter; margin: 0.75in 0.7in; }
+:root { color-scheme: light; }
+body { font-family: Georgia, 'Times New Roman', serif; font-size: 10.5pt; line-height: 1.45; color: #111; background: #fff; max-width: 7.1in; margin: 24px auto; padding: 0 16px; }
+h1 { font-size: 19pt; margin: 0 0 8px; }
+h2 { font-size: 14pt; margin: 22px 0 6px; border-bottom: 1px solid #999; padding-bottom: 2px; }
+h3 { font-size: 11.5pt; margin: 16px 0 4px; }
+table { border-collapse: collapse; width: 100%; margin: 6px 0 10px; font-size: 9.3pt; }
+th, td { border: 1px solid #333; padding: 4px 6px; vertical-align: top; text-align: left; }
+th { background: #eee; }
+tr { break-inside: avoid; }
+table.id th { width: 18%; }
+.pass { color: #0a6b2a; font-weight: bold; }
+.fail { color: #a11; font-weight: bold; }
+pre { background: #f4f4f4; border: 1px solid #bbb; padding: 7px 9px; font-family: Menlo, Consolas, monospace; font-size: 8.6pt; line-height: 1.35; white-space: pre-wrap; margin: 5px 0 10px; break-inside: avoid; }
+code { font-family: Menlo, Consolas, monospace; font-size: 9pt; }
+figure { margin: 8px 0 14px; break-inside: avoid; }
+figure img { width: 100%; border: 1px solid #888; }
+figcaption { font-size: 9pt; font-style: italic; color: #333; margin-top: 3px; }
+ul, ol { margin: 4px 0 10px; padding-left: 20px; }
+li { margin-bottom: 3px; }
+h2, h3 { break-after: avoid; }
+@media print { body { margin: 0; padding: 0; max-width: none; } }
+</style></head>
+<body>
+
+<h1>Running Unit Tests for the React Application</h1>
+<table class="id">
+<tr><th>Student</th><td>Yuandong Yang</td><th>Student ID</th><td>000949205</td></tr>
+<tr><th>Email</th><td>Yuandong.Yang@edu.sait.ca</td><th>Course</th><td>CPRG-305-B, Unit 10 Activity</td></tr>
+<tr><th>Date</th><td>November 16, 2026</td><th>Project</th><td><code>SimpleApplication</code> (provided)</td></tr>
+</table>
+
+<h2>1. Prerequisites and Project Preparation</h2>
+<p>Node.js v24.16.0 and npm 11.13.0 were already installed. The supplied <code>SimpleApplication.zip</code> contains the server, and a <code>client/src</code> folder with <code>App.js</code> and nine test files, but no <code>package.json</code> and no <code>public/</code> folder &mdash; the project README expects the student to generate those with <code>create-react-app</code>. The client was therefore completed exactly as the README instructs before the tests could run:</p>
+<pre>$ cd SimpleApplication
+$ npx create-react-app client          # generates package.json, public/, index.js
+$ cd client
+$ npm install axios                    # App.js imports axios; RTL ships with the template
+# the nine provided src files were copied over the generated src/</pre>
+<p>The server dependencies were restored with <code>npm install</code> in <code>server/</code> as well. The server is <em>not</em> required for this activity: every test mocks axios with <code>jest.mock('axios')</code>, so no HTTP request leaves the test process. (Worth noting for the manual run: on macOS, port 5000 is held by Control Center / AirPlay Receiver, so <code>node server.js</code> fails with <code>EADDRINUSE</code> until AirPlay Receiver is turned off in System Settings.)</p>
+
+<h2>2. Running the Tests</h2>
+<h3>Step 1 &mdash; Navigate to the client directory</h3>
+<pre>$ cd SimpleApplication/client</pre>
+<h3>Step 2 &mdash; Run the unit tests</h3>
+<p>Jest finds every file matching <code>*.test.js</code> under <code>src/</code> and runs them. The run below uses <code>--watchAll=false</code> so the runner produces one complete report and exits instead of staying in watch mode, which makes the output easier to capture as evidence.</p>
+<pre>$ npm test                          # interactive watch mode
+$ npm test -- --watchAll=false      # single run, used for the evidence below</pre>
+
+<h3>Step 3 &mdash; Observe the results</h3>
+<figure>
+<img src="evidence/01-npm-test-summary.png" alt="Terminal showing six passing suites, three failing suites and the Jest summary">
+<figcaption>Figure 1 &mdash; Result summary: <strong>Test Suites: 3 failed, 6 passed, 9 total</strong> and <strong>Tests: 4 failed, 12 passed, 16 total</strong>. The failure detail is shown separately in Figure 2.</figcaption>
+</figure>
+
+<h2>3. Understanding the Test Output</h2>
+<p>Jest prints one <code>PASS</code>/<code>FAIL</code> line per suite, then the individual test descriptions, then the detail for every failure, and finally the totals. Mapping that output back to the files gives the following picture.</p>
+<table>
+<tr><th>Test suite</th><th>Test description</th><th>Result</th></tr>
+<tr><td><code>App.renderData.test.js</code></td><td>renders data from API</td><td class="pass">Pass</td></tr>
+<tr><td><code>App.calculateSum.test.js</code></td><td>calculates the sum correctly</td><td class="pass">Pass</td></tr>
+<tr><td><code>App.sumValuesCorrect.test.js</code></td><td>sumValues returns correct value</td><td class="pass">Pass</td></tr>
+<tr><td><code>App.sumValuesIncorrect.test.js</code></td><td>sumValues returns incorrect value (negative assertion)</td><td class="pass">Pass</td></tr>
+<tr><td><code>App.doubleValueCorrect.test.js</code></td><td>doubleValue returns correct value</td><td class="pass">Pass</td></tr>
+<tr><td><code>App.doubleValueError.test.js</code></td><td>doubleValue returns error for non-number input</td><td class="pass">Pass</td></tr>
+<tr><td><code>App.handleCalculation.test.js</code></td><td>handles calculation correctly</td><td class="fail">Fail</td></tr>
+<tr><td><code>App.handleCalculationError.test.js</code></td><td>handles calculation error</td><td class="fail">Fail</td></tr>
+<tr><td rowspan="3"><code>App.test.js</code> (8 tests)</td><td>handles calculation correctly</td><td class="fail">Fail</td></tr>
+<tr><td>handles calculation error</td><td class="fail">Fail</td></tr>
+<tr><td>the other six tests (render, sum, double)</td><td class="pass">Pass</td></tr>
+</table>
+<p>The provided README states that the suite is deliberately written so that some tests pass and some fail, and the result confirms it: all four failures are the same defect reported in three different suites, because <code>App.test.js</code> repeats the two calculation tests that also exist as standalone files.</p>
+
+<h3>3.1 Reading a failing test</h3>
+<figure>
+<img src="evidence/02-npm-test-failure-detail.png" alt="Terminal showing the TestingLibraryElementError and the failing line of code">
+<figcaption>Figure 2 &mdash; Failure detail: the error type, the message, and the code frame pointing at the exact failing line.</figcaption>
+</figure>
+<p>The error message names the cause precisely:</p>
+<pre>TestingLibraryElementError: Unable to find an accessible element with the role
+"spinbutton" and name `/input/i`
+  &gt; 12 |  fireEvent.change(screen.getByRole('spinbutton', { name: /input/i }), ...)</pre>
+<p>The query asks for an element with the ARIA role <code>spinbutton</code> <em>and</em> an accessible name matching <code>/input/i</code>. In <code>App.js</code> the two number fields are written as bare inputs:</p>
+<pre>&lt;input type="number" value={num1} onChange={...} /&gt;</pre>
+<p>A <code>&lt;input type="number"&gt;</code> does have the role <code>spinbutton</code>, but with no <code>&lt;label&gt;</code>, <code>aria-label</code> or <code>placeholder</code> it has <strong>no accessible name at all</strong>, so the name filter excludes it and the query finds nothing. Jest helpfully prints the list of roles that <em>are</em> available plus the rendered DOM, which is how the diagnosis is confirmed: the <code>spinbutton</code> elements are present, only nameless. The remaining lines of the same test use <code>getAllByRole('spinbutton')[1]</code> without a name filter, and that form would have worked.</p>
+<p>Two ways to make the test pass, in order of preference:</p>
+<ol>
+<li><strong>Fix the component</strong> &mdash; give the inputs real labels (<code>aria-label="Input 1"</code> / <code>"Input 2"</code>). This removes a genuine accessibility defect in the application and makes the existing query valid, so the test was arguably right and the code wrong.</li>
+<li><strong>Fix the test</strong> &mdash; drop the name filter and use <code>screen.getAllByRole('spinbutton')[0]</code>, matching what the next line already does.</li>
+</ol>
+<p>The run also prints <code>console.error</code> warnings about state updates that are not wrapped in <code>act(...)</code>. Those are warnings, not failures: they come from <code>fetchData()</code> resolving after the test body has finished. They do not change the verdict, but they indicate the tests should await the data load before asserting.</p>
+
+<h3>Steps 4 and 5 &mdash; Watch mode and stopping the runner</h3>
+<p>Run without the flag, <code>npm test</code> stays resident in watch mode: it re-runs the affected suites every time a source or test file is saved, which gives immediate feedback while fixing the four failures above. The runner is stopped with <kbd>Ctrl</kbd> + <kbd>C</kbd>. Watch mode is the right choice while developing; the single-shot form (<code>--watchAll=false</code>, or <code>CI=true</code>) is the right choice for evidence capture and for a CI or container run, because it exits with a status code instead of waiting for input.</p>
+
+<h2>4. Notes and Reflection</h2>
+<ul>
+<li><strong>Install dependencies first.</strong> The supplied client was incomplete; it had test files but no manifest. Until <code>create-react-app</code> and <code>npm install axios</code> had been run, <code>npm test</code> could not even start, and the error at that point says nothing about the real problem. A test suite is only as reproducible as the project skeleton it ships with &mdash; which is exactly the gap the Unit 9 Docker image closes.</li>
+<li><strong>Read the error, not just the red.</strong> All four failures produced the same <code>TestingLibraryElementError</code>. The message, the code frame and the printed DOM together identified the cause in one pass; guessing from the test name alone would have suggested a problem with the calculation logic, which is working correctly.</li>
+<li><strong>A failing test is not automatically a bug in the code, and a passing test is not automatically proof of correctness.</strong> Here the failing query exposed a real accessibility shortcoming in <code>App.js</code>. In the other direction, <code>App.sumValuesIncorrect.test.js</code> passes only because it asserts that "Sum of values: 35" is <em>absent</em> &mdash; it would also pass if the component rendered nothing at all. Negative assertions of that shape are weak and should be paired with a positive assertion.</li>
+<li><strong>Duplicated tests multiply noise.</strong> One defect was reported four times across three suites because <code>App.test.js</code> duplicates the standalone files. In a real project the defect count read off the console would be inflated; one defect report, not four, is what belongs in the tracker.</li>
+<li><strong>Watch mode shortens the fix loop</strong> but must be turned off anywhere a run has to end on its own, such as in a pipeline or in the Unit 9 container.</li>
+</ul>
+
+<h2>5. Evidence Index</h2>
+<table>
+<tr><th>File</th><th>Contents</th></tr>
+<tr><td><code>evidence/01-npm-test-summary.png</code></td><td>Suite list and Jest totals for the full run.</td></tr>
+<tr><td><code>evidence/02-npm-test-failure-detail.png</code></td><td>Failure detail for <code>App.handleCalculation.test.js</code>, including the code frame.</td></tr>
+</table>
+
+</body></html>
