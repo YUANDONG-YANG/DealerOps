@@ -280,6 +280,20 @@ textarea.input, .textarea { height: auto; padding: 10px 12px; resize: vertical; 
 }
 .table td:first-child { color: var(--fg); font-weight: 500; }
 .table td .btn-link + .btn-link { margin-left: 16px; }
+/* Audit log Changes cell: one line cut with an ellipsis, then Details for the full JSON (CR-069). */
+.audit-changes { display: flex; align-items: center; justify-content: center; gap: 12px; }
+.audit-changes-text { max-width: 320px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.audit-json {
+  margin: 6px 0 16px;
+  padding: 12px;
+  background: var(--grad-soft);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 13px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow: auto;
+}
 .card .table-wrap { border-radius: var(--radius); box-shadow: none; }
 .table tr:last-child td { border-bottom: none; }
 .table tbody tr { transition: background .15s; }

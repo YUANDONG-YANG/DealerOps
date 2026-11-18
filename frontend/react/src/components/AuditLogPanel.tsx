@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import DataTable from './DataTable';
 import PageState from './PageState';
+import FormDrawer from './FormDrawer';
 import { actionText, summaryText } from './AuditTrail';
 import type { AuditLogFilter, AuditLogRow } from '../api/audit';
 import { messageOf } from '../api/http';
@@ -12,9 +13,15 @@ const ENTITY_TYPES = ['APP_USER', 'DEALER', 'MEMBERSHIP', 'VEHICLE', 'CUSTOMER',
   'WORK_ORDER', 'VEHICLE_PHOTO', 'LISTING', 'RULE_OVERRIDE'];
 const ACTIONS = ['CREATE', 'UPDATE', 'DELETE', 'SELL', 'LINK', 'UNLINK', 'NOTE', 'LOGIN', 'LOGIN_FAILED', 'CHECK', 'EXPORT'];
 
+// A row with no changed field and no replaced value has nothing more to show than its summary.
+function hasChanges(row: AuditLogRow) {
+  return Object.keys(row.fieldSummary ?? {}).length > 0 || Object.keys(row.previous ?? {}).length > 0;
+}
+
 /**
  * Filterable audit log, newest first (AUD-10, AUD-11). The admin page passes the platform log
- * and shows the dealership column; the Team page passes the caller's own dealership log.
+ * and shows the dealership column; the Team page passes the caller's own dealership log. The Changes
+ * cell is cut to one line; Details opens the row's full change JSON (CR-069).
  */
 export default function AuditLogPanel({ load, showDealer = false, suggestActors }: {
   load: (filter: AuditLogFilter, page: number) => Promise<{ items: AuditLogRow[]; totalElements: number }>;
@@ -30,6 +37,7 @@ export default function AuditLogPanel({ load, showDealer = false, suggestActors 
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [detail, setDetail] = useState<AuditLogRow | null>(null);
 
   useEffect(() => {
     let live = true;
@@ -90,12 +98,32 @@ export default function AuditLogPanel({ load, showDealer = false, suggestActors 
             { key: 'action', label: 'Action', sortable: true, render: (r) => actionText(r) },
             { key: 'entityType', label: 'Record', sortable: true, render: (r) => `${r.entityType} #${r.entityId}` },
             ...(showDealer ? [{ key: 'dealerId', label: 'Dealership', sortable: true, render: (r: AuditLogRow) => r.dealerId == null ? 'Platform' : (r.dealerName ?? `#${r.dealerId}`) }] : []),
-            { label: 'Changes', render: (r) => summaryText(r.fieldSummary, r.previous) },
+            { label: 'Changes', render: (r) => (
+              <div className="audit-changes">
+                <span className="audit-changes-text">{summaryText(r.fieldSummary, r.previous)}</span>
+                {hasChanges(r) && <button type="button" className="btn-link" onClick={() => setDetail(r)}>Details</button>}
+              </div>
+            ) },
             { key: 'clientIp', label: 'Source IP', sortable: true, render: (r) => r.clientIp ?? 'Not recorded' },
             { key: 'clientLocation', label: 'Location', sortable: true, render: (r) => r.clientLocation ?? (r.clientIp ? 'Unavailable' : 'Not recorded') },
           ]}
         />
       </PageState>
+      <FormDrawer modal title={detail ? `${actionText(detail)} · ${detail.entityType} #${detail.entityId}` : ''}
+        open={detail != null} onClose={() => setDetail(null)}>
+        {detail && (
+          <>
+            <div className="muted">Changes</div>
+            <pre className="audit-json">{JSON.stringify(detail.fieldSummary ?? {}, null, 2)}</pre>
+            {detail.previous != null && (
+              <>
+                <div className="muted">Previous values</div>
+                <pre className="audit-json">{JSON.stringify(detail.previous, null, 2)}</pre>
+              </>
+            )}
+          </>
+        )}
+      </FormDrawer>
     </>
   );
 }

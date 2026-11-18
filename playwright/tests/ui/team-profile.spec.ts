@@ -843,7 +843,7 @@ test.describe('/team roles', () => {
 // ---------------------------------------------------------------------------------------------
 // /team > Activity: the dealership audit log
 // (AUD-11, CR-014 and CR-020 sorting, CR-026 day-picker labels, CR-027 change search,
-// CR-028 filter order, CR-059 partial search)
+// CR-028 filter order, CR-059 partial search, CR-069 change details)
 // ---------------------------------------------------------------------------------------------
 
 test.describe('/team activity log', () => {
@@ -962,6 +962,35 @@ test.describe('/team activity log', () => {
       await expect(row).toContainText('LOGIN');
       await expect(row).toContainText('method');
     }
+  });
+
+  test('CR-069 / a long change is cut to one line and Details shows its full JSON', async ({
+    page, request, adminApi,
+  }) => {
+    const owner = await throwawayOwner(request, adminApi);
+    await openActivity(page, owner);
+
+    const res = await owner.api.get('/api/v1/dealer/audit', { page: 0, size: 10 });
+    expect(res.status()).toBe(200);
+    const items = (await res.json()).items as { fieldSummary?: Record<string, unknown>; previous?: Record<string, unknown> | null }[];
+    const index = items.findIndex((i) => Object.keys(i.fieldSummary ?? {}).length > 0);
+    expect(index, 'the new dealership log holds a row with changed fields').toBeGreaterThanOrEqual(0);
+
+    const row = page.locator('table.table tbody tr').nth(index);
+    const text = row.locator('.audit-changes-text');
+    await expect(text).toHaveCSS('white-space', 'nowrap');
+    await expect(text).toHaveCSS('text-overflow', 'ellipsis');
+
+    await row.getByRole('button', { name: 'Details', exact: true }).click();
+    const dialog = page.getByRole('dialog');
+    await expect(dialog).toBeVisible();
+    await expect(dialog.locator('pre.audit-json').first())
+      .toHaveText(JSON.stringify(items[index].fieldSummary, null, 2), { useInnerText: true });
+    await expect(dialog.locator('pre.audit-json'))
+      .toHaveCount(items[index].previous != null ? 2 : 1);
+
+    await page.keyboard.press('Escape');
+    await expect(dialog).toHaveCount(0);
   });
 
   test('CR-014 / Source IP and Location sort the whole log on the server', async ({
