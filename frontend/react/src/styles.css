@@ -251,6 +251,8 @@ textarea.input, .textarea { height: auto; padding: 10px 12px; resize: vertical; 
 /* Sortable header: the triangle is drawn with borders so it adds no text to the header name. */
 .table th .th-sort {
   all: inherit;
+  /* `all: inherit` would also copy a column width set on the th, pushing the button past its padding. */
+  width: auto;
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -280,9 +282,13 @@ textarea.input, .textarea { height: auto; padding: 10px 12px; resize: vertical; 
 }
 .table td:first-child { color: var(--fg); font-weight: 500; }
 .table td .btn-link + .btn-link { margin-left: 16px; }
-/* Audit log Changes cell: one line cut with an ellipsis, then Details for the full JSON (CR-069). */
-.audit-changes { display: flex; align-items: center; justify-content: center; gap: 12px; }
-.audit-changes-text { max-width: 320px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Audit log: the table fits its container with no horizontal scroll (CR-069). Fixed layout gives each
+   column its set width and Changes the rest; headers wrap between words, other cells wrap, Changes cuts its text to one line. */
+.audit-log .table-wrap .table { table-layout: fixed; }
+.audit-log .table-wrap .table th { white-space: normal; padding-left: 8px; padding-right: 8px; }
+.audit-log .table-wrap .table td { white-space: normal; overflow-wrap: anywhere; padding-left: 8px; padding-right: 8px; }
+.audit-changes { display: grid; grid-template-columns: minmax(0, max-content) auto; justify-content: start; align-items: center; gap: 12px; text-align: left; }
+.audit-changes-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .audit-json {
   margin: 6px 0 16px;
   padding: 12px;

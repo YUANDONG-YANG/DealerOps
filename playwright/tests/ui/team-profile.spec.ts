@@ -964,7 +964,7 @@ test.describe('/team activity log', () => {
     }
   });
 
-  test('CR-069 / a long change is cut to one line and Details shows its full JSON', async ({
+  test('CR-069 / the log fits without horizontal scroll, a change is cut to one line and Details shows its full JSON', async ({
     page, request, adminApi,
   }) => {
     const owner = await throwawayOwner(request, adminApi);
@@ -975,6 +975,11 @@ test.describe('/team activity log', () => {
     const items = (await res.json()).items as { fieldSummary?: Record<string, unknown>; previous?: Record<string, unknown> | null }[];
     const index = items.findIndex((i) => Object.keys(i.fieldSummary ?? {}).length > 0);
     expect(index, 'the new dealership log holds a row with changed fields').toBeGreaterThanOrEqual(0);
+
+    // The log reads without a horizontal scrollbar: Changes takes the width the other columns leave.
+    const wrap = page.locator('.audit-log .table-wrap');
+    const overflow = await wrap.evaluate((el) => el.scrollWidth - el.clientWidth);
+    expect(overflow, 'the audit table needs no horizontal scroll').toBeLessThanOrEqual(0);
 
     const row = page.locator('table.table tbody tr').nth(index);
     const text = row.locator('.audit-changes-text');

@@ -20,8 +20,9 @@ function hasChanges(row: AuditLogRow) {
 
 /**
  * Filterable audit log, newest first (AUD-10, AUD-11). The admin page passes the platform log
- * and shows the dealership column; the Team page passes the caller's own dealership log. The Changes
- * cell is cut to one line; Details opens the row's full change JSON (CR-069).
+ * and shows the dealership column; the Team page passes the caller's own dealership log. The table fits
+ * without horizontal scrolling: the Changes cell is cut to one line and Details opens the row's full
+ * change JSON (CR-069).
  */
 export default function AuditLogPanel({ load, showDealer = false, suggestActors }: {
   load: (filter: AuditLogFilter, page: number) => Promise<{ items: AuditLogRow[]; totalElements: number }>;
@@ -89,27 +90,29 @@ export default function AuditLogPanel({ load, showDealer = false, suggestActors 
       </div>
       <PageState loading={loading} error={error} empty={!loading && !error && !rows.length}
         emptyText="No audit events match." loadingText="Loading the audit log…">
-        <DataTable rows={rows} total={total} page={page} onPage={setPage}
-          sort={sort} onSort={(key, dir) => { setSort({ key, dir }); setPage(0); }}
-          columns={[
-            { key: 'createdAt', label: 'When', sortable: true, render: (r) => dateTimeLocal(r.createdAt) },
-            { label: 'Actor', key: 'actorUsername', sortable: true, render: (r) => r.actorUsername },
-            { label: 'Role', render: (r) => r.actorRole ?? '—' },
-            { key: 'action', label: 'Action', sortable: true, render: (r) => actionText(r) },
-            { key: 'entityType', label: 'Record', sortable: true, render: (r) => `${r.entityType} #${r.entityId}` },
-            ...(showDealer ? [{ key: 'dealerId', label: 'Dealership', sortable: true, render: (r: AuditLogRow) => r.dealerId == null ? 'Platform' : (r.dealerName ?? `#${r.dealerId}`) }] : []),
-            { label: 'Changes', render: (r) => (
-              <div className="audit-changes">
-                <span className="audit-changes-text">{summaryText(r.fieldSummary, r.previous)}</span>
-                {hasChanges(r) && <button type="button" className="btn-link" onClick={() => setDetail(r)}>Details</button>}
-              </div>
-            ) },
-            { key: 'clientIp', label: 'Source IP', sortable: true, render: (r) => r.clientIp ?? 'Not recorded' },
-            { key: 'clientLocation', label: 'Location', sortable: true, render: (r) => r.clientLocation ?? (r.clientIp ? 'Unavailable' : 'Not recorded') },
-          ]}
-        />
+        <div className="audit-log">
+          <DataTable rows={rows} total={total} page={page} onPage={setPage}
+            sort={sort} onSort={(key, dir) => { setSort({ key, dir }); setPage(0); }}
+            columns={[
+              { key: 'createdAt', label: 'When', width: 120, sortable: true, render: (r) => dateTimeLocal(r.createdAt) },
+              { label: 'Actor', key: 'actorUsername', width: 96, sortable: true, render: (r) => r.actorUsername },
+              { label: 'Role', width: 152, render: (r) => r.actorRole ?? '—' },
+              { key: 'action', label: 'Action', width: 88, sortable: true, render: (r) => actionText(r) },
+              { key: 'entityType', label: 'Record', width: 96, sortable: true, render: (r) => `${r.entityType} #${r.entityId}` },
+              ...(showDealer ? [{ key: 'dealerId', label: 'Dealership', width: 104, sortable: true, render: (r: AuditLogRow) => r.dealerId == null ? 'Platform' : (r.dealerName ?? `#${r.dealerId}`) }] : []),
+              { label: 'Changes', render: (r) => (
+                <div className="audit-changes">
+                  <span className="audit-changes-text">{summaryText(r.fieldSummary, r.previous)}</span>
+                  {hasChanges(r) && <button type="button" className="btn-link" onClick={() => setDetail(r)}>Details</button>}
+                </div>
+              ) },
+              { key: 'clientIp', label: 'Source IP', width: 88, sortable: true, render: (r) => r.clientIp ?? 'Not recorded' },
+              { key: 'clientLocation', label: 'Location', width: 112, sortable: true, render: (r) => r.clientLocation ?? (r.clientIp ? 'Unavailable' : 'Not recorded') },
+            ]}
+          />
+        </div>
       </PageState>
-      <FormDrawer modal title={detail ? `${actionText(detail)} · ${detail.entityType} #${detail.entityId}` : ''}
+      <FormDrawer title={detail ? `${actionText(detail)} · ${detail.entityType} #${detail.entityId}` : ''}
         open={detail != null} onClose={() => setDetail(null)}>
         {detail && (
           <>
