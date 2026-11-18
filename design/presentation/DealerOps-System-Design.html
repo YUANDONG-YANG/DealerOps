@@ -170,7 +170,8 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);font-si
     <li><a href="#dev">14 · Development process</a></li>
     <li><a href="#deploy">15 · Deployment and operations</a></li>
     <li><a href="#scope">16 · Scope and limitations</a></li>
-    <li><a href="#docs">17 · Document map</a></li>
+    <li><a href="#features">17 · Feature deep-dives</a></li>
+    <li><a href="#docs">18 · Document map</a></li>
   </ol>
 </nav>
 
@@ -178,7 +179,7 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);font-si
 <header>
   <div class="eyebrow">Client briefing · Detailed design</div>
   <h1>DealerOps System Design</h1>
-  <p class="subtitle">A multi-tenant dealership operations platform for Ontario used-car dealers: inventory (DMS), customers (CRM), sales leads, reconditioning, payments, a public buyer site, and OMVIC advertising compliance checked by fixed rules plus a real AI review. This page explains how the system is organized, how it is built, and how each business process runs. It is written against the shipped system on branch V3: every section describes a decision that is already visible in the code, the diagrams, the screenshots and the sprint deliverables listed in §16.1 and §17.</p>
+  <p class="subtitle">A multi-tenant dealership operations platform for Ontario used-car dealers: inventory (DMS), customers (CRM), sales leads, reconditioning, payments, a public buyer site, and OMVIC advertising compliance checked by fixed rules plus a real AI review. This page explains how the system is organized, how it is built, and how each business process runs. It is written against the shipped system on branch V3: every section describes a decision that is already visible in the code, the diagrams, the screenshots and the sprint deliverables listed in §16.1, with each major feature pulled apart into its business logic and architecture in §17 and every supporting document indexed in §18.</p>
   <dl class="meta">
     <div><dt>Product</dt><dd>DealerOps</dd></div>
     <div><dt>Team</dt><dd>G2 (four members)</dd></div>
@@ -209,6 +210,23 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);font-si
     <li><b>Buyer site</b> that lists only ready, compliance-passed vehicles to the public and turns each inquiry into a sales lead.</li>
     <li><b>Team management</b> with three dealership tiers — owner, manager and sales — join requests approved inside the dealership, and a dealership audit log.</li>
   </ul>
+
+  <h3>Reader's guide, by role</h3>
+  <p>This page is the single source of truth for every role that touches the system. The cards below say where each role should start and which sections answer that role's usual questions, so a tester, an operator or an incoming developer does not have to read the whole document before being useful.</p>
+  <div class="cards">
+    <div class="card"><h4><span class="chip blue">Dealership staff</span> (owner, manager, sales)</h4><p>Start with <a href="#users">§02</a> (what your tier can and cannot do), <a href="#modules">§07</a> (each business module), <a href="#flows">§08</a> (the day as a sequence of flows) and <a href="#frontend">§13</a> (which page serves which action). <a href="#flows">§8.14</a> is the per-role reading guide of the daily system.</p></div>
+    <div class="card"><h4><span class="chip gray">Public buyer</span> (<code>/shop</code>)</h4><p><a href="#modules">§07</a> "Buyer site" and <a href="#flows">§8.4</a> describe what the public pages show, what an inquiry turns into, and how a vehicle is taken down after a sale. No account, no login.</p></div>
+    <div class="card"><h4><span class="chip purple">Client / product owner</span></h4><p><a href="#summary">§01</a> gives the whole shape in one page; <a href="#org">§03</a> is the team and delivery rhythm; <a href="#scope">§16</a> states scope and accepted deliverables; <a href="#features">§17</a> is a feature-by-feature answer to "how does X work" without needing code.</p></div>
+    <div class="card"><h4><span class="chip blue">Architect</span></h4><p><a href="#arch">§04</a> service boundaries (with Figures 1, 1a and the C4 figure 1b), <a href="#stack">§05</a> technology stack, <a href="#security">§06</a> security and tenancy, <a href="#data">§11</a> data model and <a href="#deploy">§15</a> deployment and cost. <a href="#features">§17</a> is the per-feature architecture reference.</p></div>
+    <div class="card"><h4><span class="chip blue">Backend developer</span></h4><p><a href="#arch">§04</a> request path (4.2), <a href="#modules">§07</a> modules, <a href="#compliance">§09</a> compliance pipeline, <a href="#audit">§10</a> audit rules, <a href="#data">§11</a> tables, <a href="#api">§12</a> API conventions. <a href="#features">§17</a> names which service, transaction and endpoint owns each feature end to end.</p></div>
+    <div class="card"><h4><span class="chip blue">Frontend developer</span></h4><p><a href="#frontend">§13</a> pages, routes and guards; <a href="#api">§12</a> API contract and error shape; <a href="#users">§02</a> role gates for menu and route hiding. <a href="#features">§17.1–17.7</a> explain the forms, dialogs and uploads behind each screen.</p></div>
+    <div class="card"><h4><span class="chip amber">QA / tester</span></h4><p><a href="#flows">§08</a> flows and <a href="#flows">§8.9</a> refusal table drive positive and negative cases; <a href="#compliance">§09</a> check states and <a href="#audit">§10</a> audit table give the invariants to assert; the <b>failure modes</b> paragraph under every feature in <a href="#features">§17</a> lists what the screen must show when a call fails; <a href="#dev">§14</a> is the acceptance plan.</p></div>
+    <div class="card"><h4><span class="chip amber">DevOps / operator</span></h4><p><a href="#arch">§4.4</a> time budgets and rate limits, <a href="#arch">§4.5</a> logging and the single request id across services, <a href="#deploy">§15</a> Azure resources, release command, cost and restore, <a href="#audit">§10</a> audit for forensic reads. <a href="#features">§17</a> names the endpoints and transactions behind each page, which is what an on-call person needs when a ticket says "the payment screen is red".</p></div>
+    <div class="card"><h4><span class="chip red">Security reviewer</span></h4><p><a href="#security">§06</a> authentication, authorization and secrets; <a href="#compliance">§9.5</a> how the AI review is kept safe and honest; <a href="#audit">§10</a> audit guarantees; <a href="#deploy">§15</a> Azure boundary and Key Vault. <a href="#features">§17.2</a> and <a href="#features">§17.9</a> isolate the sign-in and audit paths.</p></div>
+    <div class="card"><h4><span class="chip blue">Data / reporting user</span></h4><p><a href="#data">§11</a> table catalogue and relationships, <a href="#modules">§07</a> "Sales leads and reports" for the figures the Sales report and Dashboard compute, <a href="#api">§12</a> for the paged list conventions. Nothing is hard-deleted, so historical rows are always readable.</p></div>
+    <div class="card"><h4><span class="chip purple">Platform admin / integrator</span></h4><p><a href="#users">§02</a> admin capabilities, <a href="#modules">§07</a> "Administration and audit", <a href="#compliance">§9.4</a> rule overrides and their effect on existing checks, <a href="#api">§12</a> admin endpoint family. <a href="#features">§17.2</a> covers how admin tokens are refused on business routes.</p></div>
+    <div class="card"><h4><span class="chip gray">Incoming contributor</span></h4><p>Read <a href="#summary">§01</a>, <a href="#arch">§04</a> and <a href="#dev">§14</a>, then pick one feature in <a href="#features">§17</a> and follow its endpoint through <a href="#api">§12</a> into the code paths named in <a href="#deploy">§15.4</a>. The <a href="#docs">§18</a> document map lists every source document the page summarises.</p></div>
+  </div>
 </section>
 
 <!-- 2 -->
@@ -2446,8 +2464,248 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);font-si
 </section>
 
 <!-- 17 -->
+<section id="features">
+  <h2><span class="num">17</span>Feature deep-dives: business logic and architecture</h2>
+  <p>Each feature below is explained from two angles. The <b>business logic</b> column is what a staff member or buyer sees — what is accepted, what is refused, in what order. The <b>architecture</b> column is how the delivery runs — which service owns each step, which tables it writes, what it calls outside itself. A short <b>failure modes</b> paragraph closes each feature, so a reader can also predict what the screen shows when something goes wrong.</p>
+
+  <h3>17.1 VIN decode (the add-vehicle form)</h3>
+  <div class="grid2">
+    <div>
+      <h4>Business logic</h4>
+      <ol class="list">
+        <li>On the Add vehicle form, the staff member types a VIN. The field upper-cases the value as it is typed and refuses the letters I, O and Q.</li>
+        <li>Pressing <b>Decode</b> asks for make, model, year and body type for that VIN. Those four fields fill in; everything else — source, cost, condition, mileage, colour — is still typed by the staff member.</li>
+        <li>Nothing is persisted until <b>Save</b> is pressed, so a wrong decode is corrected by editing the fields before saving rather than by cleaning up a bad row afterwards.</li>
+        <li>On Save, the VIN must be 17 characters, must not contain I, O or Q, and must not already exist for another in-stock or sold vehicle of the same dealership.</li>
+        <li>The inventory list's make and model filters, and the Add vehicle form's pickers, are fed from the same NHTSA catalogue, so the staff sees the same names NHTSA uses.</li>
+      </ol>
+    </div>
+    <div>
+      <h4>Architecture</h4>
+      <ul>
+        <li>Browser calls <code>GET /api/v1/catalog/vin/{vin}</code> on the Gateway; the Gateway forwards to Core with the internal credential.</li>
+        <li>Core's catalog service looks the VIN up in a per-instance in-memory cache keyed by the VIN itself. On a miss, it calls NHTSA vPIC <code>DecodeVinValues</code> with a 5-second timeout and stores the parsed make, model, year and body type for the next look-up.</li>
+        <li>The same service feeds <code>/catalog/makes</code> and <code>/catalog/models</code> from vPIC catalogue endpoints, cached the same way; no third-party key is used and no PII is sent.</li>
+        <li>No database write happens at decode time. Only <code>POST /vehicles</code> writes the <code>vehicle</code> row, after a server-side re-run of the 17-character / no I-O-Q rule and the dealership-local uniqueness check. The vehicle and its audit row commit together in one transaction.</li>
+      </ul>
+    </div>
+  </div>
+  <p><b>Failure modes.</b> vPIC slow or unreachable → <b>502</b> <code>CATALOG_UNAVAILABLE</code> and the form stays usable so the staff member can type the fields by hand. Malformed VIN → <b>400</b> with a field error on <code>vin</code>, never a cryptic parser message. Dealership already has that VIN → <b>409</b> <code>VIN_DUPLICATE</code>. Decode returns an unexpected make (rare) → the row still saves; the staff member corrects the field before pressing Save, since nothing persisted at decode time.</p>
+
+  <h3>17.2 Sign-in and tenant resolution</h3>
+  <div class="grid2">
+    <div>
+      <h4>Business logic</h4>
+      <ol class="list">
+        <li>Three sign-in paths: local password, Google ID token, Firebase ID token. All three end with DealerOps issuing its own JWT; identity providers never grant roles or dealerships.</li>
+        <li>The token carries only username, display name and the platform role (<code>Platform.Admin</code> or <code>Dealer.User</code>). Dealership and tier are not in the token.</li>
+        <li>On every request, the signed-in user's one active membership is read fresh. The dealership on that row becomes the request's tenant. A promotion, demotion or removal therefore takes effect on the member's next call, not when the token expires.</li>
+        <li>A sign-in attempt for an unknown username still runs a BCrypt compare against a throwaway hash, so the response time does not reveal which usernames exist.</li>
+      </ol>
+    </div>
+    <div>
+      <h4>Architecture</h4>
+      <ul>
+        <li>Local password: <code>POST /auth/login</code> → Core authentication → BCrypt verify against <code>app_user.password_hash</code> → JWT signed with the Core signing secret from Key Vault.</li>
+        <li>Google: browser obtains a Google ID token, posts it to <code>/auth/google</code>; Core verifies signature, issuer, audience, expiry and the verified-email flag against Google's certificates before issuing its own JWT.</li>
+        <li>Firebase: similar path at <code>/auth/firebase</code>, exchanging the Firebase ID token for a DealerOps JWT.</li>
+        <li>On every later call the Gateway validates signature, issuer, audience and expiry; a missing or bad token is refused with <b>401</b> before Core is reached, and the token itself is never written to a log.</li>
+        <li>Core's tenant filter reads <code>membership</code> by username on every call; any <code>dealerId</code> the browser sends is ignored, and a record outside the tenant returns <b>404</b> so the response cannot reveal whether that record exists elsewhere.</li>
+      </ul>
+    </div>
+  </div>
+  <p><b>Failure modes.</b> Unknown username or wrong password → <b>401</b>, response time matches a real miss. Expired or tampered token → <b>401</b> at the Gateway, token value never logged. Account with no active membership → every business route answers <b>403</b>; the browser shows the no-access screen. Two active memberships (should never happen) → <b>409</b> <code>DUP_MEMBER</code> rather than guessing a tenant.</p>
+
+  <h3>17.3 Vehicle sell transaction</h3>
+  <div class="grid2">
+    <div>
+      <h4>Business logic</h4>
+      <ol class="list">
+        <li>The Sell dialog on a vehicle shows purchase cost, workshop spend and list price, and requires the sold date, sold price and a buyer together.</li>
+        <li>The buyer is either a CRM customer of the dealership (who is linked to the vehicle in the same transaction) or <b>Other</b> with a typed name.</li>
+        <li>The sale is refused if the vehicle has open work orders, is already sold, if the date is before the date added or in the future, or if the price is missing or not positive.</li>
+        <li>After the sale, purchase fields lock (<code>SOLD_LOCKED</code>), the vehicle's open leads close — the buyer's as Won, the rest as Lost with reason "Vehicle sold" — and the salesperson's username is stored on the sale.</li>
+      </ol>
+    </div>
+    <div>
+      <h4>Architecture</h4>
+      <ul>
+        <li><code>POST /vehicles/{id}/sell</code> on the Gateway → Core <code>VehicleService.Sell</code>.</li>
+        <li>Core opens one database transaction. Inside it: row-lock <code>vehicle</code>, verify no open <code>work_order</code>, verify not already sold, verify date and price, update the vehicle (<code>sold_at</code>, <code>sold_price</code>, <code>sold_by</code>, plus either <code>sold_to_customer_id</code> or <code>sold_to_name</code>), link or close <code>customer_vehicle</code>, close the vehicle's open <code>sales_lead</code> rows (Won for the buyer, Lost for the rest), and write one audit row.</li>
+        <li>Any failure rolls back the whole transaction; the client sees one coherent refusal, never a half-applied sale.</li>
+        <li>Downstream: the ad's current check becomes Stale on the next read; the buyer site stops listing the vehicle because the Ready-and-current-pass condition no longer holds.</li>
+      </ul>
+    </div>
+  </div>
+  <p><b>Failure modes.</b> Open work orders → <b>409</b> <code>WORK_ORDERS_OPEN</code>. Already sold or edit of purchase fields after sale → <b>409</b> <code>SOLD_LOCKED</code>. Buyer differs from the already-linked customer → <b>409</b> <code>VEHICLE_ALREADY_LINKED</code>. Concurrent sale attempts → one wins, the other sees <b>409</b> <code>VERSION_CONFLICT</code> with the latest row attached.</p>
+
+  <h3>17.4 OMVIC ad check (rules + AI)</h3>
+  <div class="grid2">
+    <div>
+      <h4>Business logic</h4>
+      <ol class="list">
+        <li>One ad draft per vehicle: title, body, type (CASH / FINANCE / LEASE), medium (ONLINE / RADIO_TV_BILLBOARD) and the salesperson's disclosure checklist — prior use, warranty terms, annual kilometre allowance.</li>
+        <li>Running the check applies the fixed OMVIC rules first. If any BLOCK rule fires, the result is BLOCKED and the AI is not called.</li>
+        <li>If no hard rule blocks, the AI returns up to eight advisory notes. The AI can never turn a result into a pass; it only adds notes.</li>
+        <li>Ready and TXT export are allowed only while the latest check is PASSED on exactly the text now on screen. A real text change raises the ad's content version, returns the draft to Draft and marks the earlier pass Stale.</li>
+      </ol>
+    </div>
+    <div>
+      <h4>Architecture</h4>
+      <ul>
+        <li><code>POST /listings/{id}/checks</code> on the Gateway → Core <code>ComplianceService</code>.</li>
+        <li>Core validates tenant and optimistic-lock version, runs the fixed rule engine against ad text, the checklist, the vehicle's public fields and the dealership profile, then applies any admin rule override.</li>
+        <li>If no BLOCK fires, Core calls <code>POST /internal/v1/ad-check</code> on the AI service with the internal header, within a 2 s connect + 13 s response budget and at most 16 calls in flight.</li>
+        <li>The AI service calls the configured provider (Groq, OpenAI, DeepSeek, xAI or Anthropic); title and body are passed inside explicit untrusted-input markers, and the model is instructed to analyse — never obey — that text.</li>
+        <li>Core writes <code>compliance_check</code> with the findings, AI notes, AI status, recommendation and the exact content version it judged, together with its audit row, in one commit.</li>
+      </ul>
+    </div>
+  </div>
+  <p><b>Failure modes.</b> Hard rule fires → result BLOCKED, delivered as <b>200</b> OK with the findings, not an HTTP error. AI timeout or provider error → result AI_UNAVAILABLE, never a pass. Ad changed since the last check → NEEDS_AI or STALE and the Ready action is disabled on the Ads page. Provider name misconfigured → fall back to the default rather than call an arbitrary host.</p>
+
+  <h3>17.5 Buyer-site inquiry becomes a lead</h3>
+  <div class="grid2">
+    <div>
+      <h4>Business logic</h4>
+      <ol class="list">
+        <li>The public page at <code>/shop/{dealership}</code> shows in-stock vehicles whose ad is Ready and whose latest check is Passed and current.</li>
+        <li>A visitor opens one vehicle and sends an inquiry with a name, a phone number and a message. At most five inquiries a minute are accepted from one IP.</li>
+        <li>A vehicle that has just been sold or taken down answers that it is no longer listed, rather than filing an inquiry nobody can honour.</li>
+        <li>The inquiry becomes a CRM customer and an open lead for the dealership's sales staff; the header inbox notifies every member.</li>
+      </ol>
+    </div>
+    <div>
+      <h4>Architecture</h4>
+      <ul>
+        <li><code>POST /public/dealers/{slug}/inquiries</code> on the Gateway, anonymous and rate-limited to 5 per minute per IP.</li>
+        <li>Core looks the dealership up by slug, re-verifies the vehicle is still listable, then matches the buyer to an existing <code>customer</code> only when both phone and name match (so a shared-phone household keeps separate profiles); otherwise a new customer is created.</li>
+        <li>If that customer already has an open <code>sales_lead</code> for that vehicle, the inquiry is appended as a note; otherwise a new lead is created at stage NEW with today as the follow-up date and the inquiry as its first note.</li>
+        <li>Core writes a <code>notification</code> addressed to the dealership; every member's header inbox picks it up and clears itself once someone takes the lead. Every row is audited with actor <code>buyer-site</code> so staff can tell web leads from their own entries.</li>
+      </ul>
+    </div>
+  </div>
+  <p><b>Failure modes.</b> Vehicle no longer listable at request time → <b>200</b> with a "no longer listed" message; no customer, lead or notification is written. Rate limit tripped → <b>429</b> <code>RATE_LIMITED</code> with a one-minute <code>Retry-After</code>. Missing name or phone → <b>400</b> with field errors.</p>
+
+  <h3>17.6 In-store AI assistant</h3>
+  <div class="grid2">
+    <div>
+      <h4>Business logic</h4>
+      <ol class="list">
+        <li>A floating panel on staff pages takes a plain question such as "Which Toyota vehicles are in stock?" or "How many customers do we have?".</li>
+        <li>The panel answers with up to five of the dealership's own records, each with a link back into the app, plus a one-paragraph plain-language summary.</li>
+        <li>Counting questions are answered from the database without calling the model, so a number is never guessed from a truncated list.</li>
+        <li>Customer phone, email and address are never shown by the assistant and never sent to the AI.</li>
+      </ol>
+    </div>
+    <div>
+      <h4>Architecture</h4>
+      <ul>
+        <li><code>POST /assistant/ask</code> on the Gateway → Core <code>AssistantService</code>.</li>
+        <li>Core parses the intent (list, count or free text), filters by the request's tenant and picks up to five matching records with their safe fields only.</li>
+        <li>For a free-text answer, Core calls <code>POST /internal/v1/assistant</code> on the AI service with the question plus the pre-filtered records; the AI returns wording only.</li>
+        <li>Any record id the model invents is discarded; only ids Core supplied survive into the response. If the AI is down, the assistant still returns the matching records with "Smart explanation is temporarily unavailable."</li>
+      </ul>
+    </div>
+  </div>
+  <p><b>Failure modes.</b> AI provider error or timeout → records are returned without the summary. Query that would require customer contact fields → Core refuses to populate them and the assistant reports only what it can show.</p>
+
+  <h3>17.7 Image Studio: upload and enhance</h3>
+  <div class="grid2">
+    <div>
+      <h4>Business logic</h4>
+      <ol class="list">
+        <li>Up to 10 photos per vehicle, each up to 2 MB, JPEG or PNG only.</li>
+        <li>The file type is read from the file's first bytes, not from the file name, so renaming a non-image does not bypass the rule.</li>
+        <li>Three enhancement presets: Auto fix, Brighten, Sharpen. The original is always kept; the enhancement is stored as an additional copy.</li>
+        <li>Photos are never sent to the AI; they only ever live in the dealership's own records.</li>
+      </ol>
+    </div>
+    <div>
+      <h4>Architecture</h4>
+      <ul>
+        <li><code>POST /vehicles/{id}/photos</code> on the Gateway with a multipart body → Core <code>PhotoService</code>.</li>
+        <li>Core reads the first bytes of the file, rejects anything that is not a JPEG or PNG magic header, then stores the raw bytes in <code>vehicle_photo.original</code> together with the audit row.</li>
+        <li>An enhancement call applies the preset in-process — not in a background job — and writes the enhanced bytes alongside the original row, so both can be served.</li>
+        <li>The browser fetches each photo through a Gateway-proxied Core endpoint; the public buyer site serves the same bytes from an anonymous route that reads the same column.</li>
+      </ul>
+    </div>
+  </div>
+  <p><b>Failure modes.</b> File over 2 MB or wrong type → <b>400</b> with the broken limit named. Eleventh photo on one vehicle → <b>400</b>. Corrupt image passed to an enhancement → <b>400</b>; the original upload still stands.</p>
+
+  <h3>17.8 Payment ledger and the bill of sale</h3>
+  <div class="grid2">
+    <div>
+      <h4>Business logic</h4>
+      <ol class="list">
+        <li>Any member can record a payment on a sold vehicle: amount, method (cash, debit, credit card, cheque, bank transfer, financing, other), date and an optional note.</li>
+        <li>A payment must have at most two decimals, must not exceed the balance due and must be dated between the sale date and today.</li>
+        <li>Only the owner and managers see the ledger and the balance due; a sales member sees only the entry they just recorded.</li>
+        <li>Owner and manager can remove a mistaken entry; the row is soft-deleted and the removal is itself audited.</li>
+        <li>The bill of sale is a printable page that combines dealer, buyer, vehicle, sale price, payments and balance. No card is ever charged.</li>
+      </ol>
+    </div>
+    <div>
+      <h4>Architecture</h4>
+      <ul>
+        <li><code>POST /vehicles/{id}/payments</code> on the Gateway → Core <code>PaymentService</code>.</li>
+        <li>Core opens one transaction, row-locks the <code>vehicle</code>, re-verifies the sale, re-sums existing non-deleted payments, checks the new amount against the balance due, writes <code>vehicle_payment</code> and the audit row, and commits.</li>
+        <li>Concurrent payments are serialised by the vehicle row lock, so two simultaneous entries cannot together exceed the sold price.</li>
+        <li>The bill of sale is rendered client-side from <code>GET /vehicles/{id}</code> plus the payments list; the <code>/dms/:vehicleId/bill-of-sale</code> route opens the printable layout.</li>
+      </ul>
+    </div>
+  </div>
+  <p><b>Failure modes.</b> Amount would exceed balance → <b>409</b> with the remaining balance in the response. Three decimals typed → <b>400</b> on the <code>amount</code> field; nothing is quietly rounded. Date before the sale or in the future → <b>400</b> with a per-field reason.</p>
+
+  <h3>17.9 Audit trail write</h3>
+  <div class="grid2">
+    <div>
+      <h4>Business logic</h4>
+      <ol class="list">
+        <li>Every sign-in attempt and every create, update, delete or state-change writes one audit row.</li>
+        <li>Each row captures actor, actor display-name and role snapshot, dealership and its legal name at that moment, entity type and id, action, new values, replaced values, client IP, readable location, and UTC time.</li>
+        <li>Only accepted changes are audited. A save that changes nothing writes no row, and a page view is never audited.</li>
+        <li>No screen or API can edit or delete an audit row. Reading is open to owner, manager and admin only.</li>
+      </ol>
+    </div>
+    <div>
+      <h4>Architecture</h4>
+      <ul>
+        <li>The Gateway decides the client IP from the one hop the Azure front end adds; a client-supplied forwarding header never reaches Core.</li>
+        <li>Core's business services call <code>AuditService.Append</code> inside the same database transaction as the business write; if either fails, both roll back.</li>
+        <li>The row's display-name, role and dealership-name snapshots are read inside the same call, so a later rename or promotion does not rewrite history.</li>
+        <li>An IP place lookup runs asynchronously for public addresses, cached six hours; a private or local address is labelled locally and never sent to the lookup service.</li>
+        <li>The schema allows only the listed entity types and actions; anything else is rejected at the service layer, never stored.</li>
+      </ul>
+    </div>
+  </div>
+  <p><b>Failure modes.</b> Audit append fails → the business write rolls back and the client sees a refusal rather than a silent write without a record. IP lookup unavailable → the row keeps the IP and omits the place. Unknown actor on a failed sign-in → recorded as <code>anonymous</code>; the text typed into the sign-in box is never stored.</p>
+
+  <h3>17.10 Work orders and cost roll-up</h3>
+  <div class="grid2">
+    <div>
+      <h4>Business logic</h4>
+      <ol class="list">
+        <li>Tasks are added to an in-stock vehicle with an optional assignee (a member of the same dealership) and due date.</li>
+        <li>A task moves OPEN → IN_PROGRESS → DONE, or OPEN → DONE, or OPEN/IN_PROGRESS → CANCELLED.</li>
+        <li>Finishing a task needs both a note and a cost; the cost is added to the vehicle's <code>repair_cost</code> in the same transaction, so the profit figure cannot drift from the workshop record.</li>
+        <li>A finished or cancelled task cannot be edited again; a mistake is corrected by cancelling and raising a new task. A vehicle cannot be sold while any task is still open.</li>
+      </ol>
+    </div>
+    <div>
+      <h4>Architecture</h4>
+      <ul>
+        <li><code>POST /vehicles/{id}/work-orders</code> and <code>PATCH /work-orders/{id}</code> on the Gateway → Core <code>WorkOrderService</code>.</li>
+        <li>On a Done transition Core opens one transaction: row-lock the vehicle, write the task's new status + note + cost, add the cost to <code>vehicle.repair_cost</code>, write two audit rows (one for the task, one for the vehicle) and commit.</li>
+        <li>The Sales report's workshop-settlement section reads completed <code>work_order</code> rows grouped by month and assignee, so paying an outside detailer or mechanic is reading one list, not reconciling two.</li>
+      </ul>
+    </div>
+  </div>
+  <p><b>Failure modes.</b> Finish without note or cost → <b>400</b>. Assignee is not a member of the dealership → <b>400</b>. Edit a Done or Cancelled task → <b>409</b>. Add a task to a sold vehicle → <b>409</b>.</p>
+</section>
+
+<!-- 18 -->
 <section id="docs">
-  <h2><span class="num">17</span>Document map</h2>
+  <h2><span class="num">18</span>Document map</h2>
   <div class="tbl"><table>
     <thead><tr><th>Topic</th><th>Document</th></tr></thead>
     <tbody>
