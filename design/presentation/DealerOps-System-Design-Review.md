@@ -136,3 +136,38 @@ The current version has a substantially developed end-to-end structure: §8.0 ma
 - Parsed local resource paths and in-page anchors; only the Sprint 3 `img.png` reference is missing, and all in-page fragments resolve.
 - Compared the VIN error, sale data model, versioning, tenant keys, membership ownership, unlink behavior, and schema-source statements against the current API/data design documents.
 - Did not render the HTML in a browser, so visual layout, SVG appearance, and print output still need visual inspection.
+
+## Current-version recheck (2026-11-23)
+
+The HTML changed since the previous pass. Several prior findings are now corrected in the page. This section reflects the current file, not the earlier snapshot.
+
+### Previous findings now resolved in the HTML
+
+- VIN duplicate references now consistently use **400 `VIN_DUP`** in the inspected locations.
+- The sale walkthrough now uses `sold_to_name` for typed buyers and `customer_vehicle` for CRM buyers; the invented `sold_to_customer_id` reference is gone.
+- Tenant-key wording distinguishes dealership audit rows from platform audit rows with an empty `dealer_id`.
+- The owner rule now allows an unbound dealership to have no owner and states that active staff require an owner.
+- The broken Sprint 3 image reference has been repaired; the local-resource check now resolves all referenced files.
+- The ERD now identifies EF Core and the active `DealerOps.Core` startup patches as the live schema owner in its caption/evidence block.
+- The earlier grammar issue in the FLOW-06 sentence is no longer present in the inspected table row.
+
+### Remaining findings
+
+1. **API error envelope description is still inaccurate.** §12 says every failure, including Gateway-generated errors and downstream failures, uses `{ code, message, requestId, fieldErrors }`. The current API contract says Gateway-generated 401/403/404 errors carry only `{code,message}`, `fieldErrors` is optional, and a Gateway downstream-connection failure uses `{code,message}` while forwarding downstream error bodies unchanged. Describe the envelope as status/source-dependent and point to the contract for the variants.
+
+2. **Pagination field name differs from the contract.** §12 lists `{ items, page, size, total }`; `design/14-Backend-API-Contract.md` specifies `{items,page,size,totalElements}`. Use the contract's `totalElements` name.
+
+3. **The soft-delete description still includes `customer_vehicle`.** §11's table/callout and the ERD dagger still say a customer-vehicle link is soft-deleted. `design/15-Data-Auth-and-Gateway.md` §4 says unlinking an in-stock vehicle removes the link row (V1 has no soft-delete column; it may be deleted/hard-deleted), while a sold link cannot be removed. Correct the ERD legend and soft-delete list to match the chosen implementation.
+
+4. **One stale Flyway reference remains in the ERD introduction.** The nearby ERD evidence block now correctly says EF Core owns the live schema, but the paragraph introducing the diagram still says the authoritative schema is in document 15 “with the Flyway scripts it names.” The same file labels Java/Flyway snippets historical. Remove or clearly qualify this remaining reference so the section does not contradict itself.
+
+5. **Versioning differs between the presentation and the current API contract.** The presentation lists `dealer`, `vehicle`, `customer`, `listing`, `work_order`, and `sales_lead` as versioned. `design/21-Feature-Extensions.md` does specify versions for work orders and leads, while `design/14-Backend-API-Contract.md` §1.3 currently lists only dealer, vehicle, customer, and listing. The presentation aligns with the extension requirements, but the canonical API contract has not caught up. Reconcile the contract and presentation so callers have one authoritative list.
+
+6. **The FLOW-02 example says every row in its data list carries `dealer_id`.** It then correctly qualifies that platform-level audit rows may omit it, but the blanket wording still includes the `audit_event` entity. Consider saying “each dealership-owned business row” and separately describing the optional tenant key on audit rows.
+
+### Static checks and current assessment
+
+- Secrets scan passed for the HTML, review record, and current API, data/auth, architecture, extensions, and observability references.
+- Static parsing found no duplicate IDs, no broken in-page links, and no missing local resources.
+- Compared the current claims above against the current API/data design documents. No browser render, screen-reader review, or print rendering was performed.
+- The document's end-to-end structure is now strong: §8.0 traces business goals through workflow, data, route, service, enforcement, and deployment; §11 and §17 reinforce those links. Current quality is approximately **8.5/10**, with the remaining score deductions concentrated in the contract mismatches above and the need for visual QA.
