@@ -30,6 +30,7 @@ h2, h3 { break-after: avoid; }
 
 <h2>1. Chosen Strategy and Justification</h2>
 <p><strong>Blue/Green deployment, with a canary ramp on the green environment before the full cut-over.</strong></p>
+<p>These are two layers of one strategy, not two competing strategies. <strong>Blue/Green is the environment and rollback model:</strong> two complete production environments, only one of them live, and a routing change as the release action. <strong>Canary is the traffic-exposure control layered on top of it:</strong> it decides how fast customers are moved from blue to green. Blue/Green provides the escape route; the canary ramp limits how many customers need it.</p>
 <p>The decisive constraint in the scenario is that the rollout must not affect the ongoing operations of the live system. An e-commerce site takes revenue continuously; a checkout outage costs money and customer trust immediately, and a bad release that is only discovered after everyone is on it is worse than a slow release. Blue/Green answers both:</p>
 <ul>
 <li><strong>No downtime.</strong> The current version (blue) keeps serving every request while the new version (green) is built, deployed and verified alongside it. The switch is a change of traffic routing, not a restart of the application.</li>
@@ -81,7 +82,7 @@ h2, h3 { break-after: avoid; }
 <tr><th>Step</th><th>Action</th></tr>
 <tr><td>9</td><td>Apply the backward-compatible database migration while blue is still serving all traffic. Blue ignores the new columns; green will use them.</td></tr>
 <tr><td>10</td><td>Provision the <strong>green</strong> environment from infrastructure code and deploy the tagged image to it. Green receives no customer traffic yet.</td></tr>
-<tr><td>11</td><td>Smoke-test green directly on an internal hostname: health checks, login, product search, add to cart, a real checkout against the payment provider's sandbox or a low-value test order, and the specific bug fixes in this release.</td></tr>
+<tr><td>11</td><td>Smoke-test green directly on an internal hostname: health checks, login, product search, add to cart, a full checkout against the payment provider's <strong>sandbox</strong> credentials, and the specific bug fixes in this release. A live-money test order is deliberately <em>not</em> part of the smoke test: it would create a real charge, a real order record and real customer data that then have to be isolated, reconciled and reversed. If a live-path check is ever judged necessary, it needs a flagged internal test account, prior finance authorisation and a documented reconciliation step.</td></tr>
 <tr><td>12</td><td>Warm green: pre-load caches and connection pools so the first real customers do not pay the cold-start cost.</td></tr>
 <tr><td>13</td><td><strong>Canary:</strong> route 5 % of traffic to green via weighted load-balancer targets. Hold 15&ndash;30 minutes and watch the go/no-go metrics.</td></tr>
 <tr><td>14</td><td>Ramp 25 % &rarr; 50 % &rarr; 100 %, pausing at each step and re-checking the same metrics. Any breach stops the ramp.</td></tr>
@@ -127,14 +128,14 @@ h2, h3 { break-after: avoid; }
 <table>
 <tr><th>Challenge</th><th>Mitigation in this plan</th></tr>
 <tr><td><strong>Downtime risk</strong></td><td>Blue serves every request until green is verified; the cut-over is a routing change. Health checks gate the switch, and rollback is a weight change back to blue.</td></tr>
-<tr><td><strong>Inefficient resource utilisation</strong> (Blue/Green doubles capacity)</td><td>Keep the overlap short &mdash; green is created at step 10 and blue is retired 24 hours after cut-over. Provision green with Terraform on autoscaling (and spot/preemptible capacity where the workload tolerates it) so the duplicate cost is hourly rather than permanent. Green starts sized for the canary slice and scales as the ramp proceeds, so full double capacity exists only briefly.</td></tr>
+<tr><td><strong>Inefficient resource utilisation</strong> (Blue/Green doubles capacity)</td><td>Keep the overlap short &mdash; green is created at step 10 and blue is retired 24 hours after cut-over. Provision green with Terraform on autoscaling (and spot/preemptible capacity where the workload tolerates it) so the duplicate cost is hourly rather than permanent. Green is nevertheless provisioned and load-tested for the full expected peak <em>before</em> the ramp starts &mdash; under-sizing it for the canary slice alone would make green fail on capacity and produce a false release failure. Autoscaling then handles the headroom, and the duplicate cost is short-lived rather than permanent.</td></tr>
 <tr><td><strong>Database schema changes shared by both versions</strong></td><td>Expand/contract migrations: additive only during the release, destructive changes deferred to a later release once blue is gone. This is what keeps rollback free of a data restore.</td></tr>
 <tr><td><strong>Defects that only appear under real traffic</strong></td><td>The canary ramp exposes 5 % of users first, with hold periods and explicit numeric go/no-go criteria at every step.</td></tr>
 <tr><td><strong>In-flight customer sessions and carts</strong></td><td>Sessions and carts are stored externally (Redis/database), not in application memory, so a customer moved from blue to green keeps their cart. Connection draining lets blue finish in-flight requests.</td></tr>
 <tr><td><strong>Cold caches and slow first requests</strong></td><td>Green is warmed at step 12 before any customer traffic reaches it.</td></tr>
 <tr><td><strong>Configuration drift between environments</strong></td><td>Every environment is built from the same Terraform modules and the same image; differences are limited to declared variables.</td></tr>
-<tr><td><strong>Human error during the rollout</strong></td><td>No manual production steps. The pipeline performs the deployment, the ramp and the rollback; a human approves, the automation executes.</td></tr>
-<tr><td><strong>Third-party dependencies (payment, shipping)</strong></td><td>Smoke tests include a real payment path against the provider's sandbox, and the release is scheduled outside the provider's own maintenance windows.</td></tr>
+<tr><td><strong>Human error during the rollout</strong></td><td>No ad hoc manual execution steps; a human approval gates the automated rollout. The pipeline performs the deployment, the ramp and the rollback; the release manager decides, the automation executes.</td></tr>
+<tr><td><strong>Third-party dependencies (payment, shipping)</strong></td><td>Smoke tests exercise the full payment path against the provider's sandbox credentials (no live-money orders), and the release is scheduled outside the provider's own maintenance windows.</td></tr>
 </table>
 
 <h2>5. The Role of DevOps and CI/CD</h2>

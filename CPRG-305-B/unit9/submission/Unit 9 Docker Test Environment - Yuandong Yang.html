@@ -122,6 +122,15 @@ CMD ["npm", "test", "--", "--watchAll=false", "--coverage"]</pre>
 <tr><td><code>CMD ["npm","test","--","--watchAll=false","--coverage"]</code></td><td>Executable array form (no shell wrapper), runs the suite once and emits the coverage artifacts.</td></tr>
 </table>
 
+<h3>2.3 Reproducibility notes on the two build choices</h3>
+<p>The Dockerfile above is exactly the one that produced the evidence in section 4. Two of its lines are the convenient choice rather than the strictest one, and a production test image would tighten both.</p>
+<table>
+<tr><th>As built</th><th>Stricter form</th><th>Difference it makes</th></tr>
+<tr><td><code>RUN npm install</code></td><td><code>RUN npm ci</code></td><td>The project ships a <code>package-lock.json</code>, so the exact tree is already pinned. <code>npm install</code> may still resolve newer in-range versions and rewrite the lock file inside the image; <code>npm ci</code> installs the lock file as written and fails if the manifest and the lock disagree. For a test image &mdash; where the whole point is that the same dependencies produce the same verdict &mdash; that failure is the desired behaviour.</td></tr>
+<tr><td><code>FROM node:22-alpine</code></td><td><code>FROM node:22.x.y-alpine</code>, or a reviewed <code>@sha256:&hellip;</code> digest</td><td><code>node:22-alpine</code> is a moving tag: the same Dockerfile can build on a different patch release next month, so a test result is not reproducible over time. Pinning a patch-level tag or a digest makes the base image an explicit, reviewable upgrade instead of a silent one.</td></tr>
+</table>
+<p>Neither change affects the result recorded below &mdash; the suite passes either way &mdash; so the submitted configuration is the one that was actually run and screenshotted, with these two improvements documented rather than applied after the fact.</p>
+
 <h2>3. Orchestration with Docker Compose (Part 3)</h2>
 <p>Compose turns the whole run into a single command and, more importantly, declares the volume mount that makes the coverage report survive the container.</p>
 <pre>services:
@@ -172,7 +181,7 @@ Tests:       1 passed, 1 total</pre>
 <tr><td>Node.js version</td><td>v24.16.0 (host)</td><td>Node 22 LTS (pinned in the image)</td></tr>
 <tr><td>Coverage artifacts</td><td><code>coverage/</code> in the project</td><td><code>clover.xml</code>, <code>coverage-final.json</code>, <code>lcov.info</code>, <code>lcov-report/</code> written back to the host</td></tr>
 </table>
-<p>The results are identical, which is the point of the exercise: the suite is no longer dependent on the versions that happen to be installed on one laptop. The container pins the Node.js version, installs dependencies from the lock file on a Linux base, and produces the same verdict that the host produced &mdash; and it does so without the developer having to match any of that by hand.</p>
+<p>The results are identical, which is the point of the exercise: the suite is no longer dependent on the versions that happen to be installed on one laptop. The container fixes the Node.js major version (22 LTS, pinned to a patch level or digest per section 2.3), installs dependencies on a Linux base from the manifests committed with the project, and produces the same verdict that the host produced &mdash; and it does so without the developer having to match any of that by hand.</p>
 
 <h2>5. Submission Checklist</h2>
 <table>

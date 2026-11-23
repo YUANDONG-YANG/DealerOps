@@ -99,6 +99,7 @@
   .c1 { border-left-color: var(--series-1); }
   .c2 { border-left-color: var(--series-2); }
   .c3 { border-left-color: var(--series-3); }
+  .basis { font-size: 9.5px; color: var(--text-secondary); border-left: 3px solid var(--rule); padding-left: 8px; }
   footer { margin-top: 10px; border-top: 1px solid var(--rule); padding-top: 4px; font-size: 9px; color: var(--text-muted); }
   @media print {
     body { padding: 0; width: 7.5in; max-width: 7.5in; }
@@ -224,21 +225,22 @@
   <div class="card c1">
     <h3>Logon/Log off</h3>
     <div class="state" style="color:var(--series-1)">Passes, no margin</div>
-    <p>Flat at 2.0&ndash;2.2 s to 400 txns, then a knee at 400&ndash;450 takes it to 3.0 s &mdash; exactly on the 3 s limit at its 500-txn peak.</p>
+    <p>Flat at 2.0&ndash;2.2 s to 400 txns, then a measured step between 400 and 450 txns takes it to 3.0 s &mdash; exactly on the 3 s limit at its 500-txn peak.</p>
   </div>
   <div class="card c2">
     <h3>Purchase steps</h3>
     <div class="state" style="color:var(--series-2)">Passes comfortably</div>
-    <p>Rises smoothly 3.0 &rarr; 5.2 s, ending 1.8 s under the 7 s limit at the 500-txn peak. No knee inside the tested load.</p>
+    <p>Rises smoothly 3.0 &rarr; 5.2 s, ending 1.8 s under the 7 s limit at the 500-txn peak. No step or knee inside the tested load.</p>
   </div>
   <div class="card c3">
     <h3>Catalog search</h3>
     <div class="state" style="color:var(--series-3)">Fails</div>
-    <p>Knee before 100 txns (1.5 &rarr; 8.2 s), crosses the 10 s limit at ~173 txns, and hits 11.2 s at its own 200-txn peak &mdash; 12% over.</p>
+    <p>Steepest rise of the three over the first 100 txns (1.5 &rarr; 8.2 s); crosses the 10 s limit at ~173 txns (interpolated) and measures 11.2 s at its own 200-txn peak &mdash; 12% over.</p>
   </div>
 </div>
-<p>The Saturday peak workload mix <strong>does not pass</strong>, and the graph shows that one transaction group is responsible rather than the system as a whole. <strong>Catalog search is the only outright failure.</strong> Its curve has already turned by 100 transactions &mdash; by far the steepest climb of the three &mdash; it breaches its 10 s maximum at roughly 173 transactions, before reaching the 200-transaction peak it must sustain.</p>
-<p><strong>Purchase steps passes with real margin</strong> (5.2 s against a 7 s limit at 500 transactions, no knee in range), so it has room to absorb growth. <strong>Logon/Log off technically passes but is the hidden risk:</strong> flat at ~2.2 s to 400 transactions, then a visible step to 3.0 s, where it sits exactly on its limit with zero headroom. A flat line that steps up once and then stops rising usually means a saturated fixed-size resource (session, connection or authentication pool), so any load beyond 500 transactions would be expected to push it over.</p>
+<p>The Saturday peak workload mix <strong>does not pass</strong>, and the graph shows that one transaction group is responsible rather than the system as a whole. <strong>Catalog search is the only outright failure.</strong> Its curve has already turned by 100 transactions &mdash; by far the steepest climb of the three &mdash; it breaches its 10 s maximum at roughly 173 transactions, before reaching the 200-transaction peak it must sustain. <strong>Catalog search must therefore be optimised and re-tested through the full 200-transaction peak before this release ships;</strong> no other group needs to change for the mix to pass.</p>
+<p><strong>Purchase steps passes with real margin</strong> (5.2 s against a 7 s limit at 500 transactions, no knee in range), so it has room to absorb growth. <strong>Logon/Log off technically passes but is the hidden risk:</strong> flat at ~2.2 s to 400 transactions, then a visible step to 3.0 s, where it sits exactly on its limit with zero headroom. A flat line that steps up once and then stops rising is the signature of a saturated fixed-size resource (session, connection or authentication pool), so any load beyond 500 transactions would be expected to push it over. That cause is a <em>hypothesis</em> read off the curve shape, not something the supplied data measures; it has to be confirmed with profiling or resource telemetry (pool utilisation, connection wait time) before any fix is chosen.</p>
+<p class="basis"><strong>Basis of the statements above:</strong> the response times, the 3 / 7 / 10 s maxima and the 500 / 500 / 200-transaction peaks are measured or documented values. The 10 s crossing at ~173 transactions is linear interpolation between the 150-transaction (9.0 s) and 200-transaction (11.2 s) readings. Where the curve &ldquo;turns&rdquo; and what saturates at 400&ndash;450 transactions are interpretations of the plotted shape, to be verified by profiling rather than reported as findings.</p>
 
 <h2>Part 3 &mdash; Reflection</h2>
 <h3>1. How does graphing the data help more than reading the table?</h3>

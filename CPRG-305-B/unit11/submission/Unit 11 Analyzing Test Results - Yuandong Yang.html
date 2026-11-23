@@ -78,19 +78,20 @@ h2, h3 { break-after: avoid; }
 <tr><td>Defect density per test case</td><td>9 defects &divide; 20 cases = <strong>0.45 defects per test case attempted</strong></td></tr>
 <tr><td>Defects raised per failed case</td><td>9 &divide; 9 = <strong>1.00</strong> &mdash; every failure was logged, none twice</td></tr>
 <tr><td>Defects closed (Date Corrected populated)</td><td><strong>0 of 9 &mdash; 0 % closure, 9 defects open</strong></td></tr>
-<tr><td>Projected completion at current rate</td><td>30 remaining &divide; 2.22 = <strong>~13.5 more working days (&asymp; 2.7 weeks)</strong>, excluding any retesting</td></tr>
+<tr><td>Projected completion at current rate &mdash; new cases only</td><td>30 remaining &divide; 2.22 = <strong>~13.5 more working days (&asymp; 2.7 five-day weeks)</strong>, excluding any retesting</td></tr>
+<tr><td>Projected completion including the 9 retests</td><td>(30 + 9) &divide; 2.22 = <strong>~17.6 working days (&asymp; 3.5 five-day weeks)</strong>, if a retest costs the same as a new case</td></tr>
 </table>
 
 <h2>2. Analysis and Interpretation</h2>
 
 <h3>2.1 Is the team on schedule?</h3>
-<p><strong>No.</strong> Two weeks into a 50-case phase, 40 % of the cases have been attempted and only 22 % have passed. If the phase was scoped to these two weeks, the team is roughly 2.7 weeks behind. Three signals say the gap is widening rather than closing:</p>
+<p><strong>No.</strong> Two weeks into a 50-case phase, 40 % of the cases have been attempted and only 22 % have passed. If the phase was scoped to these two weeks, the team is roughly 2.7 weeks behind on new cases alone, and about 3.5 weeks behind once the nine retests are counted. Three signals say the gap is widening rather than closing:</p>
 <ul>
 <li><strong>Velocity is falling.</strong> 2.50 cases/day in week 1 against 2.00 cases/day in week 2, a 20 % drop, even though week 2 had one more working day.</li>
 <li><strong>Quality is not improving.</strong> The failure rate went up, from 40 % to 50 %. Later test cases are not benefiting from earlier fixes.</li>
 <li><strong>Nothing is being closed.</strong> The <em>Date Corrected</em> column is empty for all nine defects and for all twenty test cases. Defects are being assigned promptly &mdash; usually the same day or the next day &mdash; but none has been confirmed fixed and no failed case has been retested.</li>
 </ul>
-<p>That last point also makes the 55 % success rate optimistic. The nine failing cases will each need at least one retest, so the real remaining effort is 30 new cases <em>plus</em> 9 reruns, and any of those reruns may fail again.</p>
+<p>That last point also makes the 55 % success rate optimistic. The nine failing cases will each need at least one retest, so the real remaining effort is 30 new cases <em>plus</em> 9 reruns &mdash; 39 executions, or about 17.6 working days at the observed 2.22 cases per day &mdash; and any of those reruns may fail again. A retest may well be cheaper than a new case, since the scenario is already written and understood, so 17.6 days is an upper bound on the execution effort rather than a committed date.</p>
 
 <h3>2.2 Patterns in the defects</h3>
 <table>
@@ -117,7 +118,7 @@ h2, h3 { break-after: avoid; }
 <ul>
 <li>Pause the push for new test cases long enough to run a <strong>root cause analysis on Tracking-GL</strong>; treat the four severity-1 defects as one investigation.</li>
 <li><strong>Start closing the loop.</strong> Populate <em>Date Corrected</em>, retest the nine failed cases, and report an open/closed defect count each week. Without it, progress cannot be measured and the pass rate cannot be trusted.</li>
-<li><strong>Re-baseline the schedule.</strong> At 2.22 cases/day the remaining 30 cases plus 9 retests will take about three more weeks. Either the date or the scope has to move, and stakeholders should hear that now rather than at the end.</li>
+<li><strong>Re-baseline the schedule.</strong> At 2.22 cases/day the remaining 30 cases plus 9 retests are 39 executions, or <strong>about 18 working days (&asymp; 3.5 five-day weeks)</strong> &mdash; not the ~13.5 days the new cases alone suggest. Treat that as an upper bound, because a retest of an already-written case may take less effort than a new one. Either the date or the scope has to move, and stakeholders should hear that now rather than at the end.</li>
 <li><strong>Add a code review or extra developer attention on Tracking-GL and Data-AP</strong> before more test cases touching those areas are executed, so that testing stops re-discovering the same class of defect.</li>
 </ul>
 

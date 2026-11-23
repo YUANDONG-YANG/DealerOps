@@ -105,7 +105,33 @@ $ npm test -- --watchAll=false      # single run, used for the evidence below</p
 <li><strong>Watch mode shortens the fix loop</strong> but must be turned off anywhere a run has to end on its own, such as in a pipeline or in the Unit 9 container.</li>
 </ul>
 
-<h2>5. Evidence Index</h2>
+<h2>5. Recommended Fixes for the Four Failures</h2>
+<p>The run above is the result as supplied; this section is what the diagnosis leads to, in the order it should be applied. Each item is a change to the project, not to the recorded evidence.</p>
+<table>
+<tr><th>#</th><th>Change</th><th>Why</th></tr>
+<tr><td>1</td><td>Give both number inputs an accessible name in <code>App.js</code>.</td><td>Removes the real accessibility defect and makes all four failing queries valid without touching the tests.</td></tr>
+<tr><td>2</td><td>Await the asynchronous data load before asserting.</td><td>Clears the <code>act(...)</code> warnings and stops the tests depending on timing.</td></tr>
+<tr><td>3</td><td>Pair the negative assertion in <code>App.sumValuesIncorrect.test.js</code> with a positive one.</td><td>As written, the test also passes when the component renders nothing at all, so it cannot detect a blank render.</td></tr>
+<tr><td>4</td><td>Keep one suite per scenario; reduce <code>App.test.js</code> to a smoke suite.</td><td>One defect is currently reported four times across three suites, which inflates the console failure count and confuses triage.</td></tr>
+</table>
+
+<h3>5.1 The product fix (preferred)</h3>
+<pre>&lt;input type="number" aria-label="Input 1" value={num1} onChange={...} /&gt;
+&lt;input type="number" aria-label="Input 2" value={num2} onChange={...} /&gt;</pre>
+<p>With an accessible name present, <code>getByRole('spinbutton', { name: /input/i })</code> resolves and the four failures clear together, because they are all the same query against the same two elements.</p>
+
+<h3>5.2 Awaiting the data load</h3>
+<pre>// instead of asserting immediately after render()
+await screen.findByText(/Alice/i);   // waits for fetchData() to resolve
+fireEvent.change(screen.getByRole('spinbutton', { name: /input 1/i }), { target: { value: '5' } });</pre>
+<p><code>findBy*</code> returns a promise and is wrapped in <code>act(...)</code> internally, so the state update caused by the resolved axios mock happens inside the test rather than after it.</p>
+
+<h3>5.3 Strengthening the negative assertion</h3>
+<pre>expect(screen.queryByText('Sum of values: 35')).not.toBeInTheDocument();  // wrong value absent
+expect(screen.getByText('Sum of values: 30')).toBeInTheDocument();        // right value present</pre>
+<p>The first line alone cannot distinguish &ldquo;correct output&rdquo; from &ldquo;no output&rdquo;. Adding the positive check makes the suite fail if the component stops rendering the sum entirely.</p>
+
+<h2>6. Evidence Index</h2>
 <table>
 <tr><th>File</th><th>Contents</th></tr>
 <tr><td><code>evidence/01-npm-test-summary.png</code></td><td>Suite list and Jest totals for the full run.</td></tr>
