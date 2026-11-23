@@ -144,6 +144,13 @@ figure.wide svg{min-width:860px}
 .rg{border:1.5px dashed var(--accent);border-radius:12px;padding:16px;margin:12px 0 18px;background:var(--surface)}
 .rg > .lbl{font:600 12px "JetBrains Mono",monospace;color:var(--accent);margin-bottom:10px}
 .rg .cards{margin:0}
+.src{max-width:84ch;font-size:12.5px;color:var(--muted);margin:-2px 0 16px}
+.src b{color:var(--fg);font-weight:600}
+.tbl.trace table{min-width:1180px;font-size:12.5px}
+.tbl.trace code{overflow-wrap:normal;white-space:nowrap}
+.tbl.trace th:first-child,.tbl.trace td:first-child{white-space:nowrap}
+.key{font:600 11px "JetBrains Mono",monospace;color:var(--accent);background:var(--accent-soft);padding:1px 6px;border-radius:4px;white-space:nowrap}
+h3 .key{margin-right:8px;vertical-align:1px}
 footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);font-size:13px;color:var(--muted)}
 @media (max-width:900px){
   .page{grid-template-columns:1fr;gap:16px;padding:24px 16px 60px}
@@ -154,6 +161,9 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);font-si
 @media print{
   nav{display:none}.page{grid-template-columns:1fr}
   section{break-inside:avoid-page}
+  .tbl.trace table{min-width:0;font-size:10.5px}
+  .tbl.trace code{overflow-wrap:anywhere;white-space:normal}
+  .tbl,figure.wide,figure.img{overflow-x:visible}
 }
 </style>
 </head>
@@ -168,7 +178,8 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);font-si
       <li><a href="#users">2 · Users and roles</a></li>
       <li><a href="#modules">7 · Business modules</a></li>
       <li><a href="#flows">8 · Business process flows</a></li>
-      <li><a href="#manual">18 · User manual</a></li>
+      <li><a href="#trace">8.0 · End-to-end traceability</a></li>
+      <li><a href="#manual">18 · User manual <small>reference</small></a></li>
       <li><a href="#scope">16 · Scope and limitations</a></li>
     </ol>
   </details>
@@ -180,7 +191,7 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);font-si
       <li><a href="#security">6 · Security and tenancy</a></li>
       <li><a href="#data">11 · Data model</a></li>
       <li><a href="#compliance">9 · Ad compliance and AI</a></li>
-      <li><a href="#features">17 · Feature deep-dives</a></li>
+      <li><a href="#features">17 · Feature deep-dives <small>reference</small></a></li>
     </ol>
   </details>
   <details open>
@@ -206,18 +217,26 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);font-si
 <header>
   <div class="eyebrow">Client briefing · Detailed design</div>
   <h1>DealerOps System Design</h1>
-  <p class="subtitle">A multi-tenant dealership operations platform for Ontario used-car dealers: inventory (DMS), customers (CRM), sales leads, reconditioning, payments, a public buyer site, and OMVIC advertising compliance checked by fixed rules plus a real AI review. This page explains how the system is organized, how it is built, and how each business process runs. It is written against the shipped system on branch V3: every section describes a decision that is already visible in the code, the diagrams, the screenshots and the sprint deliverables listed in §16.1, with each major feature pulled apart into its business logic and architecture in §17, a click-by-click task manual for every role in §18, and every supporting document indexed in §19.</p>
+  <p class="subtitle">A multi-tenant dealership operations platform for Ontario used-car dealers: inventory (DMS), customers (CRM), sales leads, reconditioning, payments, a public buyer site, and OMVIC advertising compliance checked by fixed rules plus a real AI review. This page explains how the system is organized, how it is built, and how each business process runs. It is written against the shipped system on branch V3, and each kind of statement carries its own evidence state — implemented, accepted or deployed — as defined below the header and traced to an artefact in §16.1, with each major feature pulled apart into its business logic and architecture in §17, a click-by-click task manual for every role in §18, and every supporting document indexed in §19.</p>
   <dl class="meta">
     <div><dt>Product</dt><dd>DealerOps</dd></div>
     <div><dt>Team</dt><dd>G2 (four members)</dd></div>
     <div><dt>Active stack</dt><dd>.NET 10 · React 19 · MySQL 8</dd></div>
     <div><dt>Hosting</dt><dd>Microsoft Azure (Terraform)</dd></div>
     <div><dt>Document date</dt><dd>2026-11-18</dd></div>
-    <div><dt>Status</dt><dd>Feature code complete; implementation accepted 2026-10-23</dd></div>
-    <div><dt>Verified against</dt><dd>Source of the four running services on branch V3</dd></div>
+    <div><dt>Implementation</dt><dd><span class="chip green">Implemented</span> feature code complete on branch V3</dd></div>
+    <div><dt>Client acceptance</dt><dd><span class="chip green">Accepted</span> 2026-10-23 · <code>project-plan/Implementation-Delivery-Status.md</code></dd></div>
+    <div><dt>Deployment</dt><dd><span class="chip amber">Partly automated</span> Azure release run by an operator · §15</dd></div>
+    <div><dt>Read against</dt><dd>Source of the four running services, 2026-11-18</dd></div>
     <div><dt>Downloads</dt><dd><a href="../../output/pdf/DealerOps-System-Design.pdf">System design PDF</a> · <a href="../../output/pdf/DealerOps-Capstone-Poster.pdf">Capstone poster PDF</a> · <a href="../../project-plan/prototype/DealerOps-Prototype.html">Interactive prototype</a></dd></div>
   </dl>
 </header>
+
+<div class="callout">
+  <p><b>How to read this page.</b> This is a guided overview of the delivered system, not the canonical record. Each topic's authoritative decision stays in the <code>design/</code> document named beside it — architecture in <code>design/07-Azure-Microservices-Architecture.md</code>, the API in <code>design/14-Backend-API-Contract.md</code> and <code>dealer-platform/openapi.yaml</code>, data, authentication and tenancy in <code>design/15-Data-Auth-and-Gateway.md</code>, scope in <code>design/SCOPE-BASELINE.md</code>. Where this page and a <code>design/</code> document differ, the document wins; §19 maps every one of them.</p>
+  <p><b>Evidence states.</b> Claims on this page are of three kinds, and they are not interchangeable: <span class="chip green">Implemented</span> the behaviour is in the code of branch V3 and described from it; <span class="chip green">Accepted</span> the client signed the implementation off on 2026-10-23 (<code>project-plan/Implementation-Delivery-Status.md</code>); <span class="chip amber">Deployed</span> the behaviour runs on Azure through the operator-run release in §15. A feature can be implemented without being separately accepted or deployed. §16 states what is simulated, partial or not built, and §16.1 pairs each major claim with the shipped artefact that stands for it.</p>
+  <p><b>Reading path.</b> Follow the spine in <a href="#trace">§8.0</a>: business goal and role → workflow → data written → page, route and owning service → enforcement and failure → deployment boundary. §§17 and 18 are reference appendices — read a single entry when you need it, not front to back.</p>
+</div>
 
 <!-- 1 -->
 <section id="summary">
@@ -239,7 +258,7 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);font-si
   </ul>
 
   <h3>Reader's guide, by role</h3>
-  <p>This page is the single source of truth for every role that touches the system. The cards below say where each role should start and which sections answer that role's usual questions, so a tester, an operator or an incoming developer does not have to read the whole document before being useful.</p>
+  <p>Every role that touches the system has a way in here, and each card ends at the <code>design/</code> document that owns the topic. The cards below say where each role should start and which sections answer that role's usual questions, so a tester, an operator or an incoming developer does not have to read the whole document before being useful.</p>
   <div class="cards">
     <div class="card"><h4><span class="chip blue">Dealership staff</span> (owner, manager, sales)</h4><p>Start with <a href="#users">§02</a> (what your tier can and cannot do), <a href="#modules">§07</a> (each business module), <a href="#flows">§08</a> (the day as a sequence of flows) and <a href="#frontend">§13</a> (which page serves which action). The step-by-step user manual at <a href="#manual">§18.2–18.4</a> is the "how do I do this" view; <a href="#flows">§8.14</a> is the per-role reading guide.</p></div>
     <div class="card"><h4><span class="chip gray">Public buyer</span> (<code>/shop</code>)</h4><p><a href="#modules">§07</a> "Buyer site" and <a href="#flows">§8.4</a> describe what the public pages show, what an inquiry turns into, and how a vehicle is taken down after a sale. <a href="#manual">§18.1</a> is the public-buyer walkthrough. No account, no login.</p></div>
@@ -332,7 +351,7 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);font-si
     <div>
       <h4>Scrum, lightweight</h4>
       <ul>
-        <li>One board: To do / Doing / Done; cards carry requirement IDs (for example <code>DMS-10</code>, <code>AD-07</code>).</li>
+        <li>One board: To do / Doing / Done; each card names the requirement it delivers.</li>
         <li>Each class session opens with a 10-minute sync and closes with a written progress paragraph per person.</li>
         <li>Three sprint reviews; every member demonstrates their own running work.</li>
         <li>Client meetings every two weeks; minutes record decisions and owners only.</li>
@@ -359,9 +378,9 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);font-si
   <figure>
     <svg viewBox="0 0 920 440" role="img" aria-label="Service architecture: browser to gateway to core to MySQL; core to AI service to model provider; direct browser access to core and AI is refused.">
       <defs>
-        <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="d-arrow" d="M0,0 L10,5 L0,10 z"/></marker>
-        <marker id="ahA" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="d-arrow acc" d="M0,0 L10,5 L0,10 z"/></marker>
-        <marker id="ahB" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="d-arrow bad" d="M0,0 L10,5 L0,10 z"/></marker>
+        <marker id="f1-ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="d-arrow" d="M0,0 L10,5 L0,10 z"/></marker>
+        <marker id="f1-ahA" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="d-arrow acc" d="M0,0 L10,5 L0,10 z"/></marker>
+        <marker id="f1-ahB" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="d-arrow bad" d="M0,0 L10,5 L0,10 z"/></marker>
       </defs>
       <rect class="d-zone" x="470" y="130" width="250" height="296" rx="12"/>
       <text class="d-sub" x="482" y="150">Internal services (not browser-reachable)</text>
@@ -411,23 +430,23 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);font-si
       <text class="d-title" x="774" y="364">LLM provider</text>
       <text class="d-sub" x="774" y="384">Configurable model</text>
 
-      <line class="d-line" x1="105" y1="170" x2="105" y2="88" marker-end="url(#ah)"/>
-      <line class="d-line acc" x1="190" y1="222" x2="256" y2="222" marker-end="url(#ahA)"/>
+      <line class="d-line" x1="105" y1="170" x2="105" y2="88" marker-end="url(#f1-ah)"/>
+      <line class="d-line acc" x1="190" y1="222" x2="256" y2="222" marker-end="url(#f1-ahA)"/>
       <text class="d-lbl" x="196" y="212">HTTPS</text>
       <text class="d-lbl" x="196" y="240">+ JWT</text>
-      <line class="d-line acc" x1="440" y1="222" x2="506" y2="222" marker-end="url(#ahA)"/>
+      <line class="d-line acc" x1="440" y1="222" x2="506" y2="222" marker-end="url(#f1-ahA)"/>
       <text class="d-lbl" x="444" y="208">proxy</text>
       <text class="d-lbl" x="444" y="242">+ internal</text>
-      <line class="d-line" x1="700" y1="180" x2="758" y2="100" marker-end="url(#ah)"/>
-      <line class="d-line" x1="700" y1="206" x2="756" y2="206" marker-end="url(#ah)"/>
-      <line class="d-line" x1="700" y1="258" x2="756" y2="286" marker-end="url(#ah)"/>
-      <path class="d-line" d="M560,160 L560,52 L196,52" marker-end="url(#ah)"/>
+      <line class="d-line" x1="700" y1="180" x2="758" y2="100" marker-end="url(#f1-ah)"/>
+      <line class="d-line" x1="700" y1="206" x2="756" y2="206" marker-end="url(#f1-ah)"/>
+      <line class="d-line" x1="700" y1="258" x2="756" y2="286" marker-end="url(#f1-ah)"/>
+      <path class="d-line" d="M560,160 L560,52 L196,52" marker-end="url(#f1-ah)"/>
       <text class="d-lbl" x="320" y="44">verify the sign-in token server-side</text>
-      <line class="d-line acc" x1="605" y1="284" x2="605" y2="326" marker-end="url(#ahA)"/>
+      <line class="d-line acc" x1="605" y1="284" x2="605" y2="326" marker-end="url(#f1-ahA)"/>
       <text class="d-lbl" x="612" y="310">X-Dealer-Internal</text>
-      <line class="d-line" x1="700" y1="370" x2="756" y2="370" marker-end="url(#ah)"/>
+      <line class="d-line" x1="700" y1="370" x2="756" y2="370" marker-end="url(#f1-ah)"/>
 
-      <path class="d-line bad" d="M105,274 L105,420 L470,420" marker-end="url(#ahB)"/>
+      <path class="d-line bad" d="M105,274 L105,420 L470,420" marker-end="url(#f1-ahB)"/>
       <text class="d-bad" x="118" y="410">Direct calls to :8081 / :8082 are refused (404)</text>
     </svg>
     <figcaption>Figure 1 · Service boundaries. Solid blue arrows are the only allowed request path, and both of its hops carry the internal credential the Gateway adds: Core and the AI service answer <b>404</b> to anyone who reaches them without it, which is what makes the red dashed path fail. Grey arrows are outbound calls the services make themselves — the browser obtains a Google or Firebase ID token, and Core then verifies it against the provider before issuing a DealerOps token of its own. Hand-authored source figures also live in <code>design/diagrams/</code>.</figcaption>
@@ -436,10 +455,10 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);font-si
      aria-label="DealerOps service boundaries: the browser reaches only dealer-gateway, which is the single API origin; dealer-gateway routes browser calls to dealer-core; dealer-core calls ai-service directly with the internal header; direct browser access to ports 8081 and 8082 is refused.">
   <rect x="0" y="0" width="1120" height="760" fill="#ffffff"/>
   <defs>
-    <marker id="ink" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+    <marker id="f2-ink" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
       <path d="M0,0 L10,5 L0,10 Z" fill="#334155"/>
     </marker>
-    <marker id="blue" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+    <marker id="f2-blue" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
       <path d="M0,0 L10,5 L0,10 Z" fill="#1d4ed8"/>
     </marker>
   </defs>
@@ -500,12 +519,12 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);font-si
     <text x="890" y="657" font-size="11" fill="#475569" text-anchor="middle">via ai-manager library, in-process</text>
 
     <!-- flows -->
-    <g fill="none" stroke="#334155" stroke-width="1.6" marker-end="url(#ink)">
+    <g fill="none" stroke="#334155" stroke-width="1.6" marker-end="url(#f2-ink)">
       <line x1="410" y1="105" x2="734" y2="105"/>
       <polyline points="290,520 290,610"/>
       <polyline points="890,520 890,610"/>
     </g>
-    <g fill="none" stroke="#1d4ed8" stroke-width="1.8" marker-end="url(#blue)">
+    <g fill="none" stroke="#1d4ed8" stroke-width="1.8" marker-end="url(#f2-blue)">
       <polyline points="270,136 270,190 480,190 480,228"/>
       <polyline points="470,306 470,352 290,352 290,442"/>
       <polyline points="440,500 740,500"/>
@@ -535,6 +554,7 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);font-si
 </svg><figcaption>Figure 1a · The same boundaries drawn with trust zones and every request path. This file is the source figure kept in <code>design/diagrams/</code>.</figcaption></figure></details>
   <details><summary>Figure 1b · C4 container diagram (<code>design/assets/dealerops-c4-container-diagram.svg</code>)</summary><figure class="img"><img src="../assets/dealerops-c4-container-diagram.svg" alt="DealerOps as a C4 container diagram: browser, gateway, core, AI service, MySQL and external systems" loading="lazy"><figcaption>Figure 1b · The same services drawn in the standard C4 container notation. The design was sketched this way first and the source file is kept in <code>design/assets/</code>; put beside Figure 1, it is the proof that the shipped topology still matches the intent.</figcaption></figure></details>
 
+  <p class="src"><b>Evidence.</b> <span class="chip green">Implemented</span> the four services are the four apps on branch V3; the pre-build C4 container view <code>design/assets/dealerops-c4-container-diagram.svg</code> and the boundary SVGs in <code>design/diagrams/architecture/</code> still match them (&sect;16.1). <b>Canonical:</b> <code>design/07-Azure-Microservices-Architecture.md</code>, <code>design/19-Gateway-and-AI-Engineering.md</code>.</p>
   <h3>4.1 What each service owns</h3>
   <div class="tbl"><table>
     <thead><tr><th>Service</th><th>Owns</th><th>Must not</th></tr></thead>
@@ -631,6 +651,7 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);font-si
   <div class="grid2">
     <div>
       <h3>How each request is authorized</h3>
+      <p class="src"><b>Evidence.</b> <span class="chip green">Implemented</span> the rules behind this section &mdash; the server derives the dealership from the signed-in identity, another dealership’s record answers 404, passwords are BCrypt-hashed and never logged, both the Gateway and Core validate the token, every business query is filtered by dealership in the data layer, and no customer contact value reaches the AI &mdash; are each pulled apart in &sect;17.2. <b>Canonical:</b> <code>design/15-Data-Auth-and-Gateway.md</code>. <span class="chip amber">Deployed</span> secrets live in Azure Key Vault (&sect;15); no secret value appears on this page or in the repository.</p>
       <ol class="list">
         <li>The Gateway checks the JWT signature and role; a missing or bad token gets <b>401</b>.</li>
         <li>Core reloads the user by username; an inactive account gets <b>401</b>.</li>
@@ -736,9 +757,104 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);font-si
 <!-- 8 -->
 <section id="flows">
   <h2><span class="num">08</span>Business process flows</h2>
-  <p>This section walks through the dealership's working day in the order it happens: getting people into the system, taking a vehicle from the auction lane to a paid invoice, advertising it legally, turning a buyer's phone call into a tracked opportunity, and closing the money. Each flow names the step, who does it, and the rule that stops the step being done wrongly, so the flows can be checked against the running system during acceptance. Sections 8.10 to 8.15 give the same story as diagrams: one page for the whole business, one map of how the modules connect, a decision flow for each module, and a reading guide for each role.</p>
+  <p>This section walks through the dealership's working day in the order it happens: getting people into the system, taking a vehicle from the auction lane to a paid invoice, advertising it legally, turning a buyer's phone call into a tracked opportunity, and closing the money. Each flow names the step, who does it, and the rule that stops the step being done wrongly, so the flows can be checked against the running system during acceptance. &sect;8.0 comes first and is the join between the layers of this page: it follows one action from the business goal down to the table, the route, the owning service and the deployment boundary, and gives the same six columns for every other flow. Sections 8.10 to 8.15 give the same story as diagrams: one page for the whole business, one map of how the modules connect, a decision flow for each module, and a reading guide for each role.</p>
 
-  <h3>8.1 Dealership onboarding and access</h3>
+  <h3 id="trace">8.0 End-to-end traceability: one business action through every layer</h3>
+  <p>The sections of this page are arranged by layer, so a reader who starts from a business goal has to jump between them. This subsection is the join: it follows one action down the whole spine &mdash; <b>business goal and role &rarr; workflow &rarr; data written &rarr; page, route and owning service &rarr; enforcement and failure &rarr; deployment boundary</b> &mdash; and then gives the same six columns for every other flow. The key in the left column (<span class="key">FLOW-02</span> and its siblings) is used on the flow headings in &sect;8.1&ndash;8.8, on the entities in the data model (&sect;11), and in the feature deep-dives (&sect;17), so one identifier carries a reader from the goal to the table, the route and the code path.</p>
+
+  <h4>Worked example: <span class="key">FLOW-02</span> &rarr; <span class="key">FLOW-07</span> &mdash; sell a vehicle and collect the money</h4>
+  <div class="lanes">
+    <div class="lane"><div class="ln">1 &middot; Business goal<small>and actor</small></div><div>A salesperson closes a deal and the dealership needs a record of who sold which vehicle, to whom, for how much, and how much of it has been paid. Actor: <b>Sales</b>, <b>Manager</b> or <b>Owner</b> (&sect;02). What the system must do here: take the sold date and the sold price together; let the sell dialog name the buyer from CRM, which links the vehicle; lock the purchase fields once the sale is recorded; refuse a second sale of the same vehicle; write an audit record for every create, edit and sell; refuse to link a vehicle that already belongs to another customer; record each payment as a positive amount with at most two decimals, a method from a fixed list, a paid-on date and an optional note; and let a sales member record a payment but read neither the ledger nor the balance, which belong to the owner and the manager.</div></div>
+    <div class="lane"><div class="ln">2 &middot; Workflow<small>and decision points</small></div><div>Sell dialog &rarr; sold date, sold price and a buyer are required together &rarr; the buyer is a CRM customer or <b>Other</b> with a typed name &rarr; the sale is refused while any work order is open &rarr; after the sale the purchase fields lock and the vehicle's open leads close, the buyer's as Won and the rest as Lost. Payments are then added one at a time until the balance reaches zero, and the bill of sale prints from the same record. Drawn in &sect;8.2, &sect;8.8 and Figure 8.13.</div></div>
+    <div class="lane"><div class="ln">3 &middot; Data written<small>at each step</small></div><div><code>vehicle</code> &mdash; <code>sold_on</code>, <code>sold_price</code>, <code>sold_by</code>, and <code>sold_to_name</code> only when the buyer is typed as <b>Other</b>; <code>customer_vehicle</code> &mdash; the link that <i>is</i> the record of a CRM buyer, created or closed here (the vehicle table holds no customer id); <code>sales_lead</code> &mdash; the vehicle's open rows closed with an outcome; <code>vehicle_payment</code> &mdash; one row per payment, soft-deleted if entered by mistake; <code>audit_event</code> &mdash; one append-only row per write, carrying the actor, the new values and the replaced ones. Every business row written here carries <code>dealer_id</code>, and so does the audit row of a dealership action; only a platform-level audit row (an admin action or a failed sign-in with no dealership) leaves <code>dealer_id</code> empty. The schema is catalogued in &sect;11.</div></div>
+    <div class="lane"><div class="ln">4 &middot; Page, route<small>and owning service</small></div><div>Page <code>/dms</code> vehicle detail, and <code>/dms/:vehicleId/bill-of-sale</code> to print (&sect;13). Routes <code>POST /api/v1/vehicles/{id}/sell</code> and <code>POST|GET|DELETE /api/v1/vehicles/{id}/payments</code> on the <b>Gateway</b>, which validates the JWT and forwards with the internal credential. Owner: <b>Core</b>, <code>VehicleService.Sell</code> and the payment service; one database transaction each. No AI service and no external call take part in this flow (&sect;04, &sect;17.3, &sect;17.8).</div></div>
+    <div class="lane"><div class="ln">5 &middot; Enforcement<small>and failure</small></div><div>Tenant is derived from the signed-in user's membership, never from the request, and every business query is filtered by dealership in the data layer; another dealership's vehicle id answers <b>404</b>. Refusals: <b>409</b> <code>WORK_ORDERS_OPEN</code>, <code>SOLD_LOCKED</code>, <code>VEHICLE_ALREADY_LINKED</code>, <code>VERSION_CONFLICT</code>; <b>400</b> per field for a missing pair or a third decimal on money. A sales member may record a payment but receives <b>403</b> on the ledger and the balance. The vehicle, the lead closures, the payment and the audit row commit together or not at all, so a half-applied sale cannot exist (&sect;8.9, &sect;10.1, &sect;17.3).</div></div>
+    <div class="lane"><div class="ln">6 &middot; Deployment<small>boundary</small></div><div>Browser &rarr; Azure Linux App Service hosting the web app &rarr; Gateway App Service &rarr; Core App Service &rarr; Azure Database for MySQL. Secrets come from Key Vault, the request id is carried across all three services, and the release is run by an operator because CI holds no Azure credential (&sect;4.5, &sect;15, &sect;16).</div></div>
+  </div>
+  <p class="src"><b>Canonical sources for this flow:</b> <code>design/14-Backend-API-Contract.md</code> and <code>dealer-platform/openapi.yaml</code> (routes and error shape), <code>design/15-Data-Auth-and-Gateway.md</code> (tenancy, tables, audit), <code>design/18-Backend-Core-Engineering.md</code> (the Core transaction), <code>design/21-Feature-Extensions.md</code> (payments and the bill of sale), <code>requirements/iteration-1/DealerOps-Requirements.md</code> (the client requirements this flow satisfies).</p>
+
+  <h4>The same six columns for every flow</h4>
+  <p class="src">Wide table &mdash; scroll it sideways on a narrow screen, or read the printed version where it is laid out in full.</p>
+  <div class="tbl trace"><table>
+    <thead><tr><th>Key</th><th>Goal and actor</th><th>What the system must do</th><th>Tables written</th><th>Page &rarr; route &rarr; owner</th><th>Enforcement and refusals</th><th>Canonical source</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><span class="key">FLOW-01</span><br><small>&sect;8.1</small></td>
+        <td>Open a dealership and get the right people into it. <b>Platform Admin</b>, then <b>Owner</b></td>
+        <td>The admin opens a dealership with its registered name, phone, email and address and creates its logins; removing a login is a soft unbind that keeps the account and its history; the admin is refused on every business endpoint; the server derives the dealership from the signed-in identity and ignores any <code>dealerId</code> the browser sends.</td>
+        <td><code>dealer</code>, <code>app_user</code>, <code>membership</code>, <code>notification</code>, <code>audit_event</code></td>
+        <td><code>/admin</code>, <code>/team</code> &rarr; <code>/admin/dealers/**</code>, <code>/dealer/join-requests/**</code>, <code>/dealer/members/{username}/role</code> &rarr; Core identity</td>
+        <td>One active owner per dealership; <b>409</b> <code>LAST_OWNER</code>, <code>DUP_MEMBER</code>; admin gets <b>403</b> on every business route; tier read fresh from <code>membership</code> on each call</td>
+        <td><code>design/15-Data-Auth-and-Gateway.md</code> &middot; &sect;17.2</td>
+      </tr>
+      <tr>
+        <td><span class="key">FLOW-02</span><br><small>&sect;8.2</small></td>
+        <td>Take a vehicle from acquisition to a locked sale. <b>Sales</b>, <b>Manager</b>, <b>Owner</b></td>
+        <td>Eight required fields and at-most-two-decimal money on a new vehicle; the VIN is unique within the dealership; sold date and price are entered together; the purchase fields lock afterwards and a sold vehicle cannot be sold twice; changing the condition stales a passed ad check; create, edit and sell each write an audit row; a delete only soft-deletes; a vehicle already linked to another customer cannot be relinked.</td>
+        <td><code>vehicle</code>, <code>vehicle_photo</code>, <code>customer_vehicle</code>, <code>sales_lead</code>, <code>audit_event</code></td>
+        <td><code>/dms</code> &rarr; <code>GET /catalog/vin/{vin}</code>, <code>POST /vehicles</code>, <code>POST /vehicles/{id}/sell</code> &rarr; Core <code>VehicleService</code> (NHTSA vPIC for the decode only)</td>
+        <td><b>400</b> <code>VIN_DUP</code>; <b>409</b> <code>SOLD_LOCKED</code>, <code>WORK_ORDERS_OPEN</code>, <code>VERSION_CONFLICT</code>; <b>502</b> <code>CATALOG_UNAVAILABLE</code> leaves the form typeable; soft delete only</td>
+        <td><code>design/18-Backend-Core-Engineering.md</code> &middot; &sect;17.1, &sect;17.3</td>
+      </tr>
+      <tr>
+        <td><span class="key">FLOW-03</span><br><small>&sect;8.3</small></td>
+        <td>Advertise a vehicle within the OMVIC rules, and take the ad down when it stops being true. <b>Sales</b>, <b>Manager</b>, <b>Owner</b>; rules owned by <b>Admin</b></td>
+        <td>One ad draft per vehicle; the BLOCK / REVIEW rules run with reason codes and a hard hit skips the model; a real model reviews the copy with a 15-second timeout, its notes never block, and a failure is never shown as passed; Ready and export require a pass on the current content version; the copy reaches the model as data, so text inside an ad cannot move the verdict.</td>
+        <td><code>listing</code>, <code>compliance_check</code>, <code>compliance_rule_override</code>, <code>audit_event</code></td>
+        <td><code>/ads</code> &rarr; <code>GET|PATCH /vehicles/{id}/listing</code>, <code>POST /listings/{id}/checks|ready|exports</code> &rarr; Core compliance, then AI service over <code>POST /internal/v1/ad-check</code></td>
+        <td>Hard rules run before the model, so a BLOCK never reaches it; a blocked ad is a <b>200</b> result, not an error; <b>409</b> <code>CHECK_STALE</code>, <code>NOT_PASSED</code> on Ready and export; <b>502</b> <code>AI_UNAVAILABLE</code> is never shown as passed</td>
+        <td><code>design/17-Ad-Check-Fixtures.md</code>, <code>references/02-omvic.md</code> &middot; &sect;09, &sect;17.4</td>
+      </tr>
+      <tr>
+        <td><span class="key">FLOW-04</span><br><small>&sect;8.4</small></td>
+        <td>Turn a public inquiry into a tracked opportunity on the sales floor. <b>Public visitor</b>, then <b>Sales</b></td>
+        <td>A customer needs all four fields; a vehicle of this dealership can be linked from the customer detail; only an ad that is Ready <i>and</i> holds a pass on its current version may be shown in public; no customer phone, email or address is ever sent to the AI.</td>
+        <td><code>customer</code>, <code>sales_lead</code>, <code>sales_lead_note</code>, <code>notification</code>; reads <code>listing</code> and <code>vehicle</code></td>
+        <td><code>/shop/:dealer</code> &rarr; <code>GET /public/dealers/{slug}/inventory</code>, <code>POST …/inquiries</code> &rarr; Core public service; the lead lands in the header inbox of every member</td>
+        <td>Anonymous and rate-limited (<b>429</b>); only vehicles that are Ready <i>and</i> hold a current pass are listed, so a sale or an edit removes the vehicle from the public site on the next read</td>
+        <td><code>design/21-Feature-Extensions.md</code> &middot; &sect;17.5</td>
+      </tr>
+      <tr>
+        <td><span class="key">FLOW-05</span><br><small>&sect;8.5</small></td>
+        <td>Work an opportunity to an outcome and report on the funnel. <b>Sales</b>, <b>Manager</b>, <b>Owner</b></td>
+        <td>A duplicate email inside the dealership warns but still saves; customers are soft-deleted so sales and audit history survive; the sales-funnel report gives the current stage distribution, open pipeline and won rate, plus a twelve-month stage history read from the lead audit rows.</td>
+        <td><code>sales_lead</code>, <code>sales_lead_note</code>, <code>audit_event</code></td>
+        <td><code>/leads</code>, <code>/reports/sales-funnel</code> &rarr; <code>/leads</code>, <code>/leads/{id}/notes</code>, <code>/leads/{id}/reopen</code>, <code>/leads/report/funnel</code> &rarr; Core lead service</td>
+        <td>At most one open lead per customer and vehicle (<b>409</b> <code>LEAD_DUPLICATE</code>); a closed lead refuses edits with <b>409</b> <code>LEAD_CLOSED</code> until it is reopened; notes are append-only</td>
+        <td><code>design/21-Feature-Extensions.md</code> &middot; &sect;07</td>
+      </tr>
+      <tr>
+        <td><span class="key">FLOW-06</span><br><small>&sect;8.6</small></td>
+        <td>Recondition a vehicle and carry the workshop cost onto it. <b>Sales</b>, <b>Manager</b>, <b>Owner</b></td>
+        <td>The settlement report returns open, in-progress and done counts, the settled cost of done work orders, cost by completion month and cost per assignee; finishing a task adds its cost to the vehicle’s repair cost, and that vehicle write is audited like any other.</td>
+        <td><code>work_order</code>, <code>vehicle</code> (repair-cost roll-up), <code>audit_event</code></td>
+        <td><code>/dms</code> vehicle detail &rarr; <code>/vehicles/{id}/work-orders</code>, <code>PATCH /work-orders/{id}</code>, <code>/work-orders/report/settlement</code> &rarr; Core work-order service</td>
+        <td>Only an in-stock vehicle takes a new order; a finished task adds its cost to the vehicle in the same transaction; an open order blocks the sale in <span class="key">FLOW-02</span> with <b>409</b> <code>WORK_ORDERS_OPEN</code></td>
+        <td><code>design/21-Feature-Extensions.md</code> &middot; &sect;17.10</td>
+      </tr>
+      <tr>
+        <td><span class="key">FLOW-07</span><br><small>&sect;8.8</small></td>
+        <td>Collect the money and hand over a document. <b>Sales</b> records, <b>Manager</b> and <b>Owner</b> reconcile</td>
+        <td>A payment records a positive two-decimal amount, a method from a fixed list, a paid-on date and an optional note; a sales member may only record one and gets back just that payment, while the owner and a manager read the full ledger and the balance; the sale it settles was recorded with its date and price together.</td>
+        <td><code>vehicle_payment</code>, <code>audit_event</code>; reads <code>vehicle</code>, <code>customer</code>, <code>dealer</code></td>
+        <td><code>/dms</code> vehicle detail, <code>/dms/:vehicleId/bill-of-sale</code> &rarr; <code>/vehicles/{id}/payments</code> &rarr; Core payment service</td>
+        <td>Payments only on a sold vehicle; money in CAD with at most two decimals, a third refused on its own field; a sales member records but may not read the ledger (<b>403</b>); a mistaken payment is soft-deleted, never erased</td>
+        <td><code>design/21-Feature-Extensions.md</code> &middot; &sect;17.8</td>
+      </tr>
+      <tr>
+        <td><span class="key">FLOW-08</span><br><small>&sect;10</small></td>
+        <td>Answer &ldquo;who changed this, and what did it say before?&rdquo;. Cross-cutting; read by <b>Manager</b>, <b>Owner</b>, <b>Admin</b></td>
+        <td>Vehicle and customer writes are audited; each row holds the actor, the action, the time, the new values and the replaced previous ones, so one row is one version step of the record; the trail is append-only; ad edits, check runs, exports and admin rule overrides are audited as well.</td>
+        <td><code>audit_event</code> only, append-only</td>
+        <td><code>/team</code> audit, <code>/admin</code> audit &rarr; <code>GET /audit?entityType=&amp;entityId=</code>, <code>GET /dealer/audit</code>, <code>GET /admin/audit</code> &rarr; Core audit service</td>
+        <td>The audit row commits in the same transaction as the write it describes, so a successful write always has one; a save that changes nothing writes none; a sales member sees no audit data (<b>403</b>); no password or token value is ever stored</td>
+        <td><code>design/20-Observability.md</code>, <code>design/15-Data-Auth-and-Gateway.md</code> &middot; &sect;17.9</td>
+      </tr>
+    </tbody>
+  </table></div>
+  <p class="src"><b>Using the key.</b> Pick a row, read its flow in &sect;8.1&ndash;8.8 for the decision points, the entity-relationship diagram in &sect;11 for the records it touches, &sect;12 for the request and error shape of its routes, the matching entry in &sect;17 for the service, transaction and failure modes, and &sect;16.1 for the artefact that evidences it.</p>
+
+  <h3><span class="key">FLOW-01</span>8.1 Dealership onboarding and access</h3>
   <div class="lanes">
     <div class="lane"><div class="ln">Platform Admin<small>/admin</small></div><ol><li>Creates the dealership with legal name, phone, email and address (these feed the ad rules).</li><li>While the dealership has no owner, creates an account and binds it directly as the <b>Owner</b>, or binds a pending self-registered account without touching its password. An empty dealership has nobody to approve a request, so this bootstrap cannot be a join request.</li><li>Afterwards the same action only files a join request for the dealership; the admin never binds a second member.</li><li>Keeps the right to appoint a replacement owner, which transfers the office.</li></ol></div>
     <div class="lane"><div class="ln">New employee<small>/register, /login</small></div><ol><li>Registers locally or signs in with Google / Firebase.</li><li>Lands on the no-access screen and requests to join one dealership.</li></ol></div>
@@ -747,7 +863,7 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);font-si
     <div class="lane"><div class="ln">Sales<small>/dms</small></div><ol><li>Next sign-in lands on DMS with full access to the dealership's business data and nothing else; no Team item appears in the menu.</li><li>The header inbox still works, showing the dealership's buyer-site inquiries so a web lead reaches whoever is on the floor. Join requests are not shown, because only the owner acts on them.</li></ol></div>
   </div>
 
-  <h3>8.2 Vehicle lifecycle, from acquisition to payment</h3>
+  <h3><span class="key">FLOW-02</span>8.2 Vehicle lifecycle, from acquisition to payment</h3>
   <div class="flow">
     <div class="step"><span class="who">DMS</span><b>Acquire</b><span>Decode VIN, enter the 8 required fields; status <code>IN_STOCK</code>.</span></div>
     <div class="arrow">→</div>
@@ -780,7 +896,7 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);font-si
     </tbody>
   </table></div>
 
-  <h3>8.3 Advertising a vehicle and taking it down again</h3>
+  <h3><span class="key">FLOW-03</span>8.3 Advertising a vehicle and taking it down again</h3>
   <p>This is the flow the client's compliance requirement turns on, so it is worth following end to end. The ad lives with the vehicle: one draft per vehicle, edited on the Ads page.</p>
   <div class="flow">
     <div class="step"><span class="who">Ads page</span><b>Write the draft</b><span>Title, body, cash / finance / lease, online or broadcast, plus the disclosure checklist: prior use, extended-warranty terms, annual kilometre allowance.</span></div>
@@ -799,14 +915,14 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);font-si
   </div>
   <p>Two details matter in a demo. First, saving the same text again does <b>not</b> invalidate a passed check — only a genuine change does, so a passed ad cannot be lost by reopening the editor. Second, the exported TXT file always ends with the line that this check is not legal advice and not an OMVIC approval; the system is a disclosure aid, not a regulator.</p>
 
-  <h3>8.4 A buyer's inquiry becomes a tracked opportunity</h3>
+  <h3><span class="key">FLOW-04</span>8.4 A buyer's inquiry becomes a tracked opportunity</h3>
   <div class="lanes">
     <div class="lane"><div class="ln">Public visitor<small>/shop/{dealership}</small></div><ol><li>Browses the listed vehicles, opens one, and sends an inquiry with a name, a phone number and a message.</li><li>At most five inquiries a minute from one address are accepted.</li><li>A vehicle that has just been sold or taken down answers that it is no longer listed, rather than filing an inquiry nobody can honour.</li></ol></div>
     <div class="lane"><div class="ln">Core<small>buyer-site actor</small></div><ol><li>Matches the buyer to an existing customer of that dealership only when <b>both</b> the phone number and the name match, so a household that shares a phone keeps separate profiles. Otherwise a customer record is created.</li><li>If that customer already has an open opportunity on that vehicle, the inquiry is appended to it as a note instead of creating a second one.</li><li>Otherwise a new opportunity is created at stage NEW with today as the follow-up date and the inquiry as its first note.</li><li>Each row written this way is audited with the actor <code>buyer-site</code>, so staff can tell web inquiries from their own entries.</li></ol></div>
     <div class="lane"><div class="ln">Sales staff<small>header inbox, /leads</small></div><ol><li>A new opportunity posts a message to the dealership's inbox, visible to every member.</li><li>The message clears itself once someone takes the opportunity — gives it an owner or moves it past NEW — so the inbox is a to-do list, not a log.</li><li>If the vehicle is sold to someone else first, the sale closes the opportunity and clears its inbox message as taken.</li></ol></div>
   </div>
 
-  <h3>8.5 Lead pipeline</h3>
+  <h3><span class="key">FLOW-05</span>8.5 Lead pipeline</h3>
   <div class="states">
     <span class="chip blue">NEW</span><span class="arrow">→</span>
     <span class="chip blue">CONTACTED</span><span class="arrow">→</span>
@@ -819,7 +935,7 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);font-si
   </div>
   <p>While a lead is open, a member may move it to any stage. <code>WON</code> and <code>LOST</code> otherwise reject changes (<code>LEAD_CLOSED</code>), though notes can still be added. Reopening brings a closed lead back to an open stage: a lost lead always, a won lead only while its vehicle was not sold to that lead's customer, and in both cases only while the lead's vehicle is still in stock. Only one open lead may exist for the same customer and vehicle (<code>LEAD_DUPLICATE</code>). Winning a lead does not sell the vehicle; the sale remains the DMS Sell action, and that sale closes the vehicle's open leads. Buyer-site inquiries enter the same pipeline as described in 8.4.</p>
 
-  <h3>8.6 Work-order states</h3>
+  <h3><span class="key">FLOW-06</span>8.6 Work-order states</h3>
   <div class="states">
     <span class="chip blue">OPEN</span><span class="arrow">→</span>
     <span class="chip amber">IN_PROGRESS</span><span class="arrow">→</span>
@@ -837,7 +953,7 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);font-si
     <span class="arrow">·</span><span class="chip gray">Soft-deleted</span><span class="arrow">kept for history</span>
   </div>
 
-  <h3>8.8 Money: payments and the bill of sale</h3>
+  <h3><span class="key">FLOW-07</span>8.8 Money: payments and the bill of sale</h3>
   <div class="flow">
     <div class="step"><span class="who">Any member</span><b>Record a payment</b><span>Amount, method (cash, debit, credit card, cheque, bank transfer, financing, other), date and an optional note.</span></div>
     <div class="arrow">→</div>
@@ -871,17 +987,17 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);font-si
 
   <h3>8.10 The whole business on one page</h3>
   <p>If you only read one diagram, read this one. It shows who does what, in what order, and where one person's finished work becomes someone else's starting point. The module diagrams that follow zoom into each part.</p>
-  <figure class="wide"><svg viewBox="0 0 1140 540" role="img" aria-label="Swimlane of the whole dealership business by role, from setup to settlement"><defs><marker id="gA" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="d-arrow" d="M0,0 L10,5 L0,10 z"/></marker><marker id="aA" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="d-arrow acc" d="M0,0 L10,5 L0,10 z"/></marker><marker id="bA" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="d-arrow bad" d="M0,0 L10,5 L0,10 z"/></marker></defs><rect class="d-lane" x="0" y="30" width="1140" height="100"/><text class="d-t" x="12" y="84">Public buyer</text><rect class="d-lane alt" x="0" y="130" width="1140" height="100"/><text class="d-t" x="12" y="184">Sales</text><rect class="d-lane" x="0" y="230" width="1140" height="100"/><text class="d-t" x="12" y="284">Manager</text><rect class="d-lane alt" x="0" y="330" width="1140" height="100"/><text class="d-t" x="12" y="384">Owner</text><rect class="d-lane" x="0" y="430" width="1140" height="100"/><text class="d-t" x="12" y="484">Platform Admin</text><text class="d-lbl" x="184.0" y="20" text-anchor="middle">1 · Setup</text><text class="d-lbl" x="312.0" y="20" text-anchor="middle">2 · Team</text><text class="d-lbl" x="440.0" y="20" text-anchor="middle">3 · Stock</text><text class="d-lbl" x="568.0" y="20" text-anchor="middle">4 · Prepare</text><text class="d-lbl" x="696.0" y="20" text-anchor="middle">5 · Advertise</text><text class="d-lbl" x="824.0" y="20" text-anchor="middle">6 · Attract</text><text class="d-lbl" x="952.0" y="20" text-anchor="middle">7 · Sell</text><text class="d-lbl" x="1080.0" y="20" text-anchor="middle">8 · Settle</text><rect class="d-box purple" x="130" y="450" width="108" height="60" rx="8"/><text class="d-t" x="184.0" y="476.5" text-anchor="middle">Open dealership,</text><text class="d-s" x="184.0" y="491.5" text-anchor="middle">bind first owner</text><rect class="d-box acc" x="258" y="350" width="108" height="60" rx="8"/><text class="d-t" x="312.0" y="369.0" text-anchor="middle">Set profile,</text><text class="d-s" x="312.0" y="384.0" text-anchor="middle">approve staff,</text><text class="d-s" x="312.0" y="399.0" text-anchor="middle">appoint managers</text><rect class="d-box acc" x="258" y="250" width="108" height="60" rx="8"/><text class="d-t" x="312.0" y="276.5" text-anchor="middle">Promote or edit</text><text class="d-s" x="312.0" y="291.5" text-anchor="middle">sales members</text><rect class="d-box green" x="386" y="150" width="108" height="60" rx="8"/><text class="d-t" x="440.0" y="176.5" text-anchor="middle">Add vehicle</text><text class="d-s" x="440.0" y="191.5" text-anchor="middle">(decode VIN)</text><rect class="d-box green" x="514" y="150" width="108" height="60" rx="8"/><text class="d-t" x="568.0" y="176.5" text-anchor="middle">Work orders</text><text class="d-s" x="568.0" y="191.5" text-anchor="middle">and photos</text><rect class="d-box green" x="642" y="150" width="108" height="60" rx="8"/><text class="d-t" x="696.0" y="169.0" text-anchor="middle">Write ad, run</text><text class="d-s" x="696.0" y="184.0" text-anchor="middle">OMVIC check,</text><text class="d-s" x="696.0" y="199.0" text-anchor="middle">mark Ready</text><rect class="d-box purple" x="642" y="450" width="108" height="60" rx="8"/><text class="d-t" x="696.0" y="476.5" text-anchor="middle">Maintain OMVIC</text><text class="d-s" x="696.0" y="491.5" text-anchor="middle">rule settings</text><rect class="d-box gray" x="770" y="50" width="108" height="60" rx="8"/><text class="d-t" x="824.0" y="76.5" text-anchor="middle">Browse /shop,</text><text class="d-s" x="824.0" y="91.5" text-anchor="middle">send inquiry</text><rect class="d-box green" x="770" y="150" width="108" height="60" rx="8"/><text class="d-t" x="824.0" y="176.5" text-anchor="middle">Follow up lead:</text><text class="d-s" x="824.0" y="191.5" text-anchor="middle">notes, next date</text><rect class="d-box green" x="898" y="150" width="108" height="60" rx="8"/><text class="d-t" x="952.0" y="176.5" text-anchor="middle">Sell: buyer,</text><text class="d-s" x="952.0" y="191.5" text-anchor="middle">date, price</text><rect class="d-box gray" x="1026" y="50" width="108" height="60" rx="8"/><text class="d-t" x="1080.0" y="76.5" text-anchor="middle">Pays, receives</text><text class="d-s" x="1080.0" y="91.5" text-anchor="middle">bill of sale</text><rect class="d-box green" x="1026" y="150" width="108" height="60" rx="8"/><text class="d-t" x="1080.0" y="176.5" text-anchor="middle">Record payment,</text><text class="d-s" x="1080.0" y="191.5" text-anchor="middle">print bill of sale</text><rect class="d-box acc" x="1026" y="250" width="108" height="60" rx="8"/><text class="d-t" x="1080.0" y="276.5" text-anchor="middle">Read ledger and</text><text class="d-s" x="1080.0" y="291.5" text-anchor="middle">audit, fix errors</text><rect class="d-box acc" x="1026" y="350" width="108" height="60" rx="8"/><text class="d-t" x="1080.0" y="376.5" text-anchor="middle">Oversee sales,</text><text class="d-s" x="1080.0" y="391.5" text-anchor="middle">ledger and audit</text><rect class="d-box purple" x="1026" y="450" width="108" height="60" rx="8"/><text class="d-t" x="1080.0" y="476.5" text-anchor="middle">Platform audit</text><text class="d-s" x="1080.0" y="491.5" text-anchor="middle">log (all dealers)</text><path class="d-line acc" d="M238,480 H248 V380 H258" marker-end="url(#aA)"/><path class="d-line acc" d="M312,350 V310" marker-end="url(#aA)"/><text class="d-lbl" x="318" y="344" text-anchor="start">appoints</text><path class="d-line acc" d="M366,380 H376 V180 H386" marker-end="url(#aA)"/><text class="d-lbl" x="382" y="342" text-anchor="start">staff admitted</text><path class="d-line acc" d="M494,180 H514" marker-end="url(#aA)"/><path class="d-line acc" d="M622,180 H642" marker-end="url(#aA)"/><path class="d-line acc" d="M696,450 V210" marker-end="url(#aA)"/><text class="d-lbl" x="702" y="384" text-anchor="start">global rule settings</text><path class="d-line acc" d="M750,180 H760 V80 H770" marker-end="url(#aA)"/><text class="d-lbl" x="754" y="116" text-anchor="end">listed on /shop</text><path class="d-line acc" d="M824,110 V150" marker-end="url(#aA)"/><text class="d-lbl" x="836" y="136" text-anchor="start">inquiry becomes a lead</text><path class="d-line acc" d="M878,180 H898" marker-end="url(#aA)"/><path class="d-line acc" d="M1006,180 H1026" marker-end="url(#aA)"/><path class="d-line acc" d="M1080,150 V110" marker-end="url(#aA)"/><text class="d-lbl" x="1074" y="136" text-anchor="end">bill of sale</text><path class="d-line acc" d="M1080,210 V250" marker-end="url(#aA)"/></svg><figcaption>Figure 8.10 · The whole business on one page. Read left to right: each column is a stage of the dealership's life, each row is a person. An arrow means one person's finished work becomes another person's starting point.</figcaption></figure>
+  <figure class="wide"><svg viewBox="0 0 1140 540" role="img" aria-label="Swimlane of the whole dealership business by role, from setup to settlement"><defs><marker id="f3-gA" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="d-arrow" d="M0,0 L10,5 L0,10 z"/></marker><marker id="f3-aA" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="d-arrow acc" d="M0,0 L10,5 L0,10 z"/></marker><marker id="f3-bA" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="d-arrow bad" d="M0,0 L10,5 L0,10 z"/></marker></defs><rect class="d-lane" x="0" y="30" width="1140" height="100"/><text class="d-t" x="12" y="84">Public buyer</text><rect class="d-lane alt" x="0" y="130" width="1140" height="100"/><text class="d-t" x="12" y="184">Sales</text><rect class="d-lane" x="0" y="230" width="1140" height="100"/><text class="d-t" x="12" y="284">Manager</text><rect class="d-lane alt" x="0" y="330" width="1140" height="100"/><text class="d-t" x="12" y="384">Owner</text><rect class="d-lane" x="0" y="430" width="1140" height="100"/><text class="d-t" x="12" y="484">Platform Admin</text><text class="d-lbl" x="184.0" y="20" text-anchor="middle">1 · Setup</text><text class="d-lbl" x="312.0" y="20" text-anchor="middle">2 · Team</text><text class="d-lbl" x="440.0" y="20" text-anchor="middle">3 · Stock</text><text class="d-lbl" x="568.0" y="20" text-anchor="middle">4 · Prepare</text><text class="d-lbl" x="696.0" y="20" text-anchor="middle">5 · Advertise</text><text class="d-lbl" x="824.0" y="20" text-anchor="middle">6 · Attract</text><text class="d-lbl" x="952.0" y="20" text-anchor="middle">7 · Sell</text><text class="d-lbl" x="1080.0" y="20" text-anchor="middle">8 · Settle</text><rect class="d-box purple" x="130" y="450" width="108" height="60" rx="8"/><text class="d-t" x="184.0" y="476.5" text-anchor="middle">Open dealership,</text><text class="d-s" x="184.0" y="491.5" text-anchor="middle">bind first owner</text><rect class="d-box acc" x="258" y="350" width="108" height="60" rx="8"/><text class="d-t" x="312.0" y="369.0" text-anchor="middle">Set profile,</text><text class="d-s" x="312.0" y="384.0" text-anchor="middle">approve staff,</text><text class="d-s" x="312.0" y="399.0" text-anchor="middle">appoint managers</text><rect class="d-box acc" x="258" y="250" width="108" height="60" rx="8"/><text class="d-t" x="312.0" y="276.5" text-anchor="middle">Promote or edit</text><text class="d-s" x="312.0" y="291.5" text-anchor="middle">sales members</text><rect class="d-box green" x="386" y="150" width="108" height="60" rx="8"/><text class="d-t" x="440.0" y="176.5" text-anchor="middle">Add vehicle</text><text class="d-s" x="440.0" y="191.5" text-anchor="middle">(decode VIN)</text><rect class="d-box green" x="514" y="150" width="108" height="60" rx="8"/><text class="d-t" x="568.0" y="176.5" text-anchor="middle">Work orders</text><text class="d-s" x="568.0" y="191.5" text-anchor="middle">and photos</text><rect class="d-box green" x="642" y="150" width="108" height="60" rx="8"/><text class="d-t" x="696.0" y="169.0" text-anchor="middle">Write ad, run</text><text class="d-s" x="696.0" y="184.0" text-anchor="middle">OMVIC check,</text><text class="d-s" x="696.0" y="199.0" text-anchor="middle">mark Ready</text><rect class="d-box purple" x="642" y="450" width="108" height="60" rx="8"/><text class="d-t" x="696.0" y="476.5" text-anchor="middle">Maintain OMVIC</text><text class="d-s" x="696.0" y="491.5" text-anchor="middle">rule settings</text><rect class="d-box gray" x="770" y="50" width="108" height="60" rx="8"/><text class="d-t" x="824.0" y="76.5" text-anchor="middle">Browse /shop,</text><text class="d-s" x="824.0" y="91.5" text-anchor="middle">send inquiry</text><rect class="d-box green" x="770" y="150" width="108" height="60" rx="8"/><text class="d-t" x="824.0" y="176.5" text-anchor="middle">Follow up lead:</text><text class="d-s" x="824.0" y="191.5" text-anchor="middle">notes, next date</text><rect class="d-box green" x="898" y="150" width="108" height="60" rx="8"/><text class="d-t" x="952.0" y="176.5" text-anchor="middle">Sell: buyer,</text><text class="d-s" x="952.0" y="191.5" text-anchor="middle">date, price</text><rect class="d-box gray" x="1026" y="50" width="108" height="60" rx="8"/><text class="d-t" x="1080.0" y="76.5" text-anchor="middle">Pays, receives</text><text class="d-s" x="1080.0" y="91.5" text-anchor="middle">bill of sale</text><rect class="d-box green" x="1026" y="150" width="108" height="60" rx="8"/><text class="d-t" x="1080.0" y="176.5" text-anchor="middle">Record payment,</text><text class="d-s" x="1080.0" y="191.5" text-anchor="middle">print bill of sale</text><rect class="d-box acc" x="1026" y="250" width="108" height="60" rx="8"/><text class="d-t" x="1080.0" y="276.5" text-anchor="middle">Read ledger and</text><text class="d-s" x="1080.0" y="291.5" text-anchor="middle">audit, fix errors</text><rect class="d-box acc" x="1026" y="350" width="108" height="60" rx="8"/><text class="d-t" x="1080.0" y="376.5" text-anchor="middle">Oversee sales,</text><text class="d-s" x="1080.0" y="391.5" text-anchor="middle">ledger and audit</text><rect class="d-box purple" x="1026" y="450" width="108" height="60" rx="8"/><text class="d-t" x="1080.0" y="476.5" text-anchor="middle">Platform audit</text><text class="d-s" x="1080.0" y="491.5" text-anchor="middle">log (all dealers)</text><path class="d-line acc" d="M238,480 H248 V380 H258" marker-end="url(#f3-aA)"/><path class="d-line acc" d="M312,350 V310" marker-end="url(#f3-aA)"/><text class="d-lbl" x="318" y="344" text-anchor="start">appoints</text><path class="d-line acc" d="M366,380 H376 V180 H386" marker-end="url(#f3-aA)"/><text class="d-lbl" x="382" y="342" text-anchor="start">staff admitted</text><path class="d-line acc" d="M494,180 H514" marker-end="url(#f3-aA)"/><path class="d-line acc" d="M622,180 H642" marker-end="url(#f3-aA)"/><path class="d-line acc" d="M696,450 V210" marker-end="url(#f3-aA)"/><text class="d-lbl" x="702" y="384" text-anchor="start">global rule settings</text><path class="d-line acc" d="M750,180 H760 V80 H770" marker-end="url(#f3-aA)"/><text class="d-lbl" x="754" y="116" text-anchor="end">listed on /shop</text><path class="d-line acc" d="M824,110 V150" marker-end="url(#f3-aA)"/><text class="d-lbl" x="836" y="136" text-anchor="start">inquiry becomes a lead</text><path class="d-line acc" d="M878,180 H898" marker-end="url(#f3-aA)"/><path class="d-line acc" d="M1006,180 H1026" marker-end="url(#f3-aA)"/><path class="d-line acc" d="M1080,150 V110" marker-end="url(#f3-aA)"/><text class="d-lbl" x="1074" y="136" text-anchor="end">bill of sale</text><path class="d-line acc" d="M1080,210 V250" marker-end="url(#f3-aA)"/></svg><figcaption>Figure 8.10 · The whole business on one page. Read left to right: each column is a stage of the dealership's life, each row is a person. An arrow means one person's finished work becomes another person's starting point.</figcaption></figure>
   <h3>8.11 How the modules connect</h3>
   <p>Seen by module, DealerOps is one vehicle journey (the green chain) with a public face (the buyer site), a customer book (CRM) and an audit trail underneath. The modules do not copy data to each other; they share the same dealership records, which is why a sale can close leads, lock fields and take an ad down in one step. Figures 11.1 and 11.2 show the same modules as data: which table each one writes.</p>
-  <figure class="wide"><svg viewBox="0 0 1140 470" role="img" aria-label="Module integration map: how the modules hand work to each other"><defs><marker id="gB" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="d-arrow" d="M0,0 L10,5 L0,10 z"/></marker><marker id="aB" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="d-arrow acc" d="M0,0 L10,5 L0,10 z"/></marker><marker id="bB" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="d-arrow bad" d="M0,0 L10,5 L0,10 z"/></marker></defs><rect class="d-box acc" x="20" y="20" width="390" height="50" rx="8"/><text class="d-t" x="215" y="41.5" text-anchor="middle">Access and tenancy (Team)</text><text class="d-s11" x="215" y="56.5" text-anchor="middle">Admin opens → Owner approves → staff work inside</text><rect class="d-box purple" x="434" y="20" width="102" height="50" rx="8"/><text class="d-t" x="485.0" y="41.5" text-anchor="middle">OMVIC rules</text><text class="d-s" x="485.0" y="56.5" text-anchor="middle">(Admin)</text><rect class="d-box green" x="20" y="130" width="102" height="60" rx="8"/><text class="d-t" x="71.0" y="156.5" text-anchor="middle">Inventory</text><text class="d-s" x="71.0" y="171.5" text-anchor="middle">DMS</text><rect class="d-box green" x="158" y="130" width="102" height="60" rx="8"/><text class="d-t" x="209.0" y="156.5" text-anchor="middle">Work orders</text><text class="d-s" x="209.0" y="171.5" text-anchor="middle">recondition</text><rect class="d-box green" x="296" y="130" width="102" height="60" rx="8"/><text class="d-t" x="347.0" y="156.5" text-anchor="middle">Image Studio</text><text class="d-s" x="347.0" y="171.5" text-anchor="middle">photos</text><rect class="d-box green" x="434" y="130" width="102" height="60" rx="8"/><text class="d-t" x="485.0" y="156.5" text-anchor="middle">Ad compliance</text><text class="d-s" x="485.0" y="171.5" text-anchor="middle">rules + AI</text><rect class="d-box gray" x="572" y="130" width="102" height="60" rx="8"/><text class="d-t" x="623.0" y="156.5" text-anchor="middle">Buyer site</text><text class="d-s" x="623.0" y="171.5" text-anchor="middle">/shop</text><rect class="d-box green" x="710" y="130" width="102" height="60" rx="8"/><text class="d-t" x="761.0" y="156.5" text-anchor="middle">Leads</text><text class="d-s" x="761.0" y="171.5" text-anchor="middle">pipeline</text><rect class="d-box green" x="848" y="130" width="102" height="60" rx="8"/><text class="d-t" x="899.0" y="156.5" text-anchor="middle">Sell</text><text class="d-s" x="899.0" y="171.5" text-anchor="middle">DMS action</text><rect class="d-box green" x="986" y="130" width="102" height="60" rx="8"/><text class="d-t" x="1037.0" y="156.5" text-anchor="middle">Payments</text><text class="d-s" x="1037.0" y="171.5" text-anchor="middle">ledger</text><path class="d-line acc" d="M122,160 H158" marker-end="url(#aB)"/><circle class="d-circ" cx="140.0" cy="142" r="9"/><text class="d-cnum" x="140.0" y="146" text-anchor="middle">1</text><path class="d-line acc" d="M260,160 H296" marker-end="url(#aB)"/><circle class="d-circ" cx="278.0" cy="142" r="9"/><text class="d-cnum" x="278.0" y="146" text-anchor="middle">2</text><path class="d-line acc" d="M398,160 H434" marker-end="url(#aB)"/><circle class="d-circ" cx="416.0" cy="142" r="9"/><text class="d-cnum" x="416.0" y="146" text-anchor="middle">3</text><path class="d-line acc" d="M536,160 H572" marker-end="url(#aB)"/><circle class="d-circ" cx="554.0" cy="142" r="9"/><text class="d-cnum" x="554.0" y="146" text-anchor="middle">4</text><path class="d-line acc" d="M674,160 H710" marker-end="url(#aB)"/><circle class="d-circ" cx="692.0" cy="142" r="9"/><text class="d-cnum" x="692.0" y="146" text-anchor="middle">5</text><path class="d-line acc" d="M812,160 H848" marker-end="url(#aB)"/><circle class="d-circ" cx="830.0" cy="142" r="9"/><text class="d-cnum" x="830.0" y="146" text-anchor="middle">6</text><path class="d-line acc" d="M950,160 H986" marker-end="url(#aB)"/><circle class="d-circ" cx="968.0" cy="142" r="9"/><text class="d-cnum" x="968.0" y="146" text-anchor="middle">7</text><path class="d-line acc" d="M485,70 V130" marker-end="url(#aB)"/><circle class="d-circ" cx="485" cy="100" r="9"/><text class="d-cnum" x="485" y="104" text-anchor="middle">11</text><path class="d-line dash" d="M899,130 V100 H623 V130" marker-end="url(#gB)"/><circle class="d-circ" cx="761.0" cy="100" r="9"/><text class="d-cnum" x="761.0" y="104" text-anchor="middle">9</text><rect class="d-box purple" x="572" y="260" width="102" height="60" rx="8"/><text class="d-t" x="623.0" y="286.5" text-anchor="middle">Public visitor</text><text class="d-s" x="623.0" y="301.5" text-anchor="middle">no account</text><path class="d-line acc" d="M623,260 V190" marker-end="url(#aB)"/><circle class="d-circ" cx="623" cy="225" r="9"/><text class="d-cnum" x="623" y="229" text-anchor="middle">10</text><rect class="d-box acc" x="710" y="260" width="240" height="60" rx="8"/><text class="d-t" x="830.0" y="286.5" text-anchor="middle">CRM customers</text><text class="d-s" x="830.0" y="301.5" text-anchor="middle">profile, linked vehicles, notes</text><path class="d-line acc" d="M761,260 V190" marker-end="url(#aB)"/><path class="d-line acc" d="M899,260 V190" marker-end="url(#aB)"/><circle class="d-circ" cx="761" cy="225" r="9"/><text class="d-cnum" x="761" y="229" text-anchor="middle">8</text><rect class="d-box gray" x="20" y="260" width="516" height="60" rx="8"/><text class="d-t" x="278.0" y="286.5" text-anchor="middle">Reports and Dashboard</text><text class="d-s" x="278.0" y="301.5" text-anchor="middle">read inventory, sales, leads, workshop spend and payments</text><rect class="d-box gray" x="20" y="390" width="1100" height="56" rx="8"/><text class="d-t" x="570" y="414.5" text-anchor="middle">Audit trail (every module)</text><text class="d-s11" x="570" y="429.5" text-anchor="middle">every create, update, delete, sale, payment and sign-in writes one row · readable by Owner, Manager and Admin only</text></svg><figcaption>Figure 8.11 · Module integration map. Solid arrows are the main vehicle journey; the dashed arrow is the feedback when a sale takes the ad down. The numbered circles are explained in the table below.</figcaption></figure>
+  <figure class="wide"><svg viewBox="0 0 1140 470" role="img" aria-label="Module integration map: how the modules hand work to each other"><defs><marker id="f4-gB" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="d-arrow" d="M0,0 L10,5 L0,10 z"/></marker><marker id="f4-aB" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="d-arrow acc" d="M0,0 L10,5 L0,10 z"/></marker><marker id="f4-bB" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="d-arrow bad" d="M0,0 L10,5 L0,10 z"/></marker></defs><rect class="d-box acc" x="20" y="20" width="390" height="50" rx="8"/><text class="d-t" x="215" y="41.5" text-anchor="middle">Access and tenancy (Team)</text><text class="d-s11" x="215" y="56.5" text-anchor="middle">Admin opens → Owner approves → staff work inside</text><rect class="d-box purple" x="434" y="20" width="102" height="50" rx="8"/><text class="d-t" x="485.0" y="41.5" text-anchor="middle">OMVIC rules</text><text class="d-s" x="485.0" y="56.5" text-anchor="middle">(Admin)</text><rect class="d-box green" x="20" y="130" width="102" height="60" rx="8"/><text class="d-t" x="71.0" y="156.5" text-anchor="middle">Inventory</text><text class="d-s" x="71.0" y="171.5" text-anchor="middle">DMS</text><rect class="d-box green" x="158" y="130" width="102" height="60" rx="8"/><text class="d-t" x="209.0" y="156.5" text-anchor="middle">Work orders</text><text class="d-s" x="209.0" y="171.5" text-anchor="middle">recondition</text><rect class="d-box green" x="296" y="130" width="102" height="60" rx="8"/><text class="d-t" x="347.0" y="156.5" text-anchor="middle">Image Studio</text><text class="d-s" x="347.0" y="171.5" text-anchor="middle">photos</text><rect class="d-box green" x="434" y="130" width="102" height="60" rx="8"/><text class="d-t" x="485.0" y="156.5" text-anchor="middle">Ad compliance</text><text class="d-s" x="485.0" y="171.5" text-anchor="middle">rules + AI</text><rect class="d-box gray" x="572" y="130" width="102" height="60" rx="8"/><text class="d-t" x="623.0" y="156.5" text-anchor="middle">Buyer site</text><text class="d-s" x="623.0" y="171.5" text-anchor="middle">/shop</text><rect class="d-box green" x="710" y="130" width="102" height="60" rx="8"/><text class="d-t" x="761.0" y="156.5" text-anchor="middle">Leads</text><text class="d-s" x="761.0" y="171.5" text-anchor="middle">pipeline</text><rect class="d-box green" x="848" y="130" width="102" height="60" rx="8"/><text class="d-t" x="899.0" y="156.5" text-anchor="middle">Sell</text><text class="d-s" x="899.0" y="171.5" text-anchor="middle">DMS action</text><rect class="d-box green" x="986" y="130" width="102" height="60" rx="8"/><text class="d-t" x="1037.0" y="156.5" text-anchor="middle">Payments</text><text class="d-s" x="1037.0" y="171.5" text-anchor="middle">ledger</text><path class="d-line acc" d="M122,160 H158" marker-end="url(#f4-aB)"/><circle class="d-circ" cx="140.0" cy="142" r="9"/><text class="d-cnum" x="140.0" y="146" text-anchor="middle">1</text><path class="d-line acc" d="M260,160 H296" marker-end="url(#f4-aB)"/><circle class="d-circ" cx="278.0" cy="142" r="9"/><text class="d-cnum" x="278.0" y="146" text-anchor="middle">2</text><path class="d-line acc" d="M398,160 H434" marker-end="url(#f4-aB)"/><circle class="d-circ" cx="416.0" cy="142" r="9"/><text class="d-cnum" x="416.0" y="146" text-anchor="middle">3</text><path class="d-line acc" d="M536,160 H572" marker-end="url(#f4-aB)"/><circle class="d-circ" cx="554.0" cy="142" r="9"/><text class="d-cnum" x="554.0" y="146" text-anchor="middle">4</text><path class="d-line acc" d="M674,160 H710" marker-end="url(#f4-aB)"/><circle class="d-circ" cx="692.0" cy="142" r="9"/><text class="d-cnum" x="692.0" y="146" text-anchor="middle">5</text><path class="d-line acc" d="M812,160 H848" marker-end="url(#f4-aB)"/><circle class="d-circ" cx="830.0" cy="142" r="9"/><text class="d-cnum" x="830.0" y="146" text-anchor="middle">6</text><path class="d-line acc" d="M950,160 H986" marker-end="url(#f4-aB)"/><circle class="d-circ" cx="968.0" cy="142" r="9"/><text class="d-cnum" x="968.0" y="146" text-anchor="middle">7</text><path class="d-line acc" d="M485,70 V130" marker-end="url(#f4-aB)"/><circle class="d-circ" cx="485" cy="100" r="9"/><text class="d-cnum" x="485" y="104" text-anchor="middle">11</text><path class="d-line dash" d="M899,130 V100 H623 V130" marker-end="url(#f4-gB)"/><circle class="d-circ" cx="761.0" cy="100" r="9"/><text class="d-cnum" x="761.0" y="104" text-anchor="middle">9</text><rect class="d-box purple" x="572" y="260" width="102" height="60" rx="8"/><text class="d-t" x="623.0" y="286.5" text-anchor="middle">Public visitor</text><text class="d-s" x="623.0" y="301.5" text-anchor="middle">no account</text><path class="d-line acc" d="M623,260 V190" marker-end="url(#f4-aB)"/><circle class="d-circ" cx="623" cy="225" r="9"/><text class="d-cnum" x="623" y="229" text-anchor="middle">10</text><rect class="d-box acc" x="710" y="260" width="240" height="60" rx="8"/><text class="d-t" x="830.0" y="286.5" text-anchor="middle">CRM customers</text><text class="d-s" x="830.0" y="301.5" text-anchor="middle">profile, linked vehicles, notes</text><path class="d-line acc" d="M761,260 V190" marker-end="url(#f4-aB)"/><path class="d-line acc" d="M899,260 V190" marker-end="url(#f4-aB)"/><circle class="d-circ" cx="761" cy="225" r="9"/><text class="d-cnum" x="761" y="229" text-anchor="middle">8</text><rect class="d-box gray" x="20" y="260" width="516" height="60" rx="8"/><text class="d-t" x="278.0" y="286.5" text-anchor="middle">Reports and Dashboard</text><text class="d-s" x="278.0" y="301.5" text-anchor="middle">read inventory, sales, leads, workshop spend and payments</text><rect class="d-box gray" x="20" y="390" width="1100" height="56" rx="8"/><text class="d-t" x="570" y="414.5" text-anchor="middle">Audit trail (every module)</text><text class="d-s11" x="570" y="429.5" text-anchor="middle">every create, update, delete, sale, payment and sign-in writes one row · readable by Owner, Manager and Admin only</text></svg><figcaption>Figure 8.11 · Module integration map. Solid arrows are the main vehicle journey; the dashed arrow is the feedback when a sale takes the ad down. The numbered circles are explained in the table below.</figcaption></figure>
   <div class="tbl"><table><thead><tr><th class="c">#</th><th>Hand-off</th><th>What passes between the modules</th></tr></thead><tbody><tr><td class="c"><b>1</b></td><td>Inventory → Work orders</td><td>An in-stock vehicle receives tasks. A finished task adds its cost to the vehicle's repair cost, and open tasks block the sale.</td></tr><tr><td class="c"><b>2</b></td><td>Work orders → Image Studio</td><td>No hard dependency: photos can be added at any time while the vehicle is in stock. Photos are never sent to the AI.</td></tr><tr><td class="c"><b>3</b></td><td>Image Studio → Ad compliance</td><td>The ad is written for the vehicle; the same photos are shown with the listing on the buyer site.</td></tr><tr><td class="c"><b>4</b></td><td>Ad compliance → Buyer site</td><td>A vehicle is public only while it is in stock, its ad is Ready and its latest check is Passed and current. There is no separate publish switch.</td></tr><tr><td class="c"><b>5</b></td><td>Buyer site → Leads</td><td>An inquiry finds or creates the customer, then opens a NEW lead (or adds a note to an open one) and posts a message to the staff inbox.</td></tr><tr><td class="c"><b>6</b></td><td>Leads → Sell</td><td>Staff work the lead; the sale then names the buyer. The sale closes the vehicle's open leads: the buyer's as Won, the others as Lost.</td></tr><tr><td class="c"><b>7</b></td><td>Sell → Payments</td><td>The sold price becomes the balance due; payments are accepted only against a recorded sale.</td></tr><tr><td class="c"><b>8</b></td><td>CRM ↔ Leads and Sell</td><td>A customer carries the profile, linked vehicles and notes. A sale to a CRM customer links the vehicle to them in the same transaction.</td></tr><tr><td class="c"><b>9</b></td><td>Sell → Buyer site (feedback)</td><td>Selling a vehicle removes it from the public page; the Ads page then shows it as Taken down.</td></tr><tr><td class="c"><b>10</b></td><td>Public visitor ↔ Buyer site</td><td>Anonymous browsing and inquiries only. No VIN, cost or customer data is exposed, and inquiries are rate limited.</td></tr><tr><td class="c"><b>11</b></td><td>OMVIC rules → Ad compliance</td><td>The Admin's rule settings and the Owner's dealership profile feed every check. A rule change marks all existing checks Stale.</td></tr></tbody></table></div>
   <figure class="img"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1150 560" width="1150" height="560" role="img" aria-label="DealerOps: all business modules connected. One vehicle journey, a public face, a customer book, shared rules and one audit trail">
   <rect width="1150" height="560" fill="#ffffff"/>
   <defs>
-    <marker id="ma" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="#1d4ed8"/></marker>
-    <marker id="mg" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="#64748b"/></marker>
-    <marker id="mb" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="#b91c1c"/></marker>
+    <marker id="f5-ma" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="#1d4ed8"/></marker>
+    <marker id="f5-mg" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="#64748b"/></marker>
+    <marker id="f5-mb" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="#b91c1c"/></marker>
   </defs>
   <g font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif">
     <text x="30" y="32" font-size="17" font-weight="700" fill="#0f172a">DealerOps: all business modules connected</text>
@@ -935,35 +1051,35 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);font-si
     <text x="410.0" y="439.0" font-size="12" font-weight="700" fill="#0f172a" text-anchor="middle">Audit trail</text>
     <text x="410.0" y="454.0" font-size="10.5" font-weight="400" fill="#475569" text-anchor="middle">every write: one row</text>
     <text x="410.0" y="469.0" font-size="10.5" font-weight="400" fill="#475569" text-anchor="middle">read by Owner, Admin</text>
-    <path d="M140,120.0 H185" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#ma)"/>
+    <path d="M140,120.0 H185" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#f5-ma)"/>
     <text x="146" y="113.0" font-size="10.5" fill="#334155" text-anchor="start"></text>
-    <path d="M140,230.0 H185" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#ma)"/>
+    <path d="M140,230.0 H185" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#f5-ma)"/>
     <text x="146" y="223.0" font-size="10.5" fill="#334155" text-anchor="start">tasks</text>
-    <path d="M305,230.0 H350" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#ma)"/>
+    <path d="M305,230.0 H350" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#f5-ma)"/>
     <text x="311" y="223.0" font-size="10.5" fill="#334155" text-anchor="start"></text>
-    <path d="M470,230.0 H515" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#ma)"/>
+    <path d="M470,230.0 H515" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#f5-ma)"/>
     <text x="476" y="223.0" font-size="10.5" fill="#334155" text-anchor="start"></text>
-    <path d="M635,230.0 H680" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#ma)"/>
+    <path d="M635,230.0 H680" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#f5-ma)"/>
     <text x="641" y="223.0" font-size="10.5" fill="#334155" text-anchor="start">listed</text>
-    <path d="M800,230.0 H845" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#ma)"/>
+    <path d="M800,230.0 H845" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#f5-ma)"/>
     <text x="806" y="223.0" font-size="10.5" fill="#334155" text-anchor="start">lead</text>
-    <path d="M965,230.0 H1010" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#ma)"/>
+    <path d="M965,230.0 H1010" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#f5-ma)"/>
     <text x="971" y="223.0" font-size="10.5" fill="#334155" text-anchor="start">settled</text>
-    <path d="M1070.0,260 V310" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#ma)"/>
+    <path d="M1070.0,260 V310" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#f5-ma)"/>
     <text x="1078.0" y="280" font-size="10.5" fill="#334155" text-anchor="start">price = balance</text>
-    <path d="M575.0,150 V200" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#ma)"/>
+    <path d="M575.0,150 V200" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#f5-ma)"/>
     <text x="583.0" y="170" font-size="10.5" fill="#334155" text-anchor="start">rules</text>
-    <path d="M740.0,150 V200" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#ma)"/>
+    <path d="M740.0,150 V200" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#f5-ma)"/>
     <text x="748.0" y="170" font-size="10.5" fill="#334155" text-anchor="start">inquiry</text>
-    <path d="M740.0,260 V310" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#ma)"/>
+    <path d="M740.0,260 V310" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#f5-ma)"/>
     <text x="748.0" y="280" font-size="10.5" fill="#334155" text-anchor="start">buyer</text>
-    <path d="M800,340.0 H905.0 V260" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#ma)"/>
+    <path d="M800,340.0 H905.0 V260" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#f5-ma)"/>
     <text x="806" y="333.0" font-size="10.5" fill="#334155" text-anchor="start">customer</text>
-    <path d="M1070,200 V175 H770 V200" fill="none" stroke="#64748b" stroke-width="1.6" stroke-dasharray="5 4" marker-end="url(#mg)"/>
+    <path d="M1070,200 V175 H770 V200" fill="none" stroke="#64748b" stroke-width="1.6" stroke-dasharray="5 4" marker-end="url(#f5-mg)"/>
     <text x="880" y="168" font-size="10.5" fill="#334155" text-anchor="start">sold: ad taken down</text>
-    <path d="M245.0,310 V260" fill="none" stroke="#64748b" stroke-width="1.6" marker-end="url(#mg)"/>
+    <path d="M245.0,310 V260" fill="none" stroke="#64748b" stroke-width="1.6" marker-end="url(#f5-mg)"/>
     <text x="253.0" y="294" font-size="10.5" fill="#334155" text-anchor="start">reads</text>
-    <path d="M410.0,420 V260" fill="none" stroke="#64748b" stroke-width="1.6" marker-end="url(#mg)"/>
+    <path d="M410.0,420 V260" fill="none" stroke="#64748b" stroke-width="1.6" marker-end="url(#f5-mg)"/>
     <text x="418.0" y="404" font-size="10.5" fill="#334155" text-anchor="start">every write</text>
   </g>
 </svg><figcaption>Figure 8.11a · The same map as one standalone figure (<code>design/diagrams/integration/15-module-integration-map.svg</code>): every module, its hand-offs, the shared rules and the audit trail.</figcaption></figure>
@@ -971,9 +1087,9 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);font-si
   <figure class="img"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1150 450" width="1150" height="450" role="img" aria-label="Ad compliance: advertising a vehicle and taking it down. Hard rules run first; only a Passed check on the exact text allows Ready and export">
   <rect width="1150" height="450" fill="#ffffff"/>
   <defs>
-    <marker id="ma" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="#1d4ed8"/></marker>
-    <marker id="mg" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="#64748b"/></marker>
-    <marker id="mb" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="#b91c1c"/></marker>
+    <marker id="f6-ma" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="#1d4ed8"/></marker>
+    <marker id="f6-mg" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="#64748b"/></marker>
+    <marker id="f6-mb" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="#b91c1c"/></marker>
   </defs>
   <g font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif">
     <text x="30" y="32" font-size="17" font-weight="700" fill="#0f172a">Ad compliance: advertising a vehicle and taking it down</text>
@@ -1013,31 +1129,31 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);font-si
     <text x="1070.0" y="109.0" font-size="12" font-weight="700" fill="#0f172a" text-anchor="middle">STALE</text>
     <text x="1070.0" y="124.0" font-size="10.5" font-weight="400" fill="#475569" text-anchor="middle">text or condition</text>
     <text x="1070.0" y="139.0" font-size="10.5" font-weight="400" fill="#475569" text-anchor="middle">changed</text>
-    <path d="M140,230.0 H185" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#ma)"/>
+    <path d="M140,230.0 H185" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#f6-ma)"/>
     <text x="146" y="223.0" font-size="10.5" fill="#334155" text-anchor="start"></text>
-    <path d="M305,230.0 H340" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#ma)"/>
+    <path d="M305,230.0 H340" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#f6-ma)"/>
     <text x="311" y="223.0" font-size="10.5" fill="#334155" text-anchor="start"></text>
-    <path d="M480,230.0 H515" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#ma)"/>
+    <path d="M480,230.0 H515" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#f6-ma)"/>
     <text x="486" y="223.0" font-size="10.5" fill="#334155" text-anchor="start">No</text>
-    <path d="M635,230.0 H670" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#ma)"/>
+    <path d="M635,230.0 H670" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#f6-ma)"/>
     <text x="641" y="223.0" font-size="10.5" fill="#334155" text-anchor="start"></text>
-    <path d="M810,230.0 H845" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#ma)"/>
+    <path d="M810,230.0 H845" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#f6-ma)"/>
     <text x="816" y="223.0" font-size="10.5" fill="#334155" text-anchor="start">Yes</text>
-    <path d="M965,230.0 H1010" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#ma)"/>
+    <path d="M965,230.0 H1010" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#f6-ma)"/>
     <text x="971" y="223.0" font-size="10.5" fill="#334155" text-anchor="start">Ready</text>
-    <path d="M410.0,264 V310" fill="none" stroke="#b91c1c" stroke-width="1.6" marker-end="url(#mb)"/>
+    <path d="M410.0,264 V310" fill="none" stroke="#b91c1c" stroke-width="1.6" marker-end="url(#f6-mb)"/>
     <text x="418.0" y="280" font-size="10.5" fill="#334155" text-anchor="start">Yes</text>
-    <path d="M740.0,196 V150" fill="none" stroke="#b91c1c" stroke-width="1.6" marker-end="url(#mb)"/>
+    <path d="M740.0,196 V150" fill="none" stroke="#b91c1c" stroke-width="1.6" marker-end="url(#f6-mb)"/>
     <text x="748.0" y="184" font-size="10.5" fill="#334155" text-anchor="start">No</text>
-    <path d="M350,340.0 H80.0 V260" fill="none" stroke="#64748b" stroke-width="1.6" stroke-dasharray="5 4" marker-end="url(#mg)"/>
+    <path d="M350,340.0 H80.0 V260" fill="none" stroke="#64748b" stroke-width="1.6" stroke-dasharray="5 4" marker-end="url(#f6-mg)"/>
     <text x="215.0" y="334.0" font-size="10.5" fill="#334155" text-anchor="middle">edit the ad</text>
-    <path d="M680,120.0 H245.0 V200" fill="none" stroke="#64748b" stroke-width="1.6" stroke-dasharray="5 4" marker-end="url(#mg)"/>
+    <path d="M680,120.0 H245.0 V200" fill="none" stroke="#64748b" stroke-width="1.6" stroke-dasharray="5 4" marker-end="url(#f6-mg)"/>
     <text x="462.5" y="114.0" font-size="10.5" fill="#334155" text-anchor="middle">check again later</text>
-    <path d="M1070.0,260 V310" fill="none" stroke="#64748b" stroke-width="1.6" marker-end="url(#mg)"/>
+    <path d="M1070.0,260 V310" fill="none" stroke="#64748b" stroke-width="1.6" marker-end="url(#f6-mg)"/>
     <text x="1078.0" y="280" font-size="10.5" fill="#334155" text-anchor="start">sale</text>
-    <path d="M1070.0,200 V150" fill="none" stroke="#64748b" stroke-width="1.6" marker-end="url(#mg)"/>
+    <path d="M1070.0,200 V150" fill="none" stroke="#64748b" stroke-width="1.6" marker-end="url(#f6-mg)"/>
     <text x="1078.0" y="184" font-size="10.5" fill="#334155" text-anchor="start">edit</text>
-    <path d="M1070,84 V76 H245 V200" fill="none" stroke="#64748b" stroke-width="1.6" stroke-dasharray="5 4" marker-end="url(#mg)"/>
+    <path d="M1070,84 V76 H245 V200" fill="none" stroke="#64748b" stroke-width="1.6" stroke-dasharray="5 4" marker-end="url(#f6-mg)"/>
     <text x="515" y="72" font-size="10.5" fill="#334155" text-anchor="start">removed from the public page until checked again</text>
   </g>
 </svg><figcaption>Figure 8.12 · Ad compliance flow (<code>design/diagrams/business/11-ad-compliance-flow.svg</code>). Hard rules run first, so a blocked ad never reaches the AI. Only a Passed check on exactly the text now on screen allows Ready and export.</figcaption></figure>
@@ -1045,9 +1161,9 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);font-si
   <figure class="img"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1150 450" width="1150" height="450" role="img" aria-label="Selling a vehicle and collecting payment. A sale needs finished work orders and valid details; a payment may not exceed the balance">
   <rect width="1150" height="450" fill="#ffffff"/>
   <defs>
-    <marker id="ma" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="#1d4ed8"/></marker>
-    <marker id="mg" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="#64748b"/></marker>
-    <marker id="mb" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="#b91c1c"/></marker>
+    <marker id="f7-ma" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="#1d4ed8"/></marker>
+    <marker id="f7-mg" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="#64748b"/></marker>
+    <marker id="f7-mb" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="#b91c1c"/></marker>
   </defs>
   <g font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif">
     <text x="30" y="32" font-size="17" font-weight="700" fill="#0f172a">Selling a vehicle and collecting payment</text>
@@ -1088,29 +1204,29 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);font-si
     <text x="575.0" y="329.0" font-size="12" font-weight="700" fill="#0f172a" text-anchor="middle">One transaction:</text>
     <text x="575.0" y="344.0" font-size="10.5" font-weight="400" fill="#475569" text-anchor="middle">links buyer, locks</text>
     <text x="575.0" y="359.0" font-size="10.5" font-weight="400" fill="#475569" text-anchor="middle">fields, closes leads</text>
-    <path d="M140,230.0 H175" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#ma)"/>
+    <path d="M140,230.0 H175" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#f7-ma)"/>
     <text x="146" y="223.0" font-size="10.5" fill="#334155" text-anchor="start"></text>
-    <path d="M315,230.0 H340" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#ma)"/>
+    <path d="M315,230.0 H340" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#f7-ma)"/>
     <text x="321" y="223.0" font-size="10.5" fill="#334155" text-anchor="start">No</text>
-    <path d="M245.0,264 V310" fill="none" stroke="#b91c1c" stroke-width="1.6" marker-end="url(#mb)"/>
+    <path d="M245.0,264 V310" fill="none" stroke="#b91c1c" stroke-width="1.6" marker-end="url(#f7-mb)"/>
     <text x="253.0" y="280" font-size="10.5" fill="#334155" text-anchor="start">Yes</text>
-    <path d="M480,230.0 H515" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#ma)"/>
+    <path d="M480,230.0 H515" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#f7-ma)"/>
     <text x="486" y="223.0" font-size="10.5" fill="#334155" text-anchor="start">Yes</text>
-    <path d="M410.0,196 V150" fill="none" stroke="#b91c1c" stroke-width="1.6" marker-end="url(#mb)"/>
+    <path d="M410.0,196 V150" fill="none" stroke="#b91c1c" stroke-width="1.6" marker-end="url(#f7-mb)"/>
     <text x="418.0" y="184" font-size="10.5" fill="#334155" text-anchor="start">No</text>
-    <path d="M635,230.0 H680" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#ma)"/>
+    <path d="M635,230.0 H680" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#f7-ma)"/>
     <text x="641" y="223.0" font-size="10.5" fill="#334155" text-anchor="start"></text>
-    <path d="M800,230.0 H835" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#ma)"/>
+    <path d="M800,230.0 H835" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#f7-ma)"/>
     <text x="806" y="223.0" font-size="10.5" fill="#334155" text-anchor="start"></text>
-    <path d="M975,230.0 H1010" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#ma)"/>
+    <path d="M975,230.0 H1010" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#f7-ma)"/>
     <text x="981" y="223.0" font-size="10.5" fill="#334155" text-anchor="start">Yes</text>
-    <path d="M905.0,264 V310" fill="none" stroke="#b91c1c" stroke-width="1.6" marker-end="url(#mb)"/>
+    <path d="M905.0,264 V310" fill="none" stroke="#b91c1c" stroke-width="1.6" marker-end="url(#f7-mb)"/>
     <text x="913.0" y="280" font-size="10.5" fill="#334155" text-anchor="start">No</text>
-    <path d="M575.0,260 V310" fill="none" stroke="#64748b" stroke-width="1.6" marker-end="url(#mg)"/>
+    <path d="M575.0,260 V310" fill="none" stroke="#64748b" stroke-width="1.6" marker-end="url(#f7-mg)"/>
     <text x="583.0" y="280" font-size="10.5" fill="#334155" text-anchor="start"></text>
-    <path d="M185,340.0 H80.0 V260" fill="none" stroke="#64748b" stroke-width="1.6" stroke-dasharray="5 4" marker-end="url(#mg)"/>
+    <path d="M185,340.0 H80.0 V260" fill="none" stroke="#64748b" stroke-width="1.6" stroke-dasharray="5 4" marker-end="url(#f7-mg)"/>
     <text x="132.5" y="334.0" font-size="10.5" fill="#334155" text-anchor="middle">finish or cancel tasks</text>
-    <path d="M350,120.0 H80.0 V200" fill="none" stroke="#64748b" stroke-width="1.6" stroke-dasharray="5 4" marker-end="url(#mg)"/>
+    <path d="M350,120.0 H80.0 V200" fill="none" stroke="#64748b" stroke-width="1.6" stroke-dasharray="5 4" marker-end="url(#f7-mg)"/>
     <text x="215.0" y="114.0" font-size="10.5" fill="#334155" text-anchor="middle">retry</text>
   </g>
 </svg><figcaption>Figure 8.13 · Selling and collecting (<code>design/diagrams/business/12-sell-and-collect-flow.svg</code>). A sale needs finished workshop tasks and a valid date, price and buyer; a payment needs a recorded sale and may not exceed the balance.</figcaption></figure>
@@ -1122,9 +1238,9 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);font-si
   <figure class="img"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1150 450" width="1150" height="450" role="img" aria-label="Inventory (DMS): adding and keeping a vehicle. Required fields, the custom source for Other, and what a sale locks">
   <rect width="1150" height="450" fill="#ffffff"/>
   <defs>
-    <marker id="ma" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="#1d4ed8"/></marker>
-    <marker id="mg" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="#64748b"/></marker>
-    <marker id="mb" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="#b91c1c"/></marker>
+    <marker id="f8-ma" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="#1d4ed8"/></marker>
+    <marker id="f8-mg" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="#64748b"/></marker>
+    <marker id="f8-mb" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="#b91c1c"/></marker>
   </defs>
   <g font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif">
     <text x="30" y="32" font-size="17" font-weight="700" fill="#0f172a">Inventory (DMS): adding and keeping a vehicle</text>
@@ -1164,40 +1280,40 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);font-si
     <rect x="1010" y="310" width="120" height="60" rx="8" fill="#f1f5f9" stroke="#64748b" stroke-width="1.5"/>
     <text x="1070.0" y="336.5" font-size="12" font-weight="700" fill="#0f172a" text-anchor="middle">After a sale</text>
     <text x="1070.0" y="351.5" font-size="10.5" font-weight="400" fill="#475569" text-anchor="middle">fields locked</text>
-    <path d="M140,230.0 H175" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#ma)"/>
+    <path d="M140,230.0 H175" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#f8-ma)"/>
     <text x="146" y="223.0" font-size="10.5" fill="#334155" text-anchor="start"></text>
-    <path d="M315,230.0 H350" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#ma)"/>
+    <path d="M315,230.0 H350" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#f8-ma)"/>
     <text x="321" y="223.0" font-size="10.5" fill="#334155" text-anchor="start">Yes</text>
-    <path d="M470,230.0 H505" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#ma)"/>
+    <path d="M470,230.0 H505" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#f8-ma)"/>
     <text x="476" y="223.0" font-size="10.5" fill="#334155" text-anchor="start"></text>
-    <path d="M645,230.0 H670" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#ma)"/>
+    <path d="M645,230.0 H670" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#f8-ma)"/>
     <text x="651" y="223.0" font-size="10.5" fill="#334155" text-anchor="start">No</text>
-    <path d="M575.0,264 V310" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#ma)"/>
+    <path d="M575.0,264 V310" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#f8-ma)"/>
     <text x="583.0" y="280" font-size="10.5" fill="#334155" text-anchor="start">Yes</text>
-    <path d="M635,340.0 H740.0 V264" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#ma)"/>
+    <path d="M635,340.0 H740.0 V264" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#f8-ma)"/>
     <text x="641" y="333.0" font-size="10.5" fill="#334155" text-anchor="start"></text>
-    <path d="M810,230.0 H845" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#ma)"/>
+    <path d="M810,230.0 H845" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#f8-ma)"/>
     <text x="816" y="223.0" font-size="10.5" fill="#334155" text-anchor="start">Yes</text>
-    <path d="M965,230.0 H1010" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#ma)"/>
+    <path d="M965,230.0 H1010" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#f8-ma)"/>
     <text x="971" y="223.0" font-size="10.5" fill="#334155" text-anchor="start"></text>
-    <path d="M1070.0,260 V310" fill="none" stroke="#64748b" stroke-width="1.6" marker-end="url(#mg)"/>
+    <path d="M1070.0,260 V310" fill="none" stroke="#64748b" stroke-width="1.6" marker-end="url(#f8-mg)"/>
     <text x="1078.0" y="280" font-size="10.5" fill="#334155" text-anchor="start">sold</text>
-    <path d="M245.0,264 V310" fill="none" stroke="#b91c1c" stroke-width="1.6" marker-end="url(#mb)"/>
+    <path d="M245.0,264 V310" fill="none" stroke="#b91c1c" stroke-width="1.6" marker-end="url(#f8-mb)"/>
     <text x="253.0" y="280" font-size="10.5" fill="#334155" text-anchor="start">No</text>
-    <path d="M740.0,196 V150" fill="none" stroke="#b91c1c" stroke-width="1.6" marker-end="url(#mb)"/>
+    <path d="M740.0,196 V150" fill="none" stroke="#b91c1c" stroke-width="1.6" marker-end="url(#f8-mb)"/>
     <text x="748.0" y="184" font-size="10.5" fill="#334155" text-anchor="start">No</text>
-    <path d="M185,340.0 H80.0 V260" fill="none" stroke="#64748b" stroke-width="1.6" stroke-dasharray="5 4" marker-end="url(#mg)"/>
+    <path d="M185,340.0 H80.0 V260" fill="none" stroke="#64748b" stroke-width="1.6" stroke-dasharray="5 4" marker-end="url(#f8-mg)"/>
     <text x="132.5" y="334.0" font-size="10.5" fill="#334155" text-anchor="middle">retry</text>
-    <path d="M680,120.0 H410.0 V200" fill="none" stroke="#64748b" stroke-width="1.6" stroke-dasharray="5 4" marker-end="url(#mg)"/>
+    <path d="M680,120.0 H410.0 V200" fill="none" stroke="#64748b" stroke-width="1.6" stroke-dasharray="5 4" marker-end="url(#f8-mg)"/>
     <text x="545.0" y="114.0" font-size="10.5" fill="#334155" text-anchor="middle">retry</text>
   </g>
 </svg><figcaption>Inventory (DMS) · Adding a vehicle: VIN check, required fields, the named source for Other, and what a sale locks. (<code>design/diagrams/business/06-inventory-flow.svg</code>)</figcaption></figure>
   <figure class="img"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1150 450" width="1150" height="450" role="img" aria-label="Customers (CRM): creating a customer and linking a vehicle. Duplicates warn but never block; one vehicle belongs to one customer">
   <rect width="1150" height="450" fill="#ffffff"/>
   <defs>
-    <marker id="ma" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="#1d4ed8"/></marker>
-    <marker id="mg" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="#64748b"/></marker>
-    <marker id="mb" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="#b91c1c"/></marker>
+    <marker id="f9-ma" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="#1d4ed8"/></marker>
+    <marker id="f9-mg" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="#64748b"/></marker>
+    <marker id="f9-mb" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="#b91c1c"/></marker>
   </defs>
   <g font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif">
     <text x="30" y="32" font-size="17" font-weight="700" fill="#0f172a">Customers (CRM): creating a customer and linking a vehicle</text>
@@ -1234,36 +1350,36 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);font-si
     <rect x="1010" y="90" width="120" height="60" rx="8" fill="#f1f5f9" stroke="#64748b" stroke-width="1.5"/>
     <text x="1070.0" y="116.5" font-size="12" font-weight="700" fill="#0f172a" text-anchor="middle">May unlink</text>
     <text x="1070.0" y="131.5" font-size="10.5" font-weight="400" fill="#475569" text-anchor="middle">row is kept</text>
-    <path d="M140,230.0 H175" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#ma)"/>
+    <path d="M140,230.0 H175" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#f9-ma)"/>
     <text x="146" y="223.0" font-size="10.5" fill="#334155" text-anchor="start"></text>
-    <path d="M315,230.0 H350" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#ma)"/>
+    <path d="M315,230.0 H350" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#f9-ma)"/>
     <text x="321" y="223.0" font-size="10.5" fill="#334155" text-anchor="start">No</text>
-    <path d="M245.0,264 V310" fill="none" stroke="#64748b" stroke-width="1.6" marker-end="url(#mg)"/>
+    <path d="M245.0,264 V310" fill="none" stroke="#64748b" stroke-width="1.6" marker-end="url(#f9-mg)"/>
     <text x="253.0" y="280" font-size="10.5" fill="#334155" text-anchor="start">Yes</text>
-    <path d="M305,340.0 H410.0 V260" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#ma)"/>
+    <path d="M305,340.0 H410.0 V260" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#f9-ma)"/>
     <text x="311" y="333.0" font-size="10.5" fill="#334155" text-anchor="start"></text>
-    <path d="M470,230.0 H515" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#ma)"/>
+    <path d="M470,230.0 H515" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#f9-ma)"/>
     <text x="476" y="223.0" font-size="10.5" fill="#334155" text-anchor="start"></text>
-    <path d="M635,230.0 H670" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#ma)"/>
+    <path d="M635,230.0 H670" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#f9-ma)"/>
     <text x="641" y="223.0" font-size="10.5" fill="#334155" text-anchor="start"></text>
-    <path d="M740.0,196 V150" fill="none" stroke="#b91c1c" stroke-width="1.6" marker-end="url(#mb)"/>
+    <path d="M740.0,196 V150" fill="none" stroke="#b91c1c" stroke-width="1.6" marker-end="url(#f9-mb)"/>
     <text x="748.0" y="184" font-size="10.5" fill="#334155" text-anchor="start">Yes</text>
-    <path d="M810,230.0 H845" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#ma)"/>
+    <path d="M810,230.0 H845" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#f9-ma)"/>
     <text x="816" y="223.0" font-size="10.5" fill="#334155" text-anchor="start">No</text>
-    <path d="M965,230.0 H1000" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#ma)"/>
+    <path d="M965,230.0 H1000" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#f9-ma)"/>
     <text x="971" y="223.0" font-size="10.5" fill="#334155" text-anchor="start"></text>
-    <path d="M1070.0,264 V310" fill="none" stroke="#64748b" stroke-width="1.6" marker-end="url(#mg)"/>
+    <path d="M1070.0,264 V310" fill="none" stroke="#64748b" stroke-width="1.6" marker-end="url(#f9-mg)"/>
     <text x="1078.0" y="280" font-size="10.5" fill="#334155" text-anchor="start">Yes</text>
-    <path d="M1070.0,196 V150" fill="none" stroke="#64748b" stroke-width="1.6" marker-end="url(#mg)"/>
+    <path d="M1070.0,196 V150" fill="none" stroke="#64748b" stroke-width="1.6" marker-end="url(#f9-mg)"/>
     <text x="1078.0" y="184" font-size="10.5" fill="#334155" text-anchor="start">No</text>
   </g>
 </svg><figcaption>Customers (CRM) · Creating a customer, duplicate warnings that never block, and linking one vehicle to one customer. (<code>design/diagrams/business/07-customers-flow.svg</code>)</figcaption></figure>
   <figure class="img"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1150 560" width="1150" height="560" role="img" aria-label="Leads: one sales opportunity from first contact to outcome. Only one open lead per customer and vehicle; closed leads can be reopened">
   <rect width="1150" height="560" fill="#ffffff"/>
   <defs>
-    <marker id="ma" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="#1d4ed8"/></marker>
-    <marker id="mg" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="#64748b"/></marker>
-    <marker id="mb" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="#b91c1c"/></marker>
+    <marker id="f10-ma" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="#1d4ed8"/></marker>
+    <marker id="f10-mg" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="#64748b"/></marker>
+    <marker id="f10-mb" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="#b91c1c"/></marker>
   </defs>
   <g font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif">
     <text x="30" y="32" font-size="17" font-weight="700" fill="#0f172a">Leads: one sales opportunity from first contact to outcome</text>
@@ -1300,36 +1416,36 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);font-si
     <text x="410.0" y="109.0" font-size="12" font-weight="700" fill="#0f172a" text-anchor="middle">Car sold to</text>
     <text x="410.0" y="124.0" font-size="10.5" font-weight="400" fill="#475569" text-anchor="middle">someone else</text>
     <text x="410.0" y="139.0" font-size="10.5" font-weight="400" fill="#475569" text-anchor="middle">lead closed as Lost</text>
-    <path d="M140,230.0 H175" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#ma)"/>
+    <path d="M140,230.0 H175" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#f10-ma)"/>
     <text x="146" y="223.0" font-size="10.5" fill="#334155" text-anchor="start"></text>
-    <path d="M315,230.0 H350" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#ma)"/>
+    <path d="M315,230.0 H350" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#f10-ma)"/>
     <text x="321" y="223.0" font-size="10.5" fill="#334155" text-anchor="start">No</text>
-    <path d="M245.0,264 V310" fill="none" stroke="#b91c1c" stroke-width="1.6" marker-end="url(#mb)"/>
+    <path d="M245.0,264 V310" fill="none" stroke="#b91c1c" stroke-width="1.6" marker-end="url(#f10-mb)"/>
     <text x="253.0" y="280" font-size="10.5" fill="#334155" text-anchor="start">Yes</text>
-    <path d="M470,230.0 H515" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#ma)"/>
+    <path d="M470,230.0 H515" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#f10-ma)"/>
     <text x="476" y="223.0" font-size="10.5" fill="#334155" text-anchor="start"></text>
-    <path d="M635,230.0 H680" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#ma)"/>
+    <path d="M635,230.0 H680" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#f10-ma)"/>
     <text x="641" y="223.0" font-size="10.5" fill="#334155" text-anchor="start"></text>
-    <path d="M800,230.0 H835" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#ma)"/>
+    <path d="M800,230.0 H835" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#f10-ma)"/>
     <text x="806" y="223.0" font-size="10.5" fill="#334155" text-anchor="start"></text>
-    <path d="M905.0,196 V120.0 H1010" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#ma)"/>
+    <path d="M905.0,196 V120.0 H1010" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#f10-ma)"/>
     <text x="913.0" y="188" font-size="10.5" fill="#334155" text-anchor="start">Won</text>
-    <path d="M905.0,264 V340.0 H1010" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#ma)"/>
+    <path d="M905.0,264 V340.0 H1010" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#f10-ma)"/>
     <text x="913.0" y="282" font-size="10.5" fill="#334155" text-anchor="start">Lost</text>
-    <path d="M1070.0,370 V420" fill="none" stroke="#64748b" stroke-width="1.6" marker-end="url(#mg)"/>
+    <path d="M1070.0,370 V420" fill="none" stroke="#64748b" stroke-width="1.6" marker-end="url(#f10-mg)"/>
     <text x="1078.0" y="390" font-size="10.5" fill="#334155" text-anchor="start"></text>
-    <path d="M410.0,150 V200" fill="none" stroke="#64748b" stroke-width="1.6" marker-end="url(#mg)"/>
+    <path d="M410.0,150 V200" fill="none" stroke="#64748b" stroke-width="1.6" marker-end="url(#f10-mg)"/>
     <text x="418.0" y="170" font-size="10.5" fill="#334155" text-anchor="start">closes</text>
-    <path d="M1010,450 H410 V260" fill="none" stroke="#64748b" stroke-width="1.6" stroke-dasharray="5 4" marker-end="url(#mg)"/>
+    <path d="M1010,450 H410 V260" fill="none" stroke="#64748b" stroke-width="1.6" stroke-dasharray="5 4" marker-end="url(#f10-mg)"/>
     <text x="420" y="442" font-size="10.5" fill="#334155" text-anchor="start">back to NEW, CONTACTED or QUALIFIED</text>
   </g>
 </svg><figcaption>Leads · One open lead per customer and vehicle, the stage path, outcomes and reopening. (<code>design/diagrams/business/08-leads-flow.svg</code>)</figcaption></figure>
   <figure class="img"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1150 450" width="1150" height="450" role="img" aria-label="Work orders: reconditioning a vehicle before sale. The cost of a finished task becomes part of the vehicle repair cost">
   <rect width="1150" height="450" fill="#ffffff"/>
   <defs>
-    <marker id="ma" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="#1d4ed8"/></marker>
-    <marker id="mg" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="#64748b"/></marker>
-    <marker id="mb" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="#b91c1c"/></marker>
+    <marker id="f11-ma" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="#1d4ed8"/></marker>
+    <marker id="f11-mg" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="#64748b"/></marker>
+    <marker id="f11-mb" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="#b91c1c"/></marker>
   </defs>
   <g font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif">
     <text x="30" y="32" font-size="17" font-weight="700" fill="#0f172a">Work orders: reconditioning a vehicle before sale</text>
@@ -1364,32 +1480,32 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);font-si
     <text x="1070.0" y="219.0" font-size="12" font-weight="700" fill="#0f172a" text-anchor="middle">Sale allowed</text>
     <text x="1070.0" y="234.0" font-size="10.5" font-weight="400" fill="#475569" text-anchor="middle">only with no</text>
     <text x="1070.0" y="249.0" font-size="10.5" font-weight="400" fill="#475569" text-anchor="middle">open tasks</text>
-    <path d="M140,230.0 H175" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#ma)"/>
+    <path d="M140,230.0 H175" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#f11-ma)"/>
     <text x="146" y="223.0" font-size="10.5" fill="#334155" text-anchor="start"></text>
-    <path d="M315,230.0 H350" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#ma)"/>
+    <path d="M315,230.0 H350" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#f11-ma)"/>
     <text x="321" y="223.0" font-size="10.5" fill="#334155" text-anchor="start">No</text>
-    <path d="M245.0,264 V310" fill="none" stroke="#b91c1c" stroke-width="1.6" marker-end="url(#mb)"/>
+    <path d="M245.0,264 V310" fill="none" stroke="#b91c1c" stroke-width="1.6" marker-end="url(#f11-mb)"/>
     <text x="253.0" y="280" font-size="10.5" fill="#334155" text-anchor="start">Yes</text>
-    <path d="M470,230.0 H515" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#ma)"/>
+    <path d="M470,230.0 H515" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#f11-ma)"/>
     <text x="476" y="223.0" font-size="10.5" fill="#334155" text-anchor="start"></text>
-    <path d="M635,230.0 H670" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#ma)"/>
+    <path d="M635,230.0 H670" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#f11-ma)"/>
     <text x="641" y="223.0" font-size="10.5" fill="#334155" text-anchor="start">finish</text>
-    <path d="M810,230.0 H845" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#ma)"/>
+    <path d="M810,230.0 H845" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#f11-ma)"/>
     <text x="816" y="223.0" font-size="10.5" fill="#334155" text-anchor="start">Yes</text>
-    <path d="M740.0,264 V310" fill="none" stroke="#b91c1c" stroke-width="1.6" marker-end="url(#mb)"/>
+    <path d="M740.0,264 V310" fill="none" stroke="#b91c1c" stroke-width="1.6" marker-end="url(#f11-mb)"/>
     <text x="748.0" y="280" font-size="10.5" fill="#334155" text-anchor="start">No</text>
-    <path d="M575.0,200 V150" fill="none" stroke="#64748b" stroke-width="1.6" marker-end="url(#mg)"/>
+    <path d="M575.0,200 V150" fill="none" stroke="#64748b" stroke-width="1.6" marker-end="url(#f11-mg)"/>
     <text x="583.0" y="184" font-size="10.5" fill="#334155" text-anchor="start">cancel</text>
-    <path d="M965,230.0 H1010" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#ma)"/>
+    <path d="M965,230.0 H1010" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#f11-ma)"/>
     <text x="971" y="223.0" font-size="10.5" fill="#334155" text-anchor="start"></text>
   </g>
 </svg><figcaption>Work orders · Task states and how a finished task adds its cost to the vehicle. (<code>design/diagrams/business/09-work-orders-flow.svg</code>)</figcaption></figure>
   <figure class="img"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1150 450" width="1150" height="450" role="img" aria-label="Image Studio: photos for a vehicle. The file type is read from the bytes; the original is always kept; photos never go to the AI">
   <rect width="1150" height="450" fill="#ffffff"/>
   <defs>
-    <marker id="ma" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="#1d4ed8"/></marker>
-    <marker id="mg" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="#64748b"/></marker>
-    <marker id="mb" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="#b91c1c"/></marker>
+    <marker id="f12-ma" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="#1d4ed8"/></marker>
+    <marker id="f12-mg" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="#64748b"/></marker>
+    <marker id="f12-mb" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="#b91c1c"/></marker>
   </defs>
   <g font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif">
     <text x="30" y="32" font-size="17" font-weight="700" fill="#0f172a">Image Studio: photos for a vehicle</text>
@@ -1426,32 +1542,32 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);font-si
     <rect x="845" y="310" width="120" height="60" rx="8" fill="#f1f5f9" stroke="#64748b" stroke-width="1.5"/>
     <text x="905.0" y="336.5" font-size="12" font-weight="700" fill="#0f172a" text-anchor="middle">Delete is soft</text>
     <text x="905.0" y="351.5" font-size="10.5" font-weight="400" fill="#475569" text-anchor="middle">row kept</text>
-    <path d="M140,230.0 H175" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#ma)"/>
+    <path d="M140,230.0 H175" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#f12-ma)"/>
     <text x="146" y="223.0" font-size="10.5" fill="#334155" text-anchor="start"></text>
-    <path d="M315,230.0 H340" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#ma)"/>
+    <path d="M315,230.0 H340" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#f12-ma)"/>
     <text x="321" y="223.0" font-size="10.5" fill="#334155" text-anchor="start">Yes</text>
-    <path d="M245.0,264 V310" fill="none" stroke="#b91c1c" stroke-width="1.6" marker-end="url(#mb)"/>
+    <path d="M245.0,264 V310" fill="none" stroke="#b91c1c" stroke-width="1.6" marker-end="url(#f12-mb)"/>
     <text x="253.0" y="280" font-size="10.5" fill="#334155" text-anchor="start">No</text>
-    <path d="M480,230.0 H515" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#ma)"/>
+    <path d="M480,230.0 H515" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#f12-ma)"/>
     <text x="486" y="223.0" font-size="10.5" fill="#334155" text-anchor="start">Yes</text>
-    <path d="M410.0,264 V310" fill="none" stroke="#b91c1c" stroke-width="1.6" marker-end="url(#mb)"/>
+    <path d="M410.0,264 V310" fill="none" stroke="#b91c1c" stroke-width="1.6" marker-end="url(#f12-mb)"/>
     <text x="418.0" y="280" font-size="10.5" fill="#334155" text-anchor="start">No</text>
-    <path d="M635,230.0 H680" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#ma)"/>
+    <path d="M635,230.0 H680" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#f12-ma)"/>
     <text x="641" y="223.0" font-size="10.5" fill="#334155" text-anchor="start"></text>
-    <path d="M800,230.0 H845" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#ma)"/>
+    <path d="M800,230.0 H845" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#f12-ma)"/>
     <text x="806" y="223.0" font-size="10.5" fill="#334155" text-anchor="start"></text>
-    <path d="M965,230.0 H1010" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#ma)"/>
+    <path d="M965,230.0 H1010" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#f12-ma)"/>
     <text x="971" y="223.0" font-size="10.5" fill="#334155" text-anchor="start"></text>
-    <path d="M905.0,260 V310" fill="none" stroke="#64748b" stroke-width="1.6" marker-end="url(#mg)"/>
+    <path d="M905.0,260 V310" fill="none" stroke="#64748b" stroke-width="1.6" marker-end="url(#f12-mg)"/>
     <text x="913.0" y="280" font-size="10.5" fill="#334155" text-anchor="start"></text>
   </g>
 </svg><figcaption>Image Studio · Upload checks, the original that is always kept, and the enhancement presets. (<code>design/diagrams/business/10-image-studio-flow.svg</code>)</figcaption></figure>
   <figure class="img"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1150 450" width="1150" height="450" role="img" aria-label="Buyer site: an inquiry becomes a tracked lead. The public sees only listed vehicles; every inquiry is audited as buyer-site">
   <rect width="1150" height="450" fill="#ffffff"/>
   <defs>
-    <marker id="ma" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="#1d4ed8"/></marker>
-    <marker id="mg" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="#64748b"/></marker>
-    <marker id="mb" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="#b91c1c"/></marker>
+    <marker id="f13-ma" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="#1d4ed8"/></marker>
+    <marker id="f13-mg" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="#64748b"/></marker>
+    <marker id="f13-mb" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="#b91c1c"/></marker>
   </defs>
   <g font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif">
     <text x="30" y="32" font-size="17" font-weight="700" fill="#0f172a">Buyer site: an inquiry becomes a tracked lead</text>
@@ -1490,32 +1606,32 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);font-si
     <text x="1070.0" y="329.0" font-size="12" font-weight="700" fill="#0f172a" text-anchor="middle">Sold elsewhere:</text>
     <text x="1070.0" y="344.0" font-size="10.5" font-weight="400" fill="#475569" text-anchor="middle">lead closed,</text>
     <text x="1070.0" y="359.0" font-size="10.5" font-weight="400" fill="#475569" text-anchor="middle">message cleared</text>
-    <path d="M140,230.0 H185" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#ma)"/>
+    <path d="M140,230.0 H185" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#f13-ma)"/>
     <text x="146" y="223.0" font-size="10.5" fill="#334155" text-anchor="start"></text>
-    <path d="M305,230.0 H340" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#ma)"/>
+    <path d="M305,230.0 H340" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#f13-ma)"/>
     <text x="311" y="223.0" font-size="10.5" fill="#334155" text-anchor="start"></text>
-    <path d="M480,230.0 H515" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#ma)"/>
+    <path d="M480,230.0 H515" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#f13-ma)"/>
     <text x="486" y="223.0" font-size="10.5" fill="#334155" text-anchor="start">Yes</text>
-    <path d="M410.0,264 V310" fill="none" stroke="#b91c1c" stroke-width="1.6" marker-end="url(#mb)"/>
+    <path d="M410.0,264 V310" fill="none" stroke="#b91c1c" stroke-width="1.6" marker-end="url(#f13-mb)"/>
     <text x="418.0" y="280" font-size="10.5" fill="#334155" text-anchor="start">No</text>
-    <path d="M635,230.0 H670" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#ma)"/>
+    <path d="M635,230.0 H670" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#f13-ma)"/>
     <text x="641" y="223.0" font-size="10.5" fill="#334155" text-anchor="start"></text>
-    <path d="M740.0,196 V150" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#ma)"/>
+    <path d="M740.0,196 V150" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#f13-ma)"/>
     <text x="748.0" y="184" font-size="10.5" fill="#334155" text-anchor="start">Yes</text>
-    <path d="M810,230.0 H845" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#ma)"/>
+    <path d="M810,230.0 H845" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#f13-ma)"/>
     <text x="816" y="223.0" font-size="10.5" fill="#334155" text-anchor="start">No</text>
-    <path d="M965,230.0 H1010" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#ma)"/>
+    <path d="M965,230.0 H1010" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#f13-ma)"/>
     <text x="971" y="223.0" font-size="10.5" fill="#334155" text-anchor="start"></text>
-    <path d="M1070.0,260 V310" fill="none" stroke="#64748b" stroke-width="1.6" marker-end="url(#mg)"/>
+    <path d="M1070.0,260 V310" fill="none" stroke="#64748b" stroke-width="1.6" marker-end="url(#f13-mg)"/>
     <text x="1078.0" y="280" font-size="10.5" fill="#334155" text-anchor="start"></text>
   </g>
 </svg><figcaption>Buyer site · How a public inquiry finds or creates a customer and becomes a lead or a note. (<code>design/diagrams/business/13-buyer-inquiry-flow.svg</code>)</figcaption></figure>
   <figure class="img"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1150 450" width="1150" height="450" role="img" aria-label="Team: getting people into a dealership. The tier is read from the membership on every request, so changes apply at once">
   <rect width="1150" height="450" fill="#ffffff"/>
   <defs>
-    <marker id="ma" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="#1d4ed8"/></marker>
-    <marker id="mg" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="#64748b"/></marker>
-    <marker id="mb" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="#b91c1c"/></marker>
+    <marker id="f14-ma" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="#1d4ed8"/></marker>
+    <marker id="f14-mg" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="#64748b"/></marker>
+    <marker id="f14-mb" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="#b91c1c"/></marker>
   </defs>
   <g font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif">
     <text x="30" y="32" font-size="17" font-weight="700" fill="#0f172a">Team: getting people into a dealership</text>
@@ -1551,25 +1667,25 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);font-si
     <text x="1070.0" y="329.0" font-size="12" font-weight="700" fill="#0f172a" text-anchor="middle">Only Admin moves</text>
     <text x="1070.0" y="344.0" font-size="10.5" font-weight="400" fill="#475569" text-anchor="middle">the owner; sole</text>
     <text x="1070.0" y="359.0" font-size="10.5" font-weight="400" fill="#475569" text-anchor="middle">owner protected</text>
-    <path d="M140,230.0 H175" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#ma)"/>
+    <path d="M140,230.0 H175" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#f14-ma)"/>
     <text x="146" y="223.0" font-size="10.5" fill="#334155" text-anchor="start"></text>
-    <path d="M245.0,196 V150" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#ma)"/>
+    <path d="M245.0,196 V150" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#f14-ma)"/>
     <text x="253.0" y="184" font-size="10.5" fill="#334155" text-anchor="start">No</text>
-    <path d="M315,230.0 H350" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#ma)"/>
+    <path d="M315,230.0 H350" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#f14-ma)"/>
     <text x="321" y="223.0" font-size="10.5" fill="#334155" text-anchor="start">Yes</text>
-    <path d="M305,120.0 H575.0 V200" fill="none" stroke="#64748b" stroke-width="1.6" marker-end="url(#mg)"/>
+    <path d="M305,120.0 H575.0 V200" fill="none" stroke="#64748b" stroke-width="1.6" marker-end="url(#f14-mg)"/>
     <text x="311" y="113.0" font-size="10.5" fill="#334155" text-anchor="start">owner can now approve</text>
-    <path d="M470,230.0 H515" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#ma)"/>
+    <path d="M470,230.0 H515" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#f14-ma)"/>
     <text x="476" y="223.0" font-size="10.5" fill="#334155" text-anchor="start"></text>
-    <path d="M635,230.0 H670" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#ma)"/>
+    <path d="M635,230.0 H670" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#f14-ma)"/>
     <text x="641" y="223.0" font-size="10.5" fill="#334155" text-anchor="start"></text>
-    <path d="M810,230.0 H845" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#ma)"/>
+    <path d="M810,230.0 H845" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#f14-ma)"/>
     <text x="816" y="223.0" font-size="10.5" fill="#334155" text-anchor="start">Yes</text>
-    <path d="M740.0,264 V310" fill="none" stroke="#b91c1c" stroke-width="1.6" marker-end="url(#mb)"/>
+    <path d="M740.0,264 V310" fill="none" stroke="#b91c1c" stroke-width="1.6" marker-end="url(#f14-mb)"/>
     <text x="748.0" y="280" font-size="10.5" fill="#334155" text-anchor="start">No</text>
-    <path d="M965,230.0 H1010" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#ma)"/>
+    <path d="M965,230.0 H1010" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#f14-ma)"/>
     <text x="971" y="223.0" font-size="10.5" fill="#334155" text-anchor="start"></text>
-    <path d="M1070.0,260 V310" fill="none" stroke="#64748b" stroke-width="1.6" marker-end="url(#mg)"/>
+    <path d="M1070.0,260 V310" fill="none" stroke="#64748b" stroke-width="1.6" marker-end="url(#f14-mg)"/>
     <text x="1078.0" y="280" font-size="10.5" fill="#334155" text-anchor="start"></text>
   </g>
 </svg><figcaption>Team and access · Getting people into a dealership: first owner, join request, approval and promotion. (<code>design/diagrams/business/14-team-onboarding-flow.svg</code>)</figcaption></figure>
@@ -1580,6 +1696,7 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);font-si
   <h2><span class="num">09</span>Ad compliance and AI</h2>
   <p>OMVIC requires dealer advertisements to disclose specific facts. DealerOps checks each ad in two layers: a deterministic rule engine in Core, then a real AI review through the AI service. The AI only adds advisory notes; it can never turn a blocked ad into a passed one.</p>
 
+  <p class="src"><b>Evidence.</b> <span class="chip green">Implemented</span> one ad draft per vehicle, the fixed BLOCK / REVIEW rules with their reason codes, a real model review that times out at 15 seconds and never passes on failure, and Ready and export gated on a pass of the current content version; the rule source is <code>references/02-omvic.md</code> and the fixture catalogue <code>design/17-Ad-Check-Fixtures.md</code>, both exercised by the specs under <code>playwright/tests/</code>. <b>Canonical:</b> <code>design/09-AI-Agent-Integration.md</code>, <code>design/19-Gateway-and-AI-Engineering.md</code>. This page states what the check does; the result panel and the TXT export both say in words that the check is not OMVIC approval or legal advice, and link the public disclaimer page.</p>
   <h3>9.1 Check flow</h3>
   <div class="flow">
     <div class="step"><span class="who">Member</span><b>Run check</b><span>POST through the Gateway with the ad's version.</span></div>
@@ -1601,13 +1718,13 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);font-si
      aria-label="DealerOps AI ad-check flow: a check posted through the gateway is guarded by dealer-core for dealer scope and content version, then the deterministic OMVIC rule engine runs first; a hard block is persisted without calling the model, otherwise core calls ai-service directly with the internal header, ai-manager calls the model under a 13 second budget, and a failure returns 502 AI_UNAVAILABLE; core persists the result in one transaction and export is allowed only while the latest check is passed and not stale.">
   <rect x="0" y="0" width="1140" height="860" fill="#ffffff"/>
   <defs>
-    <marker id="ink" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+    <marker id="f15-ink" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
       <path d="M0,0 L10,5 L0,10 Z" fill="#334155"/>
     </marker>
-    <marker id="blue" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+    <marker id="f15-blue" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
       <path d="M0,0 L10,5 L0,10 Z" fill="#1d4ed8"/>
     </marker>
-    <marker id="amber" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+    <marker id="f15-amber" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
       <path d="M0,0 L10,5 L0,10 Z" fill="#b45309"/>
     </marker>
   </defs>
@@ -1670,17 +1787,17 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);font-si
     <text x="570" y="808" font-size="11" fill="#475569" text-anchor="middle">Ready and TXT export unlock only while the latest check is PASSED and not STALE</text>
 
     <!-- flow -->
-    <g fill="none" stroke="#334155" stroke-width="1.6" marker-end="url(#ink)">
+    <g fill="none" stroke="#334155" stroke-width="1.6" marker-end="url(#f15-ink)">
       <line x1="330" y1="132" x2="330" y2="154"/>
       <line x1="330" y1="216" x2="330" y2="238"/>
       <line x1="330" y1="300" x2="330" y2="322"/>
       <line x1="330" y1="384" x2="330" y2="404"/>
     </g>
-    <g fill="none" stroke="#b45309" stroke-width="1.8" marker-end="url(#amber)">
+    <g fill="none" stroke="#b45309" stroke-width="1.8" marker-end="url(#f15-amber)">
       <line x1="330" y1="530" x2="330" y2="560"/>
       <line x1="330" y1="632" x2="330" y2="738"/>
     </g>
-    <g fill="none" stroke="#1d4ed8" stroke-width="1.8" marker-end="url(#blue)">
+    <g fill="none" stroke="#1d4ed8" stroke-width="1.8" marker-end="url(#f15-blue)">
       <polyline points="490,470 560,470 560,408 624,408"/>
       <line x1="810" y1="436" x2="810" y2="458"/>
       <line x1="810" y1="530" x2="810" y2="556"/>
@@ -1750,6 +1867,7 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);font-si
   <h2><span class="num">10</span>Audit and traceability</h2>
   <p>DealerOps records vehicle sales and payments, so its audit trail is held to a finance standard: every sign-in attempt and every create, update, delete or other state change on the platform writes one audit row. Each row is one version step of the record, so any vehicle, customer, lead or ad can be traced back to who changed what, when, from where, and what the value was before.</p>
 
+  <p class="src"><b>Evidence.</b> <span class="chip green">Implemented</span> an append-only trail that records every vehicle, customer, listing, check, export and rule-override write with the actor, the action, the time, the new values and the ones they replaced; the write path is <span class="key">FLOW-08</span> in <a href="#trace">&sect;8.0</a> and &sect;17.9. <b>Canonical:</b> <code>design/20-Observability.md</code>, <code>design/15-Data-Auth-and-Gateway.md</code>.</p>
   <h3>10.1 How an audit row is written</h3>
   <div class="flow">
     <div class="step"><span class="who">Any user</span><b>Change or sign-in</b><span>A save, sell, link, check, export, payment or sign-in attempt.</span></div>
@@ -1820,18 +1938,157 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);font-si
 <!-- 11 -->
 <section id="data">
   <h2><span class="num">11</span>Data model</h2>
-  <p>One MySQL database, <code>dealer_core</code>. Every business table carries <code>dealer_id</code> and is filtered by the request's tenant. Writes use an optimistic-lock <code>version</code>; a stale write returns <code>409 VERSION_CONFLICT</code>.</p>
+  <p>One MySQL database, <code>dealer_core</code>. Every business table carries <code>dealer_id</code> and is filtered by the request's tenant. Six entities carry an optimistic-lock <code>version</code> &mdash; <code>dealer</code>, <code>vehicle</code>, <code>customer</code>, <code>listing</code>, <code>work_order</code> and <code>sales_lead</code> &mdash; and a stale write to one of them returns <code>409 VERSION_CONFLICT</code>. The rest (links, photos, payments, lead notes, memberships, audit rows) are append-only or single-step writes and carry no version.</p>
   <div class="callout"><p><b>Nothing is deleted.</b> DealerOps keeps financial and sales records, so a delete only sets <code>deleted_at</code> on <code>vehicle</code>, <code>customer</code>, <code>customer_vehicle</code>, <code>vehicle_photo</code> and <code>vehicle_payment</code>. The row stays for history and audit, and active lists, the ledger and the buyer site skip it. There is no retention job that anonymizes or purges data.</p></div>
   <div class="tbl"><table>
     <thead><tr><th>Area</th><th>Tables</th><th>Key rules</th></tr></thead>
     <tbody>
-      <tr><td>Identity and tenancy</td><td><code>dealer</code>, <code>app_user</code>, <code>membership</code>, <code>notification</code></td><td>Username is the account key and JWT subject. Exactly one active membership per user; it carries <code>OWNER</code> / <code>MANAGER</code> / <code>SALES</code>, with exactly one active owner per dealership. A full name is not unique. Notifications hold join requests.</td></tr>
+      <tr><td>Identity and tenancy</td><td><code>dealer</code>, <code>app_user</code>, <code>membership</code>, <code>notification</code></td><td>Username is the account key and JWT subject. Exactly one active membership per user; it carries <code>OWNER</code> / <code>MANAGER</code> / <code>SALES</code>, with at most one active owner per dealership &mdash; a dealership created but not yet bound has none, and once it has active staff it must keep one. A full name is not unique. Notifications hold join requests.</td></tr>
       <tr><td>Inventory</td><td><code>vehicle</code>, <code>vehicle_photo</code>, <code>work_order</code>, <code>vehicle_payment</code></td><td>VIN unique per dealership; custom <code>source_other</code> required for the <code>OTHER</code> source; optional <code>acquired_from_name</code> and <code>acquired_from_address</code>; sold pair; sold lock; the sale stores <code>sold_by</code> (the salesperson's username) and either the linked customer or a typed <code>sold_to_name</code>; photos as original + enhanced blobs; dealership logo stored on <code>dealer</code></td></tr>
       <tr><td>Customers and sales</td><td><code>customer</code>, <code>customer_vehicle</code>, <code>sales_lead</code>, <code>sales_lead_note</code></td><td>One active customer per vehicle (unlinked rows are kept); no customer field is unique, name and phone included; <code>customer.notes</code> is free text; lead notes append-only; at most one open lead per customer and vehicle</td></tr>
       <tr><td>Advertising</td><td><code>listing</code>, <code>compliance_check</code>, <code>compliance_rule_override</code></td><td>One listing per vehicle, holding the copy, the ad type and medium, the disclosure checklist (prior use, warranty terms, annual kilometre allowance) and a Draft/Ready status. <code>contentVersion</code> increments on a real content change; each check stores its rule findings, AI notes, AI status, recommendation and the content version it judged</td></tr>
       <tr><td>Audit</td><td><code>audit_event</code></td><td>Append-only; actor with display-name and role snapshots, dealership id and name snapshot, entity, action, new and previous values, client IP and location, time</td></tr>
     </tbody>
   </table></div>
+  <h3>Entity-relationship diagram</h3>
+  <p>The diagram below is the reader-facing view of the schema: the entities, how many of each hang off the one above, which of them carry the <code>dealer_id</code> tenant key, which are soft-deleted, and which business flow from <a href="#trace">&sect;8.0</a> writes them. It is not a database inventory &mdash; every column list is deliberately short, and the authoritative schema stays in <code>design/15-Data-Auth-and-Gateway.md</code> with the Flyway scripts it names. Read it next to the flow you care about: a <code>FLOW-nn</code> badge under an entity means that flow writes that table.</p>
+  <figure class="wide">
+  <svg viewBox="0 0 1180 930" role="img" aria-label="Entity-relationship diagram of the dealer_core database: dealer, app_user, membership and notification in the identity group; vehicle with work_order, vehicle_photo and vehicle_payment in the inventory group; customer, customer_vehicle, sales_lead and sales_lead_note in the CRM group; listing, compliance_check and compliance_rule_override in the advertising group; and the append-only audit_event table written by every flow.">
+  <defs>
+    <marker id="erd-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 Z" class="d-arrow"/></marker>
+    <marker id="erd-b" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 Z" class="d-arrow acc"/></marker>
+  </defs>
+  <text x="20" y="26" class="d-title">Database <tspan class="d-mono">dealer_core</tspan> &mdash; entities, cardinality, tenant key and the flow that writes each one</text>
+  <text x="20" y="46" class="d-sub">One MySQL database. Every business table carries dealer_id and is filtered by the request's tenant; dealer, vehicle, customer, listing, work_order and sales_lead carry a version for optimistic locking.</text>
+
+  <rect x="20" y="66" width="1140" height="140" rx="10" class="d-zone"/>
+  <text x="34" y="86" class="d-mono">IDENTITY AND TENANCY</text>
+  <rect x="40" y="100" width="210" height="80" rx="8" class="d-box purple"/>
+  <text x="145" y="124" class="d-t" text-anchor="middle">dealer</text>
+  <text x="145" y="142" class="d-s11" text-anchor="middle">tenant root: legal name, slug, logo</text>
+  <text x="145" y="160" class="d-mono" text-anchor="middle">id &rarr; dealer_id everywhere</text>
+  <rect x="330" y="100" width="210" height="80" rx="8" class="d-box acc"/>
+  <text x="435" y="124" class="d-t" text-anchor="middle">membership</text>
+  <text x="435" y="142" class="d-s11" text-anchor="middle">OWNER / MANAGER / SALES</text>
+  <text x="435" y="160" class="d-s11" text-anchor="middle">1 active per user &middot; at most 1 owner</text>
+  <rect x="620" y="100" width="210" height="80" rx="8" class="d-box acc"/>
+  <text x="725" y="124" class="d-t" text-anchor="middle">app_user</text>
+  <text x="725" y="142" class="d-s11" text-anchor="middle">username is the account key</text>
+  <text x="725" y="160" class="d-s11" text-anchor="middle">and the JWT subject</text>
+  <rect x="910" y="100" width="210" height="80" rx="8" class="d-box gray"/>
+  <text x="1015" y="124" class="d-t" text-anchor="middle">notification</text>
+  <text x="1015" y="142" class="d-s11" text-anchor="middle">join requests + buyer-inquiry inbox</text>
+  <text x="1015" y="160" class="d-mono" text-anchor="middle">FLOW-01 &middot; FLOW-04</text>
+  <path d="M250,140 H322" class="d-line acc" marker-end="url(#erd-b)"/>
+  <text x="286" y="132" class="d-lbl" text-anchor="middle">1&mdash;n</text>
+  <path d="M612,140 H548" class="d-line acc" marker-end="url(#erd-b)"/>
+  <text x="580" y="132" class="d-lbl" text-anchor="middle">n&mdash;1</text>
+  <path d="M145,180 V194 H1015 V188" class="d-line" marker-end="url(#erd-a)"/>
+  <text x="600" y="190" class="d-lbl" text-anchor="middle">1&mdash;n &middot; dealer owns its inbox</text>
+
+  <rect x="20" y="224" width="560" height="340" rx="10" class="d-zone"/>
+  <text x="34" y="244" class="d-mono">INVENTORY &middot; FLOW-02, FLOW-06, FLOW-07</text>
+  <rect x="40" y="256" width="210" height="90" rx="8" class="d-box green"/>
+  <text x="145" y="280" class="d-t" text-anchor="middle">vehicle &dagger;</text>
+  <text x="145" y="298" class="d-s11" text-anchor="middle">VIN unique per dealer &middot; sold pair</text>
+  <text x="145" y="316" class="d-s11" text-anchor="middle">purchase fields lock once sold</text>
+  <text x="145" y="334" class="d-mono" text-anchor="middle">dealer_id &middot; version &middot; FLOW-02</text>
+  <rect x="330" y="256" width="210" height="70" rx="8" class="d-box green"/>
+  <text x="435" y="280" class="d-t" text-anchor="middle">work_order</text>
+  <text x="435" y="298" class="d-s11" text-anchor="middle">task, assignee, cost &rarr; repair cost</text>
+  <text x="435" y="316" class="d-mono" text-anchor="middle">dealer_id &middot; FLOW-06</text>
+  <rect x="330" y="346" width="210" height="70" rx="8" class="d-box green"/>
+  <text x="435" y="370" class="d-t" text-anchor="middle">vehicle_photo &dagger;</text>
+  <text x="435" y="388" class="d-s11" text-anchor="middle">original + enhanced blob</text>
+  <text x="435" y="406" class="d-mono" text-anchor="middle">dealer_id &middot; FLOW-02</text>
+  <rect x="330" y="436" width="210" height="70" rx="8" class="d-box green"/>
+  <text x="435" y="460" class="d-t" text-anchor="middle">vehicle_payment &dagger;</text>
+  <text x="435" y="478" class="d-s11" text-anchor="middle">one row per payment, CAD</text>
+  <text x="435" y="496" class="d-mono" text-anchor="middle">dealer_id &middot; FLOW-07</text>
+  <path d="M250,291 H322" class="d-line" marker-end="url(#erd-a)"/>
+  <text x="286" y="283" class="d-lbl" text-anchor="middle">1&mdash;n</text>
+  <path d="M250,311 H290 V381 H322" class="d-line" marker-end="url(#erd-a)"/>
+  <text x="300" y="374" class="d-lbl" text-anchor="start">1&mdash;n</text>
+  <path d="M250,328 H270 V471 H322" class="d-line" marker-end="url(#erd-a)"/>
+  <text x="280" y="464" class="d-lbl" text-anchor="start">1&mdash;n</text>
+
+  <rect x="600" y="224" width="560" height="340" rx="10" class="d-zone"/>
+  <text x="614" y="244" class="d-mono">CUSTOMERS AND SALES &middot; FLOW-04, FLOW-05</text>
+  <rect x="620" y="256" width="210" height="80" rx="8" class="d-box green"/>
+  <text x="725" y="280" class="d-t" text-anchor="middle">customer &dagger;</text>
+  <text x="725" y="298" class="d-s11" text-anchor="middle">no unique field &middot; free-text notes</text>
+  <text x="725" y="316" class="d-mono" text-anchor="middle">dealer_id &middot; FLOW-04</text>
+  <rect x="910" y="256" width="210" height="92" rx="8" class="d-box green"/>
+  <text x="1015" y="278" class="d-t" text-anchor="middle">sales_lead</text>
+  <text x="1015" y="296" class="d-s11" text-anchor="middle">stage, owner, follow-up date</text>
+  <text x="1015" y="314" class="d-s11" text-anchor="middle">0&mdash;1: may name one vehicle</text>
+  <text x="1015" y="332" class="d-mono" text-anchor="middle">one open per customer + car</text>
+  <rect x="620" y="386" width="210" height="80" rx="8" class="d-box green"/>
+  <text x="725" y="410" class="d-t" text-anchor="middle">customer_vehicle &dagger;</text>
+  <text x="725" y="428" class="d-s11" text-anchor="middle">one active link per vehicle</text>
+  <text x="725" y="446" class="d-mono" text-anchor="middle">dealer_id &middot; FLOW-02</text>
+  <rect x="910" y="386" width="210" height="80" rx="8" class="d-box green"/>
+  <text x="1015" y="410" class="d-t" text-anchor="middle">sales_lead_note</text>
+  <text x="1015" y="428" class="d-s11" text-anchor="middle">append-only follow-up notes</text>
+  <text x="1015" y="446" class="d-mono" text-anchor="middle">dealer_id &middot; FLOW-05</text>
+  <path d="M830,296 H902" class="d-line" marker-end="url(#erd-a)"/>
+  <text x="866" y="288" class="d-lbl" text-anchor="middle">1&mdash;n</text>
+  <path d="M725,336 V378" class="d-line" marker-end="url(#erd-a)"/>
+  <text x="735" y="364" class="d-lbl" text-anchor="start">1&mdash;n</text>
+  <path d="M1015,348 V378" class="d-line" marker-end="url(#erd-a)"/>
+  <text x="1025" y="372" class="d-lbl" text-anchor="start">1&mdash;n</text>
+
+
+  <path d="M725,466 V574 H110 V338" class="d-line acc" marker-end="url(#erd-b)"/>
+  <text x="400" y="568" class="d-lbl" text-anchor="middle">1&mdash;1 &middot; a link points at exactly one vehicle of the same dealer</text>
+
+  <rect x="20" y="584" width="560" height="240" rx="10" class="d-zone"/>
+  <text x="34" y="604" class="d-mono">ADVERTISING &middot; FLOW-03</text>
+  <rect x="40" y="616" width="210" height="80" rx="8" class="d-box amber"/>
+  <text x="145" y="640" class="d-t" text-anchor="middle">listing</text>
+  <text x="145" y="658" class="d-s11" text-anchor="middle">copy, kind, medium, checklist, status</text>
+  <text x="145" y="676" class="d-mono" text-anchor="middle">dealer_id &middot; contentVersion</text>
+  <rect x="330" y="616" width="210" height="80" rx="8" class="d-box amber"/>
+  <text x="435" y="640" class="d-t" text-anchor="middle">compliance_check</text>
+  <text x="435" y="658" class="d-s11" text-anchor="middle">rule findings, AI notes, status</text>
+  <text x="435" y="676" class="d-mono" text-anchor="middle">checked version &middot; FLOW-03</text>
+  <rect x="330" y="726" width="210" height="70" rx="8" class="d-box purple"/>
+  <text x="435" y="750" class="d-t" text-anchor="middle">compliance_rule_override</text>
+  <text x="435" y="768" class="d-s11" text-anchor="middle">platform-wide, admin-owned</text>
+  <text x="435" y="786" class="d-mono" text-anchor="middle">no dealer_id</text>
+  <path d="M180,346 V608" class="d-line acc" marker-end="url(#erd-b)"/>
+  <text x="192" y="416" class="d-lbl" text-anchor="start">1&mdash;1</text>
+  <text x="192" y="432" class="d-lbl" text-anchor="start">one ad draft</text>
+  <text x="192" y="448" class="d-lbl" text-anchor="start">per vehicle</text>
+  <path d="M250,656 H322" class="d-line" marker-end="url(#erd-a)"/>
+  <text x="286" y="648" class="d-lbl" text-anchor="middle">1&mdash;n</text>
+  <path d="M435,726 V704" class="d-line dash" marker-end="url(#erd-a)"/>
+  <text x="320" y="748" class="d-lbl" text-anchor="end">shapes the findings;</text>
+  <text x="320" y="764" class="d-lbl" text-anchor="end">a change stales a pass</text>
+
+  <rect x="600" y="584" width="560" height="240" rx="10" class="d-zone"/>
+  <text x="614" y="604" class="d-mono">AUDIT &middot; FLOW-08</text>
+  <rect x="620" y="616" width="500" height="110" rx="8" class="d-box gray"/>
+  <text x="870" y="644" class="d-t" text-anchor="middle">audit_event &mdash; append-only</text>
+  <text x="870" y="664" class="d-s11" text-anchor="middle">actor username with display-name and role snapshots, dealership id and name snapshot,</text>
+  <text x="870" y="682" class="d-s11" text-anchor="middle">entity type and id, action, new values and the replaced previous values, client IP, time</text>
+  <text x="870" y="702" class="d-s11" text-anchor="middle">No foreign key points at it, and nothing updates or deletes a row.</text>
+  <text x="870" y="720" class="d-mono" text-anchor="middle">written in the same transaction as the write it describes</text>
+  <text x="870" y="752" class="d-sub" text-anchor="middle">Every successful write in FLOW-01 to FLOW-07 adds exactly one row here,</text>
+  <text x="870" y="770" class="d-sub" text-anchor="middle">so each row is one version step of the record it names (&sect;10).</text>
+  <text x="870" y="790" class="d-sub" text-anchor="middle">A platform-level row &mdash; an admin action or a failed sign-in &mdash; carries no dealer_id.</text>
+  <path d="M540,656 H612" class="d-line dash" marker-end="url(#erd-a)"/>
+  <path d="M1015,466 V608" class="d-line dash" marker-end="url(#erd-a)"/>
+  <path d="M540,471 H590 V640 H612" class="d-line dash" marker-end="url(#erd-a)"/>
+
+  <text x="20" y="858" class="d-mono">LEGEND</text>
+  <text x="20" y="878" class="d-sub">1&mdash;n one row owns many &middot; 1&mdash;1 exactly one &middot; 0&mdash;1 optional &middot; &dagger; soft delete: a delete only sets deleted_at and the row stays for history and audit</text>
+  <text x="20" y="896" class="d-sub">dealer_id marks the tenant key enforced in the data layer &middot; dashed = written outside the parent chain (audit rows, platform-wide rules)</text>
+  <text x="20" y="914" class="d-sub">FLOW-nn ties the entity to the traceability matrix in &sect;8.0; the schema is owned by EF Core in DealerOps.Core (see &quot;How the schema is created and upgraded&quot; below)</text>
+  </svg>
+  <figcaption>Figure 11.0 &middot; Entity-relationship diagram of <code>dealer_core</code>, annotated with the tenant key, the soft-deleted tables and the <code>FLOW-nn</code> keys from &sect;8.0. The two figures that follow show the same data from the business side: which module owns which table, and which tables each business event touches.</figcaption>
+  </figure>
+  <p class="src"><b>Evidence.</b> <span class="chip green">Implemented</span> the tables, keys and soft-delete behaviour above are the shipped schema of <code>dealer_core</code> on branch V3. <b>Canonical:</b> <code>design/15-Data-Auth-and-Gateway.md</code>, and the EF Core model plus the idempotent startup patches in <code>backend/dotnet/DealerOps.Core/Program.cs</code> that own the live schema. The Java and Flyway material in that document is historical and is not what the running system uses.</p>
   <h3>Relationships</h3>
   <ul>
     <li><b>dealer</b> 1—n <b>membership</b> n—1 <b>app_user</b></li>
@@ -1845,9 +2102,9 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);font-si
      aria-label="DealerOps business data flow: actors, business modules, the tables each module writes, and the append-only audit trail.">
   <rect x="0" y="0" width="1200" height="960" fill="#ffffff"/>
   <defs>
-    <marker id="ink" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="#334155"/></marker>
-    <marker id="blue" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="#1d4ed8"/></marker>
-    <marker id="grey" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="#94a3b8"/></marker>
+    <marker id="f16-ink" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="#334155"/></marker>
+    <marker id="f16-blue" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="#1d4ed8"/></marker>
+    <marker id="f16-grey" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="#94a3b8"/></marker>
   </defs>
   <g font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif">
     <text x="40" y="30" font-size="17" font-weight="700" fill="#0f172a" text-anchor="start">DealerOps — business data flow</text>
@@ -1864,109 +2121,109 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);font-si
     <rect x="20" y="560" width="170" height="372" rx="8" fill="#dcfce7" stroke="#15803d" stroke-width="1.5"/>
     <text x="105.0" y="743.0" font-size="13" font-weight="700" fill="#0f172a" text-anchor="middle">Dealership staff</text>
     <text x="105.0" y="760.0" font-size="11" font-weight="400" fill="#475569" text-anchor="middle">same people, next stage</text>
-    <path d="M190,106 H270" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#blue)"/>
-    <path d="M190,506 H270" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#blue)"/>
-    <path d="M190,186 H270" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#blue)"/>
-    <path d="M190,266 H270" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#blue)"/>
-    <path d="M190,346 H270" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#blue)"/>
-    <path d="M190,426 H270" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#blue)"/>
-    <path d="M190,586 H270" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#blue)"/>
-    <path d="M190,666 H270" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#blue)"/>
-    <path d="M190,746 H270" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#blue)"/>
-    <path d="M190,826 H270" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#blue)"/>
-    <path d="M190,906 H270" fill="none" stroke="#94a3b8" stroke-width="1.6" marker-end="url(#grey)"/>
+    <path d="M190,106 H270" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#f16-blue)"/>
+    <path d="M190,506 H270" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#f16-blue)"/>
+    <path d="M190,186 H270" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#f16-blue)"/>
+    <path d="M190,266 H270" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#f16-blue)"/>
+    <path d="M190,346 H270" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#f16-blue)"/>
+    <path d="M190,426 H270" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#f16-blue)"/>
+    <path d="M190,586 H270" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#f16-blue)"/>
+    <path d="M190,666 H270" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#f16-blue)"/>
+    <path d="M190,746 H270" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#f16-blue)"/>
+    <path d="M190,826 H270" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#f16-blue)"/>
+    <path d="M190,906 H270" fill="none" stroke="#94a3b8" stroke-width="1.6" marker-end="url(#f16-grey)"/>
     <rect x="270" y="80" width="210" height="52" rx="8" fill="#dbeafe" stroke="#1d4ed8" stroke-width="1.5"/>
     <text x="375.0" y="103.0" font-size="13" font-weight="700" fill="#0f172a" text-anchor="middle">Team and Admin</text>
     <text x="375.0" y="120.0" font-size="11" font-weight="400" fill="#475569" text-anchor="middle">accounts, tiers, join requests</text>
     <rect x="580" y="80" width="250" height="52" rx="8" fill="#ecfdf5" stroke="#047857" stroke-width="1.5"/>
     <text x="705.0" y="103.0" font-size="12" font-weight="700" fill="#0f172a" text-anchor="middle">dealer · app_user · membership</text>
     <text x="705.0" y="120.0" font-size="10.5" font-weight="400" fill="#475569" text-anchor="middle">profile, accounts, tiers, join-request inbox</text>
-    <path d="M480,106 H580" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#blue)"/>
+    <path d="M480,106 H580" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#f16-blue)"/>
     <rect x="270" y="160" width="210" height="52" rx="8" fill="#dbeafe" stroke="#1d4ed8" stroke-width="1.5"/>
     <text x="375.0" y="183.0" font-size="13" font-weight="700" fill="#0f172a" text-anchor="middle">Inventory (DMS)</text>
     <text x="375.0" y="200.0" font-size="11" font-weight="400" fill="#475569" text-anchor="middle">decodes VIN through NHTSA</text>
     <rect x="580" y="160" width="250" height="52" rx="8" fill="#ecfdf5" stroke="#047857" stroke-width="1.5"/>
     <text x="705.0" y="183.0" font-size="12" font-weight="700" fill="#0f172a" text-anchor="middle">vehicle</text>
     <text x="705.0" y="200.0" font-size="10.5" font-weight="400" fill="#475569" text-anchor="middle">VIN, make, model, source, costs, condition</text>
-    <path d="M480,186 H580" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#blue)"/>
+    <path d="M480,186 H580" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#f16-blue)"/>
     <rect x="270" y="240" width="210" height="52" rx="8" fill="#dbeafe" stroke="#1d4ed8" stroke-width="1.5"/>
     <text x="375.0" y="263.0" font-size="13" font-weight="700" fill="#0f172a" text-anchor="middle">Work orders</text>
     <text x="375.0" y="280.0" font-size="11" font-weight="400" fill="#475569" text-anchor="middle">tasks on an in-stock vehicle</text>
     <rect x="580" y="240" width="250" height="52" rx="8" fill="#ecfdf5" stroke="#047857" stroke-width="1.5"/>
     <text x="705.0" y="263.0" font-size="12" font-weight="700" fill="#0f172a" text-anchor="middle">work_order</text>
     <text x="705.0" y="280.0" font-size="10.5" font-weight="400" fill="#475569" text-anchor="middle">task, assignee, note, cost (adds to repair cost)</text>
-    <path d="M480,266 H580" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#blue)"/>
+    <path d="M480,266 H580" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#f16-blue)"/>
     <rect x="270" y="320" width="210" height="52" rx="8" fill="#dbeafe" stroke="#1d4ed8" stroke-width="1.5"/>
     <text x="375.0" y="343.0" font-size="13" font-weight="700" fill="#0f172a" text-anchor="middle">Image Studio</text>
     <text x="375.0" y="360.0" font-size="11" font-weight="400" fill="#475569" text-anchor="middle">upload and enhance photos</text>
     <rect x="580" y="320" width="250" height="52" rx="8" fill="#ecfdf5" stroke="#047857" stroke-width="1.5"/>
     <text x="705.0" y="343.0" font-size="12" font-weight="700" fill="#0f172a" text-anchor="middle">vehicle_photo</text>
     <text x="705.0" y="360.0" font-size="10.5" font-weight="400" fill="#475569" text-anchor="middle">original + enhanced image, kept in MySQL</text>
-    <path d="M480,346 H580" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#blue)"/>
+    <path d="M480,346 H580" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#f16-blue)"/>
     <rect x="270" y="400" width="210" height="52" rx="8" fill="#dbeafe" stroke="#1d4ed8" stroke-width="1.5"/>
     <text x="375.0" y="423.0" font-size="13" font-weight="700" fill="#0f172a" text-anchor="middle">Ad compliance</text>
     <text x="375.0" y="440.0" font-size="11" font-weight="400" fill="#475569" text-anchor="middle">fixed rules, then AI review</text>
     <rect x="580" y="400" width="250" height="52" rx="8" fill="#ecfdf5" stroke="#047857" stroke-width="1.5"/>
     <text x="705.0" y="423.0" font-size="12" font-weight="700" fill="#0f172a" text-anchor="middle">listing · compliance_check</text>
     <text x="705.0" y="440.0" font-size="10.5" font-weight="400" fill="#475569" text-anchor="middle">copy, checklist, findings, AI notes</text>
-    <path d="M480,426 H580" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#blue)"/>
+    <path d="M480,426 H580" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#f16-blue)"/>
     <rect x="270" y="480" width="210" height="52" rx="8" fill="#f1f5f9" stroke="#64748b" stroke-width="1.5"/>
     <text x="375.0" y="503.0" font-size="13" font-weight="700" fill="#0f172a" text-anchor="middle">Buyer site (public)</text>
     <text x="375.0" y="520.0" font-size="11" font-weight="400" fill="#475569" text-anchor="middle">lists Ready + Passed vehicles</text>
     <rect x="580" y="480" width="250" height="52" rx="8" fill="#ecfdf5" stroke="#047857" stroke-width="1.5"/>
     <text x="705.0" y="503.0" font-size="12" font-weight="700" fill="#0f172a" text-anchor="middle">reads listing + vehicle</text>
     <text x="705.0" y="520.0" font-size="10.5" font-weight="400" fill="#475569" text-anchor="middle">writes customer, sales_lead, notification</text>
-    <path d="M580,506 H480" fill="none" stroke="#94a3b8" stroke-width="1.6" marker-end="url(#grey)"/>
+    <path d="M580,506 H480" fill="none" stroke="#94a3b8" stroke-width="1.6" marker-end="url(#f16-grey)"/>
     <rect x="270" y="560" width="210" height="52" rx="8" fill="#dbeafe" stroke="#1d4ed8" stroke-width="1.5"/>
     <text x="375.0" y="583.0" font-size="13" font-weight="700" fill="#0f172a" text-anchor="middle">Customers (CRM)</text>
     <text x="375.0" y="600.0" font-size="11" font-weight="400" fill="#475569" text-anchor="middle">finds or creates the buyer</text>
     <rect x="580" y="560" width="250" height="52" rx="8" fill="#ecfdf5" stroke="#047857" stroke-width="1.5"/>
     <text x="705.0" y="583.0" font-size="12" font-weight="700" fill="#0f172a" text-anchor="middle">customer · customer_vehicle</text>
     <text x="705.0" y="600.0" font-size="10.5" font-weight="400" fill="#475569" text-anchor="middle">profile, linked vehicle, notes</text>
-    <path d="M480,586 H580" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#blue)"/>
+    <path d="M480,586 H580" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#f16-blue)"/>
     <rect x="270" y="640" width="210" height="52" rx="8" fill="#dbeafe" stroke="#1d4ed8" stroke-width="1.5"/>
     <text x="375.0" y="663.0" font-size="13" font-weight="700" fill="#0f172a" text-anchor="middle">Leads</text>
     <text x="375.0" y="680.0" font-size="11" font-weight="400" fill="#475569" text-anchor="middle">one opportunity per customer + car</text>
     <rect x="580" y="640" width="250" height="52" rx="8" fill="#ecfdf5" stroke="#047857" stroke-width="1.5"/>
     <text x="705.0" y="663.0" font-size="12" font-weight="700" fill="#0f172a" text-anchor="middle">sales_lead · sales_lead_note</text>
     <text x="705.0" y="680.0" font-size="10.5" font-weight="400" fill="#475569" text-anchor="middle">stage, owner, follow-up, notes, inbox</text>
-    <path d="M480,666 H580" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#blue)"/>
+    <path d="M480,666 H580" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#f16-blue)"/>
     <rect x="270" y="720" width="210" height="52" rx="8" fill="#dbeafe" stroke="#1d4ed8" stroke-width="1.5"/>
     <text x="375.0" y="743.0" font-size="13" font-weight="700" fill="#0f172a" text-anchor="middle">Sell (DMS action)</text>
     <text x="375.0" y="760.0" font-size="11" font-weight="400" fill="#475569" text-anchor="middle">records who sold, to whom</text>
     <rect x="580" y="720" width="250" height="52" rx="8" fill="#ecfdf5" stroke="#047857" stroke-width="1.5"/>
     <text x="705.0" y="743.0" font-size="12" font-weight="700" fill="#0f172a" text-anchor="middle">vehicle (sold fields)</text>
     <text x="705.0" y="760.0" font-size="10.5" font-weight="400" fill="#475569" text-anchor="middle">sold date, price, seller, buyer; closes leads</text>
-    <path d="M480,746 H580" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#blue)"/>
+    <path d="M480,746 H580" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#f16-blue)"/>
     <rect x="270" y="800" width="210" height="52" rx="8" fill="#dbeafe" stroke="#1d4ed8" stroke-width="1.5"/>
     <text x="375.0" y="823.0" font-size="13" font-weight="700" fill="#0f172a" text-anchor="middle">Payments</text>
     <text x="375.0" y="840.0" font-size="11" font-weight="400" fill="#475569" text-anchor="middle">taken at the dealership</text>
     <rect x="580" y="800" width="250" height="52" rx="8" fill="#ecfdf5" stroke="#047857" stroke-width="1.5"/>
     <text x="705.0" y="823.0" font-size="12" font-weight="700" fill="#0f172a" text-anchor="middle">vehicle_payment</text>
     <text x="705.0" y="840.0" font-size="10.5" font-weight="400" fill="#475569" text-anchor="middle">amount, method, date; removal is soft</text>
-    <path d="M480,826 H580" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#blue)"/>
+    <path d="M480,826 H580" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#f16-blue)"/>
     <rect x="270" y="880" width="210" height="52" rx="8" fill="#dbeafe" stroke="#1d4ed8" stroke-width="1.5"/>
     <text x="375.0" y="903.0" font-size="13" font-weight="700" fill="#0f172a" text-anchor="middle">Reports and Dashboard</text>
     <text x="375.0" y="920.0" font-size="11" font-weight="400" fill="#475569" text-anchor="middle">read-only</text>
     <rect x="580" y="880" width="250" height="52" rx="8" fill="#ecfdf5" stroke="#047857" stroke-width="1.5"/>
     <text x="705.0" y="903.0" font-size="12" font-weight="700" fill="#0f172a" text-anchor="middle">reads vehicle · sales_lead</text>
     <text x="705.0" y="920.0" font-size="10.5" font-weight="400" fill="#475569" text-anchor="middle">work_order · vehicle_payment</text>
-    <path d="M580,906 H480" fill="none" stroke="#94a3b8" stroke-width="1.6" marker-end="url(#grey)"/>
-    <path d="M375.0,212 V240" fill="none" stroke="#334155" stroke-width="1.6" marker-end="url(#ink)"/>
+    <path d="M580,906 H480" fill="none" stroke="#94a3b8" stroke-width="1.6" marker-end="url(#f16-grey)"/>
+    <path d="M375.0,212 V240" fill="none" stroke="#334155" stroke-width="1.6" marker-end="url(#f16-ink)"/>
     <text x="385.0" y="231" font-size="10.5" font-weight="400" fill="#334155" text-anchor="start">in-stock vehicle gets tasks</text>
-    <path d="M375.0,292 V320" fill="none" stroke="#334155" stroke-width="1.6" marker-end="url(#ink)"/>
+    <path d="M375.0,292 V320" fill="none" stroke="#334155" stroke-width="1.6" marker-end="url(#f16-ink)"/>
     <text x="385.0" y="311" font-size="10.5" font-weight="400" fill="#334155" text-anchor="start">vehicle ready to photograph</text>
-    <path d="M375.0,372 V400" fill="none" stroke="#334155" stroke-width="1.6" marker-end="url(#ink)"/>
+    <path d="M375.0,372 V400" fill="none" stroke="#334155" stroke-width="1.6" marker-end="url(#f16-ink)"/>
     <text x="385.0" y="391" font-size="10.5" font-weight="400" fill="#334155" text-anchor="start">photos accompany the ad</text>
-    <path d="M375.0,452 V480" fill="none" stroke="#334155" stroke-width="1.6" marker-end="url(#ink)"/>
+    <path d="M375.0,452 V480" fill="none" stroke="#334155" stroke-width="1.6" marker-end="url(#f16-ink)"/>
     <text x="385.0" y="471" font-size="10.5" font-weight="400" fill="#334155" text-anchor="start">Ready + Passed + in stock = listed</text>
-    <path d="M375.0,532 V560" fill="none" stroke="#334155" stroke-width="1.6" marker-end="url(#ink)"/>
+    <path d="M375.0,532 V560" fill="none" stroke="#334155" stroke-width="1.6" marker-end="url(#f16-ink)"/>
     <text x="385.0" y="551" font-size="10.5" font-weight="400" fill="#334155" text-anchor="start">inquiry: name + phone matched, else new</text>
-    <path d="M375.0,612 V640" fill="none" stroke="#334155" stroke-width="1.6" marker-end="url(#ink)"/>
+    <path d="M375.0,612 V640" fill="none" stroke="#334155" stroke-width="1.6" marker-end="url(#f16-ink)"/>
     <text x="385.0" y="631" font-size="10.5" font-weight="400" fill="#334155" text-anchor="start">customer on a new lead</text>
-    <path d="M375.0,692 V720" fill="none" stroke="#334155" stroke-width="1.6" marker-end="url(#ink)"/>
+    <path d="M375.0,692 V720" fill="none" stroke="#334155" stroke-width="1.6" marker-end="url(#f16-ink)"/>
     <text x="385.0" y="711" font-size="10.5" font-weight="400" fill="#334155" text-anchor="start">settled buyer</text>
-    <path d="M375.0,772 V800" fill="none" stroke="#334155" stroke-width="1.6" marker-end="url(#ink)"/>
+    <path d="M375.0,772 V800" fill="none" stroke="#334155" stroke-width="1.6" marker-end="url(#f16-ink)"/>
     <text x="385.0" y="791" font-size="10.5" font-weight="400" fill="#334155" text-anchor="start">sold price = balance due</text>
     <text x="492" y="714" font-size="10" font-weight="400" fill="#0f172a" text-anchor="middle"></text>
     <rect x="980" y="80" width="200" height="772" rx="8" fill="#fef9c3" stroke="#a16207" stroke-width="1.5"/>
@@ -1978,24 +2235,24 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);font-si
     <text x="1080.0" y="478" font-size="11" font-weight="400" fill="#475569" text-anchor="middle">client IP and location</text>
     <text x="1080.0" y="495" font-size="11" font-weight="400" fill="#475569" text-anchor="middle">same transaction as the change</text>
     <text x="1080.0" y="512" font-size="11" font-weight="400" fill="#475569" text-anchor="middle">read by Owner, Manager, Admin</text>
-    <path d="M830,106 H980" fill="none" stroke="#a16207" stroke-width="1.6" stroke-dasharray="5 4" marker-end="url(#ink)"/>
-    <path d="M830,186 H980" fill="none" stroke="#a16207" stroke-width="1.6" stroke-dasharray="5 4" marker-end="url(#ink)"/>
-    <path d="M830,266 H980" fill="none" stroke="#a16207" stroke-width="1.6" stroke-dasharray="5 4" marker-end="url(#ink)"/>
-    <path d="M830,346 H980" fill="none" stroke="#a16207" stroke-width="1.6" stroke-dasharray="5 4" marker-end="url(#ink)"/>
-    <path d="M830,426 H980" fill="none" stroke="#a16207" stroke-width="1.6" stroke-dasharray="5 4" marker-end="url(#ink)"/>
-    <path d="M830,506 H980" fill="none" stroke="#a16207" stroke-width="1.6" stroke-dasharray="5 4" marker-end="url(#ink)"/>
-    <path d="M830,586 H980" fill="none" stroke="#a16207" stroke-width="1.6" stroke-dasharray="5 4" marker-end="url(#ink)"/>
-    <path d="M830,666 H980" fill="none" stroke="#a16207" stroke-width="1.6" stroke-dasharray="5 4" marker-end="url(#ink)"/>
-    <path d="M830,746 H980" fill="none" stroke="#a16207" stroke-width="1.6" stroke-dasharray="5 4" marker-end="url(#ink)"/>
-    <path d="M830,826 H980" fill="none" stroke="#a16207" stroke-width="1.6" stroke-dasharray="5 4" marker-end="url(#ink)"/>
+    <path d="M830,106 H980" fill="none" stroke="#a16207" stroke-width="1.6" stroke-dasharray="5 4" marker-end="url(#f16-ink)"/>
+    <path d="M830,186 H980" fill="none" stroke="#a16207" stroke-width="1.6" stroke-dasharray="5 4" marker-end="url(#f16-ink)"/>
+    <path d="M830,266 H980" fill="none" stroke="#a16207" stroke-width="1.6" stroke-dasharray="5 4" marker-end="url(#f16-ink)"/>
+    <path d="M830,346 H980" fill="none" stroke="#a16207" stroke-width="1.6" stroke-dasharray="5 4" marker-end="url(#f16-ink)"/>
+    <path d="M830,426 H980" fill="none" stroke="#a16207" stroke-width="1.6" stroke-dasharray="5 4" marker-end="url(#f16-ink)"/>
+    <path d="M830,506 H980" fill="none" stroke="#a16207" stroke-width="1.6" stroke-dasharray="5 4" marker-end="url(#f16-ink)"/>
+    <path d="M830,586 H980" fill="none" stroke="#a16207" stroke-width="1.6" stroke-dasharray="5 4" marker-end="url(#f16-ink)"/>
+    <path d="M830,666 H980" fill="none" stroke="#a16207" stroke-width="1.6" stroke-dasharray="5 4" marker-end="url(#f16-ink)"/>
+    <path d="M830,746 H980" fill="none" stroke="#a16207" stroke-width="1.6" stroke-dasharray="5 4" marker-end="url(#f16-ink)"/>
+    <path d="M830,826 H980" fill="none" stroke="#a16207" stroke-width="1.6" stroke-dasharray="5 4" marker-end="url(#f16-ink)"/>
     <text x="40" y="978" font-size="12" font-weight="700" fill="#0f172a" text-anchor="start">Legend</text>
-    <path d="M100,974 H150" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#blue)"/>
+    <path d="M100,974 H150" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#f16-blue)"/>
     <text x="160" y="978" font-size="11" font-weight="400" fill="#334155" text-anchor="start">data written</text>
-    <path d="M270,974 H320" fill="none" stroke="#94a3b8" stroke-width="1.6" marker-end="url(#grey)"/>
+    <path d="M270,974 H320" fill="none" stroke="#94a3b8" stroke-width="1.6" marker-end="url(#f16-grey)"/>
     <text x="330" y="978" font-size="11" font-weight="400" fill="#334155" text-anchor="start">data read only</text>
-    <path d="M450,974 H500" fill="none" stroke="#334155" stroke-width="1.6" marker-end="url(#ink)"/>
+    <path d="M450,974 H500" fill="none" stroke="#334155" stroke-width="1.6" marker-end="url(#f16-ink)"/>
     <text x="510" y="978" font-size="11" font-weight="400" fill="#334155" text-anchor="start">business result handed to the next module</text>
-    <path d="M780,974 H830" fill="none" stroke="#a16207" stroke-width="1.6" stroke-dasharray="5 4" marker-end="url(#ink)"/>
+    <path d="M780,974 H830" fill="none" stroke="#a16207" stroke-width="1.6" stroke-dasharray="5 4" marker-end="url(#f16-ink)"/>
     <text x="840" y="978" font-size="11" font-weight="400" fill="#334155" text-anchor="start">audit row written with the change</text>
     <text x="40" y="1000" font-size="11" font-weight="400" fill="#475569" text-anchor="start">Side effects of Sell on other modules: closes the vehicle's open leads (buyer Won, others Lost), clears their inbox messages, links the buyer customer, locks purchase fields, takes the ad off the buyer site.</text>
   </g>
@@ -2004,9 +2261,9 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);font-si
      aria-label="DealerOps data matrix: which tables each business event writes or reads. Every write also writes one audit row.">
   <rect x="0" y="0" width="1094" height="706" fill="#ffffff"/>
   <defs>
-    <marker id="ink" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="#334155"/></marker>
-    <marker id="blue" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="#1d4ed8"/></marker>
-    <marker id="grey" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="#94a3b8"/></marker>
+    <marker id="f17-ink" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="#334155"/></marker>
+    <marker id="f17-blue" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="#1d4ed8"/></marker>
+    <marker id="f17-grey" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="#94a3b8"/></marker>
   </defs>
   <g font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif">
     <text x="30" y="30" font-size="17" font-weight="700" fill="#0f172a" text-anchor="start">DealerOps — what each business event writes</text>
@@ -2113,7 +2370,7 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);font-si
         <li>Lists: <code>{ items, page, size, total }</code>, 10 per page, newest first.</li>
         <li>Errors: <code>{ code, message, requestId, fieldErrors }</code>. Every failure uses this one shape — including an unknown route, a wrong method, a non-JSON body and a downstream failure — so a screen never has to guess how to show a problem, and the request id ties the message to the server logs.</li>
         <li>Internal wording never reaches the browser: a parser's own message is replaced with a plain "Invalid value." on that field.</li>
-        <li>Writes carry <code>version</code> for optimistic locking.</li>
+        <li>Writes to a versioned resource &mdash; dealership, vehicle, customer, listing, work order, lead &mdash; carry <code>version</code> for optimistic locking; append-only writes such as payments, photos, links and lead notes do not.</li>
         <li>Paged lists take <code>sort=field,asc|desc</code> and order the whole result on the server, not just the page on screen.</li>
         <li>Money in CAD with at most two decimals; a third decimal is refused on its own field rather than rounded, so no amount is ever stored that the user was not shown. Dates as <code>YYYY-MM-DD</code>.</li>
         <li>Blocked ads are <b>200</b> results, not HTTP errors.</li>
@@ -2177,7 +2434,6 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);font-si
   <figure class="img"><img src="../../requirements/backup-data/01-southgate-dashboard.png" alt="Sales dashboard at Southgate dealership" loading="lazy"><figcaption>Figure 13.1 · A sales member's dashboard at Southgate: KPI tiles, period selector, and no Team item in the menu — the §02 "Dealership Sales" scope on screen (<code>requirements/backup-data/01-southgate-dashboard.png</code>).</figcaption></figure>
   <figure class="img"><img src="../../requirements/backup-data/02-lakeshore-dms.png" alt="DMS inventory table at Lakeshore" loading="lazy"><figcaption>Figure 13.2 · The DMS inventory list at Lakeshore, showing Sold by, Sold to, Date sold, open work orders and lead counts side by side — the exact columns the §07 DMS text calls for (<code>requirements/backup-data/02-lakeshore-dms.png</code>).</figcaption></figure>
   <figure class="img"><img src="../../requirements/backup-data/03-platform-admin-dealerships.png" alt="Platform admin dealerships page" loading="lazy"><figcaption>Figure 13.3 · The platform admin's Dealerships page — the only page shape an admin ever sees besides rules and audit. Every business URL answers 403 behind it, so this image is the evidence that the §02 role boundary is real, not a hidden button (<code>requirements/backup-data/03-platform-admin-dealerships.png</code>).</figcaption></figure>
-  <figure class="img"><img src="../../project-plan/StatusReports3/img.png" alt="Sprint 3 delivery screenshot" loading="lazy"><figcaption>Figure 13.4 · Delivery screenshot captured for the Sprint 3 status report — the state of the accepted implementation on 2026-10-23 (<code>project-plan/StatusReports3/img.png</code>).</figcaption></figure>
 </section>
 
 <!-- 14 -->
@@ -2201,7 +2457,7 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);font-si
   <h3>Engineering rules</h3>
   <ul>
     <li><b>Design first</b>: <code>design/</code> is the source of truth. A change to authentication, tenancy, roles, routing or the API contract updates its design document in the same change.</li>
-    <li><b>Traceability</b>: every feature maps to a requirement ID (AUTH, DMS, CRM, LEAD, WO, IMG, AD, PAY, SALE, SHOP, AUD, NFR) and to an acceptance case.</li>
+    <li><b>Traceability</b>: every feature maps to a numbered requirement in the client specification and to an acceptance case.</li>
     <li><b>Small, complete changes</b>: extend the service that already owns a behaviour; no speculative abstraction and no dead code.</li>
     <li><b>Configuration, not literals</b>: no URLs, ports, credentials or provider keys in code.</li>
     <li><b>English</b> for all code, comments, documents and commit messages.</li>
@@ -2219,6 +2475,7 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);font-si
   </div>
 
   <h3>Acceptance</h3>
+  <p class="src"><b>Evidence.</b> <span class="chip green">Accepted</span> the client accepted the implementation on 2026-10-23, recorded in <code>project-plan/Implementation-Delivery-Status.md</code> and confirmed client-side by the Sprint 3 pack in <code>project-plan/StatusReports3/</code>. This page carries no separate manual test-execution log or instructor sign-off (&sect;16). <b>Canonical:</b> <code>design/16-Acceptance-and-Test.md</code>, <code>design/TESTING-AND-ACCEPTANCE-GUIDE.md</code>.</p>
   <p>Acceptance is defined in <code>design/16-Acceptance-and-Test.md</code> and <code>design/21-Feature-Extensions.md</code>: six classroom scripts, backend and frontend use cases, and extension cases EXT-01 to EXT-19. The six core demonstrations are:</p>
   <ol class="list">
     <li>The admin opens two dealerships and binds one person to each.</li>
@@ -2253,6 +2510,7 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);font-si
     <li><b>Local development</b>: the four apps run as plain processes against local MySQL 8, started in order MySQL → Core → AI → Gateway → web (ports 8081, 8082, 8080, 5174).</li>
   </ul>
 
+  <p class="src"><b>Evidence.</b> <span class="chip amber">Deployed</span> the Azure resources, the release path and the restore procedure are what Terraform in <code>deploy/</code> creates and what the operator runs; CI holds no Azure credential, so the production release is manual by design (&sect;16). Cost figures are list-price estimates for the sizes below, not an invoice. <b>Canonical:</b> <code>deploy/README.md</code>, <code>design/08-DevOps-and-Implementation.md</code>.</p>
   <h3>15.1 What does it cost to maintain the App Services?</h3>
   <p>The running cost is about <b>USD 40 to 50 per month</b> with everything on 24/7. Almost all of it is one App Service plan and one small MySQL server. The figures are estimates from public list prices, not an invoice: confirm them in the Azure Pricing Calculator for the region in use before quoting them to the client.</p>
   <div class="tbl"><table>
@@ -2284,13 +2542,13 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);font-si
      aria-label="DealerOps release path: a push to main runs compile and terraform validate in GitHub Actions, which holds no Azure credentials and never deploys; an operator runs terraform apply and deploy-apps.sh, which create the resource group and upload three .NET 10 apps and the React bundle to Linux App Service; secrets stay in Key Vault and are read by the apps through a user-assigned identity.">
   <rect x="0" y="0" width="1140" height="700" fill="#ffffff"/>
   <defs>
-    <marker id="ink" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+    <marker id="f18-ink" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
       <path d="M0,0 L10,5 L0,10 Z" fill="#334155"/>
     </marker>
-    <marker id="blue" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+    <marker id="f18-blue" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
       <path d="M0,0 L10,5 L0,10 Z" fill="#1d4ed8"/>
     </marker>
-    <marker id="amber" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+    <marker id="f18-amber" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
       <path d="M0,0 L10,5 L0,10 Z" fill="#b45309"/>
     </marker>
   </defs>
@@ -2363,7 +2621,7 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);font-si
     <text x="916" y="629" font-size="11" fill="#475569" text-anchor="middle">telemetry from all three apps</text>
 
     <!-- flows -->
-    <g fill="none" stroke="#334155" stroke-width="1.6" marker-end="url(#ink)">
+    <g fill="none" stroke="#334155" stroke-width="1.6" marker-end="url(#f18-ink)">
       <line x1="260" y1="108" x2="374" y2="108"/>
     </g>
     <text x="317" y="98" font-size="11" fill="#334155" text-anchor="middle">push to main</text>
@@ -2376,7 +2634,7 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);font-si
     <text x="816" y="104" font-size="11" fill="#b91c1c">CI holds no Azure credentials</text>
     <text x="816" y="119" font-size="11" fill="#b91c1c">and never deploys</text>
 
-    <g fill="none" stroke="#b45309" stroke-width="2" marker-end="url(#amber)">
+    <g fill="none" stroke="#b45309" stroke-width="2" marker-end="url(#f18-amber)">
       <line x1="120" y1="282" x2="120" y2="330"/>
     </g>
     <g font-size="11.5" fill="#92400e">
@@ -2384,7 +2642,7 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);font-si
       <text x="136" y="318">2 · deploy-apps.sh — uploads the .NET apps and the React bundle</text>
     </g>
 
-    <g fill="none" stroke="#1d4ed8" stroke-width="1.8" marker-end="url(#blue)">
+    <g fill="none" stroke="#1d4ed8" stroke-width="1.8" marker-end="url(#f18-blue)">
       <line x1="754" y1="474" x2="650" y2="474"/>
       <polyline points="644,490 712,490 712,542 754,542"/>
     </g>
@@ -2493,6 +2751,7 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);font-si
 <!-- 17 -->
 <section id="features">
   <h2><span class="num">17</span>Feature deep-dives: business logic and architecture</h2>
+  <p class="src"><b>Reference appendix.</b> Ten features, each one self-contained. Reach it from a <code>FLOW-nn</code> row in <a href="#trace">§8.0</a> or from a role card in §1, and read only the entry you need.</p>
   <p>Each feature below is explained from two angles. The <b>business logic</b> column is what a staff member or buyer sees — what is accepted, what is refused, in what order. The <b>architecture</b> column is how the delivery runs — which service owns each step, which tables it writes, what it calls outside itself. A short <b>failure modes</b> paragraph closes each feature, so a reader can also predict what the screen shows when something goes wrong.</p>
 
   <h3>17.1 VIN decode (the add-vehicle form)</h3>
@@ -2517,7 +2776,7 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);font-si
       </ul>
     </div>
   </div>
-  <p><b>Failure modes.</b> vPIC slow or unreachable → <b>502</b> <code>CATALOG_UNAVAILABLE</code> and the form stays usable so the staff member can type the fields by hand. Malformed VIN → <b>400</b> with a field error on <code>vin</code>, never a cryptic parser message. Dealership already has that VIN → <b>409</b> <code>VIN_DUPLICATE</code>. Decode returns an unexpected make (rare) → the row still saves; the staff member corrects the field before pressing Save, since nothing persisted at decode time.</p>
+  <p><b>Failure modes.</b> vPIC slow or unreachable → <b>502</b> <code>CATALOG_UNAVAILABLE</code> and the form stays usable so the staff member can type the fields by hand. Malformed VIN → <b>400</b> with a field error on <code>vin</code>, never a cryptic parser message. Dealership already has that VIN, including on a soft-deleted vehicle that still holds it under the unique key → <b>400</b> <code>VIN_DUP</code>. Decode returns an unexpected make (rare) → the row still saves; the staff member corrects the field before pressing Save, since nothing persisted at decode time.</p>
 
   <h3>17.2 Sign-in and tenant resolution</h3>
   <div class="grid2">
@@ -2558,7 +2817,7 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);font-si
       <h4>Architecture</h4>
       <ul>
         <li><code>POST /vehicles/{id}/sell</code> on the Gateway → Core <code>VehicleService.Sell</code>.</li>
-        <li>Core opens one database transaction. Inside it: row-lock <code>vehicle</code>, verify no open <code>work_order</code>, verify not already sold, verify date and price, update the vehicle (<code>sold_at</code>, <code>sold_price</code>, <code>sold_by</code>, plus either <code>sold_to_customer_id</code> or <code>sold_to_name</code>), link or close <code>customer_vehicle</code>, close the vehicle's open <code>sales_lead</code> rows (Won for the buyer, Lost for the rest), and write one audit row.</li>
+        <li>Core opens one database transaction. Inside it: row-lock <code>vehicle</code>, verify no open <code>work_order</code>, verify not already sold, verify date and price, update the vehicle (<code>sold_on</code>, <code>sold_price</code>, <code>sold_by</code>, and <code>sold_to_name</code> only for a typed <b>Other</b> buyer), link or close <code>customer_vehicle</code> &mdash; a CRM buyer is recorded by that link, not by a customer id on the vehicle &mdash; close the vehicle's open <code>sales_lead</code> rows (Won for the buyer, Lost for the rest), and write one audit row.</li>
         <li>Any failure rolls back the whole transaction; the client sees one coherent refusal, never a half-applied sale.</li>
         <li>Downstream: the ad's current check becomes Stale on the next read; the buyer site stops listing the vehicle because the Ready-and-current-pass condition no longer holds.</li>
       </ul>
@@ -2733,6 +2992,7 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);font-si
 <!-- 18 -->
 <section id="manual">
   <h2><span class="num">18</span>User manual: step-by-step tasks</h2>
+  <p class="src"><b>Reference appendix.</b> A task manual, not part of the main reading path. Use the role index in §1 or <a href="#trace">§8.0</a> to jump to the task at hand.</p>
   <p>Every walkthrough below names the screen, the field or button, what the system does on success and what it refuses. Where a refusal can happen, the code the user sees on the page (for example <code>WORK_ORDERS_OPEN</code>) is listed in the <b>If it refuses</b> line, so a trainee can match the screen to §8.9 and §17 without decoding a technical message. Role names in parentheses — Sales, Manager, Owner, Admin, Public buyer — match the tiers defined in §02.</p>
 
   <h3>18.1 Public buyer tasks (no account)</h3>
@@ -2780,7 +3040,7 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);font-si
     <li>Fill the required fields: purchase cost, date added, condition. Optionally add mileage, colour, fuel, stock number, list price, repair cost, a Carfax link, and the Acquired-from name and address.</li>
     <li>Press <b>Save</b>. The vehicle appears on the inventory list as <code>IN_STOCK</code>.</li>
   </ol>
-  <p><b>If it refuses.</b> VIN already in the dealership → <code>VIN_DUPLICATE</code>. Money field with three decimals → inline field error; nothing is rounded silently. VIN format wrong → field error.</p>
+  <p><b>If it refuses.</b> VIN already in the dealership → <b>400</b> <code>VIN_DUP</code>. Money field with three decimals → inline field error; nothing is rounded silently. VIN format wrong → field error.</p>
 
   <h4>18.2.3 Record work orders on a vehicle</h4>
   <ol class="list">
@@ -2988,7 +3248,7 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);font-si
   </table></div>
 </section>
 
-<footer>DealerOps · Team G2 · System design briefing, 2026-11-18, verified against the source of the four running services. Summarizes the documents in <code>design/</code>; where they differ, the source documents win.</footer>
+<footer>DealerOps · Team G2 · System design briefing, 2026-11-18, written from the source of the four running services on branch V3. A guided overview of the documents in <code>design/</code> (§19); where this page and one of those documents differ, the document wins. Evidence states are defined below the header.</footer>
 </main>
 </div>
 </body>
