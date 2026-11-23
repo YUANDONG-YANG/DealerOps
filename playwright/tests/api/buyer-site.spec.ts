@@ -159,6 +159,8 @@ test.describe('with the real AI', () => {
     // CR-051: the same buyer asking again about the same vehicle must not fail and must not open a
     // second lead; the question is added as a note on the lead that is already open.
     const repeat = inquiry(v.id, { message: 'Second question' });
+    // The same buyer: matching is on phone AND name (14 §12a), so both must carry over.
+    repeat.contact.name = first.contact.name;
     repeat.contact.phone = first.contact.phone;
     repeat.contact.email = first.contact.email;
     await expectStatus(await request.post(publicUrl(dealerId, 'inquiries'), { data: repeat }), 204);
@@ -181,6 +183,7 @@ test.describe('with the real AI', () => {
     const other = await staffApi.createVehicle();
     await listVehicle(staffApi, other);
     const onOther = inquiry(other.id, { message: 'Third question' });
+    onOther.contact.name = first.contact.name;
     onOther.contact.phone = first.contact.phone;
     onOther.contact.email = first.contact.email;
     await expectStatus(await request.post(publicUrl(dealerId, 'inquiries'), { data: onOther }), 204);
