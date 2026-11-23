@@ -530,6 +530,9 @@ test('LEAD-05 LEAD-06: overdue open leads are flagged and filterable; closed lea
 
   await page.goto('/leads');
   await page.getByPlaceholder('Customer name').fill(tag);
+  // The customer field is a typeahead. Commit the text with Enter so the pending suggestion
+  // request is discarded and the list cannot reopen over the controls below.
+  await page.getByPlaceholder('Customer name').press('Enter');
   await page.getByRole('button', { name: 'Search' }).click();
   const openRow = page.getByRole('row').filter({ hasText: openCustomer.name });
   const closedRow = page.getByRole('row').filter({ hasText: closedCustomer.name });
@@ -597,6 +600,9 @@ test('CR-012: the Leads columns sort on the server, across every page', async ({
 
   await page.goto('/leads');
   await page.getByPlaceholder('Customer name').fill(tag);
+  // The customer field is a typeahead. Commit the text with Enter so the pending suggestion
+  // request is discarded and the list cannot reopen over the controls below.
+  await page.getByPlaceholder('Customer name').press('Enter');
   await page.getByRole('button', { name: 'Search' }).click();
   const firstCells = page.locator('table.table tbody tr td:first-child');
   // Created Charlie, Alpha, Bravo, so the default order is newest first.
