@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Weekly report — 16–22 November 2026 (ISO week 47)</title>
+  <style>
+    :root { --ink:#1a2332; --muted:#5a6577; --line:#d8dee8; --surface:#fff; --page:#f0f3f7; --accent:#1f4e79; --accent-soft:#e8eef5; --good:#1b5e3b; --good-bg:#e8f5ee; --warn:#8a5a00; --warn-bg:#fff6e5; --next-bg:#eef3f9; }
+    * { box-sizing:border-box; }
+    body { margin:0; color:var(--ink); background:var(--page); font:16px/1.55 "Segoe UI","Helvetica Neue",Arial,sans-serif; }
+    .wrap { max-width:920px; margin:0 auto; padding:2.5rem 1.25rem 3.5rem; }
+    header, section { background:var(--surface); border:1px solid var(--line); border-radius:10px; box-shadow:0 8px 24px rgba(26,35,50,.06); padding:1.5rem 1.6rem; margin-bottom:1.15rem; }
+    .eyebrow { color:var(--accent); font-size:.75rem; font-weight:700; letter-spacing:.08em; text-transform:uppercase; }
+    h1 { margin:.35rem 0; font-size:clamp(1.45rem,2.4vw,1.85rem); line-height:1.25; }
+    h2 { margin:0 0 1rem; padding-bottom:.55rem; border-bottom:1px solid var(--line); color:var(--accent); font-size:1.15rem; }
+    h3 { margin:0 0 .4rem; font-size:1rem; }
+    p { margin:0 0 .85rem; }
+    .subtitle { margin:0; color:var(--muted); font-size:.95rem; }
+    .meta { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:.75rem; margin-top:1.25rem; }
+    .meta-item { padding:.7rem .85rem; border-radius:8px; background:var(--accent-soft); }
+    .label { display:block; margin-bottom:.2rem; color:var(--muted); font-size:.72rem; font-weight:700; letter-spacing:.06em; text-transform:uppercase; }
+    .value { font-size:.92rem; font-weight:600; }
+    .note { margin-top:1rem; padding:.75rem .9rem; border-left:3px solid var(--accent); border-radius:0 8px 8px 0; background:#f7f9fc; color:var(--muted); font-size:.9rem; }
+    .activity { padding:.95rem 0; border-top:1px solid var(--line); }
+    .activity:first-of-type { border-top:0; padding-top:0; }
+    .activity-num { display:inline-flex; align-items:center; justify-content:center; width:1.55rem; height:1.55rem; margin-right:.45rem; border-radius:50%; background:var(--accent); color:#fff; font-size:.78rem; font-weight:700; vertical-align:middle; }
+    .activity h3 { display:inline; vertical-align:middle; }
+    .activity p { margin-top:.45rem; color:#2a3444; }
+    code { padding:.08em .35em; border-radius:4px; background:#eef1f6; color:#243247; font: .86em "Cascadia Code",Consolas,"Courier New",monospace; }
+    ul { margin:0; padding-left:1.25rem; }
+    li { margin:.5rem 0; }
+    .callout { margin-bottom:.75rem; padding:.9rem 1rem; border-radius:8px; }
+    .callout:last-child { margin-bottom:0; }
+    .good { border:1px solid #b7dfc8; background:var(--good-bg); }
+    .good h3 { color:var(--good); }
+    .warn { border:1px solid #f0d9a8; background:var(--warn-bg); }
+    .warn h3 { color:var(--warn); }
+    .next { border:1px solid #c5d4e8; background:var(--next-bg); }
+    .next h3 { color:var(--accent); }
+    footer { margin-top:.5rem; color:var(--muted); font-size:.8rem; text-align:center; }
+    @media (max-width:700px) { .wrap { padding:1.5rem .85rem 2.5rem; } header,section { padding-left:1.1rem; padding-right:1.1rem; } }
+    @media print { body { background:#fff; } .wrap { max-width:none; padding:0; } header,section { box-shadow:none; break-inside:avoid; } }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div class="eyebrow">DealerOps · Sprint 3</div>
+      <h1>Weekly report — 16–22 November 2026</h1>
+      <p class="subtitle">ISO week 47</p>
+      <div class="meta" role="list">
+        <div class="meta-item"><span class="label">Phase</span><span class="value">Sprint 3</span></div>
+        <div class="meta-item"><span class="label">Active days</span><span class="value">16 and 18 November</span></div>
+        <div class="meta-item"><span class="label">Commits</span><span class="value">20 (<code>b7f3f1e</code> … <code>3f7e3ba</code>)</span></div>
+        <div class="meta-item"><span class="label">Branch</span><span class="value"><code>V3</code> / <code>origin/V3</code></span></div>
+        <div class="meta-item"><span class="label">Contributors</span><span class="value">Yuandong Yang (Robin)</span></div>
+        <div class="meta-item"><span class="label">Volume</span><span class="value">+40,963 / −65 lines, mostly re-exported PDFs, inlined SVGs and generated HTML</span></div>
+        <div class="meta-item"><span class="label">Milestones</span><span class="value">Sprint 3 status report, project plan and presentation deliverables completed 18 November; no commits 19–22 November</span></div>
+      </div>
+      <p class="note">Put together from the Git history and the dated files in the repository. Work stopped after 18 November and nothing was committed over the rest of the week.</p>
+    </header>
+
+    <section>
+      <h2>Progress against the plan</h2>
+      <p>Last week finished DMS-19 and DMS-20, which left the Sprint 2 behavior ready to accept. This week was about Sprint 3 documentation: getting everything a reviewer needs into one place. Only one product-code change went in, a cleanup of the audit log UI. The rest of the week went into documents: the Sprint 3 status report, the project plan update, the rebuilt presentation deck, and a system design page and PDF that point each design claim at the file that delivers it.</p>
+    </section>
+
+    <section>
+      <h2>Summary of activities</h2>
+      <div class="activity"><span class="activity-num">1</span><h3>Polished the audit log UI.</h3><p>The table now fits its container without horizontal scrolling, the Changes cell is cut down to one line, and the full change JSON opens in a Details modal and a side drawer instead of spilling out of the table (<code>4c1a399</code>, <code>22c6636</code>). This was the only product-code change of the week. It touched <code>AuditLogPanel.tsx</code>, the shared styles and the Playwright UI spec that covers the panel.</p></div>
+      <div class="activity"><span class="activity-num">2</span><h3>Finished the Sprint 3 status report.</h3><p>The leftover placeholders were filled in with the real test results, the container decision, the adjustments from the previous feedback and the delivery dates. The yellow to-do highlighting came out once the report was done (<code>be946ef</code>, <code>7dad010</code>). The report was then expanded with full project detail, all 15 diagrams, and the updated plan and backlog showing 27 completed hours per member (<code>7996288</code>, <code>3ea6fc3</code>).</p></div>
+      <div class="activity"><span class="activity-num">3</span><h3>Added the Sprint 3 tasks to the project plan.</h3><p>Each task page records 27 completed hours per member, which keeps the plan and the status report in agreement (<code>bf3475b</code>).</p></div>
+      <div class="activity"><span class="activity-num">4</span><h3>Reorganized the design diagrams and rebuilt the deck.</h3><p>The <code>design/diagrams</code> tree was split into business, integration and architecture groups, the Sprint 3 presentation deliverables were added, and the deck was rebuilt so it pulls its diagrams from that tree instead of keeping its own copies (<code>d483b7d</code>, <code>140fd79</code>).</p></div>
+      <div class="activity"><span class="activity-num">5</span><h3>Made the system design page the one place to read about the system.</h3><p>It now carries delivery evidence, so each design claim links to the file that delivers it, and feature deep-dives and a reader's guide per role were added next (<code>1713896</code>, <code>da7ade6</code>). Every SVG under <code>design/diagrams</code> was inlined so the HTML renders on its own, and the 84-page PDF was re-exported from it (<code>8bdc92f</code>, <code>d041652</code>). The table of contents was put into collapsible sections and then reordered so it reads product first, then architecture, development and operations (<code>f4e5454</code>, <code>f2d706b</code>).</p></div>
+      <div class="activity"><span class="activity-num">6</span><h3>Added the user manual and refreshed the poster.</h3><p>The manual walks step by step through the public buyer, sales, manager, owner and admin tasks (<code>60c15a2</code>). The 36×48-inch capstone poster PDF was re-exported from the current poster HTML as one page (<code>5e63a79</code>, <code>3f7e3ba</code>).</p></div>
+      <div class="activity"><span class="activity-num">7</span><h3>Separate CPRG-305-B coursework.</h3><p>Units 8–12 activities and submissions for the SAIT CPRG-305-B course were committed in this repository, and the bug-fixed screenshots were removed (<code>04ae6b0</code>). These belong to a different class and have nothing to do with the capstone project or its team.</p></div>
+    </section>
+
+    <section>
+      <h2>What was delivered</h2>
+      <div class="callout good"><h3>Completed</h3><ul><li>Audit log UI that fits its container, with the full change detail in a modal and a side drawer, and the Playwright UI spec that covers it.</li><li>The finished Sprint 3 status report, with real test results, the container and feedback decisions, 15 diagrams and 27 hours per member.</li><li>Sprint 3 task pages in the project plan, matching the status report.</li><li>A regrouped design-diagram tree, and a Sprint 3 deck built from it.</li><li>A system design page that renders on its own, with delivery evidence, feature deep-dives, a reader's guide and a re-exported 84-page PDF.</li><li>A user manual written per role, and the re-exported 36×48-inch poster PDF.</li></ul></div>
+    </section>
+
+    <section>
+      <h2>Impediments and how they were handled</h2>
+      <div class="callout warn"><h3>Documentation was behind the code</h3><p>The system did more than the review material described. Linking each design claim to the file that delivers it, and filling the status-report placeholders with real results, brought the two back together.</p></div>
+      <div class="callout warn"><h3>The design page needed its sibling folder</h3><p>It referenced the SVG files externally, so it did not render by itself. Inlining every SVG fixed that for the page and for its PDF.</p></div>
+      <div class="callout warn"><h3>Generated files inflate the diff</h3><p>Most of the line count is re-exported PDFs, inlined SVGs and generated HTML. The audit log UI was the only hand-written code change this week.</p></div>
+    </section>
+
+    <section>
+      <h2>What went well</h2>
+      <p>The Sprint 3 deliverables now agree with each other. The status report, the project plan, the deck, the system design page and the user manual all describe the system that is actually running. Someone reviewing the project can start at the design page and get to the file behind any claim without opening the repository.</p>
+    </section>
+
+    <section>
+      <h2>Carried into the next week</h2>
+      <div class="callout next"><ol><li>Run the full manual acceptance pass over the finished Sprint 2 and Sprint 3 behavior.</li><li>Present the Sprint 3 deck, and keep the system design page in step with any late changes.</li><li>Keep the Azure backup and seed-refresh procedure in place before the next destructive deployment.</li></ol></div>
+    </section>
+
+    <footer>DealerOps weekly reports · written from the repository history · 23 November 2026</footer>
+  </div>
+</body>
+</html>

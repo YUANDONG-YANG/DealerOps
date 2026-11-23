@@ -14,6 +14,7 @@ is a clean seven-day block.
 | 26 Oct – 1 Nov | [weekly_report_10.26-11.1](weekly_report_10.26-11.1.md) | Sprint 1 close | 8 | Observability, English-only sweep, Azure deployment fixes |
 | 2 – 8 Nov | [weekly_report_11.2-11.8](weekly_report_11.2-11.8.md) | Sprint 2 | 18 | The 3 November client change request, Status Report 3, seed tooling |
 | 9 – 15 Nov | [weekly_report_11.9-11.15](weekly_report_11.9-11.15.md) | Sprint 2 / Iteration 3 | 16 | DMS-19 and DMS-20, audit snapshots, acceptance coverage, seed refresh |
+| 16 – 22 Nov | [weekly_report_11.16-11.22](weekly_report_11.16-11.22.md) | Sprint 3 | 20 | Sprint 3 status report, project plan, presentation deck, self-contained system design page and user manual |
 
 ## How these reports were produced
 
