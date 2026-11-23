@@ -91,7 +91,7 @@ Do not return SQL, stack traces, or raw model text to the browser.
 - Anonymous routes: `POST /api/v1/auth/login|register|google|firebase`, every `GET /api/v1/catalog/**` (§4.6), and the Gateway's own `GET /actuator/release`. Gateway and core both permit exactly these without a JWT.
 - `Platform.Admin` may call only `GET`/`PATCH /me`, `/api/v1/admin/**`, and the anonymous routes. Every business URL (§4.1–§4.5, §4.7–§10, including `/members`, `/dealer/**`, and `/audit`) returns **403** `FORBIDDEN` for Admin; Admin never reads business rows across dealerships; the one exception is the platform audit log (§9.2), whose rows hold field summaries, contact values included (AUD-04). `Dealer.User` calling `/api/v1/admin/**` → **403**.
 - `Dealer.User` signed in with **0** active memberships: every authenticated route except `/me` → **403** `FORBIDDEN`, not 401 and not 404. `GET /me` is still 200 (`dealerId=null`), and `PATCH`/`DELETE /me` (§2.1–2.2) work so a pending account can edit or cancel itself.
-- Writes that carry `version`: `dealer`, `vehicle`, `customer`, `listing` (including checks/ready/export). Request `version` must equal the current row. Conflict **409** `VERSION_CONFLICT`.
+- Writes that carry `version`: `dealer`, `vehicle`, `customer`, `listing` (including checks/ready/export), `work_order` (§4.7) and `sales_lead` (§5.5). Request `version` must equal the current row. Conflict **409** `VERSION_CONFLICT`.
 - `customer_vehicle` has no `version` column: link/unlink do not use optimistic locking.
 - Enums and required fields match handbook section 3; do not add or remove spec fields. Dates `YYYY-MM-DD`, timestamps ISO-8601 UTC. JSON camelCase.
 
