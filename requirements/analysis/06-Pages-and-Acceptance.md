@@ -11,15 +11,17 @@
 | Ad compliance | Dealer user | Check an ad against OMVIC before publishing | PDF |
 | Assistant | Dealer user | In-dealer read-only AI Q&A | SCOPE erratum 2 |
 
+Delivered as a floating panel on signed-in business pages, not as its own route (design/13 §5.7). The pages added by SCOPE-BASELINE errata 6–7 — public landing `/`, `/register`, `/leads`, `/team`, `/profile` — are specified in design/13 and are not restated here.
+
 ## 2. Page-level requirements
 
 ### Login
 
 | ID | Requirement |
 |---|---|
-| UI-01 | One username + password sign-in form shared by admins and dealer users (reversed 2026-09-30, see design/SCOPE-BASELINE.md errata 1) |
+| UI-01 | One sign-in form shared by admins and dealer users: an "Email, username or phone number" field plus password (reversed 2026-09-30 and widened 2026-10-08, see design/SCOPE-BASELINE.md errata 1 and 7). The page also offers Google sign-in when a client id is configured (`AUTH-23`) and Firebase email/password sign-in (erratum 9); both are dealer-only and start new accounts unbound |
 | UI-02 | After sign-in, route by role: admin → Admin, dealer user → DMS |
-| UI-03 | A user with no dealer binding sees "Not provisioned yet, contact your administrator" |
+| UI-03 | A user with no dealer binding sees the no-access screen (rendered in place of the requested page, design/13 §2), which says the account is not provisioned yet and asks them to contact their administrator |
 | UI-04 | Unauthenticated access to any internal page redirects to Login |
 
 ### Admin
@@ -54,13 +56,13 @@
 
 | ID | Requirement |
 |---|---|
-| UI-40 | Pick a vehicle → edit title, body, kind, medium; view the checklist (no additional answer fields) |
+| UI-40 | Pick a vehicle → edit title, body, kind and medium; enter prior-use, offered-warranty and (for lease) annual-kilometre checklist answers |
 | UI-41 | Show year, condition, dealer name, and contact info pulled from DMS / dealer profile |
 | UI-42 | "Check" button with a loading state (up to 15 s) |
 | UI-43 | Results listed per rule with ✅ / ❌ / ⚠️ and reason |
 | UI-44 | Status badge: Needs AI / Blocked / AI unavailable / Passed / Stale |
 | UI-45 | Ready and Export TXT buttons are enabled only when Passed and not Stale |
-| UI-46 | Dedicated disclaimer UI is deferred (AD-14); explain at defense that Passed is not legal approval |
+| UI-46 | The ad-check result panel states that the check is not legal advice and is not OMVIC approval (AD-14) and links the `/disclaimer` page; the exported TXT ends with the same disclaimer |
 
 ### Assistant
 
@@ -68,6 +70,7 @@
 |---|---|
 | UI-50 | Chat input + answer area; answers may include vehicle / customer card links |
 | UI-51 | Clear notice that the assistant is read-only and never changes data |
+| UI-52 | Count questions show a deterministic total calculated from all matching records in the signed-in dealer, independent of the five-card display limit |
 
 ## 3. Acceptance cases
 
@@ -101,11 +104,13 @@ Additional focused checks reuse the same demo records and existing screens/APIs;
 
 | ID | Scenario | Steps | Expected | Covers |
 |---|---|---|---|---|
-| AT-24 | CASH payment triggers finance | Otherwise valid CASH copy includes "$299 per month" and no APR; run Check | BLOCKED FINANCE_APR_MISSING, AI skipped; repeat with APR present to confirm finance soft hints | AD-04, AD-R10–12; complements BE-09 |
+| AT-24 | CASH payment triggers finance | Otherwise valid CASH copy includes "$299 per month" and no APR; run Check. Then add an APR and re-check. Then also add "Cash price $18,900" and re-check | First run: BLOCKED `FINANCE_APR_MISSING` **and** `FINANCE_CASH_PRICE_MISSING`, AI skipped. Second: still BLOCKED on `FINANCE_CASH_PRICE_MISSING` alone, because a per-month amount is not a cash price. Third: no hard finance finding, so the finance soft hints are visible | AD-04, AD-R10–R13; complements BE-09 |
 | AT-25 | Sale before CRM link | Sell an unlinked same-dealer vehicle; link it to a customer; attempt second link and unlink | First link succeeds; second VEHICLE_ALREADY_LINKED; unlink SOLD_LOCKED | CRM-05–08; BE-05/06 |
 | AT-26 | CRM required fields and edit | Try creating with each of the four required fields blank; then create valid customer, edit and reopen | Blank input rejected; valid create/edit persist; history records change without contact values | CRM-01/02/04/11/12; CL-2, BE-11 |
 | AT-27 | Soft findings do not veto | Use otherwise hard-valid copy missing year and finance term; real AI returns successfully | PASSED; saved findings are REVIEW and AI notes retained; Ready/export succeed; no AI veto state | AD-03/08/10/12, AD-R05/12 |
-| AT-28 | Checklist is display only | Select CASH, FINANCE, LEASE and switch medium | Displayed checklist follows selection; no prior-use/warranty/km answer fields or required ticks | AD-02, UI-40 |
+| AT-28 | Salesperson checklist answers persist and inform checks | Enter a prior-use category and warranty terms; save and reload. For a lease, enter annual km, save and check copy with matching/missing/mismatched allowance | Values survive reload; changing an answer makes the previous check stale; findings reflect missing prior-use/warranty disclosure and lease allowance mismatch; broadcast still skips prominence only | AD-02, AD-R03/06/25, UI-40 |
+| AT-29 | Create customer with or without a purchased car | Create one customer with an unlinked dealer vehicle selected; create another without a vehicle | First customer shows the linked vehicle; second is saved with no vehicle; selecting a vehicle from another dealer is impossible | CRM-01, CRM-05–09 |
+| AT-40 | Assistant aggregate count | Ask for in-stock vehicles, sold vehicles, customers, listings and a supported listing check status; repeat with another dealer's data present | Each answer equals the full matching count for the signed-in dealer, including when more than five records match; no other dealer's rows affect the answer; ask with AI service unavailable and receive the same count | AI-03, UI-52 |
 
 These cases define expected behavior; execution results must be recorded separately. Existing BE/FE/CL references are in design/16-Acceptance-and-Test.md.
 

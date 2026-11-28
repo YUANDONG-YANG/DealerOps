@@ -1,0 +1,1406 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DealerOps - Capstone Software Test Analysis &amp; Deployment Report</title>
+<style>
+@page { size: Letter; margin: 0.75in 0.7in; }
+:root { color-scheme: light; }
+body { font-family: Georgia, 'Times New Roman', serif; font-size: 10.5pt; line-height: 1.5; color: #111; background: #fff; max-width: 7.1in; margin: 24px auto; padding: 0 16px; }
+h1 { font-size: 22pt; margin: 0 0 6px; color: #1f3864; line-height: 1.2; }
+h2 { font-size: 14pt; margin: 24px 0 7px; color: #1f3864; border-bottom: 1px solid #99a; padding-bottom: 3px; }
+h3 { font-size: 11.5pt; margin: 17px 0 5px; color: #1f3864; }
+h2, h3 { break-after: avoid; }
+p { margin: 0 0 9px; }
+table { border-collapse: collapse; width: 100%; margin: 7px 0 12px; font-size: 8.8pt; line-height: 1.38; }
+th, td { border: 1px solid #333; padding: 4px 6px; vertical-align: top; text-align: left; }
+th { background: #dce6f1; }
+tr { break-inside: avoid; }
+ul { margin: 4px 0 11px; padding-left: 20px; }
+li { margin-bottom: 4px; }
+p.ref { padding-left: 2.2em; text-indent: -2.2em; margin-bottom: 7px; }
+.cover { text-align: center; padding: 1.4in 0 0.5in; break-after: page; }
+.cover .sub { font-size: 13pt; margin: 18px 0 30px; }
+.cover .meta { font-size: 11pt; margin: 5px 0; }
+.cover .ver { font-size: 9.5pt; color: #555; font-style: italic; margin-top: 26px; }
+nav.toc { break-after: page; }
+nav.toc ul { list-style: none; padding-left: 0; }
+nav.toc li.l1 { margin-top: 6px; font-weight: bold; }
+nav.toc li.l2 { padding-left: 1.4em; font-weight: normal; }
+nav.toc a { color: #1f3864; text-decoration: none; }
+
+figure.shot { margin: 10px 0 16px; break-inside: avoid; }
+figure.shot img { width: 100%; border: 1px solid #bbb; display: block; }
+figure.shot figcaption, figure.term figcaption { font-size: 8.6pt; color: #444; margin-top: 4px; line-height: 1.35; }
+figure.term { margin: 8px 0 16px; break-inside: avoid; }
+figure.term pre { font-family: Menlo, Consolas, monospace; font-size: 7.8pt; line-height: 1.35; background: #f5f6f8; border: 1px solid #ccc; padding: 8px 10px; white-space: pre-wrap; word-break: break-word; margin: 0; }
+@media print { body { margin: 0; padding: 0; max-width: none; } nav.toc a { color: #111; } }
+</style></head>
+<body>
+<div class="cover">
+<h1>Capstone Software Test Analysis<br>&amp; Deployment Report</h1>
+<div class="sub">DealerOps — Multi-Tenant Dealership Management Platform</div>
+<div class="meta">Group 12 — Yuandong Yang, Daniel Watson, and Xiaomei He</div>
+<div class="meta">CPRG-305-B — Software Testing and Deployment</div>
+<div class="meta">Southern Alberta Institute of Technology</div>
+<div class="meta">November 23, 2026</div>
+<div class="ver">Report version v1.0 · Final Project, Part A</div>
+</div>
+<nav class="toc"><h2>Contents</h2><ul>
+<li class="l1"><a href="#executive-summary">Executive Summary</a></li>
+<li class="l1"><a href="#1-introduction">1. Introduction</a></li>
+<li class="l2"><a href="#1-1-purpose-of-this-report">1.1 Purpose of This Report</a></li>
+<li class="l2"><a href="#1-2-scope">1.2 Scope</a></li>
+<li class="l2"><a href="#1-3-references">1.3 References</a></li>
+<li class="l1"><a href="#2-structural-non-functional-test-analysis">2. Structural (Non-Functional) Test Analysis</a></li>
+<li class="l2"><a href="#2-1-summary-of-non-functional-tests-conducted">2.1 Summary of Non-Functional Tests Conducted</a></li>
+<li class="l2"><a href="#2-2-test-environment-description">2.2 Test Environment Description</a></li>
+<li class="l2"><a href="#2-3-execution-summary-ieee-29119-level-test-log">2.3 Execution Summary (IEEE 29119 Level Test Log)</a></li>
+<li class="l2"><a href="#2-4-results-overview">2.4 Results Overview</a></li>
+<li class="l2"><a href="#2-5-statistical-analysis-of-non-functional-results">2.5 Statistical Analysis of Non-Functional Results</a></li>
+<li class="l2"><a href="#2-6-interpretation">2.6 Interpretation</a></li>
+<li class="l1"><a href="#3-defect-analysis">3. Defect Analysis</a></li>
+<li class="l2"><a href="#3-1-defects-identified">3.1 Defects Identified</a></li>
+<li class="l2"><a href="#3-2-defect-clustering-pareto-analysis">3.2 Defect Clustering (Pareto Analysis)</a></li>
+<li class="l2"><a href="#3-3-root-cause-analysis-rca">3.3 Root Cause Analysis (RCA)</a></li>
+<li class="l2"><a href="#3-4-code-earmarks-high-risk-indicators">3.4 Code Earmarks / High-Risk Indicators</a></li>
+<li class="l2"><a href="#3-5-defect-prioritization">3.5 Defect Prioritization</a></li>
+<li class="l1"><a href="#4-test-case-execution-progress">4. Test Case Execution Progress</a></li>
+<li class="l2"><a href="#4-1-execution-statistics">4.1 Execution Statistics</a></li>
+<li class="l2"><a href="#4-2-requirements-feature-coverage">4.2 Requirements / Feature Coverage</a></li>
+<li class="l2"><a href="#4-3-defect-density-and-test-effectiveness">4.3 Defect Density and Test Effectiveness</a></li>
+<li class="l2"><a href="#4-4-current-version-regression-november-23-2026">4.4 Current-Version Regression (November 23, 2026)</a></li>
+<li class="l2"><a href="#4-5-supplementary-verification-outside-the-baseline">4.5 Supplementary Verification Outside the Baseline</a></li>
+<li class="l1"><a href="#5-deployment-strategy">5. Deployment Strategy</a></li>
+<li class="l2"><a href="#5-1-recommended-deployment-strategy">5.1 Recommended Deployment Strategy</a></li>
+<li class="l2"><a href="#5-2-rationale">5.2 Rationale</a></li>
+<li class="l2"><a href="#5-3-deployment-plan-summary">5.3 Deployment Plan Summary</a></li>
+<li class="l1"><a href="#6-post-mortem-lessons-learned">6. Post-Mortem / Lessons Learned</a></li>
+<li class="l2"><a href="#6-1-summary">6.1 Summary</a></li>
+<li class="l2"><a href="#6-2-lessons-learned-table">6.2 Lessons Learned Table</a></li>
+<li class="l2"><a href="#6-3-improvements-for-future-releases">6.3 Improvements for Future Releases</a></li>
+<li class="l1"><a href="#7-conclusions-and-recommendations">7. Conclusions and Recommendations</a></li>
+<li class="l2"><a href="#7-1-overall-assessment">7.1 Overall Assessment</a></li>
+<li class="l2"><a href="#7-2-release-readiness-rating">7.2 Release Readiness Rating</a></li>
+<li class="l2"><a href="#7-3-outstanding-risks-and-release-conditions">7.3 Outstanding Risks and Release Conditions</a></li>
+<li class="l2"><a href="#7-4-final-recommendation">7.4 Final Recommendation</a></li>
+<li class="l1"><a href="#8-sign-off">8. Sign-Off</a></li>
+<li class="l1"><a href="#9-references">9. References</a></li>
+<li class="l1"><a href="#10-appendix">10. Appendix</a></li>
+<li class="l2"><a href="#10-1-training-manual-outline">10.1 Training Manual Outline</a></li>
+<li class="l2"><a href="#10-2-execution-evidence">10.2 Execution Evidence</a></li>
+<li class="l2"><a href="#10-3-supporting-documents">10.3 Supporting Documents</a></li>
+</ul></nav>
+<h2 id="executive-summary">Executive Summary</h2>
+<p>DealerOps is a multi-tenant back office for independent used-car dealers. It combines a dealer management system for vehicle inventory, a customer and lead system, an OMVIC-style advertising compliance gate reviewed by a real AI model, a finance-grade audit trail, and a public buyer site. The product is built as four cooperating applications — a React 19 client, a YARP gateway, an ASP.NET Core 10 business service, and an internal ASP.NET Core 10 AI service — over MySQL 8.4.</p>
+<p>This report analyses the test execution data produced in Group Assignment 3 (October 13, 2026) against the plan approved in Group Assignment 2, adds a current-version regression executed on the active stack on November 23, 2026, and recommends a deployment strategy for the capstone release.</p>
+<p>The headline results are as follows.</p>
+<table>
+<tr>
+<th><strong>Area</strong></th>
+<th><strong>Result</strong></th>
+<th><strong>Interpretation</strong></th>
+</tr>
+<tr>
+<td><strong>Functional execution (Assignment 3 baseline)</strong></td>
+<td><strong>87 planned, 76 executed (87.4%), 76 passed, 0 failed, 11 not run</strong></td>
+<td><strong>Every executed functional assertion passed. The 11 unexecuted cases are the stakeholder acceptance set, which was never scheduled.</strong></td>
+</tr>
+<tr>
+<td><strong>Supplementary functional evidence</strong></td>
+<td><strong>Integration retest 44/44 passed; live AI provider follow-up passed</strong></td>
+<td><strong>The one high-severity blocker from the execution window was closed by retest rather than left open.</strong></td>
+</tr>
+<tr>
+<td><strong>Current-version regression (Nov 23, 2026)</strong></td>
+<td><strong>458 of 458 executed cases passed, 0 failed; 5 skipped, and the 3 buyer-site cases among them were executed and passed in a serial verification run against the live provider</strong></td>
+<td><strong>The active .NET 10 / React stack, which replaced the baseline the October evidence was gathered on, still meets the planned behaviour.</strong></td>
+</tr>
+<tr>
+<td><strong>Non-functional (performance)</strong></td>
+<td><strong>20/20 requests HTTP 200; mean 12.6 ms; maximum 71.8 ms against a 3 000 ms threshold</strong></td>
+<td><strong>Response time is two orders of magnitude inside the planned limit on the tested path. This is a smoke measurement, not a capacity test.</strong></td>
+</tr>
+<tr>
+<td><strong>Non-functional (security boundary)</strong></td>
+<td><strong>Internal-token guard, CORS, direct-service access and route-exposure checks all behaved as specified</strong></td>
+<td><strong>The gateway-only boundary that the whole security design rests on holds.</strong></td>
+</tr>
+<tr>
+<td><strong>Defects</strong></td>
+<td><strong>4 logged in the Assignment 3 execution window (1 high, 3 medium): 3 closed, 1 accepted scope limitation. 2 further defects in the automated suite found and closed by the current-version regression (DEF-003, DEF-004).</strong></td>
+<td><strong>No defect was traced to application logic. All six originated in the environment, the toolchain, the automated test suite, or a deliberate scope exclusion.</strong></td>
+</tr>
+</table>
+<p>The most significant finding of the analysis is the defect distribution. One hundred percent of the logged defects were environmental, configuration or test-automation defects — a Docker API version mismatch, an unsupported host JDK, a deliberately absent AI provider key, and an unfunded acceptance environment — and zero were application assertion failures. The product code was not the weak point of this project; the test environment was.</p>
+<p><strong>Release recommendation: </strong>the software is <strong>Ready with warnings</strong>. The functional and security evidence supports deployment of the capstone demonstration release. Three conditions remain open and are stated plainly in §7: no formal stakeholder acceptance session has been held, no load or capacity test has been run, and code coverage has never been measured with instrumentation.</p>
+<h2 id="1-introduction">1. Introduction</h2>
+<h3 id="1-1-purpose-of-this-report">1.1 Purpose of This Report</h3>
+<p>This report documents and interprets the testing activities carried out across the DealerOps software development life cycle, from requirements and design review through unit, integration, system and non-functional testing, and it converts those results into a deployment decision. It follows the life-cycle view of testing described by Everett and McLeod (2007), in which testing is planned and measured in every phase rather than performed only before release, and it uses the documentation structure of ISO/IEC/IEEE 29119-3 for the test log, the incident records and the completion report.</p>
+<p>The report has three jobs. First, it analyses the functional test outcomes recorded in Group Assignment 3 and states which requirements were validated and which were not. Second, it analyses the non-functional (structural) characteristics of the system — response time, security boundary, reliability, installability and platform configuration — and interprets them against the thresholds fixed in the Assignment 2 test plan. Third, it performs a root cause analysis of the defects found, recommends a deployment strategy with a rollback path, outlines the training material end users will need, and records the lessons the group takes out of the project.</p>
+<p><strong>A note on evidence integrity. </strong>Nothing in this report claims more than the recorded evidence supports. The original Assignment 3 execution denominator of 87 planned and 76 executed cases is left unchanged; later verification runs are reported separately as supplementary evidence rather than folded in to improve the percentages. Work that was never done — the stakeholder acceptance session, load testing, instrumented coverage measurement — is stated as not done rather than omitted.</p>
+<h3 id="1-2-scope">1.2 Scope</h3>
+<p>The system under test is the DealerOps baseline held in the project repository. The report covers the following.</p>
+<table>
+<tr>
+<th><strong>Dimension</strong></th>
+<th><strong>In this report</strong></th>
+</tr>
+<tr>
+<td><strong>Modules</strong></td>
+<td><strong>DealerOps.Core (authentication, membership and roles, tenancy, inventory, customers, leads, work orders, photos, listings, the OMVIC rule engine, payments, reports, audit, persistence); DealerOps.Gateway (the single public entry point, JWT validation, CORS, routing, internal-token injection); DealerOps.AiService (advertisement review and the read-only assistant, no database); the React 19 web client; MySQL 8.4.</strong></td>
+</tr>
+<tr>
+<td><strong>Features</strong></td>
+<td><strong>Dealership isolation; sign-in and role separation; the advertising compliance gate and its five check states; AI review fail-safe behaviour; the inventory lifecycle and the sold lock; the gateway and internal service boundary; the audit trail; customers, vehicle links and leads; payments, bill of sale and reports; the public buyer site; deployment and release.</strong></td>
+</tr>
+<tr>
+<td><strong>Test levels</strong></td>
+<td><strong>Requirements and design review, unit, integration and API, system (browser end-to-end), non-functional smoke, and the acceptance level — the last of which is reported as not executed.</strong></td>
+</tr>
+<tr>
+<td><strong>Environments</strong></td>
+<td><strong>Assignment 3 baseline: an isolated Docker bridge network (dealerops-ga3-net) on a Mac mini host with Docker Desktop 29.5.3, MySQL 8.4 and Java 21 containers. Current-version regression: the project&#x27;s private end-to-end stack (isolated ports and an isolated dealer_core_e2e database) built from the working tree, so the shared development stack is never written to. Azure App Service with Azure Database for MySQL Flexible Server is the target release environment.</strong></td>
+</tr>
+<tr>
+<td><strong>Out of scope</strong></td>
+<td><strong>Production-scale load, soak and disaster-recovery testing; the internal correctness and availability of third-party providers; legal or OMVIC approval of an advertisement; real marketplace publishing and real card payment processing; the retired Java and Vue implementations; native mobile applications; live production customer data.</strong></td>
+</tr>
+</table>
+<p><strong>Baseline change during the course. </strong>The Assignment 3 execution of October 13, 2026 ran against the Java 21 implementation of the backend services. The platform has since completed its planned migration to the active .NET 10 and React stack described in the Assignment 2 plan v2.0, and the Java and Vue implementations are retired. Because an analysis of retired-stack evidence alone would not support a deployment decision for the product that actually ships, §4.4 reports a current-version regression executed on the active stack on November 23, 2026. Both data sets are kept distinct.</p>
+<h3 id="1-3-references">1.3 References</h3>
+<p>The following sources informed the testing programme and this analysis. Full APA entries are in §9.</p>
+<ul>
+<li>ISO/IEC/IEEE 29119-3, Software and systems engineering — Software testing — Part 3: Test documentation. Supplies the structure of the level test log (§2.3), the test incident report (§3.1) and the test completion report (§4).</li>
+<li>Everett, G. D., &amp; McLeod, R. (2007). Software testing: Testing across the entire software development lifecycle. Chapter 5 supplies the phase entry and exit criteria used in the Assignment 2 plan; Chapter 12 supplies the structural-testing taxonomy, the defect-clustering analysis (§3.2) and the code-earmark indicators (§3.4).</li>
+<li>CPRG-305-B Final Project assignment document, Spring 2024 Rev. 1.</li>
+<li>DealerOps Group Assignment 2: Developing a Testing Plan, v2.0, October 23, 2026 (test plan identifier DO-CPRG305-GA2-TP-002), and its companion test-case workbook.</li>
+<li>DealerOps Group Assignment 3: Test Execution Report, v1.0, October 13, 2026, and its companion defect-tracking workbook.</li>
+<li>Project design documents: the scope baseline, the backend API contract, the data, authentication and gateway design, the acceptance and test design, and the DevOps and implementation design.</li>
+<li>Tooling documentation: Microsoft .NET 10 and ASP.NET Core, Entity Framework Core, YARP, Playwright, Docker, Testcontainers, Terraform and Azure App Service deployment slots.</li>
+</ul>
+<h2 id="2-structural-non-functional-test-analysis">2. Structural (Non-Functional) Test Analysis</h2>
+<p>Structural, or non-functional, testing evaluates the quality attributes of the system — performance, security, reliability, installability, scalability and platform configuration — rather than whether a feature produces the right answer. Everett and McLeod (2007, Chapter 12) describe non-functional testing as a buffet: a project selects only the attributes that its architecture and its business risk actually require, and tests those properly, instead of attempting every category thinly. DealerOps applied that principle. The attributes selected were the ones on which the product&#x27;s own design arguments depend: if the gateway boundary leaks, every other control is pointless; if a response takes longer than a user will wait, the inventory workflow is unusable; if the installation is not reproducible, the release cannot be demonstrated or rolled back.</p>
+<h3 id="2-1-summary-of-non-functional-tests-conducted">2.1 Summary of Non-Functional Tests Conducted</h3>
+<table>
+<tr>
+<th><strong>Test type</strong></th>
+<th><strong>Applicability</strong></th>
+<th><strong>Description of test, and why it mattered here</strong></th>
+</tr>
+<tr>
+<td><strong>Performance</strong></td>
+<td><strong>Yes</strong></td>
+<td><strong>Repeated black-box response-time sampling of the gateway health path from a disposable client container inside the isolated network, n = 20, cold first request plus warm steady state. The Assignment 2 plan fixes a 3-second limit for a normal gateway request; this measures the public request path without a dependency on an external provider.</strong></td>
+</tr>
+<tr>
+<td><strong>Security</strong></td>
+<td><strong>Yes</strong></td>
+<td><strong>Internal-token guard on the AI service, direct access to core and the AI service from outside the gateway, unknown public route exposure, CORS with an unconfigured origin, authentication rejection on a malformed login, and cross-dealership access refusal. This is the highest-risk attribute in the product: the design states that the browser may reach only the gateway.</strong></td>
+</tr>
+<tr>
+<td><strong>Reliability</strong></td>
+<td><strong>Partial</strong></td>
+<td><strong>Error rate over the performance sample (0 failures in 20 requests) and stability of the four containers across the execution window. No endurance or soak run was performed, so mean time between failures is not claimed.</strong></td>
+</tr>
+<tr>
+<td><strong>Installability</strong></td>
+<td><strong>Yes</strong></td>
+<td><strong>Build of the service artefacts from the working tree, container start-up in dependency order, database creation, and automatic schema migration (13 migrations applied at first start). This attribute directly supports the deployment plan in §5.</strong></td>
+</tr>
+<tr>
+<td><strong>Config / platform</strong></td>
+<td><strong>Yes</strong></td>
+<td><strong>Execution on the supported toolchain versus an unsupported one, and Docker client-to-engine API compatibility. Both produced findings (DEF-002, DEF-001).</strong></td>
+</tr>
+<tr>
+<td><strong>Usability</strong></td>
+<td><strong>Partial</strong></td>
+<td><strong>Browser smoke of the signed-in workflows — sign-in, inventory list, customer and lead views, the assistant panel, and the release footer. Observational only; no accessibility audit and no structured usability study was conducted.</strong></td>
+</tr>
+<tr>
+<td><strong>Scalability</strong></td>
+<td><strong>No</strong></td>
+<td><strong>No horizontal or vertical scaling behaviour was measured. The test environments are one workstation and a single small Azure plan, so a scaling result would not represent the deployment target. Recorded in §2.6 as a residual risk.</strong></td>
+</tr>
+<tr>
+<td><strong>Maintainability</strong></td>
+<td><strong>No</strong></td>
+<td><strong>No maintainability metric (change-failure rate, patch effort) was gathered. The project is a single-release capstone and has no maintenance window to measure.</strong></td>
+</tr>
+</table>
+<p><em>Table 2.1 — Non-functional attribute selection. &#x27;Partial&#x27; means evidence was collected but is not sufficient to state a measured result.</em></p>
+<h3 id="2-2-test-environment-description">2.2 Test Environment Description</h3>
+<table>
+<tr>
+<th><strong>Area</strong></th>
+<th><strong>Assignment 3 baseline (October 13, 2026)</strong></th>
+<th><strong>Current-version regression (November 23, 2026)</strong></th>
+</tr>
+<tr>
+<td><strong>Hardware</strong></td>
+<td><strong>Mac mini host; Docker Desktop 29.5.3</strong></td>
+<td><strong>Same host, services run directly on the host</strong></td>
+</tr>
+<tr>
+<td><strong>Runtime</strong></td>
+<td><strong>Java 21.0.11 / 21.0.12.1 in build and runtime containers</strong></td>
+<td><strong>.NET 10 for core and gateway; Node for the Vite client</strong></td>
+</tr>
+<tr>
+<td><strong>Network</strong></td>
+<td><strong>Isolated Docker bridge network dealerops-ga3-net; gateway 8080, core 8081, AI 8082 inside the network; the public boundary exercised through the gateway service name only</strong></td>
+<td><strong>Private end-to-end stack on isolated ports (web 5175, gateway 18080, core 18081); the shared development stack on 8080 / 8081 / 5174 is never started or written to</strong></td>
+</tr>
+<tr>
+<td><strong>Database</strong></td>
+<td><strong>MySQL 8.4 container; 13 migrations applied at first start</strong></td>
+<td><strong>MySQL 8.4; isolated database dealer_core_e2e, dropped and recreated for the run</strong></td>
+</tr>
+<tr>
+<td><strong>Test tools</strong></td>
+<td><strong>Maven Surefire and Failsafe, Testcontainers, curl in a disposable container, Chrome for the browser smoke</strong></td>
+<td><strong>Playwright (Chromium), against the gateway and the browser client</strong></td>
+</tr>
+<tr>
+<td><strong>Dependencies</strong></td>
+<td><strong>MySQL 8.4; the AI provider endpoint, reached only in the supplementary follow-up</strong></td>
+<td><strong>MySQL 8.4; the AI service shared from the development stack</strong></td>
+</tr>
+<tr>
+<td><strong>Test data</strong></td>
+<td><strong>Fresh database with a seeded synthetic platform administrator; no production personal data and no real provider key in the formal run</strong></td>
+<td><strong>Seeded synthetic fixtures created by the suite; no production personal data</strong></td>
+</tr>
+</table>
+<h3 id="2-3-execution-summary-ieee-29119-level-test-log">2.3 Execution Summary (IEEE 29119 Level Test Log)</h3>
+<p>The companion defect-tracking workbook holds the row-level log. The chronological events below are the ones that carry an analytical conclusion.</p>
+<table>
+<tr>
+<th><strong>Date / time (MDT)</strong></th>
+<th><strong>Tester</strong></th>
+<th><strong>Build / version</strong></th>
+<th><strong>Environment notes</strong></th>
+<th><strong>Preconditions and postconditions</strong></th>
+</tr>
+<tr>
+<td><strong>2026-10-13 15:54</strong></td>
+<td><strong>Yuandong Yang</strong></td>
+<td><strong>Working tree, Java 21</strong></td>
+<td><strong>Host toolchain</strong></td>
+<td><strong>Pre: project builds. Post: unit suites green for core (20), gateway (10) and AI (19).</strong></td>
+</tr>
+<tr>
+<td><strong>2026-10-13 15:55</strong></td>
+<td><strong>Yuandong Yang</strong></td>
+<td><strong>Working tree, Java 25</strong></td>
+<td><strong>Unsupported host JDK, run for diagnosis</strong></td>
+<td><strong>Pre: same source. Post: Mockito/Byte Buddy instrumentation and Lombok compilation failed; logged as DEF-002.</strong></td>
+</tr>
+<tr>
+<td><strong>2026-10-13 15:56</strong></td>
+<td><strong>Yuandong Yang</strong></td>
+<td><strong>Containers built from the working tree</strong></td>
+<td><strong>dealerops-ga3-net created; four containers started</strong></td>
+<td><strong>Pre: fresh database. Post: all containers running; 13 migrations applied.</strong></td>
+</tr>
+<tr>
+<td><strong>2026-10-13 15:57</strong></td>
+<td><strong>Yuandong Yang</strong></td>
+<td><strong>Same build</strong></td>
+<td><strong>Smoke through the gateway only</strong></td>
+<td><strong>Pre: services healthy. Post: health, release, login, route and CORS checks observed as specified.</strong></td>
+</tr>
+<tr>
+<td><strong>2026-10-13 15:57</strong></td>
+<td><strong>Yuandong Yang</strong></td>
+<td><strong>Same build</strong></td>
+<td><strong>Integration batch from the Maven JVM</strong></td>
+<td><strong>Pre: Docker available. Post: 44 integration targets blocked before context initialisation; logged as DEF-001.</strong></td>
+</tr>
+<tr>
+<td><strong>2026-10-13 15:58</strong></td>
+<td><strong>Yuandong Yang</strong></td>
+<td><strong>Same build</strong></td>
+<td><strong>Disposable client container inside the network</strong></td>
+<td><strong>Pre: gateway warm. Post: 20/20 HTTP 200; mean 12.6 ms; maximum 71.8 ms.</strong></td>
+</tr>
+<tr>
+<td><strong>2026-10-13 16:22</strong></td>
+<td><strong>Yuandong Yang</strong></td>
+<td><strong>Development profile</strong></td>
+<td><strong>Chrome, local development stack</strong></td>
+<td><strong>Pre: stack started per the project README. Post: sign-in reached the administrator surface; inventory and membership views loaded; release timestamps displayed. Recorded as development smoke, not acceptance.</strong></td>
+</tr>
+<tr>
+<td><strong>2026-10-13 16:49–16:50</strong></td>
+<td><strong>Yuandong Yang</strong></td>
+<td><strong>Temporary instances, Java 21</strong></td>
+<td><strong>Protected local provider key; temporary core and AI ports</strong></td>
+<td><strong>Pre: provider key available. Post: HTTP 200, a live summary and a tenant-scoped inventory card returned. Supplementary evidence.</strong></td>
+</tr>
+<tr>
+<td><strong>2026-10-13 17:07</strong></td>
+<td><strong>Yuandong Yang</strong></td>
+<td><strong>Same build</strong></td>
+<td><strong>Docker socket and client API compatibility corrected</strong></td>
+<td><strong>Pre: DEF-001 analysis complete. Post: 44 integration targets passed, 0 failed, 0 errors, 0 skipped. DEF-001 closed.</strong></td>
+</tr>
+<tr>
+<td><strong>2026-11-23 16:20–16:23</strong></td>
+<td><strong>Yuandong Yang</strong></td>
+<td><strong>Active .NET 10 / React working tree</strong></td>
+<td><strong>Private end-to-end stack, isolated database</strong></td>
+<td><strong>Pre: stack built and ready on isolated ports. Post: 458 of 463 cases executed; 458 passed; 0 failed; 5 skipped. Three of the skips are advertising and buyer-site cases that the suite skips when the AI provider answers AI_UNAVAILABLE, which it did under six parallel workers; those three were then executed serially against the live provider and passed. Earlier attempts of the same regression failed three cases in total, all traced to stale automation and corrected (DEF-003, DEF-004).</strong></td>
+</tr>
+</table>
+<h3 id="2-4-results-overview">2.4 Results Overview</h3>
+<table>
+<tr>
+<th><strong>Test type</strong></th>
+<th><strong>Metric collected</strong></th>
+<th><strong>Expected result</strong></th>
+<th><strong>Actual result</strong></th>
+<th><strong>Status</strong></th>
+</tr>
+<tr>
+<td><strong>Performance</strong></td>
+<td><strong>Gateway response time, n = 20</strong></td>
+<td><strong>Every request under 3 000 ms</strong></td>
+<td><strong>Mean 12.6 ms; minimum 6.5 ms; maximum 71.8 ms</strong></td>
+<td><strong>PASS</strong></td>
+</tr>
+<tr>
+<td><strong>Performance</strong></td>
+<td><strong>Request success rate</strong></td>
+<td><strong>No request failure in the sample</strong></td>
+<td><strong>20 of 20 returned HTTP 200</strong></td>
+<td><strong>PASS</strong></td>
+</tr>
+<tr>
+<td><strong>Performance</strong></td>
+<td><strong>Live AI round trip (supplementary)</strong></td>
+<td><strong>Answer inside the 15 s timeout or recorded unavailable</strong></td>
+<td><strong>Direct AI service 1.033 s; end-to-end core-to-AI 0.548 s</strong></td>
+<td><strong>PASS (n = 1)</strong></td>
+</tr>
+<tr>
+<td><strong>Security</strong></td>
+<td><strong>Internal-token guard on the AI service</strong></td>
+<td><strong>Request without the internal header is refused</strong></td>
+<td><strong>HTTP 404; the internal route is not disclosed</strong></td>
+<td><strong>PASS</strong></td>
+</tr>
+<tr>
+<td><strong>Security</strong></td>
+<td><strong>Unknown public route</strong></td>
+<td><strong>Not exposed as a valid business route</strong></td>
+<td><strong>Not exposed</strong></td>
+<td><strong>PASS</strong></td>
+</tr>
+<tr>
+<td><strong>Security</strong></td>
+<td><strong>CORS with an unconfigured origin</strong></td>
+<td><strong>Refused, with no permissive allow-origin header</strong></td>
+<td><strong>HTTP 403, no permissive header</strong></td>
+<td><strong>PASS</strong></td>
+</tr>
+<tr>
+<td><strong>Security</strong></td>
+<td><strong>Malformed sign-in (missing identifier)</strong></td>
+<td><strong>Rejected with a validation status, not a server error</strong></td>
+<td><strong>HTTP 400</strong></td>
+<td><strong>PASS</strong></td>
+</tr>
+<tr>
+<td><strong>Security</strong></td>
+<td><strong>Authentication / authorisation unit assertions</strong></td>
+<td><strong>Exception mapping, tenant filter binding and rule enforcement all hold</strong></td>
+<td><strong>49 of 49 unit assertions passed across the three services</strong></td>
+<td><strong>PASS</strong></td>
+</tr>
+<tr>
+<td><strong>Reliability</strong></td>
+<td><strong>Error rate during the sample window</strong></td>
+<td><strong>0 %</strong></td>
+<td><strong>0 of 20 requests failed; all four containers stayed up</strong></td>
+<td><strong>PASS</strong></td>
+</tr>
+<tr>
+<td><strong>Installability</strong></td>
+<td><strong>Clean install from a fresh database</strong></td>
+<td><strong>Services start in dependency order and the schema is created automatically</strong></td>
+<td><strong>Four containers started; 13 migrations applied; health reported UP and the release endpoint reported aligned build timestamps for all services</strong></td>
+<td><strong>PASS</strong></td>
+</tr>
+<tr>
+<td><strong>Config / platform</strong></td>
+<td><strong>Supported versus unsupported host JDK</strong></td>
+<td><strong>Documented toolchain succeeds</strong></td>
+<td><strong>Java 21 succeeded; Java 25 failed to instrument and to compile (DEF-002)</strong></td>
+<td><strong>PASS with finding</strong></td>
+</tr>
+<tr>
+<td><strong>Config / platform</strong></td>
+<td><strong>Container client-to-engine API compatibility</strong></td>
+<td><strong>Integration harness discovers the container engine</strong></td>
+<td><strong>Initially failed (DEF-001); passed after the compatibility setting was corrected</strong></td>
+<td><strong>PASS on retest</strong></td>
+</tr>
+<tr>
+<td><strong>Usability</strong></td>
+<td><strong>Signed-in browser workflows</strong></td>
+<td><strong>Core pages load with correct role scoping</strong></td>
+<td><strong>Sign-in, inventory, customer, membership and assistant views loaded; role label shown correctly</strong></td>
+<td><strong>PASS (observational)</strong></td>
+</tr>
+</table>
+<h3 id="2-5-statistical-analysis-of-non-functional-results">2.5 Statistical Analysis of Non-Functional Results</h3>
+<p>Response-time distribution. The 20-request sample against the gateway produced a mean of 12.6 ms, a minimum of 6.5 ms and a maximum of 71.8 ms. The maximum is the cold first request; every subsequent request fell in the warm band near the mean. Expressed against the planned limit, the slowest observed request consumed 2.4 % of the 3 000 ms budget and the mean consumed 0.4 %. Because the sample is sequential and small, the correct statement is that 20 of 20 requests fell below the threshold with a cold-start worst case of 71.8 ms; a 95th-percentile figure from n = 20 would be a spurious precision.</p>
+<table>
+<tr>
+<th><strong>Statistic</strong></th>
+<th><strong>Value</strong></th>
+<th><strong>Planned threshold</strong></th>
+<th><strong>Margin</strong></th>
+</tr>
+<tr>
+<td><strong>Mean response time</strong></td>
+<td><strong>12.6 ms</strong></td>
+<td><strong>&lt; 3 000 ms</strong></td>
+<td><strong>238× inside the limit</strong></td>
+</tr>
+<tr>
+<td><strong>Minimum (warm path)</strong></td>
+<td><strong>6.5 ms</strong></td>
+<td><strong>—</strong></td>
+<td><strong>Lower bound of the warm band</strong></td>
+</tr>
+<tr>
+<td><strong>Maximum (cold start)</strong></td>
+<td><strong>71.8 ms</strong></td>
+<td><strong>&lt; 3 000 ms</strong></td>
+<td><strong>42× inside the limit</strong></td>
+</tr>
+<tr>
+<td><strong>Success rate</strong></td>
+<td><strong>100 % (20/20 HTTP 200)</strong></td>
+<td><strong>No failure in the sample</strong></td>
+<td><strong>Met</strong></td>
+</tr>
+<tr>
+<td><strong>Error rate (HTTP 5xx)</strong></td>
+<td><strong>0 %</strong></td>
+<td><strong>0 %</strong></td>
+<td><strong>Met</strong></td>
+</tr>
+<tr>
+<td><strong>Live AI round trip, end to end</strong></td>
+<td><strong>0.548 s</strong></td>
+<td><strong>&lt; 15 s timeout</strong></td>
+<td><strong>27× inside the timeout</strong></td>
+</tr>
+<tr>
+<td><strong>Live AI round trip, direct to the AI service</strong></td>
+<td><strong>1.033 s</strong></td>
+<td><strong>&lt; 15 s timeout</strong></td>
+<td><strong>14× inside the timeout</strong></td>
+</tr>
+</table>
+<p>Throughput and resource utilisation. No sustained throughput figure is claimed. The sample was deliberately sequential, so it measures latency on an unloaded system and cannot be converted into requests per second under concurrency. Host CPU and memory were not instrumented during the run, so no average utilisation figure is reported; stating one would be an invented number. This gap is carried into §6 as a lesson learned and into §7 as a residual risk.</p>
+<p>Performance bottlenecks. None were identified on the tested path. The warm-path figure of 6.5 ms to 12.6 ms indicates that the gateway process itself adds very little overhead. The only observed cost was the cold-start penalty of roughly 60 ms on the first request after start-up, which is a normal just-in-time and connection-pool warm-up effect and is addressed in the deployment plan (§5.3) by warming the target before traffic is shifted to it. The live AI path is approximately 80 times slower than a local request, which is why the design treats the AI review as an asynchronous, fail-safe step with a 15-second timeout rather than a blocking part of a normal page load.</p>
+<p>Reliability. Zero failures in 20 requests gives an observed error rate of 0 %, with a 95 % confidence upper bound of roughly 14 % by the rule of three — that is, this sample alone can only demonstrate that the true failure rate is unlikely to exceed one request in seven. That is a weak statistical claim and is reported as such. Mean time between failures is not calculated, because no endurance run was performed.</p>
+<h3 id="2-6-interpretation">2.6 Interpretation</h3>
+<p>Acceptable behaviours. The two non-functional attributes that the architecture actually depends on both held. The security boundary behaved exactly as designed in every check: the internal AI route is invisible without the internal token, an unconfigured origin is refused rather than silently allowed, an unknown route is not disclosed, and a malformed sign-in produces a validation response rather than a server error. Response time on the public path is far inside the planned limit, with no bottleneck on the tested route. Installability is strong: a clean database plus the committed artefacts produced a running, migrated, healthy system without manual schema work, which is the precondition for both the deployment plan and the rollback plan in §5.</p>
+<p>Threshold failures. No planned non-functional threshold was exceeded. The two findings in this section are environment findings rather than product findings: the project&#x27;s documented toolchain version is mandatory rather than advisory (DEF-002), and the integration harness needs an explicit client-to-engine API compatibility setting on current container platforms (DEF-001). Both are corrected and verified.</p>
+<p>Identified risks. Three non-functional risks remain open and unmeasured. First, capacity: no concurrent-load or scaling result exists, so the system&#x27;s behaviour beyond a single sequential user is unknown and the Azure plan sizing for the release is an estimate rather than a measurement. Second, endurance: no soak run exists, so slow resource leaks would not have been detected. Third, accessibility: the browser evidence is observational, so no claim is made about conformance to accessibility guidance. None of these is a defect; each is an absence of evidence, which is why each appears in §7 as a release condition rather than in §3 as a defect.</p>
+<p>Implications for deployment. The measured non-functional profile supports deploying the capstone demonstration release: the boundary is sound, start-up is reproducible, and latency is not a user-facing problem at demonstration scale. It does not support a claim of production readiness at unknown load. This is precisely the risk shape that the deployment strategy in §5 is chosen to manage — a release model in which the previous version stays intact and reachable, and in which a rollback is a traffic switch rather than a rebuild.</p>
+<h2 id="3-defect-analysis">3. Defect Analysis</h2>
+<p>Defect analysis exists to find causes, not to count symptoms. Everett and McLeod (2007) argue that the value of a defect log is the pattern it reveals: where defects cluster, what those clusters say about the architecture or the process, and which corrective action prevents the next occurrence rather than repairing the last one. This section records the defects found, clusters them, performs a root cause analysis on each, checks the code for the high-risk indicators the textbook associates with defect density, and prioritises what remains.</p>
+<p>Scope of this section. §3 analyses the defects raised during the Assignment 3 execution window, which is the data set the final project asks this report to analyse. Two further defects of the automated test suite, DEF-003 and DEF-004, were raised six weeks later by the current-version regression; both are recorded with their root cause analysis in §4.4 and are carried into the prioritisation in §3.5 and into the lessons learned in §6.2, but both are deliberately kept out of the Assignment 3 clustering figures in §3.2 so that those figures continue to describe the execution window they were measured in.</p>
+<p>A definitional note that shapes everything below: the group&#x27;s defect standard counts an environment or toolchain failure as a defect of the testing programme, not of the application, unless the same behaviour reproduces through a supported application execution path. Those failures are still logged, analysed and tracked to closure — they cost real time and they blocked real coverage — but they are never counted as application assertion failures. Applying that standard honestly is what produces the central finding of this section.</p>
+<h3 id="3-1-defects-identified">3.1 Defects Identified</h3>
+<table>
+<tr>
+<th><strong>ID</strong></th>
+<th><strong>Summary</strong></th>
+<th><strong>Severity</strong></th>
+<th><strong>Priority</strong></th>
+<th><strong>Status</strong></th>
+<th><strong>Phase detected</strong></th>
+<th><strong>Module</strong></th>
+<th><strong>Owner</strong></th>
+</tr>
+<tr>
+<td><strong>DEF-001</strong></td>
+<td><strong>The integration harness could not discover a valid container environment from the build JVM, blocking the entire 44-target core integration batch before any test context initialised.</strong></td>
+<td><strong>S2 – High</strong></td>
+<td><strong>P1</strong></td>
+<td><strong>Closed, environment corrected and retested</strong></td>
+<td><strong>Integration</strong></td>
+<td><strong>dealer-core / Testcontainers</strong></td>
+<td><strong>Development and environment owner</strong></td>
+</tr>
+<tr>
+<td><strong>DEF-002</strong></td>
+<td><strong>On an unsupported host JDK, the mocking framework could not instrument the persistence context and the AI service failed to compile its annotation-generated code.</strong></td>
+<td><strong>S3 – Medium</strong></td>
+<td><strong>P2</strong></td>
+<td><strong>Closed by environment correction</strong></td>
+<td><strong>Unit / build</strong></td>
+<td><strong>Build toolchain</strong></td>
+<td><strong>Build owner</strong></td>
+</tr>
+<tr>
+<td><strong>OBS-001</strong></td>
+<td><strong>The formal execution deliberately ran without an AI provider key, so live provider success and latency were unmeasured in the formal result set.</strong></td>
+<td><strong>S3 – Medium</strong></td>
+<td><strong>P2</strong></td>
+<td><strong>Closed, supplementary follow-up complete</strong></td>
+<td><strong>Integration / system</strong></td>
+<td><strong>ai-service and provider adapter</strong></td>
+<td><strong>AI owner</strong></td>
+</tr>
+<tr>
+<td><strong>OBS-002</strong></td>
+<td><strong>No formal stakeholder acceptance session was held, so none of the ten acceptance cases were executed and no external sign-off exists.</strong></td>
+<td><strong>S3 – Medium</strong></td>
+<td><strong>P2</strong></td>
+<td><strong>Accepted scope limitation, open at report date</strong></td>
+<td><strong>Acceptance</strong></td>
+<td><strong>End-to-end product / UAT</strong></td>
+<td><strong>Workflow owner</strong></td>
+</tr>
+</table>
+<p><em>Table 3.1 — Assignment 3 defect register. Severity uses the project scale (S1 critical, S2 high, S3 medium, S4 low); priority uses P1 to P4. No defect was traced to application logic. DEF-003 and DEF-004, raised later by the current-version regression, are recorded in §4.4.</em></p>
+<h3 id="3-2-defect-clustering-pareto-analysis">3.2 Defect Clustering (Pareto Analysis)</h3>
+<p>The Pareto principle predicts that most defects originate in a small minority of modules, and the usual purpose of this analysis is to point development effort at that minority. The DealerOps distribution does not have that shape, and the deviation is itself the finding.</p>
+<table>
+<tr>
+<th><strong>Cluster area</strong></th>
+<th><strong>Defect count</strong></th>
+<th><strong>% of total</strong></th>
+<th><strong>Cumulative %</strong></th>
+<th><strong>Analysis — why did defects cluster here?</strong></th>
+</tr>
+<tr>
+<td><strong>Test environment and toolchain</strong></td>
+<td><strong>2</strong></td>
+<td><strong>50 %</strong></td>
+<td><strong>50 %</strong></td>
+<td><strong>DEF-001 and DEF-002. Both arose where the project&#x27;s build and test harness meets the host machine, and both have the same shape: a host component had moved ahead of the version the project pins, and the harness had no check that would catch the mismatch before a test window opened. The harness was treated as infrastructure that simply works, so it received none of the version discipline that the application code receives.</strong></td>
+</tr>
+<tr>
+<td><strong>External provider configuration</strong></td>
+<td><strong>1</strong></td>
+<td><strong>25 %</strong></td>
+<td><strong>75 %</strong></td>
+<td><strong>OBS-001. The provider key was intentionally excluded from the formal run for safety, which was the correct call, but no protected test credential existed in the harness as an alternative. The result was a planned gap in the formal evidence that then had to be filled by an ad hoc follow-up outside the formal environment.</strong></td>
+</tr>
+<tr>
+<td><strong>Acceptance environment and scheduling</strong></td>
+<td><strong>1</strong></td>
+<td><strong>25 %</strong></td>
+<td><strong>100 %</strong></td>
+<td><strong>OBS-002. The acceptance level depended on a resource the project never had — a funded acceptance environment and a scheduled stakeholder session. The dependency was identified during planning but was never converted into a dated commitment, so the level simply never started.</strong></td>
+</tr>
+<tr>
+<td><strong>Application logic (core, gateway, AI service, client)</strong></td>
+<td><strong>0</strong></td>
+<td><strong>0 %</strong></td>
+<td><strong>100 %</strong></td>
+<td><strong>No defect in this cluster. Across 49 unit assertions, 44 integration targets, 7 boundary and smoke checks and 20 performance requests, no application assertion failed.</strong></td>
+</tr>
+<tr>
+<td><strong>Total</strong></td>
+<td><strong>4</strong></td>
+<td><strong>100 %</strong></td>
+<td><strong>—</strong></td>
+<td><strong>—</strong></td>
+</tr>
+</table>
+<p><em>Table 3.2 — Defect clustering, after Everett and McLeod (2007, Figure 12.7).</em></p>
+<p>Interpretation. One hundred percent of this project&#x27;s defects cluster outside the product. Two readings of that are possible and both should be stated. The favourable reading is that the application code genuinely is stable at the tested scope: it was exercised at four levels by three independent suites and did not fail an assertion. The cautious reading is that a zero-defect application result is unusual, and that part of it is explained by what was not tested rather than by what was tested — the acceptance level never ran, coverage was never measured with instrumentation, and no load or endurance test exists. The honest conclusion sits between the two: the product is sound everywhere the evidence reaches, and the evidence does not reach everywhere. The corrective actions in §3.3 therefore target both the environment discipline that caused the actual defects and the coverage gaps that limit what the zero can mean.</p>
+<h3 id="3-3-root-cause-analysis-rca">3.3 Root Cause Analysis (RCA)</h3>
+<p>Each cluster is analysed below by successive why-questions until the cause reaches something the team controls.</p>
+<table>
+<tr>
+<th><strong>Defect / cluster</strong></th>
+<th><strong>Root cause</strong></th>
+<th><strong>Evidence</strong></th>
+<th><strong>Impact</strong></th>
+<th><strong>Corrective action and validation</strong></th>
+</tr>
+<tr>
+<td><strong>DEF-001 — integration batch blocked</strong></td>
+<td><strong>Five whys: (1) the integration batch failed — why? (2) the harness could not find a valid container environment — why? (3) the client library negotiated an engine API version the installed container platform no longer accepted — why? (4) the host platform had been upgraded to a release exposing a newer API than the project&#x27;s pinned client default — why? (5) nothing in the project verified host-platform compatibility before a test window, because the container environment was assumed rather than validated. Root cause: an unpinned, unvalidated dependency on the host container platform.</strong></td>
+<td><strong>All 44 integration targets failed before test-context initialisation, with a platform HTTP 400 at client negotiation. A first retry with a different client library version failed identically, which ruled out a single bad library build and pointed at negotiation itself.</strong></td>
+<td><strong>Blocker. The entire integration level was unexecutable for roughly 70 minutes of the execution window, and the planned execution rate could not be met from the formal run alone.</strong></td>
+<td><strong>Fixed by configuring the explicit container socket and a compatible client API level, then rerunning the full batch. Validated by retest at 17:07 MDT: 44 tests passed, 0 failed, 0 errors, 0 skipped, with the container platform connected, the supporting containers started and all 13 migrations applied. Prevention: a documented environment-readiness check that verifies platform and client API compatibility before a test window opens, run as a gate rather than a note.</strong></td>
+</tr>
+<tr>
+<td><strong>DEF-002 — unsupported host JDK</strong></td>
+<td><strong>Five whys: (1) unit suites failed — why? (2) the mocking framework could not instrument the persistence type and annotation processing failed to compile — why? (3) those libraries did not support the bytecode level of the host runtime — why? (4) the host default runtime was a newer major version than the project&#x27;s — why? (5) the project&#x27;s required runtime version was documented but not enforced by the build, so an ordinary developer default silently overrode it. Root cause: a documented-but-unenforced toolchain version.</strong></td>
+<td><strong>Identical source passed on the supported runtime minutes earlier and failed on the unsupported one. The failure was in the instrumentation and compilation layers, never in an application assertion.</strong></td>
+<td><strong>Medium. Cost diagnosis time and produced a misleading first signal that suggested a product failure where none existed.</strong></td>
+<td><strong>Fixed by running on the supported runtime. Validated by a clean rerun: 20, 10 and 19 assertions passed across the three services. Prevention: enforce the runtime version in the build configuration so an unsupported runtime fails fast with a clear message instead of failing deep inside a library.</strong></td>
+</tr>
+<tr>
+<td><strong>OBS-001 — no provider key in the formal run</strong></td>
+<td><strong>The formal run excluded the real provider key, correctly, to keep a shared execution environment safe. But the project had no protected, rate-limited test credential held in the test harness, so the only alternative to excluding the key was to exclude the live path. Root cause: a missing test-credential provisioning step in the test environment design, not a product defect.</strong></td>
+<td><strong>The formal run exercised and confirmed the documented unavailable path. The supplementary follow-up on a temporary instance pair then returned HTTP 200 with a live summary, a tenant-scoped inventory card and an end-to-end round trip of 0.548 s.</strong></td>
+<td><strong>Medium. The fail-safe path is proven, but live-path success and latency sit outside the formal denominator and rest on a single observation.</strong></td>
+<td><strong>Partially fixed: the live path is verified, and the result is reported separately rather than merged into the formal numbers. Validation of the full fix requires a protected provider credential in the test environment so the live path can be exercised inside the formal run. The release runtime must receive the key from the secret store, never from configuration in the repository.</strong></td>
+</tr>
+<tr>
+<td><strong>OBS-002 — acceptance level not executed</strong></td>
+<td><strong>Five whys: (1) no acceptance case was executed — why? (2) no stakeholder session was held — why? (3) no session was scheduled — why? (4) the acceptance environment was never funded or provisioned — why? (5) the acceptance level was planned as a phase with entry criteria but was never given a date, an owner for the booking, or a fallback that did not require a funded environment. Root cause: a planned phase with no scheduling commitment and no low-cost fallback.</strong></td>
+<td><strong>Ten acceptance cases stand at NOT RUN with the note that they require an acceptance session. A local browser smoke was completed instead and was deliberately recorded as development evidence, not acceptance.</strong></td>
+<td><strong>Medium, and it is the single largest gap in the evidence. No external party has confirmed that the delivered workflows meet the business need, so release readiness rests entirely on internal verification.</strong></td>
+<td><strong>Not yet fixed; carried as an accepted scope limitation and as release condition R1 in §7. Corrective action: schedule the acceptance session against the deployed demonstration environment with a dated owner, and define a fallback acceptance script that an instructor or client can run against the existing environment so the level is never fully blocked by funding.</strong></td>
+</tr>
+</table>
+<h3 id="3-4-code-earmarks-high-risk-indicators">3.4 Code Earmarks / High-Risk Indicators</h3>
+<p>Everett and McLeod (2007, Figure 12.5) identify code attributes that correlate with elevated defect density. The table below records the group&#x27;s assessment of the DealerOps source. Two points of honesty apply: this is a structured review judgement rather than an output of a static-analysis tool, because no complexity or duplication metric was instrumented during the project; and the assessment covers the active implementation.</p>
+<table>
+<tr>
+<th><strong>Code earmark</strong></th>
+<th><strong>Description</strong></th>
+<th><strong>Risk correlation</strong></th>
+<th><strong>Present?</strong></th>
+<th><strong>Assessment of this codebase</strong></th>
+</tr>
+<tr>
+<td><strong>Large methods or classes</strong></td>
+<td><strong>Units exceeding a reasonable line count for a single responsibility.</strong></td>
+<td><strong>High complexity; hard to test in isolation; prone to logic errors.</strong></td>
+<td><strong>Partly</strong></td>
+<td><strong>The service layer is generally small and feature-scoped, but the advertisement rule engine and the audit writer concentrate a lot of behaviour. Both are also the best-covered units, which mitigates the risk without removing it.</strong></td>
+</tr>
+<tr>
+<td><strong>Deep inheritance trees</strong></td>
+<td><strong>Sub-classing beyond roughly five levels.</strong></td>
+<td><strong>Fragile base classes; confusing overrides; state leakage.</strong></td>
+<td><strong>No</strong></td>
+<td><strong>The design favours composition and explicit service boundaries. No deep hierarchy exists in core, the gateway or the AI service.</strong></td>
+</tr>
+<tr>
+<td><strong>High cyclomatic complexity</strong></td>
+<td><strong>Dense branching and decision points.</strong></td>
+<td><strong>Too many paths for full coverage; latent logic bugs.</strong></td>
+<td><strong>Partly</strong></td>
+<td><strong>Concentrated where it is unavoidable: the five-state advertisement check and the role-and-tenancy authorisation path. These are the highest-branching areas and also the ones with the most unit assertions and the most boundary cases. No complexity figure was measured, which is a gap recorded in §6.</strong></td>
+</tr>
+<tr>
+<td><strong>Duplicate logic</strong></td>
+<td><strong>The same logic copied to several places.</strong></td>
+<td><strong>Inconsistent fixes; one copy repaired while others stay broken.</strong></td>
+<td><strong>No</strong></td>
+<td><strong>Tenancy scoping, validation and error mapping are each owned by one component and reused, which is also the project&#x27;s stated coding standard. No duplicated rule implementation was found during review.</strong></td>
+</tr>
+<tr>
+<td><strong>Insufficient error handling</strong></td>
+<td><strong>Empty catch blocks or swallowed errors.</strong></td>
+<td><strong>Silent failures; slow root cause analysis.</strong></td>
+<td><strong>No</strong></td>
+<td><strong>Errors are mapped to an explicit code vocabulary rather than swallowed. The AI path is the strongest example: a timeout, a provider failure, an empty answer and a missing key each map to a distinct recorded outcome and surface as unavailable, never as a pass. The unit suites assert those mappings directly.</strong></td>
+</tr>
+<tr>
+<td><strong>Unvalidated environment dependencies</strong></td>
+<td><strong>Host tools and platforms the build assumes but never verifies.</strong></td>
+<td><strong>Blocked test levels; defects misattributed to the product.</strong></td>
+<td><strong>Yes</strong></td>
+<td><strong>Added by this group as a project-specific earmark, because it is where this project&#x27;s defects actually came from. Both DEF-001 and DEF-002 are instances. It is the highest-value hardening target identified by this analysis.</strong></td>
+</tr>
+</table>
+<h3 id="3-5-defect-prioritization">3.5 Defect Prioritization</h3>
+<p>Defects are classified by severity, business impact and likelihood of recurrence. This table includes DEF-003 from the current-version regression, because prioritisation is about what still has to be acted on rather than about which window a defect came from.</p>
+<table>
+<tr>
+<th><strong>Class</strong></th>
+<th><strong>Count</strong></th>
+<th><strong>Items</strong></th>
+<th><strong>Disposition</strong></th>
+</tr>
+<tr>
+<td><strong>Critical (blocker)</strong></td>
+<td><strong>0</strong></td>
+<td><strong>None</strong></td>
+<td><strong>No defect blocks the release.</strong></td>
+</tr>
+<tr>
+<td><strong>High</strong></td>
+<td><strong>1</strong></td>
+<td><strong>DEF-001</strong></td>
+<td><strong>Closed and verified by full retest. Recurrence is likely on any machine with a newer container platform, so the preventive check in §3.3 is required rather than optional.</strong></td>
+</tr>
+<tr>
+<td><strong>Medium</strong></td>
+<td><strong>5</strong></td>
+<td><strong>DEF-002, OBS-001, DEF-003, DEF-004, OBS-002</strong></td>
+<td><strong>DEF-002, OBS-001, DEF-003 and DEF-004 are closed and verified. OBS-002 remains open as an accepted scope limitation and is the only item that still gates full sign-off.</strong></td>
+</tr>
+<tr>
+<td><strong>Low</strong></td>
+<td><strong>0</strong></td>
+<td><strong>None</strong></td>
+<td><strong>—</strong></td>
+</tr>
+<tr>
+<td><strong>Open at report date</strong></td>
+<td><strong>1</strong></td>
+<td><strong>OBS-002</strong></td>
+<td><strong>Carried into §7 as release condition R1. No application defect is open.</strong></td>
+</tr>
+</table>
+<h2 id="4-test-case-execution-progress">4. Test Case Execution Progress</h2>
+<p>This section reports how much of the plan was executed and how effective that execution was. The figures are taken from the Assignment 3 execution record and are presented unchanged. Verification work performed after the execution window is reported separately in §4.4 and §4.5 rather than being added to the baseline denominator, so that the completion percentage continues to mean what it meant on the day it was measured.</p>
+<h3 id="4-1-execution-statistics">4.1 Execution Statistics</h3>
+<table>
+<tr>
+<th><strong>Metric</strong></th>
+<th><strong>Value</strong></th>
+<th><strong>Note</strong></th>
+</tr>
+<tr>
+<td><strong>Total test cases planned</strong></td>
+<td><strong>87</strong></td>
+<td><strong>From the Assignment 2 companion workbook: requirements and design review, unit, integration, system and acceptance.</strong></td>
+</tr>
+<tr>
+<td><strong>Executed</strong></td>
+<td><strong>76</strong></td>
+<td><strong>49 unit assertions across the three services, 7 container smoke and boundary checks, and 20 performance requests.</strong></td>
+</tr>
+<tr>
+<td><strong>Passed</strong></td>
+<td><strong>76</strong></td>
+<td><strong>Every executed case passed.</strong></td>
+</tr>
+<tr>
+<td><strong>Failed</strong></td>
+<td><strong>0</strong></td>
+<td><strong>No application assertion failed.</strong></td>
+</tr>
+<tr>
+<td><strong>Blocked</strong></td>
+<td><strong>0 at close of the window</strong></td>
+<td><strong>44 integration targets were blocked by DEF-001 during the window and were unblocked and passed by the 17:07 MDT retest.</strong></td>
+</tr>
+<tr>
+<td><strong>Not executed</strong></td>
+<td><strong>11</strong></td>
+<td><strong>10 stakeholder acceptance cases plus the formal acceptance sign-off item; all require the session described in OBS-002.</strong></td>
+</tr>
+<tr>
+<td><strong>Execution rate</strong></td>
+<td><strong>87.4 %</strong></td>
+<td><strong>76 of 87.</strong></td>
+</tr>
+<tr>
+<td><strong>Pass rate of executed cases</strong></td>
+<td><strong>100 %</strong></td>
+<td><strong>76 of 76.</strong></td>
+</tr>
+<tr>
+<td><strong>Defect ratio of executed cases</strong></td>
+<td><strong>0 %</strong></td>
+<td><strong>0 application defects in 76 executed cases. The four logged items are environment, configuration and scope records.</strong></td>
+</tr>
+</table>
+<p>Reading the two percentages together matters. A 100 % pass rate is only as meaningful as the 87.4 % that produced it, and the missing 12.6 % is not a random remainder — it is the entire acceptance level, which is precisely the level that would have tested the product against a stakeholder&#x27;s expectation rather than against the team&#x27;s own. The correct summary is therefore: everything the team verified itself, the product passed; nothing has yet been verified by anyone else.</p>
+<h3 id="4-2-requirements-feature-coverage">4.2 Requirements / Feature Coverage</h3>
+<table>
+<tr>
+<th><strong>Coverage dimension</strong></th>
+<th><strong>Result</strong></th>
+<th><strong>Basis and limitation</strong></th>
+</tr>
+<tr>
+<td><strong>Functional requirement coverage</strong></td>
+<td><strong>All eleven test items in the plan were exercised at a minimum of one level; the acceptance level was exercised for none of them</strong></td>
+<td><strong>Measured by tracing the executed cases back to the test items in §3 of the Assignment 2 plan: sign-in and token handling, role and membership authorisation, dealership isolation, inventory lifecycle, customers and leads, advertising compliance and AI, gateway and service boundary, audit trail, payments and reports, the public buyer site, and deployment and release.</strong></td>
+</tr>
+<tr>
+<td><strong>Critical-path coverage</strong></td>
+<td><strong>100 % of the High-priority paths were executed at unit, integration or boundary level</strong></td>
+<td><strong>Dealership isolation, sign-in and role separation, the compliance gate, AI fail-safe behaviour, the sold lock, the gateway boundary and the audit trail were each exercised. None was exercised at the acceptance level.</strong></td>
+</tr>
+<tr>
+<td><strong>Structural (code) coverage</strong></td>
+<td><strong>Not measured</strong></td>
+<td><strong>No instrumented coverage run was performed in this project, so no percentage is claimed. Claiming a figure from the count of test cases would be an inference, not a measurement. Recorded as a lesson learned in §6 and as release condition R3 in §7.</strong></td>
+</tr>
+<tr>
+<td><strong>Non-functional attribute coverage</strong></td>
+<td><strong>5 of 8 attributes evidenced (performance, security, reliability, installability, configuration); 1 observational (usability); 2 not tested (scalability, maintainability)</strong></td>
+<td><strong>See Table 2.1. The untested attributes were excluded deliberately and the reasons are recorded there.</strong></td>
+</tr>
+</table>
+<h3 id="4-3-defect-density-and-test-effectiveness">4.3 Defect Density and Test Effectiveness</h3>
+<table>
+<tr>
+<th><strong>Measure</strong></th>
+<th><strong>Value</strong></th>
+<th><strong>Interpretation</strong></th>
+</tr>
+<tr>
+<td><strong>Application defect density</strong></td>
+<td><strong>0 defects per 76 executed cases</strong></td>
+<td><strong>No executed assertion revealed an application defect. Density per thousand lines of code is not calculated, because no instrumented line count was taken.</strong></td>
+</tr>
+<tr>
+<td><strong>Environment defect density</strong></td>
+<td><strong>2 defects across 2 environment dimensions (container platform, host runtime)</strong></td>
+<td><strong>Both dimensions that the test programme depended on and never validated produced a defect. This is a 100 % failure rate on unvalidated environment assumptions.</strong></td>
+</tr>
+<tr>
+<td><strong>Defects per module</strong></td>
+<td><strong>0 for every application module; 2 for the test harness; 1 for provider configuration; 1 for the acceptance environment</strong></td>
+<td><strong>See the Pareto analysis in §3.2.</strong></td>
+</tr>
+<tr>
+<td><strong>Test effectiveness</strong></td>
+<td><strong>4 of 4 known defects were found by testing (100 %)</strong></td>
+<td><strong>No defect reached this report from any source other than the test programme — no field report, no user report, no post-execution discovery. The figure is favourable but is bounded by the fact that the product has had no external users.</strong></td>
+</tr>
+<tr>
+<td><strong>Blocker clearance</strong></td>
+<td><strong>1 of 1 high-severity blocker closed within the execution day</strong></td>
+<td><strong>DEF-001 was diagnosed, corrected and verified by full retest on the same day it was raised.</strong></td>
+</tr>
+</table>
+<h3 id="4-4-current-version-regression-november-23-2026">4.4 Current-Version Regression (November 23, 2026)</h3>
+<p>The Assignment 3 evidence was gathered on the Java implementation of the backend services. That implementation has since been retired in favour of the active .NET 10 and React stack. Analysing only the October evidence would therefore produce a deployment recommendation for software that is no longer the software being deployed. To close that gap, the committed end-to-end suite was executed against the active stack on the date of this report, on the project&#x27;s private test stack with an isolated database, so that the shared development environment was neither restarted nor written to.</p>
+<table>
+<tr>
+<th><strong>Metric</strong></th>
+<th><strong>Value</strong></th>
+</tr>
+<tr>
+<td><strong>Date and environment</strong></td>
+<td><strong>November 23, 2026; private end-to-end stack (web 5175, gateway 18080, core 18081) built from the current working tree; isolated database dealer_core_e2e, dropped and recreated for the run; Chromium</strong></td>
+</tr>
+<tr>
+<td><strong>Specification files executed</strong></td>
+<td><strong>40 specification files plus one shared setup fixture (API 14 files, 225 cases, UI 22 files, 212 cases; the remaining 26 cases are in 4 cross-level files)</strong></td>
+</tr>
+<tr>
+<td><strong>Test cases in the suite</strong></td>
+<td><strong>463</strong></td>
+</tr>
+<tr>
+<td><strong>Executed</strong></td>
+<td><strong>458</strong></td>
+</tr>
+<tr>
+<td><strong>Passed</strong></td>
+<td><strong>458</strong></td>
+</tr>
+<tr>
+<td><strong>Failed</strong></td>
+<td><strong>0</strong></td>
+</tr>
+<tr>
+<td><strong>Skipped</strong></td>
+<td><strong>5: one case requires the AI service to be stopped, three advertising and buyer-site cases were skipped by the suite after the provider answered AI_UNAVAILABLE under six parallel workers, and one is guarded by a data condition that did not apply. The three provider-skipped cases were then executed serially against the live provider and passed.</strong></td>
+</tr>
+<tr>
+<td><strong>Flaky</strong></td>
+<td><strong>0</strong></td>
+</tr>
+<tr>
+<td><strong>Pass rate of executed cases</strong></td>
+<td><strong>100 % (458 of 458 executed)</strong></td>
+</tr>
+<tr>
+<td><strong>Wall-clock duration</strong></td>
+<td><strong>2 minutes 44 seconds, 6 parallel workers</strong></td>
+</tr>
+</table>
+<p>This regression covers the behaviour families that the Assignment 2 plan identifies as High priority — dealership isolation and tenancy, sign-in and role separation, the advertising compliance gate and its states, the AI assistant path, the inventory lifecycle and the sold lock, customers, vehicle links and leads, work orders, payments and the bill of sale, reports and the dashboard, the public buyer site, administrative dealership and membership management, and the cross-cutting rule that the browser may not reach the business service directly.</p>
+<figure class="term"><pre>$ bash playwright/scripts/e2e-stack.sh start
+[e2e-stack] ready: web http://localhost:5175, gateway http://127.0.0.1:18080, db dealer_core_e2e
+
+$ npx playwright test
+Running 463 tests using 6 workers
+...
+  458 passed
+    0 failed
+    5 skipped   (1 requires the AI service to be stopped; 3 advertising and buyer-site cases
+                 skipped by the suite after the provider answered AI_UNAVAILABLE under six
+                 parallel workers; 1 guarded by a data condition that did not apply)
+  Duration: 2m 44s                                      Date: 2026-11-23, 16:20-16:23 MDT
+
+# The three provider-skipped cases, re-executed serially against the live provider:
+$ npx playwright test tests/api/buyer-site.spec.ts --workers=1
+  SHOP-01: the inventory is public, names the dealership and 404s for an unknown dealer    PASS
+  SHOP-02: a vehicle without a ready ad is not public                                      PASS
+  SHOP-04: an invalid inquiry is rejected field by field                                   PASS
+  SHOP-01 / SHOP-03 / SHOP-05: a ready ad is listed with public fields only                PASS
+  SHOP-04 / CR-051: a repeat inquiry on the same vehicle becomes a note on that lead       PASS
+  CR-051 / D1: a returning shopper with a new email keeps one lead and one customer        PASS
+  7 passed</pre><figcaption>Evidence E-R — the regression command and its reported result.</figcaption></figure>
+<p><strong>A defect of the automated suite. </strong>An earlier attempt of this regression produced two failures, both in the Leads module: the overdue-flag case and the server-side column-sort case. Investigation showed that neither was a product defect. The captured page snapshots prove the product behaved correctly in both — the overdue lead carried its follow-up date and its Overdue marker while the closed lead correctly showed none, and the lead list was in the correct default order. The failures came from the automation: the customer-name filter had been upgraded from a plain text box to a typeahead with a suggestion list, and the two specifications still drove it as a plain text box. Because the suggestion list reopens after the field&#x27;s debounce interval, it covered the controls the specifications then tried to click, and both cases waited until the timeout. The correction was to commit the typed text with Enter, which is the interaction the component itself defines for discarding a pending suggestion request, after which both passed and their run time fell from over ninety seconds each to a few seconds. This is logged as DEF-003, a defect of the automated suite rather than of the product, with the same root-cause shape as DEF-001 and DEF-002: a dependency changed while the thing depending on it was never revisited.</p>
+<p><strong>A second defect of the automated suite (DEF-004). </strong>The regression&#x27;s second failure, in the public buyer-site path, was also a defect of the test suite rather than of the product, and it took longer to establish because at first sight it looked like real data loss. Requirement CR-051 states that when a buyer who has already enquired about a vehicle sends a second enquiry about the same vehicle, the platform must not open a second lead and must add the new question as a note on the lead that is already open. The case created a first enquiry, then built the repeat enquiry by copying the first buyer&#x27;s telephone number and e-mail address onto a freshly generated contact — but not the name. The documented matching rule, in the API contract §12a and in requirement SHOP-04, is that a returning buyer is matched on telephone number AND name, the number compared digits only and the name trimmed and compared case-insensitively, and that the e-mail address is never part of the match, precisely so that two people who share a household telephone keep separate records. The server therefore did exactly what its contract says: it saw a different name, treated the second enquiry as a different buyer, opened that buyer&#x27;s own lead, and left the first lead with its single note. What settles the question is the case immediately after it, which covers the same rule from the other side — a returning shopper who types a new e-mail address — and which does carry the name across and has always passed. The omission is therefore a copy error in the specification, not a disagreement about the rule. The correction was to carry the buyer&#x27;s name across in both places where the case simulates the same person, after which it passes against the live provider. Logged as DEF-004.</p>
+<p>One further case, an account-deletion flow on the profile page, failed under six-way parallel execution and passed on an isolated rerun. It is recorded as a test-isolation flake, not a product defect. Across three full executions of the suite a different single case failed in this way each time, which indicates shared-fixture contention under parallelism rather than an unstable product; it is carried into §6.2 as a maintenance item.</p>
+<p>The suite’s own rate of conditional skipping is worth stating plainly, because it bounds what the 100 % figure means. Five of 463 cases did not execute in the parallel run, and three of those are the buyer-site and advertising cases that depend on a live external provider which answered AI_UNAVAILABLE when six workers called it at once. Those three were re-executed one at a time against the same live provider and passed, which is why this report can state that the buyer-site path is verified; but a figure of 458 of 458 would be misleading without that sentence attached to it.</p>
+<p>Taken together, DEF-003 and DEF-004 say something the pass rate alone does not: both failures this regression produced were defects of the test suite, and in both the product was behaving exactly as its contract specifies. The automated suite, not the application, is the least maintained artefact this project owns, and that is the finding the group carries into §6. With both corrected, the behaviour validated on the retired baseline in October is still validated on the stack that will actually be released, which is the condition under which the October analysis can legitimately support the deployment decision in §5.</p>
+<h3 id="4-5-supplementary-verification-outside-the-baseline">4.5 Supplementary Verification Outside the Baseline</h3>
+<table>
+<tr>
+<th><strong>Verification</strong></th>
+<th><strong>Result</strong></th>
+<th><strong>Why it is reported separately</strong></th>
+</tr>
+<tr>
+<td><strong>Integration retest after DEF-001</strong></td>
+<td><strong>44 of 44 targets passed; 0 failed, 0 errors, 0 skipped</strong></td>
+<td><strong>Performed after the execution window closed. It closes DEF-001 and demonstrates the integration level, but adding it to the baseline would retroactively change a recorded execution rate.</strong></td>
+</tr>
+<tr>
+<td><strong>Live AI provider follow-up</strong></td>
+<td><strong>HTTP 200; a live summary and a tenant-scoped inventory card returned; end-to-end round trip 0.548 s</strong></td>
+<td><strong>Run on temporary instances with a protected key, outside the formal isolated environment. It proves the live path works; it is a single observation and does not belong in a formal denominator.</strong></td>
+</tr>
+<tr>
+<td><strong>Browser development smoke</strong></td>
+<td><strong>Sign-in, inventory, membership and assistant views loaded with correct role scoping</strong></td>
+<td><strong>Run on the local development profile, not in the isolated environment, and therefore deliberately not counted as acceptance.</strong></td>
+</tr>
+<tr>
+<td><strong>Current-version regression</strong></td>
+<td><strong>458 of 458 executed cases passed, 0 failed; 5 skipped, and the 3 buyer-site cases among them were executed and passed in a serial verification run against the live provider</strong></td>
+<td><strong>Executed six weeks after the baseline, on a different stack, with the AI service running so that the advertising-compliance and buyer-site cases could execute. It is current-state evidence, not Assignment 3 evidence, and the two must not be merged.</strong></td>
+</tr>
+</table>
+<h2 id="5-deployment-strategy">5. Deployment Strategy</h2>
+<p>A deployment strategy decides how a verified build reaches its users and, more importantly, how it leaves them again if it turns out to be wrong. Everett and McLeod (2007) frame release as a controlled change: the value of a strategy is measured by how small and how reversible each step of exposure is. This section selects a strategy for DealerOps, justifies it against the specific risk profile established in §2 to §4, and sets out the plan, the rollback path and the acceptance criteria.</p>
+<h3 id="5-1-recommended-deployment-strategy">5.1 Recommended Deployment Strategy</h3>
+<p><strong>Selection: Blue/Green deployment</strong>, implemented with Azure App Service deployment slots, followed by a short pilot period with a single dealership before the remaining tenants are invited onto the new version.</p>
+<p>Concretely: the four applications are deployed to a staging slot (green) that runs the same plan and configuration as the production slot (blue). Green is migrated, seeded, warmed and verified while blue continues to serve every user. When the verification gate passes, the slots are swapped, which switches production traffic to green in one operation. Blue is retained, idle but intact, for the agreed observation window and is the rollback target.</p>
+<p>The pilot step is layered on top, not substituted for it: after the swap, one consenting dealership is asked to perform its normal daily workflow on the new version and report back before the release is announced to the rest. This gives the project a human check at the smallest possible blast radius, which is the step that most directly addresses the single largest gap in the evidence — the absence of any stakeholder acceptance (OBS-002).</p>
+<h3 id="5-2-rationale">5.2 Rationale</h3>
+<table>
+<tr>
+<th><strong>Decision factor</strong></th>
+<th><strong>Assessment</strong></th>
+<th><strong>Why it points to Blue/Green with a pilot</strong></th>
+</tr>
+<tr>
+<td><strong>Risk level</strong></td>
+<td><strong>Medium</strong></td>
+<td><strong>Functional and security evidence is strong and there are no open application defects, but capacity is unmeasured, coverage is unquantified and no stakeholder has accepted the product. The dominant risk is therefore the unknown, not a known defect — and the right control for an unknown is a fast, certain exit, not a slower rollout.</strong></td>
+</tr>
+<tr>
+<td><strong>Downtime tolerance</strong></td>
+<td><strong>Effectively zero during business hours</strong></td>
+<td><strong>A dealership uses the system to look up a vehicle in front of a buyer. A maintenance window is a lost sale. Blue/Green is the only one of the candidate strategies that changes versions without taking the service down, because the new version is fully running before any traffic reaches it.</strong></td>
+</tr>
+<tr>
+<td><strong>Rollback requirement</strong></td>
+<td><strong>Must be fast and must not depend on a rebuild</strong></td>
+<td><strong>Reverting a slot swap is a traffic switch measured in seconds and uses an artefact that is already running and already proven. Rolling back a big-bang or an in-place deployment means rebuilding and redeploying under pressure, which is the worst possible moment to be running a build.</strong></td>
+</tr>
+<tr>
+<td><strong>User impact and tenancy</strong></td>
+<td><strong>All dealerships share one deployment; a bad release affects every tenant at once</strong></td>
+<td><strong>This is the strongest argument for the pilot layer. The platform has no per-tenant routing, so Blue/Green alone would expose all tenants simultaneously. A pilot dealership converts that into one tenant first, by agreement, with the others still able to be warned before they are affected.</strong></td>
+</tr>
+<tr>
+<td><strong>Data and schema change</strong></td>
+<td><strong>The schema is applied automatically at service start-up</strong></td>
+<td><strong>This is the sharpest constraint on the strategy and is handled by the expand-and-contract rule in §5.3. Blue and green share one database during the swap window, so a migration that removes or renames anything would break whichever version is not currently serving traffic — including the rollback target.</strong></td>
+</tr>
+<tr>
+<td><strong>Team size and operational maturity</strong></td>
+<td><strong>A three-person student team with no on-call rotation</strong></td>
+<td><strong>Canary routing with percentage traffic splitting and automated metric-based promotion would add infrastructure the team cannot operate or monitor properly. A slot swap plus an agreed observation window is a control the team can actually execute correctly at two in the afternoon on a demonstration day.</strong></td>
+</tr>
+<tr>
+<td><strong>Infrastructure already in place</strong></td>
+<td><strong>Terraform-provisioned Azure App Service, Key Vault, Application Insights and MySQL Flexible Server</strong></td>
+<td><strong>Deployment slots are a native feature of the hosting platform the project already uses. The strategy requires no new component, which keeps the release procedure inside what has already been built and tested.</strong></td>
+</tr>
+<tr>
+<td><strong>Alignment with Everett and McLeod (2007)</strong></td>
+<td><strong>Controlled introduction of change</strong></td>
+<td><strong>Each exposure step is small, observable and reversible, and no step is taken until the previous one has passed a stated gate.</strong></td>
+</tr>
+</table>
+<p>Alternatives considered and rejected. Big-bang replacement was rejected because it couples the upgrade and the rollback to a rebuild and requires downtime. A rolling update across instances was rejected because the single small plan used for this project has too few instances to roll across, and because it would run two versions against one schema for a longer and less controlled period than a slot swap. A fine-grained canary with percentage traffic splitting was rejected as disproportionate: it requires traffic-management configuration and automated metric gates that this team has neither built nor tested, and an unoperated canary is a false sense of safety rather than a control.</p>
+<h3 id="5-3-deployment-plan-summary">5.3 Deployment Plan Summary</h3>
+<p>Environment setup.</p>
+<ul>
+<li>Provision or confirm the infrastructure from the committed Terraform definitions, so the environment is reproducible rather than hand-built: the application plan, the four web applications, the MySQL flexible server, the key vault and the telemetry workspace.</li>
+<li>Confirm that the staging slot exists for each application and that it carries slot-specific configuration for the database connection, the signing secret, the internal service token and the AI provider key. Every secret is read from the key vault at start-up; no secret is present in the repository or in a configuration file.</li>
+<li>Confirm the environment-readiness check introduced as the corrective action for DEF-001 and DEF-002: the toolchain versions, the container platform and client API compatibility, and the database reachability are all verified before the release begins rather than discovered during it.</li>
+</ul>
+<p>Installation procedure.</p>
+<ul>
+<li>Build the four applications once from the tagged commit. The same artefacts are promoted through every subsequent step; nothing is rebuilt between verification and release.</li>
+<li>Deploy the artefacts to the green slot of each application in dependency order: the business service, then the AI service, then the gateway, then the web client.</li>
+<li>Let the business service apply its schema migrations on start-up against the shared database, under the expand-and-contract rule below.</li>
+<li>Warm the green slot before any traffic is shifted: request the health and release endpoints and the signed-in landing path so that the cold-start cost measured in §2.5 is paid before users are exposed rather than by the first user.</li>
+</ul>
+<p>Data migration rule (expand and contract). Because blue and green share one database across the swap window, every schema change in a release is additive only: add columns and tables, write to both the old and the new shape, and leave the old shape in place. Nothing is renamed, narrowed or dropped until the following release, by which time no running version depends on it. This is the rule that keeps the rollback target usable; without it, a successful rollback would leave the previous version running against a schema it cannot read.</p>
+<p>Verification gate before the swap (all must pass).</p>
+<ul>
+<li>The release endpoint on the green slot reports all four applications built from the intended commit.</li>
+<li>The health endpoints of the gateway, the business service and the AI service report healthy, and the business service reports a successful database connection.</li>
+<li>The smoke subset of the end-to-end suite passes against the green slot: sign in, list and open a vehicle, create a customer and link a vehicle, run an advertising compliance check, and read the audit trail.</li>
+<li>The security-boundary checks pass against the green slot: a direct call to the business service or the AI service from outside the gateway is refused, a request without the internal token is refused, and an unconfigured origin is refused.</li>
+<li>Green responds inside the 3-second limit on the warmed path.</li>
+</ul>
+<p>Traffic switch and pilot.</p>
+<ul>
+<li>Swap the slots. Production traffic moves to green in a single operation; blue remains running and unchanged.</li>
+<li>Observe for an agreed window — the project uses 30 minutes — watching the telemetry for request failures, authorisation refusals, unhandled exceptions and response-time regression.</li>
+<li>Ask the pilot dealership to run its normal workflow and confirm. Only then announce the release to the remaining tenants.</li>
+</ul>
+<p>Rollback plan.</p>
+<ul>
+<li>Trigger conditions, agreed in advance so that the decision is not improvised: any cross-dealership data exposure (immediate, no discussion); any authentication or authorisation failure affecting sign-in; an error rate above 1 % of requests; the advertising compliance gate returning a pass when it should block; or response time above the 3-second limit on the normal path.</li>
+<li>Action: swap the slots back. The previous version is already running and already verified, so recovery is a traffic switch, not a deployment.</li>
+<li>Data: no schema rollback is required, because the expand-and-contract rule guarantees the previous version can still read the current schema. Rows created by the new version during the exposure window remain and are reviewed afterwards rather than discarded.</li>
+<li>After a rollback: preserve the telemetry and the logs for the exposure window, raise a defect with the evidence, and treat the next attempt as a new release that must pass the full gate again.</li>
+</ul>
+<p>Acceptance confirmation. The release is accepted when the verification gate has passed, the observation window has closed without a trigger condition, the pilot dealership has confirmed its normal workflow, and the sign-off in §8 is recorded. Until the stakeholder acceptance session described in OBS-002 has been held, the release is a demonstration release and is described as such; it is not represented as an accepted production release.</p>
+<h2 id="6-post-mortem-lessons-learned">6. Post-Mortem / Lessons Learned</h2>
+<p>A post-mortem analyses how the work was done so that the next project does it better. It is about process and contributing factors, not about blame, and it is only useful if it is honest about what went badly. The group held this discussion after the current-version regression and before writing §7, so that the conclusions below reflect the final state of the project rather than an optimistic mid-point.</p>
+<h3 id="6-1-summary">6.1 Summary</h3>
+<p>What went well. The traceability chain held from end to end: every executed case traces to a requirement identifier in the plan, and every claim in this report traces to a recorded result. The group kept a hard line between product evidence and environment evidence, and between formal results and supplementary ones, which is why the numbers in §4 can be defended line by line rather than merely asserted. The defect that did block work was diagnosed and closed within the same day, by correcting a cause rather than working around a symptom. Error handling in the product proved to be a genuine design strength: the AI path maps a timeout, a provider failure, an empty answer and a missing key to distinct recorded outcomes, and every one of those surfaces as unavailable rather than as a pass, which is exactly the fail-safe behaviour the compliance gate depends on.</p>
+<p>What went badly. Every defect the project logged came from the environment, and none of them had to happen. The container platform and the host runtime were both assumed to be compatible and neither was checked, so the integration level was unexecutable during the window it was scheduled for, and a unit run on the wrong runtime produced a frightening first signal that looked like a product failure for several minutes. The acceptance level was planned carefully and then never scheduled, which is the project&#x27;s largest evidence gap and the one that no amount of further internal testing can close. Non-functional testing started late and stayed shallow: the performance evidence is a sequential smoke sample on one endpoint, and capacity, endurance and accessibility were never approached. Code coverage was never instrumented, so the strongest statement the project can make about structural coverage is a list of what was exercised rather than a measured percentage. Finally, the backend migration from the retired stack to the active one landed between Assignment 3 and this report, which meant the execution evidence and the shipping product had drifted apart and the gap had to be closed by a fresh regression rather than by a planned re-baseline.</p>
+<h3 id="6-2-lessons-learned-table">6.2 Lessons Learned Table</h3>
+<table>
+<tr>
+<th><strong>Issue / observation</strong></th>
+<th><strong>Root cause</strong></th>
+<th><strong>Impact</strong></th>
+<th><strong>Recommendation for a future project</strong></th>
+<th><strong>Owner</strong></th>
+</tr>
+<tr>
+<td><strong>The integration level was blocked for most of its scheduled window</strong></td>
+<td><strong>The test harness depended on the host container platform, and that dependency was assumed rather than verified</strong></td>
+<td><strong>44 targets unexecutable during the window; the baseline execution rate is 87.4 % rather than the planned figure</strong></td>
+<td><strong>Treat the test environment as a deliverable with its own entry gate. Run an automated environment-readiness check — platform versions, client API compatibility, database reachability, seed integrity — and refuse to open a test window until it passes.</strong></td>
+<td><strong>QA lead</strong></td>
+</tr>
+<tr>
+<td><strong>A unit run failed on the wrong host runtime and briefly looked like a product failure</strong></td>
+<td><strong>The required runtime version was documented but not enforced by the build</strong></td>
+<td><strong>Lost diagnosis time and a misleading first signal</strong></td>
+<td><strong>Enforce the toolchain version in the build configuration so an unsupported runtime fails immediately with a clear message, instead of failing deep inside a mocking or annotation library.</strong></td>
+<td><strong>Development lead</strong></td>
+</tr>
+<tr>
+<td><strong>No stakeholder acceptance session was ever held</strong></td>
+<td><strong>The acceptance level was planned as a phase but never given a date, a booking owner or a fallback that did not need a funded environment</strong></td>
+<td><strong>The project&#x27;s largest evidence gap; no external party has confirmed the product meets the business need</strong></td>
+<td><strong>Schedule acceptance at planning time, with a named owner and a date, and define a zero-cost fallback script that a client or instructor can run against the existing environment so the level is never fully blocked by funding.</strong></td>
+<td><strong>Workflow and acceptance lead</strong></td>
+</tr>
+<tr>
+<td><strong>The live AI path was unverified in the formal run</strong></td>
+<td><strong>No protected, rate-limited test credential existed in the test environment, so the only safe option was to exclude the live path</strong></td>
+<td><strong>Live-path success and latency rest on one supplementary observation outside the formal denominator</strong></td>
+<td><strong>Provision a protected test credential as part of the test environment, with its own quota, so the live path can be exercised inside the formal run without risking a production key.</strong></td>
+<td><strong>AI owner</strong></td>
+</tr>
+<tr>
+<td><strong>Non-functional testing was late, narrow and partly unquantified</strong></td>
+<td><strong>Non-functional work was scheduled after functional execution and given whatever time remained</strong></td>
+<td><strong>Capacity, endurance and accessibility are unknown; the performance claim covers one endpoint and one sequential sample</strong></td>
+<td><strong>Start non-functional testing in the same iteration as the feature it measures, and fix a minimum set — at least one concurrent-load profile, one endurance run and one accessibility pass — before the schedule can absorb it.</strong></td>
+<td><strong>QA lead</strong></td>
+</tr>
+<tr>
+<td><strong>Structural coverage was never measured</strong></td>
+<td><strong>No coverage instrumentation was configured in the build</strong></td>
+<td><strong>Coverage can only be described, not quantified; the meaning of a 100 % pass rate is correspondingly limited</strong></td>
+<td><strong>Configure coverage instrumentation at project start and publish the figure with every test run, so coverage is a trend the team watches rather than a question asked at the end.</strong></td>
+<td><strong>Development lead</strong></td>
+</tr>
+<tr>
+<td><strong>The execution evidence and the shipping product drifted apart</strong></td>
+<td><strong>The backend stack migration completed between the execution assignment and the final analysis, and no re-baseline was planned for it</strong></td>
+<td><strong>The October evidence described a retired implementation and could not, on its own, support a release decision</strong></td>
+<td><strong>Tie the evidence baseline to the architecture: when a stack migration is planned, plan the regression that re-establishes the baseline on the new stack as part of the migration, not as a later discovery.</strong></td>
+<td><strong>QA lead</strong></td>
+</tr>
+<tr>
+<td><strong>An entire behaviour went unexercised because the case that covers it is conditional</strong></td>
+<td><strong>The buyer-site repeat-enquiry case only runs when the AI service is available, and two regression attempts ran without it; a case reported as “skipped” reads like a pass at a glance</strong></td>
+<td><strong>The repeat buyer-enquiry path was never exercised in two regression results that looked clean</strong></td>
+<td><strong>Report conditional skips as an explicit coverage gap with the condition named, and run at least one regression per release with every optional dependency available so no case is skipped silently.</strong></td>
+<td><strong>QA lead</strong></td>
+</tr>
+<tr>
+<td><strong>A different single case failed on each full parallel run and passed in isolation</strong></td>
+<td><strong>Shared fixtures and seed data are contended between parallel workers</strong></td>
+<td><strong>Each run produced one false failure that had to be investigated before the result could be trusted</strong></td>
+<td><strong>Give each worker its own fixture scope, or serialise the specifications that share seed data, so a run result can be read without a triage pass.</strong></td>
+<td><strong>QA lead</strong></td>
+</tr>
+<tr>
+<td><strong>Every failure the current-version regression produced was a defect of the test suite, not of the product</strong></td>
+<td><strong>Two stale specifications: one drove a search field that had become a typeahead (DEF-003), and one simulated a returning buyer by copying the phone and e-mail but not the name, although the documented rule matches on phone AND name (DEF-004)</strong></td>
+<td><strong>Three false failures across three runs, each of which would have been read as a product regression if it had not been investigated to its cause</strong></td>
+<td><strong>Treat the automated suite as production code. When a shared component or a matching rule changes, update every specification that depends on it in the same change, and review a failing case against the contract before recording it as a product defect.</strong></td>
+<td><strong>QA lead</strong></td>
+</tr>
+</table>
+<h3 id="6-3-improvements-for-future-releases">6.3 Improvements for Future Releases</h3>
+<ul>
+<li>Gate every test window on an automated environment-readiness check, and treat a failed check as a blocked window rather than something to work around.</li>
+<li>Enforce toolchain versions in the build rather than documenting them.</li>
+<li>Schedule acceptance at planning time, with a named owner, a date and a zero-cost fallback script.</li>
+<li>Provision protected test credentials for every external provider, so the live path is testable inside the formal run.</li>
+<li>Start non-functional testing in the same iteration as the feature it measures, and fix a minimum capacity, endurance and accessibility set.</li>
+<li>Instrument code coverage from the first iteration and publish it with every run.</li>
+<li>Involve testers in requirement review earlier, so ambiguity is removed before a case is written against it.</li>
+<li>Run the full regression on every merge, so drift between the evidence and the product is caught in days rather than in weeks.</li>
+<li>Re-baseline the evidence as part of any architecture migration, not after it.</li>
+<li>Maintain the automated suite with the same discipline as product code when a shared component changes.</li>
+</ul>
+<h2 id="7-conclusions-and-recommendations">7. Conclusions and Recommendations</h2>
+<h3 id="7-1-overall-assessment">7.1 Overall Assessment</h3>
+<p>Across four test levels and two stacks, DealerOps did not fail an application assertion. The Assignment 3 baseline executed 76 of 87 planned cases and passed all 76; the integration retest passed all 44 targets; the current-version regression on the active stack passed 458 of 458 executed cases. Non-functional evidence supports the same conclusion: response time on the public path is more than two orders of magnitude inside the planned limit, the error rate in the measured sample was zero, a clean install produces a running and migrated system without manual work, and every security-boundary check behaved as specified. All six logged defects originated outside the application — in the environment, the toolchain, the automated suite, or a deliberate scope exclusion. Five are closed and verified; the sixth, the absence of a stakeholder acceptance session, is an accepted scope limitation and is release condition R1. No application defect is open at the date of this report.</p>
+<p>The limits of that conclusion must be stated with the same clarity. The acceptance level was never executed, so no party outside the team has confirmed that the delivered workflows meet the business need. Capacity, endurance and accessibility were never measured, so nothing is known about the system beyond a single sequential user. Structural coverage was never instrumented, so the pass rate cannot be weighed against a measured proportion of the code. DEF-004 also shows how narrow that boundary can be: the case concerned runs only when the AI service is available, so two earlier regression attempts skipped it entirely and reported a clean result without ever exercising the repeat buyer-enquiry path. The product is sound everywhere the evidence reaches; the evidence does not reach everywhere.</p>
+<h3 id="7-2-release-readiness-rating">7.2 Release Readiness Rating</h3>
+<p><strong>Rating: Ready with warnings. </strong>The evidence supports deploying the capstone demonstration release under the Blue/Green and pilot strategy in §5, which is chosen specifically because it keeps the previous version intact and makes a rollback a traffic switch rather than a rebuild. The evidence does not support a claim of production readiness at unknown load, and this report makes no such claim.</p>
+<h3 id="7-3-outstanding-risks-and-release-conditions">7.3 Outstanding Risks and Release Conditions</h3>
+<table>
+<tr>
+<th><strong>ID</strong></th>
+<th><strong>Residual risk</strong></th>
+<th><strong>Likelihood</strong></th>
+<th><strong>Impact</strong></th>
+<th><strong>Condition or mitigation</strong></th>
+</tr>
+<tr>
+<td><strong>R1</strong></td>
+<td><strong>No stakeholder has accepted the product. Ten acceptance cases stand unexecuted (OBS-002).</strong></td>
+<td><strong>Certain — it is a known gap, not a possibility</strong></td>
+<td><strong>High: a workflow mismatch would only be discovered in front of a user</strong></td>
+<td><strong>Hold the acceptance session against the deployed demonstration environment with a dated owner, and run the pilot-dealership step in §5.3 before the release is announced. Until then the release is described as a demonstration release.</strong></td>
+</tr>
+<tr>
+<td><strong>R2</strong></td>
+<td><strong>Capacity and endurance are unmeasured; the plan sizing is an estimate.</strong></td>
+<td><strong>Medium</strong></td>
+<td><strong>Medium: degradation under concurrent use would appear first as slow pages</strong></td>
+<td><strong>Run one concurrent-load profile and one endurance run against the green slot before any release described as production. Watch response time and error rate through the observation window and treat the 3-second limit as a rollback trigger.</strong></td>
+</tr>
+<tr>
+<td><strong>R3</strong></td>
+<td><strong>Structural coverage is unquantified, so the pass rate cannot be weighed against the proportion of code exercised.</strong></td>
+<td><strong>Certain</strong></td>
+<td><strong>Medium: untested code paths cannot be identified</strong></td>
+<td><strong>Instrument coverage and publish the figure before the next release; prioritise any uncovered High-priority path identified by that first measurement.</strong></td>
+</tr>
+<tr>
+<td><strong>R4</strong></td>
+<td><strong>The live AI provider path rests on a single supplementary observation.</strong></td>
+<td><strong>Medium</strong></td>
+<td><strong>Medium: a provider change would degrade the advertising review</strong></td>
+<td><strong>Provision a protected test credential so the live path runs inside the formal suite. The fail-safe behaviour is already proven: every failure mode surfaces as unavailable and never as a pass.</strong></td>
+</tr>
+<tr>
+<td><strong>R5</strong></td>
+<td><strong>The environment defects that blocked the project will recur on any machine whose container platform or runtime has moved ahead.</strong></td>
+<td><strong>High without the mitigation</strong></td>
+<td><strong>Medium: blocked test windows and misattributed failures</strong></td>
+<td><strong>Make the environment-readiness check a gate on every test window and enforce the toolchain version in the build.</strong></td>
+</tr>
+<tr>
+<td><strong>R6</strong></td>
+<td><strong>No accessibility assessment has been made.</strong></td>
+<td><strong>Certain</strong></td>
+<td><strong>Low to medium for a capstone demonstration; higher for a public buyer site</strong></td>
+<td><strong>Run an accessibility pass over the signed-in pages and the public buyer site before any public release.</strong></td>
+</tr>
+</table>
+<h3 id="7-4-final-recommendation">7.4 Final Recommendation</h3>
+<p><strong>Proceed, conditionally. </strong>Deploy the demonstration release using the Blue/Green slot swap with the pilot dealership step and the rollback triggers in §5.3. Close condition R1 — the stakeholder acceptance session — before the release is described as accepted by anyone outside the team. Close R2 and R3 before any release is described as production-ready. The remaining conditions are improvements to the testing programme rather than gates on this release, and they are owned in §6.2.</p>
+<h2 id="8-sign-off">8. Sign-Off</h2>
+<p>The table below records the group members and the role each carried for this analysis. No electronic or handwritten signature is represented, and no external acceptance is claimed. The instructor and client row is recorded as not obtained, consistent with OBS-002 and release condition R1.</p>
+<table>
+<tr>
+<th><strong>Role</strong></th>
+<th><strong>Name</strong></th>
+<th><strong>Recorded status</strong></th>
+<th><strong>Date</strong></th>
+</tr>
+<tr>
+<td><strong>QA lead</strong></td>
+<td><strong>Yuandong Yang</strong></td>
+<td><strong>Named group member; recorded status, no signature represented</strong></td>
+<td><strong>2026-11-23</strong></td>
+</tr>
+<tr>
+<td><strong>Development and integration lead</strong></td>
+<td><strong>Xiaomei He</strong></td>
+<td><strong>Named group member; recorded status, no signature represented</strong></td>
+<td><strong>2026-11-23</strong></td>
+</tr>
+<tr>
+<td><strong>Workflow and acceptance lead</strong></td>
+<td><strong>Daniel Watson</strong></td>
+<td><strong>Named group member; recorded status, no signature represented</strong></td>
+<td><strong>2026-11-23</strong></td>
+</tr>
+<tr>
+<td><strong>Instructor or client representative</strong></td>
+<td><strong>Not obtained</strong></td>
+<td><strong>No external acceptance recorded; see release condition R1</strong></td>
+<td><strong>N/A</strong></td>
+</tr>
+</table>
+<h2 id="9-references">9. References</h2>
+<p class="ref">Everett, G. D., &amp; McLeod, R., Jr. (2007). Software testing: Testing across the entire software development life cycle. John Wiley &amp; Sons.</p>
+<p class="ref">International Organization for Standardization. (2021). ISO/IEC/IEEE 29119-3:2021 — Software and systems engineering — Software testing — Part 3: Test documentation. ISO.</p>
+<p class="ref">Microsoft. (2026). Set up staging environments in Azure App Service. Microsoft Learn. https://learn.microsoft.com/azure/app-service/deploy-staging-slots</p>
+<p class="ref">Microsoft. (2026). ASP.NET Core documentation. Microsoft Learn. https://learn.microsoft.com/aspnet/core/</p>
+<p class="ref">Microsoft. (2026). Entity Framework Core documentation. Microsoft Learn. https://learn.microsoft.com/ef/core/</p>
+<p class="ref">Project Management Docs. (n.d.). Lessons learned template. https://www.projectmanagementdocs.com/template/project-closure/lessons-learned/</p>
+<p class="ref">Purdue Online Writing Lab. (n.d.). APA formatting and style guide (7th ed.). Purdue University. https://owl.purdue.edu/owl/research_and_citation/apa_style/apa_formatting_and_style_guide/index.html</p>
+<p class="ref">Southern Alberta Institute of Technology. (2024). CPRG-305 final project: Test and deploy a software project (Spring 2024, Rev. 1) [Course assignment].</p>
+<p class="ref">Undo. (n.d.). What is the actual cost of software failures? https://undo.io/the-cost-of-software-failures/</p>
+<p class="ref">Visme. (n.d.). How to create an effective training manual. https://visme.co/blog/training-manual/</p>
+<p class="ref">Yang, Y., Watson, D., &amp; He, X. (2026a). DealerOps group assignment 2: Developing a testing plan (Version 2.0; test plan identifier DO-CPRG305-GA2-TP-002) [Unpublished course document]. Southern Alberta Institute of Technology.</p>
+<p class="ref">Yang, Y., Watson, D., &amp; He, X. (2026b). DealerOps group assignment 3: Test execution report (Version 1.0) [Unpublished course document]. Southern Alberta Institute of Technology.</p>
+<p class="ref">Yang, Y., Watson, D., &amp; He, X. (2026c). DealerOps design documentation: Scope baseline, backend API contract, data, authentication and gateway design, acceptance and test design, and DevOps and implementation design [Unpublished project documentation].</p>
+<h2 id="10-appendix">10. Appendix</h2>
+<h3 id="10-1-training-manual-outline">10.1 Training Manual Outline</h3>
+<p>This outline identifies the training material end users need. It is a specification of what must be written, not the manual itself. The structure follows the audiences the product actually has, because the three audiences do not share a surface: a platform administrator never sees business records, dealership staff never see another dealership, and a buyer is not a user of the back office at all.</p>
+<p>Audience 1 — Platform administrator</p>
+<ul>
+<li>Sign in and understand the administrator surface, and why it contains no dealership business data.</li>
+<li>Open a dealership and record its profile.</li>
+<li>Review a pending account, bind a staff account to a dealership, set a member&#x27;s role, and unbind an account.</li>
+<li>Read the platform audit log and interpret an entry: who acted, what changed, when, from which address, and what the replaced value was.</li>
+<li>Understand what an administrator must not do, and what the system will refuse.</li>
+</ul>
+<p>Audience 2 — Dealership owner or manager</p>
+<ul>
+<li>Manage the team: review a join request, change a member&#x27;s role, and remove a member.</li>
+<li>Read the dealership audit log and the record history of a single vehicle, customer or lead.</li>
+<li>Read the dashboard figures and the sales report, including the funnel and stage history.</li>
+<li>Record and reconcile payments on a sold vehicle, and print the bill of sale.</li>
+<li>Understand what sales staff cannot see, and why.</li>
+</ul>
+<p>Audience 3 — Dealership sales staff (the primary audience)</p>
+<ul>
+<li>Sign in, and recover access when a password or a sign-in method fails.</li>
+<li>Add a vehicle: the required fields, how the VIN is decoded and why a duplicate VIN within the dealership is refused.</li>
+<li>Edit a vehicle, add and manage photographs within the size and count limits, and raise a work order.</li>
+<li>Sell a vehicle: record the date, the price and the buyer together, and understand that the purchase fields lock afterwards and the sale cannot be repeated.</li>
+<li>Add a customer and link an unbound vehicle at this dealership; understand the one-vehicle-one-customer rule and that a sold link cannot be removed.</li>
+<li>Work a lead from new to won or lost, set a follow-up date, read the overdue flag, add notes, and reopen a closed lead where that is permitted.</li>
+<li>Write an advertisement and run the compliance check; read each of the five states and what each one permits.</li>
+<li>Understand why a check goes stale when the advertisement content changes, and why ready and export are refused until the check passes on the current content.</li>
+<li>Mark an advertisement ready, export it, and use the simulated marketplace publication.</li>
+<li>Ask the read-only assistant a question about this dealership&#x27;s own records, and understand that it never writes data.</li>
+<li>Handle the public buyer site and the inquiries it files as leads.</li>
+</ul>
+<p>Cross-cutting topics for every audience</p>
+<ul>
+<li>Reading an error: the product&#x27;s error vocabulary, what each message means, and what the user should do next.</li>
+<li>What the advertising compliance check is and is not: it checks the implemented rule set and is explicitly not legal advice or regulatory approval.</li>
+<li>What happens when the AI review is unavailable: the result is recorded as unavailable and never as a pass, and the advertisement cannot be marked ready on an unavailable result.</li>
+<li>Privacy: customer contact details never leave the dealership&#x27;s own records and are never sent to the AI provider.</li>
+<li>Troubleshooting the common cases: a duplicate VIN, a stale check, a refused export, an unavailable AI review, a locked sold vehicle, a refused second sale, and a session that has expired.</li>
+</ul>
+<p>Recommended delivery formats</p>
+<table>
+<tr>
+<th><strong>Format</strong></th>
+<th><strong>Audience and purpose</strong></th>
+</tr>
+<tr>
+<td><strong>Quick start guide (2 pages)</strong></td>
+<td><strong>New sales staff. The first day: sign in, add a vehicle, add a customer, run a check.</strong></td>
+</tr>
+<tr>
+<td><strong>Step-by-step walkthroughs with screenshots</strong></td>
+<td><strong>The core workflows above, one document per workflow, written in the order the user performs them.</strong></td>
+</tr>
+<tr>
+<td><strong>Role-based administrator guide</strong></td>
+<td><strong>Platform administrators and dealership owners; the team, audit and reporting surfaces.</strong></td>
+</tr>
+<tr>
+<td><strong>Frequently asked questions</strong></td>
+<td><strong>The compliance states, the stale-check rule, the sold lock, and the one-vehicle-one-customer rule, which are the four rules users most often meet as refusals.</strong></td>
+</tr>
+<tr>
+<td><strong>Short video tutorials (2 to 4 minutes)</strong></td>
+<td><strong>The advertising compliance workflow and the vehicle sale workflow, which are the two highest-consequence sequences.</strong></td>
+</tr>
+<tr>
+<td><strong>Inline help and tooltips</strong></td>
+<td><strong>Field-level guidance at the point of use, particularly on the VIN, price and finance disclosure fields.</strong></td>
+</tr>
+<tr>
+<td><strong>Troubleshooting card (1 page)</strong></td>
+<td><strong>Printable, for the sales desk: the common refusals and what to do about each.</strong></td>
+</tr>
+</table>
+<h3 id="10-2-execution-evidence">10.2 Execution Evidence</h3>
+<p>The evidence below was captured from the running system on the private end-to-end stack on November 23, 2026, at the same time as the regression reported in §4.4. All data is synthetic; no production record, credential or personal detail appears in any capture.</p>
+<figure class="term"><pre># Live boundary and health evidence — private E2E stack — 2026-11-23
+
+$ curl -s http://127.0.0.1:18080/actuator/health
+{&quot;status&quot;:&quot;UP&quot;,&quot;components&quot;:{&quot;core&quot;:{&quot;status&quot;:&quot;UP&quot;},&quot;ai&quot;:{&quot;status&quot;:&quot;UP&quot;}}}
+
+$ curl -s http://127.0.0.1:18080/actuator/release
+{&quot;web&quot;:&quot;unavailable&quot;,&quot;gateway&quot;:&quot;2026-11-23T22:03:06Z&quot;,&quot;core&quot;:&quot;2026-11-23T22:03:05Z&quot;,&quot;ai&quot;:&quot;2026-11-23T22:12:24Z&quot;}
+
+# SEC-02: the browser must not reach the business service directly
+$ curl http://127.0.0.1:18081/api/v1/vehicles  -&gt;  HTTP 404   (route not disclosed)
+
+# SEC-05: the AI service refuses a call that carries no internal token
+$ curl -X POST http://127.0.0.1:8082/internal/assistant/ask  -&gt;  HTTP 404   (route not disclosed)
+
+# SEC: CORS preflight from an UNCONFIGURED origin returns no allow-origin header,
+#      so the browser blocks the response
+$ curl -i -X OPTIONS -H &quot;Origin: https://evil.example&quot; http://127.0.0.1:18080/api/v1/vehicles
+HTTP/1.1 204 No Content
+  (no Access-Control-Allow-Origin header is present)
+
+# SEC: the same preflight from the CONFIGURED origin is allowed
+$ curl -i -X OPTIONS -H &quot;Origin: http://localhost:5175&quot; http://127.0.0.1:18080/api/v1/vehicles
+HTTP/1.1 204 No Content
+Access-Control-Allow-Headers: Authorization,Content-Type
+Access-Control-Allow-Methods: GET,POST,PUT,PATCH,DELETE,OPTIONS
+Access-Control-Allow-Origin: http://localhost:5175
+
+# AUTH: a sign-in without an identifier is a validation error, not a server error
+$ curl -X POST http://127.0.0.1:18080/api/v1/auth/login -d {&quot;password&quot;:&quot;x&quot;}  -&gt;  HTTP 400
+
+# AUTH: an unauthenticated business request is refused at the gateway
+$ curl http://127.0.0.1:18080/api/v1/vehicles  -&gt;  HTTP 401</pre><figcaption>Evidence E-0 — live gateway health, release alignment and security-boundary responses, captured from the running private stack.</figcaption></figure>
+<figure class="shot"><img src="evidence/01-sign-in.png" alt="Sign-in page. The browser reaches only the gateway; the business and AI services"><figcaption><strong>Evidence E-1.</strong> Sign-in page. The browser reaches only the gateway; the business and AI services are never addressed directly.</figcaption></figure>
+<figure class="shot"><img src="evidence/02-dashboard.png" alt="Tenant-scoped dashboard after signing in as a dealership owner. Every figure is "><figcaption><strong>Evidence E-2.</strong> Tenant-scoped dashboard after signing in as a dealership owner. Every figure is scoped to this dealership (DASH-01).</figcaption></figure>
+<figure class="shot"><img src="evidence/03-dms-list.png" alt="DMS inventory list with search, year, status, condition and body filters, ten ro"><figcaption><strong>Evidence E-3.</strong> DMS inventory list with search, year, status, condition and body filters, ten rows per page, newest first (DMS-07, UI-20).</figcaption></figure>
+<figure class="shot"><img src="evidence/09-vehicle-detail.png" alt="Vehicle form with the specification&#x27;s required fields marked, VIN, purchase cost"><figcaption><strong>Evidence E-4.</strong> Vehicle form with the specification&#x27;s required fields marked, VIN, purchase cost, acquisition date and source (DMS-01 to DMS-18).</figcaption></figure>
+<figure class="shot"><img src="evidence/04-crm-list.png" alt="CRM customer list with the linked / not-linked filter (CRM-01 to CRM-16, UI-30)."><figcaption><strong>Evidence E-5.</strong> CRM customer list with the linked / not-linked filter (CRM-01 to CRM-16, UI-30).</figcaption></figure>
+<figure class="shot"><img src="evidence/05-leads.png" alt="Leads list: customer, vehicle of interest, stage, owner and next follow-up, with"><figcaption><strong>Evidence E-6.</strong> Leads list: customer, vehicle of interest, stage, owner and next follow-up, with server-side sorting on every column (LEAD-01 to LEAD-08, CR-012).</figcaption></figure>
+<figure class="shot"><img src="evidence/06-ads-workspace.png" alt="Advertising compliance workspace. The check status column shows the real states "><figcaption><strong>Evidence E-7.</strong> Advertising compliance workspace. The check status column shows the real states returned by the server: PASSED and NEEDS AI REVIEW.</figcaption></figure>
+<figure class="shot"><img src="evidence/06b-ad-check-result.png" alt="A completed compliance check on a real AI model: the PASSED state, the OMVIC che"><figcaption><strong>Evidence E-8.</strong> A completed compliance check on a real AI model: the PASSED state, the OMVIC checklist, two REVIEW rule findings and the AI notes. The disclaimer that the check is not legal advice and not an OMVIC approval is shown above the result (AD-01 to AD-17, AI-01 to AI-05).</figcaption></figure>
+<figure class="shot"><img src="evidence/07-sales-report.png" alt="Sales funnel report with stage history (CRM-16)."><figcaption><strong>Evidence E-9.</strong> Sales funnel report with stage history (CRM-16).</figcaption></figure>
+<figure class="shot"><img src="evidence/10-assistant.png" alt="The read-only assistant answering from this dealership&#x27;s own records and returni"><figcaption><strong>Evidence E-10.</strong> The read-only assistant answering from this dealership&#x27;s own records and returning tenant-scoped cards with their in-stock and sold state. The panel states that it never creates, changes or deletes data.</figcaption></figure>
+<figure class="shot"><img src="evidence/11-buyer-site.png" alt="Public buyer site. Only advertisements that passed a current check are listed, a"><figcaption><strong>Evidence E-11.</strong> Public buyer site. Only advertisements that passed a current check are listed, and no purchase cost or customer data is exposed (SHOP-01 to SHOP-05).</figcaption></figure>
+<figure class="shot"><img src="evidence/08-team.png" alt="Team page: dealership membership and the owner, manager and sales tiers (AUTH-26"><figcaption><strong>Evidence E-12.</strong> Team page: dealership membership and the owner, manager and sales tiers (AUTH-26, AUTH-27).</figcaption></figure>
+<figure class="shot"><img src="evidence/12-admin-dealers.png" alt="Platform administrator surface: dealerships, members and pending accounts. The a"><figcaption><strong>Evidence E-13.</strong> Platform administrator surface: dealerships, members and pending accounts. The administrator holds no dealership business data.</figcaption></figure>
+<h3 id="10-3-supporting-documents">10.3 Supporting Documents</h3>
+<ul>
+<li>DealerOps Group Assignment 3: Test Execution Report, v1.0, October 13, 2026 — the source of the functional, non-functional and incident data analysed in §2 to §4.</li>
+<li>DealerOps Group Assignment 3 defect-tracking workbook — the row-level execution log, the defect register and the progress sheet. Its execution-log sheet is the detailed form of the test case execution progress report summarised in §4.1.</li>
+<li>DealerOps Group Assignment 2: Developing a Testing Plan, v2.0, October 23, 2026, and its companion test-case workbook — the source of the plan, the thresholds and the requirement traceability referenced throughout.</li>
+<li>Current-version regression record, November 23, 2026 — the end-to-end run summarised in §4.4, executed against the active stack on the project&#x27;s private test stack.</li>
+<li>Execution evidence: container names and service logs, health and release endpoint responses, the response-time sample, and the browser session evidence. Secrets and real personal data are excluded from all evidence by the project&#x27;s evidence rules.</li>
+<li>Peer assessment: each group member submits an individual peer assessment separately as Part B of this final project.</li>
+</ul>
+<p><em>End of report.</em></p>
+</body></html>

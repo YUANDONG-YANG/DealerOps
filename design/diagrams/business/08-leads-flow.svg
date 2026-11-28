@@ -1,0 +1,66 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1150 560" width="1150" height="560" role="img" aria-label="Leads: one sales opportunity from first contact to outcome. Only one open lead per customer and vehicle; closed leads can be reopened">
+  <rect width="1150" height="560" fill="#ffffff"/>
+  <defs>
+    <marker id="ma" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="#1d4ed8"/></marker>
+    <marker id="mg" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="#64748b"/></marker>
+    <marker id="mb" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="#b91c1c"/></marker>
+  </defs>
+  <g font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif">
+    <text x="30" y="32" font-size="17" font-weight="700" fill="#0f172a">Leads: one sales opportunity from first contact to outcome</text>
+    <text x="30" y="54" font-size="11.5" fill="#64748b">Only one open lead per customer and vehicle; closed leads can be reopened</text>
+    <rect x="20" y="200" width="120" height="60" rx="8" fill="#dbeafe" stroke="#1d4ed8" stroke-width="1.5"/>
+    <text x="80.0" y="219.0" font-size="12" font-weight="700" fill="#0f172a" text-anchor="middle">Create lead</text>
+    <text x="80.0" y="234.0" font-size="10.5" font-weight="400" fill="#475569" text-anchor="middle">customer, vehicle?</text>
+    <text x="80.0" y="249.0" font-size="10.5" font-weight="400" fill="#475569" text-anchor="middle">owner</text>
+    <polygon points="245.0,196 315,230.0 245.0,264 175,230.0" fill="#fffbeb" stroke="#b45309" stroke-width="1.5"/>
+    <text x="245.0" y="226.5" font-size="12" font-weight="700" fill="#0f172a" text-anchor="middle">Open lead for</text>
+    <text x="245.0" y="241.5" font-size="12" font-weight="700" fill="#0f172a" text-anchor="middle">same car?</text>
+    <rect x="185" y="310" width="120" height="60" rx="8" fill="#fee2e2" stroke="#b91c1c" stroke-width="1.5"/>
+    <text x="245.0" y="336.5" font-size="12" font-weight="700" fill="#0f172a" text-anchor="middle">LEAD_DUPLICATE</text>
+    <text x="245.0" y="351.5" font-size="10.5" font-weight="400" fill="#475569" text-anchor="middle">refused</text>
+    <rect x="350" y="200" width="120" height="60" rx="8" fill="#dbeafe" stroke="#1d4ed8" stroke-width="1.5"/>
+    <text x="410.0" y="234.0" font-size="12" font-weight="700" fill="#0f172a" text-anchor="middle">NEW</text>
+    <rect x="515" y="200" width="120" height="60" rx="8" fill="#dbeafe" stroke="#1d4ed8" stroke-width="1.5"/>
+    <text x="575.0" y="234.0" font-size="12" font-weight="700" fill="#0f172a" text-anchor="middle">CONTACTED</text>
+    <rect x="680" y="200" width="120" height="60" rx="8" fill="#dbeafe" stroke="#1d4ed8" stroke-width="1.5"/>
+    <text x="740.0" y="234.0" font-size="12" font-weight="700" fill="#0f172a" text-anchor="middle">QUALIFIED</text>
+    <polygon points="905.0,196 975,230.0 905.0,264 835,230.0" fill="#fffbeb" stroke="#b45309" stroke-width="1.5"/>
+    <text x="905.0" y="234.0" font-size="12" font-weight="700" fill="#0f172a" text-anchor="middle">Deal outcome?</text>
+    <rect x="1010" y="90" width="120" height="60" rx="8" fill="#dcfce7" stroke="#15803d" stroke-width="1.5"/>
+    <text x="1070.0" y="116.5" font-size="12" font-weight="700" fill="#0f172a" text-anchor="middle">WON</text>
+    <text x="1070.0" y="131.5" font-size="10.5" font-weight="400" fill="#475569" text-anchor="middle">buyer settled</text>
+    <rect x="1010" y="310" width="120" height="60" rx="8" fill="#fee2e2" stroke="#b91c1c" stroke-width="1.5"/>
+    <text x="1070.0" y="336.5" font-size="12" font-weight="700" fill="#0f172a" text-anchor="middle">LOST</text>
+    <text x="1070.0" y="351.5" font-size="10.5" font-weight="400" fill="#475569" text-anchor="middle">reason required</text>
+    <rect x="1010" y="420" width="120" height="60" rx="8" fill="#f1f5f9" stroke="#64748b" stroke-width="1.5"/>
+    <text x="1070.0" y="439.0" font-size="12" font-weight="700" fill="#0f172a" text-anchor="middle">Reopen</text>
+    <text x="1070.0" y="454.0" font-size="10.5" font-weight="400" fill="#475569" text-anchor="middle">lost: always</text>
+    <text x="1070.0" y="469.0" font-size="10.5" font-weight="400" fill="#475569" text-anchor="middle">won: if unsold</text>
+    <rect x="350" y="90" width="120" height="60" rx="8" fill="#f1f5f9" stroke="#64748b" stroke-width="1.5"/>
+    <text x="410.0" y="109.0" font-size="12" font-weight="700" fill="#0f172a" text-anchor="middle">Car sold to</text>
+    <text x="410.0" y="124.0" font-size="10.5" font-weight="400" fill="#475569" text-anchor="middle">someone else</text>
+    <text x="410.0" y="139.0" font-size="10.5" font-weight="400" fill="#475569" text-anchor="middle">lead closed as Lost</text>
+    <path d="M140,230.0 H175" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#ma)"/>
+    <text x="146" y="223.0" font-size="10.5" fill="#334155" text-anchor="start"></text>
+    <path d="M315,230.0 H350" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#ma)"/>
+    <text x="321" y="223.0" font-size="10.5" fill="#334155" text-anchor="start">No</text>
+    <path d="M245.0,264 V310" fill="none" stroke="#b91c1c" stroke-width="1.6" marker-end="url(#mb)"/>
+    <text x="253.0" y="280" font-size="10.5" fill="#334155" text-anchor="start">Yes</text>
+    <path d="M470,230.0 H515" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#ma)"/>
+    <text x="476" y="223.0" font-size="10.5" fill="#334155" text-anchor="start"></text>
+    <path d="M635,230.0 H680" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#ma)"/>
+    <text x="641" y="223.0" font-size="10.5" fill="#334155" text-anchor="start"></text>
+    <path d="M800,230.0 H835" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#ma)"/>
+    <text x="806" y="223.0" font-size="10.5" fill="#334155" text-anchor="start"></text>
+    <path d="M905.0,196 V120.0 H1010" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#ma)"/>
+    <text x="913.0" y="188" font-size="10.5" fill="#334155" text-anchor="start">Won</text>
+    <path d="M905.0,264 V340.0 H1010" fill="none" stroke="#1d4ed8" stroke-width="1.6" marker-end="url(#ma)"/>
+    <text x="913.0" y="282" font-size="10.5" fill="#334155" text-anchor="start">Lost</text>
+    <path d="M1070.0,370 V420" fill="none" stroke="#64748b" stroke-width="1.6" marker-end="url(#mg)"/>
+    <text x="1078.0" y="390" font-size="10.5" fill="#334155" text-anchor="start"></text>
+    <path d="M410.0,150 V200" fill="none" stroke="#64748b" stroke-width="1.6" marker-end="url(#mg)"/>
+    <text x="418.0" y="170" font-size="10.5" fill="#334155" text-anchor="start">closes</text>
+    <path d="M1010,450 H410 V260" fill="none" stroke="#64748b" stroke-width="1.6" stroke-dasharray="5 4" marker-end="url(#mg)"/>
+    <text x="420" y="442" font-size="10.5" fill="#334155" text-anchor="start">back to NEW, CONTACTED or QUALIFIED</text>
+  </g>
+</svg>

@@ -1,0 +1,253 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Unit 8 Performance Testing Worksheet</title>
+<style>
+  @page { size: Letter; margin: 0.5in; }
+  :root {
+    color-scheme: light;
+    --surface-1: #fcfcfb;
+    --surface-2: #f4f3f0;
+    --text-primary: #0b0b0b;
+    --text-secondary: #52514e;
+    --text-muted: #77766f;
+    --rule: #dcdbd5;
+    --series-1: #2a78d6;
+    --series-2: #eb6834;
+    --series-3: #1baf7a;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:where(:not([data-theme="light"])) {
+      color-scheme: dark;
+      --surface-1: #1a1a19;
+      --surface-2: #232321;
+      --text-primary: #f0efec;
+      --text-secondary: #c3c2b7;
+      --text-muted: #9a998f;
+      --rule: #3a3a37;
+      --series-1: #3987e5;
+      --series-2: #d95926;
+      --series-3: #199e70;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --surface-1: #1a1a19;
+    --surface-2: #232321;
+    --text-primary: #f0efec;
+    --text-secondary: #c3c2b7;
+    --text-muted: #9a998f;
+    --rule: #3a3a37;
+    --series-1: #3987e5;
+    --series-2: #d95926;
+    --series-3: #199e70;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0 auto;
+    padding: 16px;
+    max-width: 7.5in;
+    background: var(--surface-1);
+    color: var(--text-primary);
+    font: 10.5px/1.45 -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  header { border-bottom: 2px solid var(--text-primary); padding-bottom: 6px; margin-bottom: 10px; }
+  h1 { font-size: 15px; margin: 0 0 2px; letter-spacing: -0.01em; }
+  .meta { color: var(--text-secondary); font-size: 10px; }
+  h2 {
+    font-size: 11px; margin: 9px 0 4px; text-transform: uppercase;
+    letter-spacing: 0.06em; color: var(--text-secondary);
+    border-bottom: 1px solid var(--rule); padding-bottom: 3px;
+  }
+  h3 { font-size: 10.5px; margin: 6px 0 2px; }
+  p { margin: 0 0 5px; }
+  ul { margin: 0 0 6px; padding-left: 16px; }
+  li { margin-bottom: 3px; }
+  .layout { display: grid; grid-template-columns: 1fr 190px; gap: 12px; align-items: start; }
+  figure { margin: 0; }
+  figcaption { font-size: 9.5px; color: var(--text-muted); margin-top: 3px; }
+  .chart { width: 100%; max-width: 530px; height: auto; display: block; }
+  .chart .grid line { stroke: var(--rule); stroke-width: 1; }
+  .chart .axis-line line { stroke: var(--text-secondary); stroke-width: 1; }
+  .chart .tick { font-size: 10px; fill: var(--text-muted); }
+  .chart .axis-title { font-size: 10.5px; fill: var(--text-secondary); font-weight: 600; }
+  .chart .series { fill: none; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+  .chart .dot { stroke: var(--surface-1); stroke-width: 2; }
+  .chart .limit { stroke-width: 1.5; stroke-dasharray: 7 5; opacity: 0.75; }
+  .chart .limit-label { font-size: 9.5px; font-weight: 600; }
+  .chart .series-label { font-size: 10px; font-weight: 600; }
+  .chart .breach { stroke-width: 2; }
+  .chart .note { font-size: 9.5px; }
+  .legend { display: flex; flex-wrap: wrap; gap: 4px 14px; margin: 4px 0 0 46px; font-size: 9.5px; color: var(--text-secondary); }
+  .legend span { display: inline-flex; align-items: center; gap: 5px; }
+  .swatch { width: 12px; height: 2px; border-radius: 1px; display: inline-block; }
+  .swatch.dash { height: 0; border-top: 2px dashed currentColor; width: 14px; }
+  table { border-collapse: collapse; width: 100%; font-size: 9.5px; }
+  caption { text-align: left; font-size: 9.5px; color: var(--text-muted); padding-bottom: 3px; }
+  th, td { padding: 2px 4px; text-align: right; border-bottom: 1px solid var(--rule); }
+  th:first-child, td:first-child { text-align: left; }
+  thead th { color: var(--text-secondary); font-weight: 600; }
+  tbody tr:nth-child(even) { background: var(--surface-2); }
+  td.fail { color: var(--series-2); font-weight: 700; }
+  .verdict { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 6px; }
+  .card { border: 1px solid var(--rule); border-left-width: 3px; border-radius: 4px; padding: 6px 8px; background: var(--surface-2); }
+  .card h3 { margin: 0 0 2px; font-size: 10px; }
+  .card .state { font-size: 9.5px; font-weight: 700; }
+  .card p { margin: 1px 0 0; font-size: 9.5px; color: var(--text-secondary); }
+  .c1 { border-left-color: var(--series-1); }
+  .c2 { border-left-color: var(--series-2); }
+  .c3 { border-left-color: var(--series-3); }
+  .basis { font-size: 9.5px; color: var(--text-secondary); border-left: 3px solid var(--rule); padding-left: 8px; }
+  footer { margin-top: 10px; border-top: 1px solid var(--rule); padding-top: 4px; font-size: 9px; color: var(--text-muted); }
+  @media print {
+    body { padding: 0; width: 7.5in; max-width: 7.5in; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>Unit 8 Activity &mdash; Performance Testing: A Graphing Exercise</h1>
+  <div class="meta">CPRG&nbsp;305-B &middot; Yuandong Yang (Robin) &middot; Student ID 000949205 &middot; Workload mix: &ldquo;Saturday purchases&rdquo;</div>
+</header>
+
+<h2>Part 1 &mdash; Response time vs. round-trip transactions</h2>
+<div class="layout">
+  <figure>
+<svg class="chart" viewBox="0 0 720 348" role="img" aria-label="Response time versus number of round-trip transactions for three transaction groups, with the maximum allowed response time for each.">
+<g class="grid">
+<line x1="58" y1="302" x2="588" y2="302"/>
+<line x1="58" y1="258.31" x2="588" y2="258.31"/>
+<line x1="58" y1="214.62" x2="588" y2="214.62"/>
+<line x1="58" y1="170.92" x2="588" y2="170.92"/>
+<line x1="58" y1="127.23" x2="588" y2="127.23"/>
+<line x1="58" y1="83.54" x2="588" y2="83.54"/>
+<line x1="58" y1="39.85" x2="588" y2="39.85"/>
+</g>
+<g class="axis-line"><line x1="58" y1="302" x2="588" y2="302"/><line x1="58" y1="18" x2="58" y2="302"/></g>
+<g class="tick">
+<text x="49" y="306" text-anchor="end">0</text>
+<text x="49" y="262.31" text-anchor="end">2</text>
+<text x="49" y="218.62" text-anchor="end">4</text>
+<text x="49" y="174.92" text-anchor="end">6</text>
+<text x="49" y="131.23" text-anchor="end">8</text>
+<text x="49" y="87.54" text-anchor="end">10</text>
+<text x="49" y="43.85" text-anchor="end">12</text>
+<text x="59.06" y="320" text-anchor="middle">1</text>
+<text x="111" y="320" text-anchor="middle">50</text>
+<text x="164" y="320" text-anchor="middle">100</text>
+<text x="217" y="320" text-anchor="middle">150</text>
+<text x="270" y="320" text-anchor="middle">200</text>
+<text x="323" y="320" text-anchor="middle">250</text>
+<text x="376" y="320" text-anchor="middle">300</text>
+<text x="429" y="320" text-anchor="middle">350</text>
+<text x="482" y="320" text-anchor="middle">400</text>
+<text x="535" y="320" text-anchor="middle">450</text>
+<text x="588" y="320" text-anchor="middle">500</text>
+</g>
+<text class="axis-title" x="323" y="340" text-anchor="middle">Number of Round Trip Transactions</text>
+<text class="axis-title" transform="translate(14 160) rotate(-90)" text-anchor="middle">Response Time (Seconds)</text>
+<line class="limit" x1="58" y1="236.46" x2="588" y2="236.46" stroke="var(--series-1)"/>
+<text class="limit-label" x="382" y="230.46" fill="var(--series-1)">Logon max 3 s</text>
+<line class="limit" x1="58" y1="149.08" x2="588" y2="149.08" stroke="var(--series-2)"/>
+<text class="limit-label" x="64" y="143.08" fill="var(--series-2)">Purchase max 7 s</text>
+<line class="limit" x1="58" y1="83.54" x2="270" y2="83.54" stroke="var(--series-3)"/>
+<text class="limit-label" x="64" y="77.54" fill="var(--series-3)">Catalog max 10 s (peak 200)</text>
+<polyline class="series" stroke="var(--series-1)" points="59.06,258.31 111,258.31 164,256.12 217,256.12 270,253.94 323,253.94 376,253.94 429,253.94 482,253.94 535,236.46 588,236.46"/>
+<circle class="dot" cx="59.06" cy="258.31" r="4" fill="var(--series-1)"/>
+<circle class="dot" cx="111" cy="258.31" r="4" fill="var(--series-1)"/>
+<circle class="dot" cx="164" cy="256.12" r="4" fill="var(--series-1)"/>
+<circle class="dot" cx="217" cy="256.12" r="4" fill="var(--series-1)"/>
+<circle class="dot" cx="270" cy="253.94" r="4" fill="var(--series-1)"/>
+<circle class="dot" cx="323" cy="253.94" r="4" fill="var(--series-1)"/>
+<circle class="dot" cx="376" cy="253.94" r="4" fill="var(--series-1)"/>
+<circle class="dot" cx="429" cy="253.94" r="4" fill="var(--series-1)"/>
+<circle class="dot" cx="482" cy="253.94" r="4" fill="var(--series-1)"/>
+<circle class="dot" cx="535" cy="236.46" r="4" fill="var(--series-1)"/>
+<circle class="dot" cx="588" cy="236.46" r="4" fill="var(--series-1)"/>
+<text class="series-label" x="599" y="240.46" fill="var(--series-1)">Logon/Log off</text>
+<polyline class="series" stroke="var(--series-2)" points="59.06,236.46 111,232.09 164,223.35 217,218.98 270,216.8 323,212.43 376,208.06 429,205.88 482,201.51 535,197.14 588,188.4"/>
+<circle class="dot" cx="59.06" cy="236.46" r="4" fill="var(--series-2)"/>
+<circle class="dot" cx="111" cy="232.09" r="4" fill="var(--series-2)"/>
+<circle class="dot" cx="164" cy="223.35" r="4" fill="var(--series-2)"/>
+<circle class="dot" cx="217" cy="218.98" r="4" fill="var(--series-2)"/>
+<circle class="dot" cx="270" cy="216.8" r="4" fill="var(--series-2)"/>
+<circle class="dot" cx="323" cy="212.43" r="4" fill="var(--series-2)"/>
+<circle class="dot" cx="376" cy="208.06" r="4" fill="var(--series-2)"/>
+<circle class="dot" cx="429" cy="205.88" r="4" fill="var(--series-2)"/>
+<circle class="dot" cx="482" cy="201.51" r="4" fill="var(--series-2)"/>
+<circle class="dot" cx="535" cy="197.14" r="4" fill="var(--series-2)"/>
+<circle class="dot" cx="588" cy="188.4" r="4" fill="var(--series-2)"/>
+<text class="series-label" x="599" y="192.4" fill="var(--series-2)">Purchase steps</text>
+<polyline class="series" stroke="var(--series-3)" points="59.06,269.23 111,210.25 164,122.86 217,105.38 270,57.32 323,39.85"/>
+<circle class="dot" cx="59.06" cy="269.23" r="4" fill="var(--series-3)"/>
+<circle class="dot" cx="111" cy="210.25" r="4" fill="var(--series-3)"/>
+<circle class="dot" cx="164" cy="122.86" r="4" fill="var(--series-3)"/>
+<circle class="dot" cx="217" cy="105.38" r="4" fill="var(--series-3)"/>
+<circle class="dot" cx="270" cy="57.32" r="4" fill="var(--series-3)"/>
+<circle class="dot" cx="323" cy="39.85" r="4" fill="var(--series-3)"/>
+<text class="series-label" x="334" y="43.85" fill="var(--series-3)">Catalog search</text>
+<circle class="breach" cx="241.09" cy="83.54" r="6" fill="none" stroke="var(--series-3)"/>
+<text class="note" x="257.09" y="103.54" fill="var(--text-secondary)">Catalog search breaks its</text>
+<text class="note" x="257.09" y="115.54" fill="var(--text-secondary)">10 s limit at ~173 transactions</text>
+</svg>    <div class="legend">
+      <span style="color:var(--series-1)"><i class="swatch" style="background:currentColor"></i>Logon/Log off</span>
+      <span style="color:var(--series-2)"><i class="swatch" style="background:currentColor"></i>Purchase steps</span>
+      <span style="color:var(--series-3)"><i class="swatch" style="background:currentColor"></i>Catalog search</span>
+      <span style="color:var(--text-secondary)"><i class="swatch dash"></i>Maximum allowed response time (dashed, drawn to that group&rsquo;s peak workload)</span>
+    </div>
+    <figcaption>Each dashed line is that group&rsquo;s documented maximum and stops at its documented peak workload, so a solid line above its own dashed line is a requirement failure.</figcaption>
+  </figure>
+  <table>
+    <caption>Test data (seconds). N/A = not collected at that load.</caption>
+    <thead><tr><th>Txns</th><th>Logon</th><th>Purch.</th><th>Catalog</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td>2.0</td><td>3.0</td><td>1.5</td></tr>
+      <tr><td>50</td><td>2.0</td><td>3.2</td><td>4.2</td></tr>
+      <tr><td>100</td><td>2.1</td><td>3.6</td><td>8.2</td></tr>
+      <tr><td>150</td><td>2.1</td><td>3.8</td><td>9.0</td></tr>
+      <tr><td>200</td><td>2.2</td><td>3.9</td><td class="fail">11.2</td></tr>
+      <tr><td>250</td><td>2.2</td><td>4.1</td><td class="fail">12.0</td></tr>
+      <tr><td>300</td><td>2.2</td><td>4.3</td><td>N/A</td></tr>
+      <tr><td>350</td><td>2.2</td><td>4.4</td><td>N/A</td></tr>
+      <tr><td>400</td><td>2.2</td><td>4.6</td><td>N/A</td></tr>
+      <tr><td>450</td><td>3.0</td><td>4.8</td><td>N/A</td></tr>
+      <tr><td>500</td><td>3.0</td><td>5.2</td><td>N/A</td></tr>
+      <tr><th>Max allowed</th><th>3</th><th>7</th><th>10</th></tr>
+      <tr><th>Peak load</th><th>500</th><th>500</th><th>200</th></tr>
+    </tbody>
+  </table>
+</div>
+
+<h2>Part 2 &mdash; Summary of findings</h2>
+<div class="verdict">
+  <div class="card c1">
+    <h3>Logon/Log off</h3>
+    <div class="state" style="color:var(--series-1)">Passes, no margin</div>
+    <p>Flat at 2.0&ndash;2.2 s to 400 txns, then a measured step between 400 and 450 txns takes it to 3.0 s &mdash; exactly on the 3 s limit at its 500-txn peak.</p>
+  </div>
+  <div class="card c2">
+    <h3>Purchase steps</h3>
+    <div class="state" style="color:var(--series-2)">Passes comfortably</div>
+    <p>Rises smoothly 3.0 &rarr; 5.2 s, ending 1.8 s under the 7 s limit at the 500-txn peak. No step or knee inside the tested load.</p>
+  </div>
+  <div class="card c3">
+    <h3>Catalog search</h3>
+    <div class="state" style="color:var(--series-3)">Fails</div>
+    <p>Steepest rise of the three over the first 100 txns (1.5 &rarr; 8.2 s); crosses the 10 s limit at ~173 txns (interpolated) and measures 11.2 s at its own 200-txn peak &mdash; 12% over.</p>
+  </div>
+</div>
+<p>The Saturday peak workload mix <strong>does not pass</strong>, and the graph shows that one transaction group is responsible rather than the system as a whole. <strong>Catalog search is the only outright failure.</strong> Its curve has already turned by 100 transactions &mdash; by far the steepest climb of the three &mdash; it breaches its 10 s maximum at roughly 173 transactions, before reaching the 200-transaction peak it must sustain. <strong>Catalog search must therefore be optimised and re-tested through the full 200-transaction peak before this release ships;</strong> no other group needs to change for the mix to pass.</p>
+<p><strong>Purchase steps passes with real margin</strong> (5.2 s against a 7 s limit at 500 transactions, no knee in range), so it has room to absorb growth. <strong>Logon/Log off technically passes but is the hidden risk:</strong> flat at ~2.2 s to 400 transactions, then a visible step to 3.0 s, where it sits exactly on its limit with zero headroom. A flat line that steps up once and then stops rising is the signature of a saturated fixed-size resource (session, connection or authentication pool), so any load beyond 500 transactions would be expected to push it over. That cause is a <em>hypothesis</em> read off the curve shape, not something the supplied data measures; it has to be confirmed with profiling or resource telemetry (pool utilisation, connection wait time) before any fix is chosen.</p>
+<p class="basis"><strong>Basis of the statements above:</strong> the response times, the 3 / 7 / 10 s maxima and the 500 / 500 / 200-transaction peaks are measured or documented values. The 10 s crossing at ~173 transactions is linear interpolation between the 150-transaction (9.0 s) and 200-transaction (11.2 s) readings. Where the curve &ldquo;turns&rdquo; and what saturates at 400&ndash;450 transactions are interpretations of the plotted shape, to be verified by profiling rather than reported as findings.</p>
+
+<h2>Part 3 &mdash; Reflection</h2>
+<h3>1. How does graphing the data help more than reading the table?</h3>
+<p>Performance requirements are about shape, and the graph shows shape. Plotted against the requirement lines, pass/fail is read in a second &mdash; a solid line above its own dashed line fails &mdash; instead of eleven comparisons per column. The graph also exposes what the table hides, the <em>rate</em> of change: catalog search&rsquo;s early knee and logon&rsquo;s step at 400&ndash;450 appear as slope, and interpolating gives the crossing point (~173 transactions) that is in no row of the data. On one scale it is also obvious that the three groups degrade differently, so the problem is one component, not the application.</p>
+<h3>2. What should the development team do next?</h3>
+<p>Make catalog search the single priority and profile it under load to find where the time goes &mdash; query plans and missing indexes, result-set size and paging, cold or missing caching, pool contention. The curve turning inside the first 100 transactions points at work that grows with load, so moving to bigger hardware is the wrong first move. Then re-run the same workload mix and re-plot it to confirm catalog search holds under 10 s through 200 transactions without shifting cost onto the other groups. Separately, raise logon/log off as a risk: find what saturates at 400&ndash;450, since it meets its requirement by 0.0 s. Purchase steps needs no work and serves as the regression baseline.</p>
+<h3>3. How would component-level performance testing differ?</h3>
+<p>The mix answers &ldquo;does the system meet its requirements on a realistic Saturday?&rdquo;; component testing answers &ldquo;which part is slow, and why?&rdquo; Each transaction type would be driven in isolation against one component &mdash; search service, endpoint, database query &mdash; with the other traffic removed, so there is no contention between groups. Measurement shifts from one end-to-end time per group to per-layer timings and resource counters (CPU, I/O, query time, pool use), charted per component against concurrency, and the user-facing 3/7/10 s budgets would be split per component. The trade-off: component results point straight at the cause but can look healthy while the mix still fails, because isolation removes the very contention the Saturday mix creates.</p>
+</body>
+</html>

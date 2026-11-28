@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Unit 9 - Docker Test Environment</title><style>
+@page { size: Letter; margin: 0.75in 0.7in; }
+:root { color-scheme: light; }
+body { font-family: Georgia, 'Times New Roman', serif; font-size: 10.5pt; line-height: 1.45; color: #111; background: #fff; max-width: 7.1in; margin: 24px auto; padding: 0 16px; }
+h1 { font-size: 19pt; margin: 0 0 8px; }
+h2 { font-size: 14pt; margin: 22px 0 6px; border-bottom: 1px solid #999; padding-bottom: 2px; }
+h3 { font-size: 11.5pt; margin: 16px 0 4px; }
+table { border-collapse: collapse; width: 100%; margin: 6px 0 10px; font-size: 9.5pt; }
+th, td { border: 1px solid #333; padding: 4px 6px; vertical-align: top; text-align: left; }
+th { background: #eee; }
+tr { break-inside: avoid; }
+table.id th { width: 18%; }
+pre { background: #f4f4f4; border: 1px solid #bbb; padding: 7px 9px; font-family: Menlo, Consolas, monospace; font-size: 8.6pt; line-height: 1.35; white-space: pre-wrap; margin: 5px 0 10px; break-inside: avoid; }
+code { font-family: Menlo, Consolas, monospace; font-size: 9pt; }
+figure { margin: 8px 0 14px; break-inside: avoid; }
+figure img { width: 100%; border: 1px solid #888; }
+figcaption { font-size: 9pt; font-style: italic; color: #333; margin-top: 3px; }
+ul, ol { margin: 4px 0 10px; padding-left: 20px; }
+li { margin-bottom: 3px; }
+h2, h3 { break-after: avoid; }
+@media print { body { margin: 0; padding: 0; max-width: none; } }
+</style></head>
+<body>
+
+<h1>Setting Up a Test Environment for a React App Using Docker</h1>
+<table class="id">
+<tr><th>Student</th><td>Yuandong Yang</td><th>Student ID</th><td>000949205</td></tr>
+<tr><th>Email</th><td>Yuandong.Yang@edu.sait.ca</td><th>Course</th><td>CPRG-305-B, Unit 9 Lab</td></tr>
+<tr><th>Date</th><td>November 16, 2026</td><th>Project</th><td><code>react-test-env</code></td></tr>
+</table>
+
+<h2>1. Environment and Baseline (Part 1)</h2>
+
+<h3>1.1 Docker installation and verification</h3>
+<p>Docker Desktop was installed and running on macOS 26.5.1 before any build command was issued. The CLI and the Compose plugin both answered, which confirms the daemon is reachable from the terminal.</p>
+<pre>$ docker --version
+Docker version 29.5.3, build d1c06ef
+
+$ docker compose version
+Docker Compose version v5.1.4</pre>
+
+<h3>1.2 React project setup</h3>
+<p>The project was created from the standard React template, which ships with Jest and React Testing Library already wired into the <code>test</code> script.</p>
+<pre>$ npx create-react-app react-test-env
+$ cd react-test-env
+$ npm install</pre>
+<table>
+<tr><th>Toolchain</th><th>Version</th></tr>
+<tr><td>Node.js (host)</td><td>v24.16.0</td></tr>
+<tr><td>npm (host)</td><td>11.13.0</td></tr>
+<tr><td>react-scripts (Jest + RTL)</td><td>5.0.1</td></tr>
+<tr><td>Node.js (container base image)</td><td><code>node:22-alpine</code></td></tr>
+</table>
+
+<h3>1.3 Local test verification (the baseline)</h3>
+<p>The suite was run on the host first. This baseline is what every later container run is compared against: if a test fails in the container but passes here, the fault is in the container configuration, not in the code.</p>
+<figure>
+<img src="evidence/01-local-baseline.png" alt="Terminal showing npm test passing on the host">
+<figcaption>Figure 1 &mdash; Local baseline: <code>npm test -- --watchAll=false</code> reports <strong>Test Suites: 1 passed, Tests: 1 passed</strong>.</figcaption>
+</figure>
+
+<h2>2. Container Blueprint (Part 2)</h2>
+
+<h3>2.1 <code>.dockerignore</code></h3>
+<p>This file keeps the build context small and clean. The most important exclusion is <code>node_modules</code>: the host copy contains macOS/arm64 binaries that would be useless and potentially broken inside a Linux container, and copying it would slow the build and inflate the image. Build output, Git metadata, editor folders and OS noise are excluded for the same reason.</p>
+<pre># Host dependencies: reinstalled inside the image so the container gets Linux binaries.
+node_modules
+
+# Build and test output: regenerated inside the container.
+build
+coverage
+
+# Version control and editor metadata: not needed to run the test suite.
+.git
+.gitignore
+.idea
+.vscode
+
+# OS and log noise.
+.DS_Store
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Docker files themselves are not needed inside the image.
+Dockerfile
+.dockerignore
+docker-compose.yml</pre>
+
+<h3>2.2 <code>Dockerfile</code></h3>
+<p>The manifests are copied before the source code on purpose. Docker caches each instruction as a layer, so as long as <code>package.json</code> and <code>package-lock.json</code> are unchanged, the slow <code>npm install</code> layer is reused and only the source-copy layer is rebuilt.</p>
+<pre># Test environment for the React application.
+# Base image: official Node.js LTS on Alpine keeps the image small while providing node and npm.
+FROM node:22-alpine
+
+# Dedicated working directory for the project inside the container.
+WORKDIR /app
+
+# Copy only the manifests first so Docker can cache the dependency layer.
+COPY package.json package-lock.json ./
+
+# Install project and development dependencies (Jest and React Testing Library included).
+RUN npm install
+
+# Copy the remaining project contents (components, tests, public assets).
+COPY . .
+
+# CI=true makes react-scripts treat warnings as non-interactive output and exit after the run.
+ENV CI=true
+
+# Run the suite once, non-interactively, and write a coverage report to /app/coverage.
+CMD ["npm", "test", "--", "--watchAll=false", "--coverage"]</pre>
+<table>
+<tr><th>Instruction</th><th>Why it is there</th></tr>
+<tr><td><code>FROM node:22-alpine</code></td><td>Official Node.js runtime on a minimal Linux base, so npm and the Jest toolchain are available without installing an OS by hand.</td></tr>
+<tr><td><code>WORKDIR /app</code></td><td>Every later instruction and the test command run from one absolute, predictable path.</td></tr>
+<tr><td><code>COPY package*.json</code> then <code>RUN npm install</code></td><td>Layer caching: dependencies are only reinstalled when the manifests change.</td></tr>
+<tr><td><code>COPY . .</code></td><td>Brings in components and test files, filtered by <code>.dockerignore</code>.</td></tr>
+<tr><td><code>ENV CI=true</code></td><td>Without it, <code>react-scripts test</code> would start an interactive watcher and the container would never exit.</td></tr>
+<tr><td><code>CMD ["npm","test","--","--watchAll=false","--coverage"]</code></td><td>Executable array form (no shell wrapper), runs the suite once and emits the coverage artifacts.</td></tr>
+</table>
+
+<h3>2.3 Reproducibility notes on the two build choices</h3>
+<p>The Dockerfile above is exactly the one that produced the evidence in section 4. Two of its lines are the convenient choice rather than the strictest one, and a production test image would tighten both.</p>
+<table>
+<tr><th>As built</th><th>Stricter form</th><th>Difference it makes</th></tr>
+<tr><td><code>RUN npm install</code></td><td><code>RUN npm ci</code></td><td>The project ships a <code>package-lock.json</code>, so the exact tree is already pinned. <code>npm install</code> may still resolve newer in-range versions and rewrite the lock file inside the image; <code>npm ci</code> installs the lock file as written and fails if the manifest and the lock disagree. For a test image &mdash; where the whole point is that the same dependencies produce the same verdict &mdash; that failure is the desired behaviour.</td></tr>
+<tr><td><code>FROM node:22-alpine</code></td><td><code>FROM node:22.x.y-alpine</code>, or a reviewed <code>@sha256:&hellip;</code> digest</td><td><code>node:22-alpine</code> is a moving tag: the same Dockerfile can build on a different patch release next month, so a test result is not reproducible over time. Pinning a patch-level tag or a digest makes the base image an explicit, reviewable upgrade instead of a silent one.</td></tr>
+</table>
+<p>Neither change affects the result recorded below &mdash; the suite passes either way &mdash; so the submitted configuration is the one that was actually run and screenshotted, with these two improvements documented rather than applied after the fact.</p>
+
+<h2>3. Orchestration with Docker Compose (Part 3)</h2>
+<p>Compose turns the whole run into a single command and, more importantly, declares the volume mount that makes the coverage report survive the container.</p>
+<pre>services:
+  test-runner:
+    # Build the image from the Dockerfile in this directory.
+    build: .
+    image: react-test-env
+    environment:
+      # Non-interactive run, required for a one-shot container.
+      CI: "true"
+    volumes:
+      # Link the host project folder to the container working directory so the
+      # coverage report written inside the container appears on the host.
+      - .:/app
+      # Keep the Linux node_modules installed in the image instead of the host copy.
+      - /app/node_modules
+    command: ["npm", "test", "--", "--watchAll=false", "--coverage"]</pre>
+<p>The second volume entry is the detail that makes the first one safe. Mounting <code>.:/app</code> hides everything the image placed at <code>/app</code>, including the Linux <code>node_modules</code> installed during the build. The anonymous volume <code>/app/node_modules</code> is mounted on top of it and preserves the container's own dependency tree, so the host folder supplies the source code while the container keeps the dependencies it installed for its own platform.</p>
+
+<h2>4. Build, Execution and Artifact Retrieval (Part 4)</h2>
+
+<h3>4.1 Building the image</h3>
+<p>The <code>-t</code> flag tags the image with a readable name so later <code>docker run</code> and Compose commands can refer to it instead of an image hash. Every instruction completed without error, including the dependency install.</p>
+<figure>
+<img src="evidence/02-docker-build.png" alt="Terminal showing a successful docker build">
+<figcaption>Figure 2 &mdash; <code>docker build -t react-test-env .</code> finishing successfully. The <code>CACHED</code> markers on steps 2&ndash;5 are the layer cache from the first build.</figcaption>
+</figure>
+
+<h3>4.2 Running the tests and retrieving artifacts</h3>
+<p>A quick run with <code>--rm</code> confirms the image works. The flag deletes the container as soon as the test process exits, so no stale environment is left behind and every run starts from the same image state.</p>
+<pre>$ docker run --rm react-test-env
+PASS src/App.test.js
+  &#10003; renders learn react link (15 ms)
+Test Suites: 1 passed, 1 total
+Tests:       1 passed, 1 total</pre>
+<p>The Compose run is the one that produces artifacts. Because of the volume mount, the coverage report Jest writes to <code>/app/coverage</code> inside the container appears in the host project folder after the container has stopped.</p>
+<figure>
+<img src="evidence/03-docker-compose-up.png" alt="Terminal showing docker compose up with passing tests and the coverage folder on the host">
+<figcaption>Figure 3 &mdash; <code>docker compose up</code>: the suite runs inside <code>test-runner-1</code>, reports <strong>Test Suites: 1 passed, 1 total</strong>, the container exits with code 0, and <code>ls coverage</code> on the host shows the retrieved artifacts.</figcaption>
+</figure>
+
+<h3>4.3 Final analysis: container run versus local baseline</h3>
+<table>
+<tr><th>Observation</th><th>Local baseline (Step 1.3)</th><th>Container run (Step 4.2)</th></tr>
+<tr><td>Test suites</td><td>1 passed, 1 total</td><td>1 passed, 1 total</td></tr>
+<tr><td>Tests</td><td>1 passed, 1 total</td><td>1 passed, 1 total</td></tr>
+<tr><td>Exit status</td><td>0</td><td>0 (<code>test-runner-1 exited with code 0</code>)</td></tr>
+<tr><td>Node.js version</td><td>v24.16.0 (host)</td><td>Node 22 LTS (pinned in the image)</td></tr>
+<tr><td>Coverage artifacts</td><td><code>coverage/</code> in the project</td><td><code>clover.xml</code>, <code>coverage-final.json</code>, <code>lcov.info</code>, <code>lcov-report/</code> written back to the host</td></tr>
+</table>
+<p>The results are identical, which is the point of the exercise: the suite is no longer dependent on the versions that happen to be installed on one laptop. The container fixes the Node.js major version (22 LTS, pinned to a patch level or digest per section 2.3), installs dependencies on a Linux base from the manifests committed with the project, and produces the same verdict that the host produced &mdash; and it does so without the developer having to match any of that by hand.</p>
+
+<h2>5. Submission Checklist</h2>
+<table>
+<tr><th>Required artifact</th><th>File in this submission</th></tr>
+<tr><td>Dockerfile</td><td><code>Dockerfile</code></td></tr>
+<tr><td>.dockerignore</td><td><code>.dockerignore</code></td></tr>
+<tr><td>docker-compose.yml</td><td><code>docker-compose.yml</code></td></tr>
+<tr><td>Test log screenshot</td><td><code>evidence/03-docker-compose-up.png</code> (Figure 3); Figures 1 and 2 are supporting evidence</td></tr>
+<tr><td>Configuration archive (no <code>node_modules</code>)</td><td><code>react-test-env.zip</code> &mdash; 24 files, complete React source plus the three Docker files</td></tr>
+</table>
+
+</body></html>

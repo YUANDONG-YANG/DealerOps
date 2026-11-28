@@ -1,0 +1,89 @@
+import { http } from './http';
+
+export type LeadStage = 'NEW' | 'CONTACTED' | 'QUALIFIED' | 'WON' | 'LOST';
+
+export const LEAD_STAGES: { value: LeadStage; label: string }[] = [
+  { value: 'NEW', label: 'New' },
+  { value: 'CONTACTED', label: 'Contacted' },
+  { value: 'QUALIFIED', label: 'Qualified' },
+  { value: 'WON', label: 'Won' },
+  { value: 'LOST', label: 'Lost' },
+];
+
+/**
+ * Display label of a lead stage.
+ *
+ * @param stage stage code from the API
+ * @returns the label, or the code itself when the stage is unknown
+ */
+export function stageLabel(stage: string) {
+  return LEAD_STAGES.find((s) => s.value === stage)?.label ?? stage;
+}
+
+/**
+ * Whether the lead can no longer be edited.
+ *
+ * @param stage stage code from the API
+ * @returns true for won and lost
+ */
+export function isClosedStage(stage: string) {
+  return stage === 'WON' || stage === 'LOST';
+}
+
+export type LeadFilters = {
+  q?: string; vehicle?: string; stage?: string; owner?: string; overdue?: boolean; customerId?: number; vehicleId?: number;
+};
+
+export type NewCustomer = { name: string; email: string; phone: string; homeAddress: string };
+
+export type CreateLeadBody = {
+  customerId?: number;
+  newCustomer?: NewCustomer;
+  vehicleId?: number;
+  ownerUsername?: string;
+  nextFollowUpOn?: string;
+  note?: string;
+};
+
+export type PatchLeadBody = {
+  stage: LeadStage;
+  ownerUsername: string | null;
+  nextFollowUpOn: string | null;
+  vehicleId: number | null;
+  lostReason: string | null;
+  version: number;
+};
+
+const blankToUndefined = (value?: string) => (value && value.trim() ? value.trim() : undefined);
+
+/** Sales leads for the signed-in dealership. Blank optional strings are omitted so the server keeps its defaults. */
+export const leadsApi = {
+  /** `sort` is `field,asc|desc` (customerName, vehicle, stage, ownerUsername, nextFollowUpOn); omitted is newest first. */
+  list(p: LeadFilters & { sort?: string; page?: number; size?: number } = {}) {
+    const params: Record<string, unknown> = { page: p.page ?? 0, size: p.size ?? 10 };
+    if (p.sort) params.sort = p.sort;
+    if (p.q) params.q = p.q;
+    if (p.vehicle) params.vehicle = p.vehicle;
+    if (p.stage) params.stage = p.stage;
+    if (p.owner) params.owner = p.owner;
+    if (p.overdue) params.overdue = true;
+    if (p.customerId != null) params.customerId = p.customerId;
+    if (p.vehicleId != null) params.vehicleId = p.vehicleId;
+    return http.get('/api/v1/leads', { params });
+  },
+  get: (id: number) => http.get(`/api/v1/leads/${id}`),
+  create: (b: CreateLeadBody) =>
+    http.post('/api/v1/leads', {
+      customerId: b.customerId,
+      newCustomer: b.newCustomer,
+      vehicleId: b.vehicleId,
+      ownerUsername: blankToUndefined(b.ownerUsername),
+      nextFollowUpOn: blankToUndefined(b.nextFollowUpOn),
+      note: blankToUndefined(b.note),
+    }),
+  update: (id: number, b: PatchLeadBody) => http.patch(`/api/v1/leads/${id}`, b),
+  /** Reopens a won or lost lead to an open stage (L4). */
+  reopen: (id: number, stage: LeadStage, version: number) =>
+    http.post(`/api/v1/leads/${id}/reopen`, { stage, version }),
+  addNote: (id: number, body: string) => http.post(`/api/v1/leads/${id}/notes`, { body }),
+};

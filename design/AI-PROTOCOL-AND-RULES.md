@@ -1,4 +1,6 @@
-# AI protocol and rules hard spec
+# AI protocol and rules hard spec (legacy Java integration reference)
+
+> Historical protocol notes. The active implementation is `backend/dotnet/DealerOps.AiService` and the React client under `frontend/react`; Java/Spring snippets below are not current implementation instructions.
 
 ## Development phase: no test authoring
 
@@ -99,7 +101,7 @@ Request-body shape remains 14 §11 (`listing` + `vehiclePublic` without cost + `
 {
   "success": true,
   "notes": [
-    { "message": "No additional misleading claims found." }
+    { "code": "NOTE", "severity": "INFO", "explanation": "No additional misleading claims found.", "message": "No additional misleading claims found." }
   ]
 }
 ```
@@ -107,7 +109,7 @@ Request-body shape remains 14 §11 (`listing` + `vehiclePublic` without cost + `
 | Field | Type | Rule |
 |---|---|---|
 | `success` | boolean | Must be `true` |
-| `notes` | array | Non-empty; each element at least `{ "message": string }`. A blank model reply is `502 AI_PROVIDER_FAILED`, not `200` + `[]`. core writes `aiNotes` as-is |
+| `notes` | array | Non-empty; each element is `{ "code", "severity", "explanation", "message" }` (design/14). `severity` is `REVIEW` or `INFO` only: AI notes never block, so any other model value is stored as `REVIEW`. A blank model reply is `502 AI_PROVIDER_FAILED`, not `200` + `[]`. core writes `aiNotes` as-is |
 
 Ban inventing `recommendation` / `checkStatus` / `ruleFindings` in the success body. The five states are written by core. On success and the model does not require a hard block → core: `recommendation=PASSED`, `aiStatus=SUCCESS`.
 
@@ -243,38 +245,83 @@ static final Pattern APR = Pattern.compile(
     "\\d+(?:\\.\\d+)?\\s*%\\s*(?:apr|annual percentage rate)|apr\\s*[:=]?\\s*\\d+(?:\\.\\d+)?\\s*%",
     Pattern.CASE_INSENSITIVE);
 
+/** One cadence list, shared by PAYMENT and PAYMENT_CADENCE, so "/mo" and "/month" both read
+ *  as a periodic payment. PAYMENT also serves the lease payment-amount check. */
+static final String CADENCE =
+    "(?:per\\s+month|a\\s+month|/\\s*mo(?:nth)?\\b|monthly|bi-?weekly|weekly|per\\s+week|/\\s*wk\\b)";
+
 static final Pattern PAYMENT = Pattern.compile(
-    "\\$?\\d[\\d,]*(?:\\.\\d{2})?\\s*(?:per month|/mo|monthly|bi-?weekly|per week|/wk)",
+    "\\$?\\d[\\d,]*(?:\\.\\d{2})?\\s*" + CADENCE, Pattern.CASE_INSENSITIVE);
+
+/** Anchored at whatever follows an amount: it turns that amount into a periodic payment or an
+ *  upfront amount ("$2,000 down") rather than a cash price. */
+static final Pattern PAYMENT_CADENCE = Pattern.compile(
+    "^\\s*(?:" + CADENCE + "|down\\b|due at signing)", Pattern.CASE_INSENSITIVE);
+
+static final Pattern COST_OF_BORROWING = Pattern.compile(
+    "cost of borrowing|total cost of credit|borrowing cost|finance charge",
     Pattern.CASE_INSENSITIVE);
 
+/** True when at least one advertised amount is not immediately qualified as a periodic
+ *  payment or an upfront amount, which is what distinguishes a cash price from
+ *  "$299 per month" or "$2,000 down". */
+static boolean hasCashPrice(String text) {
+    Matcher m = PRICE.matcher(text);
+    while (m.find()) {
+        if (!PAYMENT_CADENCE.matcher(text.substring(m.end())).find()) return true;
+    }
+    return false;
+}
+
+/** Any interest rate shown, labelled APR or not ("0% financing", "rates from 2.9%"). It makes a
+ *  CASH ad a financing ad (AD-04); the disclosure check itself still needs APR. */
+static final Pattern RATE = Pattern.compile(
+    "\\d+(?:\\.\\d+)?\\s*%\\s*(?:apr|annual percentage rate|financing|interest|rate)"
+        + "|(?:apr|financing|interest|rates?)\\b[^.\\n%]{0,20}?\\d+(?:\\.\\d+)?\\s*%",
+    Pattern.CASE_INSENSITIVE);
+
+/** "12 month warranty" is a warranty, not a finance term. */
 static final Pattern TERM_MO = Pattern.compile(
-    "\\d+\\s*(?:month|months|mo)\\b|term\\s*[:=]?\\s*\\d+",
+    "\\d+[\\s-]*(?:month|months|mo)\\b(?![\\s-]*warrant)|term\\s*[:=]?\\s*\\d+",
     Pattern.CASE_INSENSITIVE);
 
 static final Pattern LEASE_WORD = Pattern.compile("\\b(?:lease|leasing|lessee)\\b", Pattern.CASE_INSENSITIVE);
-static final Pattern LEASE_RENT = Pattern.compile(
-    "\\$?\\d[\\d,]*(?:\\.\\d{2})?\\s*(?:per month|/mo|monthly)",
-    Pattern.CASE_INSENSITIVE);
+/** The upfront amount itself: "$2,000 down", "down payment of $2,000", or an explicit
+ *  "$0 / zero / no money down". The bare phrase "down payment" is not a disclosure. */
 static final Pattern LEASE_DOWN = Pattern.compile(
-    "down payment|due at signing|\\$\\d[\\d,]*.{0,12}down",
+    "\\$\\s*\\d[\\d,]*(?:\\.\\d{2})?[^.\\n]{0,20}?\\b(?:down|due at signing|at signing)\\b"
+        + "|(?:down payment|due at signing)[^.\\n$]{0,15}\\$\\s*\\d"
+        + "|\\b(?:zero|no money|nothing)\\s+(?:down|due at signing)\\b",
     Pattern.CASE_INSENSITIVE);
 
 /** Overrides 15’s unfinished capturedKm: must accept FX-09 “15000 km per year” and FX-16 “20,000 km per year”.
  *  The match never starts inside a number, so “100,000 km per year” reads as 100000, not 0. */
 static final Pattern LEASE_KM_ALLOWANCE = Pattern.compile(
-    "(?<![\\d,.])(\\d{1,3}(?:[, ]\\d{3})+|\\d{1,6})\\s*(?:km|kilomet(?:er|re)s?)\\s*(?:per|/)?\\s*(?:year|yr|annual)",
+    "(?<![\\d,.])(?<km>\\d{1,3}(?:[, ]\\d{3})+|\\d{1,6})\\s*(?:km|kilomet(?:er|re)s?)\\s*"
+        + "(?:(?:per|/|a|each)\\s*)?(?:year|yr|annum|annual(?:ly)?)",
     Pattern.CASE_INSENSITIVE);
+/** Fallback for copy that names the period first: "annual allowance of 16,000 km". */
+static final Pattern LEASE_KM_ALLOWANCE_ANNUAL_FIRST = Pattern.compile(
+    "annual(?:ly)?[^.\\n]{0,30}?(?<![\\d,.])(?<km>\\d{1,3}(?:[, ]\\d{3})+|\\d{1,6})\\s*(?:km|kilomet(?:er|re)s?)",
+    Pattern.CASE_INSENSITIVE);
+/** A per-km cost ("$0.12/km", "12 cents per extra km"); the word "excess" alone is not one. */
 static final Pattern LEASE_EXCESS = Pattern.compile(
-    "excess|overage|additional.{0,20}(?:km|kilomet)",
+    "(?:\\$\\s*\\d*\\.?\\d+|\\d+(?:\\.\\d+)?\\s*(?:¢|cents?))\\s*(?:/|per|a|each)\\s*"
+        + "(?:excess\\s+|additional\\s+|extra\\s+)?(?:km|kilomet)",
     Pattern.CASE_INSENSITIVE);
 
-static final Pattern CERTIFIED = Pattern.compile("certified|cpo|certifi", Pattern.CASE_INSENSITIVE);
+static final Pattern CERTIFIED = Pattern.compile("\\b(?:certified|cpo)\\b", Pattern.CASE_INSENSITIVE);
+/** "not certified" / "non-certified" denies the claim; strip these before testing CERTIFIED. */
+static final Pattern CERTIFIED_DENIAL = Pattern.compile("\\b(?:not|never|non)[\\s-]*certified\\b", Pattern.CASE_INSENSITIVE);
 static final Pattern AS_IS = Pattern.compile("\\bas[\\s-]?is\\b", Pattern.CASE_INSENSITIVE);
 static final Pattern UNFIT = Pattern.compile("unfit|not roadworthy|not fit", Pattern.CASE_INSENSITIVE);
 static final Pattern IRREP = Pattern.compile("irreparable|salvage|write[\\s-]?off", Pattern.CASE_INSENSITIVE);
 
 static final Pattern BRAND_NEW = Pattern.compile(
     "\\b(?:brand[\\s-]?new|never used|0\\s*km|zero kilometres|new car(?!\\s+feel))\\b",
+    Pattern.CASE_INSENSITIVE);
+static final Pattern USED_STATUS = Pattern.compile(
+    "\\b(?:used|pre[\\s-]?owned|second[\\s-]?hand|previously owned)\\b",
     Pattern.CASE_INSENSITIVE);
 
 static final Pattern PRIOR_USE_CUE = Pattern.compile(
@@ -286,8 +333,9 @@ static final Pattern PRIOR_USE_DISCLOSURE = Pattern.compile(
         + "ex[- ](?:police|taxi|limo(?:usine)?|rental)|lease return disclosed|disclosed prior use)",
     Pattern.CASE_INSENSITIVE);
 
+/** Any mention, including "no warranty": the hint asks a human to confirm the warranty wording. */
 static final Pattern WARRANTY_BOAST = Pattern.compile(
-    "extended warranty|warranty included|free warranty",
+    "\\bwarrant(?:y|ies)\\b",
     Pattern.CASE_INSENSITIVE);
 
 static boolean blank(String s) {
@@ -317,8 +365,11 @@ static boolean mentionsPriorUseDisclosure(String text) {
 /** 15 did not define this. Take the first annual-allowance number; “20,000” → 20000. No match → empty. */
 static OptionalInt capturedKm(String text) {
     Matcher m = LEASE_KM_ALLOWANCE.matcher(text);
-    if (!m.find()) return OptionalInt.empty();
-    int km = Integer.parseInt(m.group(1).replaceAll("[, ]", ""));
+    if (!m.find()) {
+        m = LEASE_KM_ALLOWANCE_ANNUAL_FIRST.matcher(text);
+        if (!m.find()) return OptionalInt.empty();
+    }
+    int km = Integer.parseInt(m.group("km").replaceAll("[, ]", ""));
     return OptionalInt.of(km);
 }
 ```
@@ -327,50 +378,54 @@ static OptionalInt capturedKm(String text) {
 
 The specification PDF lists many ad disclosures as flat “always required / must disclose.” This course engine still uses only two buckets:
 
-- **hard (`BLOCK`)** — empty draft, missing price, missing dealer name, fully missing dealer contact, condition mismatch/undisclosed for AS_IS/UNFIT/IRREPARABLE, FINANCE/LEASE APR when that `adKind` applies, LEASE statement, LEASE excess-km when allowance &lt; 20,000. Non-empty `hard[]` → `BLOCKED` / `SKIPPED`, **do not call AI**.
-- **soft (`REVIEW`)** — everything else that is regex-checkable but not a publish gate: incomplete contact, year omitted, new/used contradiction, certified not restated, prior-use cue without disclosure, warranty boast, FINANCE term, FINANCE APR proximity (ONLINE), LEASE term/rent/down, LEASE allowance unstated. Soft findings travel with the check and feed AI review; they **do not** alone block Ready.
+- **hard (`BLOCK`, 10 codes)** — missing price, missing dealer name, fully missing dealer contact, condition mismatch/undisclosed for AS_IS/UNFIT/IRREPARABLE, FINANCE APR, FINANCE cash price or cost of borrowing, LEASE APR, LEASE statement, LEASE excess-km when allowance &lt; 20,000. An empty draft is not a separate rule: it simply fails several of these at once. Non-empty `hard[]` → `BLOCKED` / `SKIPPED`, **do not call AI**.
+- **soft (`REVIEW`)** — everything else that is regex-checkable or supported by salesperson checklist answers but not a publish gate: incomplete contact, year omitted, new/used contradiction, new/used not stated, certified not restated, prior-use cue/checklist category without clear matching disclosure, missing recorded warranty terms from copy, warranty mention, FINANCE term, FINANCE APR proximity (ONLINE), LEASE term/payment/down, unstated checklist/copy allowance, and checklist/copy allowance mismatch. Soft findings travel with the check and feed AI review; they **do not** alone block Ready.
 
 **Deliberate course choices (do not “fix” by promoting soft → hard or adding columns without instructor sign-off):**
 
 | Spec-ish item | Course ruling |
 |---|---|
-| Status used/new as its own always-required field | **No** `advertisedAsNew` column. Only soft `YEAR_NEW_USED_CONTRADICTION` when copy implies brand-new and `modelYear <= Y-2`. Condition disclosure remains the hard path via `conditionCode`. |
-| FINANCE “cash price” | Covered by always-on hard `PRICE_MISSING` (same price regex). Not a separate FINANCE-only finding. |
-| FINANCE “cost of borrowing” | **Not** a dedicated regex finding (amounts/fees too ambiguous for a fixed rule). Soft layout/APR review + AI notes cover residual risk. |
+| Status used/new as its own always-required field | **No** `advertisedAsNew` column. Two soft copy checks instead: `NEW_USED_NOT_STATED` when the copy states neither new nor used, and `YEAR_NEW_USED_CONTRADICTION` when copy implies brand-new and `modelYear <= Y-2`. Condition disclosure remains the hard path via `conditionCode`. |
+| FINANCE “cash price” / “cost of borrowing” | **Hard** `FINANCE_CASH_PRICE_MISSING` (added 2026-10-15). `PRICE_MISSING` does **not** cover it: a payment such as "$299/month" satisfies the generic price regex but is not a cash price. The rule passes if any amount is not followed by a payment cadence, or if cost-of-borrowing wording is present. This was previously ruled "covered by `PRICE_MISSING`"; that ruling was wrong and is withdrawn. |
 | FINANCE loan term / LEASE down / prior-use / warranty terms | Stay **soft** as pinned in §C.1 (AI reviews completeness). |
 | Prior-use cue keywords | Include police / taxi / **limo(usine)** / cab / rideshare / rental / lease-return / etc. Still soft when cue lacks disclosure. |
 
-Ban inventing hard blocks for the soft rows above. Ban adding APR / warranty / prior-use / used-new **columns** (15 already forbids those).
+Ban promoting the soft rows above to hard blocks without instructor sign-off. Ban adding APR / warranty / prior-use / used-new **columns** (15 already forbids those).
 
 ### C.1 Rule table (input / decision / hard vs soft)
 
-Run the following rules on `text`. After the empty-draft short-circuit you may still accumulate, but the implementation must **first** return on empty draft (same as 15).
+Run every rule below on `text`; there is **no** empty-draft short-circuit. An empty draft needs no special case because the rules already produce the right blocking set for it (see the note after the table).
 
 | ruleId | Input | Decision (pinned) | Bucket |
 |---|---|---|---|
 | `PRICE_MISSING` | `text` | `!PRICE.matcher(text).find()` | **hard** |
 | `DEALER_NAME_MISSING` | `text`, `dealer.legalName` | `!containsNormalized(text, legalName)`. “the dealership” does not count as the name | **hard** |
-| `DEALER_CONTACT_MISSING` | `text`, three dealership contacts | Phone: `containsNormalized(text, digits(phone))` **or** `PHONE`; email: contains the original **or** `EMAIL`; address: contains `contactAddress`. **All three missing** | **hard** |
+| `DEALER_CONTACT_MISSING` | `text`, three dealership contacts | Phone: a phone-like run in the copy whose last ten digits equal the dealership phone's (formatting ignored); email: contains the dealership email; address: contains `contactAddress`. **All three missing** | **hard** |
 | `DEALER_CONTACT_INCOMPLETE` | Same | Not all three present, but at least one | **soft** |
-| `YEAR_NOT_IN_COPY` | `text`, `vehicle.modelYear` | Copy does not contain `String.valueOf(modelYear)` | **soft** |
+| `YEAR_NOT_IN_COPY` | `text`, `vehicle.modelYear` | Copy does not contain `modelYear` as a standalone number (digit boundaries, so "$32,019" does not count as 2019) | **soft** |
 | `YEAR_NEW_USED_CONTRADICTION` | `text`, `modelYear`, calendar year `Y` | `BRAND_NEW` hits **and** `modelYear <= Y - 2` (15 did not define a function: this document pins it; **soft**, hand to AI) | **soft** |
-| `CONDITION_MISMATCH` | `text`, `conditionCode` | `CERTIFIED` hits and `code != CERTIFIED` | **hard** |
-| `CONDITION_UNDISCLOSED` | Same | `code==UNFIT` and no `UNFIT`; or `IRREPARABLE` and no `IRREP`; or `AS_IS` and no `AS_IS`. Also add this code on empty draft | **hard** |
+| `CONDITION_MISMATCH` | `text`, `conditionCode` | `CERTIFIED` hits after `CERTIFIED_DENIAL` matches are stripped, and `code != CERTIFIED` | **hard** |
+| `CONDITION_UNDISCLOSED` | Same | `code==UNFIT` and no `UNFIT`; or `IRREPARABLE` and no `IRREP`; or `AS_IS` and no `AS_IS` | **hard** |
 | `CERTIFIED_NOT_IN_COPY` | Same | `code==CERTIFIED` and no `CERTIFIED` regex | **soft** |
-| `PRIOR_USE_UNCLEAR` | `text` | `mentionsPriorUseCue(text) && !mentionsPriorUseDisclosure(text)` | **soft** |
+| `NEW_USED_NOT_STATED` | `text` | Neither `BRAND_NEW` nor `USED_STATUS` hits. The specification lists new/used as always required; erratum 4 keeps the new/old family advisory, so a silent ad is flagged rather than blocked | **soft** |
+| `PRIOR_USE_UNCLEAR` | `text`, salesperson `priorUse` | A recognized prior-use cue or checklist category is present without a matching clear disclosure. The `DAILY_RENTAL` category accepts "rental" or "daily lease" wording. When the checklist recorded the category the message says so ("recorded in the checklist"); a copy cue alone keeps the "mentioned without a clear disclosure" message | **soft** |
+| `WARRANTY_TERMS_MISSING` | `text`, salesperson `warrantyTerms` | Recorded offered terms are not present in ad copy | **soft** |
 | `WARRANTY_CLAIM_NEEDS_REVIEW` | `text` | `WARRANTY_BOAST` hits | **soft** |
-| `FINANCE_APR_MISSING` | `text`, `adKind==FINANCE`, or `CASH` whose copy matches `APR` or `PAYMENT` (spec §5: "if the ad shows a rate or payment") | `!APR.matcher(text).find()` | **hard** |
+| `FINANCE_APR_MISSING` | `text`, `adKind==FINANCE`, or `CASH` whose copy matches `RATE` or `PAYMENT` (spec §5: "if the ad shows a rate or payment"; `RATE` also covers a rate not labelled APR, such as "0% financing") | `!APR.matcher(text).find()` | **hard** |
 | `FINANCE_TERM_MISSING` | Same | No `TERM_MO` | **soft** |
-| `FINANCE_APR_PROXIMITY` | FINANCE or CASH matching APR/PAYMENT, and `medium != RADIO_TV_BILLBOARD` | Cannot reliably regex “shown next to”; **add on every ONLINE finance-triggered ad** (with or without APR; still add soft when hard exists; does not change the hard block) | **soft** |
+| `FINANCE_CASH_PRICE_MISSING` | Same | `!hasCashPrice(text) && !COST_OF_BORROWING`. `hasCashPrice` is true when at least one `PRICE` amount is **not** immediately followed by a payment cadence or by "down" / "due at signing", so "$299/month" or "$2,000 down" alone is not a cash price. Applies to every medium: the broadcast exemption waives only `FINANCE_APR_PROXIMITY` | **hard** |
+| `FINANCE_APR_PROXIMITY` | FINANCE or CASH matching RATE/PAYMENT, and `medium != RADIO_TV_BILLBOARD` | Spec §5 "APR shown as prominently as the payment", checked as placement: the copy has both an `APR` and a `PAYMENT` match, and no `APR` match starts within 80 characters of a `PAYMENT` match (for example the payment headlines the title while the APR is buried in the body). An APR printed next to the payment passes; an ad with no APR is already a `FINANCE_APR_MISSING` block and gets no proximity finding. Changed 2026-10-20: it was previously raised on every online finance ad, so it could never pass | **soft** |
 | `LEASE_APR_MISSING` | `adKind==LEASE` | No `APR` | **hard** |
 | `LEASE_STATEMENT_MISSING` | Same | No `LEASE_WORD` | **hard** |
-| `LEASE_TERM_MISSING` | Same | No `\d+\s*(month\|months\|mo)\b` | **soft** |
-| `LEASE_RENT_MISSING` | Same | No `PRICE` and no `LEASE_RENT` | **soft** |
-| `LEASE_DOWN_MISSING` | Same | No `LEASE_DOWN` | **soft** |
-| `LEASE_EXCESS_KM_MISSING` | Same | `capturedKm` has a value **and** `km < 20000` **and** no `LEASE_EXCESS` | **hard** |
-| `LEASE_ALLOWANCE_UNSTATED` | Same | `capturedKm` empty | **soft** |
+| `LEASE_TERM_MISSING` | Same | No `\d+[\s-]*(month\|months\|mo)\b` | **soft** |
+| `LEASE_RENT_MISSING` | Same | No `PAYMENT` (corrected 2026-10-16). Pairing it with `PRICE` made the rule unreachable: an ad with no amount at all is already a `PRICE_MISSING` block, so a lease quoting only a cash price never had its payment amount checked, leaving the specification's lease "Payment amount" disclosure unenforced | **soft** |
+| `LEASE_DOWN_MISSING` | Same | No `LEASE_DOWN`: the upfront amount (or an explicit zero) is not stated | **soft** |
+| `LEASE_EXCESS_KM_MISSING` | Same, salesperson `annualKmAllowance` | The **stricter** (lower) of the checklist allowance and the copy allowance — whichever are present — is below 20,000 and no `LEASE_EXCESS` per-km cost is stated (the word "excess" alone does not count, changed 2026-10-20). Corrected 2026-10-16: preferring the checklist figure let an ad that prints 16,000 km/year without an excess fee pass whenever the checklist recorded 20,000 or more | **hard** |
+| `LEASE_ALLOWANCE_UNSTATED` | Same | Neither checklist nor copy provides an annual allowance | **soft** |
+| `LEASE_ALLOWANCE_NOT_IN_COPY` | Same, salesperson `annualKmAllowance` | Checklist has an allowance but the ad copy does not | **soft** |
+| `LEASE_ALLOWANCE_MISMATCH` | Same, salesperson `annualKmAllowance` | Checklist allowance differs from the ad copy | **soft** |
 
-Empty draft (`blank(title) && blank(body)`) **immediately** hard += `PRICE_MISSING`, `DEALER_NAME_MISSING`, `CONDITION_UNDISCLOSED`, return Blocked, do not call AI.
+Empty draft (`blank(title) && blank(body)`): no short-circuit. The ordinary rules always yield hard `PRICE_MISSING`, `DEALER_NAME_MISSING` and `DEALER_CONTACT_MISSING`, plus `CONDITION_UNDISCLOSED` when the vehicle is AS_IS / UNFIT / IRREPARABLE (a CERTIFIED vehicle gets soft `CERTIFIED_NOT_IN_COPY` instead). The result is always Blocked, so the AI is never called.
 
 ### C.2 Engine skeleton (copy-paste)
 
@@ -380,28 +435,25 @@ Result runFixedOmvic(Listing L, VehiclePublic V, DealerPublic D) {
     List<Finding> hard = new ArrayList<>();
     List<Finding> soft = new ArrayList<>();
 
-    if (blank(L.title) && blank(L.body)) {
-        hard.addAll(PRICE_MISSING, DEALER_NAME_MISSING, CONDITION_UNDISCLOSED);
-        return blocked(hard);
-    }
-
+    // No empty-draft special case: the rules below already block an empty draft.
     if (!PRICE.matcher(text).find()) hard.add(PRICE_MISSING);
     if (!containsNormalized(text, D.legalName)) hard.add(DEALER_NAME_MISSING);
 
-    boolean hasPhone = containsNormalized(text, digits(D.contactPhone)) || PHONE.matcher(text).find();
-    boolean hasEmail = containsNormalized(text, D.contactEmail) || EMAIL.matcher(text).find();
+    boolean hasPhone = hasDealerPhone(text, D.contactPhone); // last ten digits, formatting ignored
+    boolean hasEmail = containsNormalized(text, D.contactEmail);
     boolean hasAddr  = containsNormalized(text, D.contactAddress);
     if (!(hasPhone && hasEmail && hasAddr)) {
         if (!(hasPhone || hasEmail || hasAddr)) hard.add(DEALER_CONTACT_MISSING);
         else soft.add(DEALER_CONTACT_INCOMPLETE);
     }
 
-    if (!text.contains(String.valueOf(V.modelYear))) soft.add(YEAR_NOT_IN_COPY);
+    // Digit boundaries so a price such as "$32,019" does not count as stating model year 2019.
+    if (!Pattern.compile("(?<!\\d)" + V.modelYear + "(?!\\d)").matcher(text).find()) soft.add(YEAR_NOT_IN_COPY);
     int calendarYear = Year.now(ZoneOffset.UTC).getValue(); // Implementation uses UTC year; do not pick another time zone
     if (BRAND_NEW.matcher(text).find() && V.modelYear <= calendarYear - 2)
         soft.add(YEAR_NEW_USED_CONTRADICTION);
 
-    boolean claimedCertified = CERTIFIED.matcher(text).find();
+    boolean claimedCertified = CERTIFIED.matcher(CERTIFIED_DENIAL.matcher(text).replaceAll(" ")).find();
     boolean claimedAsIs = AS_IS.matcher(text).find();
     boolean claimedUnfit = UNFIT.matcher(text).find();
     boolean claimedIrrep = IRREP.matcher(text).find();
@@ -412,15 +464,21 @@ Result runFixedOmvic(Listing L, VehiclePublic V, DealerPublic D) {
     if (V.conditionCode == AS_IS && !claimedAsIs) hard.add(CONDITION_UNDISCLOSED);
     if (V.conditionCode == CERTIFIED && !claimedCertified) soft.add(CERTIFIED_NOT_IN_COPY);
 
-    if (mentionsPriorUseCue(text) && !mentionsPriorUseDisclosure(text))
+    if (!BRAND_NEW.matcher(text).find() && !USED_STATUS.matcher(text).find())
+        soft.add(NEW_USED_NOT_STATED);
+
+    if ((L.priorUse != null || mentionsPriorUseCue(text)) && !mentionsPriorUseDisclosure(text, L.priorUse))
         soft.add(PRIOR_USE_UNCLEAR);
     if (WARRANTY_BOAST.matcher(text).find()) soft.add(WARRANTY_CLAIM_NEEDS_REVIEW);
 
     if (L.adKind == FINANCE || (L.adKind == CASH
-        && (APR.matcher(text).find() || PAYMENT.matcher(text).find()))) {
+        && (RATE.matcher(text).find() || PAYMENT.matcher(text).find()))) {
         if (!APR.matcher(text).find()) hard.add(FINANCE_APR_MISSING);
         if (!TERM_MO.matcher(text).find()) soft.add(FINANCE_TERM_MISSING);
-        if (L.medium != RADIO_TV_BILLBOARD) soft.add(FINANCE_APR_PROXIMITY);
+        if (!hasCashPrice(text) && !COST_OF_BORROWING.matcher(text).find())
+            hard.add(FINANCE_CASH_PRICE_MISSING);
+        if (L.medium != RADIO_TV_BILLBOARD && APR.matcher(text).find() && PAYMENT.matcher(text).find()
+            && !aprWithin80CharsOfPayment(text)) soft.add(FINANCE_APR_PROXIMITY);
     }
 
     if (L.adKind == LEASE) {
@@ -428,11 +486,20 @@ Result runFixedOmvic(Listing L, VehiclePublic V, DealerPublic D) {
         if (!LEASE_WORD.matcher(text).find()) hard.add(LEASE_STATEMENT_MISSING);
         if (!Pattern.compile("\\d+\\s*(month|months|mo)\\b", CASE_INSENSITIVE).matcher(text).find())
             soft.add(LEASE_TERM_MISSING);
-        if (!PRICE.matcher(text).find() && !LEASE_RENT.matcher(text).find())
-            soft.add(LEASE_RENT_MISSING);
+        if (!PAYMENT.matcher(text).find()) soft.add(LEASE_RENT_MISSING);
         if (!LEASE_DOWN.matcher(text).find()) soft.add(LEASE_DOWN_MISSING);
         OptionalInt km = capturedKm(text);
-        if (km.isPresent()) {
+        Integer declared = L.annualKmAllowance;   // salesperson checklist, may be null
+        if (declared != null) {
+            int effective = declared;
+            if (km.isEmpty()) soft.add(LEASE_ALLOWANCE_NOT_IN_COPY);
+            else {
+                if (km.getAsInt() != declared) soft.add(LEASE_ALLOWANCE_MISMATCH);
+                effective = Math.min(declared, km.getAsInt());   // the stricter figure decides
+            }
+            if (effective < 20000 && !LEASE_EXCESS.matcher(text).find())
+                hard.add(LEASE_EXCESS_KM_MISSING);
+        } else if (km.isPresent()) {
             if (km.getAsInt() < 20000 && !LEASE_EXCESS.matcher(text).find())
                 hard.add(LEASE_EXCESS_KM_MISSING);
         } else {
@@ -452,7 +519,7 @@ Dealership public four fields and V-ASIS follow 17 §1. Running fixture copy thr
 | Fixture | hard[] (must include) | soft[] (allowed) | Call AI? | HTTP / DB state |
 |---|---|---|---|---|
 | **FX-01** missing-price CASH | `PRICE_MISSING` | no requirement | **No** | **200** `BLOCKED` / `SKIPPED` |
-| **FX-03** FINANCE no APR | `FINANCE_APR_MISSING` | may have `FINANCE_APR_PROXIMITY` (ONLINE); does not change the hard block | **No** | **200** `BLOCKED` / `SKIPPED` |
+| **FX-03** FINANCE no APR | `FINANCE_APR_MISSING` | no `FINANCE_APR_PROXIMITY`: with no APR there is nothing to place | **No** | **200** `BLOCKED` / `SKIPPED` |
 | **FX-10** clean CASH | **empty** | usually empty (year already in copy) | **Yes** | success → **200** `PASSED` / `SUCCESS` |
 | **FX-11** | this step **does not** run the engine | — | **No** | GET `checkStatus=STALE`; Ready/Export → **409** `CHECK_STALE` |
 | **FX-12** copy = FX-10 | **empty** (same as FX-10) | same as FX-10 | **Yes** (then fail) | **502** `AI_UNAVAILABLE`; row written `UNAVAILABLE`; Ready → **409** `NOT_PASSED` |

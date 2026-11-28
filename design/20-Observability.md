@@ -1,6 +1,8 @@
-# 20. Observability: application logging, release time, and local tracing
+# 20. Observability: application logging, release time, and local tracing (legacy Java reference)
 
-Status: **currently in force**, scope addendum to [SCOPE-BASELINE.md](SCOPE-BASELINE.md) — see "Scope note" below.
+> **Deprecated runtime details:** The logback/Spring Boot configuration described below belongs to the former Java services. The current runtime is .NET 10 / ASP.NET Core; do not add Java agents, Maven, or logback configuration to the current backend.
+
+Status: **legacy Java reference only**. Current runtime observability follows the .NET 10 / ASP.NET Core services in `backend/dotnet/`.
 
 ## 1. Problem
 
@@ -78,7 +80,7 @@ so `AiGatewayClient` copies the incoming `X-Request-ID` onto each `/internal/v1/
 gateway, core, and ai-service lines for one browser request share one `requestId`.
 
 `ai-service` keeps its defaults in `application.yaml`. The vendored ai-manager sources
-(`com.manager`, see `ai-service/README.md`) bring no Spring configuration file, so
+(`com.manager`, see `backend/java/ai-service/README.md`) bring no Spring configuration file, so
 `spring.application.name` is always `ai-service` and the log is `ai-service-<date>.log`. The
 `ai-service` build also excludes the local, Git-ignored key
 notes (`ai-key.md`, `api-key.md`) from the jar.
@@ -126,7 +128,7 @@ deploy/skywalking/download-agent.sh
 SW_AGENT_NAME=dealer-core \
 SW_AGENT_COLLECTOR_BACKEND_SERVICES=127.0.0.1:11800 \
 JAVA_TOOL_OPTS="-javaagent:$(pwd)/deploy/skywalking/agent/skywalking-agent.jar" \
-mvn -f dealer-core/pom.xml spring-boot:run
+mvn -f backend/java/dealer-core/pom.xml spring-boot:run
 ```
 
 Repeat with `SW_AGENT_NAME=dealer-gateway` / `ai-service` for the other two services.
@@ -163,3 +165,102 @@ Every deploy must be visible: each of the four apps reports when it was publishe
 - Each app ignores later changes to it, so the value written by the deploy step survives the next `terraform apply`.
 - The variable `published_at` (default `cloud`) is only the value before the first deploy.
 
+## 6. Service-level objectives (NFR-07)
+
+Targets for the cloud deployment. They are measured from the gateway request log and `/actuator/health`; no load test has been run yet, so they are objectives, not measured results.
+
+| Objective | Target |
+|---|---|
+| Availability of `/actuator/health` on the gateway (all downstream `UP`) | 99.5% per calendar month |
+| Non-AI API latency at the gateway | p95 under 1 s |
+| Ad compliance check | completes or returns `AI_UNAVAILABLE` within 15 s (AI-02) |
+| Throughput per signed-in user | up to 600 requests/min before `RATE_LIMITED` (design/19 §1.5.1) |
+
+## 7. Application logging convention (current .NET runtime, 2026-10-21)
+
+This section applies to the active .NET 10 services and replaces §2's per-class guidance for them. Logs are for operators; the business record of who changed what is the audit trail (requirements AUD-01–16, design/15 §8.8), not the log.
+
+- **Injection.** A class that logs takes `ILogger<T>` in its constructor and keeps it in `private readonly ILogger<T> _logger`. No extra registration is needed.
+- **Structured templates.** Use message templates with named placeholders, never string interpolation, for example `"Payment recorded paymentId={PaymentId} vehicleId={VehicleId} dealerId={DealerId} by {Actor}"`. Log at key business points: a completed change, a rejected attempt, an external call that fails.
+- **Levels.** `Information` for a successful business change and for the one access line per request; `Warning` for a rejected or suspicious attempt (failed sign-in, forbidden action, cross-dealership access, rate limit) and for a pipeline failure the request still answers; `Error` only together with the caught exception. Do not log the same failure twice.
+- **No personal data, secrets, prompts, or ad text.** Log ids and usernames only. Never log passwords, tokens or claims, API keys, email addresses, phone numbers, home addresses, note or message bodies, a typed sign-in identifier that matched no account, model prompts or responses, assistant questions, or listing title/body text. An update line names the changed field keys, never their values. Do not log a query string, an audit JSON blob, or an exception message that can echo a token or a row value.
+- **Correlation.** A line written during a request includes the request id that already exists (`X-Request-ID`, stored on the request and echoed as `[{RequestId}]` on the access line). No second id is created. A startup line has none.
+- **Comments.** Classes and public methods carry a `///` summary of their responsibility; inline comments explain why, not what.
+
+### 7.1 Gateway events (`DealerOps.Gateway`)
+
+Besides the per-request line (`requestId`, method, path, `user`, status, `durationMs`), the gateway writes one `Warning` per rejection:
+
+| Event | Fields | Source |
+|---|---|---|
+| `Rejected JWT` | `reason` (exception type name only), method, path | `Program.cs` `OnAuthenticationFailed` |
+| `Rejected token without an API role` (401) | `user`, method, path | `Program.cs` role gate |
+| `Forbidden platform admin on business route` (403) | `user`, method, path | `Program.cs` role gate (AUTH-08) |
+| `Rate limit exceeded` (429) | `clientIp`, `user` (or `anonymous`), method, path | `Middleware/RateLimitSetup.cs` (design/19 §1.5.1) |
+| `Downstream health check failed` | `service`, and `status` or `reason` | `Health/DownstreamHealthCheck.cs` |
+| `Rejecting … (missing or invalid / non-internal path carries X-Dealer-Internal)` | method, path, header name | `Middleware/InternalRouteFilter.cs` |
+
+### 7.2 AI service events (`DealerOps.AiService`)
+
+`AiProviderClient.ChatAsync` is the single model-call point, so it logs every call:
+
+- `Information` `AI call operation={Operation} model={Model} durationMs={DurationMs} outcome={Outcome}`, once per call in `finally`. `operation` is `ad-check` or `assistant`; `outcome` is `ok`, `provider_status`, `timeout`, `unreachable`, or `error`.
+- `Warning` `AI provider failed` (`operation`, `model`, provider HTTP `status`) or `AI provider unreachable` (`operation`, `model`, `reason` = `HttpRequestError`).
+- `AiExceptionFilter` logs `AI request failed code={Code} status={Status} {Path}` as a `Warning`; `InternalGuardFilter` logs a rejected `/internal/**` request.
+
+The system prompt, the listing JSON, the assistant question, and the model reply are never logged.
+
+### 7.3 Core events (`DealerOps.Core`)
+
+Every `Information` line ends with `by {Actor}` (the signed-in username) unless marked *system* or *self*. `dealerId` is present on every tenant-scoped event.
+
+| Module | Information events | Extra fields |
+|---|---|---|
+| Auth (`AuthService`, `AdminSeeder`) | Account registered; Sign-in succeeded; Seeded platform admin account | `userId`, `username`, `method` (`password`/`google`/`firebase`) — *self/system* |
+| Me (`MeController`) | Profile updated; Account self-deleted | `userId`, `username`, `fields` — *self* |
+| Dealer admin | Dealer created; Dealer updated | `fields` |
+| Membership | Member bound; Member role changed; Member password reset; Member unbound | `username`, `newLogin`, `PreviousRole`→`Role` |
+| Join requests | Join request filed (*self*); approved; rejected | `username`, `membershipId` |
+| Vehicle | created; updated; sold; repair cost updated; deleted | `vehicleId`, `stockNumber`, `fields` |
+| Vehicle photo | uploaded; enhanced; deleted | `photoId`, `vehicleId`, `bytes`, `preset`, `previousPreset` |
+| Payment | Payment recorded; Payment removed | `paymentId`, `vehicleId`, `amount`, `method`, `paidOn` |
+| Customer | created; updated; deleted; vehicle linked; vehicle unlinked | `customerId`, `fields`, `linkId`, `vehicleId` |
+| Lead | created; updated; note added | `leadId`, `customerId`, `OldStage`→`NewStage`, `fields`, `noteId` |
+| Buyer site | Buyer inquiry filed (anonymous) | `leadId`, `vehicleId`, `customerId`, `newCustomer` |
+| Work order | created; updated; completed | `workOrderId`, `vehicleId`, `fields`, `status`, `cost` |
+| Listing | created; updated; marked ready; exported | `listingId`, `vehicleId`, `contentVersion` |
+| Compliance | Compliance check recorded; Compliance rule override | `listingId`, `checkId`, `recommendation`, `aiStatus`, `ElapsedMs`; `ruleId`, `Action` |
+| Notifications | Notification created (*system*); Notification resolved | `notificationId`, `kind`, `action` |
+
+`Warning` events:
+
+| Event | Fields | Source |
+|---|---|---|
+| Sign-in failed | `username` (`anonymous` when no account matched), `method`, `reason` | `AuthService` (with a `LOGIN_FAILED` audit row) |
+| Manager removal rejected | `dealerId`, `username`, actor | `MembershipService` |
+| Self-deletion refused for platform admin | `username` | `MeController` |
+| Change to closed work order rejected | `workOrderId`, `status`, `dealerId`, actor | `WorkOrderService` |
+| Vehicle photo enhancement rejected | `photoId`, `vehicleId`, `preset`, `code` | `VehiclePhotoService` |
+| Ad check AI unavailable | `listingId`, `dealerId`, actor, with the exception | `ComplianceCheckService` (check stored as `UNAVAILABLE`) |
+| AI call failed / reported failure / returned no summary | `path`, `status`, `error`, `elapsedMs` | `Integration/AiGatewayClient` |
+| vPIC call failed / returned no Results | `operation`, `status`, `error`, `elapsedMs` | `Catalog/VehicleCatalogService` (`CATALOG_UNAVAILABLE`) |
+| Rejected JWT | `reason` (exception type name only), method, path, request id | `Program.cs` `OnChallenge`, only when token validation threw |
+| Forbidden | method, path, request id | `Program.cs` `OnForbidden` (authorization middleware) |
+| Version conflict | method, path, request id | `ApiExceptionFilter`, the concurrency collision only |
+| Audit summary unreadable | `auditEventId`, `column` (`fieldSummary` or `previousValues`) | `AuditService` |
+| IP geolocation lookup failed | `errorType` (exception type name only) | `IpGeolocator` / `AuditService`. The audit row is still written. The IP, the place, and the provider URL are not logged |
+| Schema upgrade skipped | statement, MySQL error text | `Program.cs` startup, when existing rows block a constraint |
+
+`Error`, one line, exception attached: unhandled exception in `Program.cs`, with method, path, and request id. A client disconnect (`OperationCanceledException`) is not logged.
+
+### 7.4 Core pipeline (host, exception filter, audit read)
+
+These lines are the host and the audit reader. They are not a second copy of the business events above.
+
+- **Access line.** `RequestLoggingMiddleware` already writes one `Information` line per request: method, path, status, duration, and the existing request id. The query string is not included. A 401 with no token stays on that line only; there is no exception to log.
+- **Unhandled exception.** `Error`, with the exception, method, path, and the existing request id. `ApiException` is handled before this and is not logged again: the access line already has the status, and the domain service logs the rejection when it is one.
+- **Rejected JWT.** `Warning` when a presented token fails validation. `reason` is the exception type name. The token and the exception message are not logged. A missing token is not this line.
+- **Forbidden.** `Warning` from the authorization middleware only. Dealership rejections that a service or the tenant middleware already logs are not written again here.
+- **Version conflict.** `Warning` only for `DbUpdateConcurrencyException` (two saves passed the service check and collided). The exception text is omitted because it can contain row values. A version check the service throws itself is an `ApiException` and is not logged again in the filter.
+- **Audit summary.** `Warning` when stored `fieldSummary` or `previousValues` JSON cannot be parsed. The line has the audit event id and the column name. The JSON and the parser message are omitted because they hold contact values. A record history still returns that row with the blob empty. A customer or vehicle history match that cannot read `fieldSummary` drops the link row, because it can no longer tell which record the row belongs to.
+- **Startup schema.** An index, foreign key, or column that is already present is not a failure and is not logged. A constraint the existing rows block is the `Warning` already written at startup (statement and MySQL error text). That line has no request id.

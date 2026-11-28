@@ -1,12 +1,44 @@
 # 17 · Ad-compliance check samples / AI evaluation fixtures
 
 Version: current (v6) · 2026-09-21  
-**Current.** Fixed rules and reason codes follow the [15-Data-Auth-and-Gateway.md](15-Data-Auth-and-Gateway.md) section 6 pseudocode. Check HTTP, five states, Blocked=200, and `AI_UNAVAILABLE`=502 follow [14-Backend-API-Contract.md](14-Backend-API-Contract.md) section 8.  
+**Current.** Fixed rules and reason codes follow [AI-PROTOCOL-AND-RULES.md](AI-PROTOCOL-AND-RULES.md) §C, which pins the patterns and severities and overrides the older [15-Data-Auth-and-Gateway.md](15-Data-Auth-and-Gateway.md) section 6 pseudocode where they differ; the engine (`DealerOps.Core/Compliance/OmvicRuleEngine.cs`) is the final authority. Check HTTP, five states, Blocked=200, and `AI_UNAVAILABLE`=502 follow [14-Backend-API-Contract.md](14-Backend-API-Contract.md) section 8.  
 This document **only** provides runnable ad-text fixtures and expected states. It is not a rule implementation, not OpenAPI, and not an OMVIC certification. System output may only be "rule hits + review advice"; **do not** write OMVIC approved / certified in the UI or reports.
 
 Retired `05` is not a current requirement. This document only borrows its "repeatable English samples + expected rules" intent and rewrites it for v6 `CASH` / `FINANCE` / `LEASE` and `ONLINE` / `RADIO_TV_BILLBOARD`. Finance/lease checks are **In Scope** (align 00 / 15); do not follow the reference draft that said finance cannot be done.
 
 Out of scope: Service Bus, async ad review, queue polling, external ad sites, claiming legal certification. A check is a staff-synchronous `POST /api/v1/listings/{id}/checks` (rules before AI, AI ≤15s).
+
+### Amendment 2026-10-15 — two disclosure rules added
+
+The source requires both of these on every ad, and neither had a rule before; `PRICE_MISSING` was assumed to cover the second, which it does not, because a payment amount satisfies it.
+
+| Reason code | Severity | Fires when |
+|---|---|---|
+| `NEW_USED_NOT_STATED` | REVIEW | Neither a new-vehicle phrase nor used / pre-owned / second-hand / previously owned appears in the copy. Advisory rather than blocking, because erratum 4 keeps the new/old family a prompt. |
+| `FINANCE_CASH_PRICE_MISSING` | BLOCK | A finance-triggered ad states no cash price and no cost of borrowing. An amount directly followed by a payment cadence (`per month`, `/mo`, `/month`, `a month`, `bi-weekly`, `weekly`) is a payment, not a cash price. Applies to every medium: the broadcast exemption waives only `FINANCE_APR_PROXIMITY`. |
+| `WARRANTY_TERMS_MISSING` | REVIEW | The salesperson checklist records extended warranty terms that do not appear in the copy. |
+| `LEASE_ALLOWANCE_NOT_IN_COPY` | REVIEW | Lease: the checklist records an annual kilometre allowance but the copy states none. |
+| `LEASE_ALLOWANCE_MISMATCH` | REVIEW | Lease: the checklist allowance differs from the one printed in the copy. `LEASE_EXCESS_KM_MISSING` is then judged on the **lower** of the two figures. |
+
+Checklist answers are optional. With no answers recorded, every rule behaves exactly as before, so fixtures FX-01–FX-23 are unaffected; FX-24 covers the stricter-allowance case.
+
+Effect on the fixtures below: none of the expected BLOCK/PASS outcomes change. Every payment-bearing fixture already states `Cash price $18,900`, so `FINANCE_CASH_PRICE_MISSING` does not fire. Fixtures whose copy says `Sold as-is` but never `used` now carry one extra REVIEW finding, `NEW_USED_NOT_STATED`; REVIEW findings do not block, so each fixture's state is unchanged.
+
+### Amendment 2026-10-20 — detection tightened
+
+| Reason code | Change |
+|---|---|
+| `FINANCE_APR_PROXIMITY` | Raised only when the copy has both an APR and a payment amount and no APR is printed within 80 characters of a payment. It is no longer added to every online finance ad, and never to an ad without an APR. |
+| Finance trigger | A CASH ad that shows any interest rate ("0% financing", "rates from 2.9%") is a finance ad even without the word APR. |
+| `FINANCE_CASH_PRICE_MISSING` | An amount followed by "down" or "due at signing" is not a cash price. |
+| `FINANCE_TERM_MISSING` | "12 month warranty" is not a finance term. |
+| `LEASE_DOWN_MISSING` | The upfront amount (or an explicit `$0` / zero / no money down) must be stated; the bare phrase "down payment" no longer counts. |
+| `LEASE_EXCESS_KM_MISSING` | A per-km cost such as `$0.12/km` must be stated; the word "excess" alone no longer counts. |
+| `PRIOR_USE_UNCLEAR` | `DAILY_RENTAL` accepts "daily lease" wording; a checklist category without a disclosure says so in its message. |
+
+Effect on the fixtures below: no BLOCK/PASS outcome changes. FX-03 and FX-15 no longer carry `FINANCE_APR_PROXIMITY`. Every lease fixture writes `$2,000 down payment`, which still states the amount.
+
+The payment cadence pattern was also corrected in the same change: it previously matched `/mo` but not `/month`, so an ad reading `$299/month` triggered no finance rules at all and its payment amount was accepted as a cash price.
 
 ---
 
@@ -91,7 +123,7 @@ Each item: `id`, `offerType` (= `adKind`), `channel` (= `medium`), `title`, `bod
 | **title** | Finance this 2020 Toyota Camry |
 | **body** | Cash price $18,900. 60 month term available. Sold as-is by Prairie Auto Ltd. 403-555-0100 · desk@prairie.example · 100 1 Ave SW, Calgary. |
 | **Vehicle/dealership premises** | V-ASIS. Price, dealership name, contact, `as-is`, and term present. Body has **no** APR regex (do not write `% APR` / `APR 6.99%`). |
-| **Fixed rules** | **Blocked** · `FINANCE_APR_MISSING` · do not call AI · HTTP 200. May also have soft `FINANCE_APR_PROXIMITY` (ONLINE), which does not change the hard block. |
+| **Fixed rules** | **Blocked** · `FINANCE_APR_MISSING` · do not call AI · HTTP 200. No `FINANCE_APR_PROXIMITY`: with no APR there is nothing to place. |
 | **If AI is entered** | do not call AI |
 | **Ready/export** | No |
 | **Classroom demo** | **Yes** (acceptance: finance missing APR is blocked) |
@@ -261,7 +293,7 @@ Each item: `id`, `offerType` (= `adKind`), `channel` (= `medium`), `title`, `bod
 | **Ready/export** | Yes (after Pass) |
 | **Classroom demo** | No |
 
-### FX-15 · FINANCE with APR · ONLINE (proximity handed to AI)
+### FX-15 · FINANCE with APR · ONLINE (no payment amount, so no proximity finding)
 
 | | |
 |---|---|
@@ -270,8 +302,8 @@ Each item: `id`, `offerType` (= `adKind`), `channel` (= `medium`), `title`, `bod
 | **channel** | `ONLINE` |
 | **title** | 2020 Toyota Camry 6.99% APR finance |
 | **body** | 2020 Toyota Camry. Cash price $18,900. 6.99% APR, 60 month term. Sold as-is by Prairie Auto Ltd., 403-555-0100, desk@prairie.example, 100 1 Ave SW, Calgary. |
-| **Vehicle/dealership premises** | V-ASIS. APR, term, cash price, dealership/contact, `as-is` present. ONLINE → soft `FINANCE_APR_PROXIMITY` (layout cannot be reliably regexed). |
-| **Fixed rules** | **Needs AI** · `FINANCE_APR_PROXIMITY` (REVIEW) · call AI · **not** Blocked |
+| **Vehicle/dealership premises** | V-ASIS. APR, term, cash price, dealership/contact, `as-is` present. No payment amount, so the APR has no payment to sit next to and `FINANCE_APR_PROXIMITY` is not raised. |
+| **Fixed rules** | **Needs AI** · call AI · **not** Blocked |
 | **If AI is entered** | this fixture writes rate and APR in the same sentence; expect **Pass**. If the model only comments on layout and reports no hard miss, still Pass. |
 | **Ready/export** | Yes (after Pass) |
 | **Classroom demo** | No |
@@ -383,6 +415,49 @@ Each item: `id`, `offerType` (= `adKind`), `channel` (= `medium`), `title`, `bod
 
 ---
 
+### FX-23 · LEASE quoting only a cash price (ONLINE)
+
+| | |
+|---|---|
+| **id** | `FX-23` |
+| **offerType** | `LEASE` |
+| **channel** | `ONLINE` |
+| **title** | Lease a 2020 Toyota Camry |
+| **body** | Lease this Camry. Cash price $18,900, 36 months, $2,000 down payment, 6.99% APR, 20,000 km per year. Sold as-is by Prairie Auto Ltd., 403-555-0100, desk@prairie.example, 100 1 Ave SW, Calgary. |
+| **Vehicle/dealership premises** | V-ASIS. Lease statement, APR, term, down payment, allowance, price, dealership/contact, `as-is` present. **No** periodic payment: every amount is a cash price, so no payment cadence matches. |
+| **Fixed rules** | **Needs AI** · soft `LEASE_RENT_MISSING` and `NEW_USED_NOT_STATED` (the copy never says "used") · call AI · **not** Blocked |
+| **If AI is entered** | Passed with the soft finding retained; the specification's lease payment-amount disclosure is advisory under erratum 4 |
+| **Ready/export** | Yes, once Passed |
+| **Classroom demo** | No |
+
+> Added 2026-10-16 with the `LEASE_RENT_MISSING` predicate correction. Before that fix the rule
+> also required a missing price, which a `PRICE_MISSING` block already covered, so this ad
+> produced no payment finding at all. The other lease fixtures all quote "$399 per month" and
+> are unaffected.
+
+---
+
+### FX-24 · LEASE where the copy allowance is stricter than the checklist (ONLINE)
+
+| | |
+|---|---|
+| **id** | `FX-24` |
+| **offerType** | `LEASE` |
+| **channel** | `ONLINE` |
+| **checklist** | `annualKmAllowance = 24000` |
+| **title** | Lease a 2020 Toyota Camry |
+| **body** | Lease this used Camry. $399 per month, 36 months, $2,000 down payment, 6.99% APR, 16,000 km per year. Cash price $18,900. Sold as-is by Prairie Auto Ltd., 403-555-0100, desk@prairie.example, 100 1 Ave SW, Calgary. |
+| **Vehicle/dealership premises** | V-ASIS. Everything required is present except an excess-km fee. The checklist says 24,000 km but the ad prints 16,000 km. |
+| **Fixed rules** | **Blocked** · `LEASE_EXCESS_KM_MISSING` (the lower figure, 16,000, decides) + soft `LEASE_ALLOWANCE_MISMATCH` · do not call AI · HTTP 200 |
+| **If AI is entered** | do not call AI |
+| **Ready/export** | No |
+| **Classroom demo** | No |
+
+> Added 2026-10-16. Before the fix the checklist figure was preferred, so this ad was not blocked
+> even though what it publishes — 16,000 km/year — requires an excess-km fee.
+
+---
+
 ## 4. Coverage check
 
 | Requirement | Fixtures |
@@ -391,6 +466,8 @@ Each item: `id`, `offerType` (= `adKind`), `channel` (= `medium`), `title`, `bod
 | Missing dealership name → Blocked, no AI | FX-02 |
 | FINANCE missing APR → Blocked, no AI | FX-03 |
 | LEASE missing APR → Blocked, no AI | FX-04 |
+| LEASE missing the payment amount → soft only | FX-23 |
+| Checklist allowance vs copy allowance → the stricter decides | FX-24 |
 | CERTIFIED / AS_IS / UNFIT / IRREPARABLE undisclosed or misstated | FX-05, FX-06, FX-07, FX-08, FX-18 |
 | Same conditions disclosed | FX-10 (AS_IS), FX-17 (CERTIFIED), FX-19, FX-20 |
 | After price change old check Stale | FX-11 (steps, not an independent body) |
@@ -409,5 +486,5 @@ Suggested classroom order: FX-01 → FX-03 → FX-10 (real AI) → export TXT �
 - Do not treat this file as an "OMVIC approved" checklist.
 - Do not invent Service Bus / async ad review / a second database.
 - Do not require the implementation group to add columns for APR, extended warranty, or prior use; APR is found in the body only.
-- Empty draft (title/body both empty) follows 15: hard-block `PRICE_MISSING` + `DEALER_NAME_MISSING` + `CONDITION_UNDISCLOSED`; no standalone ad body.
+- Empty draft (title/body both empty) has no special case: the ordinary rules hard-block `PRICE_MISSING` + `DEALER_NAME_MISSING` + `DEALER_CONTACT_MISSING`, plus `CONDITION_UNDISCLOSED` for an AS_IS / UNFIT / IRREPARABLE vehicle; no standalone ad body.
 - Assistant Q&A is not in this fixture set.

@@ -1,0 +1,796 @@
+<html lang="en">
+<title>Dealer Ops Requirements Specification</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&amp;family=Source+Serif+4:wght@600;700&amp;family=JetBrains+Mono:wght@400;600&amp;display=swap">
+<style>
+/* Layout: sticky table of contents on the left, one reading column on the right; stacks to one column on phones. */
+:root {
+  --bg: #f5f6f8;
+  --surface: #ffffff;
+  --fg: #1b2230;
+  --muted: #5b6475;
+  --line: #dde1e8;
+  --accent: #1f4e9c;
+  --accent-soft: #e7eefa;
+  --block: #b42318;
+  --block-soft: #fdecea;
+  --review: #a15c07;
+  --review-soft: #fdf3e2;
+  --pass: #1d7a46;
+  --pass-soft: #e5f4ec;
+  --wont: #6b7280;
+  --wont-soft: #eef0f3;
+  --font-display: "Source Serif 4", Georgia, "Times New Roman", serif;
+  --font-body: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #12161e; --surface: #1a2029; --fg: #e4e8ef; --muted: #9aa3b2; --line: #2c3442;
+    --accent: #7fa8ec; --accent-soft: #1f2b40;
+    --block: #f2877d; --block-soft: #3a1f1d; --review: #f0b459; --review-soft: #3a2c16;
+    --pass: #6fcf97; --pass-soft: #17322a; --wont: #a3aab6; --wont-soft: #262c36;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #12161e; --surface: #1a2029; --fg: #e4e8ef; --muted: #9aa3b2; --line: #2c3442;
+  --accent: #7fa8ec; --accent-soft: #1f2b40;
+  --block: #f2877d; --block-soft: #3a1f1d; --review: #f0b459; --review-soft: #3a2c16;
+  --pass: #6fcf97; --pass-soft: #17322a; --wont: #a3aab6; --wont-soft: #262c36;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--fg); font-family: var(--font-body); font-size: 15px; line-height: 1.75; }
+.page { display: grid; grid-template-columns: 240px minmax(0, 1fr); gap: 48px; max-width: 1180px; margin: 0 auto; padding-inline: 24px; padding-block: 40px 80px; }
+nav.toc { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 24px); align-self: start; max-height: calc(100vh - 48px); overflow-y: auto; font-size: 13.5px; }
+nav.toc .toc-title { font-size: 12px; letter-spacing: .12em; color: var(--muted); margin-bottom: 8px; }
+nav.toc ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+nav.toc a { display: block; color: var(--muted); text-decoration: none; padding: 4px 10px; border-left: 2px solid transparent; }
+nav.toc a:hover, nav.toc a:focus-visible { color: var(--accent); border-left-color: var(--accent); outline: none; }
+main { min-width: 0; }
+header.doc-head { border-bottom: 1px solid var(--line); padding-bottom: 28px; margin-bottom: 8px; }
+.eyebrow { font-size: 12px; letter-spacing: .14em; color: var(--accent); font-weight: 500; }
+h1 { font-family: var(--font-display); font-size: 34px; line-height: 1.3; margin: 8px 0 6px; text-wrap: balance; }
+.subtitle { color: var(--muted); margin: 0 0 20px; }
+dl.meta { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px 24px; margin: 0; }
+dl.meta div { min-width: 0; }
+dl.meta dt { font-size: 12px; color: var(--muted); letter-spacing: .06em; }
+dl.meta dd { margin: 0; font-weight: 500; }
+section { padding-top: 36px; }
+h2 { font-family: var(--font-display); font-size: 24px; line-height: 1.4; margin: 0 0 14px; text-wrap: balance; display: flex; gap: 12px; align-items: baseline; }
+h2 .num { font-family: var(--font-mono); font-size: 15px; color: var(--accent); font-weight: 600; }
+h3 { font-size: 17px; margin: 26px 0 10px; }
+p { margin: 0 0 12px; max-width: 72ch; }
+ul.plain { margin: 0 0 12px; padding-left: 1.3em; max-width: 72ch; }
+ul.plain li { margin: 2px 0; }
+code, .mono { font-family: var(--font-mono); font-size: .86em; }
+code { background: var(--accent-soft); color: var(--accent); padding: 1px 5px; border-radius: 4px; overflow-wrap: anywhere; }
+.tbl { overflow-x: auto; margin: 6px 0 16px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
+table { border-collapse: collapse; width: 100%; font-size: 14px; line-height: 1.6; }
+th, td { text-align: left; vertical-align: top; padding: 9px 12px; border-bottom: 1px solid var(--line); }
+th { font-weight: 500; color: var(--muted); font-size: 12.5px; letter-spacing: .04em; background: var(--bg); white-space: nowrap; }
+tr:last-child td { border-bottom: 0; }
+td.id { font-family: var(--font-mono); font-size: 12.5px; white-space: nowrap; color: var(--accent); font-weight: 600; }
+td.c { text-align: center; white-space: nowrap; }
+.pri { display: inline-block; font-size: 12px; padding: 1px 8px; border-radius: 999px; white-space: nowrap; font-weight: 500; }
+.must { background: var(--accent-soft); color: var(--accent); }
+.should { background: var(--pass-soft); color: var(--pass); }
+.could { background: var(--review-soft); color: var(--review); }
+.wont { background: var(--wont-soft); color: var(--wont); }
+.sev-block { background: var(--block-soft); color: var(--block); }
+.sev-review { background: var(--review-soft); color: var(--review); }
+.yes { color: var(--pass); font-weight: 700; }
+.no { color: var(--block); font-weight: 700; }
+.note { border: 1px solid var(--line); background: var(--surface); border-radius: 8px; padding: 12px 16px; margin: 10px 0 16px; max-width: 80ch; }
+.note strong { color: var(--accent); }
+.note.change { border-color: var(--review); background: var(--review-soft); }
+.note.change strong { color: var(--review); }
+.scope { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; margin: 8px 0 16px; }
+.scope > div { min-width: 0; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 14px 18px; }
+.scope h3 { margin-top: 0; }
+.scope ul { margin: 0; padding-left: 1.2em; }
+.flow { font-family: var(--font-mono); font-size: 13px; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; overflow-x: auto; white-space: pre; line-height: 1.7; margin: 8px 0 16px; }
+.legend { display: flex; flex-wrap: wrap; gap: 8px 16px; font-size: 13px; color: var(--muted); margin: 4px 0 12px; }
+footer { margin-top: 56px; padding-top: 18px; border-top: 1px solid var(--line); color: var(--muted); font-size: 13px; }
+@media (max-width: 900px) {
+  .page { grid-template-columns: minmax(0, 1fr); gap: 16px; padding-inline: 16px; padding-block: 24px 64px; }
+  nav.toc { position: static; max-height: none; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); padding: 12px 14px; }
+  nav.toc ol { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); }
+  h1 { font-size: 27px; }
+  h2 { font-size: 21px; }
+}
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
+html { scroll-behavior: smooth; }
+    /* Implementation status is a different axis from rule severity: severity chips are
+       filled, status chips are outlined, so the two never read as competing verdicts. */
+    .st{display:inline-block;padding:1px 7px;border-radius:9px;font-size:11px;font-weight:600;
+        white-space:nowrap;background:transparent;border:1px solid currentColor}
+    .st-done{color:var(--pass)}
+    .st-partial{color:var(--review)}
+    .st-gap{color:var(--block)}
+    .st-wont{color:var(--wont)}
+    .st-note{display:block;margin-top:3px;font-size:11px;color:var(--muted);font-weight:400;
+        white-space:normal}
+</style>
+
+<div class="page">
+  <nav class="toc" aria-label="Table of contents">
+    <div class="toc-title">Contents</div>
+    <ol>
+      <li><a href="#overview">1 Project overview</a></li>
+      <li><a href="#scope">2 Scope</a></li>
+      <li><a href="#roles">3 Roles, permissions and tenancy</a></li>
+      <li><a href="#dms">4 DMS (vehicles)</a></li>
+      <li><a href="#crm">5 CRM (customers)</a></li>
+      <li><a href="#ad">6 Ad compliance check</a></li>
+      <li><a href="#assistant">7 Read-only AI assistant</a></li>
+      <li><a href="#extensions">7a Customer feature extensions</a></li>
+      <li><a href="#cross">8 Cross-cutting requirements</a></li>
+      <li><a href="#pages">9 Page requirements</a></li>
+      <li><a href="#acceptance">10 Acceptance cases</a></li>
+      <li><a href="#questions">11 Assumptions and open questions</a></li>
+      <li><a href="#changes">12 Requirement change log</a></li>
+    </ol>
+  </nav>
+
+  <main>
+    <header class="doc-head">
+      <div class="eyebrow">Requirements Specification · English edition</div>
+      <h1>Dealer Ops dealership management, CRM and OMVIC ad compliance platform</h1>
+      <p class="subtitle">A multi-tenant web application for independent used-car dealers in Ontario, with DMS, CRM, ad compliance checks and a read-only AI assistant.</p>
+      <dl class="meta">
+        <div><dt>Document version</dt><dd>v1.2 · 2026-10-16</dd></div>
+        <div><dt>Primary source</dt><dd>DealerOps-Specification.pdf (2026-09-21)</dd></div>
+        <div><dt>Supplementary sources</dt><dd>Dos Car dealership.docx · Dos Car dealership2.docx · design/SCOPE-BASELINE.md</dd></div>
+        <div><dt>Sign-off status</dt><dd>KAN-5 client/instructor confirmation is still outstanding</dd></div>
+      </dl>
+    </header>
+
+    <section id="overview">
+      <h2><span class="num">1</span>Project overview</h2>
+      <p>Dealer Ops is a multi-tenant dealership management platform. One platform admin opens dealerships and issues logins to dealership staff. A dealership can have several logins (one per staff member), and all of them share that dealership's data.</p>
+      <p>The system has three related business modules: vehicle management (DMS), customer relationship management (CRM) and ad compliance. They are three front-end entry points on one back end and one database, not three separate applications. Ad checks read DMS vehicle data and the dealer profile directly, so nothing is entered twice.</p>
+      <h3>Requirement sources and conflict handling</h3>
+      <div class="tbl"><table>
+        <thead><tr><th>Source</th><th>Content</th><th>Role</th></tr></thead>
+        <tbody>
+          <tr><td>Specification PDF</td><td>Roles, DMS/CRM/ad fields, cross-cutting rules, page list, known limitations</td><td><strong>Authoritative for fields and business rules</strong></td></tr>
+          <tr><td>Product brief DOCX (DealerOS)</td><td>DMS core + CRM + AI compliance assistant + optional Image Studio</td><td>Product vision and selling points; defines no fields</td></tr>
+          <tr><td>Customer supplementary DOCX</td><td>VIN decode, lead follow-up, reconditioning work orders, self-registration / Google and Firebase Auth, Image Studio</td><td>Extended scope is described in section 7a and <code>design/21-Feature-Extensions.md</code>; the Firebase database is not adopted</td></tr>
+          <tr><td>Scope baseline SCOPE-BASELINE</td><td>Course delivery scope, errata, out-of-scope list</td><td>Decides conflicts</td></tr>
+        </tbody>
+      </table></div>
+      <p>Conflict precedence: hard course PPT requirements &gt; specification fields &gt; current design &gt; UI conventions. There are two documented exceptions: sign-in uses email, username or phone plus password (erratum 1); and from 2026-10-07 the containerization required by the PPT is dropped in favour of Terraform + App Service (erratum 5). The current implementation stack is .NET 10 / ASP.NET Core and React 19 / TypeScript / Vite; see <code>design/TECHNOLOGY-STACK.md</code>.
+      <h3>Priority labels</h3>
+      <div class="legend">
+        <span><span class="pri must">Must</span> Explicitly required by a source</span>
+        <span><span class="pri should">Should</span> Needed for the implementation, not stated in a source</span>
+        <span><span class="pri could">Could</span> Done if time allows</span>
+        <span><span class="pri wont">Won't</span> Not implemented in this release</span>
+      </div>
+      <h3>Implementation status labels</h3>
+      <p>The last column of each row shows the implementation status, based on a source review of the current .NET back end + React front end. Automated run results are recorded separately; "implemented" is not treated as "accepted".</p>
+      <div class="legend">
+        <span><span class="st st-done">Implemented</span> Fully implemented (green)</span>
+        <span><span class="st st-partial">Partial</span> Implemented with a clear gap</span>
+        <span><span class="st st-gap">Not implemented</span> Not implemented</span>
+        <span><span class="st st-wont">Out of scope</span> Not done in this release</span>
+      </div>
+      <p>The "199 items / 182 items" totals, which could not be mapped one-to-one to requirement IDs, are no longer used. Small grey text gives the row's known gap or an implementation note.</p>
+      <div class="note change"><strong>Automated test results (2026-10-16):</strong> <code>npm test</code> in <code>playwright/</code> ran 295 tests (including setup) on the isolated E2E stack: 294 passed and 1 was skipped, with 5 parallel workers. The skipped test is the AI-service-unavailable scenario AT-18; the AI service was UP during this run. The AI success paths (compliance check with the real provider, Ready and TXT export) passed. The test database is <code>dealer_core_e2e</code>, with web :5175, Gateway :18080 and Core :18081; the private stack was stopped after the run. A read-only desktop walkthrough was also done on the existing :5174 app: both roles signed in, every accessible route worked, and there were no application-level console errors, 5xx responses or horizontal overflow. The real-account Google sign-in flow was not exercised by automated tests; the user confirmed it signs in correctly on :5174.</div>
+      <div class="note"><strong>Source review versus automated tests:</strong> "Source verification" below records whether a feature can be found in the current code; "Automated evidence this run" records only the paths Playwright actually covered. A missing automated case, a skipped case or a UI not exercised by E2E is not grounds for judging a feature unimplemented. These points were previously grouped under "still unverified", which was easy to misread, so they are now recorded separately by implementation and by testing.</div>
+    </section>
+
+    <section id="scope">
+      <h2><span class="num">2</span>Scope</h2>
+      <div class="scope">
+        <div>
+          <h3>In scope for this delivery</h3>
+          <ul>
+            <li>Multi-tenancy: data is isolated between dealerships, and the admin sees no business data</li>
+            <li>DMS: the vehicle fields in the specification; VIN unique per dealership; sold date and price entered as a pair; purchase fields locked after sale</li>
+            <li>CRM: name, email, phone, home address; links to this dealership's vehicles; one customer per vehicle</li>
+            <li>Ad compliance check: fixed rule list + real AI review; once passed, the ad can be marked Ready and exported as TXT</li>
+            <li>Audit: every DMS/CRM change records the actor, the action and the time</li>
+            <li>Read-only AI assistant: queries this dealership's data and never writes to the database</li>
+            <li>Sign-in: local passwords with email, username or phone; Google ID tokens and Firebase Auth are also supported. Every new account is an unbound <code>Dealer.User</code>, and the only roles are <code>Platform.Admin</code> / <code>Dealer.User</code></li>
+            <li>Feature extensions: VIN decode, lead follow-up, vehicle reconditioning work orders, Image Studio (as set out in the section 12 change log and <code>design/21-Feature-Extensions.md</code>)</li>
+            <li>Gateway: the browser reaches the back end only through the Gateway</li>
+          </ul>
+        </div>
+        <div>
+          <h3>Explicitly out of scope</h3>
+          <ul>
+            <li>Sales funnel reports, vehicle archive states, garage/service invoicing</li>
+            <li>Buyer website, public inventory page, inquiry form</li>
+            <li>KPI dashboard, CSV import</li>
+            <li>Automatic publishing to third-party ad platforms, payments, contracts</li>
+            <li>OCR, automatic publishing to third-party ad platforms, payments and contracts</li>
+            <li>Fields outside the specification, such as mileage, colour, fuel, stock number and list price</li>
+            <li>Message queues, a second database, vector stores</li>
+            <li>Rate-limit quotas, throughput SLOs, PIPEDA retention policy</li>
+          </ul>
+        </div>
+      </div>
+      <p>Classroom demo storyline: two dealerships, each with one staff member, isolated from each other; the admin is refused on the vehicle API; an ad with a missing price, or a finance ad with no APR, is blocked; one real ad goes through a real model review; after a price change, the old check result can no longer be exported.</p>
+    </section>
+
+    <section id="roles">
+      <h2><span class="num">3</span>Roles, permissions and tenancy</h2>
+      <h3>3.1 Roles</h3>
+      <div class="tbl"><table>
+        <thead><tr><th>Role</th><th>Code</th><th>Count</th><th>Belongs to</th></tr></thead>
+        <tbody>
+          <tr><td>Platform admin</td><td><code>Platform.Admin</code></td><td>Platform level, exactly one (seeded on first start from the environment variables <code>ADMIN_USERNAME</code> / <code>ADMIN_PASSWORD</code>; no API creates admins)</td><td>No dealership</td></tr>
+          <tr><td>Dealer user</td><td><code>Dealer.User</code></td><td>N per dealership</td><td>Exactly one dealership</td></tr>
+        </tbody>
+      </table></div>
+      <p>The sources do not distinguish manager from sales, so all users of a dealership have the same permissions. The admin and dealer-user roles are mutually exclusive.</p>
+
+      <h3>3.2 Permission matrix</h3>
+      <div class="tbl"><table>
+        <thead><tr><th>Operation</th><th>Platform admin</th><th>Dealer user (own dealership)</th><th>Dealer user (other dealership)</th></tr></thead>
+        <tbody>
+          <tr><td>Create dealerships, list dealerships</td><td class="c yes">✓</td><td class="c no">✗</td><td class="c no">✗</td></tr>
+          <tr><td>Create / list / remove logins</td><td class="c yes">✓</td><td class="c no">✗</td><td class="c no">✗</td></tr>
+          <tr><td>Vehicles (DMS): add / edit / view</td><td class="c no">✗</td><td class="c yes">✓</td><td class="c no">✗ (looks like not found)</td></tr>
+          <tr><td>Customers (CRM): add / edit / view</td><td class="c no">✗</td><td class="c yes">✓</td><td class="c no">✗</td></tr>
+          <tr><td>Ad check, AI assistant</td><td class="c no">✗</td><td class="c yes">✓</td><td class="c no">✗</td></tr>
+          <tr><td>View audit history</td><td class="c no">✗</td><td class="c yes">✓</td><td class="c no">✗</td></tr>
+        </tbody>
+      </table></div>
+
+      <h3>3.3 Requirements</h3>
+      <div class="tbl"><table>
+        <thead><tr><th>ID</th><th>Requirement</th><th>Source</th><th>Priority</th><th>Status</th></tr></thead>
+        <tbody>
+          <tr><td class="id">AUTH-01</td><td>Only two roles: platform admin and dealer user</td><td>PDF §2</td><td><span class="pri must">Must</span></td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+          <tr><td class="id">AUTH-02</td><td>The admin creates a dealership with at least four items: registered name, phone, email and address (used by the ad compliance rule for dealer registered name and contact)</td><td>PDF §2, §5</td><td><span class="pri must">Must</span></td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+          <tr><td class="id">AUTH-03</td><td>The admin creates logins for a dealership (username + display name + temporary password of at least 8 characters); one login belongs to one dealership</td><td>PDF §2</td><td><span class="pri must">Must</span></td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+          <tr><td class="id">AUTH-04</td><td>The admin lists a dealership's logins</td><td>PDF §2</td><td><span class="pri must">Must</span></td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+          <tr><td class="id">AUTH-05</td><td>The admin removes a login, and its business data access ends immediately (removal is a soft unbind that keeps the account and its history; a removed user can still sign in but sees only the no-access page)</td><td>PDF §2</td><td><span class="pri must">Must</span></td><td class="c"><span class="st st-done">Implemented</span><span class="st-note">Unbind deactivates the membership; a rebound password account is reset with PUT /admin/dealers/{id}/members/{username}/password</span></td></tr>
+          <tr><td class="id">AUTH-06</td><td>All logins of one dealership read and write the same data; a vehicle added by staff A is visible to staff B at once</td><td>PDF §1</td><td><span class="pri must">Must</span></td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+          <tr><td class="id">AUTH-07</td><td>A dealer user never sees another dealership's data; requesting another dealer's record id returns 404, so the response does not reveal whether the record exists</td><td>PDF §2, SCOPE</td><td><span class="pri must">Must</span></td><td class="c"><span class="st st-done">Implemented</span><span class="st-note">Row-level query filters activated</span></td></tr>
+          <tr><td class="id">AUTH-08</td><td>The admin gets 403 on every business endpoint, and the response carries no business fields</td><td>PDF §2, §6</td><td><span class="pri must">Must</span></td><td class="c"><span class="st st-done">Implemented</span><span class="st-note">Gateway now returns 403 for admins on business endpoints, including /api/v1/ai/**</span></td></tr>
+          <tr><td class="id">AUTH-09</td><td>The server derives the dealership from the signed-in identity and <strong>ignores</strong> any client-supplied <code>dealerId</code></td><td>Derived</td><td><span class="pri must">Must</span></td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+          <tr><td class="id">AUTH-10</td><td>Dealer users cannot create or remove logins</td><td>PDF §2</td><td><span class="pri must">Must</span></td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+          <tr><td class="id">AUTH-11</td><td>Each person signs in with their own email, username or phone plus password; accounts are not shared</td><td>PDF §2, SCOPE erratum 1</td><td><span class="pri must">Must</span></td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+          <tr><td class="id">AUTH-12</td><td>The server stores passwords as salted BCrypt hashes and, after successful verification, issues a JWT that carries the role; the sign-in identifier can be an email, username or phone</td><td>PDF §2, §8, SCOPE erratum 1</td><td><span class="pri must">Must</span></td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+          <tr><td class="id">AUTH-13</td><td>A signed-in user with no dealership binding gets 403 on business endpoints</td><td>SCOPE</td><td><span class="pri should">Should</span></td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+          <tr><td class="id">AUTH-14</td><td>A username has at most one active dealership binding at a time; a duplicate binding, or a username that belongs to the platform admin, returns 409 <code>DUP_MEMBER</code></td><td>SCOPE</td><td><span class="pri should">Should</span></td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+          <tr><td class="id">AUTH-15</td><td>The platform-admin account is seeded from environment variables on first start and cannot self-register through the UI</td><td>PDF §2 (derived)</td><td><span class="pri should">Should</span></td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+        </tbody>
+      </table></div>
+
+      <h3>3.4 Account lifecycle</h3>
+      <div class="flow">Admin creates dealership → Admin binds staff (username, email and/or phone + temporary password → dealership) → Staff sign in with email/username/phone → Use own dealership's data
+                                        ↓
+                          Admin unbinds → Staff call a business endpoint again → 403</div>
+      <ul class="plain">
+        <li>After a login is removed, its audit records are kept and the "actor" is never lost.</li>
+        <li>After a dealership's last login is removed, the dealership's data is kept, and new logins can be bound later.</li>
+        <li>Re-binding an unbound user counts as reactivation: binding to the same dealership reuses the existing binding row and creates no new account; binding to a different dealership adds a new binding row; on re-binding the account keeps its original password (per the API contract, design/14 §3.6), and a forgotten password is reset separately by the admin.</li>
+      </ul>
+    </section>
+
+    <section id="dms">
+      <h2><span class="num">4</span>DMS (vehicles)</h2>
+      <p>One record per vehicle, tracked from intake to sale.</p>
+      <h3>4.1 Fields</h3>
+      <div class="tbl"><table>
+        <thead><tr><th>#</th><th>Field</th><th>Code</th><th>Required</th><th>Type</th><th>Validation</th></tr></thead>
+        <tbody>
+          <tr><td>1</td><td>Make</td><td><code>make</code></td><td class="c yes">✓</td><td>Text</td><td>1–50 characters, trimmed</td></tr>
+          <tr><td>2</td><td>Model</td><td><code>model</code></td><td class="c yes">✓</td><td>Text</td><td>1–50 characters, trimmed</td></tr>
+          <tr><td>3</td><td>Year</td><td><code>modelYear</code></td><td class="c yes">✓</td><td>Integer</td><td>1900 ≤ year ≤ current year + 1</td></tr>
+          <tr><td>4</td><td>VIN</td><td><code>vin</code></td><td class="c yes">✓</td><td>Text</td><td>17 characters, upper case, no I/O/Q; <strong>unique per dealership</strong></td></tr>
+          <tr><td>5</td><td>Source</td><td><code>source</code></td><td class="c yes">✓</td><td>Enum</td><td><code>TRADE_IN</code> trade-in / <code>AUCTION</code> auction / <code>PRIVATE_PURCHASE</code> private purchase / <code>OTHER</code> other</td></tr>
+          <tr><td>6</td><td>Purchase cost</td><td><code>purchaseCost</code></td><td class="c yes">✓</td><td>Money</td><td>≥ 0, two decimals, CAD</td></tr>
+          <tr><td>7</td><td>Date added</td><td><code>addedOn</code></td><td class="c yes">✓</td><td>Date</td><td>Not in the future</td></tr>
+          <tr><td>8</td><td>Condition</td><td><code>conditionCode</code></td><td class="c yes">✓</td><td>Enum</td><td><code>CERTIFIED</code> certified / <code>AS_IS</code> as-is / <code>UNFIT</code> unfit for the road / <code>IRREPARABLE</code> irreparable</td></tr>
+          <tr><td>9</td><td>Repair cost</td><td><code>repairCost</code></td><td class="c">—</td><td>Money</td><td>≥ 0</td></tr>
+          <tr><td>10</td><td>Carfax URL</td><td><code>carfaxUrl</code></td><td class="c">—</td><td>URL</td><td><code>http(s)://</code>, ≤ 500 characters</td></tr>
+          <tr><td>11</td><td>Sold date</td><td><code>soldOn</code></td><td class="c">—</td><td>Date</td><td>≥ date added, not in the future</td></tr>
+          <tr><td>12</td><td>Sold price</td><td><code>soldPrice</code></td><td class="c">—</td><td>Money</td><td>&gt; 0</td></tr>
+        </tbody>
+      </table></div>
+      <p>System fields (needed by the implementation, not source fields): <code>id</code>, <code>dealerId</code>, <code>status</code>, <code>version</code> (optimistic lock), <code>createdAt</code>, <code>updatedAt</code>. Apart from the approved Image Studio extension, no fields outside the specification, such as mileage, colour, fuel, stock number or list price, are added.</p>
+
+      <h3>4.2 Vehicle status</h3>
+      <div class="flow">[New] ──► IN_STOCK in stock ──(sold date + sold price entered together)──► SOLD sold</div>
+      <ul class="plain">
+        <li>There are only two statuses; there is no reconditioning, pending-sale or archived status.</li>
+        <li>The server derives the status: <code>SOLD</code> when both sold fields have values, otherwise <code>IN_STOCK</code>.</li>
+        <li>Undoing a sale (vehicle return) is not supported in this release.</li>
+      </ul>
+
+      <h3>4.3 Requirements</h3>
+      <div class="tbl"><table>
+        <thead><tr><th>ID</th><th>Requirement</th><th>Source</th><th>Priority</th><th>Status</th></tr></thead>
+        <tbody>
+          <tr><td class="id">DMS-01</td><td>A dealer user can add a vehicle; all 8 required fields must be present, with an error per field</td><td>PDF §3</td><td><span class="pri must">Must</span></td><td class="c"><span class="st st-done">Implemented</span><span class="st-note">Required value-type fields now reported per field</span></td></tr>
+          <tr><td class="id">DMS-02</td><td>Repair cost and Carfax URL are optional on create; sold date and sold price are optional fields entered only through the "mark as sold" action, and must be entered together (see DMS-10)</td><td>PDF §3</td><td><span class="pri must">Must</span></td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+          <tr><td class="id">DMS-03</td><td>VIN is unique per dealership, and a duplicate returns <code>VIN_DUP</code>; different dealerships may hold the same VIN</td><td>SCOPE</td><td><span class="pri must">Must</span></td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+          <tr><td class="id">DMS-04</td><td>VIN is upper-cased automatically and validated as 17 letters or digits with no I/O/Q</td><td>Derived</td><td><span class="pri should">Should</span></td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+          <tr><td class="id">DMS-05</td><td>Source and condition are drop-downs that accept only the enum values</td><td>PDF §3</td><td><span class="pri must">Must</span></td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+          <tr><td class="id">DMS-06</td><td>The vehicle list is paged (10 per page by default), newest first</td><td>SCOPE</td><td><span class="pri must">Must</span></td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+          <tr><td class="id">DMS-07</td><td>The list supports keyword search on VIN / make / model, and filters on status and condition</td><td>SCOPE</td><td><span class="pri should">Should</span></td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+          <tr><td class="id">DMS-08</td><td>The vehicle detail view shows all fields, the linked customer and the audit history</td><td>PDF §3, §6</td><td><span class="pri must">Must</span></td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+          <tr><td class="id">DMS-09</td><td>Every field of an in-stock vehicle except the sold fields can be edited; the sold fields are written only by the "mark as sold" action</td><td>PDF §7</td><td><span class="pri must">Must</span></td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+          <tr><td class="id">DMS-10</td><td>On sale, sold date and sold price <strong>must be entered together</strong>; sending only one returns <code>SOLD_PAIR_REQUIRED</code></td><td>SCOPE</td><td><span class="pri must">Must</span></td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+          <tr><td class="id">DMS-11</td><td>After sale, the purchase fields (make, model, year, VIN, source, purchase cost, date added, repair cost, Carfax) are locked, and a change returns <code>SOLD_LOCKED</code></td><td>SCOPE</td><td><span class="pri must">Must</span></td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+          <tr><td class="id">DMS-12</td><td>A sold vehicle cannot be sold again; a second sale returns <code>SOLD_LOCKED</code></td><td>SCOPE</td><td><span class="pri must">Must</span></td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+          <tr><td class="id">DMS-13</td><td>Concurrent edits: write requests carry <code>version</code>; a mismatch returns <code>VERSION_CONFLICT</code>, and the UI asks the user to refresh</td><td>SCOPE</td><td><span class="pri should">Should</span></td><td class="c"><span class="st st-done">Implemented</span><span class="st-note">Version increments, so VERSION_CONFLICT is reachable</span></td></tr>
+          <tr><td class="id">DMS-14</td><td>Create, edit and sell each write an audit record</td><td>PDF §6</td><td><span class="pri must">Must</span></td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+          <tr><td class="id">DMS-15</td><td>Changing the condition turns a passed ad check for that vehicle into Stale; other vehicle or dealer profile fields do not trigger invalidation</td><td>SCOPE</td><td><span class="pri must">Must</span></td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+          <tr><td class="id">DMS-16</td><td>The detail view may show profit (sold price − purchase cost − repair cost); it is not stored</td><td>Derived</td><td><span class="pri could">Could</span></td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+          <tr><td class="id">DMS-17</td><td>Delete vehicles (not done, to preserve audit and sales records)</td><td>Derived</td><td><span class="pri wont">Won't</span></td><td class="c"><span class="st st-wont">Out of scope</span></td></tr>
+        </tbody>
+      </table></div>
+      <h3>4.4 Edge cases</h3>
+      <ul class="plain">
+        <li>Year = current year + 1 (an early-release model year) is accepted; + 2 is rejected.</li>
+        <li>A purchase cost of 0 (for example, a trade-in credit) is accepted.</li>
+        <li>A sold price below cost is allowed and not blocked.</li>
+        <li>An <code>IRREPARABLE</code> vehicle can be added and sold (sold for parts), but its ad must disclose the condition truthfully.</li>
+      </ul>
+    </section>
+
+    <section id="crm">
+      <h2><span class="num">5</span>CRM (customers)</h2>
+      <p>One record per customer, with purchases linked back to DMS vehicles. Core CRM keeps the four fields and the vehicle link; lead follow-up is a feature extension governed by <code>design/21-Feature-Extensions.md</code> and is not expanded into a sales funnel.</p>
+      <h3>5.1 Fields</h3>
+      <div class="tbl"><table>
+        <thead><tr><th>#</th><th>Field</th><th>Code</th><th>Required</th><th>Validation</th></tr></thead>
+        <tbody>
+          <tr><td>1</td><td>Name</td><td><code>name</code></td><td class="c yes">✓</td><td>1–100 characters</td></tr>
+          <tr><td>2</td><td>Email</td><td><code>email</code></td><td class="c yes">✓</td><td>Email format, ≤ 254 characters, stored lower case</td></tr>
+          <tr><td>3</td><td>Phone</td><td><code>phone</code></td><td class="c yes">✓</td><td>7–20 digits; <code>+ - ( )</code> and spaces allowed; total length ≤ 40 characters</td></tr>
+          <tr><td>4</td><td>Home address</td><td><code>homeAddress</code></td><td class="c yes">✓</td><td>1–300 characters, one text box</td></tr>
+          <tr><td>5</td><td>Purchased vehicles</td><td><code>linkedVehicles</code> (response field; linked via <code>/customers/{id}/vehicles</code>)</td><td class="c">—</td><td>Multi-select links to this dealership's DMS vehicles</td></tr>
+        </tbody>
+      </table></div>
+      <div class="note"><strong>Note:</strong> In the specification, "Purchased vehicles" sits under the required heading but has no asterisk. It is treated as <strong>optional</strong>, because a customer may not have bought a vehicle yet (see Q-03).</div>
+
+      <h3>5.2 Link rules</h3>
+      <ul class="plain">
+        <li>Customer : vehicle = 1 : N (one customer can buy several vehicles).</li>
+        <li>Vehicle : customer = 1 : 0..1 (<strong>a vehicle belongs to at most one customer</strong>).</li>
+        <li>Only vehicles of the <strong>same dealership</strong> can be linked; any vehicle that is in stock or sold and not yet linked can be linked.</li>
+        <li>A sold vehicle's link cannot be removed (the sales record cannot be erased).</li>
+      </ul>
+
+      <h3>5.3 Requirements</h3>
+      <div class="tbl"><table>
+        <thead><tr><th>ID</th><th>Requirement</th><th>Source</th><th>Priority</th><th>Status</th></tr></thead>
+        <tbody>
+          <tr><td class="id">CRM-01</td><td>Add a customer; all four fields are required, with an error per field</td><td>PDF §4</td><td><span class="pri must">Must</span></td><td class="c"><span class="st st-done">Implemented</span><span class="st-note">Per-field messages; blank-only values rejected</span></td></tr>
+          <tr><td class="id">CRM-02</td><td>Edit the customer's four fields</td><td>PDF §7</td><td><span class="pri must">Must</span></td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+          <tr><td class="id">CRM-03</td><td>The customer list shows 10 per page and searches on name / email / phone</td><td>SCOPE</td><td><span class="pri must">Must</span></td><td class="c"><span class="st st-done">Implemented</span><span class="st-note">Email search is now case-insensitive</span></td></tr>
+          <tr><td class="id">CRM-04</td><td>Customer detail: basic information, linked vehicles (year make model, VIN, status), audit history</td><td>PDF §4, §6</td><td><span class="pri must">Must</span></td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+          <tr><td class="id">CRM-05</td><td>From the customer detail, pick and link an unlinked vehicle of this dealership (in stock or sold)</td><td>PDF §4</td><td><span class="pri must">Must</span></td><td class="c"><span class="st st-done">Implemented</span><span class="st-note">Kept PUT per design/14; the spec names the path, not the verb</span></td></tr>
+          <tr><td class="id">CRM-06</td><td>The link picker lists only vehicles that can be linked, with no vehicles from other dealerships and none already linked</td><td>PDF §4</td><td><span class="pri must">Must</span></td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+          <tr><td class="id">CRM-07</td><td>Linking a vehicle that already belongs to another customer returns <code>VEHICLE_ALREADY_LINKED</code></td><td>SCOPE</td><td><span class="pri must">Must</span></td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+          <tr><td class="id">CRM-08</td><td>An in-stock vehicle can be unlinked; unlinking a sold vehicle returns <code>SOLD_LOCKED</code></td><td>SCOPE</td><td><span class="pri must">Must</span></td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+          <tr><td class="id">CRM-09</td><td>Another dealership's customer or vehicle id always returns 404 (unlinking a link that does not exist also returns 404)</td><td>SCOPE</td><td><span class="pri must">Must</span></td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+          <tr><td class="id">CRM-10</td><td>Vehicle detail and customer detail link to each other</td><td>Derived</td><td><span class="pri should">Should</span></td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+          <tr><td class="id">CRM-11</td><td>Create, edit, link and unlink each write an audit record</td><td>PDF §6</td><td><span class="pri must">Must</span></td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+          <tr><td class="id">CRM-12</td><td>A customer's phone / email / address <strong>never</strong> reach AI prompts, audit summaries or assistant answers</td><td>SCOPE (privacy)</td><td><span class="pri must">Must</span></td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+          <tr><td class="id">CRM-13</td><td>A duplicate email in the same dealership shows a warning but is not blocked (families may share an email)</td><td>Derived</td><td><span class="pri could">Could</span></td><td class="c"><span class="st st-done">Implemented</span><span class="st-note">Duplicate dealership email warns without blocking</span></td></tr>
+          <tr><td class="id">CRM-14</td><td>Delete customers</td><td>Derived</td><td><span class="pri wont">Won't</span></td><td class="c"><span class="st st-wont">Out of scope</span></td></tr>
+          <tr><td class="id">CRM-15</td><td>Sales funnel reports</td><td>DOCX</td><td><span class="pri wont">Won't</span></td><td class="c"><span class="st st-wont">Out of scope</span></td></tr>
+        </tbody>
+      </table></div>
+      <h3>5.4 Typical flow</h3>
+      <div class="flow">Salesperson creates a customer → clicks "Link vehicle" on the customer detail → picks an unlinked vehicle → saves
+             → enters sold date + sold price in DMS → vehicle becomes SOLD and the link is locked</div>
+    </section>
+
+    <section id="ad">
+      <h2><span class="num">6</span>Ad compliance check</h2>
+      <p>Before an ad is published, the system checks its copy against the disclosure requirements of OMVIC (the Ontario Motor Vehicle Industry Council) and flags what is missing. Course delivery uses the simplified rules set out in scope baseline errata 3–4: <strong>BLOCK</strong> is a hard stop that prevents Ready and export; <strong>REVIEW</strong> is a hint that does not block.</p>
+      <div class="note"><strong>Delivery boundary:</strong> "Publish" = mark Ready + export TXT; there is no integration with external platforms and no buyer page. The check reads only the title + body, the DMS vehicle data and the public dealer profile; no vehicle fields are added and no salesperson checklist answers are collected. Prior use or a warranty that the copy never mentions cannot be inferred; this is an accepted demo limitation.</div>
+
+      <h3>6.1 Ad input</h3>
+      <ul class="plain">
+        <li>Pick a vehicle of this dealership; one ad per vehicle.</li>
+        <li>Title and body are editable text; an empty draft can be saved but cannot pass the check.</li>
+        <li>Ad kind: <code>CASH</code> cash / <code>FINANCE</code> finance / <code>LEASE</code> lease. Medium: <code>ONLINE</code> online / <code>RADIO_TV_BILLBOARD</code> radio, TV or billboard.</li>
+      </ul>
+
+      <h3>6.2 Original specification requirements (PDF §5)</h3>
+      <div class="tbl"><table>
+        <thead><tr><th>Applies to</th><th>Must disclose</th></tr></thead>
+        <tbody>
+          <tr><td>All ads</td><td>Dealer registered name and contact; prior use (police/emergency vehicle, taxi/limousine, daily lease/daily rental, if applicable); new/used status and year; extended-warranty terms (if offered); price; condition (certified / as-is / unfit / irreparable)</td></tr>
+          <tr><td>Finance ads that show an interest rate or a payment amount</td><td>APR (as prominent as the payment amount); loan term; cash price / cost of borrowing. <em>Exception: radio, TV and billboards need not show this information alongside the rate.</em></td></tr>
+          <tr><td>Lease ads</td><td>Statement that it is a lease; term; monthly payment amount; APR; down payment amount; excess-kilometre charge (required only when the annual kilometre allowance is below 20,000 km)</td></tr>
+        </tbody>
+      </table></div>
+
+      <h3>6.3 Course rule breakdown</h3>
+      <div class="note"><strong>The two columns mean different things; do not confuse them:</strong> the <span class="pri sev-block">BLOCK</span> / <span class="pri sev-review">REVIEW</span> in the "Result" column is <strong>how a rule hit is handled</strong> (BLOCK prevents Ready and export, REVIEW only hints); the <span class="st st-done">Implemented</span> in the "Status" column is <strong>whether the rule is in the code</strong>. So "BLOCK + Implemented" reads as "this rule should block the ad, and the blocking logic is implemented"; the two do not conflict. The reason codes and severities of all 21 rules in this table are implemented in <code>OmvicRuleEngine</code>.</div>
+      <div class="tbl"><table>
+        <thead><tr><th>ID</th><th>Check</th><th>Result</th><th>Status</th></tr></thead>
+        <tbody>
+          <tr><td class="id">AD-R01</td><td>Dealer registered name missing</td><td><span class="pri sev-block">BLOCK</span> <code>DEALER_NAME_MISSING</code></td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+          <tr><td class="id">AD-R02</td><td>Dealer contact</td><td>All missing: <span class="pri sev-block">BLOCK</span> <code>DEALER_CONTACT_MISSING</code>; some missing: <span class="pri sev-review">REVIEW</span> <code>DEALER_CONTACT_INCOMPLETE</code></td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+          <tr><td class="id">AD-R03</td><td>Hint of prior use without a clear disclosure</td><td><span class="pri sev-review">REVIEW</span> <code>PRIOR_USE_UNCLEAR</code>; no hint, no result</td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+          <tr><td class="id">AD-R04</td><td>New/used contradiction (copy says new (brand new / never used / 0 km / new car) but the model year is ≤ current year − 2)</td><td><span class="pri sev-review">REVIEW</span> <code>YEAR_NEW_USED_CONTRADICTION</code></td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+          <tr><td class="id">AD-R05</td><td>Year not in the copy</td><td><span class="pri sev-review">REVIEW</span> <code>YEAR_NOT_IN_COPY</code></td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+          <tr><td class="id">AD-R05b</td><td>Copy does not state used / new (an "always required" item in PDF §5; R04 covers only a contradiction, not a complete omission)</td><td><span class="pri sev-review">REVIEW</span> <code>NEW_USED_NOT_STATED</code> (per erratum 4, new/used items are hints)</td><td class="c"><span class="st st-done">Implemented</span><span class="st-note">New rule: ad must state new or used</span></td></tr>
+          <tr><td class="id">AD-R06</td><td>Warranty claim present</td><td><span class="pri sev-review">REVIEW</span> <code>WARRANTY_CLAIM_NEEDS_REVIEW</code></td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+          <tr><td class="id">AD-R07</td><td>Price missing</td><td><span class="pri sev-block">BLOCK</span> <code>PRICE_MISSING</code></td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+          <tr><td class="id">AD-R08</td><td>Condition</td><td>"Certified" on a vehicle that is not certified: <span class="pri sev-block">BLOCK</span> <code>CONDITION_MISMATCH</code>; AS_IS / UNFIT / IRREPARABLE not stated: <span class="pri sev-block">BLOCK</span> <code>CONDITION_UNDISCLOSED</code>; certified vehicle with no certified wording: <span class="pri sev-review">REVIEW</span> <code>CERTIFIED_NOT_IN_COPY</code></td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+          <tr><td class="id">AD-R10</td><td>Finance ad without APR</td><td><span class="pri sev-block">BLOCK</span> <code>FINANCE_APR_MISSING</code></td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+          <tr><td class="id">AD-R11</td><td>Finance ad APR as prominent as the monthly payment (online)</td><td><span class="pri sev-review">REVIEW</span> <code>FINANCE_APR_PROXIMITY</code> (hinted when the copy has an APR and a monthly payment amount but no APR is within 80 characters of a payment; an APR right next to the payment passes); not checked for radio, TV or billboard</td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+          <tr><td class="id">AD-R12</td><td>Finance ad missing the term</td><td><span class="pri sev-review">REVIEW</span> <code>FINANCE_TERM_MISSING</code></td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+          <tr><td class="id">AD-R13</td><td>Cash price / cost of borrowing (a finance ad must state the cash price or the cost of borrowing; R07 is not enough, because a payment amount such as "$299/month" on its own already satisfies R07)</td><td><span class="pri sev-block">BLOCK</span> <code>FINANCE_CASH_PRICE_MISSING</code>; an amount directly followed by a payment cadence counts as a payment, not a cash price; also applies to radio, TV and billboard (R14 exempts R11 only)</td><td class="c"><span class="st st-done">Implemented</span><span class="st-note">New rule: finance ads must state a cash price or cost of borrowing</span></td></tr>
+          <tr><td class="id">AD-R14</td><td>Broadcast medium exception</td><td>Exempts only the R11 placement hint; price and APR are still required; a missing term is still an R12 hint</td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+          <tr><td class="id">AD-R20</td><td>Lease ad does not say it is a lease</td><td><span class="pri sev-block">BLOCK</span> <code>LEASE_STATEMENT_MISSING</code></td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+          <tr><td class="id">AD-R21</td><td>Lease term missing</td><td><span class="pri sev-review">REVIEW</span> <code>LEASE_TERM_MISSING</code></td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+          <tr><td class="id">AD-R22</td><td>Lease monthly payment missing</td><td><span class="pri sev-review">REVIEW</span> <code>LEASE_RENT_MISSING</code>; the R07 price rule still applies</td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+          <tr><td class="id">AD-R23</td><td>Lease APR missing</td><td><span class="pri sev-block">BLOCK</span> <code>LEASE_APR_MISSING</code></td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+          <tr><td class="id">AD-R24</td><td>Lease down payment missing (the down payment amount, or an explicit $0 / zero down, must be stated; "down payment" alone does not count)</td><td><span class="pri sev-review">REVIEW</span> <code>LEASE_DOWN_MISSING</code></td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+          <tr><td class="id">AD-R25</td><td>Annual km allowance / excess-km charge</td><td>Allowance &lt; 20,000 with no per-km excess charge (such as $0.12/km; "excess" alone does not count): <span class="pri sev-block">BLOCK</span> <code>LEASE_EXCESS_KM_MISSING</code>; ≥ 20,000: nothing required; no allowance stated: <span class="pri sev-review">REVIEW</span> <code>LEASE_ALLOWANCE_UNSTATED</code></td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+        </tbody>
+      </table></div>
+      <p>"Finance-triggered" means the kind is <code>FINANCE</code>, or the kind is <code>CASH</code> but the title/body matches an APR or payment-amount (monthly / bi-weekly / weekly) pattern. <code>LEASE</code> uses its own lease rules.</p>
+
+      <h3>6.4 Rule applicability matrix</h3>
+      <div class="tbl"><table>
+        <thead><tr><th>Copy</th><th>Medium</th><th>Rules applied</th></tr></thead>
+        <tbody>
+          <tr><td>CASH, no APR/monthly payment</td><td>Any</td><td>R01–R08</td></tr>
+          <tr><td>FINANCE, or CASH with APR/monthly payment</td><td>ONLINE</td><td>R01–R08, R10–R13</td></tr>
+          <tr><td>FINANCE, or CASH with APR/monthly payment</td><td>RADIO_TV_BILLBOARD</td><td>Same as above, R11 exempt; R10 and R07 still apply</td></tr>
+          <tr><td>LEASE, allowance ≥ 20,000</td><td>Any</td><td>R01–R08, R20–R24</td></tr>
+          <tr><td>LEASE, allowance &lt; 20,000</td><td>Any</td><td>R01–R08, R20–R25</td></tr>
+          <tr><td>LEASE, allowance not stated</td><td>Any</td><td>R01–R08, R20–R24, plus the <code>LEASE_ALLOWANCE_UNSTATED</code> hint</td></tr>
+        </tbody>
+      </table></div>
+
+      <h3>6.5 Check flow and states</h3>
+      <div class="flow">Save draft → click "Check"
+   ├─ Any BLOCK rule hit ──────────► BLOCKED (AI skipped, HTTP 200)
+   └─ No BLOCK ──► Call the real AI (15 s timeout)
+                    ├─ Success ──────► PASSED (REVIEW hints and AI notes kept)
+                    └─ Timeout/error ──► AI_UNAVAILABLE (public API 502, never shown as passed)
+
+Before any check: NEEDS_AI
+Ad or condition changed after a pass ──► STALE
+Ad changed while not passed ──► back to NEEDS_AI
+PASSED and version matches ──► "Mark Ready" and "Export TXT" available</div>
+      <ul class="plain">
+        <li>PASSED means the demo's hard rules passed and the AI responded normally. It <strong>does not mean legal compliance approval</strong>, and the result may still contain hints.</li>
+        <li>AI notes do not veto Ready.</li>
+        <li>Changes that trigger invalidation: the ad title, body, kind or medium (including a price change in the body), and the vehicle condition. Other vehicle or dealer profile changes do not trigger invalidation.</li>
+        <li>Ready / export require PASSED with a matching content version; otherwise they return <code>NOT_PASSED</code> / <code>CHECK_STALE</code>.</li>
+      </ul>
+
+      <h3>6.6 Requirements</h3>
+      <div class="tbl"><table>
+        <thead><tr><th>ID</th><th>Requirement</th><th>Source</th><th>Priority</th><th>Status</th></tr></thead>
+        <tbody>
+          <tr><td class="id">AD-01</td><td>Create/edit one ad draft per vehicle of this dealership</td><td>PDF §5</td><td><span class="pri must">Must</span></td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+          <tr><td class="id">AD-02</td><td>Show a checklist for the chosen kind/medium</td><td>PDF §5</td><td><span class="pri must">Must</span></td><td class="c"><span class="st st-done">Implemented</span><span class="st-note">Also collects prior use, warranty terms and annual lease km; saved with the ad and used by the check</span></td></tr>
+          <tr><td class="id">AD-03</td><td>Run the BLOCK/REVIEW rules above and store results with reason codes</td><td>SCOPE erratum 4</td><td><span class="pri must">Must</span></td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+          <tr><td class="id">AD-04</td><td>Trigger rules by kind, by medium and by APR/payment patterns in CASH copy; LEASE uses the lease rules</td><td>Protocol §C</td><td><span class="pri must">Must</span></td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+          <tr><td class="id">AD-05</td><td>Year and condition are read from DMS for the check</td><td>PDF §5</td><td><span class="pri must">Must</span></td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+          <tr><td class="id">AD-06</td><td>Dealer name and contact are read from the dealer profile</td><td>PDF §5</td><td><span class="pri must">Must</span></td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+          <tr><td class="id">AD-07</td><td>A hard-rule hit skips AI and returns BLOCKED</td><td>SCOPE</td><td><span class="pri must">Must</span></td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+          <tr><td class="id">AD-08</td><td>A real AI reviews the copy; notes returned on success do not block</td><td>DOCX</td><td><span class="pri must">Must</span></td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+          <tr><td class="id">AD-09</td><td>An AI timeout or failure is stored as AI_UNAVAILABLE and never shown as passed</td><td>SCOPE</td><td><span class="pri must">Must</span></td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+          <tr><td class="id">AD-10</td><td>Store the time, the result and the checked content version of every check</td><td>Derived</td><td><span class="pri must">Must</span></td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+          <tr><td class="id">AD-11</td><td>Editing the ad or changing the condition invalidates an earlier pass</td><td>SCOPE</td><td><span class="pri must">Must</span></td><td class="c"><span class="st st-done">Implemented</span><span class="st-note">No-op saves no longer mark a passed ad stale</span></td></tr>
+          <tr><td class="id">AD-12</td><td>Ready and export require a pass on the current version</td><td>SCOPE</td><td><span class="pri must">Must</span></td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+          <tr><td class="id">AD-13</td><td>The TXT holds the public dealer/vehicle fields, the title, the body and the check time; no customer data and no cost</td><td>SCOPE</td><td><span class="pri must">Must</span></td><td class="c"><span class="st st-done">Implemented</span><span class="st-note">Export labelled; includes the vehicle source</span></td></tr>
+          <tr><td class="id">AD-14</td><td>Dedicated disclaimer screen</td><td>PDF §8</td><td><span class="pri wont">Won't</span> (explained verbally at the defence)</td><td class="c"><span class="st st-wont">Out of scope</span></td></tr>
+          <tr><td class="id">AD-15</td><td>Configurable rules / rule editor</td><td>PDF §8</td><td><span class="pri wont">Won't</span> (rules live in code)</td><td class="c"><span class="st st-wont">Out of scope</span></td></tr>
+          <tr><td class="id">AD-16</td><td>Automatic publishing to external platforms</td><td>DOCX</td><td><span class="pri wont">Won't</span></td><td class="c"><span class="st st-wont">Out of scope</span></td></tr>
+          <tr><td class="id">AD-17</td><td>Image Studio photo enhancement (taken over by the IMG-01–05 feature extension)</td><td>DOCX / Design 21</td><td><span class="pri must">Must</span></td><td class="c"><span class="st st-done">Implemented</span><span class="st-note">Enhanced and original photos now display</span></td></tr>
+        </tbody>
+      </table></div>
+
+    </section>
+
+    <section id="assistant">
+      <h2><span class="num">7</span>Read-only AI assistant</h2>
+      <p>The specification has no such page. The course requires a real AI core feature, so scope baseline erratum 2 adds a read-only Q&amp;A assistant inside the dealership.</p>
+      <div class="tbl"><table>
+        <thead><tr><th>ID</th><th>Requirement</th><th>Source</th><th>Priority</th><th>Status</th></tr></thead>
+        <tbody>
+          <tr><td class="id">AI-01</td><td>Ad compliance uses a real LLM review, not a rule-based simulation</td><td>DOCX, SCOPE</td><td><span class="pri must">Must</span></td><td class="c"><span class="st st-done">E2E passed</span><span class="st-note">AI-dependent success flows passed on 2026-10-16; outage case AT-18 was skipped</span></td></tr>
+          <tr><td class="id">AI-02</td><td>AI calls time out after 15 s; a failure is never shown as passed</td><td>SCOPE</td><td><span class="pri must">Must</span></td><td class="c"><span class="st st-done">Implemented</span><span class="st-note">Core budget raised above the 15s model window</span></td></tr>
+          <tr><td class="id">AI-03</td><td>Read-only Q&amp;A inside the dealership: finds this dealership's vehicles, customers and ads (with check status) by keyword such as make, VIN or customer name, and returns up to 5 resource cards with a short answer; supports deterministic totals for vehicles, customers and ad check statuses computed over the complete match set, unaffected by the 5-card limit; still returns the found cards when the model is unavailable; never writes to the database</td><td>SCOPE erratum 2</td><td><span class="pri must">Must</span></td><td class="c"><span class="st st-done">Implemented</span><span class="st-note">Keyword-less questions no longer dump arbitrary records</span></td></tr>
+          <tr><td class="id">AI-04</td><td>The assistant sees only this dealership's data; answers contain no purchase cost and no customer phone, email or address</td><td>SCOPE</td><td><span class="pri must">Must</span></td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+          <tr><td class="id">AI-05</td><td>AI notes come back as an array, each with at least a description (<code>message</code>); issue codes (<code>ruleId</code>) and severity (BLOCK / REVIEW) belong to rule check results and are shown apart from AI notes</td><td>Derived</td><td><span class="pri should">Should</span></td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+        </tbody>
+      </table></div>
+    </section>
+
+    <section id="extensions">
+      <h2><span class="num">7a</span>Customer feature extensions</h2>
+      <p>All feature extensions from the customer supplementary document are implemented in the current source, and their front-end entry points have been verified. Detailed fields, rules and API conventions are governed by <code>design/21-Feature-Extensions.md</code>. The table below lists source status and automated evidence separately; a narrow UI test scope means only that the interaction has not yet been exercised by browser automation. Formal client/instructor sign-off of the course scope still awaits KAN-5 confirmation.</p>
+      <div class="tbl"><table>
+        <thead><tr><th>Requirement IDs</th><th>Feature and scope</th><th>Source verification</th><th>Automated evidence this run</th><th>Automation paths not covered</th></tr></thead>
+        <tbody>
+          <tr><td class="id">VIN-01–04</td><td>Anonymous VIN decode and vPIC field mapping; decode on the landing page; the DMS create form prefills make / model / year / body type</td><td>The Core decode service, the DMS form Decode and prefill logic, and the landing-page decode UI are all implemented</td><td>API decode, error, anonymous-access and landing-page interaction cases passed</td><td>A browser case for DMS form Decode → verify the prefill without saving a vehicle</td></tr>
+          <tr><td class="id">LEAD-01–09</td><td>Lead creation, stage, owner, follow-up date, appended notes, audit and tenant isolation; the assistant must not read leads</td><td>The lead service/API, the front-end page and an assistant that queries only vehicles/customers/ads all exist</td><td>Lead API and main UI flow cases passed</td><td>A dedicated regression case for LEAD-09 that the assistant context excludes leads and notes</td></tr>
+          <tr><td class="id">WO-01–07</td><td>Vehicle reconditioning work orders, the OPEN / IN_PROGRESS / DONE / CANCELLED flow, cost write-back, sale restriction, open count</td><td>The work-order API, WorkOrderPanel in the DMS drawer, the status flow and the sale restriction are all implemented</td><td>API lifecycle/tenant-permission cases and UI open-count and sale-block cases passed</td><td>Browser cases in DMS for creating, status actions, the completion form and the cancel confirmation</td></tr>
+          <tr><td class="id">AUTH-16–25</td><td>Self-registration, email/username/phone sign-in, Google and Firebase sign-in, unbound accounts, join requests and member approval</td><td>Password, Google and Firebase sign-in and registration code, plus the join-approval service and UI, are all implemented</td><td>Password registration/sign-in and the AUTH-25 mocked-queue UI cases passed; the user confirmed Google sign-in works on :5174</td><td>Automation for the AUTH-23/24 external token exchange; end-to-end AUTH-25 coverage of the UI with back-end persistence and tenant boundaries</td></tr>
+          <tr><td class="id">IMG-01–05</td><td>Photo upload, enhancement, viewing, deletion, audit and tenant isolation</td><td>PhotoStudioPanel, the photo API, the storage/enhancement services and tenant checks are all implemented</td><td>API file validation, enhancement result, original/enhanced read, deletion, audit and isolation cases passed</td><td>Browser workflow cases for Image Studio upload/enhance/view/delete</td></tr>
+          <tr><td class="id">AI-03 / UI-52 / AT-40</td><td>Deterministic counts are computed over this dealership's complete results, independent of the at most five resource cards</td><td>The assistant runs the complete tenant query and returns aggregate counts separately; ad status counts have matching logic</td><td>API/UI cover customer and in-stock vehicle counts; the API case also asserts at most five resource cards</td><td>This run did not cover sold-vehicle/ad-status counts, a stable exact assertion with more than five matches in one dealership, or counts while AI is unavailable</td></tr>
+          <tr><td class="id">AI-02 / AT-18</td><td>When the AI service is unavailable, the ad check fails closed and the ad cannot be marked Ready or exported</td><td>The check, Ready and export paths all implement fail-closed logic</td><td>This case was skipped this run because the AI service was UP; this is not a failure and does not mean the feature is missing</td><td>Run AT-18 in a test environment where the AI service is unavailable</td></tr>
+          <tr><td class="id">SEC-06</td><td>Ad copy is passed to AI as untrusted data, so prompt injection cannot change the verdict</td><td>Prompt construction isolates the ad copy and marks it as untrusted content</td><td>This run had no dedicated prompt-injection regression case</td><td>Add and run a dedicated SEC-06 adversarial case</td></tr>
+        </tbody>
+      </table></div>
+      <h3>Extension acceptance scenarios (EXT-01–EXT-10)</h3>
+      <p>The scenarios below define the manual acceptance steps and expected results for the feature extensions, taken from <code>design/16-Acceptance-and-Test.md</code> §5a. Listing them here does not mean each was executed in this run.</p>
+      <div class="tbl"><table>
+        <thead><tr><th>ID</th><th>Scenario</th><th>Acceptance steps and expected result</th></tr></thead>
+        <tbody>
+          <tr><td class="id">EXT-01</td><td>VIN decode</td><td>Decode a valid VIN on the landing page while signed out, then decode one while creating a vehicle in DMS. The landing page shows the vehicle information; the form prefills make/model/year and shows reference information, and no vehicle is created before saving. A VIN containing I/O/Q is rejected. Calling the vehicle API while signed out returns 401.</td></tr>
+          <tr><td class="id">EXT-02</td><td>Lead flow</td><td>Create a lead with a new customer, an in-stock vehicle, an owner and a note; set it to CONTACTED with a past follow-up date, then try to move it to LOST. Without a reason it is refused; with a reason it becomes read-only; appending notes still works; later stage changes return LEAD_CLOSED. The customer and overdue filters and the CREATE/UPDATE/NOTE audit are all correct, and the audit does not contain the note text.</td></tr>
+          <tr><td class="id">EXT-03</td><td>Lead isolation</td><td>Another dealership reading the lead gets 404; the platform admin reading the lead list gets 403; creating a lead with a sold vehicle returns WRONG_DEALER_OR_SOLD.</td></tr>
+          <tr><td class="id">EXT-04</td><td>Reconditioning work order</td><td>Create a work order for an in-stock vehicle and start it. While it is open, selling returns WORK_ORDERS_OPEN. On completion, enter a description and cost; the repair cost and vehicle audit update and the open count drops to zero. A completed work order cannot be changed. The vehicle can then be sold, and after sale no new work order can be created. Access from another dealership returns 404.</td></tr>
+          <tr><td class="id">EXT-05</td><td>Self-registration</td><td>Register an account with username, name, email, phone and password, and sign in with the email, the username and the phone in turn. The account lands on /no-access and business APIs return 403. A duplicate username, email or phone each returns the matching 409 field error.</td></tr>
+          <tr><td class="id">EXT-06</td><td>Admin binding</td><td>The admin binds the new account under Members → Pending accounts without resetting its password; the user can still sign in with the original credentials and reaches /dms, and the account no longer appears in the pending list.</td></tr>
+          <tr><td class="id">EXT-07</td><td>Sign-in name rules</td><td>Verify that a missing email and phone, an all-digit username, and a malformed email/phone are rejected; a duplicate username returns 409; a phone number with spaces and hyphens can sign in; a wrong password returns 401.</td></tr>
+          <tr><td class="id">EXT-08</td><td>Photo upload</td><td>After uploading a 1 MB JPEG and a PNG, thumbnails are shown; a 3 MB image is reported as over 2 MB; a text file disguised as a JPG returns 415; the 11th photo for a vehicle is rejected.</td></tr>
+          <tr><td class="id">EXT-09</td><td>Photo enhancement</td><td>Run Auto fix on a JPEG, switch between Original/Enhanced, then run Sharpen. The enhanced image differs from the original and its long edge is at most 1600 px; the original stays unchanged; the new enhanced result replaces the old one, and a VEHICLE_PHOTO UPDATE audit is written.</td></tr>
+          <tr><td class="id">EXT-10</td><td>Photo isolation and deletion</td><td>Another dealership reading the photo gets 404; after the owning dealership deletes it, the thumbnail disappears and the photo content returns 404; the platform admin accessing photos gets 403.</td></tr>
+        </tbody>
+      </table></div>
+    </section>
+
+    <section id="cross">
+      <h2><span class="num">8</span>Cross-cutting requirements</h2>
+      <h3>8.1 Audit (PDF §6)</h3>
+      <div class="tbl"><table>
+        <thead><tr><th>ID</th><th>Requirement</th><th>Source</th><th>Priority</th><th>Status</th></tr></thead>
+        <tbody>
+          <tr><td class="id">AUD-01</td><td>Audit vehicle create / edit / sell</td><td>PDF §6</td><td><span class="pri must">Must</span></td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+          <tr><td class="id">AUD-02</td><td>Audit customer create / edit / link / unlink</td><td>PDF §6</td><td><span class="pri must">Must</span></td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+          <tr><td class="id">AUD-03</td><td>Each record holds: the actor (username), the action (CREATE / UPDATE / SELL / LINK / UNLINK), the time (stored in UTC, shown in local time), and the entity type and id</td><td>PDF §6</td><td><span class="pri must">Must</span></td><td class="c"><span class="st st-done">Implemented</span><span class="st-note">Action codes and UTC timestamps corrected</span></td></tr>
+          <tr><td class="id">AUD-04</td><td>Record a summary of the changed fields; customer phone / email / address are recorded by field name only, never by value</td><td>SCOPE</td><td><span class="pri should">Should</span></td><td class="c"><span class="st st-done">Implemented</span><span class="st-note">Field names shown, values still withheld</span></td></tr>
+          <tr><td class="id">AUD-05</td><td>The audit trail is append-only and cannot be modified or deleted</td><td>Derived</td><td><span class="pri must">Must</span></td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+          <tr><td class="id">AUD-06</td><td>Vehicle and customer detail views show the change history, newest first</td><td>PDF §6</td><td><span class="pri must">Must</span></td><td class="c"><span class="st st-done">Implemented</span><span class="st-note">Vehicle history now includes customer LINK/UNLINK events</span></td></tr>
+          <tr><td class="id">AUD-07</td><td>Audit and business writes happen in the same transaction, so a successful business write always has its audit record</td><td>Derived</td><td><span class="pri must">Must</span></td><td class="c"><span class="st st-done">Implemented</span><span class="st-note">Work-order completion and its audit share one transaction</span></td></tr>
+          <tr><td class="id">AUD-08</td><td>Admin dealership / account operations are also audited (already implemented)</td><td>Derived</td><td><span class="pri could">Could</span></td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+          <tr><td class="id">AUD-09</td><td>Ad check results are stored as check history (see AD-10) and are not separately audited</td><td>Derived</td><td><span class="pri should">Should</span></td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+        </tbody>
+      </table></div>
+
+      <h3>8.2 Architecture</h3>
+      <div class="tbl"><table>
+        <thead><tr><th>ID</th><th>Requirement</th><th>Source</th><th>Priority</th><th>Status</th></tr></thead>
+        <tbody>
+          <tr><td class="id">ARC-01</td><td>DMS, CRM and ad compliance are three front-end entry points on one back end and one database</td><td>PDF §6</td><td><span class="pri must">Must</span></td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+          <tr><td class="id">ARC-02</td><td>The ad check reads DMS vehicle and dealer data directly, with no duplicate entry</td><td>PDF §1, §5</td><td><span class="pri must">Must</span></td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+          <tr><td class="id">ARC-03</td><td>The browser reaches the back end only through the Gateway; direct access to core / ai-service must fail</td><td>SCOPE</td><td><span class="pri must">Must</span></td><td class="c"><span class="st st-partial">Partial</span><span class="st-note">Core and AI bind 0.0.0.0, so both are reachable directly in local dev</span></td></tr>
+          <tr><td class="id">ARC-04</td><td>Four logical apps: React Web, .NET Gateway, .NET Core, .NET AI Service; currently implemented as <code>frontend/react</code> and <code>backend/dotnet</code> in the DealerOps monorepo</td><td>SCOPE / current implementation</td><td><span class="pri must">Must</span></td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+          <tr><td class="id">ARC-05</td><td>Synchronous REST + a single database (MySQL 8); no message queue</td><td>SCOPE</td><td><span class="pri must">Must</span></td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+          <tr><td class="id">ARC-06</td><td>All APIs live under <code>/api/v1</code>; the error body is <code>{code, message}</code></td><td>SCOPE</td><td><span class="pri must">Must</span></td><td class="c"><span class="st st-partial">Partial</span><span class="st-note">Gateway, Core and AI error bodies still differ in shape</span></td></tr>
+          <tr><td class="id">ARC-07</td><td>Terraform deployment: the three .NET 10 services run as zip packages on Azure App Service, and the built React front end is deployed to an App Service web app; CI compiles and validates, and <code>deploy/deploy.sh</code> publishes (<code>--seed</code> imports demo data); course reviews 2/3 must be demonstrated in the cloud. Containerization was dropped from 2026-10-07 (scope baseline erratum 5)</td><td>SCOPE (PPT)</td><td><span class="pri must">Must</span></td><td class="c"><span class="st st-partial">Partial</span><span class="st-note">Terraform uses App Service for the web app; .NET CI/CD does not deploy</span></td></tr>
+        </tbody>
+      </table></div>
+
+      <h3>8.3 Security</h3>
+      <div class="tbl"><table>
+        <thead><tr><th>ID</th><th>Requirement</th><th>Source</th><th>Priority</th><th>Status</th></tr></thead>
+        <tbody>
+          <tr><td class="id">SEC-01</td><td>Passwords are stored on the server as salted BCrypt hashes, never in plain text, never logged and never exposed to front-end code</td><td>PDF §8</td><td><span class="pri must">Must</span></td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+          <tr><td class="id">SEC-02</td><td>The Gateway and core both validate the JWT signature, issuer, audience and expiry; the Gateway rejects unrecognized roles, and core authorizes by role (admin ↔ staff crossover returns 403)</td><td>SCOPE</td><td><span class="pri must">Must</span></td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+          <tr><td class="id">SEC-03</td><td>HTTPS everywhere (cloud environment)</td><td>SCOPE</td><td><span class="pri must">Must</span></td><td class="c"><span class="st st-partial">Partial</span><span class="st-note">HTTPS applies to the cloud environment only</span></td></tr>
+          <tr><td class="id">SEC-04</td><td>Secrets (database password, JWT signing key, AI key) stay out of the code repository</td><td>SCOPE</td><td><span class="pri must">Must</span></td><td class="c"><span class="st st-partial">Partial</span><span class="st-note">JWT secret, DB password and AI key are committed for classroom use</span></td></tr>
+          <tr><td class="id">SEC-05</td><td>Every business query is forced through a dealership filter in the data layer (row-level isolation)</td><td>PDF §6</td><td><span class="pri must">Must</span></td><td class="c"><span class="st st-done">Implemented</span><span class="st-note">Query filters now receive the tenant id</span></td></tr>
+          <tr><td class="id">SEC-06</td><td>Ad copy is passed to AI as data, so prompt injection cannot change the verdict</td><td>Derived</td><td><span class="pri should">Should</span></td><td class="c"><span class="st st-done">Implemented</span><span class="st-note">Ad copy fenced and marked untrusted in the prompt</span></td></tr>
+          <tr><td class="id">SEC-07</td><td>Customer personal data is never sent to AI and never written to audit as a value</td><td>SCOPE</td><td><span class="pri must">Must</span></td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+        </tbody>
+      </table></div>
+
+      <h3>8.4 Non-functional</h3>
+      <div class="tbl"><table>
+        <thead><tr><th>ID</th><th>Requirement</th><th>Source</th><th>Priority</th><th>Status</th></tr></thead>
+        <tbody>
+          <tr><td class="id">NFR-01</td><td>Lists default to 10 per page</td><td>SCOPE</td><td><span class="pri must">Must</span></td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+          <tr><td class="id">NFR-02</td><td>Money is shown in CAD with two decimals; dates use the format <code>YYYY-MM-DD</code></td><td>Derived</td><td><span class="pri should">Should</span></td><td class="c"><span class="st st-done">Implemented</span><span class="st-note">Shared CAD and date helpers applied</span></td></tr>
+          <tr><td class="id">NFR-03</td><td>The UI language is English (for Ontario dealerships)</td><td>Derived</td><td><span class="pri should">Should</span></td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+          <tr><td class="id">NFR-04</td><td>Database backup policy</td><td>PDF §8</td><td><span class="pri should">Should</span></td><td class="c"><span class="st st-gap">Not implemented</span><span class="st-note">No database backup strategy</span></td></tr>
+          <tr><td class="id">NFR-05</td><td>Deployment on a custom domain (Terraform does not configure a custom domain yet; the default Azure domain is used)</td><td>PDF §8</td><td><span class="pri should">Should</span></td><td class="c"><span class="st st-partial">Partial</span><span class="st-note">Azure default domain; no custom domain configured</span></td></tr>
+          <tr><td class="id">NFR-06</td><td>Desktop browser first, usable at phone width</td><td>Derived</td><td><span class="pri could">Could</span></td><td class="c"><span class="st st-done">Implemented</span><span class="st-note">Responsive breakpoints added for phone width</span></td></tr>
+          <tr><td class="id">NFR-07</td><td>Rate limits, throughput SLOs, PIPEDA data retention</td><td>SCOPE</td><td><span class="pri wont">Won't</span></td><td class="c"><span class="st st-wont">Out of scope</span></td></tr>
+          <tr><td class="id">NFR-08</td><td>After every deploy, the release time (UTC) of all four apps is visible: each of the three .NET services prints one line in its startup log; the Gateway Swagger description shows Core's release time; the bottom left of every React page lists the four release times for web / gateway / core / ai (from the Gateway's anonymous <code>GET /actuator/release</code>). The deploy writes <code>PUBLISHED_AT</code>; without it, the build time is used</td><td>Team request (2026-10-07)</td><td><span class="pri must">Must</span></td><td class="c"><span class="st st-done">Implemented</span><span class="st-note">Release endpoints, startup logs and footer reworked</span></td></tr>
+        </tbody>
+      </table></div>
+    </section>
+
+    <section id="pages">
+      <h2><span class="num">9</span>Page requirements</h2>
+      <h3>9.1 Page list</h3>
+      <div class="tbl"><table>
+        <thead><tr><th>Page</th><th>Route</th><th>Access</th><th>Purpose</th><th>Source</th></tr></thead>
+        <tbody>
+          <tr><td>Public landing page</td><td><code>/</code></td><td>Public</td><td>Product introduction, sign-in/registration entry points and anonymous VIN decode; signed-in users go to the page for their role</td><td>Feature extension</td></tr>
+          <tr><td>Login / registration</td><td><code>/login</code>, <code>/register</code></td><td>Public</td><td>Email, username or phone plus password; unbound accounts wait for admin binding</td><td>PDF / feature extension</td></tr>
+          <tr><td>Admin console</td><td><code>/admin</code></td><td>Platform admin</td><td>Create dealerships; create / remove logins</td><td>PDF</td></tr>
+          <tr><td>DMS</td><td><code>/dms</code></td><td>Dealer user</td><td>Add, edit and view vehicles</td><td>PDF</td></tr>
+          <tr><td>CRM</td><td><code>/crm</code></td><td>Dealer user</td><td>Add, edit and view customers; link purchases</td><td>PDF</td></tr>
+          <tr><td>Ad compliance</td><td><code>/ads</code></td><td>Dealer user</td><td>Check ads against OMVIC requirements before publishing</td><td>PDF</td></tr>
+          <tr><td>Lead follow-up</td><td><code>/leads</code></td><td>Dealer user</td><td>View and work customer leads, follow-up dates and appended notes</td><td>Feature extension</td></tr>
+          <tr><td>AI assistant</td><td>Floating panel at the bottom right of staff pages (no route of its own)</td><td>Dealer user</td><td>Read-only AI Q&amp;A inside the dealership</td><td>SCOPE erratum 2</td></tr>
+        </tbody>
+      </table></div>
+
+      <h3>9.2 Per-page requirements</h3>
+      <div class="tbl"><table>
+        <thead><tr><th>ID</th><th>Page</th><th>Requirement</th><th>Status</th></tr></thead>
+        <tbody>
+          <tr><td class="id">UI-01</td><td>Login</td><td>The admin and dealer users share one email / username / phone + password sign-in form</td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+          <tr><td class="id">UI-02</td><td>Login</td><td>After sign-in, redirect by role: admin → <code>/admin</code>, bound dealer user → <code>/dms</code></td><td class="c"><span class="st st-done">Implemented</span><span class="st-note">Role-aware landing and redirect</span></td></tr>
+          <tr><td class="id">UI-03</td><td>Login</td><td>A user with no dealership binding sees "Not activated yet; please contact the administrator"</td><td class="c"><span class="st st-done">Implemented</span><span class="st-note">Activation notice after registering</span></td></tr>
+          <tr><td class="id">UI-04</td><td>Login</td><td>Opening any internal page while signed out redirects to the login page</td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+          <tr><td class="id">UI-10</td><td>Admin console</td><td>Dealership list: name, contact, staff count</td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+          <tr><td class="id">UI-11</td><td>Admin console</td><td>Create-dealership form (registered name, phone, email, address)</td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+          <tr><td class="id">UI-12</td><td>Admin console</td><td>Dealership staff list; bind staff (username, display name, email and/or phone, temporary password); unbinding requires confirmation; pending self-registered accounts are bound without resetting the password</td><td class="c"><span class="st st-done">Implemented</span><span class="st-note">Member rows show the account email/phone; search also matches them</span></td></tr>
+          <tr><td class="id">UI-13</td><td>Admin console</td><td>No vehicle, customer or ad entry points</td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+          <tr><td class="id">UI-20</td><td>DMS</td><td>List: year make model, VIN, source, condition, cost (CAD), date added, status; search + filters + paging</td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+          <tr><td class="id">UI-21</td><td>DMS</td><td>Add / edit form: required fields marked <code>*</code>, immediate client-side validation, server errors shown per field</td><td class="c"><span class="st st-done">Implemented</span><span class="st-note">Required markers and validate-on-blur</span></td></tr>
+          <tr><td class="id">UI-22</td><td>DMS</td><td>Detail: all fields, linked customer, ad check status, change history</td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+          <tr><td class="id">UI-23</td><td>DMS</td><td>"Mark as sold" is a separate action that takes the date and the price together</td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+          <tr><td class="id">UI-24</td><td>DMS</td><td>Locked fields of a sold vehicle are read-only</td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+          <tr><td class="id">UI-30</td><td>CRM</td><td>List: name, email, phone, linked vehicles, number of purchased vehicles; search + "linked or not" filter + paging</td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+          <tr><td class="id">UI-31</td><td>CRM</td><td>Add / edit form</td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+          <tr><td class="id">UI-32</td><td>CRM</td><td>Detail: basic information, clickable linked vehicles, link / unlink buttons, change history</td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+          <tr><td class="id">UI-33</td><td>CRM</td><td>The (searchable) link drop-down lists only this dealership's unlinked vehicles (in stock or sold) and can be searched by VIN / model</td><td class="c"><span class="st st-done">Implemented</span><span class="st-note">Searchable vehicle link picker</span></td></tr>
+          <tr><td class="id">UI-40</td><td>Ad compliance</td><td>Pick a vehicle → edit title, body, kind and medium; view the checklist (no extra answer fields)</td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+          <tr><td class="id">UI-41</td><td>Ad compliance</td><td>Show the year, condition, dealer name and contact carried over from DMS / the dealer profile</td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+          <tr><td class="id">UI-42</td><td>Ad compliance</td><td>The "Check" button has a loading state (up to 15 s)</td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+          <tr><td class="id">UI-43</td><td>Ad compliance</td><td>Show ✅ / ❌ / ⚠️ and the reason for each rule</td><td class="c"><span class="st st-done">Implemented</span><span class="st-note">Passing checklist rows now render a tick</span></td></tr>
+          <tr><td class="id">UI-44</td><td>Ad compliance</td><td>Status badges: Needs AI review / Blocked / AI unavailable / Passed / Stale</td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+          <tr><td class="id">UI-45</td><td>Ad compliance</td><td>The Ready and Export TXT buttons are enabled only when the ad is passed and not stale</td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+          <tr><td class="id">UI-46</td><td>Ad compliance</td><td>The dedicated disclaimer screen is deferred (AD-14); the result panel already carries a one-line notice "not legal advice / not OMVIC approval", and the defence explains that "passed" does not mean legal approval</td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+          <tr><td class="id">UI-50</td><td>AI assistant</td><td>Input box + answer area; answers may include vehicle / customer card links</td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+          <tr><td class="id">UI-51</td><td>AI assistant</td><td>A clear notice that the assistant is read-only and will not modify data</td><td class="c"><span class="st st-done">Implemented</span><span class="st-note">Panel states it will never modify data</span></td></tr><tr><td class="id">UI-52</td><td>AI assistant</td><td>Inventory, customer and ad status counts are computed over all matching records of this dealership, independent of the at most five resource cards</td><td class="c"><span class="st st-partial">Partial E2E</span><span class="st-note">Customer count UI covered; see AT-40 gaps</span></td></tr>
+        </tbody>
+      </table></div>
+    </section>
+
+    <section id="acceptance">
+      <h2><span class="num">10</span>Acceptance cases</h2>
+      <p>The cases below define the expected behaviour; implementation status and actual run results are recorded separately. Minimum classroom demo set: AT-01, AT-03, AT-12, AT-13, AT-17, AT-19.</p>
+      <div class="tbl"><table>
+        <thead><tr><th>ID</th><th>Scenario</th><th>Steps</th><th>Expected result</th><th>Covers</th><th>Status</th></tr></thead>
+        <tbody>
+          <tr><td class="id">AT-01</td><td>Tenant isolation</td><td>A dealership A user requests a dealership B vehicle id</td><td>404</td><td>AUTH-07</td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+          <tr><td class="id">AT-02</td><td>Sharing within a dealership</td><td>A1 creates a vehicle; A2 refreshes the list</td><td>A2 sees it</td><td>AUTH-06</td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+          <tr><td class="id">AT-03</td><td>Admin sees no business data</td><td>The admin calls the vehicle list endpoint</td><td>403, no business fields</td><td>AUTH-08</td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+          <tr><td class="id">AT-04</td><td>Remove a login</td><td>The admin unbinds A2 → A2 requests the vehicle list</td><td>403</td><td>AUTH-05</td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+          <tr><td class="id">AT-05</td><td>Required-field validation</td><td>Create a vehicle without a VIN</td><td>400, error on the VIN field</td><td>DMS-01</td><td class="c"><span class="st st-done">Implemented</span><span class="st-note">Validation responses use the project error envelope</span></td></tr>
+          <tr><td class="id">AT-06</td><td>VIN uniqueness</td><td>Duplicate VIN in the same dealership</td><td><code>VIN_DUP</code>; the same VIN in another dealership succeeds</td><td>DMS-03</td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+          <tr><td class="id">AT-07</td><td>Paired sale fields</td><td>Enter only the sold date</td><td><code>SOLD_PAIR_REQUIRED</code></td><td>DMS-10</td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+          <tr><td class="id">AT-08</td><td>Sold lock</td><td>Change the purchase cost of a sold vehicle</td><td><code>SOLD_LOCKED</code></td><td>DMS-11</td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+          <tr><td class="id">AT-09</td><td>One customer per vehicle</td><td>Customer 1 is linked to vehicle X; customer 2 then links X</td><td><code>VEHICLE_ALREADY_LINKED</code></td><td>CRM-07</td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+          <tr><td class="id">AT-10</td><td>Sold link lock</td><td>Unlink a sold vehicle</td><td><code>SOLD_LOCKED</code></td><td>CRM-08</td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+          <tr><td class="id">AT-11</td><td>Audit</td><td>Edit a vehicle</td><td>History shows the user, UPDATE and the time</td><td>AUD-01, AUD-03, AUD-06</td><td class="c"><span class="st st-done">Implemented</span><span class="st-note">Audit action casing fixed</span></td></tr>
+          <tr><td class="id">AT-12</td><td>Missing price</td><td>A CASH ad with no price</td><td>BLOCKED <code>PRICE_MISSING</code>, AI not called</td><td>AD-R07, AD-07</td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+          <tr><td class="id">AT-13</td><td>Finance ad missing APR</td><td>A FINANCE ad with a monthly payment and no APR</td><td>BLOCKED <code>FINANCE_APR_MISSING</code></td><td>AD-R10</td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+          <tr><td class="id">AT-14</td><td>Broadcast exemption</td><td>FINANCE + RADIO_TV_BILLBOARD with price/APR, no term, APR far from the price; then remove the APR</td><td>First run: no placement hint, the missing term is only REVIEW; second run: BLOCKED <code>FINANCE_APR_MISSING</code></td><td>AD-R10–R14</td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+          <tr><td class="id">AT-15</td><td>Lease 20,000 km boundary</td><td>All other lease items present; the copy says 20,000 km/year with no excess-km charge</td><td>No <code>LEASE_EXCESS_KM_MISSING</code>; changed to 19,999, BLOCKED <code>LEASE_EXCESS_KM_MISSING</code></td><td>AD-R25</td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+          <tr><td class="id">AT-16</td><td>Condition mismatch</td><td>DMS says AS_IS; the ad says Certified</td><td>BLOCKED <code>CONDITION_MISMATCH</code>, AI not called</td><td>AD-R08</td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+          <tr><td class="id">AT-17</td><td>Real AI pass</td><td>A fully compliant ad</td><td>PASSED; Ready and TXT export available</td><td>AI-01, AD-08, AD-12</td><td class="c"><span class="st st-done">E2E passed</span><span class="st-note">2026-10-16</span></td></tr>
+          <tr><td class="id">AT-18</td><td>AI unavailable</td><td>An ad that meets every hard rule, checked while the AI service is stopped</td><td>The check returns 502 <code>AI_UNAVAILABLE</code> and the state is AI_UNAVAILABLE; Ready / export return <code>NOT_PASSED</code></td><td>AD-09, AI-02</td><td class="c"><span class="st st-done">Implemented</span><span class="st-note">Implemented in source; skipped in this automated run because the AI service was online</span></td></tr>
+          <tr><td class="id">AT-19</td><td>Stale</td><td>After a pass, change the price in the body</td><td>STALE; export returns <code>CHECK_STALE</code></td><td>AD-11</td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+          <tr><td class="id">AT-20</td><td>TXT content</td><td>Export the file</td><td>Contains public dealer and vehicle information; no customer data and no cost</td><td>AD-13</td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+          <tr><td class="id">AT-21</td><td>Assistant is read-only</td><td>Ask "mark vehicle X as sold"</td><td>Refused; database unchanged</td><td>AI-03</td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+          <tr><td class="id">AT-22</td><td>Assistant privacy</td><td>Ask for a customer's phone</td><td>No phone returned</td><td>AI-04</td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+          <tr><td class="id">AT-23</td><td>Gateway</td><td>The browser directly accesses the core (8081) or ai-service (8082) port</td><td>Fails</td><td>ARC-03</td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+          <tr><td class="id">AT-24</td><td>CASH with a monthly payment triggers finance rules</td><td>CASH copy contains "$299 per month" and no APR; then add an APR and check again</td><td>First run: BLOCKED <code>FINANCE_APR_MISSING</code>, AI skipped; after adding the APR, only finance REVIEW hints remain</td><td>AD-04, AD-R10–R12</td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+          <tr><td class="id">AT-25</td><td>Sell first, link later</td><td>Sell an unlinked vehicle → link a customer → link again / unlink</td><td>First link succeeds; linking again returns <code>VEHICLE_ALREADY_LINKED</code>; unlinking returns <code>SOLD_LOCKED</code></td><td>CRM-05–08</td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+          <tr><td class="id">AT-26</td><td>CRM required fields and editing</td><td>Leave each of the four required fields blank in turn; then create, edit and reopen</td><td>Blank values are refused; create/edit persist; history does not contain contact values</td><td>CRM-01/02/04/11/12, AUD-04</td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+          <tr><td class="id">AT-27</td><td>Hints do not veto</td><td>Hard rules pass but the year and finance term are missing; AI returns normally</td><td>PASSED; REVIEW results and AI notes saved; Ready/export succeed</td><td>AD-03/08/10/12, AD-R05, AD-R12</td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+          <tr><td class="id">AT-28</td><td>Checklist is display-only</td><td>Switch between CASH / FINANCE / LEASE and media</td><td>The checklist follows the selection; no answer fields or required ticks</td><td>AD-02, UI-40</td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+          <tr><td class="id">AT-29</td><td>Open a dealership and staff</td><td>The admin creates a dealership (four profile items) and binds staff; a dealer user calls an admin endpoint; then the same username is bound to a second dealership</td><td>Dealership and staff created; the dealer user gets 403 on the admin endpoint; the duplicate binding returns 409 <code>DUP_MEMBER</code></td><td>AUTH-02/03/10/14</td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+          <tr><td class="id">AT-30</td><td>Sign-in and redirect</td><td>Open /dms while signed out; sign in as the admin, a bound staff member and an unbound staff member in turn</td><td>Signed out goes to /login; the admin goes to /admin; staff go to /dms; unbound staff see the no-access notice and get 403 on business endpoints</td><td>AUTH-13, UI-02/03/04</td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+          <tr><td class="id">AT-31</td><td>Client dealerId ignored</td><td>A dealership A user creates a vehicle with dealership B's dealerId in the request body</td><td>The vehicle belongs to dealership A; dealership B cannot see it</td><td>AUTH-09</td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+          <tr><td class="id">AT-32</td><td>VIN and year validation</td><td>Enter a VIN in lower case, with 16 characters, and with I/O/Q; enter the year as current year +1 and +2</td><td>Lower case is upper-cased automatically; bad format returns 400; +1 succeeds, +2 is rejected</td><td>DMS-04, §4.4</td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+          <tr><td class="id">AT-33</td><td>Second sale and concurrency</td><td>Sell a sold vehicle again; two windows save one after the other with the same version</td><td>Second sale returns 409 <code>SOLD_LOCKED</code>; the later save returns 409 <code>VERSION_CONFLICT</code></td><td>DMS-12, DMS-13</td><td class="c"><span class="st st-done">Implemented</span><span class="st-note">VERSION_CONFLICT now reachable</span></td></tr>
+          <tr><td class="id">AT-34</td><td>Condition change invalidates a pass</td><td>After the ad is PASSED, change that vehicle's condition in DMS</td><td>The ad state becomes STALE; export returns <code>CHECK_STALE</code></td><td>DMS-15, AD-11</td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+          <tr><td class="id">AT-35</td><td>Edit while not passed returns to NEEDS_AI</td><td>After the ad is BLOCKED, edit the body</td><td>The state returns to NEEDS_AI (not STALE)</td><td>AD-11, §6.5</td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+          <tr><td class="id">AT-36</td><td>Link picker and other dealers' ids</td><td>Open the link drop-down; via the API, link using another dealership's vehicle id</td><td>The drop-down contains no vehicles from other dealerships and none already linked; another dealership's id returns 404</td><td>CRM-06, CRM-09</td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+          <tr><td class="id">AT-37</td><td>Dealer profile and condition blocks</td><td>Ad copy states the dealer phone but no email or address (dealer profile contact fields are required, so the gap comes from the copy); DMS says UNFIT and the ad does not state the condition; a LEASE ad does not say it is a lease and has no APR</td><td>Respectively <code>DEALER_CONTACT_INCOMPLETE</code> (REVIEW), BLOCKED <code>CONDITION_UNDISCLOSED</code>, BLOCKED <code>LEASE_STATEMENT_MISSING</code> + <code>LEASE_APR_MISSING</code></td><td>AD-R02, AD-R08, AD-R20, AD-R23</td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+          <tr><td class="id">AT-38</td><td>Admin cannot read business data</td><td>The admin calls the list and detail endpoints for vehicles, customers, ads and the assistant</td><td>All 403, no business fields</td><td>AUTH-08, ARC-03</td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+          <tr><td class="id">AT-39</td><td>Release time visible</td><td>After a deploy (or a local clean rebuild), open any page and the Gateway Swagger; check the startup logs of the three .NET services; stop ai-service and refresh the page</td><td>The bottom left shows four UTC times for web / gateway / core / ai matching this release; the Swagger description shows Core's release time; each service log has <code>Release: &lt;service&gt; published &lt;time&gt;</code>; after AI stops, it shows <code>unavailable</code> and the page still works</td><td>NFR-08</td><td class="c"><span class="st st-done">Implemented</span><span class="st-note">Release wiring rebuilt and verified live</span></td></tr>
+          <tr><td class="id">AT-40</td><td>Assistant aggregate counts</td><td>Ask for the number of in-stock vehicles, sold vehicles, customers, ads and ad check statuses; ask again with more than 5 matching records, and add another dealership's data; ask again while AI is unavailable</td><td>Returns this dealership's complete match count, never substituting the at most 5 cards for the total; the other dealership's data does not affect the result; with AI unavailable the same counts are returned</td><td>AI-03, UI-52</td><td class="c"><span class="st st-partial">Partial E2E</span><span class="st-note">Customer/in-stock counts only; see section 7a</span></td></tr>
+        </tbody>
+      </table></div>
+    </section>
+
+    <section id="questions">
+      <h2><span class="num">11</span>Assumptions and open questions</h2>
+      <h3>11.1 Differences between the two sources</h3>
+      <div class="tbl"><table>
+        <thead><tr><th>Topic</th><th>Specification PDF</th><th>Product brief DOCX</th><th>Handling</th></tr></thead>
+        <tbody>
+          <tr><td>Product name</td><td>Dealer Ops</td><td>DealerOS</td><td>Use Dealer Ops</td></tr>
+          <tr><td>Sign-in</td><td>Username + password</td><td>Not mentioned</td><td>Keep password sign-in; the sign-in identifier is extended to email, username or phone (2026-10-08)</td></tr>
+          <tr><td>CRM scope</td><td>Four fields + purchase link</td><td>Leads and customer lifecycle</td><td>Follow the PDF; no leads</td></tr>
+          <tr><td>Compliance check</td><td>Checklist + system flags missing items</td><td>Automatic AI screening</td><td>Combine both: fixed rules first, then AI review</td></tr>
+          <tr><td>Publishing</td><td>Check "before publishing"</td><td>Flag "before publishing"</td><td>Ready + export TXT</td></tr>
+          <tr><td>Image Studio</td><td>None</td><td>Optional module</td><td>Included as a feature extension at the user's explicit direction; see IMG-01–05</td></tr>
+          <tr><td>AI assistant page</td><td>None</td><td>Compliance assistant only</td><td>Add a read-only assistant page</td></tr>
+          <tr><td>Sales monitoring</td><td>None</td><td>"monitor sales"</td><td>No KPI dashboard; use the list filtered by sold</td></tr>
+        </tbody>
+      </table></div>
+
+      <h3>11.2 Adopted assumptions</h3>
+      <div class="tbl"><table>
+        <thead><tr><th>ID</th><th>Question</th><th>Assumption</th><th>Affects</th><th>Status</th></tr></thead>
+        <tbody>
+          <tr><td class="id">Q-01</td><td>What else does the "etc." in vehicle source include?</td><td>Four fixed values: trade-in, auction, private purchase, other</td><td>DMS-05</td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+          <tr><td class="id">Q-02</td><td>Year and VIN format?</td><td>Year from 1900 to current + 1; standard 17-character VIN</td><td>DMS-01 (year field §4.1, §4.4), DMS-04</td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+          <tr><td class="id">Q-03</td><td>Is "Purchased vehicles" required?</td><td>Optional; a customer can be entered before buying</td><td>CRM-01</td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+          <tr><td class="id">Q-04</td><td>Does a CRM link also complete the DMS sale?</td><td>No; two separate steps, and the sale is entered in DMS</td><td>CRM-05, DMS-10</td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+          <tr><td class="id">Q-05</td><td>Can a sale be undone (vehicle return)?</td><td>Not supported in this release</td><td>§4.2, DMS-11, CRM-08 (DMS-12 forbids a second sale; it is not a return)</td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+          <tr><td class="id">Q-06</td><td>Can vehicles or customers be deleted?</td><td>No (to protect audit and sales records)</td><td>DMS-17, CRM-14</td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+          <tr><td class="id">Q-07</td><td>How does the ad "price" relate to DMS? DMS has no list-price field</td><td>Price is checked only in the ad body; no DMS field is added</td><td>AD-R07</td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+          <tr><td class="id">Q-08</td><td>Where does new/used status come from?</td><td>Checked in the ad body; independent dealerships default to used</td><td>AD-R04</td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+          <tr><td class="id">Q-09</td><td>Who decides whether prior use / warranty "applies"?</td><td>No structured answers are collected; cues in the ad copy produce hints; if the copy never mentions it, it cannot be inferred</td><td>AD-R03, AD-R06</td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+          <tr><td class="id">Q-10</td><td>Does exactly 20,000 km/year require an excess-km disclosure?</td><td>No (the source says "below 20,000")</td><td>AD-R25</td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+          <tr><td class="id">Q-11</td><td>Is a finance ad triggered by kind or by content?</td><td>FINANCE kind, or CASH copy matching an APR/payment amount</td><td>AD-04, AD-R10–R13</td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+          <tr><td class="id">Q-12</td><td>Can one vehicle have several ads?</td><td>One ad per vehicle</td><td>AD-01</td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+          <tr><td class="id">Q-13</td><td>Does the audit record views?</td><td>Only changes are recorded</td><td>AUD-01–03</td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+          <tr><td class="id">Q-14</td><td>Is there only one admin?</td><td>Only one admin, seeded from environment variables on first start; no API creates admins</td><td>AUTH-01, AUTH-15</td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+          <tr><td class="id">Q-15</td><td>How far does "update rules without changing code" go?</td><td>Not done in this release; the rules live in the <code>OmvicRuleEngine</code> code</td><td>AD-15</td><td class="c"><span class="st st-done">Implemented</span></td></tr>
+        </tbody>
+      </table></div>
+
+      <h3>11.3 To confirm with the client / instructor</h3>
+      <ul class="plain">
+        <li><strong>Q-04:</strong> Would sales staff rather "complete the sale by picking a vehicle in CRM", or "enter the sale in DMS and only link in CRM"? This affects the number of steps and the demo flow.</li>
+        <li><strong>Q-07 / Q-08:</strong> May DMS add "list price" and "new/used" fields for the compliance check? The current scope forbids adding fields.</li>
+        <li><strong>Q-12:</strong> If the same vehicle is advertised both online and on a billboard, does it need two ads?</li>
+        <li><strong>Q-05:</strong> Does the demo need to show a vehicle return?</li>
+        <li>Are the four dealer profile items (registered name, phone, email, address) enough? Is an OMVIC registration number needed?</li>
+        <li>Password sign-in with email, username or phone as the sign-in identifier (KAN-5) still awaits written client/instructor confirmation.</li>
+      </ul>
+
+      <h3>11.4 Risks</h3>
+      <div class="tbl"><table>
+        <thead><tr><th>Risk</th><th>Description</th><th>Mitigation</th></tr></thead>
+        <tbody>
+          <tr><td>Compliance misjudgement</td><td>Ads are natural language, so keyword matching can miss or misflag issues</td><td>Fixed rules check only for presence; semantic issues go to AI; regression against a fixed sample set</td></tr>
+          <tr><td>AI instability</td><td>The same ad gets different results on two runs</td><td>Low temperature, structured output, fixed-sample regression</td></tr>
+          <tr><td>Regulatory change</td><td>OMVIC rules are adjusted</td><td>Rules are centralized in <code>OmvicRuleEngine</code>; adjusting them requires a code change</td></tr>
+          <tr><td>Tenant data leak</td><td>A dealership filter is missed somewhere</td><td>Uniform filtering in the data layer + AT-01-style isolation acceptance</td></tr>
+        </tbody>
+      </table></div>
+    </section>
+
+    <section id="changes">
+      <h2><span class="num">12</span>Requirement change log</h2>
+      <div class="note change"><strong>2026-10-15 Two required disclosures and admin over-reach closed:</strong> added <code>NEW_USED_NOT_STATED</code> (REVIEW) to cover "copy does not state used/new at all", since the original R04 only judged contradictions; added <code>FINANCE_CASH_PRICE_MISSING</code> (BLOCK) to cover the cash price/cost of borrowing in finance ads. The original R13 assumed R07 covered it, but a payment amount such as "$299/month" already satisfies R07, so that exemption did not hold. The payment-cadence match was also fixed (it previously recognized <code>/mo</code> but not <code>/month</code>, so <code>$299/month</code> did not trigger the finance rules at all). AUTH-08: the Gateway now returns 403 to the platform admin on <code>/api/v1/**</code> business endpoints (including <code>/api/v1/ai/**</code>, which bypasses Core), allowing only <code>/api/v1/admin</code>, <code>/api/v1/me</code> and <code>/api/v1/auth</code>. AUD-07: when staff are bound, the membership row and the audit row are now committed in the same transaction.</div>
+      <div class="note change"><strong>2026-10-08 Sign-in identifier extended:</strong> password sign-in and admin-controlled dealership binding are kept; an account can use any one of email, username or phone as its sign-in identifier. The server stores BCrypt hashes and issues the JWT, with no dependency on an external identity service or Microsoft accounts. KAN-5 written confirmation is still outstanding.</div>
+      <div class="note change"><strong>2026-10-07 Identity data model change:</strong> <code>V1__init.sql</code> (and <code>V20260930_1</code>) were rewritten so the identity columns are defined directly as usernames: <code>app_user.username</code> (unique), <code>membership.username</code>, <code>audit_event.actor_username</code>; the former Entra columns <code>entra_tenant_id</code> / <code>entra_oid</code> / <code>actor_oid</code> no longer exist. Databases created earlier need the Flyway history repair in <code>design/15-Data-Auth-and-Gateway.md</code> §8.3. API fields were changed to <code>username</code> / <code>actorUsername</code> accordingly. Besides the standard claims (<code>iss</code>, <code>aud</code>, <code>iat</code>, <code>exp</code>), the JWT carries only <code>sub</code> (username), <code>name</code> and <code>roles</code>, with no oid / tid.</div>
+      <div class="note change"><strong>2026-10-07 Deployment change:</strong> containerization is dropped (no Dockerfile, image registry or container host). The three .NET 10 services deploy to Azure App Service, the React front end deploys to Azure Static Web Apps, and infrastructure as code uses Terraform. Only PPT item NN-05 is dropped; this still awaits instructor confirmation (erratum 5).</div>
+      <div class="tbl"><table>
+        <thead><tr><th>Erratum</th><th>Content</th></tr></thead>
+        <tbody>
+          <tr><td>Erratum 1</td><td>Sign-in method: password sign-in; the sign-in identifier can be an email, username or phone, and account binding is still controlled by the admin</td></tr>
+          <tr><td>Erratum 2</td><td>Add a read-only AI assistant page (the specification has no such page)</td></tr>
+          <tr><td>Erratum 3</td><td>"Publish" = Ready + export TXT; no integration with external platforms</td></tr>
+          <tr><td>Erratum 4</td><td>Some OMVIC disclosure items (year, new/used, warranty, prior use, finance term, lease term/monthly payment/down payment) are hints and do not block</td></tr>
+          <tr><td>Erratum 5</td><td>Containerization (Docker / Container Apps) is dropped in favour of Terraform + App Service; still awaits instructor confirmation</td></tr>
+        </tbody>
+      </table></div>
+    </section>
+
+    <footer>
+      Compiled from <code>requirements/DealerOps-Specification.pdf</code>, <code>requirements/Dos Car dealership.docx</code>, <code>requirements/analysis/</code> and <code>design/SCOPE-BASELINE.md</code>. Requirement IDs map one-to-one to the English analysis documents for traceability.
+    </footer>
+  </main>
+</div>
+</html>

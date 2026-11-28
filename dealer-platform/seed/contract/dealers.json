@@ -1,0 +1,1169 @@
+[
+  {
+    "code": "D01",
+    "legal_name": "Lakeshore Auto Sales Ltd.",
+    "city": "Toronto",
+    "contact_email": "sales@lakeshoreautosales.ca",
+    "contact_phone": "(416) 555-0197",
+    "contact_address": "1192 Queen St E, Toronto, ON M8H 2Y8",
+    "domain": "lakeshoreautosales.ca",
+    "staff": [
+      {
+        "username": "wei.morrison",
+        "display_name": "Wei Morrison",
+        "given_name": "Wei",
+        "family_name": "Morrison",
+        "email": "wei.morrison@lakeshoreautosales.ca",
+        "phone": "+14165550134",
+        "title": "Sales Manager"
+      },
+      {
+        "username": "emma.patel",
+        "display_name": "Emma Patel",
+        "given_name": "Emma",
+        "family_name": "Patel",
+        "email": "emma.patel@lakeshoreautosales.ca",
+        "phone": "+14165550193",
+        "title": "Sales Consultant"
+      }
+    ]
+  },
+  {
+    "code": "D02",
+    "legal_name": "Northgate Motors Inc.",
+    "city": "Mississauga",
+    "contact_email": "sales@northgatemotors.ca",
+    "contact_phone": "(905) 555-0107",
+    "contact_address": "126 Burnhamthorpe Rd, Mississauga, ON L5S 6Y6",
+    "domain": "northgatemotors.ca",
+    "staff": [
+      {
+        "username": "jasmine.martin",
+        "display_name": "Jasmine Martin",
+        "given_name": "Jasmine",
+        "family_name": "Martin",
+        "email": "jasmine.martin@northgatemotors.ca",
+        "phone": "+19055550155",
+        "title": "Sales Manager"
+      },
+      {
+        "username": "hiroshi.obrien",
+        "display_name": "Hiroshi O'Brien",
+        "given_name": "Hiroshi",
+        "family_name": "O'Brien",
+        "email": "hiroshi.obrien@northgatemotors.ca",
+        "phone": "+19055550144",
+        "title": "Sales Consultant"
+      },
+      {
+        "username": "andrei.martin",
+        "display_name": "Andrei Martin",
+        "given_name": "Andrei",
+        "family_name": "Martin",
+        "email": "andrei.martin@northgatemotors.ca",
+        "phone": "+19055550196",
+        "title": "Sales Consultant"
+      }
+    ]
+  },
+  {
+    "code": "D03",
+    "legal_name": "Maple Leaf Pre-Owned Ltd.",
+    "city": "Brampton",
+    "contact_email": "sales@mapleleafpreowned.ca",
+    "contact_phone": "(905) 555-0197",
+    "contact_address": "1996 Main St N, Brampton, ON L6W 6G2",
+    "domain": "mapleleafpreowned.ca",
+    "staff": [
+      {
+        "username": "mateo.baker",
+        "display_name": "Mateo Baker",
+        "given_name": "Mateo",
+        "family_name": "Baker",
+        "email": "mateo.baker@mapleleafpreowned.ca",
+        "phone": "+19055550166",
+        "title": "Sales Manager"
+      },
+      {
+        "username": "marcus.gagnon",
+        "display_name": "Marcus Gagnon",
+        "given_name": "Marcus",
+        "family_name": "Gagnon",
+        "email": "marcus.gagnon@mapleleafpreowned.ca",
+        "phone": "+19055550111",
+        "title": "Sales Consultant"
+      },
+      {
+        "username": "aisha.garcia",
+        "display_name": "Aisha Garcia",
+        "given_name": "Aisha",
+        "family_name": "Garcia",
+        "email": "aisha.garcia@mapleleafpreowned.ca",
+        "phone": "+19055550165",
+        "title": "Sales Consultant"
+      }
+    ]
+  },
+  {
+    "code": "D04",
+    "legal_name": "Trillium Car Centre Inc.",
+    "city": "Hamilton",
+    "contact_email": "sales@trilliumcarcentre.ca",
+    "contact_phone": "(905) 555-0180",
+    "contact_address": "3757 Upper James St, Hamilton, ON L8E 3M5",
+    "domain": "trilliumcarcentre.ca",
+    "staff": [
+      {
+        "username": "hiroshi.martin",
+        "display_name": "Hiroshi Martin",
+        "given_name": "Hiroshi",
+        "family_name": "Martin",
+        "email": "hiroshi.martin@trilliumcarcentre.ca",
+        "phone": "+19055550159",
+        "title": "Sales Manager"
+      },
+      {
+        "username": "daniel.tanaka",
+        "display_name": "Daniel Tanaka",
+        "given_name": "Daniel",
+        "family_name": "Tanaka",
+        "email": "daniel.tanaka@trilliumcarcentre.ca",
+        "phone": "+19055550177",
+        "title": "Sales Consultant"
+      },
+      {
+        "username": "diego.campbell",
+        "display_name": "Diego Campbell",
+        "given_name": "Diego",
+        "family_name": "Campbell",
+        "email": "diego.campbell@trilliumcarcentre.ca",
+        "phone": "+19055550190",
+        "title": "Sales Consultant"
+      }
+    ]
+  },
+  {
+    "code": "D05",
+    "legal_name": "Huron Valley Auto Corp.",
+    "city": "Ottawa",
+    "contact_email": "sales@huronvalleyauto.ca",
+    "contact_phone": "(613) 555-0190",
+    "contact_address": "641 Merivale Rd, Ottawa, ON K1X 2R1",
+    "domain": "huronvalleyauto.ca",
+    "staff": [
+      {
+        "username": "gurpreet.roy",
+        "display_name": "Gurpreet Roy",
+        "given_name": "Gurpreet",
+        "family_name": "Roy",
+        "email": "gurpreet.roy@huronvalleyauto.ca",
+        "phone": "+16135550152",
+        "title": "Sales Manager"
+      },
+      {
+        "username": "victoria.bouchard",
+        "display_name": "Victoria Bouchard",
+        "given_name": "Victoria",
+        "family_name": "Bouchard",
+        "email": "victoria.bouchard@huronvalleyauto.ca",
+        "phone": "+16135550114",
+        "title": "Sales Consultant"
+      }
+    ]
+  },
+  {
+    "code": "D06",
+    "legal_name": "Carling Avenue Motors Ltd.",
+    "city": "London",
+    "contact_email": "sales@carlingavenuemotors.ca",
+    "contact_phone": "(519) 555-0160",
+    "contact_address": "2637 Wellington Rd, London, ON N6T 2G8",
+    "domain": "carlingavenuemotors.ca",
+    "staff": [
+      {
+        "username": "zofia.tanaka",
+        "display_name": "Zofia Tanaka",
+        "given_name": "Zofia",
+        "family_name": "Tanaka",
+        "email": "zofia.tanaka@carlingavenuemotors.ca",
+        "phone": "+15195550156",
+        "title": "Sales Manager"
+      },
+      {
+        "username": "connor.garcia",
+        "display_name": "Connor Garcia",
+        "given_name": "Connor",
+        "family_name": "Garcia",
+        "email": "connor.garcia@carlingavenuemotors.ca",
+        "phone": "+15195550126",
+        "title": "Sales Consultant"
+      }
+    ]
+  },
+  {
+    "code": "D07",
+    "legal_name": "Riverside Auto Group Inc.",
+    "city": "Kitchener",
+    "contact_email": "sales@riversideautogroup.ca",
+    "contact_phone": "(519) 555-0167",
+    "contact_address": "3790 King St E, Kitchener, ON N2B 5S1",
+    "domain": "riversideautogroup.ca",
+    "staff": [
+      {
+        "username": "ryan.cohen",
+        "display_name": "Ryan Cohen",
+        "given_name": "Ryan",
+        "family_name": "Cohen",
+        "email": "ryan.cohen@riversideautogroup.ca",
+        "phone": "+15195550151",
+        "title": "Sales Manager"
+      },
+      {
+        "username": "fatima.stewart",
+        "display_name": "Fatima Stewart",
+        "given_name": "Fatima",
+        "family_name": "Stewart",
+        "email": "fatima.stewart@riversideautogroup.ca",
+        "phone": "+15195550182",
+        "title": "Sales Consultant"
+      },
+      {
+        "username": "benjamin.haddad",
+        "display_name": "Benjamin Haddad",
+        "given_name": "Benjamin",
+        "family_name": "Haddad",
+        "email": "benjamin.haddad@riversideautogroup.ca",
+        "phone": "+15195550100",
+        "title": "Sales Consultant"
+      },
+      {
+        "username": "owen.singh",
+        "display_name": "Owen Singh",
+        "given_name": "Owen",
+        "family_name": "Singh",
+        "email": "owen.singh@riversideautogroup.ca",
+        "phone": "+15195550110",
+        "title": "Finance Manager"
+      },
+      {
+        "username": "gurpreet.kowalski",
+        "display_name": "Gurpreet Kowalski",
+        "given_name": "Gurpreet",
+        "family_name": "Kowalski",
+        "email": "gurpreet.kowalski@riversideautogroup.ca",
+        "phone": "+15195550141",
+        "title": "Service Advisor"
+      }
+    ]
+  },
+  {
+    "code": "D08",
+    "legal_name": "Bay Street Autos Ltd.",
+    "city": "Windsor",
+    "contact_email": "sales@baystreetautos.ca",
+    "contact_phone": "(519) 555-0179",
+    "contact_address": "1705 Walker Rd, Windsor, ON N8P 1A6",
+    "domain": "baystreetautos.ca",
+    "staff": [
+      {
+        "username": "emma.wang",
+        "display_name": "Emma Wang",
+        "given_name": "Emma",
+        "family_name": "Wang",
+        "email": "emma.wang@baystreetautos.ca",
+        "phone": "+15195550188",
+        "title": "Sales Manager"
+      },
+      {
+        "username": "mei.osei",
+        "display_name": "Mei Osei",
+        "given_name": "Mei",
+        "family_name": "Osei",
+        "email": "mei.osei@baystreetautos.ca",
+        "phone": "+15195550105",
+        "title": "Sales Consultant"
+      },
+      {
+        "username": "hannah.leblanc",
+        "display_name": "Hannah Leblanc",
+        "given_name": "Hannah",
+        "family_name": "Leblanc",
+        "email": "hannah.leblanc@baystreetautos.ca",
+        "phone": "+15195550146",
+        "title": "Sales Consultant"
+      }
+    ]
+  },
+  {
+    "code": "D09",
+    "legal_name": "Kingsway Car Company Inc.",
+    "city": "Barrie",
+    "contact_email": "sales@kingswaycarcompany.ca",
+    "contact_phone": "(705) 555-0189",
+    "contact_address": "4629 Mapleview Dr E, Barrie, ON L4V 2J1",
+    "domain": "kingswaycarcompany.ca",
+    "staff": [
+      {
+        "username": "liam.haddad",
+        "display_name": "Liam Haddad",
+        "given_name": "Liam",
+        "family_name": "Haddad",
+        "email": "liam.haddad@kingswaycarcompany.ca",
+        "phone": "+17055550132",
+        "title": "Sales Manager"
+      },
+      {
+        "username": "kwame.singh",
+        "display_name": "Kwame Singh",
+        "given_name": "Kwame",
+        "family_name": "Singh",
+        "email": "kwame.singh@kingswaycarcompany.ca",
+        "phone": "+17055550190",
+        "title": "Sales Consultant"
+      }
+    ]
+  },
+  {
+    "code": "D10",
+    "legal_name": "Limestone City Motors Corp.",
+    "city": "Oshawa",
+    "contact_email": "sales@limestonecitymotors.ca",
+    "contact_phone": "(905) 555-0113",
+    "contact_address": "640 Simcoe St N, Oshawa, ON L1P 4X1",
+    "domain": "limestonecitymotors.ca",
+    "staff": [
+      {
+        "username": "victoria.murphy",
+        "display_name": "Victoria Murphy",
+        "given_name": "Victoria",
+        "family_name": "Murphy",
+        "email": "victoria.murphy@limestonecitymotors.ca",
+        "phone": "+19055550170",
+        "title": "Sales Manager"
+      },
+      {
+        "username": "arjun.rahman",
+        "display_name": "Arjun Rahman",
+        "given_name": "Arjun",
+        "family_name": "Rahman",
+        "email": "arjun.rahman@limestonecitymotors.ca",
+        "phone": "+19055550150",
+        "title": "Sales Consultant"
+      },
+      {
+        "username": "diego.singh",
+        "display_name": "Diego Singh",
+        "given_name": "Diego",
+        "family_name": "Singh",
+        "email": "diego.singh@limestonecitymotors.ca",
+        "phone": "+19055550153",
+        "title": "Sales Consultant"
+      },
+      {
+        "username": "hassan.brown",
+        "display_name": "Hassan Brown",
+        "given_name": "Hassan",
+        "family_name": "Brown",
+        "email": "hassan.brown@limestonecitymotors.ca",
+        "phone": "+19055550120",
+        "title": "Finance Manager"
+      }
+    ]
+  },
+  {
+    "code": "D11",
+    "legal_name": "Golden Horseshoe Auto Ltd.",
+    "city": "Sudbury",
+    "contact_email": "sales@goldenhorseshoeauto.ca",
+    "contact_phone": "(705) 555-0169",
+    "contact_address": "500 Kingsway, Sudbury, ON P3L 7P8",
+    "domain": "goldenhorseshoeauto.ca",
+    "staff": [
+      {
+        "username": "minh.kowalski",
+        "display_name": "Minh Kowalski",
+        "given_name": "Minh",
+        "family_name": "Kowalski",
+        "email": "minh.kowalski@goldenhorseshoeauto.ca",
+        "phone": "+17055550156",
+        "title": "Sales Manager"
+      },
+      {
+        "username": "hiroshi.mensah",
+        "display_name": "Hiroshi Mensah",
+        "given_name": "Hiroshi",
+        "family_name": "Mensah",
+        "email": "hiroshi.mensah@goldenhorseshoeauto.ca",
+        "phone": "+17055550142",
+        "title": "Sales Consultant"
+      },
+      {
+        "username": "simran.baker",
+        "display_name": "Simran Baker",
+        "given_name": "Simran",
+        "family_name": "Baker",
+        "email": "simran.baker@goldenhorseshoeauto.ca",
+        "phone": "+17055550186",
+        "title": "Sales Consultant"
+      }
+    ]
+  },
+  {
+    "code": "D12",
+    "legal_name": "Royal Oak Auto Sales Inc.",
+    "city": "Kingston",
+    "contact_email": "sales@royaloakautosales.ca",
+    "contact_phone": "(613) 555-0133",
+    "contact_address": "2643 Gardiners Rd, Kingston, ON K7G 7G9",
+    "domain": "royaloakautosales.ca",
+    "staff": [
+      {
+        "username": "olivia.novak",
+        "display_name": "Olivia Novak",
+        "given_name": "Olivia",
+        "family_name": "Novak",
+        "email": "olivia.novak@royaloakautosales.ca",
+        "phone": "+16135550169",
+        "title": "Sales Manager"
+      },
+      {
+        "username": "natalie.silva",
+        "display_name": "Natalie Silva",
+        "given_name": "Natalie",
+        "family_name": "Silva",
+        "email": "natalie.silva@royaloakautosales.ca",
+        "phone": "+16135550163",
+        "title": "Sales Consultant"
+      },
+      {
+        "username": "ava.gagnon",
+        "display_name": "Ava Gagnon",
+        "given_name": "Ava",
+        "family_name": "Gagnon",
+        "email": "ava.gagnon@royaloakautosales.ca",
+        "phone": "+16135550188",
+        "title": "Sales Consultant"
+      },
+      {
+        "username": "raj.smith",
+        "display_name": "Raj Smith",
+        "given_name": "Raj",
+        "family_name": "Smith",
+        "email": "raj.smith@royaloakautosales.ca",
+        "phone": "+16135550137",
+        "title": "Finance Manager"
+      },
+      {
+        "username": "emily.baker",
+        "display_name": "Emily Baker",
+        "given_name": "Emily",
+        "family_name": "Baker",
+        "email": "emily.baker@royaloakautosales.ca",
+        "phone": "+16135550162",
+        "title": "Service Advisor"
+      }
+    ]
+  },
+  {
+    "code": "D13",
+    "legal_name": "Escarpment Motors Ltd.",
+    "city": "Guelph",
+    "contact_email": "sales@escarpmentmotors.ca",
+    "contact_phone": "(519) 555-0104",
+    "contact_address": "930 Woodlawn Rd W, Guelph, ON N1E 5V1",
+    "domain": "escarpmentmotors.ca",
+    "staff": [
+      {
+        "username": "noah.patel",
+        "display_name": "Noah Patel",
+        "given_name": "Noah",
+        "family_name": "Patel",
+        "email": "noah.patel@escarpmentmotors.ca",
+        "phone": "+15195550149",
+        "title": "Sales Manager"
+      },
+      {
+        "username": "lucas.smith",
+        "display_name": "Lucas Smith",
+        "given_name": "Lucas",
+        "family_name": "Smith",
+        "email": "lucas.smith@escarpmentmotors.ca",
+        "phone": "+15195550183",
+        "title": "Sales Consultant"
+      },
+      {
+        "username": "daniel.roy",
+        "display_name": "Daniel Roy",
+        "given_name": "Daniel",
+        "family_name": "Roy",
+        "email": "daniel.roy@escarpmentmotors.ca",
+        "phone": "+15195550115",
+        "title": "Sales Consultant"
+      },
+      {
+        "username": "hassan.singh",
+        "display_name": "Hassan Singh",
+        "given_name": "Hassan",
+        "family_name": "Singh",
+        "email": "hassan.singh@escarpmentmotors.ca",
+        "phone": "+15195550162",
+        "title": "Finance Manager"
+      },
+      {
+        "username": "omar.gagnon",
+        "display_name": "Omar Gagnon",
+        "given_name": "Omar",
+        "family_name": "Gagnon",
+        "email": "omar.gagnon@escarpmentmotors.ca",
+        "phone": "+15195550119",
+        "title": "Service Advisor"
+      }
+    ]
+  },
+  {
+    "code": "D14",
+    "legal_name": "Pinecrest Auto Sales Inc.",
+    "city": "St. Catharines",
+    "contact_email": "sales@pinecrestautosales.ca",
+    "contact_phone": "(905) 555-0194",
+    "contact_address": "339 Lake St, St. Catharines, ON L2T 2K1",
+    "domain": "pinecrestautosales.ca",
+    "staff": [
+      {
+        "username": "tomasz.obrien",
+        "display_name": "Tomasz O'Brien",
+        "given_name": "Tomasz",
+        "family_name": "O'Brien",
+        "email": "tomasz.obrien@pinecrestautosales.ca",
+        "phone": "+19055550132",
+        "title": "Sales Manager"
+      },
+      {
+        "username": "arjun.silva",
+        "display_name": "Arjun Silva",
+        "given_name": "Arjun",
+        "family_name": "Silva",
+        "email": "arjun.silva@pinecrestautosales.ca",
+        "phone": "+19055550140",
+        "title": "Sales Consultant"
+      }
+    ]
+  },
+  {
+    "code": "D15",
+    "legal_name": "Thames Valley Motors Corp.",
+    "city": "Peterborough",
+    "contact_email": "sales@thamesvalleymotors.ca",
+    "contact_phone": "(705) 555-0154",
+    "contact_address": "3307 Water St, Peterborough, ON K9C 9Y6",
+    "domain": "thamesvalleymotors.ca",
+    "staff": [
+      {
+        "username": "connor.ivanov",
+        "display_name": "Connor Ivanov",
+        "given_name": "Connor",
+        "family_name": "Ivanov",
+        "email": "connor.ivanov@thamesvalleymotors.ca",
+        "phone": "+17055550105",
+        "title": "Sales Manager"
+      },
+      {
+        "username": "lucas.ivanov",
+        "display_name": "Lucas Ivanov",
+        "given_name": "Lucas",
+        "family_name": "Ivanov",
+        "email": "lucas.ivanov@thamesvalleymotors.ca",
+        "phone": "+17055550106",
+        "title": "Sales Consultant"
+      }
+    ]
+  },
+  {
+    "code": "D16",
+    "legal_name": "Grand River Auto Ltd.",
+    "city": "Toronto",
+    "contact_email": "sales@grandriverauto.ca",
+    "contact_phone": "(416) 555-0135",
+    "contact_address": "1740 Dundas St W, Toronto, ON M2S 7H4",
+    "domain": "grandriverauto.ca",
+    "staff": [
+      {
+        "username": "ryan.gagnon",
+        "display_name": "Ryan Gagnon",
+        "given_name": "Ryan",
+        "family_name": "Gagnon",
+        "email": "ryan.gagnon@grandriverauto.ca",
+        "phone": "+14165550196",
+        "title": "Sales Manager"
+      },
+      {
+        "username": "chloe.roy",
+        "display_name": "Chloé Roy",
+        "given_name": "Chloé",
+        "family_name": "Roy",
+        "email": "chloe.roy@grandriverauto.ca",
+        "phone": "+14165550183",
+        "title": "Sales Consultant"
+      },
+      {
+        "username": "ethan.singh",
+        "display_name": "Ethan Singh",
+        "given_name": "Ethan",
+        "family_name": "Singh",
+        "email": "ethan.singh@grandriverauto.ca",
+        "phone": "+14165550157",
+        "title": "Sales Consultant"
+      }
+    ]
+  },
+  {
+    "code": "D17",
+    "legal_name": "Ambassador Auto Sales Inc.",
+    "city": "Mississauga",
+    "contact_email": "sales@ambassadorautosales.ca",
+    "contact_phone": "(905) 555-0176",
+    "contact_address": "1531 Burnhamthorpe Rd, Mississauga, ON L5L 3J8",
+    "domain": "ambassadorautosales.ca",
+    "staff": [
+      {
+        "username": "harleen.garcia",
+        "display_name": "Harleen Garcia",
+        "given_name": "Harleen",
+        "family_name": "Garcia",
+        "email": "harleen.garcia@ambassadorautosales.ca",
+        "phone": "+19055550167",
+        "title": "Sales Manager"
+      },
+      {
+        "username": "patrick.morrison",
+        "display_name": "Patrick Morrison",
+        "given_name": "Patrick",
+        "family_name": "Morrison",
+        "email": "patrick.morrison@ambassadorautosales.ca",
+        "phone": "+19055550118",
+        "title": "Sales Consultant"
+      },
+      {
+        "username": "tyler.macdonald",
+        "display_name": "Tyler MacDonald",
+        "given_name": "Tyler",
+        "family_name": "MacDonald",
+        "email": "tyler.macdonald@ambassadorautosales.ca",
+        "phone": "+19055550103",
+        "title": "Sales Consultant"
+      },
+      {
+        "username": "samuel.smith",
+        "display_name": "Samuel Smith",
+        "given_name": "Samuel",
+        "family_name": "Smith",
+        "email": "samuel.smith@ambassadorautosales.ca",
+        "phone": "+19055550127",
+        "title": "Finance Manager"
+      }
+    ]
+  },
+  {
+    "code": "D18",
+    "legal_name": "Simcoe County Motors Ltd.",
+    "city": "Brampton",
+    "contact_email": "sales@simcoecountymotors.ca",
+    "contact_phone": "(905) 555-0143",
+    "contact_address": "2110 Steeles Ave E, Brampton, ON L6R 7H8",
+    "domain": "simcoecountymotors.ca",
+    "staff": [
+      {
+        "username": "zofia.ahmed",
+        "display_name": "Zofia Ahmed",
+        "given_name": "Zofia",
+        "family_name": "Ahmed",
+        "email": "zofia.ahmed@simcoecountymotors.ca",
+        "phone": "+19055550161",
+        "title": "Sales Manager"
+      },
+      {
+        "username": "daniel.ali",
+        "display_name": "Daniel Ali",
+        "given_name": "Daniel",
+        "family_name": "Ali",
+        "email": "daniel.ali@simcoecountymotors.ca",
+        "phone": "+19055550149",
+        "title": "Sales Consultant"
+      }
+    ]
+  },
+  {
+    "code": "D19",
+    "legal_name": "Lakeview Pre-Owned Inc.",
+    "city": "Hamilton",
+    "contact_email": "sales@lakeviewpreowned.ca",
+    "contact_phone": "(905) 555-0123",
+    "contact_address": "715 Upper James St, Hamilton, ON L8N 6C6",
+    "domain": "lakeviewpreowned.ca",
+    "staff": [
+      {
+        "username": "andrei.fraser",
+        "display_name": "Andrei Fraser",
+        "given_name": "Andrei",
+        "family_name": "Fraser",
+        "email": "andrei.fraser@lakeviewpreowned.ca",
+        "phone": "+19055550119",
+        "title": "Sales Manager"
+      },
+      {
+        "username": "emma.morrison",
+        "display_name": "Emma Morrison",
+        "given_name": "Emma",
+        "family_name": "Morrison",
+        "email": "emma.morrison@lakeviewpreowned.ca",
+        "phone": "+19055550169",
+        "title": "Sales Consultant"
+      },
+      {
+        "username": "sophia.bouchard",
+        "display_name": "Sophia Bouchard",
+        "given_name": "Sophia",
+        "family_name": "Bouchard",
+        "email": "sophia.bouchard@lakeviewpreowned.ca",
+        "phone": "+19055550129",
+        "title": "Sales Consultant"
+      }
+    ]
+  },
+  {
+    "code": "D20",
+    "legal_name": "Canal Street Auto Corp.",
+    "city": "Ottawa",
+    "contact_email": "sales@canalstreetauto.ca",
+    "contact_phone": "(613) 555-0185",
+    "contact_address": "4990 Carling Ave, Ottawa, ON K1R 8E0",
+    "domain": "canalstreetauto.ca",
+    "staff": [
+      {
+        "username": "isabella.baker",
+        "display_name": "Isabella Baker",
+        "given_name": "Isabella",
+        "family_name": "Baker",
+        "email": "isabella.baker@canalstreetauto.ca",
+        "phone": "+16135550186",
+        "title": "Sales Manager"
+      },
+      {
+        "username": "chloe.stewart",
+        "display_name": "Chloé Stewart",
+        "given_name": "Chloé",
+        "family_name": "Stewart",
+        "email": "chloe.stewart@canalstreetauto.ca",
+        "phone": "+16135550121",
+        "title": "Sales Consultant"
+      },
+      {
+        "username": "emily.kowalski",
+        "display_name": "Emily Kowalski",
+        "given_name": "Emily",
+        "family_name": "Kowalski",
+        "email": "emily.kowalski@canalstreetauto.ca",
+        "phone": "+16135550156",
+        "title": "Sales Consultant"
+      }
+    ]
+  },
+  {
+    "code": "D21",
+    "legal_name": "Northern Lights Motors Ltd.",
+    "city": "London",
+    "contact_email": "sales@northernlightsmotors.ca",
+    "contact_phone": "(519) 555-0171",
+    "contact_address": "2292 Oxford St W, London, ON N6V 6T3",
+    "domain": "northernlightsmotors.ca",
+    "staff": [
+      {
+        "username": "liam.kelly",
+        "display_name": "Liam Kelly",
+        "given_name": "Liam",
+        "family_name": "Kelly",
+        "email": "liam.kelly@northernlightsmotors.ca",
+        "phone": "+15195550154",
+        "title": "Sales Manager"
+      },
+      {
+        "username": "noah.obrien",
+        "display_name": "Noah O'Brien",
+        "given_name": "Noah",
+        "family_name": "O'Brien",
+        "email": "noah.obrien@northernlightsmotors.ca",
+        "phone": "+15195550116",
+        "title": "Sales Consultant"
+      },
+      {
+        "username": "grace.obrien",
+        "display_name": "Grace O'Brien",
+        "given_name": "Grace",
+        "family_name": "O'Brien",
+        "email": "grace.obrien@northernlightsmotors.ca",
+        "phone": "+15195550175",
+        "title": "Sales Consultant"
+      },
+      {
+        "username": "chloe.dhillon",
+        "display_name": "Chloé Dhillon",
+        "given_name": "Chloé",
+        "family_name": "Dhillon",
+        "email": "chloe.dhillon@northernlightsmotors.ca",
+        "phone": "+15195550169",
+        "title": "Finance Manager"
+      }
+    ]
+  },
+  {
+    "code": "D22",
+    "legal_name": "Rideau Auto Centre Inc.",
+    "city": "Kitchener",
+    "contact_email": "sales@rideauautocentre.ca",
+    "contact_phone": "(519) 555-0132",
+    "contact_address": "4134 King St E, Kitchener, ON N2S 6T4",
+    "domain": "rideauautocentre.ca",
+    "staff": [
+      {
+        "username": "priya.gill",
+        "display_name": "Priya Gill",
+        "given_name": "Priya",
+        "family_name": "Gill",
+        "email": "priya.gill@rideauautocentre.ca",
+        "phone": "+15195550130",
+        "title": "Sales Manager"
+      },
+      {
+        "username": "fatima.kim",
+        "display_name": "Fatima Kim",
+        "given_name": "Fatima",
+        "family_name": "Kim",
+        "email": "fatima.kim@rideauautocentre.ca",
+        "phone": "+15195550180",
+        "title": "Sales Consultant"
+      },
+      {
+        "username": "wei.gagnon",
+        "display_name": "Wei Gagnon",
+        "given_name": "Wei",
+        "family_name": "Gagnon",
+        "email": "wei.gagnon@rideauautocentre.ca",
+        "phone": "+15195550174",
+        "title": "Sales Consultant"
+      }
+    ]
+  },
+  {
+    "code": "D23",
+    "legal_name": "Crossroads Car Sales Ltd.",
+    "city": "Windsor",
+    "contact_email": "sales@crossroadscarsales.ca",
+    "contact_phone": "(519) 555-0133",
+    "contact_address": "3838 Tecumseh Rd E, Windsor, ON N8K 9M9",
+    "domain": "crossroadscarsales.ca",
+    "staff": [
+      {
+        "username": "emma.wilson",
+        "display_name": "Emma Wilson",
+        "given_name": "Emma",
+        "family_name": "Wilson",
+        "email": "emma.wilson@crossroadscarsales.ca",
+        "phone": "+15195550120",
+        "title": "Sales Manager"
+      },
+      {
+        "username": "isabella.sandhu",
+        "display_name": "Isabella Sandhu",
+        "given_name": "Isabella",
+        "family_name": "Sandhu",
+        "email": "isabella.sandhu@crossroadscarsales.ca",
+        "phone": "+15195550148",
+        "title": "Sales Consultant"
+      },
+      {
+        "username": "kevin.sandhu",
+        "display_name": "Kevin Sandhu",
+        "given_name": "Kevin",
+        "family_name": "Sandhu",
+        "email": "kevin.sandhu@crossroadscarsales.ca",
+        "phone": "+15195550197",
+        "title": "Sales Consultant"
+      }
+    ]
+  },
+  {
+    "code": "D24",
+    "legal_name": "Eastgate Auto Mart Inc.",
+    "city": "Barrie",
+    "contact_email": "sales@eastgateautomart.ca",
+    "contact_phone": "(705) 555-0113",
+    "contact_address": "1780 Duckworth St, Barrie, ON L4X 5Y3",
+    "domain": "eastgateautomart.ca",
+    "staff": [
+      {
+        "username": "grace.roy",
+        "display_name": "Grace Roy",
+        "given_name": "Grace",
+        "family_name": "Roy",
+        "email": "grace.roy@eastgateautomart.ca",
+        "phone": "+17055550144",
+        "title": "Sales Manager"
+      },
+      {
+        "username": "patrick.mensah",
+        "display_name": "Patrick Mensah",
+        "given_name": "Patrick",
+        "family_name": "Mensah",
+        "email": "patrick.mensah@eastgateautomart.ca",
+        "phone": "+17055550158",
+        "title": "Sales Consultant"
+      }
+    ]
+  },
+  {
+    "code": "D25",
+    "legal_name": "Westside Motor Co. Corp.",
+    "city": "Oshawa",
+    "contact_email": "sales@westsidemotorco.ca",
+    "contact_phone": "(905) 555-0175",
+    "contact_address": "2064 Taunton Rd W, Oshawa, ON L1E 2L1",
+    "domain": "westsidemotorco.ca",
+    "staff": [
+      {
+        "username": "hiroshi.osei",
+        "display_name": "Hiroshi Osei",
+        "given_name": "Hiroshi",
+        "family_name": "Osei",
+        "email": "hiroshi.osei@westsidemotorco.ca",
+        "phone": "+19055550125",
+        "title": "Sales Manager"
+      },
+      {
+        "username": "jasmine.tran",
+        "display_name": "Jasmine Tran",
+        "given_name": "Jasmine",
+        "family_name": "Tran",
+        "email": "jasmine.tran@westsidemotorco.ca",
+        "phone": "+19055550164",
+        "title": "Sales Consultant"
+      },
+      {
+        "username": "emma.brown",
+        "display_name": "Emma Brown",
+        "given_name": "Emma",
+        "family_name": "Brown",
+        "email": "emma.brown@westsidemotorco.ca",
+        "phone": "+19055550173",
+        "title": "Sales Consultant"
+      },
+      {
+        "username": "arjun.thompson",
+        "display_name": "Arjun Thompson",
+        "given_name": "Arjun",
+        "family_name": "Thompson",
+        "email": "arjun.thompson@westsidemotorco.ca",
+        "phone": "+19055550198",
+        "title": "Finance Manager"
+      },
+      {
+        "username": "daniel.morrison",
+        "display_name": "Daniel Morrison",
+        "given_name": "Daniel",
+        "family_name": "Morrison",
+        "email": "daniel.morrison@westsidemotorco.ca",
+        "phone": "+19055550116",
+        "title": "Service Advisor"
+      }
+    ]
+  },
+  {
+    "code": "D26",
+    "legal_name": "Highland Auto Sales Ltd.",
+    "city": "Sudbury",
+    "contact_email": "sales@highlandautosales.ca",
+    "contact_phone": "(705) 555-0127",
+    "contact_address": "2327 Kingsway, Sudbury, ON P3W 1S8",
+    "domain": "highlandautosales.ca",
+    "staff": [
+      {
+        "username": "liam.tremblay",
+        "display_name": "Liam Tremblay",
+        "given_name": "Liam",
+        "family_name": "Tremblay",
+        "email": "liam.tremblay@highlandautosales.ca",
+        "phone": "+17055550145",
+        "title": "Sales Manager"
+      },
+      {
+        "username": "minh.sato",
+        "display_name": "Minh Sato",
+        "given_name": "Minh",
+        "family_name": "Sato",
+        "email": "minh.sato@highlandautosales.ca",
+        "phone": "+17055550111",
+        "title": "Sales Consultant"
+      },
+      {
+        "username": "megan.stewart",
+        "display_name": "Megan Stewart",
+        "given_name": "Megan",
+        "family_name": "Stewart",
+        "email": "megan.stewart@highlandautosales.ca",
+        "phone": "+17055550157",
+        "title": "Sales Consultant"
+      }
+    ]
+  },
+  {
+    "code": "D27",
+    "legal_name": "Brock Street Motors Inc.",
+    "city": "Kingston",
+    "contact_email": "sales@brockstreetmotors.ca",
+    "contact_phone": "(613) 555-0135",
+    "contact_address": "656 Division St, Kingston, ON K7S 2M3",
+    "domain": "brockstreetmotors.ca",
+    "staff": [
+      {
+        "username": "mei.cohen",
+        "display_name": "Mei Cohen",
+        "given_name": "Mei",
+        "family_name": "Cohen",
+        "email": "mei.cohen@brockstreetmotors.ca",
+        "phone": "+16135550132",
+        "title": "Sales Manager"
+      },
+      {
+        "username": "owen.roy",
+        "display_name": "Owen Roy",
+        "given_name": "Owen",
+        "family_name": "Roy",
+        "email": "owen.roy@brockstreetmotors.ca",
+        "phone": "+16135550146",
+        "title": "Sales Consultant"
+      },
+      {
+        "username": "kevin.bouchard",
+        "display_name": "Kevin Bouchard",
+        "given_name": "Kevin",
+        "family_name": "Bouchard",
+        "email": "kevin.bouchard@brockstreetmotors.ca",
+        "phone": "+16135550136",
+        "title": "Sales Consultant"
+      }
+    ]
+  },
+  {
+    "code": "D28",
+    "legal_name": "Heritage Auto Sales Ltd.",
+    "city": "Guelph",
+    "contact_email": "sales@heritageautosales.ca",
+    "contact_phone": "(519) 555-0187",
+    "contact_address": "2669 Gordon St, Guelph, ON N1Z 3B1",
+    "domain": "heritageautosales.ca",
+    "staff": [
+      {
+        "username": "rachel.sato",
+        "display_name": "Rachel Sato",
+        "given_name": "Rachel",
+        "family_name": "Sato",
+        "email": "rachel.sato@heritageautosales.ca",
+        "phone": "+15195550155",
+        "title": "Sales Manager"
+      },
+      {
+        "username": "priya.tanaka",
+        "display_name": "Priya Tanaka",
+        "given_name": "Priya",
+        "family_name": "Tanaka",
+        "email": "priya.tanaka@heritageautosales.ca",
+        "phone": "+15195550138",
+        "title": "Sales Consultant"
+      },
+      {
+        "username": "olivia.mensah",
+        "display_name": "Olivia Mensah",
+        "given_name": "Olivia",
+        "family_name": "Mensah",
+        "email": "olivia.mensah@heritageautosales.ca",
+        "phone": "+15195550166",
+        "title": "Sales Consultant"
+      }
+    ]
+  },
+  {
+    "code": "D29",
+    "legal_name": "Summit Auto Group Inc.",
+    "city": "St. Catharines",
+    "contact_email": "sales@summitautogroup.ca",
+    "contact_phone": "(905) 555-0122",
+    "contact_address": "1132 Welland Ave, St. Catharines, ON L2Y 4S4",
+    "domain": "summitautogroup.ca",
+    "staff": [
+      {
+        "username": "simran.tran",
+        "display_name": "Simran Tran",
+        "given_name": "Simran",
+        "family_name": "Tran",
+        "email": "simran.tran@summitautogroup.ca",
+        "phone": "+19055550172",
+        "title": "Sales Manager"
+      },
+      {
+        "username": "connor.kelly",
+        "display_name": "Connor Kelly",
+        "given_name": "Connor",
+        "family_name": "Kelly",
+        "email": "connor.kelly@summitautogroup.ca",
+        "phone": "+19055550112",
+        "title": "Sales Consultant"
+      },
+      {
+        "username": "jeanluc.silva",
+        "display_name": "Jean-Luc Silva",
+        "given_name": "Jean-Luc",
+        "family_name": "Silva",
+        "email": "jeanluc.silva@summitautogroup.ca",
+        "phone": "+19055550124",
+        "title": "Sales Consultant"
+      }
+    ]
+  },
+  {
+    "code": "D30",
+    "legal_name": "Parkway Motors Corp.",
+    "city": "Peterborough",
+    "contact_email": "sales@parkwaymotors.ca",
+    "contact_phone": "(705) 555-0161",
+    "contact_address": "4073 Lansdowne St W, Peterborough, ON K9Z 7S8",
+    "domain": "parkwaymotors.ca",
+    "staff": [
+      {
+        "username": "olivia.tran",
+        "display_name": "Olivia Tran",
+        "given_name": "Olivia",
+        "family_name": "Tran",
+        "email": "olivia.tran@parkwaymotors.ca",
+        "phone": "+17055550195",
+        "title": "Sales Manager"
+      },
+      {
+        "username": "tomasz.tran",
+        "display_name": "Tomasz Tran",
+        "given_name": "Tomasz",
+        "family_name": "Tran",
+        "email": "tomasz.tran@parkwaymotors.ca",
+        "phone": "+17055550138",
+        "title": "Sales Consultant"
+      },
+      {
+        "username": "sophia.martin",
+        "display_name": "Sophia Martin",
+        "given_name": "Sophia",
+        "family_name": "Martin",
+        "email": "sophia.martin@parkwaymotors.ca",
+        "phone": "+17055550155",
+        "title": "Sales Consultant"
+      }
+    ]
+  }
+]

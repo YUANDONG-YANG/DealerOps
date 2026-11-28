@@ -1,0 +1,484 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>DealerOps Capstone Poster</title>
+<style>
+/* Print geometry: PROJ 309 requires 24 x 36 inches, portrait, single page. */
+@page { size: 24in 36in; margin: 0; }
+
+:root {
+  --navy: #0b2239;
+  --teal: #0f6f66;
+  --teal-light: #e7f3f1;
+  --amber: #e08b3c;
+  --ink: #16263a;
+  --muted: #5b7187;
+  --line: #d4dee6;
+  --surface: #ffffff;
+  --page: #eef2f5;
+}
+
+* { box-sizing: border-box; }
+
+html, body { margin: 0; padding: 0; background: #ffffff; }
+
+body {
+  color: var(--ink);
+  font-family: Georgia, "Times New Roman", serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+.page {
+  width: 24in;
+  height: 36in;
+  padding: 0.6in;
+  background: var(--page);
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  grid-auto-rows: min-content;
+  gap: 0.16in;
+  overflow: hidden;
+}
+
+/* ---------- Header ---------- */
+.masthead {
+  grid-column: span 6;
+  position: relative;
+  background: var(--navy);
+  color: #ffffff;
+  border-radius: 0.16in;
+  padding: 0.42in 0.55in;
+  overflow: hidden;
+}
+.masthead-top {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: 1fr 3.7in;
+  gap: 0.45in;
+  align-items: start;
+}
+.masthead-byline { position: relative; z-index: 1; margin-top: 0.14in; }
+.masthead:after {
+  content: "";
+  position: absolute;
+  right: -3.2in; top: -5.2in;
+  width: 8.6in; height: 8.6in;
+  border: 0.9in solid #1f8d81;
+  border-radius: 50%;
+  opacity: 0.35;
+}
+.eyebrow, .title, .subtitle, .authors, .credits, .card h2, .node, .tag,
+.badge, .step b, .phase b, .phase span, .result, .qr-row span, .colophon {
+  font-family: "Helvetica Neue", Arial, Helvetica, sans-serif;
+}
+
+.eyebrow {
+  font-size: 22pt;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: #64cfc0;
+}
+.title {
+  font-size: 96pt;
+  font-weight: 800;
+  letter-spacing: -0.025em;
+  line-height: 1;
+  margin: 0.12in 0 0.1in;
+}
+.subtitle {
+  font-size: 26pt;
+  line-height: 1.25;
+  color: #cbdbe9;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+.authors {
+  font-size: 56pt;
+  font-weight: 600;
+  line-height: 1.1;
+  margin: 0 0 0.12in;
+}
+.credits {
+  font-size: 20pt;
+  color: #c0d4e6;
+  line-height: 1.4;
+}
+.credits b { color: #ffffff; font-weight: 600; }
+.masthead-media {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2in;
+  align-items: stretch;
+}
+.logo-plate {
+  background: #ffffff;
+  border-radius: 0.12in;
+  padding: 0.2in 0.3in;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.logo-plate img { width: 1.8in; height: auto; display: block; }
+.shot-frame {
+  background: #ffffff;
+  border-radius: 0.1in;
+  padding: 0.07in;
+  overflow: hidden;
+}
+.shot-frame img { width: 100%; height: auto; display: block; border-radius: 0.06in; }
+
+/* ---------- Cards ---------- */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 0.16in;
+  padding: 0.24in 0.32in;
+}
+.card h2 {
+  margin: 0 0 0.12in;
+  font-size: 36pt;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  text-transform: uppercase;
+  color: var(--teal);
+}
+.card p { font-size: 24pt; line-height: 1.34; margin: 0 0 0.1in; }
+.card p:last-child { margin-bottom: 0; }
+.card ul { margin: 0; padding-left: 0.3in; }
+.card li { font-size: 24pt; line-height: 1.27; margin-bottom: 0.08in; }
+.card li:last-child { margin-bottom: 0; }
+.card p.caption, .caption { font-size: 19pt; color: var(--muted); line-height: 1.32; }
+
+.span2 { grid-column: span 2; }
+.span3 { grid-column: span 3; }
+.span4 { grid-column: span 4; }
+.span6 { grid-column: span 6; }
+
+.summary p { font-size: 24pt; line-height: 1.36; }
+
+/* ---------- Architecture diagram ---------- */
+.flow {
+  display: grid;
+  grid-template-columns: 1fr 0.3in 1fr 0.3in 1fr 0.3in 1fr;
+  align-items: stretch;
+  gap: 0;
+  margin-bottom: 0.2in;
+}
+.flow + .flow { margin-top: 0.06in; }
+.flow-3 { grid-template-columns: 1fr 0.3in 1fr 0.3in 1fr; }
+.node {
+  border: 2px solid var(--line);
+  background: #f7fafb;
+  border-radius: 0.1in;
+  padding: 0.16in 0.1in;
+  text-align: center;
+}
+.node b { display: block; font-size: 23pt; color: var(--navy); margin-bottom: 0.04in; }
+.node span { font-size: 18pt; color: var(--muted); line-height: 1.25; display: block; }
+.node.key { background: var(--navy); border-color: var(--navy); }
+.node.key b { color: #ffffff; }
+.node.key span { color: #b9cfe2; }
+.node.edge { background: var(--teal-light); border-color: #9fcfc7; }
+.arrow {
+  align-self: center;
+  text-align: center;
+  font-size: 26pt;
+  font-weight: 700;
+  color: var(--amber);
+}
+.controls { display: grid; grid-template-columns: 1fr 1fr; gap: 0.06in 0.3in; margin-top: 0.14in; }
+.controls li { font-size: 19pt; line-height: 1.22; margin-bottom: 0.05in; }
+
+/* ---------- Tags ---------- */
+.tags { display: flex; flex-wrap: wrap; gap: 0.1in; margin-bottom: 0.18in; }
+.tag {
+  font-size: 21pt;
+  font-weight: 600;
+  color: var(--teal);
+  background: var(--teal-light);
+  border: 1px solid #b8ded8;
+  border-radius: 0.3in;
+  padding: 0.07in 0.2in;
+}
+
+/* ---------- Numbered steps ---------- */
+.steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.2in; }
+.step {
+  background: #f7fafb;
+  border: 1px solid var(--line);
+  border-radius: 0.12in;
+  padding: 0.22in 0.22in 0.24in;
+}
+.badge {
+  width: 0.46in; height: 0.46in;
+  border-radius: 50%;
+  background: var(--teal);
+  color: #ffffff;
+  font-size: 22pt;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 0.12in;
+}
+.step b { display: block; font-size: 25pt; margin-bottom: 0.06in; }
+.step span { font-size: 21pt; line-height: 1.28; color: #35485c; }
+
+.compliance { display: grid; grid-template-columns: 1fr 4.4in; gap: 0.28in; }
+.safeguard {
+  margin-top: 0.18in;
+  background: #fdf3e6;
+  border-left: 0.09in solid var(--amber);
+  border-radius: 0.06in;
+  padding: 0.18in 0.24in;
+  font-size: 23pt;
+  line-height: 1.32;
+}
+.safeguard b { color: #9a5a12; }
+
+/* ---------- Timeline ---------- */
+.timeline { display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.18in; position: relative; }
+.phase { position: relative; padding-top: 0.56in; }
+.phase:before {
+  content: "";
+  position: absolute;
+  top: 0.22in; left: 0; right: -0.18in;
+  height: 3px;
+  background: var(--line);
+}
+.phase:last-child:before { right: 0; }
+.phase .badge { position: absolute; top: 0; left: 0; margin: 0; }
+.phase b { display: block; font-size: 22pt; margin-bottom: 0.04in; }
+.phase span { font-size: 19pt; line-height: 1.28; color: var(--muted); }
+
+/* ---------- Results ---------- */
+.results { display: grid; gap: 0.14in; }
+.result {
+  background: var(--teal-light);
+  border-radius: 0.12in;
+  padding: 0.13in 0.18in;
+  display: flex;
+  align-items: baseline;
+  gap: 0.2in;
+}
+.result b { font-size: 40pt; font-weight: 800; color: var(--teal); line-height: 1; }
+.result span { font-size: 21pt; color: #35485c; line-height: 1.2; }
+
+/* ---------- References ---------- */
+.refs { display: grid; grid-template-columns: 1fr 5.2in; gap: 0.4in; align-items: start; }
+.refs ol { margin: 0; padding-left: 0.34in; }
+.refs li { font-size: 21pt; line-height: 1.4; margin-bottom: 0.06in; }
+.qr-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.3in; text-align: center; }
+.qr-row img { width: 1.5in; height: 1.5in; display: block; margin: 0 auto 0.08in; }
+.qr-row span { font-size: 20pt; font-weight: 600; color: var(--navy); }
+
+.colophon {
+  grid-column: span 6;
+  display: flex;
+  justify-content: space-between;
+  font-size: 18pt;
+  color: var(--muted);
+  padding: 0 0.1in;
+}
+
+/* ---------- Screen preview ---------- */
+@media screen {
+  body { background: #d8dfe6; padding: 16px 0; }
+  .viewport { display: flex; justify-content: center; height: var(--fit-height, auto); }
+  .page { transform: scale(var(--fit, 1)); transform-origin: top center; box-shadow: 0 10px 40px rgba(11, 34, 57, 0.28); }
+}
+</style>
+</head>
+<body>
+<div class="viewport">
+<div class="page">
+
+  <header class="masthead">
+    <div class="masthead-top">
+      <div>
+        <div class="eyebrow">PROJ 309 &middot; Tech CapCon Showcase</div>
+        <div class="title">DealerOps</div>
+        <div class="subtitle">A multi-tenant operating platform for independent vehicle dealerships</div>
+      </div>
+      <div class="masthead-media">
+        <div class="logo-plate"><img src="assets/sait-logo.png" alt="SAIT logo"></div>
+        <div class="shot-frame"><img src="assets/screenshot-home.png" alt="DealerOps public site: run your dealership with ads that are checked before they go out"></div>
+      </div>
+    </div>
+    <div class="masthead-byline">
+      <div class="authors">Yuandong Yang &middot; Bedgel Fadhil Ndam Woukouo<br>Jackson Warga &middot; Logan Jones</div>
+      <div class="credits">All members: Software Development diploma, SAIT &middot; PROJ 309 Capstone &middot; <b>Instructor:</b> Sola Akinbode</div>
+    </div>
+  </header>
+
+  <section class="card span6 summary">
+    <h2>Project summary</h2>
+    <p>DealerOps is a multi-tenant web platform for independent vehicle dealerships. It brings inventory, customers, leads, work orders, payments and reporting into one application, with a read-only AI assistant. Before an advertisement is exported, fixed Ontario (OMVIC) based rules check the required details, and eligible ads then receive an AI wording review; an ad is never marked as passed when the reviewer is unavailable. Built with React 19, .NET 10 and MySQL 8 and deployed to Azure with Terraform, the platform isolates dealership data on the server. Marketplace publishing is simulated, and card payments are not processed.</p>
+  </section>
+
+  <section class="card span3">
+    <h2>The problem</h2>
+    <ul>
+      <li>Stock, customers, sales, ads and repairs are coordinated across disconnected tools.</li>
+      <li>Ads must state the all-in price, financing terms and dealer identity; omissions are easy to miss.</li>
+      <li>Shared access is risky: one store could see another store's data or edit a sold vehicle.</li>
+      <li>A check goes stale after a vehicle changes, and AI must never overrule a failed rule.</li>
+    </ul>
+  </section>
+
+  <section class="card span3">
+    <h2>The solution</h2>
+    <ul>
+      <li>One application for inventory with VIN decode, customers, leads, work orders and reporting.</li>
+      <li>Two-stage ad check: fixed OMVIC-based rules first, then an AI wording review.</li>
+      <li>Server-enforced dealership isolation, role checks and an append-only audit trail.</li>
+      <li>Approved ads reach a public buyer site, where an inquiry becomes a sales lead.</li>
+    </ul>
+  </section>
+
+  <section class="card span4">
+    <h2>Architecture</h2>
+    <div class="flow">
+      <div class="node"><b>Browser</b><span>React 19 &middot; TypeScript</span></div>
+      <div class="arrow">&rarr;</div>
+      <div class="node edge"><b>Gateway</b><span>JWT &middot; CORS &middot; routes</span></div>
+      <div class="arrow">&rarr;</div>
+      <div class="node key"><b>Core service</b><span>.NET 10 &middot; tenancy &middot; rules</span></div>
+      <div class="arrow">&rarr;</div>
+      <div class="node"><b>MySQL 8</b><span>one application database</span></div>
+    </div>
+    <div class="flow flow-3">
+      <div class="node"><b>AI service</b><span>ad review &middot; assistant &middot; called by the core only</span></div>
+      <div class="arrow"></div>
+      <div class="node"><b>External APIs</b><span>NHTSA vPIC &middot; AI model provider</span></div>
+      <div class="arrow"></div>
+      <div class="node"><b>Azure &amp; Terraform</b><span>four App Services &middot; Key Vault &middot; CI/CD</span></div>
+    </div>
+    <p class="caption">Only the gateway is reachable from the browser. The core owns authentication, dealership isolation and persistence, and AI provider keys stay on the server.</p>
+    <ul class="controls">
+      <li>Every query is scoped to the signed-in dealership.</li>
+      <li>Role and membership checks run in the core.</li>
+      <li>Passwords use BCrypt; JWT carries the identity.</li>
+      <li>Writes and sign-in attempts are audited.</li>
+    </ul>
+  </section>
+
+  <section class="card span2">
+    <h2>Technology &amp; skills</h2>
+    <div class="tags">
+      <span class="tag">React 19</span>
+      <span class="tag">TypeScript</span>
+      <span class="tag">.NET 10</span>
+      <span class="tag">YARP</span>
+      <span class="tag">EF Core</span>
+      <span class="tag">MySQL 8</span>
+      <span class="tag">Azure App Service</span>
+      <span class="tag">Key Vault</span>
+      <span class="tag">Terraform</span>
+      <span class="tag">GitHub Actions</span>
+      <span class="tag">Playwright</span>
+      <span class="tag">NHTSA vPIC</span>
+    </div>
+    <p class="caption"><b>Skills:</b> full-stack development, REST API design, multi-tenant security, AI integration, cloud deployment, infrastructure as code and automated testing.</p>
+  </section>
+
+  <section class="card span6">
+    <h2>How advertisement compliance works</h2>
+    <div class="compliance">
+      <div>
+        <div class="steps">
+          <div class="step">
+            <div class="badge">1</div>
+            <b>Write the ad</b>
+            <span>Staff draft a listing from the vehicle record.</span>
+          </div>
+          <div class="step">
+            <div class="badge">2</div>
+            <b>Run fixed rules</b>
+            <span>Price, financing, condition and dealer details are checked.</span>
+          </div>
+          <div class="step">
+            <div class="badge">3</div>
+            <b>AI review</b>
+            <span>Eligible ads get an AI wording review of the copy.</span>
+          </div>
+          <div class="step">
+            <div class="badge">4</div>
+            <b>Export</b>
+            <span>Only a current passed check allows export.</span>
+          </div>
+        </div>
+        <div class="safeguard"><b>Safeguard:</b> the AI review never overrides a failed fixed rule, and an ad is never marked as passed when the reviewer is unavailable. Editing the vehicle makes the check stale and blocks export until it is run again.</div>
+      </div>
+      <div>
+        <div class="shot-frame" style="border:1px solid var(--line);"><img src="assets/screenshot-ad-check.png" alt="Ad check result showing a blocked status, a requirement checklist and rule findings"></div>
+        <p class="caption" style="margin-top:0.1in;">Ad check result: blocked, with each failing rule named</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="card span4">
+    <h2>Development process</h2>
+    <div class="timeline">
+      <div class="phase"><div class="badge">1</div><b>Scope</b><span>Requirements and acceptance cases per feature</span></div>
+      <div class="phase"><div class="badge">2</div><b>Design</b><span>Service boundaries and API contracts</span></div>
+      <div class="phase"><div class="badge">3</div><b>Build</b><span>Gateway, core, AI service and web app</span></div>
+      <div class="phase"><div class="badge">4</div><b>Deploy</b><span>Azure with Terraform and GitHub Actions</span></div>
+      <div class="phase"><div class="badge">5</div><b>Harden</b><span>End-to-end tests, audit and demo</span></div>
+    </div>
+  </section>
+
+  <section class="card span2">
+    <h2>Results</h2>
+    <div class="results">
+      <div class="result"><b>4</b><span>services running on Azure</span></div>
+      <div class="result"><b>463</b><span>automated end-to-end tests</span></div>
+      <div class="result"><b>12</b><span>delivered product areas</span></div>
+    </div>
+  </section>
+
+  <section class="card span6">
+    <h2>References &amp; links</h2>
+    <div class="refs">
+      <ol>
+        <li>OMVIC advertising requirements: omvic.on.ca</li>
+        <li>NHTSA vPIC VIN decoder: vpic.nhtsa.dot.gov</li>
+        <li>Source code and design documents: github.com/YUANDONG-YANG/DealerOps</li>
+        <li>Live demo: dealer-ops-dev.azurewebsites.net</li>
+      </ol>
+      <div class="qr-row">
+        <div><img src="assets/qr-source-code.png" alt="QR code to the DealerOps source code repository"><span>Source code</span></div>
+        <div><img src="assets/qr-live-demo.png" alt="QR code to the DealerOps live demo"><span>Live demo</span></div>
+      </div>
+    </div>
+  </section>
+
+  <footer class="colophon">
+    <span>DealerOps &middot; PROJ 309 Software Development Capstone &middot; SAIT</span>
+    <span>Marketplace publishing is simulated; card payments are not processed.</span>
+  </footer>
+
+</div>
+</div>
+<script>
+  // Screen only: scale the fixed 24 x 36 inch page down to the viewport width.
+  (function () {
+    var root = document.documentElement;
+    function fit() {
+      var pageWidth = 24 * 96;
+      var scale = Math.min(1, (window.innerWidth - 32) / pageWidth);
+      root.style.setProperty('--fit', scale);
+      root.style.setProperty('--fit-height', (36 * 96 * scale) + 'px');
+    }
+    fit();
+    window.addEventListener('resize', fit);
+  })();
+</script>
+</body>
+</html>

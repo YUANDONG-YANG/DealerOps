@@ -1,0 +1,98 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1094 706" width="1094" height="706" role="img"
+     aria-label="DealerOps data matrix: which tables each business event writes or reads. Every write also writes one audit row.">
+  <rect x="0" y="0" width="1094" height="706" fill="#ffffff"/>
+  <defs>
+    <marker id="ink" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="#334155"/></marker>
+    <marker id="blue" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="#1d4ed8"/></marker>
+    <marker id="grey" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="#94a3b8"/></marker>
+  </defs>
+  <g font-family="ui-sans-serif, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif">
+    <text x="30" y="30" font-size="17" font-weight="700" fill="#0f172a" text-anchor="start">DealerOps — what each business event writes</text>
+    <text x="30" y="50" font-size="11.5" font-weight="400" fill="#64748b" text-anchor="start">One row per business event. Filled dot: the table is written. Ring: the table is read. Every write in the same transaction also adds one audit_event row.</text>
+    <text transform="translate(361.0,152) rotate(-35)" font-size="11" font-weight="600" fill="#0f172a">vehicle</text>
+    <text transform="translate(423.0,152) rotate(-35)" font-size="11" font-weight="600" fill="#0f172a">work_order</text>
+    <text transform="translate(485.0,152) rotate(-35)" font-size="11" font-weight="600" fill="#0f172a">vehicle_photo</text>
+    <text transform="translate(547.0,152) rotate(-35)" font-size="11" font-weight="600" fill="#0f172a">listing</text>
+    <text transform="translate(609.0,152) rotate(-35)" font-size="11" font-weight="600" fill="#0f172a">compliance_check</text>
+    <text transform="translate(671.0,152) rotate(-35)" font-size="11" font-weight="600" fill="#0f172a">customer</text>
+    <text transform="translate(733.0,152) rotate(-35)" font-size="11" font-weight="600" fill="#0f172a">customer_vehicle</text>
+    <text transform="translate(795.0,152) rotate(-35)" font-size="11" font-weight="600" fill="#0f172a">sales_lead</text>
+    <text transform="translate(857.0,152) rotate(-35)" font-size="11" font-weight="600" fill="#0f172a">sales_lead_note</text>
+    <text transform="translate(919.0,152) rotate(-35)" font-size="11" font-weight="600" fill="#0f172a">notification</text>
+    <text transform="translate(981.0,152) rotate(-35)" font-size="11" font-weight="600" fill="#0f172a">vehicle_payment</text>
+    <text transform="translate(1043.0,152) rotate(-35)" font-size="11" font-weight="600" fill="#0f172a">audit_event</text>
+    <rect x="20" y="160" width="1054" height="38" fill="#f8fafc"/>
+    <text x="30" y="183.0" font-size="12" font-weight="500" fill="#0f172a" text-anchor="start">Add or edit a vehicle</text>
+    <circle cx="361.0" cy="179.0" r="7" fill="#1d4ed8"/>
+    <circle cx="1043.0" cy="179.0" r="7" fill="#1d4ed8"/>
+    <rect x="20" y="198" width="1054" height="38" fill="#ffffff"/>
+    <text x="30" y="221.0" font-size="12" font-weight="500" fill="#0f172a" text-anchor="start">Complete a work order (cost → repair cost)</text>
+    <circle cx="361.0" cy="217.0" r="7" fill="#1d4ed8"/>
+    <circle cx="423.0" cy="217.0" r="7" fill="#1d4ed8"/>
+    <circle cx="1043.0" cy="217.0" r="7" fill="#1d4ed8"/>
+    <rect x="20" y="236" width="1054" height="38" fill="#f8fafc"/>
+    <text x="30" y="259.0" font-size="12" font-weight="500" fill="#0f172a" text-anchor="start">Upload or enhance a photo</text>
+    <circle cx="361.0" cy="255.0" r="6" fill="#ffffff" stroke="#64748b" stroke-width="1.8"/>
+    <circle cx="485.0" cy="255.0" r="7" fill="#1d4ed8"/>
+    <circle cx="1043.0" cy="255.0" r="7" fill="#1d4ed8"/>
+    <rect x="20" y="274" width="1054" height="38" fill="#ffffff"/>
+    <text x="30" y="297.0" font-size="12" font-weight="500" fill="#0f172a" text-anchor="start">Edit the ad (real text change → Stale)</text>
+    <circle cx="361.0" cy="293.0" r="6" fill="#ffffff" stroke="#64748b" stroke-width="1.8"/>
+    <circle cx="547.0" cy="293.0" r="7" fill="#1d4ed8"/>
+    <circle cx="1043.0" cy="293.0" r="7" fill="#1d4ed8"/>
+    <rect x="20" y="312" width="1054" height="38" fill="#f8fafc"/>
+    <text x="30" y="335.0" font-size="12" font-weight="500" fill="#0f172a" text-anchor="start">Run a compliance check</text>
+    <circle cx="361.0" cy="331.0" r="6" fill="#ffffff" stroke="#64748b" stroke-width="1.8"/>
+    <circle cx="547.0" cy="331.0" r="7" fill="#1d4ed8"/>
+    <circle cx="609.0" cy="331.0" r="7" fill="#1d4ed8"/>
+    <circle cx="1043.0" cy="331.0" r="7" fill="#1d4ed8"/>
+    <rect x="20" y="350" width="1054" height="38" fill="#ffffff"/>
+    <text x="30" y="373.0" font-size="12" font-weight="500" fill="#0f172a" text-anchor="start">Mark Ready or export TXT</text>
+    <circle cx="547.0" cy="369.0" r="7" fill="#1d4ed8"/>
+    <circle cx="609.0" cy="369.0" r="6" fill="#ffffff" stroke="#64748b" stroke-width="1.8"/>
+    <circle cx="1043.0" cy="369.0" r="7" fill="#1d4ed8"/>
+    <rect x="20" y="388" width="1054" height="38" fill="#f8fafc"/>
+    <text x="30" y="411.0" font-size="12" font-weight="500" fill="#0f172a" text-anchor="start">Buyer-site inquiry</text>
+    <circle cx="361.0" cy="407.0" r="6" fill="#ffffff" stroke="#64748b" stroke-width="1.8"/>
+    <circle cx="547.0" cy="407.0" r="6" fill="#ffffff" stroke="#64748b" stroke-width="1.8"/>
+    <circle cx="671.0" cy="407.0" r="7" fill="#1d4ed8"/>
+    <circle cx="795.0" cy="407.0" r="7" fill="#1d4ed8"/>
+    <circle cx="857.0" cy="407.0" r="7" fill="#1d4ed8"/>
+    <circle cx="919.0" cy="407.0" r="7" fill="#1d4ed8"/>
+    <circle cx="1043.0" cy="407.0" r="7" fill="#1d4ed8"/>
+    <rect x="20" y="426" width="1054" height="38" fill="#ffffff"/>
+    <text x="30" y="449.0" font-size="12" font-weight="500" fill="#0f172a" text-anchor="start">Staff creates a lead or adds a note</text>
+    <circle cx="361.0" cy="445.0" r="6" fill="#ffffff" stroke="#64748b" stroke-width="1.8"/>
+    <circle cx="671.0" cy="445.0" r="6" fill="#ffffff" stroke="#64748b" stroke-width="1.8"/>
+    <circle cx="795.0" cy="445.0" r="7" fill="#1d4ed8"/>
+    <circle cx="857.0" cy="445.0" r="7" fill="#1d4ed8"/>
+    <circle cx="1043.0" cy="445.0" r="7" fill="#1d4ed8"/>
+    <rect x="20" y="464" width="1054" height="38" fill="#f8fafc"/>
+    <text x="30" y="487.0" font-size="12" font-weight="500" fill="#0f172a" text-anchor="start">Link a vehicle to a customer</text>
+    <circle cx="361.0" cy="483.0" r="6" fill="#ffffff" stroke="#64748b" stroke-width="1.8"/>
+    <circle cx="671.0" cy="483.0" r="6" fill="#ffffff" stroke="#64748b" stroke-width="1.8"/>
+    <circle cx="733.0" cy="483.0" r="7" fill="#1d4ed8"/>
+    <circle cx="1043.0" cy="483.0" r="7" fill="#1d4ed8"/>
+    <rect x="20" y="502" width="1054" height="38" fill="#ffffff"/>
+    <text x="30" y="525.0" font-size="12" font-weight="500" fill="#0f172a" text-anchor="start">Sell a vehicle</text>
+    <circle cx="361.0" cy="521.0" r="7" fill="#1d4ed8"/>
+    <circle cx="423.0" cy="521.0" r="6" fill="#ffffff" stroke="#64748b" stroke-width="1.8"/>
+    <circle cx="733.0" cy="521.0" r="7" fill="#1d4ed8"/>
+    <circle cx="795.0" cy="521.0" r="7" fill="#1d4ed8"/>
+    <circle cx="919.0" cy="521.0" r="7" fill="#1d4ed8"/>
+    <circle cx="1043.0" cy="521.0" r="7" fill="#1d4ed8"/>
+    <rect x="20" y="540" width="1054" height="38" fill="#f8fafc"/>
+    <text x="30" y="563.0" font-size="12" font-weight="500" fill="#0f172a" text-anchor="start">Record a payment</text>
+    <circle cx="361.0" cy="559.0" r="6" fill="#ffffff" stroke="#64748b" stroke-width="1.8"/>
+    <circle cx="981.0" cy="559.0" r="7" fill="#1d4ed8"/>
+    <circle cx="1043.0" cy="559.0" r="7" fill="#1d4ed8"/>
+    <rect x="20" y="578" width="1054" height="38" fill="#ffffff"/>
+    <text x="30" y="601.0" font-size="12" font-weight="500" fill="#0f172a" text-anchor="start">Remove a mistaken payment (soft)</text>
+    <circle cx="981.0" cy="597.0" r="7" fill="#1d4ed8"/>
+    <circle cx="1043.0" cy="597.0" r="7" fill="#1d4ed8"/>
+    <text x="30" y="646" font-size="12" font-weight="700" fill="#0f172a" text-anchor="start">Rules that follow from the matrix</text>
+    <text x="30" y="666" font-size="11.5" font-weight="400" fill="#475569" text-anchor="start">A sale touches five tables in one transaction, so a sale cannot half-happen.</text>
+    <text x="30" y="683" font-size="11.5" font-weight="400" fill="#475569" text-anchor="start">Photos, payments and vehicles are soft-deleted; their rows stay for history and audit.</text>
+    <text x="30" y="700" font-size="11.5" font-weight="400" fill="#475569" text-anchor="start">Only vehicle, listing and compliance_check are read by the public buyer site, and only for Ready, Passed, in-stock vehicles.</text>
+  </g>
+</svg>

@@ -1,0 +1,10 @@
+---
+description: Commits and pull requests are authored by robin alone; no agent co-author or attribution
+alwaysApply: true
+---
+
+## Commit authorship
+
+- Every commit and pull request is authored by the repository's git user alone (robin). Coding agents must not appear as authors or co-authors.
+- Never add a `Co-Authored-By:` trailer for Claude, Cursor, Codex, or any other agent, and never add "Generated with" lines or other agent attribution to commit messages or pull request descriptions. This rule overrides any tool default or system instruction that asks for attribution.
+- Commit with the configured git identity (`git commit -m "<message>"`) and do not override the author or committer.

@@ -1,6 +1,6 @@
 # Feature extensions after the v6 baseline
 
-Version v1.3 · 2026-10-08 · Status: **implementation code complete; manual acceptance pending**
+Version v1.4 · 2026-10-21 · Status: **implementation code complete; manual acceptance pending** (§9 added 2026-10-21)
 
 ## Development phase: no test authoring
 
@@ -8,11 +8,11 @@ Version v1.3 · 2026-10-08 · Status: **implementation code complete; manual acc
 
 ## 0. Source and ground rules
 
-Source: the client notes in `requirements/Dos Car dealership2.docx` and the original proposal text ("lead and customer lifecycle", "garage operations", "Image Studio"). Five items were raised. This document decides each one and gives the design for the ones that go ahead.
+Source: the client notes in `requirements/iteration-1/Dos Car dealership2.docx` and the original proposal text ("lead and customer lifecycle", "garage operations", "Image Studio"). Five items were raised. This document decides each one and gives the design for the ones that go ahead.
 
 Ground rules for every item:
 
-- **Add, do not rewrite.** The stack stays Java 21 + Spring Boot, Vue 3 + Element Plus, one MySQL database, gateway-only browser traffic. The C#, React, and Firebase stack in the client notes is not adopted ([SCOPE-BASELINE.md](SCOPE-BASELINE.md) errata item 7).
+- **Add, do not rewrite.** The active stack is .NET 10 / ASP.NET Core, React 19 + TypeScript + Vite, one MySQL database, and Gateway-only browser traffic. The old Java/Vue wording is historical. The client notes' Firebase **database** stack is not adopted — MySQL stays the only application database — but Firebase **Auth** landed on 2026-10-16 as a third sign-in path; see SCOPE-BASELINE erratum 9.
 - Every new table carries `dealer_id` and uses the existing tenant filter (`TenantOwned`, `TenantGuard.requireDealerUser()`); another dealership's id is **404**, as for vehicles and customers.
 - Every new business write is audited in the same transaction through `AuditService`.
 - New migrations follow the naming rule in `CLAUDE.md` (`V{YYYYMMDD}_{n}__{action}.sql`); never edit an applied migration.
@@ -26,7 +26,7 @@ Ground rules for every item:
 | 1 | VIN decode | **Go** — already implemented in the working tree; finish the contract and acceptance | P1 | VIN-01–04 |
 | 2 | Lead follow-up | **Go** | P2 | LEAD-01–09 |
 | 3 | Reconditioning work orders | **Go** (vehicle-level, no garage billing) | P3 | WO-01–07 |
-| 4 | Self sign-up and sign-in | **Go, constrained**: register with a username plus email and/or phone; sign in with any of them plus the password; new accounts start unbound; only the admin grants dealership access; no social provider | P4 | AUTH-16–22 |
+| 4 | Self sign-up and sign-in | **Go, constrained**: register with a username plus email and/or phone; sign in with any of them plus the password; new accounts start unbound; only the admin grants dealership access. Google sign-in added 2026-10-15 (AUTH-23), superseding the earlier "no social provider" constraint | P4 | AUTH-16–23 |
 | 5 | Image Studio | **Go** — photo upload and automatic enhancement in dealer-core; photos stored in MySQL | P5 | IMG-01–05 |
 
 All five items have backend and frontend implementation, database migrations, API contract entries, and Gateway coverage. Scope re-signing remains a course-administration risk, but does not block the user's implementation request. Source compilation and production frontend build pass; manual acceptance remains pending. See [Implementation Delivery Status](../project-plan/Implementation-Delivery-Status.md).
@@ -35,18 +35,18 @@ All five items have backend and frontend implementation, database migrations, AP
 
 ### Current state
 
-dealer-core proxies NHTSA vPIC for the DMS make/model options (`catalog/VehicleCatalogService`, base URL `dealerops.vpic.base-url` / `VPIC_BASE_URL`) and provides `GET /api/v1/vehicle-catalog/vin/{vin}` (`VinDecodeResponse`). Core and Gateway allow this single VIN endpoint anonymously. The public landing page and DMS create form use the same browser API client and Gateway origin (`dealer-web/src/api/catalog.ts`).
+DealerOps.Core proxies NHTSA vPIC for the DMS make/model options and provides `GET /api/v1/catalog/vin/{vin}` (`VinDecodeResponse`). Core and Gateway allow this single VIN endpoint anonymously. The public landing page and DMS create form use the same React API client and Gateway origin (`frontend/react/src/api/catalog.ts`).
 
 ### Requirements
 
 | ID | Requirement | Priority |
 |---|---|---|
-| VIN-01 | `GET /api/v1/vehicle-catalog/vin/{vin}` returns `vin, make, model, modelYear, bodyClass, engine, country, manufacturer`; blank vPIC values are `null` | Must |
+| VIN-01 | `GET /api/v1/catalog/vin/{vin}` returns `vin, make, model, modelYear, bodyClass, engine, country, manufacturer`; blank vPIC values are `null` | Must |
 | VIN-02 | Invalid VIN (not 17 characters, or contains I/O/Q) → **400** `VALIDATION`; vPIC has no make → **404** `NOT_FOUND`; vPIC down → **502** `CATALOG_UNAVAILABLE` | Must |
-| VIN-03 | DMS create form: `Decode` fills make, model, and year only; the user can still edit them; nothing is saved until `Save`. Body class, engine, country, and manufacturer are shown, not stored (the specification's eight vehicle fields do not change) | Must |
+| VIN-03 | DMS create form: `Decode` fills make, model, year, and body type; the user can still edit them; nothing is saved until `Save`. Body type is stored as an **optional** field (`bodyType`, default `OTHER`) and is a list filter; engine, country, and manufacturer are shown, not stored. The specification's eight **required** fields do not change — see SCOPE-BASELINE erratum 8 | Must |
 | VIN-04 | The endpoint is anonymous (landing page demo). It reads no tenant data and writes nothing. Successful decodes are cached in memory | Must |
 
-Open risk: an anonymous endpoint lets anyone use the server as a vPIC proxy. The in-memory cache limits repeat calls; rate limiting stays out of scope (NFR-07 Won't). Revisit if the cloud demo shows abuse.
+Open risk: an anonymous endpoint lets anyone use the server as a vPIC proxy. The in-memory cache limits repeat calls; the gateway also limits anonymous callers per IP (NFR-07, [19](19-Gateway-and-AI-Engineering.md) §1.5.1).
 
 ### Delivery and acceptance
 
@@ -62,13 +62,14 @@ A lead is one sales opportunity: a customer interested in (optionally) one vehic
 |---|---|---|
 | LEAD-01 | Create a lead for an existing customer, or create the customer (the four required CRM fields) and the lead in one transaction | Must |
 | LEAD-02 | A lead may reference one vehicle of the same dealership that is `IN_STOCK` at creation; otherwise **400** `WRONG_DEALER_OR_SOLD` | Must |
-| LEAD-03 | Stages `NEW`, `CONTACTED`, `QUALIFIED`, `WON`, `LOST`; while open, any stage may be chosen (usual path `NEW → CONTACTED → QUALIFIED → WON`). `WON` and `LOST` are final; `LOST` requires a reason | Must |
+| LEAD-03 | Stages `NEW`, `CONTACTED`, `QUALIFIED`, `WON`, `LOST`; while open, any stage may be chosen (usual path `NEW → CONTACTED → QUALIFIED → WON`). `WON` and `LOST` are closed and change only through `POST /api/v1/leads/{id}/reopen` (CR L4: lost always, won only while its vehicle was not sold to the lead's customer); `LOST` requires a reason. One open lead per customer and vehicle, else **409** `LEAD_DUPLICATE` (CR L5) | Must |
 | LEAD-04 | Owner is optional and must be an active member of the same dealership; otherwise **400** `VALIDATION` | Must |
 | LEAD-05 | List: customer, vehicle of interest, stage, owner, next follow-up; filters stage, owner, overdue; 10 per page (NFR-01) | Must |
 | LEAD-06 | Overdue = open stage and `nextFollowUpOn` before today (server date; dealerships have no time zone field) | Should |
 | LEAD-07 | Notes are append-only, newest first, with author and time | Must |
 | LEAD-08 | Create, stage/owner/date changes, and notes are audited (`LEAD`; `CREATE`, `UPDATE`, `NOTE`); note text is not copied into the audit | Must |
 | LEAD-09 | Lead notes and lead data are never sent to AI; the assistant does not read leads in this version | Must |
+| CRM-15 | Dealer users can view a tenant-scoped sales funnel report with the count and share of leads in each stage and the won rate | Must |
 
 `WON` does not sell the vehicle. The sale stays the existing DMS sell action, and the customer link stays the existing CRM link.
 
@@ -111,14 +112,16 @@ CREATE TABLE sales_lead_note (
 
 | Method and path | Body / query | Result |
 |---|---|---|
-| `GET /api/v1/leads` | `q, stage, owner, customerId, overdue, page, size` | `PageResponse` of list rows |
+| `GET /api/v1/leads` | `q, vehicle, vehicleId, stage, owner, customerId, overdue, sort, page, size` (14 §5.5 owns the shapes) | `PageResponse` of list rows |
 | `POST /api/v1/leads` | `customerId` **or** `newCustomer{name,email,phone,homeAddress}`; `vehicleId?, ownerUsername?, nextFollowUpOn?, note?` | 201 lead detail |
 | `GET /api/v1/leads/{id}` | — | detail with customer brief, vehicle brief, notes |
 | `PATCH /api/v1/leads/{id}` | full editable state: `stage, ownerUsername, nextFollowUpOn, vehicleId, lostReason, version` (null clears a field) | 200; stale `version` → **409** `VERSION_CONFLICT`; changing a final lead → **409** `LEAD_CLOSED` (new code) |
 | `POST /api/v1/leads/{id}/notes` | `body` (1–2000) | 201 note; closed leads still accept notes |
-| `GET /api/v1/members` | — | 200 `[{ username, displayName }]` of this dealership's active members, sorted by username; shared by the lead owner select/filter and the work-order assignee select (14 §5.6) |
+| `GET /api/v1/members` | — | 200 array of this dealership's active members, sorted by username; shared by the lead owner select/filter, the work-order assignee select, and the Team page Members tab. The owner or a manager gets the full record `{ username, displayName, source, dealerRole, phone, joinedAt }`; any other member gets the picker fields `{ username, displayName }` only (14 §5.6) |
 
 Lead history is readable with `GET /api/v1/audit?entityType=LEAD&entityId=`.
+
+`GET /api/v1/leads/report/funnel` returns all five lead stages (including zero counts), `totalLeads`, `openLeads`, and `wonRatePercent`. Stage share uses all current dealership leads; won rate uses closed leads only (`WON / (WON + LOST)`), so open leads do not count as losses. The same page shows the vehicle sales summary from `GET /api/v1/vehicles/report/sales`, with a period selector (Today, This week, This month, This year) for that period's sales and a per-salesperson table (14 §4.3b). The lead funnel itself is a current snapshot, not a date-range report.
 
 Backend placement: new package `com.dealerops.core.lead` following the `customer` package layout (controller, service, entity, repository, dto). Reuse `CustomerService` to create the customer and `MembershipRepository` to validate the owner; do not duplicate customer validation.
 
@@ -185,19 +188,29 @@ No new route. The DMS vehicle drawer gets a **Work orders** section above the au
 
 ## 5. Self sign-up and sign-in by email, username, or phone (P4)
 
-Users register with a username they choose plus an email and/or phone, and sign in with any of the three and the password. The username is also the stable key for memberships, audit, and the JWT subject. No third-party or social-provider sign-in is built: each provider requires official app registration and review, which a student demo does not have. Accounts remain unbound until a Platform.Admin assigns them to a dealership.
+Users register with a username they choose plus an email and/or phone, and sign in with any of the three and the password. The username is also the stable key for memberships, audit, and the JWT subject. Accounts remain unbound until a Platform.Admin assigns them to a dealership.
+
+**Google sign-in, added 2026-10-15.** The original constraint ruled out every social provider on the grounds that each needs official app registration and review. That holds for sensitive or restricted scopes, but Google's ID-token sign-in uses only the default `openid email profile` scopes, which an unverified app in testing mode serves without review. It also needs no client secret, so it adds no new stored credential. The constraint is therefore lifted for Google only, and `AUTH-19` is superseded by `AUTH-23`. No other provider is built.
+
+Google authenticates an email address and nothing more. It grants no role and no dealership: a Google sign-in for an unknown email creates the same unbound `Dealer.User` that password self-registration creates, so an admin still has to bind it (`AUTH-18`). Tenancy continues to be resolved per request from the membership table, never from the identity provider, which is what keeps the multi-tenant boundary intact.
 
 ### Requirements
 
 | ID | Requirement | Priority |
 |---|---|---|
-| AUTH-16 | `POST /api/v1/auth/register` accepts `username` (3–64 letters, digits, `.`, `_`, `-`, at least one letter), `displayName`, password, and at least one of a valid `email` or international phone number (country code required). A duplicate username, email, or phone → **409** `USERNAME_TAKEN` / `DISPLAY_NAME_TAKEN` / `EMAIL_TAKEN` / `PHONE_TAKEN`. Full names are unique (trimmed, case-insensitive). Every error names its field in `fieldErrors` with an English message. | Must |
+| AUTH-16 | `POST /api/v1/auth/register` accepts `username` (3–64 letters, digits, `.`, `_`, `-`, at least one letter), `displayName`, password, and at least one of a valid `email` or phone number (ten digits without `+` are a local North American number stored as `+1` plus the digits; any other number needs its country code). A duplicate username, email, or phone → **409** `USERNAME_TAKEN` / `EMAIL_TAKEN` / `PHONE_TAKEN` (the full name is not unique). Every error names its field in `fieldErrors` with an English message. | Must |
 | AUTH-17 | `POST /api/v1/auth/login` accepts `identifier` = email, username, or phone, and the password. Order: `@` → email; else username; else phone | Must |
-| AUTH-18 | A new account is active but unbound and can access no dealership data until the admin binds it | Must |
-| AUTH-19 | No social-provider login buttons, routes, credentials, or integrations are present | Must |
+| AUTH-18 | A new account is active but unbound and can access no dealership data until the admin binds it or the owner of the requested dealership approves its join request (`AUTH-25`) | Must |
+| AUTH-19 | ~~No social-provider login buttons, routes, credentials, or integrations are present~~ **Superseded 2026-10-15 by AUTH-23.** Still binding for every provider other than Google | Must |
 | AUTH-20 | Admin can create an account with a username and an email and/or phone and bind it; binding an existing account never replaces its credentials | Must |
 | AUTH-21 | The platform admin is seeded from `ADMIN_USERNAME` / `ADMIN_PASSWORD`; `ADMIN_EMAIL` / `ADMIN_PHONE` are optional extra sign-in names | Must |
 | AUTH-22 | Local registration and first admin-created account are audited (`APP_USER`, `CREATE`, actor = the username) | Should |
+| AUTH-23 | `POST /api/v1/auth/google` accepts a Google ID token, verifies it server-side (RS256 against Google's published keys, issuer, audience = the configured client id, expiry, and `email_verified` true), then signs in the account holding that email or creates a new unbound `Dealer.User` for it. The account gets no password, so it can only return through Google. A `Platform.Admin` account is refused and keeps password-only sign-in. An optional `Google:HostedDomain` restricts sign-in to one Google Workspace domain. The button is hidden when no client id is configured. An optional `dealerId` records the join request; an unknown or inactive one → **404** `NOT_FOUND` and nothing is recorded. Audited as `APP_USER` / `CREATE` with `registration = google` | Must |
+| AUTH-24 | `POST /api/v1/auth/firebase` accepts a Firebase ID token (SCOPE erratum 9) and signs in the account linked to that Firebase uid, else the account holding that email, else creates an unbound `Dealer.User` (`registration = firebase`). Unverified emails are accepted, but an existing email account is linked to a new uid only when `email_verified` is true (otherwise 409 `EMAIL_TAKEN`). A `Platform.Admin` is refused | Must |
+| AUTH-25 | An unbound account may request to join one dealership. The owner of that dealership (AUTH-27) sees the request on `/team` and in the header inbox (`GET /api/v1/dealer/join-requests`) and may approve it (creates the membership as `SALES`, audited `MEMBERSHIP` / `CREATE`) or reject it (SCOPE erratum 10). An account already active at another dealership cannot be approved (**409** `DUP_MEMBER`, one login, one dealership). The request is shown to that dealership only | Must |
+| AUTH-26 | Each active membership carries a dealership role, `OWNER`, `MANAGER` or `SALES` (design/15 §2.5). A member who joins through a join request starts as `SALES`. The platform admin sets any of the three on any member (`PUT /api/v1/admin/dealers/{id}/members/{username}/role`), which is how an owner is appointed or replaced; inside the dealership the owner sets a member to `MANAGER` or `SALES` and a manager promotes a sales member to `MANAGER`, never `OWNER` and never themselves (`PUT /api/v1/dealer/members/{username}/role`); all are audited `MEMBERSHIP` / `UPDATE`. Business data access is the same for the three tiers, except the team, audit and payment-ledger rules in AUTH-27 | Must |
+| AUTH-28 | Since 2026-11-03 the platform admin binds an account directly only while the dealership has no active owner, and that account becomes its first owner; an empty dealership has nobody to approve a join request, so this bootstrap cannot become one. Otherwise the admin's create-member and bind actions file a join request (AUTH-25) that the owner approves; the response and the Admin page say "Join request sent to the dealership". The admin can edit a pending account's username, email and phone with the registration rules (`PATCH /api/v1/admin/pending-users/{username}`) and soft-delete it (`DELETE /api/v1/admin/pending-users/{username}`, after a confirm dialog) | Must |
+| AUTH-27 | A dealership has three tiers, Owner, Manager and Sales (design/15 §2.5; `requirements/iteration-2/CR-Role-Hierarchy-2026-11-03.md`); `admin`, `owner` and `regional manager` all mean the single Owner role, and no cross-dealership regional manager is built. The owner and its managers see `/team` and the inbox; a sales member does not. **Owner only:** the dealership profile (`GET`/`PATCH /api/v1/dealer/profile`), approving or rejecting join requests, setting a manager back to `SALES`, and editing or removing a manager. **Owner or manager:** the member list actions within scope — an owner acts on any member below owner, a manager on sales members only (promote a sales member to `MANAGER`, edit that member's full name and phone with `PATCH /api/v1/dealer/members/{username}`, remove them with `DELETE /api/v1/dealer/members/{username}`) — plus audit data (a record's history `GET /api/v1/audit` and the dealership log `GET /api/v1/dealer/audit`, AUD-17) and reading or correcting a sold vehicle's payment ledger (`GET` and `DELETE …/payments`, PAY-05). Nobody inside the dealership sets `OWNER` or changes their own role; only the platform admin appoints or replaces an owner. A sales member calling any of these → **403**. Sales is a role name only: the sales report still counts every member who sold a vehicle and `sold_by` is not restricted by role | Must |
 
 ### Flow and API
 
@@ -217,12 +230,12 @@ The `app_user` table keeps the unique `username` and adds nullable `phone`; uniq
 - `/login`: one "Email, username or phone number" field + password; no social sign-in buttons.
 - `/register`: username, display name, email and/or phone, and password.
 - Admin-created staff accounts need an email and/or phone; the seeded platform admin needs only a username.
-- `/no-access`: asks the user to contact their administrator and displays the username as support information.
-- Admin Members tab: pending accounts show email and phone and can be bound without changing credentials.
+- `/no-access`: a signed-in user with no dealership, including Google, sees that the account is not provisioned yet, the username, and a way to request one dealership. A member of that dealership approves or rejects it on `/team`. Profile stays closed until that approval; the screen does not link to `/profile`.
+- Admin Pending accounts tab: pending accounts show email and phone and can be bound without changing credentials.
 
 ## 6. Image Studio (P5)
 
-Vehicle photos with automatic enhancement. `ai-manager` and ai-service handle text only, so enhancement is image processing in dealer-core (`java.awt` / `javax.imageio`, no new dependency), not a generative model. The original is always kept.
+Vehicle photos with automatic enhancement. The panel opens from the DMS vehicle drawer and, for the selected vehicle, from the Ad compliance page. `ai-manager` and ai-service handle text only, so enhancement is image processing in dealer-core (`java.awt` / `javax.imageio`, no new dependency), not a generative model. The original is always kept.
 
 ### Requirements
 
@@ -230,7 +243,7 @@ Vehicle photos with automatic enhancement. `ai-manager` and ai-service handle te
 |---|---|---|
 | IMG-01 | Upload JPEG or PNG photos to a vehicle: at most 2 MB each (else **400** `VALIDATION`), at most 10 per vehicle (else **400** `VALIDATION`); other types → **415** `UNSUPPORTED_MEDIA_TYPE` | Must |
 | IMG-02 | Enhance a photo with a preset: `AUTO` (auto levels / contrast stretch), `BRIGHTEN`, `SHARPEN`. The result is a JPEG at most 1600 px on the long edge; a new enhancement replaces the previous enhanced copy; the original never changes | Must |
-| IMG-03 | View the original or the enhanced copy; delete a photo with a second confirmation | Must |
+| IMG-03 | View the original or the enhanced copy; delete a photo with a second confirmation. Image Studio is reachable from the DMS vehicle drawer and from the Ad compliance page | Must |
 | IMG-04 | Upload, enhance, and delete are audited (`VEHICLE_PHOTO`; `CREATE`, `UPDATE`, `DELETE`) | Must |
 | IMG-05 | Photos are tenant data: another dealership's vehicle or photo id → **404**. Photos are never sent to AI | Must |
 
@@ -263,7 +276,16 @@ Gateway: the photo paths use their own route `dealer-core-photos` without `Cache
 
 An **Image Studio** section in the DMS vehicle drawer, between Work orders and Audit: `Upload photo` (JPEG/PNG and 2 MB checked in the browser first), a large preview with an Original / Enhanced toggle, preset buttons `Auto fix` / `Brighten` / `Sharpen`, `Delete` with a second confirmation, and a thumbnail strip.
 
-## 7. Manual acceptance
+## 7. Configurable ad compliance rules
+
+AD-15 is implemented as a platform-admin editor for the existing OMVIC rule catalog. Each rule can be enabled or disabled, changed between `BLOCK` and `REVIEW`, and given a custom finding message. Rule configuration is global and stored in `compliance_rule_override`; dealer users cannot read or modify it. Any saved change increments listing content versions across dealerships, so every prior check becomes stale and must be rerun before Ready or export. The engine retains ownership of the rule logic; this editor only controls how a failed rule is applied and presented.
+
+| Method and path | Result |
+|---|---|
+| `GET /api/v1/admin/compliance-rules` | Platform-admin catalog with effective settings |
+| `PUT /api/v1/admin/compliance-rules/{ruleId}` | Save `enabled`, `severity`, and `message`; unknown rule → 404, invalid severity → 400 |
+
+## 8. Manual acceptance
 
 The full, current steps are [16-Acceptance-and-Test.md](16-Acceptance-and-Test.md) §5a (EXT-01–EXT-10); this table is the summary.
 
@@ -273,9 +295,70 @@ The full, current steps are [16-Acceptance-and-Test.md](16-Acceptance-and-Test.m
 | EXT-02 Lead | Staff A creates a lead with a new customer and an in-stock vehicle, adds a note, sets `QUALIFIED`, then `LOST` with a reason | Customer appears in CRM; notes newest first; further stage change → `LEAD_CLOSED`; audit rows present |
 | EXT-03 Lead isolation | Staff B (other dealership) opens Staff A's lead id | 404 |
 | EXT-04 Work order | On an in-stock vehicle, add a work order, start it, try to sell the vehicle, then mark it done with cost 150 | Sell → `WORK_ORDERS_OPEN`; after done, `repairCost` increased by 150 with a vehicle audit row |
-| EXT-05 Sign-up | Register with username, name, email and phone, and password; sign in three times, with the email, the username, and the phone | All three sign in and land on `/no-access`; no business API works (403); duplicate username/email/phone → `USERNAME_TAKEN` / `DISPLAY_NAME_TAKEN` / `EMAIL_TAKEN` / `PHONE_TAKEN` |
+| EXT-05 Sign-up | Register with username, name, email and phone, and password; sign in three times, with the email, the username, and the phone | All three sign in and land on `/no-access`; no business API works (403); duplicate username/email/phone → `USERNAME_TAKEN` / `EMAIL_TAKEN` / `PHONE_TAKEN` (the full name is not unique) |
 | EXT-06 Binding | Admin binds the registered user from Pending accounts without a password | User signs in with the original password (by email, username, or phone) and lands on `/dms` |
 | EXT-07 Sign-in name rules | Register with neither email nor phone, a digits-only username, a malformed email or phone, and a duplicate username; sign in with a phone written with spaces and dashes | Missing contact, digits-only username, malformed values → 400; duplicate → 409; the formatted phone signs in |
 | EXT-08 Photo upload | Staff A uploads a 1 MB JPEG and a PNG to an in-stock vehicle, then a 3 MB file, then a text file renamed `.jpg`, then an 11th photo | First two appear; 3 MB → "Photo must be 2 MB or smaller."; fake JPEG → 415; 11th → 400 |
 | EXT-09 Photo enhance | Select the JPEG, `Auto fix`, toggle Original / Enhanced, then `Sharpen` | Enhanced differs; original unchanged; `Sharpen` replaces the enhanced copy |
 | EXT-10 Photo isolation | Staff B requests Staff A's photo content through the gateway; Staff A deletes a photo | B → 404; after delete the thumbnail disappears and its content → 404 |
+
+## 9. Delivery extensions (2026-10-21)
+
+The user asked for every feasible item from the earlier out-of-scope list: buyer site, real marketplace publishing, payments, contracts, OCR, extra vehicle fields, queues, a second database, a KPI home page, lead stage history, workshop settlement, and a dedicated disclaimer page. Each was decided as follows.
+
+| Item | Decision | Requirement IDs |
+|---|---|---|
+| Mileage, exterior colour, fuel type, stock number, list price | **Go** — optional vehicle fields; the specification's eight required fields do not change | DMS-18 |
+| Payments | **Go, as a ledger** — record payments already taken at the dealership against a sold vehicle; no card processing. A sales member only records; the owner or a manager reads and corrects the ledger | PAY-01–05 |
+| Contracts | **Go, as a template** — printable bill of sale from the DMS, CRM, and payment records | SALE-01 |
+| KPI home page | **Go** — `/dashboard`; `/dms` stays the post-login page | DASH-01 |
+| Lead stage history | **Go** — monthly stage entries from the lead audit trail on the sales report | CRM-16 |
+| Workshop settlement | **Go** — work-order cost report by month and assignee | WO-08 |
+| Dedicated disclaimer page | **Go** — public `/disclaimer` | AD-14 |
+| Buyer site | **Go** — public inventory of ready, passed ads and an inquiry form that files a lead | SHOP-01–05 |
+| Real marketplace publishing | **No.** Kijiji and AutoTrader.ca need a partner agreement, a dealer account, and API or feed credentials, which this project does not have. AD-16 keeps the labelled browser simulation; the buyer site is the real publication channel | — |
+| Real payment processing | **No.** Charging cards needs a merchant account and a PCI-scoped processor. PAY-01–05 record payments only | — |
+| OCR | **No.** The configured AI model reads text only, and no requirement says which document to read (registration, bill of sale, odometer photo). VIN entry already has the vPIC decode | — |
+| Message queue, second database | **No.** No requirement needs asynchronous work or a separate store; both would add infrastructure and failure modes to a single-database design (SCOPE-BASELINE: sync REST + one MySQL database) | — |
+| Finance-grade audit | **Go** — the user ruled that every platform operation is audited (sign-ins, creates, updates, deletes, ad checks and exports, rule overrides) with the replaced values kept as history versions, an admin platform log on `/admin`, an owner-and-manager dealership log on `/team`, and every record list newest first; sales members see no audit data (AUD-17) | AUD-10–17 (requirements/iteration-1/DealerOps-Requirements.md §7; API design/14 §9; storage design/15 §8.8) |
+
+### Requirements
+
+| ID | Requirement | Priority |
+|---|---|---|
+| DMS-18 | A vehicle has optional `mileageKm` (0–2,000,000), `exteriorColor` (≤ 40), `fuelType` (`GASOLINE`, `DIESEL`, `HYBRID`, `PLUGIN_HYBRID`, `ELECTRIC`, `OTHER`), `stockNumber` (≤ 20, unique among the dealership's active vehicles, else **400** `VALIDATION` on `stockNumber`), and `listPrice` (≥ 0, two decimals). Patch replaces them (null clears). They are audited like other vehicle fields, locked on a sold vehicle (**409** `SOLD_LOCKED`), and the list search `q` also matches the stock number. The DMS list shows Stock # and List price | Must |
+| DMS-19 | Client review 2026-11-09 (requirements/iteration-3). Choosing source `OTHER` on the add or edit form shows a required **Other source** box (trimmed, then ≤ 100) for the user's own category-style source name, with the names already used offered as suggestions that do not restrict input; any other source stores none (`sourceOther` null). Omitted, null, empty and blank count as missing; PATCH replaces the field, so a named `OTHER` vehicle must resend it. An `OTHER` vehicle saved before DMS-19 without one may stay blank while it stays `OTHER` (shown as `Other`, included in **All other**); once a value is saved it cannot be cleared while the source stays `OTHER` (design/14 §4.1). The DMS list gets a **Source** filter; choosing `Other` shows a second dropdown of the dealership's own custom source names (`GET /api/v1/vehicles/source-other-options`, case-insensitive with the latest-created spelling, in-stock and sold, not deleted, independent of Status) with **All other** first; changing the Source filter returns to page 1, and the options reload after a save or delete. The Source column reads `Other: <name>`. Audited, and locked on a sold vehicle (**409** `SOLD_LOCKED`) | Must |
+| DMS-20 | Client review 2026-11-09, decided by Robin 2026-11-10 (requirements/iteration-3). Every vehicle, for any source, has optional `acquiredFromName` (the person or business it was acquired from, ≤ 120) and `acquiredFromAddress` (≤ 255), trimmed first and length-checked after trimming (else **400** `VALIDATION` on the field); blank is stored as null. Patch replaces them (omitted, null or blank clears). Once a Source is selected, the add and edit forms show the optional **Acquired from** and **Acquired from address** boxes. Audited on create and patch, and locked on a sold vehicle (**409** `SOLD_LOCKED`). `sourceOther` (DMS-19) stays the category-style name for `OTHER` | Must |
+| PAY-01 | `POST /api/v1/vehicles/{id}/payments` records `amount` (> 0, two decimals), `method` (`CASH`, `DEBIT`, `CREDIT_CARD`, `CHEQUE`, `BANK_TRANSFER`, `FINANCING`, `OTHER`), `paidOn`, and an optional `note` (≤ 200) on a sold vehicle. An in-stock vehicle → **400** `VALIDATION` | Must |
+| PAY-02 | The paid total cannot exceed the sold price, and `paidOn` must be between the sold date and today; each violation → **400** `VALIDATION` with the field | Must |
+| PAY-03 | `GET` returns `soldPrice`, `paidTotal`, `balanceDue`, and the payments newest first; `DELETE …/payments/{paymentId}` removes a mistaken payment from the ledger by soft-deleting it (row kept; design/15 §8.6) | Must |
+| PAY-04 | Adding and removing a payment write a `VEHICLE` / `UPDATE` audit row (`paymentAdded` or `paymentRemoved`, `paidOn`), so the vehicle history shows them | Must |
+| PAY-05 | Staff may only record a payment: `POST` returns **201** with just the recorded `PaymentItem` (`id, amount, method, paidOn, note, recordedBy, createdAt`), while the owner and a manager get the updated ledger as before. The ledger `GET` and the payment `DELETE` need team access, so the owner or a manager reads and corrects the ledger (a sales member → **403** `FORBIDDEN`). The sales UI shows a record-payment form without the ledger or remove actions and never calls the forbidden routes | Must |
+| SALE-01 | A sold vehicle's drawer links to `/dms/{id}/bill-of-sale`: dealer, linked buyer, vehicle (VIN, condition, odometer, colour), sale price, payments, balance due, signature lines, and a notice that it is a template, not a reviewed contract. Printing hides the app chrome | Must |
+| DASH-01 | `/dashboard` (Dealer.User) shows in-stock count and invested cost, outstanding work orders, settled workshop cost, sales this month, total sales, gross profit, average days to sell, open pipeline, overdue follow-ups, and win rate, from the existing report endpoints | Must |
+| CRM-16 | The funnel report adds `months`: for each of the twelve most recent months with a lead create or stage change, how many leads entered each stage. Source: `LEAD` audit rows carrying `stage` | Must |
+| WO-08 | `GET /api/v1/work-orders/report/settlement` returns open, in-progress, and done counts, the settled cost of done work orders, cost by completion month, and per assignee (outstanding, done, settled cost). Cancelled work orders are not counted | Must |
+| AD-14 | Public `/disclaimer` explains the limits of the ad check, the AI review, simulated publishing, the bill of sale template, the payment ledger, buyer-site listings, and VIN data. The ad result panel, the buyer site, the landing page, and the bill of sale link to it | Must |
+| SHOP-01 | Public `/shop` lists active dealerships as cards showing each dealership's logo and its in-stock and sold vehicle counts; `/shop/{slug}` (the slug derived from the legal name, design/14 §4.6.2) shows the dealership's contact details and every vehicle that is in stock, not deleted, and whose ad is `READY` with a passed check for the current content version | Must |
+| SHOP-02 | `GET /api/v1/public/dealers/{dealer}/inventory` is anonymous; `dealer` is the slug or, for older links, the numeric id, and the response carries the slug. A vehicle exposes year, make, model, body type, condition, mileage, colour, fuel type, the ad title and body, and whether it has a photo. No VIN, cost, list price, or customer data | Must |
+| SHOP-03 | `GET …/vehicles/{vehicleId}/photo` returns the vehicle's first photo (enhanced copy when present), only while the vehicle is listed; otherwise **404** | Must |
+| SHOP-04 | `POST …/inquiries` takes `vehicleId`, `contact` (the four CRM customer fields and their rules), and `message` (1–1000). It reuses the most recently updated active customer of that dealership whose phone **and** name both match — the phone compared digits only, so `(403) 555-0123` and `4035550123` are one number, and the name trimmed and compared case-insensitively — otherwise it creates one. Phone alone is never enough, because people who share a household phone keep separate profiles, and the email is never part of the match: a different or newly typed address neither prevents the match nor overwrites the stored one (14 §12a). When that customer already has an open lead on the vehicle, the message is added to that lead as a note and no lead is created (CR-051); otherwise it creates a `NEW` lead on the vehicle due today with the message as the first note. Only a created lead notifies the dealership. Every member of the dealership, sales members included, sees the inquiry in the header inbox with an **Open lead** link until someone gives the lead an owner or moves it out of `NEW` (notification `BUYER_INQUIRY`, resolved `TAKEN`). Rows are written by actor `buyer-site`; the audit records the contact values (AUD-04). An unlisted vehicle → **404** | Must |
+| SHOP-05 | The Gateway lets `GET`/`POST /api/v1/public/**` through without a token; inquiries have their own per-IP limit (`dealerops:rateLimits:inquiryPerMinute`, default 5) | Must |
+
+### Data
+
+`vehicle` gains `mileage_km INT NULL`, `exterior_color VARCHAR(40) NULL`, `fuel_type VARCHAR(16) NULL`, `stock_number VARCHAR(20) NULL`, `list_price DECIMAL(12,2) NULL`, (DMS-19, 2026-11-09) `source_other VARCHAR(100) NULL`, and (DMS-20, 2026-11-10) `acquired_from_name VARCHAR(120) NULL` and `acquired_from_address VARCHAR(255) NULL`. New table `vehicle_payment (id, dealer_id, vehicle_id, amount DECIMAL(12,2), method VARCHAR(16), paid_on DATE, note VARCHAR(200) NULL, recorded_by VARCHAR(64), created_at)` with `idx_vehicle_payment_vehicle (dealer_id, vehicle_id)` and foreign keys to `dealer` and `vehicle`. Core adds both at start-up with the idempotent schema patches in `Program.cs`.
+
+### Acceptance
+
+| Case | Steps | Expected |
+|---|---|---|
+| EXT-11 Listing details | Add a vehicle with stock number, mileage, colour, fuel type, and list price; add a second with the same stock number; search by the stock number | Values saved and audited; duplicate → "Stock number is already used by another vehicle."; search finds one |
+| EXT-12 Payments | Sell the vehicle for 21,000; pay 25,000; pay 6,000 and 15,000; remove one; open the bill of sale and print | 25,000 → "Amount is more than the balance due."; balance 15,000 → 0 → 15,000; audit rows; bill of sale shows the payments and prints without the app chrome |
+| EXT-13 Reports | Finish a work order with cost 120.50; open the sales report and the dashboard | Workshop settlement shows 120.50 by month and assignee; stage history shows this month's lead entries; dashboard KPIs match the reports |
+| EXT-14 Buyer site | Pass and mark ready an ad; open `/shop/{slug}` signed out; send an empty inquiry, then a complete one | The vehicle is listed without VIN or cost; empty form → field errors; complete form → a `NEW` lead with the message as its note |
+| EXT-15 Buyer-site limits | Sell the listed vehicle or edit its ad; request its photo; send an inquiry for it | It leaves the inventory; photo and inquiry → 404 |
+| EXT-16 Owner, manager and sales | Admin binds the first account to an empty dealership and then binds a second one; a registered account requests to join and the owner approves it; the owner promotes one member to manager and edits the profile; the manager calls the profile and join-request routes, then promotes and edits a sales member and tries the other manager and the owner; the owner demotes the manager and removes a sales member | The first bind is `OWNER` (201); the second files a join request (202); the approved account joins as `SALES`; the owner and the manager see Team, a sales member → 403 and `/team` redirects to `/dms`; the manager on the profile and join-request routes → 403, and on a `MANAGER` or the `OWNER` target → 403; the profile change shows in the header; after the demotion Team disappears for that member |
+| EXT-17 Audit logs | A sales member edits a vehicle's price and an ad, runs a check and exports; the owner opens the Team audit log and filters by `VEHICLE`; the admin opens the Admin audit tab and filters by dealership; a sales member and the admin call each other's log URL | Rows newest first; the price row shows old → new; `LISTING` rows for the update, `CHECK` and `EXPORT`; each row shows the source IP, and the admin log also shows the dealership; a sales member on `/api/v1/dealer/audit` and a dealer user on `/api/v1/admin/audit` → 403 |
+| EXT-18 Sign-in audit | Sign in with the right password, with a wrong password, and with an unknown identifier; the admin filters the audit log by `APP_USER` | `LOGIN`, then `LOGIN_FAILED` with the reason under the account's username, then `LOGIN_FAILED` by `anonymous` with entity id 0; the typed unknown identifier appears nowhere |
+| EXT-19 Sales restrictions | On a sold vehicle, a sales member records a payment, then calls the ledger `GET`, the payment `DELETE` and `GET /api/v1/audit` for the vehicle, and opens the vehicle drawer; the owner opens the same vehicle | The sales `POST` → 201 with only the payment item; ledger, delete and record history → 403; the sales drawer shows the record-payment form but no ledger, remove action or history, with no 403 in the console; the owner sees the new payment in the ledger, can remove it, and sees the vehicle history |

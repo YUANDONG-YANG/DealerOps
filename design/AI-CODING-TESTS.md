@@ -1,4 +1,6 @@
-# AI-CODING-TESTS · Coding-AI test task list
+# AI-CODING-TESTS · Coding-AI test task list (legacy Java/Vue reference)
+
+> Historical test-task reference only. Current validation targets `backend/dotnet` and `frontend/react`; do not create Java/Vue test paths from this document.
 
 ## Development phase: no test authoring
 

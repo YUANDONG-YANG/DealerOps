@@ -1,6 +1,8 @@
-# 19 · Gateway and ai-service engineering design
+# 19 · Gateway and ai-service engineering design (legacy Java reference)
 
-- Status: **current (v6 Gateway YAML-level / ai-service adapter-level)**
+> **Deprecated:** This document describes the former Spring Cloud Gateway/Java implementation. The current services are .NET 10 / ASP.NET Core in `backend/dotnet/DealerOps.Gateway` and `backend/dotnet/DealerOps.AiService`; use those projects as the implementation source of truth.
+
+- Status: **legacy reference only**
 - **Routes, JWT, CORS, internal header, direct-access failure, why no standalone auth repo, why no Service Bus: follow [15](15-Data-Auth-and-Gateway.md).** This document does not set new principles; it only writes file-splittable config and adapter boundaries.
 - **ai-manager integration follows [09](09-AI-Agent-Integration.md)** (in-process embed, `AiManager`, do not scan `com.gateway`, implement timeout yourself).
 - **HTTP paths and JSON follow [14](14-Backend-API-Contract.md).** Public surface is only `/api/v1/**`; internal surface is only `/internal/v1/ad-check` and `/internal/v1/assistant`. This document invents no extra paths, no extra error codes, and no business tables.
@@ -34,7 +36,7 @@ Forbidden: a fifth auth repo / a standalone container for the GitHub component; 
 **Spring Cloud Gateway**, **Java 21** (matches 07 / 15 §12; the three Java repos share one version — do not mix gateway 21 and ai-service 17). No MySQL, no model SDK, no business writes.
 
 ```
-dealer-gateway/
+backend/java/dealer-gateway/
   pom.xml
   src/main/resources/application.yaml
   src/main/java/ca/sait/dealerops/gateway/
@@ -123,7 +125,7 @@ spring:
 
 Route metadata timeouts are finite: the AI route is connect 2s and response 16s; dealer-core `/api/v1/**` is connect 2s and response 18s; Swagger is connect 2s and response 5s. The httpclient backstop is connect 2s and response 18s.
 
-**Extension API routing (verified against `dealer-gateway/src/main/resources/application.yaml`):** every public browser API added for VIN decode, email/phone registration, pending-account administration, member options, leads, work orders, and vehicle photos is under `/api/v1/**` and is proxied to dealer-core. No per-feature route is needed for JSON APIs: `dealer-core-public` is the single catch-all for that namespace. The earlier `dealer-core-photos` route intentionally matches only `/api/v1/vehicles/*/photos` and descendants, runs before the catch-all, and omits `CacheRequestBody` so multipart uploads and image bytes are not buffered as log strings. Both routes stay behind the same Gateway JWT policy: only login/register and public VIN decode are anonymous; all new business data routes require a DealerOps JWT, with role and tenant checks enforced again by core. Never add direct browser routes to `CORE_URL` or send these APIs to ai-service.
+**Extension API routing (verified against `backend/java/dealer-gateway/src/main/resources/application.yaml`):** every public browser API added for VIN decode, email/phone registration, pending-account administration, member options, leads, work orders, and vehicle photos is under `/api/v1/**` and is proxied to dealer-core. No per-feature route is needed for JSON APIs: `dealer-core-public` is the single catch-all for that namespace. The earlier `dealer-core-photos` route intentionally matches only `/api/v1/vehicles/*/photos` and descendants, runs before the catch-all, and omits `CacheRequestBody` so multipart uploads and image bytes are not buffered as log strings. Both routes stay behind the same Gateway JWT policy: only login/register and public VIN decode are anonymous; all new business data routes require a DealerOps JWT, with role and tenant checks enforced again by core. Never add direct browser routes to `CORE_URL` or send these APIs to ai-service.
 
 **Browser calls to `/internal/v1/**` must fail (15 §7; missing one of the three will be torn apart in defense):**
 
@@ -174,6 +176,8 @@ log-sum/ai-service-YYYY-MM-DD.log
 
 The gateway log records the route ID, HTTP status, duration, and completion signal. Core and ai-service record the method, path, status, and duration; core also records the authenticated username when available. Authorization tokens and passwords must never be logged; request bodies are logged only in the redacted form defined in [20-Observability.md](20-Observability.md).
 
+The .NET gateway also writes one `Warning` per rejection: a rejected JWT (exception type name and path only, never the token), a token without an API role (401), a platform admin on a business route (403), a rate-limit rejection (client IP, user, path), and a failed downstream health check. The full event list is [20-Observability.md](20-Observability.md) §7.1.
+
 For `/api/v1/assistant/ask`, core permits only a bound `Dealer.User`, and retrieval is tenant-scoped. A `Platform.Admin`, unbound, or invalid-role request is rejected with **403** before the AI call, so it never reaches ai-service. A permitted request produces the same request ID in gateway, core, and ai-service logs.
 
 ### 1.5 How to prove direct core:8081 / ai:8082 access fails
@@ -182,13 +186,26 @@ Same port set as 15 §10 (`env.example`): web `5173`, gateway **`8080`**, core *
 
 | Demo | Expect |
 |---|---|
-| Page `fetch('http://localhost:8081/api/v1/vehicles')` (with or without Bearer) | browser blocks (no CORS). Product entry is not 8081 |
+| Page `fetch('http://localhost:8081/api/v1/vehicles')` (with or without Bearer) | browser blocks (no CORS). A non-browser client without `X-Dealer-Internal` gets **404** `{code, message}` |
 | Same request via `http://localhost:8080/api/v1/vehicles` + Bearer | 200 or a business error (401/403/404…) |
-| Page `fetch('http://localhost:8082/internal/v1/ad-check')` | no CORS; even a non-browser client without the internal header → **404** |
-| Page `fetch('http://localhost:8080/internal/v1/ad-check')` (no internal header) | Gateway **404** |
+| `curl` to core `8081` or ai-service `8082` without `X-Dealer-Internal` | **404** `{code, message}` on every path except `GET /actuator/health`, which stays open for the App Service health probe and returns only a status (core `Healthy`, ai-service `{"status":"UP"}`) |
+| Page `fetch('http://localhost:8080/internal/v1/ad-check')` (no internal header) | Gateway **404** `{code, message}` |
 | Azure | core / ai **internal** Ingress; public FQDNs are web + gateway only |
 
-Local binding: Gateway on 8080; core and ai set `SERVER_ADDRESS=127.0.0.1` so they are not on `0.0.0.0` for the whole class to scan. Classroom backup: if `curl` 8081 still works, say "no CORS / no public net / needs intranet"; **do not** rely on turning the firewall off as the only evidence.
+The gateway stamps `X-Dealer-Internal` on the outbound proxy and on its own health and OpenAPI fetches. Direct access fails because that credential is absent, not because a firewall was turned off.
+
+### 1.5.1 Rate limits (NFR-07)
+
+The gateway is the only browser entry point, so it applies one per-client limiter to every `/api/**` request (`Middleware/RateLimitSetup.cs`). Health, release, and Swagger paths are not limited. Each client has a one-minute fixed window with no queue:
+
+| Bucket | Key | Default per minute | Setting |
+|---|---|---|---|
+| Anonymous (sign-in, registration, catalog, VIN decode, buyer-site reads) | client IP | 60 | `dealerops:rateLimits:anonymousPerMinute` |
+| Buyer-site inquiries: `POST /api/v1/public/**/inquiries` | client IP | 5 | `dealerops:rateLimits:inquiryPerMinute` |
+| Signed-in API | username from the JWT | 600 | `dealerops:rateLimits:userPerMinute` |
+| AI calls: `POST /api/v1/listings/{id}/checks`, `POST /api/v1/assistant/ask` | username, or IP | 30 | `dealerops:rateLimits:aiPerMinute` |
+
+Over the limit the gateway answers **429** `{ "code": "RATE_LIMITED", "message": … }` with `Retry-After: 60`. The client IP is the socket address. Outside `Development` the gateway runs the ASP.NET Core forwarded-headers middleware with `ForwardLimit = 1`, so the socket address becomes the one hop the Azure App Service front end appends; a caller-supplied `X-Forwarded-For` is never read, so the limit cannot be dodged by rotating that header. The same value is forwarded to Core as the audit client IP. The gateway proxies no AI Swagger route: `/internal/v1/**` is the only AI route and is rejected from the browser. `dealerops:rateLimits:enabled` defaults to `true` outside `Development`; local and E2E stacks run `Development` and opt in by setting it. The values are starting defaults for the capstone and can be changed per environment without a code change. The Azure stack sets `dealerops__rateLimits__anonymousPerMinute=600` on the gateway (`deploy/terraform/main.tf`), because each dealer logo and buyer photo counts as a request and a classroom demo shares one IP; the other limits keep their defaults.
 
 ### 1.6 Half-page defense pointer (Auth domain)
 
@@ -220,7 +237,7 @@ The key goes to ai-service **only**: `AIMANAGER_API_KEY` (env / Key Vault). web 
 ### 2.2 Suggested directory (adapter level, not a rule engine)
 
 ```
-ai-service/
+backend/java/ai-service/
   pom.xml
   src/main/resources/application.yaml
   src/main/java/ca/sait/dealerops/aiservice/
@@ -273,7 +290,7 @@ Adapter:
 2. user = the JSON above
 3. check `AIResponse.isSuccess()` first, then parse content
 4. `finally` `closeConversation`
-5. Fold model output into **notes for core to write as `aiNotes`** (14: elements at least `{ "message": "..." }`). **Do not** persist `compliance_check` in this service
+5. Fold model output into **notes for core to write as `aiNotes`** (14: elements `{ "code", "severity", "explanation", "message" }`, `severity` `REVIEW` or `INFO`). **Do not** persist `compliance_check` in this service
 
 Transport / timeout / missing Key: return **5xx or an agreed failure body** (pick one and lock it); **core** records `UNAVAILABLE` and returns **502 `AI_UNAVAILABLE`** to the outside (14 §8.2). ai-service **must not write business tables or return five states to the browser itself**.
 
@@ -324,6 +341,8 @@ ai-service **does not** invent an `AI_UNAVAILABLE` business table. It only makes
 | Assistant model down | fail | outside still **200** + `summaryAvailable=false` (**different** from check 502) |
 
 Forbidden: ai-service returning a "fake Passed"; treating timeout as 200 empty notes.
+
+The .NET `AiProviderClient` logs one `Information` line per model call (`operation` `ad-check`/`assistant`, `model`, `durationMs`, `outcome` `ok`/`provider_status`/`timeout`/`unreachable`/`error`) and a `Warning` when the provider returns a non-success status or is unreachable. Prompts, listing text, questions, and model replies are never logged ([20-Observability.md](20-Observability.md) §7.2).
 
 ### 2.8 Library version
 

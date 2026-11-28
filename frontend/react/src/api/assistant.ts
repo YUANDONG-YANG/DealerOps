@@ -1,0 +1,20 @@
+import { http } from './http';
+
+export type AssistantCardKind = 'VEHICLE' | 'CUSTOMER' | 'LISTING';
+
+export type AssistantCardDto = {
+  kind: AssistantCardKind; id: number; label: string;
+  status?: string; vehicleId?: number; checkStatus?: string;
+};
+
+export type AskResponse = {
+  summary: string | null;
+  summaryAvailable: boolean;
+  cards: AssistantCardDto[];
+  count?: { count: number; singularLabel: string; pluralLabel: string; summary: string } | null;
+};
+
+/** In-app assistant. The question goes to the gateway; this client does not call the AI service. */
+export const assistantApi = {
+  ask: (text: string) => http.post<AskResponse>('/api/v1/assistant/ask', { text }),
+};

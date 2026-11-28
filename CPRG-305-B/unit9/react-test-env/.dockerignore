@@ -1,0 +1,23 @@
+# Host dependencies: reinstalled inside the image so the container gets Linux binaries.
+node_modules
+
+# Build and test output: regenerated inside the container.
+build
+coverage
+
+# Version control and editor metadata: not needed to run the test suite.
+.git
+.gitignore
+.idea
+.vscode
+
+# OS and log noise.
+.DS_Store
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Docker files themselves are not needed inside the image.
+Dockerfile
+.dockerignore
+docker-compose.yml

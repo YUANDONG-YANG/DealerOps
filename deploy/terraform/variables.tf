@@ -1,5 +1,6 @@
-# Deploy-time input. Secrets are passed with -var-file or TF_VAR_* and never committed.
-# Copy terraform.tfvars.example to terraform.tfvars (git-ignored) for the non-secret values.
+# All secrets auto-generate safe defaults so beginners can deploy with just:
+#   terraform init && terraform apply
+# Override any value with -var, TF_VAR_*, or a terraform.tfvars file (git-ignored).
 
 variable "location" {
   description = "Azure region for the resource group, App Service plan, MySQL, and Key Vault."
@@ -7,10 +8,21 @@ variable "location" {
   default     = "canadacentral"
 }
 
-variable "static_web_app_location" {
-  description = "Static Web Apps region. The service runs in a short region list; Canada Central is not one of them."
+variable "web_app_name" {
+  description = "App Service name for the React SPA. The browser URL is https://<web_app_name><name_suffix>.azurewebsites.net."
   type        = string
-  default     = "eastus2"
+  default     = "dealer-ops-dev"
+}
+
+variable "web_custom_domain" {
+  description = "Optional custom hostname for the React SPA (for example www.example.com). Leave empty to use the Azure-managed azurewebsites.net hostname. The domain owner must point a CNAME to the app's default hostname before apply."
+  type        = string
+  default     = ""
+
+  validation {
+    condition     = var.web_custom_domain == "" || can(regex("^[A-Za-z0-9]([A-Za-z0-9.-]*[A-Za-z0-9])?$", var.web_custom_domain))
+    error_message = "web_custom_domain must be a hostname without a scheme or path, such as www.example.com."
+  }
 }
 
 variable "mysql_location" {
@@ -31,13 +43,13 @@ variable "prefix" {
 }
 
 variable "name_suffix" {
-  description = "Appended to every globally unique name (the three apps, the Static Web App, Key Vault, MySQL) when one is already taken in another subscription. Empty keeps the pinned names."
+  description = "Appended to every globally unique name (the four apps, Key Vault, MySQL) when one is already taken in another subscription. Empty keeps the pinned names."
   type        = string
   default     = ""
 }
 
 variable "cors_allowed_origin" {
-  description = "The one browser origin dealer-gateway accepts. Empty uses this stack's own Static Web App origin; set it to another origin (for example http://localhost:5173) when the frontend is built and hosted outside this stack."
+  description = "The one browser origin dealer-gateway accepts. Empty uses this stack's own web app origin; set it to another origin (for example http://localhost:5173) when the frontend is built and hosted outside this stack."
   type        = string
   default     = ""
 }
@@ -49,7 +61,7 @@ variable "resource_group_name" {
 }
 
 variable "service_plan_sku" {
-  description = "Linux App Service plan SKU. B1 (1.75 GB) is the cheapest that allows Always On; B2 (3.5 GB) is safer for three JVMs on one plan."
+  description = "Linux App Service plan SKU. B1 (1.75 GB) is the cheapest that allows Always On; B2 (3.5 GB) is safer for four apps on one plan."
   type        = string
   default     = "B2"
 }
@@ -79,14 +91,10 @@ variable "mysql_admin_username" {
 }
 
 variable "mysql_admin_password" {
-  description = "MySQL administrator password. Stored in Key Vault as MYSQL-PASSWORD; read by dealer-core only."
+  description = "MySQL administrator password. Auto-generated if empty. Stored in Key Vault as MYSQL-PASSWORD."
   type        = string
   sensitive   = true
-
-  validation {
-    condition     = length(var.mysql_admin_password) >= 12
-    error_message = "mysql_admin_password must be at least 12 characters."
-  }
+  default     = ""
 }
 
 variable "operator_ip_addresses" {
@@ -96,25 +104,17 @@ variable "operator_ip_addresses" {
 }
 
 variable "internal_token" {
-  description = "Shared X-Dealer-Internal value for gateway, dealer-core outbound, and ai-service. Key Vault secret INTERNAL-TOKEN."
+  description = "Shared X-Dealer-Internal value for gateway, dealer-core outbound, and ai-service. Auto-generated if empty."
   type        = string
   sensitive   = true
-
-  validation {
-    condition     = var.internal_token != "dealer-internal"
-    error_message = "internal_token must not be the local classroom default dealer-internal."
-  }
+  default     = ""
 }
 
 variable "jwt_signing_secret" {
-  description = "HS256 secret dealer-core signs with and dealer-gateway validates. Key Vault secret JWT-SIGNING-SECRET."
+  description = "HS256 secret dealer-core signs with and dealer-gateway validates. Auto-generated if empty."
   type        = string
   sensitive   = true
-
-  validation {
-    condition     = length(var.jwt_signing_secret) >= 32
-    error_message = "jwt_signing_secret must be at least 32 bytes."
-  }
+  default     = ""
 }
 
 variable "aimanager_api_key" {
@@ -137,27 +137,22 @@ variable "aimanager_gateway_model" {
 }
 
 variable "admin_username" {
-  description = "Username of the one seeded platform admin (design/15-Data-Auth-and-Gateway.md section 8). Empty skips seeding."
+  description = "Username of the one seeded platform admin. Defaults to admin."
   type        = string
-  default     = ""
+  default     = "admin"
 }
 
 variable "admin_password" {
-  description = "Password for the seeded platform admin. Key Vault secret ADMIN-PASSWORD. Required when admin_username is set."
+  description = "Password for the seeded platform admin. Auto-generated if empty."
   type        = string
   sensitive   = true
   default     = ""
-
-  validation {
-    condition     = var.admin_password == "" || length(var.admin_password) >= 12
-    error_message = "admin_password must be empty or at least 12 characters."
-  }
 }
 
 variable "admin_email" {
   description = "Optional email the seeded platform admin can also sign in with (the username always works)."
   type        = string
-  default     = ""
+  default     = "admin@example.com"
 }
 
 variable "admin_phone" {
@@ -167,7 +162,7 @@ variable "admin_phone" {
 }
 
 variable "published_at" {
-  description = "Release-time stamp on the gateway, core and ai-service before the first JAR deploy. The deploy step overwrites it with a UTC timestamp, and Terraform then leaves it alone."
+  description = "Release-time stamp on the gateway, core and ai-service before the first zip deploy. The deploy step overwrites it with a UTC timestamp, and Terraform then leaves it alone."
   type        = string
   default     = "cloud"
 }

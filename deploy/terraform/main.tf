@@ -1,45 +1,76 @@
 # One resource group holding the graded cloud demo:
-#   3 x Linux App Service (Java 21 SE JAR)  - dealer-gateway public, dealer-core and ai-service locked to the plan
-#   1 x Static Web App                      - the built Vue SPA
-#   1 x MySQL Flexible Server               - schema owned by Flyway in dealer-core
+#   3 x Linux App Service (.NET 10)          - dealer-gateway public, dealer-core and ai-service reachable by the gateway
+#   1 x Linux App Service (Node 20)         - the built React SPA on a fixed hostname
+#   1 x MySQL Flexible Server               - schema owned by EF Core EnsureCreated in dealer-core
 #   1 x Key Vault                           - the five secret values, referenced by app settings
 #   1 x Log Analytics + Application Insights
-# No container registry and no container images: App Service runs the JARs directly.
+# No container registry and no container images: App Service runs the .NET apps directly.
+
+# Auto-generated secrets: used when the corresponding variable is left empty,
+# so beginners can deploy with just `terraform init && terraform apply`.
+resource "random_password" "mysql" {
+  length  = 24
+  special = false
+}
+
+resource "random_password" "internal_token" {
+  length  = 40
+  special = false
+}
+
+resource "random_password" "jwt_secret" {
+  length  = 64
+  special = false
+}
+
+resource "random_password" "admin_password" {
+  length  = 16
+  special = false
+}
 
 data "azurerm_client_config" "current" {}
 
 locals {
-  resource_group_name = var.resource_group_name != "" ? var.resource_group_name : "${var.prefix}-rg"
+  mysql_admin_password = var.mysql_admin_password != "" ? var.mysql_admin_password : random_password.mysql.result
+  internal_token       = var.internal_token != "" ? var.internal_token : random_password.internal_token.result
+  jwt_signing_secret   = var.jwt_signing_secret != "" ? var.jwt_signing_secret : random_password.jwt_secret.result
+  admin_password       = var.admin_password != "" ? var.admin_password : random_password.admin_password.result
+  resource_group_name  = var.resource_group_name != "" ? var.resource_group_name : "${var.prefix}-rg"
 
   core_app_name    = "${var.prefix}-core${var.name_suffix}"
   ai_app_name      = "${var.prefix}-ai${var.name_suffix}"
   gateway_app_name = "${var.prefix}-gateway${var.name_suffix}"
+  web_app_name     = "${var.web_app_name}${var.name_suffix}"
 
   # Vault DNS names and MySQL server names are global, like the azurewebsites.net hostnames,
   # so another subscription deploying this stack needs name_suffix here too.
   key_vault_name    = "${var.prefix}-kv${var.name_suffix}"
   mysql_server_name = "${var.prefix}-mysql${var.name_suffix}"
 
-  # App Service serves every app on 443 in front of the JVM, so all three bind the same
-  # container port. The 8081 / 8082 split only matters locally.
-  app_port = 8080
+  # App Service terminates HTTPS on 443 and forwards to this port. Core and AI pin a local
+  # Kestrel port in appsettings.json, so the cloud overrides that endpoint explicitly.
+  app_port    = 8080
+  kestrel_url = "http://0.0.0.0:${local.app_port}"
 
   core_internal_url  = "https://${local.core_app_name}.azurewebsites.net"
   ai_internal_url    = "https://${local.ai_app_name}.azurewebsites.net"
   gateway_public_url = "https://${local.gateway_app_name}.azurewebsites.net"
-  web_public_origin  = "https://${azurerm_static_web_app.web.default_host_name}"
+  web_public_origin  = var.web_custom_domain != "" ? "https://${var.web_custom_domain}" : "https://${local.web_app_name}.azurewebsites.net"
   # The gateway allows exactly one browser origin. Default is this stack's own SPA; a team
   # that builds its own frontend elsewhere points it at that origin instead.
   cors_allowed_origin = var.cors_allowed_origin != "" ? var.cors_allowed_origin : local.web_public_origin
   mysql_database_name = "dealer_core"
-  seed_platform_admin = var.admin_username != "" && var.admin_password != ""
+  seed_platform_admin = var.admin_username != ""
   configure_model_key = var.aimanager_api_key != ""
 
   common_app_settings = {
     WEBSITES_PORT                         = tostring(local.app_port)
     APPLICATIONINSIGHTS_CONNECTION_STRING = azurerm_application_insights.appi.connection_string
-    # Release time on every Java app; deploy-apps.sh overwrites it on each deploy.
+    # Release time on every app; deploy-apps.sh overwrites it on each deploy.
     PUBLISHED_AT = var.published_at
+    # The services default to a log-sum folder three levels above the app, which is outside the
+    # writable App Service storage; /home persists across restarts.
+    LOG_DIR = "/home/LogFiles/dealerops"
   }
 }
 
@@ -102,19 +133,27 @@ resource "azurerm_key_vault" "kv" {
 
 resource "azurerm_key_vault_secret" "internal_token" {
   name         = "INTERNAL-TOKEN"
-  value        = var.internal_token
+  value        = local.internal_token
   key_vault_id = azurerm_key_vault.kv.id
 }
 
 resource "azurerm_key_vault_secret" "mysql_password" {
   name         = "MYSQL-PASSWORD"
-  value        = var.mysql_admin_password
+  value        = local.mysql_admin_password
+  key_vault_id = azurerm_key_vault.kv.id
+}
+
+# The full connection string embeds the password, so it is a secret in its own right (SEC-04)
+# and is referenced from Key Vault rather than written into the app settings.
+resource "azurerm_key_vault_secret" "mysql_connection_string" {
+  name         = "MYSQL-CONNECTION-STRING"
+  value        = "Server=${azurerm_mysql_flexible_server.mysql.fqdn};Port=3306;Database=${local.mysql_database_name};User=${var.mysql_admin_username};Password=${local.mysql_admin_password};SslMode=Required"
   key_vault_id = azurerm_key_vault.kv.id
 }
 
 resource "azurerm_key_vault_secret" "jwt_signing_secret" {
   name         = "JWT-SIGNING-SECRET"
-  value        = var.jwt_signing_secret
+  value        = local.jwt_signing_secret
   key_vault_id = azurerm_key_vault.kv.id
 }
 
@@ -129,7 +168,7 @@ resource "azurerm_key_vault_secret" "aimanager_api_key" {
 resource "azurerm_key_vault_secret" "admin_password" {
   count        = local.seed_platform_admin ? 1 : 0
   name         = "ADMIN-PASSWORD"
-  value        = var.admin_password
+  value        = local.admin_password
   key_vault_id = azurerm_key_vault.kv.id
 }
 
@@ -138,7 +177,7 @@ resource "azurerm_mysql_flexible_server" "mysql" {
   resource_group_name    = azurerm_resource_group.rg.name
   location               = var.mysql_location
   administrator_login    = var.mysql_admin_username
-  administrator_password = var.mysql_admin_password
+  administrator_password = local.mysql_admin_password
   sku_name               = var.mysql_sku_name
   version                = var.mysql_version
   backup_retention_days  = 7
@@ -181,15 +220,6 @@ resource "azurerm_mysql_flexible_server_firewall_rule" "operators" {
   end_ip_address      = each.value
 }
 
-resource "azurerm_static_web_app" "web" {
-  name                = "${var.prefix}-web${var.name_suffix}"
-  resource_group_name = azurerm_resource_group.rg.name
-  location            = var.static_web_app_location
-  sku_tier            = "Free"
-  sku_size            = "Free"
-  tags                = var.tags
-}
-
 resource "azurerm_service_plan" "plan" {
   name                = "${var.prefix}-plan"
   resource_group_name = azurerm_resource_group.rg.name
@@ -197,6 +227,52 @@ resource "azurerm_service_plan" "plan" {
   os_type             = "Linux"
   sku_name            = var.service_plan_sku
   tags                = var.tags
+}
+
+# React SPA on a fixed azurewebsites.net hostname. pm2 serves dist/ with SPA fallback.
+resource "azurerm_linux_web_app" "web" {
+  name                = local.web_app_name
+  resource_group_name = azurerm_resource_group.rg.name
+  location            = azurerm_service_plan.plan.location
+  service_plan_id     = azurerm_service_plan.plan.id
+  https_only          = true
+  tags                = var.tags
+
+  site_config {
+    always_on        = true
+    ftps_state       = "Disabled"
+    app_command_line = "pm2 serve /home/site/wwwroot --no-daemon --spa --port ${local.app_port}"
+
+    application_stack {
+      node_version = "20-lts"
+    }
+  }
+
+  app_settings = {
+    WEBSITES_PORT                  = tostring(local.app_port)
+    SCM_DO_BUILD_DURING_DEPLOYMENT = "false"
+  }
+}
+
+# Optional customer-owned hostname. The DNS CNAME must be configured before applying;
+# Azure issues and renews the managed TLS certificate after ownership is validated.
+resource "azurerm_app_service_custom_hostname_binding" "web" {
+  count               = var.web_custom_domain == "" ? 0 : 1
+  hostname            = var.web_custom_domain
+  app_service_name    = azurerm_linux_web_app.web.name
+  resource_group_name = azurerm_resource_group.rg.name
+}
+
+resource "azurerm_app_service_managed_certificate" "web" {
+  count                      = var.web_custom_domain == "" ? 0 : 1
+  custom_hostname_binding_id = azurerm_app_service_custom_hostname_binding.web[0].id
+}
+
+resource "azurerm_app_service_certificate_binding" "web" {
+  count               = var.web_custom_domain == "" ? 0 : 1
+  hostname_binding_id = azurerm_app_service_custom_hostname_binding.web[0].id
+  certificate_id      = azurerm_app_service_managed_certificate.web[0].id
+  ssl_state           = "SniEnabled"
 }
 
 # dealer-gateway: the only API origin the browser is allowed to call.
@@ -219,31 +295,32 @@ resource "azurerm_linux_web_app" "gateway" {
     health_check_path                 = "/actuator/health"
     health_check_eviction_time_in_min = 10
     ftps_state                        = "Disabled"
+    app_command_line                  = "dotnet DealerOps.Gateway.dll"
 
     application_stack {
-      java_server         = "JAVA"
-      java_server_version = "21"
-      java_version        = "21"
+      dotnet_version = "10.0"
     }
   }
 
   app_settings = merge(local.common_app_settings, {
-    GATEWAY_PORT        = tostring(local.app_port)
-    CORE_URL            = local.core_internal_url
-    AI_URL              = local.ai_internal_url
-    CORS_ALLOWED_ORIGIN = local.cors_allowed_origin
-    JWT_MODE            = "dev"
-    INTERNAL_TOKEN      = "@Microsoft.KeyVault(SecretUri=${azurerm_key_vault_secret.internal_token.versionless_id})"
-    DEV_JWT_SECRET      = "@Microsoft.KeyVault(SecretUri=${azurerm_key_vault_secret.jwt_signing_secret.versionless_id})"
+    GATEWAY_PORT                = tostring(local.app_port)
+    CORE_URL                    = local.core_internal_url
+    AI_URL                      = local.ai_internal_url
+    CORS_ALLOWED_ORIGIN         = local.cors_allowed_origin
+    WEB_PUBLISHED_AT            = ""
+    "dealerops__internalToken"  = "@Microsoft.KeyVault(SecretUri=${azurerm_key_vault_secret.internal_token.versionless_id})"
+    "dealerops__jwt__devSecret" = "@Microsoft.KeyVault(SecretUri=${azurerm_key_vault_secret.jwt_signing_secret.versionless_id})"
+    # Each dealer logo and buyer photo counts, and a classroom shares one IP (design/19 section 1.5.1).
+    "dealerops__rateLimits__anonymousPerMinute" = "600"
   })
 
   lifecycle {
-    # The deploy step stamps the real publish timestamp after the JAR upload.
-    ignore_changes = [app_settings["PUBLISHED_AT"]]
+    # The deploy step stamps the real publish timestamp after the zip upload.
+    ignore_changes = [app_settings["PUBLISHED_AT"], app_settings["WEB_PUBLISHED_AT"]]
   }
 }
 
-# dealer-core: business APIs, Flyway, JWT issuing. Reachable only from this plan.
+# dealer-core: business APIs, EF Core schema, JWT issuing. Reachable only from this plan.
 resource "azurerm_linux_web_app" "core" {
   name                            = local.core_app_name
   resource_group_name             = azurerm_resource_group.rg.name
@@ -264,18 +341,12 @@ resource "azurerm_linux_web_app" "core" {
     health_check_eviction_time_in_min = 10
     ftps_state                        = "Disabled"
     ip_restriction_default_action     = "Deny"
+    app_command_line                  = "dotnet DealerOps.Core.dll"
 
     application_stack {
-      java_server         = "JAVA"
-      java_server_version = "21"
-      java_version        = "21"
+      dotnet_version = "10.0"
     }
 
-    # Everything is denied except callers inside Azure, which is what lets dealer-gateway
-    # (same App Service plan) through while a browser on the public internet is refused by
-    # the platform. The App Service replacement for the "internal ingress" rule in
-    # design/15 section 10. A rule built from the plan's own outbound addresses is not used
-    # on purpose: those addresses are only known after apply, so they cannot appear in a plan.
     ip_restriction {
       name        = "allow-azure-callers"
       action      = "Allow"
@@ -287,15 +358,12 @@ resource "azurerm_linux_web_app" "core" {
   app_settings = merge(
     local.common_app_settings,
     {
-      CORE_PORT          = tostring(local.app_port)
-      MYSQL_URL          = "jdbc:mysql://${azurerm_mysql_flexible_server.mysql.fqdn}:3306/${local.mysql_database_name}?sslMode=REQUIRED&serverTimezone=UTC"
-      MYSQL_USER         = var.mysql_admin_username
-      GATEWAY_PUBLIC_URL = local.gateway_public_url
-      AI_BASE_URL        = local.ai_internal_url
-      JWT_MODE           = "dev"
-      MYSQL_PASSWORD     = "@Microsoft.KeyVault(SecretUri=${azurerm_key_vault_secret.mysql_password.versionless_id})"
-      INTERNAL_TOKEN     = "@Microsoft.KeyVault(SecretUri=${azurerm_key_vault_secret.internal_token.versionless_id})"
-      DEV_JWT_SECRET     = "@Microsoft.KeyVault(SecretUri=${azurerm_key_vault_secret.jwt_signing_secret.versionless_id})"
+      Kestrel__Endpoints__Http__Url = local.kestrel_url
+      ConnectionStrings__Default    = "@Microsoft.KeyVault(SecretUri=${azurerm_key_vault_secret.mysql_connection_string.versionless_id})"
+      AiService__BaseUrl            = local.ai_internal_url
+      EnableSwagger                 = "true"
+      AiService__InternalToken      = "@Microsoft.KeyVault(SecretUri=${azurerm_key_vault_secret.internal_token.versionless_id})"
+      Jwt__DevSecret                = "@Microsoft.KeyVault(SecretUri=${azurerm_key_vault_secret.jwt_signing_secret.versionless_id})"
     },
     local.seed_platform_admin ? {
       ADMIN_USERNAME = var.admin_username
@@ -308,7 +376,7 @@ resource "azurerm_linux_web_app" "core" {
   depends_on = [azurerm_mysql_flexible_database.core, azurerm_mysql_flexible_server_firewall_rule.azure_services]
 
   lifecycle {
-    # The deploy step stamps the real publish timestamp after the JAR upload.
+    # The deploy step stamps the real publish timestamp after the zip upload.
     ignore_changes = [app_settings["PUBLISHED_AT"]]
   }
 }
@@ -334,18 +402,12 @@ resource "azurerm_linux_web_app" "ai" {
     health_check_eviction_time_in_min = 10
     ftps_state                        = "Disabled"
     ip_restriction_default_action     = "Deny"
+    app_command_line                  = "dotnet DealerOps.AiService.dll"
 
     application_stack {
-      java_server         = "JAVA"
-      java_server_version = "21"
-      java_version        = "21"
+      dotnet_version = "10.0"
     }
 
-    # Everything is denied except callers inside Azure, which is what lets dealer-gateway
-    # (same App Service plan) through while a browser on the public internet is refused by
-    # the platform. The App Service replacement for the "internal ingress" rule in
-    # design/15 section 10. A rule built from the plan's own outbound addresses is not used
-    # on purpose: those addresses are only known after apply, so they cannot appear in a plan.
     ip_restriction {
       name        = "allow-azure-callers"
       action      = "Allow"
@@ -357,18 +419,18 @@ resource "azurerm_linux_web_app" "ai" {
   app_settings = merge(
     local.common_app_settings,
     {
-      AI_PORT                    = tostring(local.app_port)
-      AIMANAGER_GATEWAY_PROVIDER = var.aimanager_gateway_provider
-      AIMANAGER_GATEWAY_MODEL    = var.aimanager_gateway_model
-      INTERNAL_TOKEN             = "@Microsoft.KeyVault(SecretUri=${azurerm_key_vault_secret.internal_token.versionless_id})"
+      Kestrel__Endpoints__Http__Url = local.kestrel_url
+      AiManager__Provider           = var.aimanager_gateway_provider
+      AiManager__Model              = var.aimanager_gateway_model
+      AiService__InternalToken      = "@Microsoft.KeyVault(SecretUri=${azurerm_key_vault_secret.internal_token.versionless_id})"
     },
     local.configure_model_key ? {
-      AIMANAGER_API_KEY = "@Microsoft.KeyVault(SecretUri=${azurerm_key_vault_secret.aimanager_api_key[0].versionless_id})"
+      AiManager__ApiKey = "@Microsoft.KeyVault(SecretUri=${azurerm_key_vault_secret.aimanager_api_key[0].versionless_id})"
     } : {}
   )
 
   lifecycle {
-    # The deploy step stamps the real publish timestamp after the JAR upload.
+    # The deploy step stamps the real publish timestamp after the zip upload.
     ignore_changes = [app_settings["PUBLISHED_AT"]]
   }
 }

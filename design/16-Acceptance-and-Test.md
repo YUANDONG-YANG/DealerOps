@@ -14,7 +14,7 @@
 - Status: **current (v6 acceptance)**
 - **Conflict order (do not reverse):** course PPT hard items > spec PDF fields and enums > [IMPLEMENTATION-BRIEF.md](IMPLEMENTATION-BRIEF.md) / [00-Current-Development-Design.md](00-Current-Development-Design.md) > [15-Data-Auth-and-Gateway.md](15-Data-Auth-and-Gateway.md) / [14-Backend-API-Contract.md](14-Backend-API-Contract.md) / [13-Frontend-Engineering.md](13-Frontend-Engineering.md) > **this document**
 - This document is **use cases and live scripts**. **It does not change the contract**: paths, HTTP, error codes, five states, tenant, and fields follow 14 / 15 / the spec; routes and English copy follow 13. On contradiction, decide in the order above; do not invent new DTOs / routes / error codes here.
-- Extension scenarios are documented in [21-Feature-Extensions.md](21-Feature-Extensions.md) EXT-01–EXT-10: VIN decode, leads, work orders, email/phone registration and sign-in, and Image Studio. These are manual acceptance scripts, not authorization to write test code.
+- Extension scenarios are documented in [21-Feature-Extensions.md](21-Feature-Extensions.md) EXT-01–EXT-19: VIN decode, leads, work orders, email/phone registration and sign-in, and Image Studio, plus listing details, payments and bill of sale, reports and dashboard, the buyer site, membership roles, and audit and sales-restriction scenarios (EXT-11–EXT-19 in design/21). These are manual acceptance scripts, not authorization to write test code.
 - Out of scope: tickets, consumer buyer site, standalone Audit page, KPI, CSV import, and forgot password. The assistant only reuses the GitHub component and is read-only.
 - **Local-only cannot pass Sprint 2 / Sprint 3 (Review 2 / Review 3) acceptance.** Sprint 1 may explain architecture and four-repo builds on a local machine; S2/S3 must be a **cloud demo** (password sign-in → Gateway → business → real AI on Azure). See section 5.
 
@@ -36,7 +36,7 @@ Class signs in with an email, username, or phone plus password (15 §8); self si
 | `/crm`, `/leads` | `Dealer.User` | — |
 | `/ads` | `Dealer.User` (page title **Ad compliance**) | — |
 
-Do not show `/tickets` `/dashboard` `/audit` or buyer pages. Audit lives only at the bottom of the DMS/CRM detail drawer.
+Do not show `/tickets` `/dashboard` `/audit` or buyer pages. A record's history lives at the bottom of its DMS/CRM detail drawer; the platform audit log is a tab on `/admin` and the dealership audit log is on the owner and manager `/team` page (AUD-10, AUD-11). Record history is shown to the owner and managers; sales members see none (AUD-17). There is no separate `/audit` route.
 
 | Account (prepare for class) | Role (`app_user.role`, JWT `roles`) | Bound dealership | Used to demo |
 |---|---|---|---|
@@ -58,7 +58,7 @@ Each script states: who signs in, which page, what they must see / must not see.
 2. **See:** top bar `Platform Admin`; menu is **Admin only**; two in-page Tabs: **Dealerships**, **Members**.
 3. **Do not see:** DMS / CRM / Leads / Ad compliance in the menu, or the floating assistant; any vehicle VIN, customer-name table, or ad body.
 4. Dealerships: `New dealership` creates dealership A and dealership B (four contact fields non-empty).
-5. Each dealership Staff drawer: `Bind staff` binds Staff A and Staff B `username` + display name + temporary password. Members Tab can flatten both people, each under one dealership.
+5. Each dealership's `Staff` drawer: bind one account with `username` + display name + temporary password — Staff A into dealership A, Staff B into dealership B. Each dealership is empty, so this first bind is the direct bootstrap bind and the account becomes that dealership's **`OWNER`** (**201**, AUTH-28; the Role column reads `Owner`). The Members Tab then flattens both people, each under one dealership. A **second** bind into a dealership that already has an active owner is no longer a membership: it returns **202** with a join request that the owner approves from `/team` (the Admin page says `Join request sent to the dealership` and the account appears under `Pending accounts`), so use that path, not a second bind, to add a further member.
 6. **Failure shape (optional):** binding the same person again to the same dealership while active → in-page `Staff already bound` (`409 DUP_MEMBER`), not a silent second row.
 
 ### CL-2 · Dealership A records a vehicle and customer and links them; dealership B cannot see them (00 item 2 · NN-13/14)
@@ -127,7 +127,7 @@ All APIs go through Gateway `/api/v1/**`. Staff tenant comes only from JWT `sub`
 
 | ID | Name | Expect |
 |---|---|---|
-| **BE-13** | Admin hitting business URLs | `/vehicles` `/customers` `/listings/**` `/audit` `/assistant/ask` → **403** `FORBIDDEN` (15 §2.4), body has no business fields |
+| **BE-13** | Admin hitting business URLs | `/vehicles` `/customers` `/listings/**` `/audit` `/assistant/ask` → **403** `FORBIDDEN` (15 §2.4), body has no business fields; the admin reads audit only through `/admin/audit` (14 §9.2) |
 | **BE-14** | Bypass Gateway | browser or no internal header hitting core `8081`, ai `8082`, `/internal/v1/**` → fail (no CORS / **404**, 15). Gateway + user JWT `/api/v1/**` is the product entry |
 | **BE-15** | Sell as a pair | missing either `soldOn`/`soldPrice` → **400** `SOLD_PAIR_REQUIRED`; price `≤0` → 400. Ignore PATCH of sale fields |
 | **BE-16** | Ignore client `dealerId` | Staff A creates a vehicle while spoofing dealership B `dealerId` in body/query/header | still written to **dealership A**; cannot switch dealerships via parameters |
@@ -146,7 +146,7 @@ UI is English. Failures **must not look like empty tables**. Optimistic lock `40
 | **FE-04** | Guard `/crm` | Admin opens `/crm` | sent back to `/admin` | customer four-field table |
 | **FE-05** | Guard `/ads` | Admin opens `/ads` | sent back to `/admin` | ad form / five states |
 | **FE-06** | Guard assistant | Admin opens `/assistant` (retired route) and browses `/admin` | sent back to `/admin`; no floating assistant button | Ask, resource cards |
-| **FE-07** | Admin dual Tabs | Admin on `/admin` | one route, two Tabs: Dealerships (Name, Contact, Staff count, Actions; filter dealership name; `New dealership`); Members (Username, Dealership, Status, Actions; filter username; data = dealer list + each dealer's members, **no** invented `/admin/members`). Staff / Unbind use the same API set | second Admin sub-route; Vehicles tab |
+| **FE-07** | Admin dual Tabs | Admin on `/admin` | one route, two Tabs: Dealerships (Name, Contact, Staff count, Actions; filter dealership name; `New dealership`); Members (Username, Dealership, Role, Contact, Sign-in, Status, Actions — design/12; filter username; data = dealer list + each dealer's members, **no** invented `/admin/members`). Staff / Unbind use the same API set | second Admin sub-route; Vehicles tab |
 | **FE-08** | Unlink second confirmation | Staff A clicks `Unlink` on `/crm` detail | `ConfirmDialog` first; cancel sends no request; confirm then `DELETE .../vehicles/{vehicleId}`. Sold: `Sold vehicles cannot be unlinked`. In stock: list Linked vehicle clears | click-to-delete; empty PUT pretending to unlink; copy still says "not provided yet" even though 14 DELETE exists |
 | **FE-09** | Empty / error / loading states | walk all five pages and the assistant widget through loading, empty list, API failure, no access | copy follows 13 §10: e.g. `Loading vehicles…` / `No vehicles match.` / `Could not load vehicles.` / `You do not have access to DMS.`; ad AI failure uses the right pane **AI unavailable** | paint 403/502 as empty tables; paint AI failure as Passed |
 | **FE-10** | Assistant failure English | Floating assistant panel on any staff page: model down but HTTP 200 (`summaryAvailable=false`, cards still present); whole-page 5xx/network failure | summary area fixed **`Smart summary unavailable`**; whole-page failure **`Could not ask assistant`**; cards ≤5, read-only, navigate `/dms` `/crm` `/ads` | document 10 Chinese wording; phone/email/homeAddress on cards; mutate data on this page |
@@ -174,7 +174,7 @@ Align [08](08-DevOps-and-Implementation.md) Sprint definition of done and [11](1
 
 ---
 
-## 5a. Extension cases EXT-01–EXT-10 ([21](21-Feature-Extensions.md))
+## 5a. Extension cases EXT-01–EXT-19 ([21](21-Feature-Extensions.md))
 
 Manual checks through the gateway (local or cloud). Ids and codes follow [14](14-Backend-API-Contract.md).
 
@@ -184,18 +184,20 @@ Manual checks through the gateway (local or cloud). Ids and codes follow [14](14
 | **EXT-02** Lead | Staff A: **Add lead** with a new customer (four fields), an in-stock vehicle, owner, and a note; set `CONTACTED` with a past follow-up date; then `LOST` without and with a reason; add a note | Customer appears on `/crm`; first note shown; list shows overdue (red) and the **Overdue only** filter returns it; no reason → "A lost lead needs a reason"; with reason → read-only drawer; note still accepted; further PATCH → `409 LEAD_CLOSED`; audit `CREATE` / `UPDATE` / `NOTE` with no note text |
 | **EXT-03** Lead isolation | Staff B `GET /api/v1/leads/{A's id}`; admin `GET /api/v1/leads`; create a lead with a sold vehicle id | 404; 403; `400 WRONG_DEALER_OR_SOLD` |
 | **EXT-04** Work order | On an in-stock vehicle: add a work order with an assignee, `Start`, try `Sell`, then `Done` with note and cost 150; PATCH the done order; sell; add a work order on the sold vehicle | List column shows 1; sell → `409 WORK_ORDERS_OPEN`; after done `repairCost` +150 with a `VEHICLE` `UPDATE` audit row and the column back to —; PATCH → `409 WORK_ORDER_CLOSED`; sell succeeds; new order → `409 SOLD_LOCKED`; Staff B on A's ids → 404 |
-| **EXT-05** Self sign-up | `/register` with username, name, email and phone, and password; then sign in with the email, the username, and the phone in turn | Each lands on `/no-access`; business APIs → 403; duplicate username/email/phone → 409 `USERNAME_TAKEN`, `DISPLAY_NAME_TAKEN`, `EMAIL_TAKEN`, or `PHONE_TAKEN` (one code per field, with `fieldErrors`) copy |
+| **EXT-05** Self sign-up | `/register` with username, name, email and phone, and password; then sign in with the email, the username, and the phone in turn | Each lands on `/no-access`; business APIs → 403; duplicate username/email/phone → 409 `USERNAME_TAKEN`, `EMAIL_TAKEN`, or `PHONE_TAKEN` (one code per field, with `fieldErrors`) copy |
 | **EXT-06** Binding | Admin → Members → **Pending accounts** → **Add to dealership** for `newuser`, no password | `newuser` signs in with the original password and lands on `/dms`; the pending list no longer shows it |
 | **EXT-07** Sign-in name rules | Register with neither email nor phone, a digits-only username, malformed email/phone, and a duplicate username; sign in with a phone written with spaces and dashes | Invalid registration → 400; duplicate → 409; the formatted phone signs in; wrong password → 401 `Invalid sign-in name or password` |
 | **EXT-08** Photo upload | Staff A uploads a 1 MB JPEG, a PNG, a 3 MB file, and a text file renamed `.jpg` to an in-stock vehicle; then an 11th photo | First two appear as thumbnails; 3 MB → "Photo must be 2 MB or smaller."; fake JPEG → 415 copy; 11th → 400 |
 | **EXT-09** Photo enhance | Select the JPEG, **Auto fix**, toggle Original / Enhanced, then **Sharpen** | Enhanced differs and is at most 1600 px on the long edge; original unchanged; Sharpen replaces the enhanced copy; audit `VEHICLE_PHOTO` `UPDATE` |
 | **EXT-10** Photo isolation and delete | Staff B `GET /api/v1/vehicles/{A's id}/photos/{photoId}/content`; Staff A deletes a photo | B → 404; after delete the thumbnail disappears and its content → 404; admin on any photo URL → 403 |
 
+EXT-11–EXT-19 (listing details, payments and bill of sale, reports and dashboard, buyer site, buyer-site limits, owner, manager and sales, audit logs, sign-in audit, sales restrictions) are listed in [21](21-Feature-Extensions.md) §9 Acceptance. They are also automated in `playwright/tests/api/` (`vehicle-details-payments`, `reports`, `buyer-site`) and `playwright/tests/ui/` (`dms-details-payments`, `dashboard-reports`, `shop-disclaimer`); the buyer-site cases that need a passed check skip when the AI service is down.
+
 ---
 
 ## 6. Explicitly out of scope (anti-regression)
 
-- Do not restore social-provider authentication, tickets, buyer `/public/**`, CSRF sessions, Service Bus, a second database, or a dealership switcher. Leads exist only in the design/21 form (no visitor enquiry, no sales funnel).
+- Do not restore social-provider authentication beyond Google and Firebase, tickets, CSRF sessions, Service Bus, a second database, or a dealership switcher. Buyer `/public/**` routes exist only as design/14 §12a; leads exist only in the design/21 form, with buyer-site inquiries filed as `NEW` leads (SHOP-04).
 - This document does not add test-code files; the implementation group may land `BE-*` as JUnit / a frontend manual list, using codes from 14.
 - Retired `01`–`06` (including old archived `06-Delivery-and-Test-Plan.md` under [archive/](archive/)) are not current acceptance.
 
@@ -210,6 +212,6 @@ Manual checks through the gateway (local or cloud). Ids and codes follow [14](14
 | Backend extras BE-13–BE-16 | 4 | S1 leans BE-14; S3 leans BE-13/16 |
 | Frontend FE-01–FE-10 | 10 | S3 guards, five pages and the assistant widget; S2 at least `/login`+`/dms`+`/ads` four states |
 
-| Extension cases EXT-01–EXT-10 | 10 | Manual, after design/21 lands |
+| Extension cases EXT-01–EXT-19 | 19 | Manual, after design/21 lands (EXT-11–19 in design/21 §9; EXT-11–16 also automated in Playwright) |
 
-**26 use cases total** (16 backend + 10 frontend), plus 6 classroom scripts and 10 extension cases. The focused manual checks in requirements/analysis/06 (AT-24–28) reuse these flows and are not new implementation features.
+**26 use cases total** (16 backend + 10 frontend), plus 6 classroom scripts and 19 extension cases. The focused manual checks in requirements/analysis/06 (AT-24–28) reuse these flows and are not new implementation features.

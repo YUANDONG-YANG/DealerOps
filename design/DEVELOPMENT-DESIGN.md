@@ -45,10 +45,10 @@ Demo: two-dealership isolation; Admin hitting vehicles **403**; missing price / 
 
 | Process | Port | Listens for |
 |---|---|---|
-| gateway | **8080** | `/api/v1/**` → core; `/internal/v1/**` → ai (internal header required). CORS only `http://localhost:5173`. No business logic. |
+| gateway | **8080** | `/api/v1/**` → core; `/internal/v1/**` → ai (internal header required). CORS only `http://localhost:5174`. No business logic. |
 | core | **8081** | Business and transactions. No browser CORS. Outbound only to Gateway; never call 8082 directly. |
 | ai-service | **8082** | No database. Do not deploy `ai-manager`'s `com.gateway`. |
-| web | 5173 | Only hits 8080 `/api/v1`. |
+| web | 5174 | React SPA only hits 8080 `/api/v1`. |
 
 Public family (JSON shapes in 14): `GET /me`; `/admin/dealers` + members; `/vehicles` + `.../sell`; `/customers`; `PUT\|DELETE /customers/{id}/vehicles/{vehicleId}`; `GET\|PATCH /vehicles/{id}/listing`; `POST /listings/{id}/checks\|ready\|exports`; `GET /audit`; `POST /assistant/ask`.  
 Internal: `POST /internal/v1/ad-check`, `POST /internal/v1/assistant`. Browser hits on these two → **404**.
@@ -59,7 +59,7 @@ Envelope `{ items, page, size, total }` (size defaults to and caps at 10). Error
 
 ## 3. Nine tables (V1, do not add or remove)
 
-`dealer-core/src/main/resources/db/migration/V1__init.sql`:  
+`backend/dotnet/DealerOps.Core` EF Core schema configuration:
 `dealer` · `app_user` · `membership` · `vehicle` · `customer` · `customer_vehicle` · `listing` · `compliance_check` · `audit_event`.  
 Ban `ddl-auto=update`. Ban work-order / lead / password tables.
 
@@ -68,7 +68,7 @@ Ban `ddl-auto=update`. Ban work-order / lead / password tables.
 | Tenant | Staff = exactly one `membership.active=1` row. `app_user.dealer_id` is only a `/me` cache. |
 | One person, one dealership | Any dealership already has an active membership → **409 `DUP_MEMBER`**. Previously unbound → reactivate. ≥2 active rows → reject business. |
 | VIN / link | VIN unique per dealership. One vehicle, one customer. |
-| Audit | Do not write full customer contact, secrets, or model stack traces. |
+| Audit | Append-only, newest first; records new and replaced values, customer contact included (AUD-04); never secrets or model stack traces. Readable only by the dealership owner, its managers and the admin (AUD-17). Application logs never carry contact values. |
 
 ---
 

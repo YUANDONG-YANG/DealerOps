@@ -13,11 +13,21 @@ terraform {
       source  = "hashicorp/azurerm"
       version = "~> 4.0"
     }
+    random = {
+      source  = "hashicorp/random"
+      version = "~> 3.6"
+    }
   }
 }
 
 provider "azurerm" {
   features {
+    # Azure adds an untracked "Application Insights Smart Detection" action group to the
+    # resource group, which otherwise blocks terraform destroy.
+    resource_group {
+      prevent_deletion_if_contains_resources = false
+    }
+
     key_vault {
       # Student subscription: a destroyed vault must be reusable by name on the next apply.
       purge_soft_delete_on_destroy    = true

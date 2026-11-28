@@ -1,0 +1,645 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Weekly report — 19–25 October 2026 (ISO week 43)</title>
+  <style>
+    :root {
+      --ink: #1a2332;
+      --muted: #5a6577;
+      --line: #d8dee8;
+      --surface: #ffffff;
+      --page: #f0f3f7;
+      --accent: #1f4e79;
+      --accent-soft: #e8eef5;
+      --good: #1b5e3b;
+      --good-bg: #e8f5ee;
+      --warn: #8a5a00;
+      --warn-bg: #fff6e5;
+      --next: #1f4e79;
+      --next-bg: #eef3f9;
+      --radius: 10px;
+      --shadow: 0 1px 2px rgba(26, 35, 50, 0.06), 0 8px 24px rgba(26, 35, 50, 0.06);
+      --font: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+      --mono: "Cascadia Code", "Consolas", "Courier New", monospace;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: var(--font);
+      color: var(--ink);
+      background:
+        radial-gradient(1200px 500px at 10% -10%, #dce6f2 0%, transparent 55%),
+        radial-gradient(900px 400px at 100% 0%, #e4ebe4 0%, transparent 50%),
+        var(--page);
+      line-height: 1.55;
+      font-size: 16px;
+    }
+
+    .wrap {
+      max-width: 920px;
+      margin: 0 auto;
+      padding: 2.5rem 1.25rem 3.5rem;
+    }
+
+    header.hero {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: calc(var(--radius) + 2px);
+      box-shadow: var(--shadow);
+      padding: 1.75rem 1.75rem 1.35rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .eyebrow {
+      display: inline-block;
+      font-size: 0.75rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--accent);
+      font-weight: 650;
+      margin-bottom: 0.5rem;
+    }
+
+    h1 {
+      margin: 0 0 0.35rem;
+      font-size: clamp(1.45rem, 2.4vw, 1.85rem);
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      line-height: 1.25;
+    }
+
+    .subtitle {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+
+    .meta {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 0.75rem;
+      margin-top: 1.25rem;
+    }
+
+    .meta-item {
+      background: var(--accent-soft);
+      border-radius: 8px;
+      padding: 0.7rem 0.85rem;
+    }
+
+    .meta-item .label {
+      display: block;
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--muted);
+      font-weight: 650;
+      margin-bottom: 0.2rem;
+    }
+
+    .meta-item .value {
+      font-size: 0.92rem;
+      font-weight: 600;
+      color: var(--ink);
+      word-break: break-word;
+    }
+
+    .meta-item code {
+      font-family: var(--mono);
+      font-size: 0.84em;
+      font-weight: 600;
+    }
+
+    .note {
+      margin-top: 1rem;
+      padding: 0.75rem 0.9rem;
+      border-left: 3px solid var(--accent);
+      background: #f7f9fc;
+      color: var(--muted);
+      font-size: 0.9rem;
+      border-radius: 0 8px 8px 0;
+    }
+
+    section {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 1.35rem 1.5rem 1.45rem;
+      margin-bottom: 1.15rem;
+    }
+
+    h2 {
+      margin: 0 0 1rem;
+      font-size: 1.15rem;
+      letter-spacing: -0.01em;
+      color: var(--accent);
+      border-bottom: 1px solid var(--line);
+      padding-bottom: 0.55rem;
+    }
+
+    h3 {
+      margin: 0 0 0.4rem;
+      font-size: 1rem;
+      font-weight: 650;
+    }
+
+    p { margin: 0 0 0.85rem; }
+    p:last-child { margin-bottom: 0; }
+
+    .activity {
+      padding: 0.95rem 0;
+      border-top: 1px solid var(--line);
+    }
+
+    .activity:first-of-type { border-top: none; padding-top: 0; }
+
+    .activity-num {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 1.55rem;
+      height: 1.55rem;
+      border-radius: 50%;
+      background: var(--accent);
+      color: #fff;
+      font-size: 0.78rem;
+      font-weight: 700;
+      margin-right: 0.45rem;
+      vertical-align: middle;
+      flex-shrink: 0;
+    }
+
+    .activity h3 {
+      display: inline;
+      vertical-align: middle;
+    }
+
+    .activity p {
+      margin-top: 0.45rem;
+      color: #2a3444;
+    }
+
+    code, .sha {
+      font-family: var(--mono);
+      font-size: 0.86em;
+      background: #eef1f6;
+      padding: 0.08em 0.35em;
+      border-radius: 4px;
+      color: #243247;
+    }
+
+    ul.delivered {
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    ul.delivered li {
+      position: relative;
+      padding: 0.55rem 0.55rem 0.55rem 2rem;
+      border-bottom: 1px solid var(--line);
+    }
+
+    ul.delivered li:last-child { border-bottom: none; }
+
+    ul.delivered li::before {
+      content: "";
+      position: absolute;
+      left: 0.35rem;
+      top: 0.85rem;
+      width: 0.7rem;
+      height: 0.7rem;
+      border-radius: 50%;
+      background: var(--good);
+      box-shadow: inset 0 0 0 2px var(--good-bg);
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.15rem;
+    }
+
+    @media (max-width: 700px) {
+      .grid-2 { grid-template-columns: 1fr; }
+      .wrap { padding: 1.5rem 0.85rem 2.5rem; }
+      header.hero, section { padding-left: 1.1rem; padding-right: 1.1rem; }
+    }
+
+    .callout {
+      border-radius: 8px;
+      padding: 0.9rem 1rem;
+      margin-bottom: 0.75rem;
+    }
+
+    .callout:last-child { margin-bottom: 0; }
+
+    .callout.warn {
+      background: var(--warn-bg);
+      border: 1px solid #f0d9a8;
+    }
+
+    .callout.warn h3 { color: var(--warn); }
+
+    .callout.good {
+      background: var(--good-bg);
+      border: 1px solid #b7dfc8;
+    }
+
+    .callout.good h3 { color: var(--good); }
+
+    .callout.next {
+      background: var(--next-bg);
+      border: 1px solid #c5d4e8;
+    }
+
+    .callout.next h3 { color: var(--next); }
+
+    .callout p { color: #2a3444; font-size: 0.95rem; }
+
+    ol.next-list {
+      margin: 0;
+      padding-left: 1.2rem;
+    }
+
+    ol.next-list li {
+      margin-bottom: 0.55rem;
+      padding-left: 0.2rem;
+    }
+
+    ol.next-list li:last-child { margin-bottom: 0; }
+
+    footer {
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.8rem;
+      margin-top: 0.5rem;
+    }
+
+    /* Teacher-facing contributor cards: Who → Branch → What */
+    .contrib-banner {
+      margin: 0 0 1rem;
+      padding: 0.75rem 0.95rem;
+      border-radius: 8px;
+      background: #fff8e8;
+      border: 1px solid #f0d9a8;
+      color: #5a4500;
+      font-size: 0.92rem;
+    }
+
+    .contrib-banner strong { color: var(--warn); }
+
+    .branch-block {
+      margin-bottom: 1.25rem;
+      padding-bottom: 0.25rem;
+    }
+
+    .branch-block:last-child { margin-bottom: 0; }
+
+    .branch-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      margin: 0 0 0.75rem;
+      padding: 0.35rem 0.7rem;
+      border-radius: 6px;
+      background: var(--accent);
+      color: #fff;
+      font-size: 0.82rem;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+    }
+
+    .branch-label.side {
+      background: #5a6577;
+    }
+
+    .branch-label code {
+      background: rgba(255, 255, 255, 0.18);
+      color: #fff;
+      font-weight: 650;
+    }
+
+    .person-card {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 1rem 1.1rem 0.95rem;
+      margin-bottom: 0.85rem;
+      background: #fafbfd;
+    }
+
+    .person-card:last-child { margin-bottom: 0; }
+
+    .person-card.teammate {
+      border-color: #f0d9a8;
+      background: #fffdf7;
+      box-shadow: inset 4px 0 0 #d4a017;
+    }
+
+    .person-who {
+      margin: 0 0 0.35rem;
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: var(--ink);
+    }
+
+    .person-branch {
+      margin: 0 0 0.65rem;
+      font-size: 0.9rem;
+      color: var(--muted);
+    }
+
+    .person-branch strong {
+      color: var(--ink);
+      font-weight: 650;
+    }
+
+    .person-what {
+      margin: 0;
+      padding-left: 1.15rem;
+    }
+
+    .person-what li {
+      margin-bottom: 0.4rem;
+      color: #2a3444;
+    }
+
+    .person-what li:last-child { margin-bottom: 0; }
+
+    .status-pill {
+      display: inline-block;
+      margin-left: 0.35rem;
+      padding: 0.12rem 0.45rem;
+      border-radius: 999px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      vertical-align: middle;
+    }
+
+    .status-pill.unmerged {
+      background: var(--warn-bg);
+      color: var(--warn);
+      border: 1px solid #f0d9a8;
+    }
+
+    .status-pill.only-author {
+      background: var(--accent-soft);
+      color: var(--accent);
+      border: 1px solid #c5d4e8;
+    }
+
+    .person-plat {
+      margin: 0.55rem 0 0;
+      padding: 0.5rem 0.7rem;
+      border-radius: 6px;
+      background: var(--accent-soft);
+      font-size: 0.88rem;
+      color: #2a3444;
+    }
+
+    .person-plat strong { color: var(--accent); }
+
+    .audit-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.85rem;
+      margin: 0.4rem 0 0.9rem;
+    }
+
+    .audit-table th, .audit-table td {
+      border: 1px solid var(--line);
+      padding: 0.45rem 0.6rem;
+      text-align: left;
+      vertical-align: top;
+    }
+
+    .audit-table th {
+      background: var(--accent-soft);
+      color: var(--accent);
+      font-size: 0.76rem;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+
+    .audit-table tr:nth-child(even) td { background: #fafbfd; }
+
+    .authors {
+      margin-top: 1rem;
+      padding: 0.75rem 0.9rem;
+      border-left: 3px solid var(--good);
+      background: var(--good-bg);
+      border-radius: 0 8px 8px 0;
+      font-size: 0.9rem;
+      color: #26402f;
+    }
+
+    .authors strong { color: var(--good); }
+
+    @media print {
+      body { background: #fff; }
+      .wrap { max-width: none; padding: 0; }
+      header.hero, section {
+        box-shadow: none;
+        break-inside: avoid;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="hero">
+      <div class="eyebrow">DealerOps · Sprint 1</div>
+      <h1>Weekly report — 19 – 25 October 2026</h1>
+      <p class="subtitle">ISO week 43</p>
+
+      <div class="meta" role="list">
+        <div class="meta-item" role="listitem">
+          <span class="label">Phase</span>
+          <span class="value">Sprint 1, week 2 of 3</span>
+        </div>
+        <div class="meta-item" role="listitem">
+          <span class="label">Active days</span>
+          <span class="value">19, 20, 21, 22, 23 October</span>
+        </div>
+        <div class="meta-item" role="listitem">
+          <span class="label">Commits</span>
+          <span class="value">32 (<code>8f18e8c</code> … <code>d3ef34b</code>)</span>
+        </div>
+        <div class="meta-item" role="listitem">
+          <span class="label">Contributors</span>
+          <span class="value">Yuandong Yang (Robin)</span>
+        </div>
+        <div class="meta-item" role="listitem">
+          <span class="label">Volume</span>
+          <span class="value">+14,479 / −3,819 lines</span>
+        </div>
+        <div class="meta-item" role="listitem">
+          <span class="label">Milestones</span>
+          <span class="value">Instructor demonstration 21 October; Status Report 2 and deck 23 October</span>
+        </div>
+      </div>
+    </header>
+
+    <section aria-labelledby="activities">
+      <h2 id="activities">Progress against the sprint plan</h2>
+
+      <p>
+        We entered the week behind on the extension scope and ended it with that scope delivered, so the
+        week closed ahead of where the Sprint 1 plan had it. Both milestones landed: the instructor
+        demonstration on 21 October and Status Report 2 with its deck on 23 October. The work below is
+        grouped by outcome rather than by commit.
+      </p>
+
+      <article class="activity">
+        <span class="activity-num" aria-hidden="true">1</span>
+        <h3>Closed the requirement gaps carried from week 1.</h3>
+        <p>
+          Several items previously marked "won't do" were reopened and delivered — the ad rules, account
+          handling and the DMS/CRM pages (<code>8f18e8c</code>, <code>02f6ecc</code>), followed by rate
+          limiting, one table per view and customer retention (<code>34f5db2</code>). Each item was signed
+          off against the requirement ledger, so the reopened scope stays traceable.
+        </p>
+      </article>
+
+      <article class="activity">
+        <span class="activity-num" aria-hidden="true">2</span>
+        <h3>Ran a manual bug hunt and cleared it the same day.</h3>
+        <p>
+          A hand-run browser CRUD walkthrough on 20 October surfaced ten defects the automated suite had
+          passed. All ten were fixed and re-verified that day (<code>c872753</code>), with findings logged in
+          <code>review/DealerOps-Browser-CRUD-Bug-Log-2026-10-20.md</code>. I want to keep this check: it
+          caught things a green test run did not.
+        </p>
+      </article>
+
+      <article class="activity">
+        <span class="activity-num" aria-hidden="true">3</span>
+        <h3>Shipped the bulk of the extension scope.</h3>
+        <p>
+          21 October was the heavy build day — the buyer site, payments, bill of sale, dashboard and
+          workshop reports (<code>c0cd793</code>), the dealership manager and staff roles (<code>113b440</code>),
+          and audit logs, the buyer-inquiry inbox and buyer-site ad links (<code>e1ca446</code>). The next day
+          added type-ahead search, a disclaimer drawer and explicit empty states (<code>6a5ee3b</code>) plus
+          buyer-site pages named by dealership and ad-compliance filters. One design call stands out: no
+          business data is ever hard-deleted — photos, payments and vehicle links are soft-deleted and the
+          retention job was dropped (<code>8181aa5</code>).
+        </p>
+      </article>
+
+      <article class="activity">
+        <span class="activity-num" aria-hidden="true">4</span>
+        <h3>Made deployment a single self-verifying command.</h3>
+        <p>
+          Deploy now publishes the local database to Azure with <code>deploy.sh --seed</code> and confirms the
+          import through the gateway before it reports success (<code>d1451c2</code>, <code>f045bd6</code>). It
+          also refuses to run Terraform from a dirty or stale checkout, which closes off a class of "works on
+          my machine" failures.
+        </p>
+      </article>
+
+      <article class="activity">
+        <span class="activity-num" aria-hidden="true">5</span>
+        <h3>Tightened the UI for the demo.</h3>
+        <p>
+          One link style and theme across the app (<code>cf09126</code>), real values in place of dash
+          placeholders, and themed icons instead of emoji. The demo seed was narrowed to licensed Wikimedia
+          photos (<code>09c20fa</code>) — a licensing decision, not a cosmetic one, and worth noting before we
+          show the product externally.
+        </p>
+      </article>
+
+      <article class="activity">
+        <span class="activity-num" aria-hidden="true">6</span>
+        <h3>Produced the client and course deliverables.</h3>
+        <p>
+          The client system design briefing page was created and brought up to date (<code>aa308a6</code>,
+          <code>9298d33</code>), and Status Report 2 and the deck were added with the 21 October demonstration
+          recorded in them (<code>edf99a1</code>, <code>515d36a</code>). The CPRG-305 Unit 6 bug-hunt
+          submission and the rebaselined Assignment 2 test plan belong to the course track, not the product.
+        </p>
+      </article>
+    </section>
+
+    <section aria-labelledby="delivered">
+      <h2 id="delivered">What was delivered</h2>
+      <ul class="delivered">
+        <li>The full extension scope in one week: buyer site, payments, bill of sale, dashboard, workshop reporting, audit logs, inquiry inbox and the manager/staff role split.</li>
+        <li>Ten manually found defects fixed and re-verified the same day.</li>
+        <li>A deployment that refuses to run from a dirty checkout and verifies its own import.</li>
+        <li>Status Report 2, the deck, and a demonstration given to the instructor on 21 October.</li>
+      </ul>
+    </section>
+
+    <div class="grid-2">
+      <section aria-labelledby="impediments">
+        <h2 id="impediments">Impediments and how they were handled</h2>
+
+        <div class="callout warn">
+          <h3>The end-to-end suite drifted twice</h3>
+          <p>
+            As the UI changed under it mid-week, I realigned Playwright with the current screens rather than
+            let the suite rot (<code>34f5db2</code>, <code>28af891</code>), accepting the rework as the cost of
+            extending UI and tests in the same sprint.
+          </p>
+        </div>
+
+        <div class="callout warn">
+          <h3>Kudu refused first-connection uploads</h3>
+          <p>
+            This made deployment look broken. Adding a retry on the zip upload turned an intermittent failure
+            into a non-issue (<code>480ae38</code>).
+          </p>
+        </div>
+
+        <div class="callout warn">
+          <h3>Evidence cut-off was 23 October while the sprint runs to 1 November</h3>
+          <p>
+            The final week is reported as planned work and will be confirmed in the next report — flagged here
+            so the timeline reads honestly.
+          </p>
+        </div>
+      </section>
+
+      <section aria-labelledby="went-well">
+        <h2 id="went-well">What went well</h2>
+
+        <div class="callout good">
+          <h3>Hand-run walkthrough caught real defects</h3>
+          <p>
+            The manual walkthrough caught ten real defects a passing test suite had missed, and it is now a
+            standing step before we accept a change.
+          </p>
+        </div>
+
+        <div class="callout good">
+          <h3>One retention policy, decided once</h3>
+          <p>
+            Settling soft delete once and applying it across photos, payments and links together avoided the
+            table-by-table drift we would otherwise have cleaned up later.
+          </p>
+        </div>
+      </section>
+    </div>
+
+    <section aria-labelledby="next">
+      <h2 id="next">Carried into the next week</h2>
+      <div class="callout next">
+        <ol class="next-list">
+          <li>Sprint 1 has one week left. Observability is still outstanding, and the Azure deployment is not yet reliable on a second machine — both are the priority for the final week before Sprint 1 closes.</li>
+        </ol>
+      </div>
+    </section>
+
+    <footer>
+      Source: <code>weekly_report_10.19-10.25.md</code>
+    </footer>
+  </div>
+</body>
+</html>

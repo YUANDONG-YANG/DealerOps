@@ -1,5 +1,7 @@
 # Dealer Ops implementation brief (for AI coding)
 
+> **Historical planning document.** The current stack and delivery scope are defined by [SCOPE-BASELINE.md](SCOPE-BASELINE.md) and the live .NET 10 + React code. Sections below that describe a Java/Maven stack or forbid features that have since shipped (work orders, leads, dashboards, payments, Image Studio, the buyer site) are retained for history and are superseded where they conflict.
+
 ## Development phase: no test authoring
 
 **Development is not complete. Do not write TEST code until the user confirms feature development is complete and explicitly authorizes test work.**
@@ -17,7 +19,7 @@ Conflict priority: **PPT > specification fields > [DEVELOPMENT-DESIGN.md](DEVELO
 Source design: sibling checkout named `DealerOS-Design`  
 Implementation skeleton: this repository
 
-This repository already contains four apps (`dealer-web`, `dealer-gateway`, `dealer-core`, `ai-service`) plus `dealer-platform` (OpenAPI, API notes, `env.example`) and `deploy/` (the Terraform stack and the app upload script). Each app has source and a build file (`pom.xml` / `package.json`); none has a Dockerfile, and there is no Compose file. Local startup is five processes ([README](../README.md)). Do not scaffold these projects again.
+This repository already contains the .NET 10 backend apps (`DealerOps.Core`, `DealerOps.Gateway`, `DealerOps.AiService`) and the React frontend in `frontend/react`, plus `dealer-platform` (OpenAPI, API notes, `env.example`) and `deploy/` (the Terraform stack and the app upload script). Each app has source and a build file (`*.csproj` / `package.json`); none has a Dockerfile, and there is no Compose file. Local startup is the MySQL service, three .NET services, and the React dev server ([README](../README.md)). Do not scaffold Java or Vue projects.
 
 ### Coding-AI reading order
 
@@ -40,7 +42,7 @@ Conflict order: **PPT > specification fields > DEVELOPMENT-DESIGN / PROTOCOL > 1
 2. **This brief** (scope, fields, task order) → `00` (five pages + floating assistant widget)
 3. **[13-Frontend-Engineering.md](13-Frontend-Engineering.md)**: frontend file split, routes, page↔API (frontend still follows 13 + `AI-CODING-FRONTEND`)
 4. Backend design document: **[DEVELOPMENT-DESIGN.md](DEVELOPMENT-DESIGN.md)** (scope, phases, invariants). Public HTTP/DTOs still follow **14** + OpenAPI; internal protocol/rule details **PROTOCOL**; packaging **18** / **19**.
-5. Acceptance / NN-19: **[16-Acceptance-and-Test.md](16-Acceptance-and-Test.md)** (32 cases + 6 classroom scripts; does not change contracts)
+5. Acceptance / NN-19: **[16-Acceptance-and-Test.md](16-Acceptance-and-Test.md)** (26 cases + 6 classroom scripts; does not change contracts)
 6. Ad-check fixtures: **[17-Ad-Check-Fixtures.md](17-Ad-Check-Fixtures.md)** (demo FX-01 / FX-03 / FX-10 / FX-11 / FX-12)
 7. `12` UI look; architecture/Sprint/AI in `07`–`11`
 
@@ -60,11 +62,11 @@ A multi-tenant back office for independent dealers: each dealership has its own 
 
 | Item | Must |
 |---|---|
-| Languages | Backend **Java 21** for every Java service. Frontend **Vue 3 + Element Plus** (no third-party identity SDK). UI in English. |
-| Repositories | **Four independent application repos**: `dealer-web`, `dealer-gateway`, `dealer-core`, `ai-service`. Plus `dealer-platform` for contract and config notes and `deploy/` for the Terraform stack. Ban a monorepo. |
-| Entry | Browser-to-service HTTP **only through Spring Cloud Gateway**. core / ai-service are not public. Bypassing Gateway must fail. |
-| Identity | **Email, username, or phone + password** ([SCOPE-BASELINE.md](SCOPE-BASELINE.md) errata 1). `POST /api/v1/auth/login` resolves the sign-in name and BCrypt hash on `app_user.password_hash`; dealer-core issues an HS256 JWT (`sub`=username, `name`, `roles`). Roles only `Platform.Admin`, `Dealer.User`. New accounts are created with a username and an email and/or phone, then bound to `dealer_id` by the admin (unbind = soft deactivate). No social-provider login. **Authoritative design:** [15-Data-Auth-and-Gateway.md](15-Data-Auth-and-Gateway.md) §8. |
-| Data | **One MySQL** database `dealer_core`. Flyway owns tables. The AI service has no database. |
+| Languages | Backend **.NET 10 / ASP.NET Core**. Frontend **React 19 + TypeScript + Vite**. UI in English. |
+| Repositories | Current implementation is the DealerOps monorepo: `backend/dotnet/` contains Gateway, Core, AI, and shared logging; `frontend/react/` contains the SPA. |
+| Entry | Browser-to-service HTTP **only through the .NET Gateway**. Core / AI are internal. Bypassing Gateway must fail. |
+| Identity | **Email, username, or phone + password** ([SCOPE-BASELINE.md](SCOPE-BASELINE.md) errata 1). `POST /api/v1/auth/login` resolves the sign-in name and BCrypt hash on `app_user.password_hash`; dealer-core issues an HS256 JWT (`sub`=username, `name`, `roles`). Roles only `Platform.Admin`, `Dealer.User`. New accounts are created with a username and an email and/or phone. The admin binds the first owner of an empty dealership directly; once an owner exists the same action files a join request the owner approves (design/14 §3.6). Unbind is a soft deactivate, and the only owner cannot be removed while other members remain (`409 LAST_OWNER`). Google ID-token sign-in is also accepted (`AUTH-23`); it creates the same unbound account and grants no role or dealership. No other social provider. **Authoritative design:** [15-Data-Auth-and-Gateway.md](15-Data-Auth-and-Gateway.md) §8. |
+| Data | **One MySQL** database `dealer_core`. EF Core owns the runtime schema. The AI service has no database. |
 | AI | `ai-service` embeds `YUANDONG-YANG/ai-manager` **in-process**. Synchronous REST. The adapter guarantees a **15s** timeout. |
 | Calls | Synchronous REST. |
 
@@ -77,14 +79,14 @@ Sign-in remains password-based; the sign-in name can be the email, username, or 
 | Page | Role | What they do | Landing |
 |---|---|---|---|
 | Login | Everyone | Email, username, or phone + password, one `Sign in` button; no sidebar | `/login` |
-| Admin | Platform.Admin only | Open dealerships; bind/unbind staff. **Zero** vehicle/customer/ad data | After sign-in → `/admin` |
+| Admin | Platform.Admin only | Open dealerships; bind the first owner, otherwise file a join request; unbind members. **Zero** vehicle/customer/ad data | After sign-in → `/admin` |
 | DMS | Dealer.User only | This-dealership vehicle create/update/read; paired sale | After sign-in with `dealerId` → `/dms` |
 | CRM | Dealer.User only | This-dealership customer create/update/read; link this-store in-stock unbound vehicles | — |
 | Ad compliance | Dealer.User only | Pick a vehicle, write an ad, rules+AI, export TXT after pass | — |
 | Assistant | Dealer.User only | This-dealership read-only Q&A, at most 5 resource cards | — |
 | No access | Signed in, unbound / no business role | Shell with Sign out only; no business tables | `/` (not a third App Role) |
 
-Multiple staff at one dealership see the same data. Dealership A cannot see dealership B. After opening a store, admin still cannot see business data. No KPI home page. Unauthorized routes are blocked directly. Classroom bind + isolation demos: [16-Acceptance-and-Test.md](16-Acceptance-and-Test.md) **CL-1** / **CL-2**. Sign-in design: [15](15-Data-Auth-and-Gateway.md) §8.
+Multiple staff at one dealership see the same data. Dealership A cannot see dealership B. After opening a store, admin still cannot see business data. Staff land on DMS; KPIs are on `/dashboard`. Unauthorized routes are blocked directly. Classroom bind + isolation demos: [16-Acceptance-and-Test.md](16-Acceptance-and-Test.md) **CL-1** / **CL-2**. Sign-in design: [15](15-Data-Auth-and-Gateway.md) §8.
 
 ---
 
@@ -101,7 +103,7 @@ Ad “dealership name and contacts” use these four public fields; do not creat
 ### Users and members
 
 `app_user`: `username` `passwordHash` `displayName` `role`=`Platform.Admin`\|`Dealer.User` `dealerId` (null for Admin) `active`  
-`membership`: `dealerId` `username` `active` `createdBy`  
+`membership`: `dealerId` `username` `active` `dealerRole`=`OWNER`\|`MANAGER`\|`SALES` `createdBy` `createdAt` (the joined date)  
 Each staff request: JWT role + local membership. **Ignore any dealership ID sent by the frontend.**
 
 ### Vehicle DMS (specification required/optional)
@@ -115,7 +117,7 @@ Derived: `status`=`IN_STOCK`\|`SOLD` `version` `dealerId`
 | `source` | `TRADE_IN` `AUCTION` `PRIVATE_PURCHASE` `OTHER` |
 | `conditionCode` | `CERTIFIED` `AS_IS` `UNFIT` `IRREPARABLE` |
 
-Rules: VIN unique per dealership. After sale, **purchase fields cannot change** (make/model/year/vin/source/purchaseCost/addedOn/repairCost/carfax). `soldOn` and `soldPrice` **must be filled together**. Selling sets `status` to `SOLD`.
+Rules: VIN unique per dealership. After sale, **purchase fields cannot change** (make/model/year/vin/source/purchaseCost/addedOn/repairCost/carfax). `soldOn` and `soldPrice` **must be filled together**, and a buyer is required (`buyerCustomerId` or `buyerName`). The sale stores `soldBy`. Selling sets `status` to `SOLD`.
 
 ### Customer CRM
 
@@ -155,7 +157,7 @@ Admin actions may record `DEALER`/`MEMBERSHIP`; `dealerId` may be null.
 
 Follow the skeleton; **do not invent another table set**:
 
-`dealer-core/src/main/resources/db/migration/V1__init.sql`
+`backend/dotnet/DealerOps.Core` EF Core schema configuration
 
 | Table | Purpose |
 |---|---|
@@ -182,24 +184,24 @@ Flyway only; ban `ddl-auto=update`.
 
 ## 5. API list
 
-The browser only hits Gateway `http://localhost:8080`, prefix `/api/v1`. core=`8081`, ai-service=`8082`; the browser must not call them directly. Swagger UI stays on that same gateway (`/swagger-ui/index.html` and `/v3/api-docs`). Anonymous access, with no Bearer token, is only when `dealerops.jwt.mode` is `dev` and every active Spring profile is local (`dev`, `local`, `test`, or `default`). Any other JWT mode or profile denies those paths. Do not open core port `8081` for Swagger.
+The browser only hits Gateway `http://localhost:8080`, prefix `/api/v1`. Core=`8081`, AI=`8082`; the browser must not call them directly. Swagger is exposed only by Gateway at `/swagger/index.html`; Core and AI are not external Swagger origins.
 
 Unified error body: `{"code":"VIN_DUP","message":"..."}`. Cross-dealership id → **404** (not 403; anti-probing). Admin hitting business URLs → **403** `FORBIDDEN`, response has no business fields. Staff without a valid membership → **403**. Optimistic lock: writes carry `version`, conflict `409 VERSION_CONFLICT`. JSON shapes in **14**.
 
 | Method | Path | Who | Key checks | Error codes |
 |---|---|---|---|---|
 | POST | `/auth/login` | Anonymous | `{identifier,password}` where identifier is the email, username, or phone → `{accessToken,role,displayName}` | 400 VALIDATION; 401 UNAUTHORIZED |
-| POST | `/auth/register` | Anonymous | `{username,displayName,email,phone,password}` with at least one email or phone; creates unbound account | 400 VALIDATION; 409 `USERNAME_TAKEN`, `DISPLAY_NAME_TAKEN`, `EMAIL_TAKEN`, or `PHONE_TAKEN` (one code per field, with `fieldErrors`) |
+| POST | `/auth/register` | Anonymous | `{username,displayName,email,phone,password}` with at least one email or phone; creates unbound account | 400 VALIDATION; 409 `USERNAME_TAKEN`, `EMAIL_TAKEN`, or `PHONE_TAKEN` (one code per field, with `fieldErrors`) |
 | GET | `/me` | Signed in | Returns `role`, `dealerId` (empty for Admin) | 401 |
 | GET | `/admin/dealers` | Admin | — | 403 |
 | POST | `/admin/dealers` | Admin | Four contact fields required | 400 VALIDATION |
 | GET | `/admin/dealers/{id}/members` | Admin | — | 404 |
-| POST | `/admin/dealers/{id}/members` | Admin | `{username,displayName,password,email,phone}`; at least one email or phone for a new account; write `membership`+`app_user` (BCrypt hash) | 400 409 |
-| DELETE | `/admin/dealers/{id}/members/{username}` | Admin | Unbind; do not delete the `app_user` account | 404 |
+| POST | `/admin/dealers/{id}/members` | Admin | `{username,displayName,password,email,phone}`; at least one email or phone for a new account; a dealership with no active owner → write `membership`+`app_user` (BCrypt hash) and the member becomes its `OWNER`; one already has an owner → file a join request the owner approves | 400 409 |
+| DELETE | `/admin/dealers/{id}/members/{username}` | Admin | Unbind; do not delete the `app_user` account; the only active owner cannot be unbound unless they are the last active member | 404; `409 LAST_OWNER` |
 | GET | `/vehicles` | Staff | This dealership; query `q`(VIN/Make/Model) `status` `condition`; page size 10 | 403 |
 | POST | `/vehicles` | Staff | Required fields; VIN unique in this dealership | 400 VIN_DUP |
 | GET/PATCH | `/vehicles/{id}` | Staff | Sold forbids changing purchase fields | 404; `409 SOLD_LOCKED` |
-| POST | `/vehicles/{id}/sell` | Staff | `{soldOn,soldPrice,version}` as a pair | 400 SOLD_PAIR_REQUIRED |
+| POST | `/vehicles/{id}/sell` | Dealer.User | `{soldOn,soldPrice,version}` as a pair, plus a buyer (`buyerCustomerId` or `buyerName`). The dialog shows cost, work-order spend and list price | 400 SOLD_PAIR_REQUIRED; 400 VALIDATION |
 | GET | `/customers` | Staff | `q` + `linked` whether a vehicle is linked | 403 |
 | POST | `/customers` | Staff | Four fields | 400 |
 | GET/PATCH | `/customers/{id}` | Staff | This dealership | 404 |
@@ -209,7 +211,9 @@ Unified error body: `{"code":"VIN_DUP","message":"..."}`. Cross-dealership id �
 | POST | `/listings/{id}/checks` | Staff | This dealership + version; rules then AI; wait at most 15s | 404 409 502 AI_UNAVAILABLE |
 | POST | `/listings/{id}/ready` | Staff | Only current check Passed and not Stale | 409 CHECK_STALE / NOT_PASSED |
 | POST | `/listings/{id}/exports` | Staff | Same; `text/plain` TXT | 409 CHECK_STALE / NOT_PASSED |
-| GET | `/audit?entityType=&entityId=` | Staff | This dealership only; Admin does not get business entities | 404 |
+| GET | `/audit?entityType=&entityId=` | Owner or Manager | This dealership only, newest first; a sales member → 403 (AUD-17); Admin does not get business entities | 404 403 |
+| GET | `/dealer/audit` | Owner or Manager | Dealership audit log, newest first, filters (AUD-11) | 403 |
+| GET | `/admin/audit` | Admin | Platform audit log incl. sign-ins (AUD-10, AUD-12) | 403 |
 | POST | `/assistant/ask` | Staff | `{text}`; do not write business tables | 403 |
 
 **Internal only (Gateway → ai-service; browser 404):**
@@ -265,9 +269,9 @@ Key: `AIMANAGER_API_KEY` on ai-service only (environment / Key Vault). The libra
 
 ## 7. Frontend UI convention summary
 
-- Stack: Vue 3 + **Element Plus**. English. 6 pages. Do not fork an entire dealer repo.  
+- Stack: React 19 + **TypeScript + Vite**. English. 6 pages. Do not fork an entire dealer repo.
 - Login: centered single card, one email/username/phone field + password, one `Sign in` button.
-- Others: left menu + top bar (dealership name or `Platform Admin`, role, `Sign out`). Admin sees only Admin; staff see only DMS/CRM/Ad/Assistant.  
+- Others: left menu + top bar (dealership name or `Platform Admin`, role, `Sign out`). Admin sees only Admin. Every dealership member sees the business pages; the owner and managers also see Team. A sales member has no Team page, no audit data and no payment ledger.  
 - Primary button top-right; sell/unlink require a second confirmation.  
 - **Every page must** have loading / empty / error. Failures are not empty tables. AI failure cannot show Pass.  
 - Tables: 10 rows per page. Status uses Tag. Actions column at most 3 text links. Sold rows fade; purchase fields read-only.  
@@ -296,10 +300,10 @@ Key: `AIMANAGER_API_KEY` on ai-service only (environment / Key Vault). The libra
 
 | Directory | Tech | Who | Duty |
 |---|---|---|---|
-| `dealer-web` | Vue3, built to `dist/` + its own pipeline | **A** | 6 pages, sign-in, web pipeline |
-| `dealer-gateway` | Spring Cloud Gateway, packaged as a JAR + pipeline | **C** (A reviews) | Route/verify JWT and forward only; block `/internal` from the browser |
-| `dealer-core` | Boot + Flyway + one database, packaged as a JAR + pipeline | **C** | Tenant isolation, business API, call AI |
-| `ai-service` | Boot, no database + vendored `ai-manager` sources + pipeline | **B** | Adapter, OMVIC checklist copy, real model, ai pipeline compiles without private access |
+| `frontend/react` | React 19 + TypeScript + Vite, built to `dist/` | **A** | 6 pages, sign-in, web pipeline |
+| `backend/dotnet/DealerOps.Gateway` | ASP.NET Core Gateway + pipeline | **C** (A reviews) | Route/verify JWT and forward only; block internal paths |
+| `backend/dotnet/DealerOps.Core` | ASP.NET Core + EF Core + one database | **C** | Tenant isolation, business API, call AI |
+| `backend/dotnet/DealerOps.AiService` | ASP.NET Core, no database + AI adapter | **B** | Adapter, OMVIC checklist copy, real model, AI pipeline |
 | `dealer-platform` | `env.example`, OpenAPI, API notes | **B** first draft / all certify | Does not run business code |
 | `deploy/` | Terraform for the Azure resources + `deploy-apps.sh` | **B** first draft / all certify | Applied by one operator, never by CI |
 
@@ -344,6 +348,8 @@ Sign-in wiring: [15-Data-Auth-and-Gateway.md](15-Data-Auth-and-Gateway.md) §8.4
 ---
 
 ## 10. Explicitly forbidden implementations
+
+> Superseded by SCOPE-BASELINE.md: work orders, leads, /dashboard KPIs, payments/bill-of-sale, Image Studio and the buyer site are now IN scope and shipped. The items below remain forbidden only where they do not conflict with SCOPE-BASELINE.md.
 
 - Buyer site / public inventory site / OEM portal  
 - Work orders, lead funnel, test drives, KPI dashboards, CSV import  
@@ -393,7 +399,7 @@ Each step can be its own PR. Do not jump to a “full frontend” before prior s
 | JDK 17/21 | **Missing**; local JDK 11; Boot 3 will not compile | All Java repos |
 | MySQL 8.4 locally | **Missing** | `dealer-core` datasource and Flyway |
 | Team A/B/C names | **Missing** | Assignment cards, Review signatures |
-| Azure subscription | **Missing** | Sprint 2 cloud demo (App Service, Static Web Apps, MySQL, Key Vault) |
+| Azure subscription | **Missing** | Sprint 2 cloud demo (App Service, Static Web Apps, MySQL, Key Vault) (historical: SCOPE-BASELINE.md erratum 5 corrects this — the SPA runs on Linux App Service via `pm2 serve`, not Azure Static Web Apps) |
 | Model key | **Missing** | Sprint 2 real AI (`AIMANAGER_API_KEY`) |
 | ai-manager fixed version | **Done** | Vendored as source from `827196a` (09) |
 

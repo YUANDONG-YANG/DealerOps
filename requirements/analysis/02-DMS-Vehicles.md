@@ -10,12 +10,12 @@ One record per vehicle, tracked from acquisition through sale.
 |---|---|---|---|---|---|---|
 | 1 | Make | `make` | ✅ | Text | 1–50 chars, trimmed | PDF |
 | 2 | Model | `model` | ✅ | Text | 1–50 chars | PDF |
-| 3 | Year | `year` | ✅ | Integer | 1900 ≤ year ≤ current year + 1 | PDF / Derived |
+| 3 | Year | `modelYear` | ✅ | Integer | 1900 ≤ year ≤ current year + 1 | PDF / Derived |
 | 4 | VIN | `vin` | ✅ | Text | 17 chars, upper case, no I / O / Q; **unique within a dealer** | PDF / SCOPE |
 | 5 | Car source | `source` | ✅ | Enum | `TRADE_IN` / `AUCTION` / `PRIVATE_PURCHASE` / `OTHER` | PDF ("etc." → OTHER) |
 | 6 | Purchase cost | `purchaseCost` | ✅ | Money | ≥ 0, two decimals, CAD | PDF |
 | 7 | Date added to garage | `addedOn` | ✅ | Date | Not after today | PDF / Derived |
-| 8 | Vehicle condition | `condition` | ✅ | Enum | `CERTIFIED` / `AS_IS` / `UNFIT` / `IRREPARABLE` | PDF |
+| 8 | Vehicle condition | `conditionCode` | ✅ | Enum | `CERTIFIED` / `AS_IS` / `UNFIT` / `IRREPARABLE` | PDF |
 | 9 | Repair cost | `repairCost` | ❌ | Money | ≥ 0 | PDF |
 | 10 | Carfax report link | `carfaxUrl` | ❌ | URL | `http(s)://`, ≤ 500 chars | PDF |
 | 11 | Date sold | `soldOn` | ❌ | Date | ≥ date added, not after today | PDF / Derived |
@@ -23,7 +23,17 @@ One record per vehicle, tracked from acquisition through sale.
 
 System fields (not in the source, needed to build): `id`, `dealerId`, `status` (`IN_STOCK` / `SOLD`), `version` (optimistic lock), `createdAt`, `updatedAt`.
 
-**No extra fields**: mileage, colour, fuel, stock number, list price, images, etc. are not built (SCOPE: specification PDF fields, no additions or removals).
+**No extra required fields**: mileage, exterior colour, fuel type, stock number and list price exist only as **optional** listing details (design/21 DMS-18, added 2026-10-21); the specification's required set is unchanged.
+
+These stored additions come from SCOPE-BASELINE errata 7–8 and later client reviews, not from this document:
+
+| Field | Code | Required | Notes |
+|---|---|---|---|
+| Body type | `bodyType` | ❌ | Optional, defaults to `OTHER`; prefilled by the vPIC decode and offered as a list filter (erratum 8, design/21 VIN-03) |
+| Other source | `sourceOther` | Only when source is `OTHER` | Trimmed, then ≤ 100 chars; the user's own category-style source name (for example "Lease return"), offered as a second-level list filter; an `OTHER` vehicle saved before DMS-19 may keep it blank (client review 2026-11-09, design/21 DMS-19) |
+| Acquired from | `acquiredFromName` | ❌ | Trimmed, then ≤ 120 chars; the person or business the vehicle was acquired from, for any source (client review 2026-11-09, design/21 DMS-20) |
+| Acquired from address | `acquiredFromAddress` | ❌ | Trimmed, then ≤ 255 chars; that person's or business's address, for any source (design/21 DMS-20) |
+| Photos | — | ❌ | Image Studio upload and enhancement, stored in MySQL (`IMG-01–05`) |
 
 ## 3. Vehicle status
 
@@ -31,7 +41,7 @@ System fields (not in the source, needed to build): `id`, `dealerId`, `status` (
 [new] ──► IN_STOCK ──(enter sold date + sold price)──► SOLD
 ```
 
-- Only two states; no reconditioning, sale-ready, or archive.
+- Only two states; no reconditioning, sale-ready, or archive **state**. Reconditioning work orders (`WO-01–07`, design/21 §4) attach to an in-stock vehicle without adding a state, but an open work order blocks the sale (`WORK_ORDERS_OPEN`) and a completed one adds its cost to `repairCost`.
 - The server derives status: both sale fields present → `SOLD`, otherwise `IN_STOCK`.
 - Undoing a sale is not supported in this release (see 07).
 
@@ -43,7 +53,7 @@ System fields (not in the source, needed to build): `id`, `dealerId`, `status` (
 | DMS-02 | Repair cost and Carfax link are optional | PDF §3 | Must |
 | DMS-03 | VIN is unique within a dealer (`VIN_DUP` on duplicate); different dealers may hold the same VIN | SCOPE | Must |
 | DMS-04 | VIN is upper-cased and validated as 17-character format | Derived | Should |
-| DMS-05 | Car source and condition are dropdowns limited to the enum values | PDF §3 | Must |
+| DMS-05 | Car source and condition are dropdowns limited to the enum values; a new vehicle has neither pre-selected | PDF §3 | Must |
 | DMS-06 | Vehicle list: paged (10 per page by default), newest first | SCOPE | Must |
 | DMS-07 | The list supports keyword search on VIN / make / model and filters on status and condition | SCOPE | Should |
 | DMS-08 | Vehicle detail shows all fields, the linked customer, and audit history | PDF §3, §6 | Must |
@@ -55,7 +65,9 @@ System fields (not in the source, needed to build): `id`, `dealerId`, `status` (
 | DMS-14 | Create, edit, and sell all write audit entries | PDF §6 | Must |
 | DMS-15 | Changing vehicle condition turns the vehicle's passed ad check Stale; other vehicle/profile fields are outside the demo invalidation scope (deferred A5) | SCOPE | Must |
 | DMS-16 | Derived values such as profit (sold price − purchase cost − repair cost) may be shown on detail, not stored | Derived | Could |
-| DMS-17 | Deleting vehicles is not offered in this release (keeps audit and sale records) | Derived | Won't |
+| DMS-17 | Soft-delete vehicles from active inventory while retaining sales, work-order, listing, and audit history | Derived / adopted delivery goal | Must |
+| DMS-19 | Source `OTHER` takes a required custom source name; the list filters by source and, under Other, by the custom names already entered (design/21 DMS-19) | Client review 2026-11-09 | Must |
+| DMS-20 | Any vehicle may record who it was acquired from (`acquiredFromName`) and their address (`acquiredFromAddress`); both optional, audited, and locked after sale (design/21 DMS-20) | Client review 2026-11-09, Robin 2026-11-10 | Must |
 
 ## 5. Edge cases
 

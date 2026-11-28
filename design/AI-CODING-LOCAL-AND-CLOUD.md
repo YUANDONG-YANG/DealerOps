@@ -1,4 +1,6 @@
-# AI-CODING · How to start the four local services, and minimum cloud resource names
+# AI-CODING · Legacy Java/Vue local-and-cloud notes
+
+> Historical reference only. Its Java/Vue/JAR commands are deprecated. Current startup instructions are in the repository README and `backend/dotnet/README.md`; current stack is documented in [TECHNOLOGY-STACK.md](TECHNOLOGY-STACK.md).
 
 ## Development phase: no test authoring
 
@@ -13,7 +15,7 @@
 
 Version: currently in force · 2026-09-21  
 Status: **Coding AIs start by copying this file.** Do not change contracts, and do not change 13–19 / BRIEF / `AI-CODING-BACKEND` / `AI-CODING-FRONTEND` / `AI-PROTOCOL`.  
-**Do not** add a container runtime back. There are no Dockerfiles, no Compose file, and no container registry in this project: local is five processes, cloud is `deploy/terraform` plus a JAR upload.  
+**Do not** add a container runtime back. There are no Dockerfiles, no Compose file, and no container registry in this project: local is MySQL plus three .NET services and the React dev server, cloud is `deploy/terraform` plus .NET app uploads.
 **Do not** edit `deploy/terraform` to claim a resource is live. That stack is real infrastructure as code, and only `terraform apply` on an operator machine makes it exist.
 
 Principles and ports follow [15](15-Data-Auth-and-Gateway.md) / [19](19-Gateway-and-AI-Engineering.md). This file only records **copy-paste commands, name patterns, and acceptance curls**.
@@ -221,7 +223,7 @@ There is **no container registry and no Container Apps environment**: App Servic
 1. `terraform apply` in `deploy/terraform` creates or updates the Azure resources.
 2. `deploy/terraform/deploy-apps.sh` packages the three JARs, uploads them with `az webapp deploy --type jar`, builds the SPA with `VITE_GATEWAY_URL` set to the gateway URL, and uploads `dist/` to the Static Web App.
 
-`deploy/deploy.sh` runs both steps in order and then waits for the gateway health check.
+`deploy/deploy.sh` runs both steps in order and then waits for the gateway health check. `./deploy/deploy.sh --apply --seed` adds one more step: it exports the local development database and replaces every Azure MySQL row with it, after backing the Azure rows up. That step is opt-in, and bare `terraform apply` does not run it. See [deploy/README.md](../deploy/README.md).
 
 That script generates **one** UTC timestamp (`yyyy-MM-dd'T'HH:mm:ss'Z'`, second precision) per run. It becomes the `PUBLISHED_AT` app setting on every Java app the run deploys and the `VITE_PUBLISHED_AT` build value for `dealer-web`. Without a stamp, each app falls back to its build time. The web footer (bottom left) lists the release time of all four apps, and the Swagger description shows dealer-core's. The rules are in [20-Observability.md](20-Observability.md) §5. Swagger is served through the gateway at `/swagger-ui/index.html`; the browser never uses core port `8081`.
 

@@ -1,6 +1,8 @@
-# 18 · Backend dealer-core engineering design
+# 18 · Backend dealer-core engineering design (legacy Java reference)
 
-- Status: **current (v6 core engineering)**
+> **Deprecated:** This document describes the former Java/Spring implementation. The current backend is .NET 10 / ASP.NET Core in `backend/dotnet/DealerOps.Core`; use that code and its `.csproj` as the implementation source of truth. The Java paths and class names below are retained only for historical reference.
+
+- Status: **legacy reference only**
 - **HTTP follows [14-Backend-API-Contract.md](14-Backend-API-Contract.md)** (paths, DTOs, error codes, envelope). This document does not start a second contract or rewrite 14 JSON.
 - **Data / tenant / empty draft / membership / SOLD / OMVIC fixed rules follow [15-Data-Auth-and-Gateway.md](15-Data-Auth-and-Gateway.md)**. This document does not change those rulings or `V1__init.sql`.
 - This document covers only: **how the `dealer-core` repo splits Java files, application-service responsibilities, tenant intercept, exception mapping, outbound AI calls, audit, and test-class mapping**. Team members can write from the directory and class names.
@@ -50,7 +52,7 @@ Contract fields live in this repo's DTOs (08: no separate contracts repo). DTO *
 The current repo has no `src/main/java` yet; create it as follows. Test directories are in section 10.
 
 ```
-dealer-core/
+backend/java/dealer-core/
   pom.xml                          # Java 21, Boot 3, Flyway, mysql, spring-boot-starter-oauth2-resource-server
   # No Dockerfile: Maven packages a JAR, App Service runs it (deploy/README.md)
   src/main/resources/
@@ -296,9 +298,9 @@ Do not invent a 13th business code. Translate unique-key collisions into the tab
 
 ---
 
-## 7. core calls ai-service via Gateway
+## 7. core calls ai-service directly
 
-core **does not** treat a direct `8082` call as the product path; outbound hits Gateway internal routes (15 §7). The browser can never reach these two paths (Gateway without the internal header → **404**).
+core calls ai-service at `AiService:BaseUrl` (local `http://127.0.0.1:8082`). It does not send that call back through the Gateway. The browser can never reach these two paths (Gateway without the internal header → **404**).
 
 | Caller | Method | Path | When |
 |---|---|---|---|
@@ -373,11 +375,11 @@ Align 15 §10 / 08: browser-to-service HTTP **only** goes through Gateway `8080`
 
 | Item | Requirement |
 |---|---|
-| Listen | bind **8081** only (`CORE_PORT`), on `127.0.0.1` locally (`SERVER_ADDRESS`). Azure: App Service access restrictions deny every caller but Azure-internal ones |
+| Listen | bind **8081** only (`CORE_PORT`). A direct caller without `X-Dealer-Internal` gets **404**, except on `GET /actuator/health`, which stays open for the App Service health probe. Azure: App Service access restrictions deny every caller but Azure-internal ones |
 | CORS | **do not** configure `http://localhost:5173`. Direct `fetch(8081)` must be blocked by the browser |
 | Routes | implement `/api/v1/**` business only. Do not implement `/internal/v1/**` for the browser |
 | Outbound | AI calls add the internal header only; see section 7 |
-| Demo | Gateway + user JWT `/api/v1/**` is the product entry. If `curl 127.0.0.1:8081` still works locally, that only proves "no CORS / no public net" and **cannot** be treated as a public API |
+| Demo | Gateway + user JWT `/api/v1/**` is the product entry. A direct call to core without `X-Dealer-Internal` returns **404** `{code, message, requestId}`, with or without a user JWT |
 
 ---
 

@@ -1,6 +1,17 @@
 # Maven / Java build output
 **/target/
 
+# .NET build output
+**/bin/
+**/obj/
+**/publish/
+**/deploy.zip
+
+# Node / frontend build output
+**/node_modules/
+**/dist/
+.pnpm-store/
+
 # Local secrets (keep *.example)
 .env
 .env.local
@@ -8,6 +19,9 @@
 *.pem
 *.p12
 *.jks
+ai-key.md
+api-key.md
+appsettings.Development.json
 
 # OS / editor junk
 .DS_Store
@@ -23,6 +37,7 @@ Thumbs.db
 # Personal/working files that must not be published (incident: accidentally committed/pushed 2026-10-05, see deploy/README.md discussion)
 /review/industry-contracts-*/
 /screen/
+/tmp/
 
 # Terraform working files (deploy/terraform). The provider lock file is committed.
 **/.terraform/
@@ -36,12 +51,18 @@ tfplan
 crash.log
 crash.*.log
 
-# Local AI provider keys never enter Git; supply AIMANAGER_API_KEY through the environment.
-ai-service/src/main/resources/api-key.md
-ai-service/src/main/resources/ai-key.md
-
-# SkyWalking Java agent binary (fetched by deploy/skywalking/download-agent.sh, local dev only)
-deploy/skywalking/agent/
-
 # Service log files (log-sum/log.md is tracked)
 log-sum/*.log
+
+# TypeScript incremental build cache
+*.tsbuildinfo
+
+# Python bytecode (seed scripts)
+**/__pycache__/
+*.pyc
+
+# Demo data exported by deploy/seed/export-local-data.sh
+deploy/seed/*.sql.gz
+
+# Azure backups: too large for git
+deploy/seed/backups/

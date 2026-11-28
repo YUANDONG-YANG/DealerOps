@@ -1,40 +1,49 @@
-# Copy to terraform.tfvars (git-ignored) and fill in. Secret values belong in a local
-# file or in TF_VAR_* environment variables, never in git.
-# Procedure: deploy/README.md
+# Quick start — deploy to Azure in three commands:
+#
+#   cd deploy/terraform
+#   terraform init
+#   terraform apply
+#
+# That's it. All secrets (MySQL password, JWT secret, internal token, admin
+# password) are auto-generated. After apply, retrieve the admin password:
+#
+#   terraform output -raw admin_password
+#
+# Sign in at the web URL (terraform output web_public_url) as "admin".
+#
+# To customize, copy this file to terraform.tfvars (git-ignored) and edit:
+#
+#   cp terraform.tfvars.example terraform.tfvars
+#
+# ── Region ──────────────────────────────────────────────────────────
+# location                = "canadacentral"
+# web_app_name            = "dealer-ops-dev"
+# web_custom_domain       = "" # optional, e.g. "www.example.com"; configure its CNAME before apply
+# mysql_location          = "canadaeast"
 
-location                = "canadacentral"
-static_web_app_location = "eastus2"
-# Azure for Students cannot create MySQL in canadacentral.
-mysql_location          = "canadaeast"
-prefix                  = "dealerops"
+# ── Naming ──────────────────────────────────────────────────────────
+# prefix      = "dealerops"
+# name_suffix = ""        # append when default names are taken
 
-# Set this when dealerops-core.azurewebsites.net, dealerops-kv, or dealerops-mysql is
-# already taken by another subscription. It is appended to every global name.
-name_suffix = ""
+# ── Networking ──────────────────────────────────────────────────────
+# cors_allowed_origin   = ""   # empty = this stack's own web app
+# operator_ip_addresses = []   # your IP for direct MySQL access
 
-# The one browser origin the gateway accepts. Empty uses this stack's own Static Web App.
-# Point it at your own frontend origin when you build the SPA outside this stack.
-cors_allowed_origin = ""
+# ── Compute ─────────────────────────────────────────────────────────
+# service_plan_sku = "B2"      # B1 = 1.75 GB, B2 = 3.5 GB (recommended)
 
-# B1 is 1.75 GB for all three JVMs. B2 is 3.5 GB and is the safer demo default.
-service_plan_sku = "B2"
+# ── Secrets (all optional — auto-generated when empty) ──────────────
+# mysql_admin_password = ""    # >= 12 chars
+# internal_token       = ""    # shared internal header
+# jwt_signing_secret   = ""    # >= 32 bytes
+# aimanager_api_key    = ""    # LLM key, empty = AI disabled
 
-# Public IPv4 addresses that may reach MySQL directly, for a SQL client or a manual
-# Flyway run. App Service reaches the server through the Azure services rule.
-operator_ip_addresses = []
+# ── Platform admin (seeded on first start) ──────────────────────────
+# admin_username = "admin"
+# admin_password = ""          # auto-generated, retrieve with: terraform output -raw admin_password
+# admin_email    = "admin@example.com"
+# admin_phone    = ""
 
-# --- Secrets: fill locally, do not commit ---
-# MySQL administrator password, >= 12 characters. Key Vault secret MYSQL-PASSWORD.
-mysql_admin_password = ""
-# Shared X-Dealer-Internal value. Must not be the local default dealer-internal.
-internal_token = ""
-# HS256 signing secret, >= 32 bytes. Key Vault secret JWT-SIGNING-SECRET.
-jwt_signing_secret = ""
-# Leave empty to deploy ai-service without a model key.
-aimanager_api_key = ""
-
-# Seeds the one platform admin on the first dealer-core start. Both or neither.
-admin_username = ""
-admin_password = ""
-admin_email = ""
-admin_phone = ""
+# ── AI model ────────────────────────────────────────────────────────
+# aimanager_gateway_provider = "groq"
+# aimanager_gateway_model    = "qwen/qwen3.8-27b"

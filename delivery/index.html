@@ -1,0 +1,312 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DealerOps Delivery Package</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Source+Serif+4:wght@600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f5f6f8;--surface:#ffffff;--fg:#1b2230;--muted:#5b6475;--line:#dde1e8;
+  --accent:#1f4e9c;--accent-soft:#e7eefa;
+  --block:#b42318;--block-soft:#fdecea;--review:#a15c07;--review-soft:#fdf3e2;
+  --pass:#1d7a46;--pass-soft:#e5f4ec;--neutral:#6b7280;--neutral-soft:#eef0f3;
+  --purple:#6941c6;--purple-soft:#f1ecfb;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#11151c;--surface:#181e28;--fg:#e4e8ef;--muted:#9aa4b5;--line:#2b3442;
+    --accent:#8db4f5;--accent-soft:#1d2b44;
+    --block:#f19790;--block-soft:#3a1d1b;--review:#f0b866;--review-soft:#3a2c14;
+    --pass:#7fd3a0;--pass-soft:#16301f;--neutral:#a3aab6;--neutral-soft:#242b36;
+    --purple:#bba4f5;--purple-soft:#2a2240;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#11151c;--surface:#181e28;--fg:#e4e8ef;--muted:#9aa4b5;--line:#2b3442;
+  --accent:#8db4f5;--accent-soft:#1d2b44;
+  --block:#f19790;--block-soft:#3a1d1b;--review:#f0b866;--review-soft:#3a2c14;
+  --pass:#7fd3a0;--pass-soft:#16301f;--neutral:#a3aab6;--neutral-soft:#242b36;
+  --purple:#bba4f5;--purple-soft:#2a2240;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:Inter,system-ui,sans-serif;font-size:15px;line-height:1.7}
+.page{display:grid;grid-template-columns:240px minmax(0,1fr);gap:48px;max-width:1180px;margin:auto;padding:40px 24px 80px}
+nav{position:sticky;top:24px;align-self:start;font-size:13px;max-height:calc(100vh - 48px);overflow:auto}
+nav strong{color:var(--muted);font-size:12px;letter-spacing:.12em}
+nav ol{list-style:none;padding:0;margin:8px 0 18px}
+nav a{display:block;padding:4px 10px;color:var(--muted);text-decoration:none;border-left:2px solid transparent}
+nav a:hover{color:var(--accent);border-color:var(--accent)}
+nav a small{display:block;font-size:11px;color:var(--muted);font-weight:400}
+main{min-width:0}
+header{border-bottom:1px solid var(--line);padding-bottom:28px}
+.eyebrow{color:var(--accent);font-size:12px;letter-spacing:.14em;text-transform:uppercase;font-weight:600}
+h1,h2{font-family:"Source Serif 4",Georgia,serif}
+h1{font-size:36px;line-height:1.2;margin:8px 0 10px}
+.subtitle{color:var(--muted);margin:0 0 22px;max-width:78ch}
+dl.meta{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px 24px;margin:0}
+dl.meta dt{font-size:12px;color:var(--muted);letter-spacing:.05em}
+dl.meta dd{margin:0;font-weight:500}
+section{padding-top:44px}
+h2{font-size:25px;margin:0 0 6px;display:flex;gap:12px;align-items:baseline}
+h2 .num{font:600 15px "JetBrains Mono",monospace;color:var(--accent)}
+.role-sub{color:var(--muted);font-size:13.5px;margin:0 0 16px;max-width:80ch}
+h3{font-size:17px;margin:26px 0 10px}
+h4{font-size:15px;margin:16px 0 6px}
+p{max-width:80ch;margin:0 0 12px}
+ul,ol.list{max-width:80ch;margin:0 0 14px;padding-left:1.3em}
+li{margin:3px 0}
+a{color:var(--accent)}
+code,.mono{font:.86em "JetBrains Mono",monospace;background:var(--accent-soft);color:var(--accent);padding:1px 5px;border-radius:4px;overflow-wrap:anywhere}
+.tbl{overflow-x:auto;margin:8px 0 18px;border:1px solid var(--line);border-radius:8px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;font-size:13.5px;line-height:1.55}
+th,td{text-align:left;vertical-align:top;padding:8px 10px;border-bottom:1px solid var(--line)}
+th{font-size:12px;color:var(--muted);background:var(--bg);white-space:nowrap}
+tr:last-child td{border-bottom:0}
+.chip{display:inline-block;font-size:11.5px;font-weight:600;padding:1px 8px;border-radius:999px;white-space:nowrap;border:1px solid transparent}
+.chip.blue{background:var(--accent-soft);color:var(--accent)}
+.chip.red{background:var(--block-soft);color:var(--block)}
+.chip.amber{background:var(--review-soft);color:var(--review)}
+.chip.green{background:var(--pass-soft);color:var(--pass)}
+.chip.gray{background:var(--neutral-soft);color:var(--neutral)}
+.chip.purple{background:var(--purple-soft);color:var(--purple)}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px;margin:12px 0 18px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px 16px}
+.card h4{margin:0 0 4px;font-size:15px}
+.card p{font-size:13.5px;color:var(--muted);margin:0}
+.card .k{font:600 22px "Source Serif 4",serif;color:var(--accent);display:block;line-height:1.2}
+.callout{background:var(--accent-soft);border-left:3px solid var(--accent);border-radius:6px;padding:12px 16px;margin:12px 0 18px;max-width:84ch}
+.callout.warn{background:var(--review-soft);border-color:var(--review)}
+.callout p:last-child{margin:0}
+.src{max-width:84ch;font-size:12.5px;color:var(--muted);margin:-2px 0 16px}
+.src b{color:var(--fg);font-weight:600}
+.key{font:600 11px "JetBrains Mono",monospace;color:var(--accent);background:var(--accent-soft);padding:1px 6px;border-radius:4px;white-space:nowrap}
+h3 .key{margin-right:8px;vertical-align:1px}
+footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);font-size:13px;color:var(--muted)}
+@media (max-width:900px){
+  .page{grid-template-columns:1fr;gap:16px;padding:24px 16px 60px}
+  nav{position:static;max-height:none;border:1px solid var(--line);border-radius:8px;padding:10px;background:var(--surface)}
+  h1{font-size:28px}
+}
+@media print{
+  nav{display:none}.page{grid-template-columns:1fr}
+  section{break-inside:avoid-page}
+  .tbl{overflow-x:visible}
+}
+</style>
+</head>
+<body>
+<div class="page">
+<nav aria-label="Contents">
+  <strong>CONTENTS — BY ROLE</strong>
+  <ol>
+    <li><a href="#qa">1 · Test / QA</a></li>
+    <li><a href="#dev">2 · Development</a></li>
+    <li><a href="#product">3 · Product</a></li>
+    <li><a href="#pm">4 · Project manager</a></li>
+    <li><a href="#client">5 · Client</a></li>
+    <li><a href="#ops">6 · Operations</a></li>
+    <li><a href="#reviewer">7 · Acceptance reviewer</a></li>
+    <li><a href="#support">8 · Support / handover</a></li>
+    <li><a href="#map">Appendix · Document map</a></li>
+  </ol>
+</nav>
+
+<main>
+<header>
+  <div class="eyebrow">Delivery package · Entry point</div>
+  <h1>DealerOps Delivery Package</h1>
+  <p class="subtitle">This page is the single entry point for the DealerOps delivery, organized as one chapter per role instead of one chapter per topic. Each chapter holds only what that role needs first and links sideways to another chapter when the content is owned there, so nothing is explained twice. It does not restate content that already has a canonical home — every link points at the actual document, report, or test artefact instead of copying it.</p>
+  <dl class="meta">
+    <div><dt>Product</dt><dd>DealerOps</dd></div>
+    <div><dt>Team</dt><dd>G2 (four members) — <a href="../design/TEAM.md">design/TEAM.md</a></dd></div>
+    <div><dt>Active stack</dt><dd>.NET 10 · React 19 · MySQL 8</dd></div>
+    <div><dt>Branch / commit</dt><dd><code>V3</code> @ <code>9141401</code></dd></div>
+    <div><dt>Internal delivery confirmation</dt><dd><span class="chip green">Complete</span> 2026-10-23 — Robin, self-confirmed</dd></div>
+    <div><dt>External / client acceptance</dt><dd><span class="chip amber">Not obtained</span> — see §4</dd></div>
+    <div><dt>Repository</dt><dd><a href="https://github.com/YUANDONG-YANG/DealerOps">github.com/YUANDONG-YANG/DealerOps</a> (public)</dd></div>
+    <div><dt>Live demo</dt><dd><a href="https://dealer-ops-dev.azurewebsites.net">dealer-ops-dev.azurewebsites.net</a> (when deployed)</dd></div>
+    <div><dt>Page date</dt><dd>2026-11-25</dd></div>
+  </dl>
+</header>
+
+<div class="callout">
+  <p><b>How to read this page.</b> This is a delivery manifest, not the source of truth. Architecture and API decisions live under <code>design/</code>; this page only tracks whether each required delivery item exists, where it is, and which role needs it. Where this page and a <code>design/</code> document disagree, the <code>design/</code> document wins.</p>
+</div>
+
+<!-- 1 -->
+<section id="qa">
+  <h2><span class="num">01</span>Test / QA</h2>
+  <p class="role-sub">Proof the delivery works, and where the test code and results live.</p>
+  <p>Playwright specs — 14 API specs and 22 UI specs under <code>playwright/tests/api</code> and <code>playwright/tests/ui</code> — cover each requirement ID's acceptance cases, run against the private e2e stack started by <code>playwright/scripts/e2e-stack.sh</code> (see <a href="../playwright/README.md">playwright/README.md</a>). Five GitHub Actions workflows under <code>.github/workflows/</code> build and validate dealer-core, dealer-gateway, ai-service, and dealer-web on pull requests and on pushes to <code>main</code> that touch each project's own paths; a fifth workflow runs Terraform format and schema validation only on changes under <code>deploy/terraform/</code> — it holds no Azure credential and never runs <code>plan</code> or <code>apply</code>. Acceptance criteria and manual feature checks are in <a href="../design/16-Acceptance-and-Test.md">design/16-Acceptance-and-Test.md</a>, with extension scenarios in <a href="../design/21-Feature-Extensions.md">design/21-Feature-Extensions.md</a>.</p>
+  <p>The CPRG-305-B course submission carries a separate, formal test analysis against the deployed system (full artefact list in <a href="#reviewer">§7</a>). Its results, by date, stack, and environment — no card below is "accepted", only "executed and passed":</p>
+  <div class="cards">
+    <div class="card"><span class="k">458 / 463</span><h4>Current-version regression — 2026-11-23</h4><p>Active .NET 10 / React stack, private isolated e2e stack. 458 executed and passed, 0 failed, 5 skipped (1 requires the AI service stopped, 1 guarded by an inapplicable data condition, 3 advertising/buyer-site cases skipped when the AI provider answered AI_UNAVAILABLE under parallel load). Those 3 were then re-run serially against the live provider and passed.</p></div>
+    <div class="card"><span class="k">76 / 87</span><h4>Functional baseline — 2026-10-13</h4><p>Historical Java/Vue stack, Group Assignment 3. 76 executed, all passed; the 11 not-run cases are the stakeholder acceptance set, never scheduled.</p></div>
+    <div class="card"><span class="k">44 / 44</span><h4>Integration retest — Oct 2026</h4><p>Historical Java/Vue stack. Closed the one high-severity blocker (DEF-001) found during the Assignment 3 execution window.</p></div>
+    <div class="card"><span class="k">20 / 20</span><h4>Performance smoke</h4><p>HTTP 200 on every request; mean 12.6 ms, max 71.8 ms against a 3,000 ms threshold. A smoke measurement, not a capacity test.</p></div>
+  </div>
+  <p class="src">Source: <a href="../CPRG-305-B/group-project/DealerOps_Final_Project_Test_Analysis_and_Deployment_Report.html">DealerOps_Final_Project_Test_Analysis_and_Deployment_Report.html</a>, Executive Summary and §4. The Java/Vue-stack figures are historical evidence from the retired implementation and are not merged with the current-stack regression.</p>
+  <div class="callout warn"><p><b>No formal stakeholder acceptance session has been held.</b> The ten acceptance-level cases were never executed and no external sign-off exists (report §4, item OBS-002); the report states the release "is not represented as an accepted production release." See <a href="#pm">§4 Project manager</a> for the internal-vs-external distinction.</p></div>
+  <p>Known gaps the tests cannot cover because the feature is simulated or not built: <a href="#product">§3 Product</a>.</p>
+</section>
+
+<!-- 2 -->
+<section id="dev">
+  <h2><span class="num">02</span>Development</h2>
+  <p class="role-sub">How to run it locally, and where the architecture and contract documents are.</p>
+  <h3>Local development</h3>
+  <p>Prerequisites, one-command start, and the per-service manual start order are documented in <a href="../README.md">README.md</a>. In short: MySQL, then <code>DealerOps.Core</code>, then <code>DealerOps.AiService</code>, then <code>DealerOps.Gateway</code>, then <code>frontend/react</code>. The browser only ever calls the gateway on port 8080; Core and ai-service are never called from the browser.</p>
+  <h3>Design references</h3>
+  <ul>
+    <li><b>Architecture:</b> <a href="../design/presentation/DealerOps-System-Design.html">system design page</a> and <a href="../design/07-Azure-Microservices-Architecture.md">design/07-Azure-Microservices-Architecture.md</a>.</li>
+    <li><b>API contract:</b> <a href="../design/14-Backend-API-Contract.md">design/14-Backend-API-Contract.md</a>, <a href="../dealer-platform/openapi.yaml">dealer-platform/openapi.yaml</a>, <a href="../dealer-platform/API.md">dealer-platform/API.md</a>.</li>
+    <li><b>Data model, auth, tenancy:</b> <a href="../design/15-Data-Auth-and-Gateway.md">design/15-Data-Auth-and-Gateway.md</a>.</li>
+  </ul>
+  <p>Azure deployment is an operations task, not a development one — see <a href="#ops">§6</a>. Test coverage and how to run it is owned by <a href="#qa">§1</a>.</p>
+</section>
+
+<!-- 3 -->
+<section id="product">
+  <h2><span class="num">03</span>Product</h2>
+  <p class="role-sub">What was built against the original scope, and what was cut, deferred, or simulated.</p>
+  <p>A multi-tenant dealership operations platform for Ontario used-car dealers: inventory (DMS), customers and leads (CRM), reconditioning, a payment ledger, a public buyer site, and OMVIC advertising compliance checked by fixed rules plus a real AI review. Four services ship: the React web app, the gateway, the core business service, and a stateless AI service, all on Microsoft Azure via Terraform.</p>
+  <div class="cards">
+    <div class="card"><span class="k">4</span><h4>Deployable services</h4><p>dealer-web, dealer-gateway, DealerOps.Core, DealerOps.AiService.</p></div>
+    <div class="card"><span class="k">Java + Vue</span><h4>Retired stacks</h4><p>Not maintained; the active implementation is .NET 10 + React.</p></div>
+    <div class="card"><span class="k">2026-10-23</span><h4>Internal delivery confirmation</h4><p>Robin self-confirmed the implementation complete and closed the open Jira issues. No external acceptance session has been held — see <a href="#pm">§4</a>.</p></div>
+    <div class="card"><span class="k">100%</span><h4>Audited writes <small style="font-weight:400;color:var(--muted)">(by design)</small></h4><p>Every sign-in and every create/update/delete writes its audit row in the same database transaction as the business write, so one cannot succeed without the other. A code-level guarantee, not a measured sample — see <code>design/20-Observability.md</code> and the system design page's §10.</p></div>
+  </div>
+  <p>Full feature list, business logic, and architecture per feature are in the <a href="../design/presentation/DealerOps-System-Design.html">system design page</a> (§§1, 7, 17).</p>
+  <h3>Known limitations</h3>
+  <p>The authoritative table is in the system design page's <a href="../design/presentation/DealerOps-System-Design.html#scope">§16 Scope and limitations</a> and in <a href="../design/SCOPE-BASELINE.md">design/SCOPE-BASELINE.md</a>. In short:</p>
+  <ul>
+    <li><b>Simulated:</b> marketplace publishing (Kijiji, AutoTrader.ca) — needs a partner agreement and dealer API credentials not available to this project.</li>
+    <li><b>Not built:</b> card payment processing (needs a merchant account and PCI scope), document OCR, a message queue, a second database.</li>
+    <li><b>Partial:</b> production deployment is operator-run, not fully automated, because CI holds no Azure credential.</li>
+    <li><b>Template, not legal advice:</b> the bill of sale is a printable template, not a lawyer-reviewed contract.</li>
+    <li><b>Opt-in, not switched on:</b> custom domain binding is supported by Terraform but not yet turned on for the live demo.</li>
+  </ul>
+</section>
+
+<!-- 4 -->
+<section id="pm">
+  <h2><span class="num">04</span>Project manager</h2>
+  <p class="role-sub">Whether the delivery is complete, and the dated record that it was accepted.</p>
+  <h3>Delivery checklist</h3>
+  <p>The items a software delivery is normally expected to include, and where each one is satisfied in this repository.</p>
+  <div class="tbl"><table>
+    <thead><tr><th>Deliverable</th><th>Status</th><th>Where it is</th></tr></thead>
+    <tbody>
+      <tr><td>Architecture &amp; system design</td><td><span class="chip green">Done</span></td><td><a href="../design/presentation/DealerOps-System-Design.html">design/presentation/DealerOps-System-Design.html</a> (also C4 diagrams under <code>design/diagrams/</code>)</td></tr>
+      <tr><td>API contract</td><td><span class="chip green">Done</span></td><td><a href="../design/14-Backend-API-Contract.md">design/14-Backend-API-Contract.md</a>, <a href="../dealer-platform/openapi.yaml">dealer-platform/openapi.yaml</a>, <a href="../dealer-platform/API.md">dealer-platform/API.md</a></td></tr>
+      <tr><td>Data model, authentication, tenancy</td><td><span class="chip green">Done</span></td><td><a href="../design/15-Data-Auth-and-Gateway.md">design/15-Data-Auth-and-Gateway.md</a></td></tr>
+      <tr><td>Source code, build, CI</td><td><span class="chip green">Done</span></td><td>GitHub Actions workflows under <code>.github/workflows/</code>; build steps in <a href="../README.md">README.md</a></td></tr>
+      <tr><td>Automated test coverage</td><td><span class="chip green">Done</span></td><td>14 API specs, 22 UI specs under <code>playwright/tests/</code>; 458/458 passed on the Nov 23, 2026 regression — <a href="#qa">§1</a></td></tr>
+      <tr><td>Acceptance criteria &amp; test design</td><td><span class="chip green">Done</span></td><td><a href="../design/16-Acceptance-and-Test.md">design/16-Acceptance-and-Test.md</a></td></tr>
+      <tr><td>Deployment &amp; operations guide</td><td><span class="chip green">Done</span></td><td><a href="../deploy/README.md">deploy/README.md</a>, <a href="../README.md">README.md</a></td></tr>
+      <tr><td>User manual</td><td><span class="chip green">Done</span></td><td><a href="../design/presentation/DealerOps-System-Design.html#manual">System design page §18</a></td></tr>
+      <tr><td>Known limitations &amp; scope</td><td><span class="chip green">Done</span></td><td><a href="../design/SCOPE-BASELINE.md">design/SCOPE-BASELINE.md</a>, <a href="#product">§3</a></td></tr>
+      <tr><td>Internal delivery confirmation</td><td><span class="chip green">Complete</span></td><td><a href="../project-plan/Implementation-Delivery-Status.md">project-plan/Implementation-Delivery-Status.md</a> — 2026-10-23, Robin, self-confirmed</td></tr>
+      <tr><td>External / client acceptance</td><td><span class="chip amber">Not obtained</span></td><td>No stakeholder acceptance session has been held — <a href="../CPRG-305-B/group-project/DealerOps_Final_Project_Test_Analysis_and_Deployment_Report.html">test &amp; deployment report</a>, item OBS-002</td></tr>
+      <tr><td>Release / handover notes</td><td><span class="chip green">Done</span></td><td>This page</td></tr>
+      <tr><td>Access &amp; credentials handover</td><td><span class="chip amber">Operator-held</span></td><td><a href="#ops">§6</a> — no secrets are stored in this repository or this page</td></tr>
+      <tr><td>License / IP terms</td><td><span class="chip amber">Not confirmed</span></td><td>No <code>LICENSE</code> file exists in the repository, and no document in <code>design/</code> or <code>project-plan/</code> states who owns the code or on what terms; this needs the client's or the course's confirmation before it is called "not applicable"</td></tr>
+    </tbody>
+  </table></div>
+  <h3>Acceptance and sign-off</h3>
+  <p><b>Internal delivery confirmation — complete.</b> Yuandong Yang completed the DealerOps development and confirmed the current implementation himself on 2026-10-23. On that date every previously open issue in Jira project KAN on <code>sait-group2-private</code> was transitioned to Finished. This is a developer's own confirmation that the work is done, recorded in <a href="../project-plan/Implementation-Delivery-Status.md">project-plan/Implementation-Delivery-Status.md</a>; the document itself notes it records no CI run URLs, instructor signatures, or separate test-execution log.</p>
+  <p><b>External / client acceptance — not obtained.</b> No formal stakeholder acceptance session has been held: the ten acceptance-level test cases were never executed and no external sign-off exists (CPRG-305-B test &amp; deployment report, item OBS-002). That report states the release "is not represented as an accepted production release" and records the instructor-and-client sign-off row as not obtained. A Jira board reaching "Finished" is a project-tracking status, not a client signature, and this page does not treat it as one.</p>
+  <p>Sprint-level status reports and the final technical presentation are under <code>project-plan/StatusReports1/</code>, <code>StatusReports2/</code>, and <a href="../project-plan/StatusReports3/">StatusReports3/</a>; the latter includes <code>DealerOps_Status_Report_3_Completed.docx</code>, <code>Status_Report_3_Final_Technical_Presentation.docx</code>, and the presentation slide deck. These are status reports to the course, not a client acceptance record.</p>
+</section>
+
+<!-- 5 -->
+<section id="client">
+  <h2><span class="num">05</span>Client</h2>
+  <p class="role-sub">What you are receiving, proof it works, and where the sign-off record is.</p>
+  <p>What was built and what it covers is in <a href="#product">§3 Product</a>; the same chapter lists what was cut, simulated, or deferred against the original specification. The system design page's <a href="../design/presentation/DealerOps-System-Design.html">reader's guide</a> gives a role-by-role walkthrough of the running product — owner, manager, and sales screens each shown separately.</p>
+  <p>The developer confirmed the implementation complete on 2026-10-23, but no formal client acceptance session has been held yet — the distinction and the dated record are in <a href="#pm">§4 Project manager</a>. If you have not yet formally signed off on this delivery, this page should not be read as implying that you have. Test results that support the delivered behaviour are in <a href="#qa">§1 Test / QA</a>.</p>
+  <p>The live demo, when deployed, is at <a href="https://dealer-ops-dev.azurewebsites.net">dealer-ops-dev.azurewebsites.net</a>.</p>
+</section>
+
+<!-- 6 -->
+<section id="ops">
+  <h2><span class="num">06</span>Operations</h2>
+  <p class="role-sub">How to deploy it, and what access an operator needs.</p>
+  <h3>Azure deployment</h3>
+  <p>Deployment is Terraform-driven and is run by an operator holding the Azure credential; CI builds and validates but does not hold that credential. From the repository root, after <code>az login</code> and selecting the subscription, a normal deploy keeps whatever data is already in Azure:</p>
+  <div class="tbl"><table><tbody><tr><td><code>./deploy/deploy.sh --apply</code></td></tr></tbody></table></div>
+  <div class="callout warn"><p><b><code>--seed</code> replaces Azure's data, not just loads it.</b> Adding <code>--seed</code> to the command above (<code>./deploy/deploy.sh --apply --seed</code>) exports the local development database and <b>replaces the rows already in Azure</b> after a backup. Use it only to load a first database or to deliberately reset the demo — never on a dealership's live data without confirming first.</p></div>
+  <p>Full prerequisites, the pushed-commit requirement, and the pre-<code>terraform destroy</code> backup step are in <a href="../deploy/README.md">deploy/README.md</a>. Local start order for the four services is owned by <a href="#dev">§2 Development</a>.</p>
+  <h3>Access and handover</h3>
+  <p>No credentials, API keys, or connection strings are published in this repository or on this page, in line with the project's configuration-protection rule. What an incoming operator needs:</p>
+  <ul>
+    <li><b>Source control:</b> <a href="https://github.com/YUANDONG-YANG/DealerOps">github.com/YUANDONG-YANG/DealerOps</a> — request collaborator access from Yuandong Yang (Robin).</li>
+    <li><b>Azure subscription access:</b> required to run <code>./deploy/deploy.sh</code>; held by the operator who last deployed. Request access through Robin.</li>
+    <li><b>Local configuration:</b> <a href="../dealer-platform/env.example">dealer-platform/env.example</a> lists every environment variable a new environment needs, with no real values filled in.</li>
+    <li><b>Jira:</b> project KAN on <code>sait-group2-private</code>; roster in <a href="../design/TEAM.md">design/TEAM.md</a>.</li>
+  </ul>
+  <div class="callout warn"><p>Rate-limit values and SLO targets ship with configurable defaults and await the dealership's confirmation before production use.</p></div>
+</section>
+
+<!-- 7 -->
+<section id="reviewer">
+  <h2><span class="num">07</span>Acceptance reviewer</h2>
+  <p class="role-sub">Course instructor or the client's signing contact.</p>
+  <p>The dated acceptance record for the DealerOps delivery itself is owned by <a href="#pm">§4 Project manager</a>. The section below is the separate CPRG-305-B course submission package.</p>
+  <p>CPRG-305-B (Software Testing and Deployment) is graded as a separate course submission on top of the same codebase. Its group roster is <b>Group 12 — Yuandong Yang, Daniel Watson, and Xiaomei He</b>, which is distinct from the DealerOps product roster in <a href="../design/TEAM.md">design/TEAM.md</a>; do not substitute one roster for the other.</p>
+  <div class="tbl"><table>
+    <thead><tr><th>Artefact</th><th>File</th></tr></thead>
+    <tbody>
+      <tr><td>Capstone Software Test Analysis &amp; Deployment Report</td><td><a href="../CPRG-305-B/group-project/DealerOps_Final_Project_Test_Analysis_and_Deployment_Report.html">HTML</a> / <a href="../CPRG-305-B/group-project/DealerOps_Final_Project_Test_Analysis_and_Deployment_Report.pdf">PDF</a></td></tr>
+      <tr><td>Test attachments, defect tracking, execution progress</td><td><a href="../CPRG-305-B/group-project/DealerOps_Final_Project_Test_Attachments_Defect_Tracking_and_Execution_Progress.xlsx">XLSX</a></td></tr>
+      <tr><td>Peer assessment</td><td><a href="../CPRG-305-B/group-project/Yuandong_Yang_Peer_Assessment.docx">Yuandong_Yang_Peer_Assessment.docx</a></td></tr>
+      <tr><td>Evidence screenshots</td><td><code>CPRG-305-B/group-project/evidence/</code></td></tr>
+      <tr><td>Course rubric and attached templates</td><td><code>CPRG-305-B/group-project/rubric/</code>, <code>attached-files-2026-11-23/</code></td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<!-- 8 -->
+<section id="support">
+  <h2><span class="num">08</span>Support / handover</h2>
+  <p class="role-sub">Whoever maintains or answers for this system after delivery, often not the original team.</p>
+  <p>Read <a href="#product">§3 Product</a> first for what is known to be simulated, partial, or not built — that is what a support desk will be asked about soonest. Read <a href="#ops">§6 Operations</a> for the access an incoming maintainer needs: repository access, Azure subscription access, local configuration variables, and the Jira roster.</p>
+  <h3>Handover status</h3>
+  <p><span class="chip amber">Pending</span> Access handover is not yet complete. Every item in <a href="#ops">§6</a> — repository access, Azure subscription access, local configuration variables, and the Jira roster — is still requested through a named contact, Robin (Yuandong Yang), rather than already held by an incoming team. That is a documented path to follow, not evidence the handover has happened. A new maintainer should request each item in <a href="#ops">§6</a> explicitly and confirm receipt before treating this project as self-sufficient without the original author reachable.</p>
+</section>
+
+<!-- Appendix -->
+<section id="map">
+  <h2><span class="num">·</span>Appendix · Document map</h2>
+  <div class="tbl"><table>
+    <thead><tr><th>Topic</th><th>Document</th></tr></thead>
+    <tbody>
+      <tr><td>Full system design, API, user manual, features</td><td><a href="../design/presentation/DealerOps-System-Design.html">design/presentation/DealerOps-System-Design.html</a></td></tr>
+      <tr><td>Architecture</td><td><a href="../design/07-Azure-Microservices-Architecture.md">design/07-Azure-Microservices-Architecture.md</a></td></tr>
+      <tr><td>API contract</td><td><a href="../design/14-Backend-API-Contract.md">design/14-Backend-API-Contract.md</a>, <a href="../dealer-platform/openapi.yaml">dealer-platform/openapi.yaml</a></td></tr>
+      <tr><td>Data, auth, gateway</td><td><a href="../design/15-Data-Auth-and-Gateway.md">design/15-Data-Auth-and-Gateway.md</a></td></tr>
+      <tr><td>Acceptance and test design</td><td><a href="../design/16-Acceptance-and-Test.md">design/16-Acceptance-and-Test.md</a></td></tr>
+      <tr><td>Scope and change control</td><td><a href="../design/SCOPE-BASELINE.md">design/SCOPE-BASELINE.md</a></td></tr>
+      <tr><td>Team roster</td><td><a href="../design/TEAM.md">design/TEAM.md</a></td></tr>
+      <tr><td>Delivery / acceptance status</td><td><a href="../project-plan/Implementation-Delivery-Status.md">project-plan/Implementation-Delivery-Status.md</a></td></tr>
+      <tr><td>Local setup and run</td><td><a href="../README.md">README.md</a></td></tr>
+      <tr><td>Deployment runbook</td><td><a href="../deploy/README.md">deploy/README.md</a></td></tr>
+      <tr><td>Playwright test suite</td><td><a href="../playwright/README.md">playwright/README.md</a></td></tr>
+      <tr><td>Capstone poster</td><td><a href="../project-plan/poster/DealerOps-Poster.html">HTML</a> / <a href="../project-plan/poster/DealerOps-Poster.pdf">PDF</a></td></tr>
+      <tr><td>Interactive prototype</td><td><a href="../project-plan/prototype/DealerOps-Prototype.html">project-plan/prototype/DealerOps-Prototype.html</a></td></tr>
+      <tr><td>Course submission (CPRG-305-B)</td><td><a href="../CPRG-305-B/group-project/DealerOps_Final_Project_Test_Analysis_and_Deployment_Report.html">CPRG-305-B/group-project/</a></td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<footer>
+  DealerOps delivery package · generated 2026-11-25 against branch <code>V3</code>, commit <code>9141401</code> · maintained alongside <a href="../design/presentation/DealerOps-System-Design.html">design/presentation/DealerOps-System-Design.html</a>.
+</footer>
+</main>
+</div>
+</body>
+</html>

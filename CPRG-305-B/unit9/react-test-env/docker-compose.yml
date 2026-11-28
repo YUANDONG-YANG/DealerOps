@@ -1,0 +1,15 @@
+services:
+  test-runner:
+    # Build the image from the Dockerfile in this directory.
+    build: .
+    image: react-test-env
+    environment:
+      # Non-interactive run, required for a one-shot container.
+      CI: "true"
+    volumes:
+      # Link the host project folder to the container working directory so the
+      # coverage report written inside the container appears on the host.
+      - .:/app
+      # Keep the Linux node_modules installed in the image instead of the host copy.
+      - /app/node_modules
+    command: ["npm", "test", "--", "--watchAll=false", "--coverage"]

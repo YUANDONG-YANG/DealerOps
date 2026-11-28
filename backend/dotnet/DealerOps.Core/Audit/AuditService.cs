@@ -1,0 +1,434 @@
+using System.Text.Json;
+using DealerOps.Core.Audit.Dto;
+using DealerOps.Core.Common;
+using DealerOps.Core.Common.Exceptions;
+using DealerOps.Core.Common.Tenant;
+using DealerOps.Core.Data;
+using DealerOps.Core.Dealer;
+using Microsoft.EntityFrameworkCore;
+
+namespace DealerOps.Core.Audit;
+
+/// <summary>
+/// Writes and reads the append-only audit trail (AUD-01 to AUD-09). Sales members read no audit
+/// (AUD-17). The owner and managers read one record's history and the whole dealership's log; the
+/// platform admin reads every row. All reads are newest first (AUD-10, AUD-11).
+/// </summary>
+public class AuditService : IAuditService
+{
+    private static readonly Dictionary<string, EntityType> EntityTypeMap =
+        Enum.GetValues<EntityType>().ToDictionary(t => EnumWireName.Of(t), StringComparer.OrdinalIgnoreCase);
+
+    private static readonly Dictionary<string, AuditAction> ActionMap =
+        Enum.GetValues<AuditAction>().ToDictionary(a => EnumWireName.Of(a), StringComparer.OrdinalIgnoreCase);
+
+    private static readonly HashSet<string> AllowedEntityTypes = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "VEHICLE", "CUSTOMER", "CUSTOMER_VEHICLE", "LEAD", "WORK_ORDER", "VEHICLE_PHOTO", "LISTING"
+    };
+
+    private readonly AppDbContext _db;
+    private readonly IHttpContextAccessor _http;
+    private readonly ILogger<AuditService> _logger;
+    private readonly IpGeolocator? _geo;
+
+    public AuditService(AppDbContext db, IHttpContextAccessor http, ILogger<AuditService> logger)
+        : this(db, http, logger, null)
+    {
+    }
+
+    public AuditService(AppDbContext db, IHttpContextAccessor http, ILogger<AuditService> logger,
+        IpGeolocator? geolocator)
+    {
+        _db = db;
+        _http = http;
+        _logger = logger;
+        _geo = geolocator;
+    }
+
+    public void Record(string entityType, long entityId, string action,
+        long? dealerId, string actorUsername, Dictionary<string, object>? fieldSummary,
+        Dictionary<string, object?>? previous = null)
+    {
+        // An unknown type or action is a coding error; failing keeps a wrong row out of the trail.
+        if (!EntityTypeMap.TryGetValue(entityType, out var et))
+            throw new ArgumentException($"Unknown audit entity type {entityType}", nameof(entityType));
+        if (!ActionMap.TryGetValue(action, out var act))
+            throw new ArgumentException($"Unknown audit action {action}", nameof(action));
+
+        var clientIp = ClientIp();
+        var entity = new AuditEventEntity
+        {
+            DealerId = dealerId,
+            ActorUsername = actorUsername ?? "",
+            EntityType = et,
+            EntityId = entityId,
+            Action = act,
+            FieldSummary = fieldSummary is { Count: > 0 }
+                ? JsonSerializer.Serialize(fieldSummary)
+                : null,
+            PreviousValues = previous is { Count: > 0 }
+                ? JsonSerializer.Serialize(previous)
+                : null,
+            ClientIp = clientIp,
+            ClientLocation = Locate(clientIp)
+        };
+        SnapshotActorAndDealer(entity);
+        _db.AuditEvents.Add(entity);
+    }
+
+    /// <summary>
+    /// Stores who the actor was and the dealership's name as of this write, so a later rename or
+    /// role change never rewrites history. Entities tracked in this unit of work are read first,
+    /// so a row written with a rename or role change records the state that change produced.
+    /// </summary>
+    private void SnapshotActorAndDealer(AuditEventEntity entity)
+    {
+        var username = entity.ActorUsername;
+        var dealerId = entity.DealerId;
+        if (dealerId != null)
+            entity.DealerName = _db.Dealers.Find(dealerId.Value)?.LegalName;
+
+        var user = _db.AppUsers.Local.FirstOrDefault(u => u.Username == username)
+                   ?? _db.AppUsers.FirstOrDefault(u => u.Username == username);
+        if (user == null)
+        {
+            _logger.LogDebug("Audit snapshot has no account for actor={Actor} dealerId={DealerId} action={Action}",
+                username, dealerId, entity.Action);
+            return;
+        }
+        entity.ActorDisplayName = user.DisplayName;
+        if (user.Role == AppRole.PlatformAdmin)
+        {
+            entity.ActorRole = "PLATFORM_ADMIN";
+            return;
+        }
+        if (dealerId == null)
+            return;
+        var membership = _db.Memberships.Local
+                             .Where(m => m.Username == username && m.DealerId == dealerId)
+                             .OrderByDescending(m => m.Active).FirstOrDefault()
+                         ?? _db.Memberships
+                             .Where(m => m.Username == username && m.DealerId == dealerId)
+                             .OrderByDescending(m => m.Active).FirstOrDefault();
+        if (membership != null)
+            entity.ActorRole = EnumWireName.Of(membership.DealerRole);
+    }
+
+    /// <summary>Platform audit log for the admin: every row, newest first, with optional filters.</summary>
+    public PageResponse<AuditItem> ListPlatform(AuditLogFilter filter, int page, int size)
+    {
+        TenantGuard.RequireAdmin();
+        var query = Filtered(_db.AuditEvents, filter);
+        if (filter.DealerId != null)
+            query = query.Where(e => e.DealerId == filter.DealerId);
+        return PageOfLog(Sorted(query, filter.Sort), page, size, ToItem);
+    }
+
+    /// <summary>The owner's and managers' own dealership log: every row of the tenant, newest first (AUD-11).</summary>
+    public PageResponse<AuditItem> ListDealership(AuditLogFilter filter, int page, int size)
+    {
+        var tenant = TenantGuard.RequireTeamAccess().TenantDealerId!.Value;
+        return PageOfLog(Sorted(Filtered(_db.AuditEvents.Where(e => e.DealerId == tenant), filter), filter.Sort),
+            page, size, ToItem);
+    }
+
+    private static IQueryable<AuditEventEntity> Filtered(IQueryable<AuditEventEntity> query, AuditLogFilter filter)
+    {
+        if (!string.IsNullOrWhiteSpace(filter.EntityType))
+        {
+            if (!EntityTypeMap.TryGetValue(filter.EntityType.Trim(), out var type))
+                throw new ApiException(ErrorCode.Validation, "Request is invalid.");
+            query = query.Where(e => e.EntityType == type);
+        }
+        if (filter.EntityId != null)
+            query = query.Where(e => e.EntityId == filter.EntityId);
+        if (!string.IsNullOrWhiteSpace(filter.Action))
+        {
+            if (!ActionMap.TryGetValue(filter.Action.Trim(), out var action))
+                throw new ApiException(ErrorCode.Validation, "Request is invalid.");
+            query = query.Where(e => e.Action == action);
+        }
+        if (!string.IsNullOrWhiteSpace(filter.Actor))
+        {
+            var actor = filter.Actor.Trim().ToLowerInvariant();
+            query = query.Where(e => e.ActorUsername.ToLower().Contains(actor));
+        }
+        if (!string.IsNullOrWhiteSpace(filter.Q))
+        {
+            // Action and record type are stored by wire name, so the text picks the matching enum
+            // values here; the JSON change columns are matched as lower-cased text in the database.
+            var text = filter.Q.Trim().ToLowerInvariant();
+            var wireText = text.Replace(' ', '_');
+            var actions = ActionMap.Where(kv => kv.Key.Contains(wireText, StringComparison.OrdinalIgnoreCase))
+                .Select(kv => kv.Value).ToList();
+            var types = EntityTypeMap.Where(kv => kv.Key.Contains(wireText, StringComparison.OrdinalIgnoreCase))
+                .Select(kv => kv.Value).ToList();
+            // EF.Constant inlines the short enum lists as an IN list of converted wire names.
+            // The two change columns are JSON, and string.Contains becomes LIKE, whose pattern
+            // inherits the column's JSON type mapping: MySQL then rejects `%text%` as invalid JSON.
+            // IndexOf translates to LOCATE, which takes the search text as plain text, so the
+            // match stays a substring search on the lower-cased column.
+            query = query.Where(e => EF.Constant(actions).Contains(e.Action)
+                || EF.Constant(types).Contains(e.EntityType)
+                || (e.FieldSummary != null && e.FieldSummary.ToLower().IndexOf(text) >= 0)
+                || (e.PreviousValues != null && e.PreviousValues.ToLower().IndexOf(text) >= 0));
+        }
+        // Rows are stored in UTC; the caller sends instants so a "day" follows the viewer's time zone.
+        if (filter.From != null)
+        {
+            var from = filter.From.Value.UtcDateTime;
+            query = query.Where(e => e.CreatedAt >= from);
+        }
+        if (filter.To != null)
+        {
+            var to = filter.To.Value.UtcDateTime;
+            query = query.Where(e => e.CreatedAt < to);
+        }
+        return query;
+    }
+
+    /// <summary>Fields the admin and dealership logs sort by (C7); the wire names of the AuditItem fields.</summary>
+    private static readonly string[] SortFields = ["createdAt", "actorUsername", "action", "entityType", "dealerId", "clientIp", "clientLocation"];
+
+    /// <summary>Fields one record's history sorts by: the columns of the record audit table.</summary>
+    private static readonly string[] RecordSortFields = ["createdAt", "actorUsername", "action"];
+
+    // The requested order, then newest first; "entityType" orders by record type and then record id.
+    private static IOrderedQueryable<AuditEventEntity> Sorted(IQueryable<AuditEventEntity> query, string? sort,
+        IReadOnlyCollection<string>? fields = null)
+    {
+        var parsed = Paging.ParseSort(sort, fields ?? SortFields);
+        if (parsed == null)
+            return query.OrderByDescending(e => e.CreatedAt).ThenByDescending(e => e.Id);
+        var (field, desc) = parsed.Value;
+        var ordered = field switch
+        {
+            "createdAt" => query.OrderByDirection(e => e.CreatedAt, desc),
+            "actorUsername" => query.OrderByDirection(e => e.ActorUsername, desc),
+            "action" => query.OrderByDirection(e => e.Action, desc),
+            "entityType" => query.OrderByDirection(e => e.EntityType, desc).ThenBy(e => e.EntityId),
+            "dealerId" => query.OrderByDirectionBlanksLast(e => e.DealerId, desc),
+            "clientLocation" => query.OrderByDirectionBlanksLast(e => e.ClientLocation, desc),
+            _ => query.OrderByDirectionBlanksLast(e => e.ClientIp, desc),
+        };
+        return ordered.ThenByDescending(e => e.CreatedAt).ThenByDescending(e => e.Id);
+    }
+
+    private static PageResponse<AuditItem> PageOfLog(
+        IOrderedQueryable<AuditEventEntity> query, int page, int size, Func<AuditEventEntity, AuditItem> toItem)
+    {
+        var p = Paging.ClampPage(page);
+        var s = Paging.ClampSize(size);
+        var total = query.Count();
+        var items = query
+            .Skip(p * s).Take(s)
+            .AsEnumerable()
+            .Select(e => toItem(e) with
+            {
+                DealerId = e.DealerId,
+                ClientIp = e.ClientIp,
+                ClientLocation = e.ClientLocation,
+                ActorDisplayName = e.ActorDisplayName,
+                ActorRole = e.ActorRole,
+                DealerName = e.DealerName
+            })
+            .ToList();
+        return new PageResponse<AuditItem>(items, p, s, total);
+    }
+
+    /// <summary>The caller's address: the gateway sets X-Forwarded-For, otherwise the socket peer.</summary>
+    private string? ClientIp()
+    {
+        var context = _http.HttpContext;
+        if (context == null) return null;
+        var forwarded = context.Request.Headers["X-Forwarded-For"].ToString();
+        var ip = string.IsNullOrWhiteSpace(forwarded)
+            ? context.Connection.RemoteIpAddress?.ToString()
+            : forwarded.Split(',')[0].Trim();
+        return ip is { Length: > 45 } ? ip[..45] : ip;
+    }
+
+    /// <summary>
+    /// Place name captured with the row. A lookup error leaves the location empty and still
+    /// keeps the IP; it never fails the business action that is being audited.
+    /// </summary>
+    private string? Locate(string? ip)
+    {
+        if (string.IsNullOrWhiteSpace(ip)) return null;
+        try
+        {
+            return _geo?.Describe(ip)
+                ?? (IpAddressPrivacy.IsNonRoutable(ip) ? IpAddressPrivacy.LocalLabel : null);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(
+                "IP geolocation lookup failed errorType={ErrorType}", ex.GetType().Name);
+            return IpAddressPrivacy.IsNonRoutable(ip) ? IpAddressPrivacy.LocalLabel : null;
+        }
+    }
+
+    /// <summary>
+    /// One record's history (AUD-06), newest first unless <paramref name="sort"/> names createdAt,
+    /// actorUsername or action. The order applies to the whole history before paging. Owner and
+    /// manager only: sales members see no audit (AUD-17).
+    /// </summary>
+    public PageResponse<AuditItem> List(string entityType, long entityId, int page, int size, string? sort = null)
+    {
+        // Another dealership's record stays 404 for every caller; only then is the role checked.
+        var tenant = TenantGuard.RequireTenantId();
+        if (string.IsNullOrWhiteSpace(entityType))
+            throw new ApiException(ErrorCode.Validation, "Request is invalid.");
+
+        var type = entityType.Trim().ToUpperInvariant();
+        if (type is "DEALER" or "MEMBERSHIP")
+            throw new ApiException(ErrorCode.Forbidden, "Forbidden");
+        if (!AllowedEntityTypes.Contains(type))
+            throw new ApiException(ErrorCode.Validation, "Request is invalid.");
+
+        AssertEntityInDealer(type, entityId, tenant);
+        TenantGuard.RequireTeamAccess();
+
+        if (type == "CUSTOMER")
+            return CustomerHistory(tenant, entityId, page, size, sort);
+        if (type == "VEHICLE")
+            return VehicleHistory(tenant, entityId, page, size, sort);
+
+        var p = Paging.ClampPage(page);
+        var s = Paging.ClampSize(size);
+
+        var parsedType = EntityTypeMap[type];
+        var query = Sorted(_db.AuditEvents
+            .Where(e => e.DealerId == tenant && e.EntityType == parsedType && e.EntityId == entityId),
+            sort, RecordSortFields);
+
+        var total = query.Count();
+        var items = query.Skip(p * s).Take(s)
+            .AsEnumerable()
+            .Select(ToItem).ToList();
+
+        return new PageResponse<AuditItem>(items, p, s, total);
+    }
+
+    private PageResponse<AuditItem> CustomerHistory(long tenant, long customerId, int page, int size, string? sort)
+    {
+        // Link rows carry the customer id only inside the JSON summary, so those are matched in memory;
+        // the database order is kept, so the sort covers the whole history before paging.
+        var source = Sorted(_db.AuditEvents
+            .Where(e => e.DealerId == tenant
+                && ((e.EntityType == EntityType.Customer && e.EntityId == customerId)
+                    || e.EntityType == EntityType.CustomerVehicle)), sort, RecordSortFields)
+            .ToList();
+
+        var events = source
+            .Where(e =>
+            {
+                if (e.EntityType == EntityType.Customer)
+                    return e.EntityId == customerId;
+                if (e.EntityType != EntityType.CustomerVehicle)
+                    return false;
+                var summary = DeserializeSummary(e.FieldSummary, e.Id, "fieldSummary");
+                if (summary == null) return false;
+                if (!summary.TryGetValue("customerId", out var val)) return false;
+                if (val is JsonElement je && je.TryGetInt64(out var id))
+                    return id == customerId;
+                if (val is long l)
+                    return l == customerId;
+                return false;
+            })
+            .Select(ToItem).ToList();
+
+        return PageOf(events, page, size);
+    }
+
+    private static PageResponse<AuditItem> PageOf(List<AuditItem> events, int page, int size)
+    {
+        var p = Paging.ClampPage(page);
+        var s = Paging.ClampSize(size);
+        var from = Math.Min(p * s, events.Count);
+        var to = Math.Min(from + s, events.Count);
+        return new PageResponse<AuditItem>(events.GetRange(from, to - from), p, s, events.Count);
+    }
+
+    private static bool SummaryIdEquals(Dictionary<string, object>? summary, string key, long id)
+    {
+        if (summary == null || !summary.TryGetValue(key, out var val)) return false;
+        if (val is JsonElement je && je.TryGetInt64(out var parsed)) return parsed == id;
+        if (val is long l) return l == id;
+        if (val is int i) return i == id;
+        return false;
+    }
+
+    private PageResponse<AuditItem> VehicleHistory(long tenant, long vehicleId, int page, int size, string? sort)
+    {
+        // Photo rows stay in the vehicle history after the photo itself is deleted (IMG-04);
+        // customer link/unlink rows appear here as well as in the customer history (AUD-06).
+        // Work-order rows (WO-06) are matched by order id, since status updates carry no vehicle id.
+        var workOrderIds = _db.WorkOrders
+            .Where(w => w.DealerId == tenant && w.VehicleId == vehicleId)
+            .Select(w => w.Id)
+            .ToList();
+        var source = Sorted(_db.AuditEvents
+            .Where(e => e.DealerId == tenant
+                && ((e.EntityType == EntityType.Vehicle && e.EntityId == vehicleId)
+                    || (e.EntityType == EntityType.WorkOrder && workOrderIds.Contains(e.EntityId))
+                    || e.EntityType == EntityType.VehiclePhoto
+                    || e.EntityType == EntityType.CustomerVehicle)), sort, RecordSortFields)
+            .ToList();
+
+        var events = source
+            .Where(e => e.EntityType == EntityType.Vehicle || e.EntityType == EntityType.WorkOrder
+                || SummaryIdEquals(DeserializeSummary(e.FieldSummary, e.Id, "fieldSummary"), "vehicleId", vehicleId))
+            .Select(ToItem).ToList();
+
+        return PageOf(events, page, size);
+    }
+
+    private void AssertEntityInDealer(string type, long entityId, long tenant)
+    {
+        bool found = type switch
+        {
+            "VEHICLE" => _db.Vehicles.IgnoreQueryFilters().Any(v => v.Id == entityId && v.DealerId == tenant),
+            "CUSTOMER" => _db.Customers.IgnoreQueryFilters().Any(c => c.Id == entityId && c.DealerId == tenant),
+            "CUSTOMER_VEHICLE" =>
+                _db.CustomerVehicles.Any(cv => cv.Id == entityId && cv.DealerId == tenant)
+                || _db.AuditEvents.Any(e => e.DealerId == tenant
+                    && e.EntityType == EntityType.CustomerVehicle && e.EntityId == entityId),
+            "LEAD" => _db.Leads.Any(l => l.Id == entityId && l.DealerId == tenant),
+            "WORK_ORDER" => _db.WorkOrders.Any(w => w.Id == entityId && w.DealerId == tenant),
+            "LISTING" => _db.Listings.Any(l => l.Id == entityId && l.DealerId == tenant),
+            "VEHICLE_PHOTO" =>
+                _db.VehiclePhotos.Any(p => p.Id == entityId && p.DealerId == tenant)
+                || _db.AuditEvents.Any(e => e.DealerId == tenant
+                    && e.EntityType == EntityType.VehiclePhoto && e.EntityId == entityId),
+            _ => false
+        };
+        if (!found)
+            throw new ApiException(ErrorCode.NotFound, "Not found");
+    }
+
+    private AuditItem ToItem(AuditEventEntity e) =>
+        new(e.Id, EnumSnakeCaseConverter<EntityType>.ToWire(e.EntityType), e.EntityId,
+            EnumSnakeCaseConverter<AuditAction>.ToWire(e.Action),
+            DeserializeSummary(e.FieldSummary, e.Id, "fieldSummary"), e.ActorUsername,
+            DateTime.SpecifyKind(e.CreatedAt, DateTimeKind.Utc),
+            DeserializeSummary(e.PreviousValues, e.Id, "previousValues"));
+
+    /// <summary>
+    /// Reads one stored JSON object. A blob that cannot be parsed is omitted and logged once;
+    /// the text is never logged because it holds contact values.
+    /// </summary>
+    private Dictionary<string, object>? DeserializeSummary(string? json, long auditEventId, string column)
+    {
+        if (string.IsNullOrWhiteSpace(json)) return null;
+        try { return JsonSerializer.Deserialize<Dictionary<string, object>>(json); }
+        catch (JsonException)
+        {
+            _logger.LogWarning(
+                "Audit summary unreadable auditEventId={AuditEventId} column={Column}",
+                auditEventId, column);
+            return null;
+        }
+    }
+}

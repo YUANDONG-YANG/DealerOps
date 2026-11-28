@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Weekly report — 12–18 October 2026 (ISO week 42)</title>
+  <style>
+    :root {
+      --ink: #1a2332;
+      --muted: #5a6577;
+      --line: #d8dee8;
+      --surface: #ffffff;
+      --page: #f0f3f7;
+      --accent: #1f4e79;
+      --accent-soft: #e8eef5;
+      --good: #1b5e3b;
+      --good-bg: #e8f5ee;
+      --warn: #8a5a00;
+      --warn-bg: #fff6e5;
+      --next: #1f4e79;
+      --next-bg: #eef3f9;
+      --radius: 10px;
+      --shadow: 0 1px 2px rgba(26, 35, 50, 0.06), 0 8px 24px rgba(26, 35, 50, 0.06);
+      --font: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+      --mono: "Cascadia Code", "Consolas", "Courier New", monospace;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: var(--font);
+      color: var(--ink);
+      background:
+        radial-gradient(1200px 500px at 10% -10%, #dce6f2 0%, transparent 55%),
+        radial-gradient(900px 400px at 100% 0%, #e4ebe4 0%, transparent 50%),
+        var(--page);
+      line-height: 1.55;
+      font-size: 16px;
+    }
+
+    .wrap {
+      max-width: 920px;
+      margin: 0 auto;
+      padding: 2.5rem 1.25rem 3.5rem;
+    }
+
+    header.hero {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: calc(var(--radius) + 2px);
+      box-shadow: var(--shadow);
+      padding: 1.75rem 1.75rem 1.35rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .eyebrow {
+      display: inline-block;
+      font-size: 0.75rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--accent);
+      font-weight: 650;
+      margin-bottom: 0.5rem;
+    }
+
+    h1 {
+      margin: 0 0 0.35rem;
+      font-size: clamp(1.45rem, 2.4vw, 1.85rem);
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      line-height: 1.25;
+    }
+
+    .subtitle {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+
+    .meta {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 0.75rem;
+      margin-top: 1.25rem;
+    }
+
+    .meta-item {
+      background: var(--accent-soft);
+      border-radius: 8px;
+      padding: 0.7rem 0.85rem;
+    }
+
+    .meta-item .label {
+      display: block;
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--muted);
+      font-weight: 650;
+      margin-bottom: 0.2rem;
+    }
+
+    .meta-item .value {
+      font-size: 0.92rem;
+      font-weight: 600;
+      color: var(--ink);
+      word-break: break-word;
+    }
+
+    .meta-item code {
+      font-family: var(--mono);
+      font-size: 0.84em;
+      font-weight: 600;
+    }
+
+    .note {
+      margin-top: 1rem;
+      padding: 0.75rem 0.9rem;
+      border-left: 3px solid var(--accent);
+      background: #f7f9fc;
+      color: var(--muted);
+      font-size: 0.9rem;
+      border-radius: 0 8px 8px 0;
+    }
+
+    section {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 1.35rem 1.5rem 1.45rem;
+      margin-bottom: 1.15rem;
+    }
+
+    h2 {
+      margin: 0 0 1rem;
+      font-size: 1.15rem;
+      letter-spacing: -0.01em;
+      color: var(--accent);
+      border-bottom: 1px solid var(--line);
+      padding-bottom: 0.55rem;
+    }
+
+    h3 {
+      margin: 0 0 0.4rem;
+      font-size: 1rem;
+      font-weight: 650;
+    }
+
+    p { margin: 0 0 0.85rem; }
+    p:last-child { margin-bottom: 0; }
+
+    .activity {
+      padding: 0.95rem 0;
+      border-top: 1px solid var(--line);
+    }
+
+    .activity:first-of-type { border-top: none; padding-top: 0; }
+
+    .activity-num {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 1.55rem;
+      height: 1.55rem;
+      border-radius: 50%;
+      background: var(--accent);
+      color: #fff;
+      font-size: 0.78rem;
+      font-weight: 700;
+      margin-right: 0.45rem;
+      vertical-align: middle;
+      flex-shrink: 0;
+    }
+
+    .activity h3 {
+      display: inline;
+      vertical-align: middle;
+    }
+
+    .activity p {
+      margin-top: 0.45rem;
+      color: #2a3444;
+    }
+
+    code, .sha {
+      font-family: var(--mono);
+      font-size: 0.86em;
+      background: #eef1f6;
+      padding: 0.08em 0.35em;
+      border-radius: 4px;
+      color: #243247;
+    }
+
+    ul.delivered {
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    ul.delivered li {
+      position: relative;
+      padding: 0.55rem 0.55rem 0.55rem 2rem;
+      border-bottom: 1px solid var(--line);
+    }
+
+    ul.delivered li:last-child { border-bottom: none; }
+
+    ul.delivered li::before {
+      content: "";
+      position: absolute;
+      left: 0.35rem;
+      top: 0.85rem;
+      width: 0.7rem;
+      height: 0.7rem;
+      border-radius: 50%;
+      background: var(--good);
+      box-shadow: inset 0 0 0 2px var(--good-bg);
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.15rem;
+    }
+
+    @media (max-width: 700px) {
+      .grid-2 { grid-template-columns: 1fr; }
+      .wrap { padding: 1.5rem 0.85rem 2.5rem; }
+      header.hero, section { padding-left: 1.1rem; padding-right: 1.1rem; }
+    }
+
+    .callout {
+      border-radius: 8px;
+      padding: 0.9rem 1rem;
+      margin-bottom: 0.75rem;
+    }
+
+    .callout:last-child { margin-bottom: 0; }
+
+    .callout.warn {
+      background: var(--warn-bg);
+      border: 1px solid #f0d9a8;
+    }
+
+    .callout.warn h3 { color: var(--warn); }
+
+    .callout.good {
+      background: var(--good-bg);
+      border: 1px solid #b7dfc8;
+    }
+
+    .callout.good h3 { color: var(--good); }
+
+    .callout.next {
+      background: var(--next-bg);
+      border: 1px solid #c5d4e8;
+    }
+
+    .callout.next h3 { color: var(--next); }
+
+    .callout p { color: #2a3444; font-size: 0.95rem; }
+
+    ol.next-list {
+      margin: 0;
+      padding-left: 1.2rem;
+    }
+
+    ol.next-list li {
+      margin-bottom: 0.55rem;
+      padding-left: 0.2rem;
+    }
+
+    ol.next-list li:last-child { margin-bottom: 0; }
+
+    footer {
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.8rem;
+      margin-top: 0.5rem;
+    }
+
+    /* Teacher-facing contributor cards: Who → Branch → What */
+    .contrib-banner {
+      margin: 0 0 1rem;
+      padding: 0.75rem 0.95rem;
+      border-radius: 8px;
+      background: #fff8e8;
+      border: 1px solid #f0d9a8;
+      color: #5a4500;
+      font-size: 0.92rem;
+    }
+
+    .contrib-banner strong { color: var(--warn); }
+
+    .branch-block {
+      margin-bottom: 1.25rem;
+      padding-bottom: 0.25rem;
+    }
+
+    .branch-block:last-child { margin-bottom: 0; }
+
+    .branch-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      margin: 0 0 0.75rem;
+      padding: 0.35rem 0.7rem;
+      border-radius: 6px;
+      background: var(--accent);
+      color: #fff;
+      font-size: 0.82rem;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+    }
+
+    .branch-label.side {
+      background: #5a6577;
+    }
+
+    .branch-label code {
+      background: rgba(255, 255, 255, 0.18);
+      color: #fff;
+      font-weight: 650;
+    }
+
+    .person-card {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 1rem 1.1rem 0.95rem;
+      margin-bottom: 0.85rem;
+      background: #fafbfd;
+    }
+
+    .person-card:last-child { margin-bottom: 0; }
+
+    .person-card.teammate {
+      border-color: #f0d9a8;
+      background: #fffdf7;
+      box-shadow: inset 4px 0 0 #d4a017;
+    }
+
+    .person-who {
+      margin: 0 0 0.35rem;
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: var(--ink);
+    }
+
+    .person-branch {
+      margin: 0 0 0.65rem;
+      font-size: 0.9rem;
+      color: var(--muted);
+    }
+
+    .person-branch strong {
+      color: var(--ink);
+      font-weight: 650;
+    }
+
+    .person-what {
+      margin: 0;
+      padding-left: 1.15rem;
+    }
+
+    .person-what li {
+      margin-bottom: 0.4rem;
+      color: #2a3444;
+    }
+
+    .person-what li:last-child { margin-bottom: 0; }
+
+    .status-pill {
+      display: inline-block;
+      margin-left: 0.35rem;
+      padding: 0.12rem 0.45rem;
+      border-radius: 999px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      vertical-align: middle;
+    }
+
+    .status-pill.unmerged {
+      background: var(--warn-bg);
+      color: var(--warn);
+      border: 1px solid #f0d9a8;
+    }
+
+    .status-pill.only-author {
+      background: var(--accent-soft);
+      color: var(--accent);
+      border: 1px solid #c5d4e8;
+    }
+
+    .person-plat {
+      margin: 0.55rem 0 0;
+      padding: 0.5rem 0.7rem;
+      border-radius: 6px;
+      background: var(--accent-soft);
+      font-size: 0.88rem;
+      color: #2a3444;
+    }
+
+    .person-plat strong { color: var(--accent); }
+
+    .audit-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.85rem;
+      margin: 0.4rem 0 0.9rem;
+    }
+
+    .audit-table th, .audit-table td {
+      border: 1px solid var(--line);
+      padding: 0.45rem 0.6rem;
+      text-align: left;
+      vertical-align: top;
+    }
+
+    .audit-table th {
+      background: var(--accent-soft);
+      color: var(--accent);
+      font-size: 0.76rem;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+
+    .audit-table tr:nth-child(even) td { background: #fafbfd; }
+
+    .authors {
+      margin-top: 1rem;
+      padding: 0.75rem 0.9rem;
+      border-left: 3px solid var(--good);
+      background: var(--good-bg);
+      border-radius: 0 8px 8px 0;
+      font-size: 0.9rem;
+      color: #26402f;
+    }
+
+    .authors strong { color: var(--good); }
+
+    @media print {
+      body { background: #fff; }
+      .wrap { max-width: none; padding: 0; }
+      header.hero, section {
+        box-shadow: none;
+        break-inside: avoid;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="hero">
+      <div class="eyebrow">DealerOps · Sprint 1</div>
+      <h1>Weekly report — 12 – 18 October 2026</h1>
+      <p class="subtitle">ISO week 42</p>
+
+      <div class="meta" role="list">
+        <div class="meta-item" role="listitem">
+          <span class="label">Phase</span>
+          <span class="value">Sprint 1, week 1 of 3 (sprint runs 12 October – 1 November)</span>
+        </div>
+        <div class="meta-item" role="listitem">
+          <span class="label">Active days</span>
+          <span class="value">12, 13, 14, 15, 16 October</span>
+        </div>
+        <div class="meta-item" role="listitem">
+          <span class="label">Commits</span>
+          <span class="value">57 — the project's largest week (<code>7ac0bbb</code> … <code>2c1a215</code>)</span>
+        </div>
+        <div class="meta-item" role="listitem">
+          <span class="label">Contributors</span>
+          <span class="value">Yuandong Yang (Robin)</span>
+        </div>
+        <div class="meta-item" role="listitem">
+          <span class="label">Volume</span>
+          <span class="value">+89,850 / −36,984 lines</span>
+        </div>
+      </div>
+    </header>
+
+    <section aria-labelledby="activities">
+      <h2 id="activities">Progress against the plan</h2>
+
+      <p>
+        Sprint 1 opened with a decision that reshaped the rest of the plan: we moved the product onto a .NET 10
+        backend and a React frontend, retiring the Java and Vue implementations we had been carrying. The week's
+        goal then became straightforward to state and hard to finish — stand the new stack up, get it deploying
+        and running, and bring the existing feature set across so we lose no ground. By Thursday that was done.
+        The stack runs locally with one command, deploys to Azure, and carries the authentication, compliance and
+        public-dealer flows it replaced. It was the heaviest week of the project by volume, and it landed on plan.
+      </p>
+
+      <article class="activity">
+        <span class="activity-num" aria-hidden="true">1</span>
+        <h3>Committed to the .NET 10 + React stack.</h3>
+        <p>
+          The restructure (<code>0fc204c</code>) brought the .NET backend and React frontend into the repository and
+          the Azure deployment was repointed off Java (<code>3232953</code>). I chose this over continuing on Java/Vue
+          because the two were drifting apart in maintenance cost and the .NET stack fit the tenancy and gateway
+          design better. The one rough edge was the runtime target: we shipped the switch before pinning it, so the
+          version had to be corrected to .NET 10 and then matched in App Service (<code>5599f91</code>, <code>c17ea2a</code>).
+          Java and Vue have been frozen since and are not being touched.
+        </p>
+      </article>
+
+      <article class="activity">
+        <span class="activity-num" aria-hidden="true">2</span>
+        <h3>Made the Azure deploy something a teammate can run.</h3>
+        <p>
+          The deployment was mine to run and nobody else's, which is a risk on a four-person team. Terraform now
+          generates its own secrets so an apply needs no hand-configuration (<code>5aa3e90</code>), the state and
+          variables are shared (<code>4b43347</code>), and the README is down to an apply plus pause/resume. Ports and
+          the SPA hostname were pinned so the deployed app resolves predictably (<code>390289a</code>).
+        </p>
+      </article>
+
+      <article class="activity">
+        <span class="activity-num" aria-hidden="true">3</span>
+        <h3>Configured and secured the .NET services.</h3>
+        <p>
+          Shared file logging and OpenAPI filters went in (<code>dd079c3</code>), gateway config keys and timeouts
+          were tidied, and — importantly — hardcoded AI credentials were pulled out and moved to configuration the
+          same week they appeared (<code>54e5313</code>). I did not want secrets sitting in history any longer than
+          they had to.
+        </p>
+      </article>
+
+      <article class="activity">
+        <span class="activity-num" aria-hidden="true">4</span>
+        <h3>Rebuilt the product features on the new stack.</h3>
+        <p>
+          Authentication, compliance and the public dealer flow were completed on .NET/React (<code>542e758</code>,
+          <code>cf0837d</code>), along with team join requests and notifications (<code>7070014</code>) and the profile
+          page and vehicle body type (<code>5e6e060</code>). A DMS edit drawer that was not repopulating its fields was
+          fixed while the area was open (<code>4bf6de1</code>).
+        </p>
+      </article>
+
+      <article class="activity">
+        <span class="activity-num" aria-hidden="true">5</span>
+        <h3>Stood up automated tests and demo data.</h3>
+        <p>
+          The Playwright end-to-end suite was built from nothing, and running it surfaced real contract defects that
+          were fixed in the same pass (<code>4aeac4b</code>). Admin member password reset and a sign-in method followed
+          (<code>04d05e0</code>), and a post-deploy health check plus seed scripts and vehicle filters closed the week
+          (<code>dc7ad55</code>).
+        </p>
+      </article>
+
+      <article class="activity">
+        <span class="activity-num" aria-hidden="true">6</span>
+        <h3>Refreshed documentation and closed early-week compliance work.</h3>
+        <p>
+          Backend, frontend and root READMEs were rewritten for the new stack (<code>8907005</code>, <code>2c1a215</code>).
+          Earlier in the week, before the pivot, I enforced the platform administrator's data boundary — an admin
+          must never read a dealership's records (<code>a50cf24</code>) — and added a guard that stops the app deploy
+          early when Maven is not on JDK 21 (<code>813fd58</code>).
+        </p>
+      </article>
+    </section>
+
+    <section aria-labelledby="delivered">
+      <h2 id="delivered">What was delivered</h2>
+      <ul class="delivered">
+        <li>A .NET 10 + React product that builds, deploys to Azure and runs locally with one command.</li>
+        <li>An end-to-end Playwright suite and seed data, built from nothing.</li>
+        <li>Zero-configuration Terraform, with state shared and apply/destroy documented for any team member.</li>
+        <li>The admin/dealership data boundary, enforced in code.</li>
+      </ul>
+    </section>
+
+    <div class="grid-2">
+      <section aria-labelledby="impediments">
+        <h2 id="impediments">Impediments and how they were handled</h2>
+
+        <div class="callout warn">
+          <h3>Two stacks in one repository.</h3>
+          <p>
+            For most of the week Java and Vue were still present and changing (693 and 156 files touched), so
+            features effectively existed twice and every change risked being done in the wrong place. We ended it
+            by declaring Java and Vue retired and off-limits, which is now a standing rule.
+          </p>
+        </div>
+
+        <div class="callout warn">
+          <h3>Runtime pinned late.</h3>
+          <p>
+            The .NET version was documented as 8, corrected to 10, then matched in App Service, because the switch
+            went ahead before the target runtime was confirmed. Avoidable; next infrastructure change pins the
+            target first.
+          </p>
+        </div>
+
+        <div class="callout warn">
+          <h3>Route mismatches between the new frontend and backend</h3>
+          <p>
+            only showed up at deploy time and were fixed there (<code>db19de3</code>).
+          </p>
+        </div>
+      </section>
+
+      <section aria-labelledby="went-well">
+        <h2 id="went-well">What went well</h2>
+
+        <div class="callout good">
+          <p>
+            The pivot took five days from the first commit to a rewritten README, and the cloud deployment came
+            along with it rather than being left to catch up.
+          </p>
+        </div>
+
+        <div class="callout good">
+          <p>
+            Taking the credentials out of code in the same week they went in (<code>54e5313</code>) kept a small
+            problem from becoming a habit.
+          </p>
+        </div>
+      </section>
+    </div>
+
+    <section aria-labelledby="next">
+      <h2 id="next">Carried into the next week</h2>
+      <div class="callout next">
+        <ol class="next-list">
+          <li>The new stack runs but is still thin on delivered scope.</li>
+          <li>Week 43 goes to filling it in and proving it out, with Status Report 2 due at the end of the week.</li>
+        </ol>
+      </div>
+    </section>
+
+    <footer>
+      Source: <code>weekly_report_10.12-10.18.md</code>
+    </footer>
+  </div>
+</body>
+</html>

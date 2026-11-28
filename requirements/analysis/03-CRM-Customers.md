@@ -3,7 +3,7 @@
 ## 1. Source points (PDF §4, DOC)
 
 - One record per customer, with purchases linked back to DMS vehicle records.
-- The DOC mentions "lead and customer lifecycle management", but SCOPE rules **leads / follow-up out of scope**; CRM is the four fields plus vehicle links.
+- The DOC requests "lead and customer lifecycle management". Lead follow-up (`LEAD-01–09`) and current sales-funnel reporting are delivery goals.
 
 ## 2. Field details
 
@@ -13,7 +13,7 @@
 | 2 | Email | `email` | ✅ | Email format, ≤ 254 chars, stored lower-case | PDF |
 | 3 | Phone | `phone` | ✅ | 7–20 digits, allows `+ - ( ) space` | PDF / Derived |
 | 4 | Home address | `homeAddress` | ✅ | 1–300 chars, single text field | PDF |
-| 5 | Car(s) purchased | `vehicles` | ❌ | Multi-select link to this dealer's DMS vehicles | PDF (no `*`) |
+| 5 | Car(s) purchased | `linkedVehicles` | ❌ | Multi-select link to this dealer's DMS vehicles | PDF (no `*`) |
 
 > "Car(s) purchased" sits under the Required fields heading but has no asterisk. It is treated as **optional**: a new customer may not have bought yet. See 07 Q-03.
 
@@ -31,7 +31,7 @@
 |---|---|---|---|
 | CRM-01 | Add a customer; all four fields are required, with per-field errors | PDF §4 | Must |
 | CRM-02 | Edit a customer's four fields | PDF §7 | Must |
-| CRM-03 | Customer list: 10 per page, search by name / email / phone | SCOPE / Derived | Must |
+| CRM-03 | Customer list: 10 per page with the four fields (home address included), search by name / email / phone | SCOPE / Derived | Must |
 | CRM-04 | Customer detail: basic info, linked vehicles (year make model, VIN, status), audit history | PDF §4, §6 | Must |
 | CRM-05 | From customer detail, pick and link an unlinked vehicle of the same dealer (in stock or sold) | PDF §4 | Must |
 | CRM-06 | The link picker lists only linkable vehicles, never other dealers' or already-linked ones | PDF §4 | Must |
@@ -41,9 +41,10 @@
 | CRM-10 | Navigate from vehicle detail to its customer and back | Derived | Should |
 | CRM-11 | Create, edit, link, and unlink all write audit entries | PDF §6 | Must |
 | CRM-12 | Customer phone / email / address are **never** sent to AI prompts, audit summaries, or assistant answers | SCOPE (privacy) | Must |
-| CRM-13 | A duplicate email within a dealer shows a **warning** but is not blocked (families share email) | Derived | Could |
-| CRM-14 | Deleting customers is not offered in this release | Derived | Won't |
-| CRM-15 | Leads, follow-up tasks, sales funnel | DOC | Won't (excluded by SCOPE) |
+| CRM-13 | Duplicate email/phone handling is unspecified by the customer PDF. A customer email shared inside a dealership is saved with an `emailWarning` (household email); a duplicate phone is still rejected with `PHONE_TAKEN` | Derived | Could |
+| CRM-14 | Soft-delete customers from active lists while retaining linked sales, leads, and audit history; apply the configured privacy retention/anonymization policy | Derived / adopted delivery goal | Must |
+| CRM-15 | Tenant-scoped sales-funnel reporting: current stage distribution, open pipeline, won rate over closed leads, and vehicle sales summary | DOC / adopted delivery goal | Must |
+| CRM-16 | Leads and follow-up tasks | DOC2 / SCOPE erratum 7 | **Returned to scope 2026-10-08**; owned by design/21 as `LEAD-01–09`. Do not cite CRM-15 as excluding leads |
 
 ## 5. Typical flow
 

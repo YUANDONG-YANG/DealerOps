@@ -1,0 +1,57 @@
+using DealerOps.Core.Dealer.Dto;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+
+namespace DealerOps.Core.Dealer;
+
+/// <summary>
+/// The caller's own dealership: its profile and its members (AUTH-27). The profile routes need the
+/// OWNER dealer role; the member routes need OWNER or MANAGER, and the service decides which
+/// members the caller may act on. The tenant comes from the caller's membership, never from the route.
+/// </summary>
+[ApiController]
+[Route("api/v1/dealer")]
+[Authorize]
+public class DealerTeamController : ControllerBase
+{
+    private readonly DealerAdminService _dealers;
+    private readonly MembershipService _memberships;
+
+    public DealerTeamController(DealerAdminService dealers, MembershipService memberships)
+    {
+        _dealers = dealers;
+        _memberships = memberships;
+    }
+
+    /// <summary>The caller's dealership profile.</summary>
+    [HttpGet("profile")]
+    public DealerResponse Profile() => _dealers.GetOwn();
+
+    /// <summary>Edits the caller's dealership profile; active status stays with the admin.</summary>
+    [HttpPatch("profile")]
+    public DealerResponse PatchProfile([FromBody] PatchDealerProfileRequest body) => _dealers.PatchOwn(body);
+
+    /// <summary>Sets another member of the caller's dealership to MANAGER or SALES.</summary>
+    [HttpPut("members/{username}/role")]
+    public IActionResult SetMemberRole(string username, [FromBody] SetDealerRoleRequest body)
+    {
+        _memberships.SetRoleInOwnDealership(username, body.DealerRole!.Value);
+        return NoContent();
+    }
+
+    /// <summary>Edits a member's full name and phone.</summary>
+    [HttpPatch("members/{username}")]
+    public IActionResult PatchMember(string username, [FromBody] PatchMemberRequest body)
+    {
+        _memberships.UpdateInOwnDealership(username, body);
+        return NoContent();
+    }
+
+    /// <summary>Removes a member from the caller's dealership.</summary>
+    [HttpDelete("members/{username}")]
+    public IActionResult RemoveMember(string username)
+    {
+        _memberships.RemoveFromOwnDealership(username);
+        return NoContent();
+    }
+}

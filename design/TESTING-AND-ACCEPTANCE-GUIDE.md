@@ -1,4 +1,6 @@
-# Testing and Team Acceptance Guide
+# Testing and Team Acceptance Guide (legacy Java/Vue commands retained for historical review)
+
+> Current acceptance uses `frontend/react` and `backend/dotnet`. The old Maven/Vue commands in this historical guide are not startup instructions; use the repository README and current .NET project READMEs.
 
 ## How to test (student guide)
 
@@ -133,7 +135,7 @@ Automated test authoring follows [design/16-Acceptance-and-Test.md](16-Acceptanc
 
 This guide tells every role on the team how to accept the work against the [requirements specification](../requirements/DealerOps-Requirements.md).
 
-- **The contract:** acceptance cases AT-01..AT-39 are defined in [requirements/DealerOps-Requirements-zh.html](../requirements/DealerOps-Requirements-zh.html) §10. Their IDs, steps and expected results are what acceptance is measured against.
+- **The contract:** acceptance cases AT-01..AT-39 are defined in [requirements/DealerOps-Requirements-en.html](../requirements/DealerOps-Requirements-en.html) §10. Their IDs, steps and expected results are what acceptance is measured against.
 - **Test-level detail:** the checklist and the classroom cases (CL-1..CL-6) are in [design/16-Acceptance-and-Test.md](16-Acceptance-and-Test.md).
 - **Ad copy fixtures:** FX-01..FX-22 are in [design/17-Ad-Check-Fixtures.md](17-Ad-Check-Fixtures.md). They use the dealer "Prairie Auto Ltd." and the vehicles V-ASIS / V-CERT / V-UNFIT / V-IRREP.
 - **Classroom minimum demo set:** AT-01, AT-03, AT-12, AT-13, AT-17, AT-19.
@@ -156,7 +158,7 @@ A requirement counts as accepted only after step 4 passes for every AT that cove
 2. Open `http://localhost:5173/login` and sign in as the seeded admin `admin` / `admin123` (the local defaults only).
 3. Create the test data. There is no seeded business data.
    - On `/admin`, create dealerships A and B, filling all four profile fields.
-   - Bind staff `a1` and `a2` to A and `b1` to B. Give each a temporary password of at least 8 characters.
+   - Bind `a1` to A and `b1` to B. Each dealership is still empty, so this first bind is the bootstrap bind and the account becomes that dealership's `OWNER`. Add `a2` to A the way a second member joins: the admin's bind files a join request, which `a1` approves from `/team`, and `a2` joins as `SALES`. Give each a temporary password of at least 8 characters.
 4. For the ad cases, sign in as `a1` and add the design/17 vehicles. Set dealership A's profile to the design/17 values, or create a third dealership with that profile.
 5. For API-level checks, use Swagger at `http://localhost:8080/swagger-ui/index.html` with the bearer token returned by login.
    - Always call through the gateway on 8080.
@@ -193,7 +195,7 @@ A requirement counts as accepted only after step 4 passes for every AT that cove
     - Server field errors appear on the matching field.
     - Sell is a separate action that takes the date and the price together.
     - After a sale, the locked fields are read-only.
-  - **CRM (UI-30..33):** the list has the right columns, search and the linked filter. The link drop-down offers only unlinked vehicles from the dealership. The duplicate-email warning shows but does not block saving (CRM-13).
+  - **CRM (UI-30..33):** the list has the right columns, search and the linked filter. The link drop-down offers only unlinked vehicles from the dealership. No customer field is unique: a duplicate name, email, phone or address asks for confirmation and saves once the user confirms, and a duplicate email also returns the non-blocking warning (CRM-13).
   - **Ads (UI-40..46):**
     - The checklist changes with kind and medium, and it has no answer fields.
     - The Check button shows a loading state for up to 15 s.
@@ -274,12 +276,12 @@ A requirement counts as accepted only after step 4 passes for every AT that cove
   2. The minimum demo set passes on Azure, not only locally.
   3. No Blocker or Critical defect is open.
 - **Demo rehearsal:** walk the classroom storyline in requirements §1 end to end on the cloud URLs. The cloud demo is required for course reviews 2 and 3.
-- **Scope control:** check every new request against the out-of-scope list in requirements §1. If one is accepted, record it in [design/SCOPE-BASELINE.md](SCOPE-BASELINE.md) and in the Chinese document's change log (§12) before work starts.
+- **Scope control:** check every new request against the out-of-scope list in requirements §1. If one is accepted, record it in [design/SCOPE-BASELINE.md](SCOPE-BASELINE.md) and in the change log (§12) of [requirements/DealerOps-Requirements-en.html](../requirements/DealerOps-Requirements-en.html) before work starts.
 - **Sign-off:** chase the open items in requirements §9, especially KAN-5 (email, username, or phone plus password login) and erratum 5 (no containers), and file the written confirmation with the requirements.
 
 ### Keeping documents in step (everyone)
 
-- **Requirement changes:** a change to behavior updates the requirement row in both [requirements/DealerOps-Requirements-zh.html](../requirements/DealerOps-Requirements-zh.html) and [requirements/DealerOps-Requirements.md](../requirements/DealerOps-Requirements.md) in the same change. The IDs stay identical.
+- **Requirement changes:** a change to behavior updates the requirement row in both [requirements/DealerOps-Requirements-en.html](../requirements/DealerOps-Requirements-en.html) and [requirements/DealerOps-Requirements.md](../requirements/DealerOps-Requirements.md) in the same change. The IDs stay identical.
 - **Design docs:** changes to the API, auth, tenancy, gateway or demo flow also update the matching `design/` document.
 
 ### Resolved gap: admin business reads (fixed 2026-10-12)
